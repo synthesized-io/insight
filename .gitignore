@@ -10,9 +10,7 @@ __pycache__/
 *.so
 
 # data
-examples/MNIST_data
-smrt/testing/MNIST_data
-MNIST_data
+
 
 # PyCharm
 .idea/*
