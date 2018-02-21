@@ -7,8 +7,8 @@ Installation is easy. After cloning the project onto your machine and installing
 simply use the `setup.py` file:
 
 ```bash
-$ git clone ...
-$ cd Synth
+$ git clone https://github.com/nbaldin/synthesized
+$ cd synthesized
 $ python setup.py install
 ```
 
