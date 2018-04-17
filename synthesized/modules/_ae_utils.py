@@ -4,6 +4,7 @@
 #
 # Utils for autoencoders
 from __future__ import print_function, absolute_import, division
+
 import tensorflow as tf
 
 __all__ = [

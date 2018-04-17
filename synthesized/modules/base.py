@@ -5,14 +5,16 @@
 # Base utils for the autoencoder(s)
 
 from __future__ import division, absolute_import, division
+
+import time
 from abc import ABCMeta, abstractmethod
-from sklearn.utils.validation import check_array
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import gen_batches
-from sklearn.externals import six
+
 import numpy as np
 import tensorflow as tf
-import time
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.externals import six
+from sklearn.utils import gen_batches
+from sklearn.utils.validation import check_array
 
 from ..utils import validate_float, DTYPE, get_random_state, NPDTYPE
 
@@ -205,7 +207,6 @@ class BaseAutoEncoder(six.with_metaclass(ABCMeta, BaseEstimator, TransformerMixi
 
             # loop batches
             for batch in batches:
-
                 # extract the chunk given the slice, and assert it's not length 0 or anything weird...
                 chunk = X_original[batch, :]
                 m, _ = chunk.shape

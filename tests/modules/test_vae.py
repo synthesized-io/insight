@@ -5,10 +5,11 @@
 # Test the variational autoencoder
 
 from __future__ import division, absolute_import, division
-from tensorflow.examples.tutorials.mnist import input_data
-from numpy.testing import assert_almost_equal
-from Synth.modules import VariationalAutoEncoder
+
 import numpy as np
+from tensorflow.examples.tutorials.mnist import input_data
+
+from synthesized.modules.autoencoder import AlphaSynth2
 
 try:
     from sklearn.model_selection import train_test_split
@@ -24,10 +25,10 @@ def test_autoencoder():
     X_train, X_test = train_test_split(all_data, train_size=0.7, random_state=seed)
 
     # define
-    ae = VariationalAutoEncoder(n_hidden=400, n_latent_factors=20, n_epochs=10,
-                                learning_rate=0.01, batch_size=256,
-                                display_step=5, activation_function='sigmoid', verbose=2,
-                                random_state=seed, layer_type='gaussian')
+    ae = AlphaSynth2(n_hidden=400, n_latent_factors=20, n_epochs=10,
+                     learning_rate=0.01, batch_size=256,
+                     display_step=5, activation_function='sigmoid', verbose=2,
+                     random_state=seed, layer_type='gaussian')
 
     # fit
     ae.fit(X_train)

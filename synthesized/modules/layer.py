@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 #
 # Produced by: Synthesized Ltd
@@ -6,13 +5,16 @@
 # Layers for the autoencoder(s)
 
 from __future__ import print_function, absolute_import, division
+
+from abc import ABCMeta, abstractmethod
+
+import numpy as np
+import tensorflow as tf
 from sklearn.base import BaseEstimator
 from sklearn.externals import six
-import tensorflow as tf
-import numpy as np
-from abc import ABCMeta, abstractmethod
-from ..utils import overrides, get_random_state, DTYPE
+
 from .base import _validate_positive_integer, _validate_float
+from ..utils import overrides, get_random_state, DTYPE
 
 __all__ = [
     'GaussianDenseLayer',
@@ -146,6 +148,7 @@ class SymmetricalAutoEncoderTopography(_BaseSymmetricalTopography):
     shape : tuple
         The architecture shape
     """
+
     def __init__(self, X_placeholder, n_hidden, input_shape, activation, layer_type='xavier', dropout=1.,
                  bias_strategy='zeros', random_state=None):
         super(SymmetricalAutoEncoderTopography, self).__init__(X_placeholder=X_placeholder,
@@ -240,6 +243,7 @@ class AsymmetricalAutoEncoderTopography(_BaseSymmetricalTopography):
     shape : tuple
         The architecture shape
     """
+
     def __init__(self, X_placeholder, n_hidden, input_shape, activation, layer_type='xavier', dropout=1.,
                  bias_strategy='zeros', random_state=None):
         super(SymmetricalAutoEncoderTopography, self).__init__(X_placeholder=X_placeholder,
@@ -283,8 +287,6 @@ class AsymmetricalAutoEncoderTopography(_BaseSymmetricalTopography):
         encoder = _chain_layers(encode_layers, X_placeholder)
         decoder = _chain_layers(decode_layers, encoder)
         return encoder, decoder, encode_layers, decode_layers
-
-
 
 
 class SymmetricalVAETopography(_BaseSymmetricalTopography):
@@ -340,6 +342,7 @@ class SymmetricalVAETopography(_BaseSymmetricalTopography):
     shape : tuple
         The architecture shape
     """
+
     def __init__(self, X_placeholder, n_hidden, input_shape, activation, n_latent_factors, layer_type='xavier',
                  dropout=1., bias_strategy='zeros', random_state=None):
 
@@ -414,7 +417,7 @@ class SymmetricalVAETopography(_BaseSymmetricalTopography):
         )
 
         # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
-        z = self._gaussian_sample(z_mean, [0.01]*n_latent, random_state)
+        z = self._gaussian_sample(z_mean, [0.01] * n_latent, random_state)
 
         # define decode layers - only to the second to last. The last layer
         # should use a sigmoid activation regardless of the defined activation
@@ -437,7 +440,7 @@ class SymmetricalVAETopography(_BaseSymmetricalTopography):
         decode = _chain_layers(decoding_layers, z)  # put all layers together
 
         # set some internals...
-        self.z_mean_, self.z_log_sigma_, self.z_ = z_mean, [0.01]*n_latent, z
+        self.z_mean_, self.z_log_sigma_, self.z_ = z_mean, [0.01] * n_latent, z
 
         return encode, decode, encoding_layers, decoding_layers
 
@@ -499,6 +502,7 @@ class GaussianDenseLayer(_BaseDenseLayer):
     ----------
     [1] Based on code at https://github.com/fastforwardlabs/vae-tf
     """
+
     def __init__(self, fan_in, fan_out, activation, dropout, bias_strategy='zeros', seed=42):
         super(GaussianDenseLayer, self).__init__(fan_in=fan_in, fan_out=fan_out, activation=activation,
                                                  dropout=dropout, bias_strategy=bias_strategy, seed=seed)
@@ -544,6 +548,7 @@ class XavierDenseLayer(_BaseDenseLayer):
     ----------
     [1] Based on code at https://github.com/fastforwardlabs/vae-tf
     """
+
     def __init__(self, fan_in, fan_out, activation, dropout, bias_strategy='zeros', seed=42):
         super(XavierDenseLayer, self).__init__(fan_in=fan_in, fan_out=fan_out, activation=activation,
                                                dropout=dropout, seed=seed, bias_strategy=bias_strategy)
@@ -559,6 +564,7 @@ class XavierDenseLayer(_BaseDenseLayer):
         initial_b = self.bias_strategy([self.fan_out], dtype=DTYPE)
 
         return tf.Variable(initial_w, trainable=True), tf.Variable(initial_b, trainable=True)
+
 
 # these are strategy/type mappings for mapping a str to a callable
 PERMITTED_LAYER_TYPES = {

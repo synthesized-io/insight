@@ -1,7 +1,15 @@
-numpy>=1.14.0
-scipy>=1.0.0
-scikit-learn>=0.19.0
-tensorflow>=1.6.0
-pandas>=0.22.0
-plotly>=2.5.0
-matplotlib=>2.2.0
+# dev tools
+sphinx
+sphinx_rtd_theme
+nose
+coverage
+pypi-publisher
+
+# libraries
+numpy
+scipy
+scikit-learn
+tensorflow
+pandas
+plotly
+matplotlib

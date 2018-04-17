@@ -22,8 +22,3 @@ C. Confidential Information.
 During the term of this Licence and at all times thereafter, the Collaborator shall maintain the confidentiality of the Confidential Information and will exercise the same standard of care with respect to the storage of such information.
 
 The Collaborator agrees that he will not, during the term of this Licence or at any time thereafter, directly or indirectly:  (i) transfer or disclose any Confidential Information to any third party; (ii) use, access, copy, or manipulate any Confidential Information for any purpose other than solely as necessary to perform the work.
-
-
-
-
-

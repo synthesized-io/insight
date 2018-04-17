@@ -1,26 +1,33 @@
-# Constraints-preserving data pipelines 
+synthesized
+===============================
+
+version number: 1.0.0
+author: Synthesized Ltd.
+
+Overview
+--------
+
+synthesized.io
+
+Installation / Usage
+--------------------
+
+To install use pip:
+
+    $ pip install synthesized
 
 
-## Installation
+Or clone the repo:
 
-Installation is easy. After cloning the project onto your machine and installing the required dependencies,
-simply use the `setup.py` file:
+    $ git clone https://github.com/nbaldin/synthesized.git
+    $ python setup.py install
+    
+Contributing
+------------
 
-```bash
-$ git clone https://github.com/nbaldin/synthesized
-$ cd synthesized
-$ python setup.py install
-```
+TBD
 
-## About
+Example
+-------
 
-
-
-## Example
-
-
-
-### Notes
-
-- See [examples](examples/) for usage
-- Information on [the authors](AUTHORS.md)
+TBD

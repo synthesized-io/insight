@@ -5,8 +5,9 @@
 # Utilities for testing Synthesized
 
 from __future__ import division, print_function, absolute_import
-from tensorflow.examples.tutorials.mnist import input_data
+
 import numpy as np
+from tensorflow.examples.tutorials.mnist import input_data
 
 __all__ = [
     'load_imbalanced_mnist'

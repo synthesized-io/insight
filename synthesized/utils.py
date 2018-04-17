@@ -5,10 +5,12 @@
 # Utils the Synth module
 
 from __future__ import absolute_import, division, print_function
-from numpy.random import RandomState as _RandomState
-import tensorflow as tf
-import numpy as np
+
 import sys
+
+import numpy as np
+import tensorflow as tf
+from numpy.random import RandomState as _RandomState
 
 __all__ = [
     'SeededRandomState',
@@ -37,6 +39,7 @@ class SeededRandomState(object):
     seed : int, optional (default=42)
         The seed value.
     """
+
     # todo make picklable
     def __init__(self, seed=DEFAULT_SEED):
         if seed is None:
@@ -121,4 +124,5 @@ def overrides(interface_class):
         assert (method.__name__ in dir(interface_class)), '%s.%s must override a super method!' % (
             interface_class.__name__, method.__name__)
         return method
+
     return overrider

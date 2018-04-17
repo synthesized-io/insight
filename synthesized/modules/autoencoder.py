@@ -5,22 +5,21 @@
 # The autoencoder
 
 from __future__ import division, absolute_import, division
+
 import numpy as np
 import tensorflow as tf
 from sklearn.externals import six
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
 
-from .layer import SymmetricalAutoEncoderTopography, SymmetricalVAETopography
 from .base import BaseAutoEncoder, _validate_float
+from .layer import SymmetricalAutoEncoderTopography, SymmetricalVAETopography
 from ..utils import overrides, NPDTYPE, DEFAULT_DROPOUT, DEFAULT_L2
-from ._ae_utils import cross_entropy, kullback_leibler
 
 __all__ = [
     'AlphaSynth',
     'AlphaSynth2'
 ]
-
 
 # this dict maps all the supported activation functions to the tensorflow
 # equivalent functions for the session model training. It also maps all the
@@ -215,19 +214,18 @@ class AlphaSynth(BaseAutoEncoder):
                  batch_size=128, min_change=1e-3, verbose=0, display_step=5, learning_function='rms_prop',
                  early_stopping=False, bias_strategy='zeros', random_state=None, layer_type='xavier',
                  dropout=DEFAULT_DROPOUT, l2_penalty=DEFAULT_L2, gclip_min=-5., gclip_max=5., clip=True):
-
         super(AlphaSynth, self).__init__(activation_function=activation_function,
-                                          learning_rate=learning_rate, n_epochs=n_epochs,
-                                          batch_size=batch_size, n_hidden=n_hidden,
-                                          min_change=min_change, verbose=verbose,
-                                          display_step=display_step,
-                                          learning_function=learning_function,
-                                          early_stopping=early_stopping,
-                                          bias_strategy=bias_strategy,
-                                          random_state=random_state,
-                                          layer_type=layer_type, dropout=dropout,
-                                          l2_penalty=l2_penalty, gclip_min=gclip_min,
-                                          gclip_max=gclip_max, clip=clip)
+                                         learning_rate=learning_rate, n_epochs=n_epochs,
+                                         batch_size=batch_size, n_hidden=n_hidden,
+                                         min_change=min_change, verbose=verbose,
+                                         display_step=display_step,
+                                         learning_function=learning_function,
+                                         early_stopping=early_stopping,
+                                         bias_strategy=bias_strategy,
+                                         random_state=random_state,
+                                         layer_type=layer_type, dropout=dropout,
+                                         l2_penalty=l2_penalty, gclip_min=gclip_min,
+                                         gclip_max=gclip_max, clip=clip)
 
     @overrides(BaseAutoEncoder)
     def _initialize_graph(self, X, y, seeded_random_state):
@@ -413,24 +411,24 @@ class AlphaSynth2(BaseAutoEncoder):
     [3] http://blog.fastforwardlabs.com/2016/08/12/introducing-variational-autoencoders-in-prose-and.html
     [4] https://arxiv.org/pdf/1606.05908.pdf
     """
+
     def __init__(self, n_hidden, n_latent_factors, activation_function='sigmoid', learning_rate=0.05,
                  n_epochs=20, batch_size=128, min_change=1e-3, verbose=0, display_step=5, learning_function='rms_prop',
                  early_stopping=False, bias_strategy='zeros', random_state=None, layer_type='xavier',
                  dropout=DEFAULT_DROPOUT, l2_penalty=DEFAULT_L2, eps=1e-10, gclip_min=-5., gclip_max=5.,
                  clip=True):
-
         super(AlphaSynth2, self).__init__(activation_function=activation_function,
-                                                     learning_rate=learning_rate, n_epochs=n_epochs,
-                                                     batch_size=batch_size, n_hidden=n_hidden,
-                                                     min_change=min_change, verbose=verbose,
-                                                     display_step=display_step,
-                                                     learning_function=learning_function,
-                                                     early_stopping=early_stopping,
-                                                     bias_strategy=bias_strategy,
-                                                     random_state=random_state,
-                                                     layer_type=layer_type, dropout=dropout,
-                                                     l2_penalty=l2_penalty, gclip_min=gclip_min,
-                                                     gclip_max=gclip_max, clip=clip)
+                                          learning_rate=learning_rate, n_epochs=n_epochs,
+                                          batch_size=batch_size, n_hidden=n_hidden,
+                                          min_change=min_change, verbose=verbose,
+                                          display_step=display_step,
+                                          learning_function=learning_function,
+                                          early_stopping=early_stopping,
+                                          bias_strategy=bias_strategy,
+                                          random_state=random_state,
+                                          layer_type=layer_type, dropout=dropout,
+                                          l2_penalty=l2_penalty, gclip_min=gclip_min,
+                                          gclip_max=gclip_max, clip=clip)
 
         # the only VAE-specific params
         self.n_latent_factors = n_latent_factors
@@ -473,17 +471,16 @@ class AlphaSynth2(BaseAutoEncoder):
         # get loss + regularization and optimizer, minimize MSE
         reconstruction_loss = self._add_regularization(tf.reduce_mean(tf.pow(y_true - y_pred, 2)), self.topography_)
 
-
-      #  reconstruction_loss = cross_entropy(self.X_placeholder, decoder, eps=eps)
+        #  reconstruction_loss = cross_entropy(self.X_placeholder, decoder, eps=eps)
 
         # 2.) The latent loss, which is defined as the Kullback Leibler divergence between the distribution in
         #     latent space induced by the encoder on the data and some prior. This acts as a kind of regularizer.
         #     This can be interpreted as the number of "nats" required for transmitting the the latent space
         #     distribution given the prior.
-       # latent_loss = kullback_leibler(self.topography_.z_mean_, self.topography_.z_log_sigma_)
+        # latent_loss = kullback_leibler(self.topography_.z_mean_, self.topography_.z_log_sigma_)
 
         # define cost function and add regularization
-        #cost_function = tf.reduce_mean(reconstruction_loss + latent_loss, name='VAE_cost')
+        # cost_function = tf.reduce_mean(reconstruction_loss + latent_loss, name='VAE_cost')
         cost_function = self._add_regularization(reconstruction_loss, self.topography_)
 
         # define the optimizer
@@ -577,4 +574,3 @@ class AlphaSynth2(BaseAutoEncoder):
         # see https://github.com/fastforwardlabs/vae-tf/blob/master/vae.py#L194
         z_mu = self.random_state_.state.normal(size=(n, self.n_latent_factors), **nrm_args)
         return self.feed_forward(z_mu)
-
