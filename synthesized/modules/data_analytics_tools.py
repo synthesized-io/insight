@@ -79,7 +79,7 @@ class DataPipeline():
 
     def load_from_csv(self, path):
         # try to read from csv
-        self.CrudeDataSet = transaction_data = pd.read_csv(path)
+        self.CrudeDataSet  = pd.read_csv(path)
 
     def preprocess_crude_dataset(self, feature_list, dataset=None):
         # try to read from csv
@@ -92,9 +92,6 @@ class DataPipeline():
                 df = df[np.isfinite(df[feature])]
             except:
                 continue
-        distinct = df.account_id.value_counts()
-        distinct[distinct]
-        distinct_map = {k: v for k, v in distinct.iteritems() if v > 30}
         # len(distinct_map.keys())
         df['date'] = pd.to_datetime(df['date'])
         self.targetDataSet = df[((df["date"] < pd.to_datetime("1994-01-01", format="%Y-%m-%d")))]
@@ -102,7 +99,7 @@ class DataPipeline():
     def load_from_sql(self, path):
         pass
 
-    # try to read from sql
+    # read from sql
 
     def prepare_dataset_for_training(self):
         self.targetDataSet['value'] = self.targetDataSet['value'] / 10000
@@ -127,7 +124,7 @@ class DataPipeline():
                     (self.targetDataSet["seqId"] == ids) & (self.targetDataSet["date"].dt.month == month)]
                 fw.reset_index(inplace=True)
                 if (fw.shape[0] != 0):
-                    for i in xrange(fw.shape[0]):
+                    for i in range(fw.shape[0]):
                         v.set_value(int(fw["category"][i]), int(fw["date"][i].day), fw["value"][i])
                     self.training_set.append(v.values.flatten())
 
@@ -173,7 +170,7 @@ class DataPipeline():
                 fw = targetDataSet[(targetDataSet["seqId"] == ids) & (targetDataSet["date"].dt.month == month)]
                 fw.reset_index(inplace=True)
                 if (fw.shape[0] != 0):
-                    for i in xrange(fw.shape[0]):
+                    for i in range(fw.shape[0]):
                         v.set_value(int(fw["date"][i].day), int(fw["category"][i]) * multiplier + (month % multiplier),
                                     fw["value"][i])
                 if (month % multiplier == 0):
@@ -218,7 +215,7 @@ class DataPipeline():
             fw.reset_index(inplace=True)
 
             if (fw.shape[0] != 0):
-                for i in xrange(fw.shape[0]):
+                for i in range(fw.shape[0]):
                     v.set_value(int(fw["category"][i]), int(fw["date"][i].day), fw["value"][i])
                 #  v = pd.concat([e2, v, e3], axis=1)
                 dataset_batch.append(v.values.flatten())
