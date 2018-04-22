@@ -29,12 +29,12 @@ Contributing
 1. Install virtualenv command:
 
         pip3 install --user virtualenv
+        
+Note: if you cannot install venv without root check that virtualenv executable is owned by your user
 
 2. Create a virtual environment:
 
         virtualenv -p python3 venv
-
-Note: if you cannot create venv without root check that virtualenv executable is owned by your user
         
 3. Active it:
 
