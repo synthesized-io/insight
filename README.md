@@ -33,6 +33,8 @@ Contributing
 2. Create a virtual environment:
 
         virtualenv -p python3 venv
+
+Note: if you cannot create venv without root check that virtualenv executable is owned by your user
         
 3. Active it:
 
@@ -45,6 +47,13 @@ Contributing
 5. Install the current venv as a kernel for jupyter:
 
         python -m ipykernel install --user --name synthesized
+        
+Run Tests
+--------
+
+        python -m nose
+
+Note: `nosetests` command may run a system version. Call via module forces to run venv version
 
 Example
 -------
