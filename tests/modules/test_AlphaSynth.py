@@ -29,12 +29,12 @@ def test_AlphaSynth():
     pipeline.preprocess_crude_dataset(feature_list)
 
     # targetDataSe
-    targetDataSet = pipeline.targetDataSet
+    targetDataSet = pipeline.working_dataset
     targetDataSet.columns = ['seqId', 'date', 'category', 'value']
 
     pipeline.prepare_dataset_for_training()
 
-    training_set = pipeline.training_set
+    training_set = pipeline.training_dataset
 
     all_data = np.asarray(training_set)
 
