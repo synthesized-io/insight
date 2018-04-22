@@ -69,9 +69,12 @@ def show_data(array_a, array_b=None, array_c=None, nrow=2, ncol=10, figsize=None
 
 class DataPipeline():
     def __init__(self):
-        self.targetDataSet = None
-        self.CrudeDataSet = None
-        self.training_set = []
+        self.working_dataset = None
+        #specified by users
+        self.original_dataset = None
+        #original dataset is given to us
+        self.training_dataset = []
+        #internal hidden usage, hidden from users
 
     # def load_from_csv(self, path):
     # try to read from csv
@@ -79,14 +82,14 @@ class DataPipeline():
 
     def load_from_csv(self, path):
         # try to read from csv
-        self.CrudeDataSet  = pd.read_csv(path)
+        self.original_dataset  = pd.read_csv(path)
 
     def preprocess_crude_dataset(self, feature_list, dataset=None):
         # try to read from csv
         if dataset != None:
-            self.CrudeDataSet = dataset
+            self.original_dataset = dataset
         import numpy as np
-        df = self.CrudeDataSet[feature_list]
+        df = self.original_dataset[feature_list]
         for feature in feature_list:
             try:
                 df = df[np.isfinite(df[feature])]
@@ -94,7 +97,7 @@ class DataPipeline():
                 continue
         # len(distinct_map.keys())
         df['date'] = pd.to_datetime(df['date'])
-        self.targetDataSet = df[((df["date"] < pd.to_datetime("1994-01-01", format="%Y-%m-%d")))]
+        self.working_dataset = df[((df["date"] < pd.to_datetime("1994-01-01", format="%Y-%m-%d")))]
 
     def load_from_sql(self, path):
         pass
@@ -102,13 +105,13 @@ class DataPipeline():
     # read from sql
 
     def prepare_dataset_for_training(self):
-        self.targetDataSet['value'] = self.targetDataSet['value'] / 10000
-        self.targetDataSet['date'] = pd.to_datetime(self.targetDataSet['date'])
+        self.working_dataset['value'] = self.working_dataset['value'] / 10000
+        self.working_dataset['date'] = pd.to_datetime(self.working_dataset['date'])
 
         spendings_clusters = 4
         transactions_time_resolution = 32
         transactions_time_resolution_with_padding = 32
-        unique_ids = self.targetDataSet.seqId.unique()
+        unique_ids = self.working_dataset.seqId.unique()
         months = np.arange(1, 13)
 
         for ids in unique_ids:
@@ -120,18 +123,18 @@ class DataPipeline():
                 # e2 = e2.fillna(0)
                 # e3 = e3.fillna(0)
                 v = v.fillna(0.)
-                fw = self.targetDataSet[
-                    (self.targetDataSet["seqId"] == ids) & (self.targetDataSet["date"].dt.month == month)]
+                fw = self.working_dataset[
+                    (self.working_dataset["seqId"] == ids) & (self.working_dataset["date"].dt.month == month)]
                 fw.reset_index(inplace=True)
                 if (fw.shape[0] != 0):
                     for i in range(fw.shape[0]):
                         v.set_value(int(fw["category"][i]), int(fw["date"][i].day), fw["value"][i])
-                    self.training_set.append(v.values.flatten())
+                    self.training_dataset.append(v.values.flatten())
 
     def get_outlier_dataset(self):
         # should be made more robust
-        first_cluster_of_customers = self.targetDataSet["seqId"].unique()[1:101]
-        second_cluster_of_customers = self.targetDataSet["seqId"].unique()[101:1001]
+        first_cluster_of_customers = self.working_dataset["seqId"].unique()[1:101]
+        second_cluster_of_customers = self.working_dataset["seqId"].unique()[101:1001]
 
         spending_first_cluster = np.random.normal(100000, 10000, 100)
         spending_second_cluster = np.random.normal(100000, 10000, 900)
@@ -139,7 +142,7 @@ class DataPipeline():
         spending_first_cluster = np.concatenate([[i] * 12 for i in spending_first_cluster], axis=0)
         spending_second_cluster = np.concatenate([[i] * 12 for i in spending_second_cluster], axis=0)
 
-        outlier_dataset = pd.DataFrame({}, columns=self.targetDataSet.columns)
+        outlier_dataset = pd.DataFrame({}, columns=self.working_dataset.columns)
         outlier_dataset['seqId'] = np.concatenate(
             [np.repeat(i, 12) for i in [first_cluster_of_customers, second_cluster_of_customers]], axis=0)
         outlier_dataset['category'] = np.repeat(1, 12 * 1000)
@@ -148,10 +151,10 @@ class DataPipeline():
         end = pd.to_datetime("1993-12-30", format="%Y-%m-%d")
         outlier_dataset['date'] = np.concatenate([pd.date_range(start, end, freq='MS')] * 1000, axis=0)
 
-        outlierDataSet = self.targetDataSet[~((self.targetDataSet["date"].
-                                               isin(pd.date_range(start, end, freq='MS')))
-                                              & (self.targetDataSet["category"] == 1)
-                                              )]
+        outlierDataSet = self.working_dataset[~((self.working_dataset["date"].
+                                                 isin(pd.date_range(start, end, freq='MS')))
+                                                & (self.working_dataset["category"] == 1)
+                                                )]
         outlierDataSet = pd.concat([outlierDataSet, outlier_dataset])
         return (outlierDataSet)
 
@@ -197,7 +200,7 @@ class DataPipeline():
         spendings_clusters = 4
         transactions_time_resolution = 32
         transactions_time_resolution_with_padding = 32
-        unique_ids = self.targetDataSet.seqId.unique()
+        unique_ids = self.working_dataset.seqId.unique()
         dataset_batch = []
 
         for ids in unique_ids:
@@ -210,8 +213,8 @@ class DataPipeline():
             # e2 = e2.fillna(0)
             # e3 = e3.fillna(0)
             v = v.fillna(0.)
-            fw = self.targetDataSet[
-                (self.targetDataSet["seqId"] == ids) & (self.targetDataSet["date"].dt.month == month)]
+            fw = self.working_dataset[
+                (self.working_dataset["seqId"] == ids) & (self.working_dataset["date"].dt.month == month)]
             fw.reset_index(inplace=True)
 
             if (fw.shape[0] != 0):
@@ -222,7 +225,7 @@ class DataPipeline():
         return (np.asarray(dataset_batch))
 
     def show_data(self):
-        show_data(self.training_set)
+        show_data(self.training_dataset)
 
     # do we need this?
     def clean(self):
