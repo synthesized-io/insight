@@ -33,6 +33,8 @@ Contributing
 2. Create a virtual environment:
 
         virtualenv -p python3 venv
+        
+Note: this may require `sudo`
 
 3. Active it:
 
