@@ -36,7 +36,7 @@ Contributing
 
 3. Active it:
 
-        soure venv/bin/activate
+        source venv/bin/activate
 
 4. Install requirements:
 
