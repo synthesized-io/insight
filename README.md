@@ -24,27 +24,27 @@ Contributing
 
 1. Go to the project directory:
 
-`cd synthesized`
+        cd synthesized
 
 1. Install virtualenv command:
 
-`pip install virtualenv`
+        pip install virtualenv
 
 2. Create a virtual environment:
 
-`virtualenv venv`
+        virtualenv venv
 
 3. Active it:
 
-`soure venv/bin/activate`
+        soure venv/bin/activate
 
 4. Install requirements:
 
-`pip install -r requirements.txt`
+        pip install -r requirements.txt
 
 5. Install the current venv as a kernel for jupyter:
 
-`python -m ipykernel install --user --name synthesized`
+        python -m ipykernel install --user --name synthesized
 
 Example
 -------
