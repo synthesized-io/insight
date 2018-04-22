@@ -32,7 +32,7 @@ Contributing
 
 2. Create a virtual environment:
 
-        virtualenv venv
+        virtualenv -p python3 venv
 
 3. Active it:
 
