@@ -54,7 +54,7 @@ dataset2["trans_id"] = dataset2["trans_id"].apply(lambda x: d[x])
 
 import ast
 
-dataset2["mean_income"] = dataset2["mean_income"].apply(lambda x: str([round(float(ast.literal_eval(dataset.head(1).mean_income[0])[0])
+dataset2["mean_income"] = dataset2["mean_income"].apply(lambda x: str([round(float(ast.literal_eval(x)[0])
                                                                        + np.random.normal(10, 10, 1)[0],2) ]))
 
 
