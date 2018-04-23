@@ -80,9 +80,9 @@ class DataPipeline():
     # try to read from csv
     #	self.targetDataSet = pd.DataFrame.from_csv(path,sep='\t')
 
-    def load_from_csv(self, path):
+    def load_from_csv(self, path, sep = None):
         # try to read from csv
-        self.original_dataset  = pd.read_csv(path)
+        self.original_dataset  = pd.read_csv(path, sep = sep)
 
     def preprocess_crude_dataset(self, feature_list, dataset=None):
         # try to read from csv
