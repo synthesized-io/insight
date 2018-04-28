@@ -8,30 +8,70 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 import plotly.figure_factory as ff
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.cross_validation import train_test_split
+
+from sklearn import metrics
 from plotly.offline import init_notebook_mode, iplot
 
 __all__ = [
     'TestingEnvironment'
 ]
 
+# a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
 
 class TestingEnvironment:
+    def __init__(self):
+        self.synth_stat_models = [{"model" : LogisticRegression, "X" : ["operation", "amount", "balance"], "y" : ["type"]}]
 
-    def compare_empirical_densities(self, realData, synthesizedData, targetField):
+    def get_stat_confidence(self, original_dataset, synthetic_dataset, model = None):
+        #X and y should be specified by a user
+        X = model["X"]
+        y = model["y"]
+        original_dataset = original_dataset[X + y].dropna()
+        synthetic_dataset = synthetic_dataset[X + y].dropna()
+
+        dataset1_X, dataset1_y  = original_dataset[X], original_dataset[y]
+        dataset2_X, dataset2_y = synthetic_dataset[X], synthetic_dataset[y]
+
+        dataset1_X_train, dataset1_X_test, dataset1_y_train, dataset1_y_test = train_test_split(dataset1_X, dataset1_y, test_size=0.2, random_state=0)
+        dataset2_X_train, dataset2_X_test, dataset2_y_train, dataset2_y_test = train_test_split(dataset2_X, dataset2_y, test_size=0.2, random_state=0)
+        model_synth = model["model"]()
+        model_oracle = model["model"]()
+        model_synth.fit(dataset2_X_train, dataset2_y_train)
+        model_oracle.fit(dataset1_X_train, dataset1_y_train)
+
+       # y_pred_oracle = model_oracle.predict(dataset1_X_test)
+       # y_pred_synthetic = model_synth.predict(dataset1_X_test)
+
+        oracle_score, synth_score = model_oracle.score(dataset1_X_test, dataset1_y_test), model_synth.score(dataset1_X_test, dataset1_y_test)
+       # print(oracle_score, synth_score, 1 - abs(oracle_score - synth_score)/ synth_score)
+        return(1 - abs(oracle_score - synth_score) / synth_score)
+
+
+    def compare_pred_performance(self, dataset1, dataset2, user_stat_models = []):
+        for stat_model in self.synth_stat_models:
+            print("Prediction confidence for %s when trained on synthetic data: %.3f" %
+                  (stat_model["model"].__name__, self.get_stat_confidence(dataset1, dataset2, stat_model)) )
+
+        for stat_model in user_stat_models:
+            self.get_stat_confidence(dataset1, dataset2, stat_model)
+
+    def compare_empirical_densities(self, original_dataset, synthetic_dataset, target_field):
 
         init_notebook_mode()  # distribution of spending on the first month in the first category
 
-        assert (len(synthesizedData[0]) > targetField), "Field value is out of range for the synthesized data"
-        assert (len(realData[0]) > targetField), "Field value is out of range for the real data"
+        assert (len(synthetic_dataset[0]) > target_field), "Field value is out of range for the synthesized data"
+        assert (len(original_dataset[0]) > target_field), "Field value is out of range for the real data"
 
-        fake_spendings = np.asarray([a[targetField] for a in synthesizedData])
-        true_spendings = np.asarray([a[targetField] for a in realData])
+        fake_spendings = np.asarray([a[target_field] for a in synthetic_dataset])
+        true_spendings = np.asarray([a[target_field] for a in original_dataset])
 
         fake_spendings = np.asarray([a for a in fake_spendings if a != 0])
         true_spendings = np.asarray([a for a in true_spendings if a != 0])
 
-        print("The sum of values in the field %s of synthesized data is %s" % (targetField, sum(fake_spendings)))
-        print("The sum of values in the field %s of original data is %s" % (targetField, sum(true_spendings)))
+        print("The sum of values in the field %s of synthesized data is %s" % (target_field, sum(fake_spendings)))
+        print("The sum of values in the field %s of original data is %s" % (target_field, sum(true_spendings)))
 
         assert (sum(fake_spendings) > 0), "zero value in the field in the synthesized dataset"
         assert (sum(true_spendings) > 0), "zero value in the field in the read dataset"
