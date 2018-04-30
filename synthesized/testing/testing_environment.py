@@ -7,6 +7,7 @@
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
+import pandas as pd
 import plotly.figure_factory as ff
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.cross_validation import train_test_split
@@ -22,20 +23,43 @@ __all__ = [
 
 class TestingEnvironment:
     def __init__(self):
-        self.synth_stat_models = [{"model" : LogisticRegression, "X" : ["operation", "amount", "balance"], "y" : ["type"]}]
+        self.synth_stat_models = [{"model" : LogisticRegression, "variables" : self.get_LogisticRegression_variables},
+                                  {"model": LinearRegression, "variables": self.get_LinearRegression_variables}]
+
+    def get_LogisticRegression_variables(self, dataset):
+        X = ["operation", "amount", "balance"]
+        y = ["type"]
+        dataset = dataset[X + y].dropna()
+        return {"X" : dataset[X], "y" : dataset[y]}
+
+    def get_LinearRegression_variables(self, dataset):
+        dataset['date'] = pd.to_datetime(dataset['date'])
+        account_ids = dataset["account_id"].unique()
+        operations = dataset["operation"].unique()
+        X = np.array([]).reshape(0,5)
+        y = np.array([])
+        for account_id in account_ids:
+            user = dataset[dataset["account_id"] == account_id]
+            for month in range(1,12):
+                X_local = np.array([])
+                user_local = user[ user["date"].dt.month == month]
+                for operation in operations:
+                    X_local = np.append(X_local, user_local[user_local["operation"] == operation]["amount"].sum())
+                X = np.vstack((X, X_local))
+                next_month_df = user[(user["date"].dt.month == month + 1) & (user["operation"] == 2)]
+                y = np.concatenate((y, np.array([next_month_df["amount"].sum() ] )))
+        return {"X" : X, "y" : y}
 
     def get_stat_confidence(self, original_dataset, synthetic_dataset, model = None):
         #X and y should be specified by a user
-        X = model["X"]
-        y = model["y"]
-        original_dataset = original_dataset[X + y].dropna()
-        synthetic_dataset = synthetic_dataset[X + y].dropna()
+        original_dataset = model["variables"](original_dataset)
+        synthetic_dataset = model["variables"](synthetic_dataset)
 
-        dataset1_X, dataset1_y  = original_dataset[X], original_dataset[y]
-        dataset2_X, dataset2_y = synthetic_dataset[X], synthetic_dataset[y]
+        original_dataset_X, original_dataset_y  = original_dataset["X"], original_dataset["y"]
+        synthetic_dataset_X, synthetic_dataset_y = synthetic_dataset["X"], synthetic_dataset["y"]
 
-        dataset1_X_train, dataset1_X_test, dataset1_y_train, dataset1_y_test = train_test_split(dataset1_X, dataset1_y, test_size=0.2, random_state=0)
-        dataset2_X_train, dataset2_X_test, dataset2_y_train, dataset2_y_test = train_test_split(dataset2_X, dataset2_y, test_size=0.2, random_state=0)
+        dataset1_X_train, dataset1_X_test, dataset1_y_train, dataset1_y_test = train_test_split(original_dataset_X, original_dataset_y, test_size=0.2, random_state=0)
+        dataset2_X_train, dataset2_X_test, dataset2_y_train, dataset2_y_test = train_test_split(synthetic_dataset_X, synthetic_dataset_y, test_size=0.2, random_state=0)
         model_synth = model["model"]()
         model_oracle = model["model"]()
         model_synth.fit(dataset2_X_train, dataset2_y_train)
