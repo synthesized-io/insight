@@ -22,7 +22,7 @@ def segment_by_month(df):
 
 class TransactionVectorizer(BaseEstimator, TransformerMixin):
     """Groups transactions by group_column and flattens dim1_column and dim2_column
-    into one-dimentional array of length dim1_size * dim2_size"""
+    into one-dimensional array of length dim1_size * dim2_size"""
 
     def __init__(self, group_column, value_column, dim1_column, dim2_column, dim1_size, dim2_size):
         self.group_column = group_column
