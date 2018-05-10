@@ -1,7 +1,7 @@
 import sys
+
 import numpy as np
 import pandas as pd
-
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
@@ -20,7 +20,9 @@ def segment_by_month(df):
     return df
 
 
-class TransactionTransformer(BaseEstimator, TransformerMixin):
+class TransactionVectorizer(BaseEstimator, TransformerMixin):
+    """Groups transactions by group_column and flattens dim1_column and dim2_column
+    into one-dimensional array of length dim1_size * dim2_size"""
 
     def __init__(self, group_column, value_column, dim1_column, dim2_column, dim1_size, dim2_size):
         self.group_column = group_column
@@ -42,6 +44,7 @@ class TransactionTransformer(BaseEstimator, TransformerMixin):
                 idx = dim1 * self.dim1_size + dim2
                 res[idx] = row[self.value_column]
             return pd.Series(res)
+
         return X.groupby(by=self.group_column, sort=False, as_index=False).apply(to_vector)
 
     def inverse_transform(self, X):
@@ -53,8 +56,11 @@ class TransactionTransformer(BaseEstimator, TransformerMixin):
                     continue
                 dim1 = idx % self.dim1_size
                 dim2 = int((idx - dim1) / self.dim1_size)
-                rows.append({self.group_column: group_value, self.dim1_column: dim1, self.dim2_column: dim2, self.value_column: value})
-            return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim2_column, self.dim1_column, self.value_column])
+                rows.append({self.group_column: group_value, self.dim1_column: dim1, self.dim2_column: dim2,
+                             self.value_column: value})
+            return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim2_column, self.dim1_column,
+                                                            self.value_column])
+
         dfs = []
         for _, row in pd.DataFrame(X).iterrows():
             dfs.append(to_transactions(row))
