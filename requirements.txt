@@ -13,3 +13,4 @@ tensorflow
 pandas
 plotly
 matplotlib
+pyemd
