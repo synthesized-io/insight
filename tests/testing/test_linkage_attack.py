@@ -3,50 +3,8 @@ from nose.tools import assert_equals
 from pandas.util.testing import assert_frame_equal
 
 from synthesized.testing.linkage_attack import linkage_attack
-from synthesized.testing.linkage_attack import max_emd, t_closeness_check, find_neighbour_distances, \
+from synthesized.testing.linkage_attack import t_closeness_check, find_neighbour_distances, \
     find_eq_class_fuzzy, find_eq_class
-
-
-def test_max_emd_should_be_zero_for_same_dfs():
-    df1 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 2}
-    ])
-    df2 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 2}
-    ])
-    column, distance = max_emd(df1, df2, ['attr1'])
-    assert_equals(column, 'attr1')
-    assert_equals(distance, 0.0)
-
-
-def test_max_emd_should_be_grater_than_zero():
-    df1 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 2}
-    ])
-    df2 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 4}
-    ])
-    column, distance = max_emd(df1, df2, ['attr1'])
-    assert_equals(column, 'attr1')
-    assert_equals(distance, 0.5)
-
-
-def test_max_emd_should_be_greatest():
-    df1 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1, 'attr2': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 2, 'attr2': 1}
-    ])
-    df2 = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 2, 'attr1': 1, 'attr2': 1},
-        {'key1': 2, 'key2': 3, 'attr1': 4, 'attr2': 1}
-    ])
-    column, distance = max_emd(df1, df2, ['attr1', 'attr2'])
-    assert_equals(column, 'attr1')
-    assert_equals(distance, 0.5)
 
 
 def test_t_closeness_check():

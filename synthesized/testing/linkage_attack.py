@@ -1,5 +1,4 @@
 from itertools import combinations
-from operator import itemgetter
 
 from pyemd import emd_samples
 
@@ -30,11 +29,12 @@ def t_closeness_check(df, threshold=0.2):
     """
 
     def is_t_close(group, columns):
-        column, distance = max_emd(df, group, columns)
-        if distance < threshold:
-            return True
-        else:
-            return False
+        for column in columns:
+            a = df[column]
+            b = group[column]
+            if emd_samples(a, b) > threshold:
+                return False
+        return True
 
     result = []
     columns = set(df.columns.values)
@@ -49,16 +49,6 @@ def t_closeness_check(df, threshold=0.2):
             if not vulnerable_identifiers.empty:
                 result.extend(vulnerable_identifiers.to_dict('records'))
     return result
-
-
-def max_emd(df1, df2, column_names):
-    distances = []
-    for column in column_names:
-        a1 = df1[column]
-        a2 = df2[column]
-        dist = emd_samples(a1, a2)
-        distances.append((column, dist))
-    return max(distances, key=itemgetter(1))
 
 
 def find_neighbour_distances(df, attr_dict, categ_columns):
