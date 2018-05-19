@@ -67,32 +67,27 @@ def find_neighbour_distances(df, attr_dict, categ_columns):
 
 
 def find_eq_class(df, attrs):
-    def add_filter(f, filter):
-        if f is None:
-            return filter
-        else:
-            return f & filter
-
     f = None
     for attr, val in attrs.items():
-        f = add_filter(f, df[attr] == val)
+        f = _add_filter(f, df[attr] == val)
     return df[f]
 
 
 def find_eq_class_fuzzy(df, attrs, down, up, categ_columns):
-    def add_filter(f, filter):
-        if f is None:
-            return filter
-        else:
-            return f & filter
-
     f = None
     for attr, val in attrs.items():
         if attr in categ_columns:
-            f = add_filter(f, df[attr] == val)
+            f = _add_filter(f, df[attr] == val)
         else:
             if attr in up:
-                f = add_filter(f, df[attr] < val + up[attr] / 2.)
+                f = _add_filter(f, df[attr] < val + up[attr] / 2.)
             if attr in down:
-                f = add_filter(f, df[attr] > val - down[attr] / 2.)
+                f = _add_filter(f, df[attr] > val - down[attr] / 2.)
     return df[f]
+
+
+def _add_filter(f, filter):
+    if f is None:
+        return filter
+    else:
+        return f & filter
