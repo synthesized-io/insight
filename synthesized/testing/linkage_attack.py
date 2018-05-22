@@ -12,6 +12,8 @@ def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2):
 
         down, up = find_neighbour_distances(df_orig, attrs, categ_columns)
         eq_class_synth = find_eq_class_fuzzy(df_synth, attrs, down, up, categ_columns)
+        if len(eq_class_synth) == 0:
+            continue
 
         for attr, _ in attrs.items():
             a = eq_class_orig[attr]
