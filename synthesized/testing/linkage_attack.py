@@ -6,6 +6,7 @@ from pyemd import emd_samples
 
 def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2):
     """categorical columns are not supported yet"""
+    columns = set(df_orig.columns.values)
     result = []
     for attrs in t_closeness_check(df_orig, t_closeness):
         eq_class_orig = find_eq_class(df_orig, attrs)
@@ -15,9 +16,10 @@ def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2):
         if len(eq_class_synth) == 0:
             continue
 
-        for attr, _ in attrs.items():
-            a = eq_class_orig[attr]
-            b = eq_class_synth[attr]
+        sensitive_columns = columns - attrs.keys()
+        for sensitive_column in sensitive_columns:
+            a = eq_class_orig[sensitive_column]
+            b = eq_class_synth[sensitive_column]
             if emd_samples(a, b) < t_closeness:
                 result.append(attrs)
                 break
