@@ -62,12 +62,12 @@ def find_neighbour_distances(df, attr_dict, categ_columns):
     for attr, val in attr_dict.items():
         if attr in categ_columns:
             continue
-        higher = df[df[attr] > val][attr].sort_values()
-        lower = df[df[attr] < val][attr].sort_values(ascending=False)
+        higher = df[df[attr] > val][attr]
+        lower = df[df[attr] < val][attr]
         if len(higher) > 0:
-            up[attr] = higher.iloc[0] - val
+            up[attr] = higher.min() - val
         if len(lower) > 0:
-            down[attr] = val - lower.iloc[0]
+            down[attr] = val - lower.max()
     return down, up
 
 
