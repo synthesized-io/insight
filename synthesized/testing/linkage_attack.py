@@ -1,5 +1,6 @@
 from itertools import combinations
 
+import pandas as pd
 from pyemd import emd_samples
 
 
@@ -67,27 +68,20 @@ def find_neighbour_distances(df, attr_dict, categ_columns):
 
 
 def find_eq_class(df, attrs):
-    f = None
+    f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
-        f = _add_filter(f, df[attr] == val)
+        f = f & (df[attr] == val)
     return df[f]
 
 
 def find_eq_class_fuzzy(df, attrs, down, up, categ_columns):
-    f = None
+    f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
         if attr in categ_columns:
-            f = _add_filter(f, df[attr] == val)
+            f = f & (df[attr] == val)
         else:
             if attr in up:
-                f = _add_filter(f, df[attr] < val + up[attr] / 2.)
+                f = f & (df[attr] < val + up[attr] / 2.)
             if attr in down:
-                f = _add_filter(f, df[attr] > val - down[attr] / 2.)
+                f = f & (df[attr] > val - down[attr] / 2.)
     return df[f]
-
-
-def _add_filter(f, filter):
-    if f is None:
-        return filter
-    else:
-        return f & filter
