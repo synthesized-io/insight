@@ -4,7 +4,7 @@ import pandas as pd
 from pyemd import emd_samples
 
 
-def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2):
+def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2, k_distance=0.1):
     """categorical columns are not supported yet"""
     columns = set(df_orig.columns.values)
     result = []
@@ -20,7 +20,7 @@ def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2):
         for sensitive_column in sensitive_columns:
             a = eq_class_orig[sensitive_column]
             b = eq_class_synth[sensitive_column]
-            if emd_samples(a, b) < t_closeness:
+            if emd_samples(a, b) < k_distance:
                 result.append(attrs)
                 break
     return result
