@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+from math import isclose
 
 
 def clean_dataset(df):
@@ -52,7 +53,7 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
             group_value = np.random.randint(sys.maxsize)
             rows = []
             for idx, value in row.iteritems():
-                if value == 0.0:
+                if isclose(value, 0.0, abs_tol=1e-5):
                     continue
                 dim2 = idx % self.dim1_size
                 dim1 = int((idx - dim2) / self.dim1_size)
