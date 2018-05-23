@@ -43,14 +43,12 @@ def t_closeness_check(df, threshold=0.2):
 
     result = []
     columns = set(df.columns.values)
-    for i in range(1, len(columns) + 1):
+    for i in range(1, len(columns)):
         for subset in combinations(columns, i):
             sensitive_columns = columns - set(subset)
-            if len(sensitive_columns) == 0:
-                continue
             vulnerable_rows = df.groupby(by=list(subset)).filter(
                 lambda g: not is_t_close(g, columns=sensitive_columns))
-            vulnerable_identifiers = vulnerable_rows.drop(sensitive_columns, axis=1)
+            vulnerable_identifiers = vulnerable_rows.drop(sensitive_columns, axis=1).drop_duplicates()
             if not vulnerable_identifiers.empty:
                 result.extend(vulnerable_identifiers.to_dict('records'))
     return result
