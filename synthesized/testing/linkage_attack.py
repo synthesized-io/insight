@@ -20,7 +20,7 @@ def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2, k_distance
         for sensitive_column in sensitive_columns:
             a = eq_class_orig[sensitive_column]
             b = eq_class_synth[sensitive_column]
-            if emd_samples(a, b) < k_distance:
+            if emd_samples(a, b, bins=100) < k_distance:
                 result.append(attrs)
                 break
     return result
@@ -37,7 +37,7 @@ def t_closeness_check(df, threshold=0.2):
         for column in columns:
             a = df[column]
             b = group[column]
-            if emd_samples(a, b) > threshold:
+            if emd_samples(a, b, bins=100) > threshold:
                 return False
         return True
 
@@ -72,7 +72,7 @@ def find_neighbour_distances(df, attr_dict, categ_columns):
 def find_eq_class(df, attrs):
     f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
-        f = f & (df[attr] == val)
+        f = f & (df[attr] == val)  # double comparison?
     return df[f]
 
 
@@ -87,3 +87,4 @@ def find_eq_class_fuzzy(df, attrs, down, up, categ_columns):
             if attr in down:
                 f = f & (df[attr] > val - down[attr] / 2.)
     return df[f]
+
