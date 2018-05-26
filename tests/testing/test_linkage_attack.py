@@ -94,4 +94,4 @@ def test_linkage_attack():
         {'key1': 10, 'key2': 11, 'attr1': 12, 'attr2': 13},
     ])
 
-    assert_equals(42, len(linkage_attack(df1, df2, {})))
+    assert_equals(41, len(linkage_attack(df1, df2, {})))

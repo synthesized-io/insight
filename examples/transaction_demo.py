@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+from math import isclose
 
 
 def clean_dataset(df):
@@ -52,10 +53,10 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
             group_value = np.random.randint(sys.maxsize)
             rows = []
             for idx, value in row.iteritems():
-                if value == 0.0:
+                if isclose(value, 0.0, abs_tol=1e-5):
                     continue
-                dim1 = idx % self.dim1_size
-                dim2 = int((idx - dim1) / self.dim1_size)
+                dim2 = idx % self.dim1_size
+                dim1 = int((idx - dim2) / self.dim1_size)
                 rows.append({self.group_column: group_value, self.dim1_column: dim1, self.dim2_column: dim2,
                              self.value_column: value})
             return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim2_column, self.dim1_column,
