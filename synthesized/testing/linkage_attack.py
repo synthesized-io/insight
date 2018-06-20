@@ -4,19 +4,26 @@ import pandas as pd
 from pyemd import emd_samples
 
 
-def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2, k_distance=0.1):
-    """categorical columns are not supported yet"""
+class Column:
+    def __init__(self, key_attribute, sensitive, categorical):
+        self.key_attribute = key_attribute
+        self.sensitive = sensitive
+        self.categorical = categorical
+
+
+def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.1):
+    """categorical sensitive columns are not supported yet"""
     columns = set(df_orig.columns.values)
     result = []
-    for attrs in t_closeness_check(df_orig, t_closeness):
+    for attrs in t_closeness_check(df_orig, schema, t_closeness):
         eq_class_orig = find_eq_class(df_orig, attrs)
 
-        down, up = find_neighbour_distances(df_orig, attrs, categ_columns)
-        eq_class_synth = find_eq_class_fuzzy(df_synth, attrs, down, up, categ_columns)
+        down, up = find_neighbour_distances(df_orig, attrs, schema)
+        eq_class_synth = find_eq_class_fuzzy(df_synth, attrs, down, up, schema)
         if len(eq_class_synth) == 0:
             continue
 
-        sensitive_columns = columns - attrs.keys()
+        sensitive_columns = filter(lambda column: schema[column].sensitive, columns - attrs.keys())
         for sensitive_column in sensitive_columns:
             a = eq_class_orig[sensitive_column]
             b = eq_class_synth[sensitive_column]
@@ -26,7 +33,7 @@ def linkage_attack(df_orig, df_synth, categ_columns, t_closeness=0.2, k_distance
     return result
 
 
-def t_closeness_check(df, threshold=0.2):
+def t_closeness_check(df, schema, threshold=0.2):
     """
     Returns a list of dicts where each dict represents attributes that can be used
     to find equivalence classes which do not satisfy t-closeness requirement
@@ -43,22 +50,26 @@ def t_closeness_check(df, threshold=0.2):
 
     result = []
     columns = set(df.columns.values)
-    for i in range(1, len(columns)):
-        for subset in combinations(columns, i):
-            sensitive_columns = columns - set(subset)
-            vulnerable_rows = df.groupby(by=list(subset)).filter(
+    all_key_columns = set(filter(lambda column: schema[column].key_attribute, columns))
+    all_sensitive_columns = set(filter(lambda column: schema[column].sensitive, columns))
+    for i in range(1, len(all_key_columns) + 1):
+        for key_columns in combinations(all_key_columns, i):
+            sensitive_columns = all_sensitive_columns - set(key_columns)
+            if len(sensitive_columns) == 0:
+                continue
+            vulnerable_rows = df.groupby(by=list(key_columns)).filter(
                 lambda g: not is_t_close(g, columns=sensitive_columns))
-            vulnerable_identifiers = vulnerable_rows.drop(sensitive_columns, axis=1).drop_duplicates()
-            if not vulnerable_identifiers.empty:
-                result.extend(vulnerable_identifiers.to_dict('records'))
+            key_attributes = vulnerable_rows[list(key_columns)].drop_duplicates()
+            if not key_attributes.empty:
+                result.extend(key_attributes.to_dict('records'))
     return result
 
 
-def find_neighbour_distances(df, attr_dict, categ_columns):
+def find_neighbour_distances(df, attr_dict, schema):
     up = {}
     down = {}
     for attr, val in attr_dict.items():
-        if attr in categ_columns:
+        if schema[attr].categorical:
             continue
         higher = df[df[attr] > val][attr]
         lower = df[df[attr] < val][attr]
@@ -76,10 +87,10 @@ def find_eq_class(df, attrs):
     return df[f]
 
 
-def find_eq_class_fuzzy(df, attrs, down, up, categ_columns):
+def find_eq_class_fuzzy(df, attrs, down, up, schema):
     f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
-        if attr in categ_columns:
+        if schema[attr].categorical:
             f = f & (df[attr] == val)
         else:
             if attr in up:
