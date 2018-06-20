@@ -40,9 +40,9 @@ Note: if you cannot install venv without root check that virtualenv executable i
 
         source venv/bin/activate
 
-4. Install requirements:
+4. Install the project:
 
-        pip install -r requirements.txt
+        python setup.py install
 
 5. Install the current venv as a kernel for jupyter:
 
