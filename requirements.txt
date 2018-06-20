@@ -4,6 +4,7 @@ sphinx_rtd_theme
 nose
 coverage
 ipykernel
+jupyter
 
 # libraries
 numpy
