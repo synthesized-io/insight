@@ -1,9 +1,10 @@
 import sys
+import warnings
+from math import isclose
 
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-from math import isclose
 
 
 def clean_dataset(df):
@@ -17,7 +18,14 @@ def segment_by_month(df):
     df = df.copy()
     df['day'] = pd.to_datetime(df['date']).dt.day
     df['segment_id'] = df['account_id'].apply(str) + ':' + pd.to_datetime(df['date']).dt.to_period('M').apply(str)
-    df.drop(columns=['date', 'account_id'], inplace=True)
+    df.drop(columns=['account_id'], inplace=True)
+    return df
+
+
+def reconstruct_dates(df, year):
+    df = df.copy()
+    df['date'] = df.apply(lambda row: '{:04d}-{:02d}-{:02d}'.format(year, 1 + int(row['segment_id']) % 12, int(row['day'])), axis=1)
+    df.drop(columns=['day'], inplace=True)
     return df
 
 
@@ -55,10 +63,10 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
             for idx, value in row.iteritems():
                 if isclose(value, 0.0, abs_tol=1e-5):
                     continue
-                dim2 = idx % self.dim2_size
+                dim2 = int(idx % self.dim2_size)
                 dim1 = int((idx - dim2) / self.dim2_size)
                 rows.append({self.group_column: group_value, self.dim1_column: dim1, self.dim2_column: dim2,
-                             self.value_column: value})
+                             self.value_column: round(value, 2)})
             return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim1_column, self.dim2_column,
                                                             self.value_column])
 
@@ -66,3 +74,63 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
         for _, row in pd.DataFrame(X).iterrows():
             dfs.append(to_transactions(row))
         return pd.concat(dfs, ignore_index=True)
+
+
+def suppress_warnings(func):
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
+@suppress_warnings
+def show_data(array_a, array_b=None, array_c=None, nrow=2, ncol=10, figsize=None, save_loc=None):
+    # import without warnings
+    from matplotlib import pyplot as plt
+
+    # if both are None, just plot one
+    if array_b is None and array_c is None:
+        nrow = 1
+
+    # if kw specifically makes B None, shift it over
+    elif array_b is None:
+        array_b = array_c
+        array_c = None
+        nrow = 2
+
+    # otherwise if just plotting the first two...
+    elif array_c is None:
+        nrow = 2
+
+    elif array_b is not None and array_c is not None:
+        nrow = 3
+
+    if nrow not in (1, 2, 3):
+        raise ValueError('nrow must be in (1, 2)')
+
+    if figsize is None:
+        figsize = (ncol, nrow)
+
+    f, a = plt.subplots(nrow, ncol, figsize=figsize)
+    arrays = [array_a, array_b, array_c]
+
+    def _do_show(the_figure, the_array):
+        the_figure.imshow(the_array)
+        the_figure.axis('off')
+
+    for i in range(ncol):
+        if nrow > 1:
+            for j in range(nrow):
+                _do_show(a[j][i], np.reshape(arrays[j][i], (16, 8)))
+        else:
+            _do_show(a[i], np.reshape(array_a[i], (16, 8)))
+
+    plt.subplots_adjust(wspace=0.1, hspace=0.1)
+    f.show()
+    plt.draw()
+
+    # if save...
+    if save_loc is not None:
+        plt.savefig(save_loc)
