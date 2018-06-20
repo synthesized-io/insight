@@ -29,6 +29,14 @@ def reconstruct_dates(df, year):
     return df
 
 
+def merge_segments(df, segments_per_account=20):
+    df = df.copy()
+    num_accounts = int(1. * len(df) / segments_per_account)
+    df['account_id'] = df['segment_id'] % num_accounts
+    df.drop(columns=['segment_id'], inplace=True)
+    return df
+
+
 class TransactionVectorizer(BaseEstimator, TransformerMixin):
     """Groups transactions by group_column and flattens dim1_column and dim2_column
     into one-dimensional array of length dim1_size * dim2_size"""

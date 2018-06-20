@@ -11,7 +11,7 @@ class Column:
         self.categorical = categorical
 
 
-def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.1):
+def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.8):
     """categorical sensitive columns are not supported yet"""
     columns = set(df_orig.columns.values)
     result = []
