@@ -42,11 +42,11 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
             for _, row in group.iterrows():
                 dim1 = int(row[self.dim1_column])
                 dim2 = int(row[self.dim2_column])
-                idx = dim1 * self.dim1_size + dim2
+                idx = dim1 * self.dim2_size + dim2
                 res[idx] = row[self.value_column]
             return pd.Series(res)
 
-        return X.groupby(by=self.group_column, sort=False, as_index=False).apply(to_vector)
+        return X.groupby(by=self.group_column, sort=True, as_index=False).apply(to_vector)
 
     def inverse_transform(self, X):
         def to_transactions(row):
@@ -55,11 +55,11 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
             for idx, value in row.iteritems():
                 if isclose(value, 0.0, abs_tol=1e-5):
                     continue
-                dim2 = idx % self.dim1_size
-                dim1 = int((idx - dim2) / self.dim1_size)
+                dim2 = idx % self.dim2_size
+                dim1 = int((idx - dim2) / self.dim2_size)
                 rows.append({self.group_column: group_value, self.dim1_column: dim1, self.dim2_column: dim2,
                              self.value_column: value})
-            return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim2_column, self.dim1_column,
+            return pd.DataFrame.from_records(rows, columns=[self.group_column, self.dim1_column, self.dim2_column,
                                                             self.value_column])
 
         dfs = []
