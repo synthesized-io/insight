@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 
 from sklearn import metrics
 from plotly.offline import init_notebook_mode, iplot
@@ -20,6 +20,60 @@ __all__ = [
 ]
 
 # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
+
+
+
+
+def get_LogisticRegression_variables(dataset):
+    X = ["operation", "amount"]
+    y = ["type"]
+    dataset = dataset[X + y].dropna()
+    return {"X": dataset[X], "y": dataset[y]}
+
+
+def get_stat_confidence(orig_dataset, synth_dataset, model=None):
+    # X and y should be specified by a user
+    orig_dataset = model["variables"](orig_dataset)
+    synth_dataset = model["variables"](synth_dataset)
+
+    orig_dataset_X, orig_dataset_y = orig_dataset["X"], orig_dataset["y"]
+    synth_dataset_X, synth_dataset_y = synth_dataset["X"], synth_dataset["y"]
+
+    dataset1_X_train, dataset1_X_test, dataset1_y_train, dataset1_y_test = train_test_split(orig_dataset_X,
+                                                                                            orig_dataset_y,
+                                                                                            test_size=0.2,
+                                                                                            random_state=0)
+    dataset2_X_train, dataset2_X_test, dataset2_y_train, dataset2_y_test = train_test_split(synth_dataset_X,
+                                                                                            synth_dataset_y,
+                                                                                            test_size=0.2,
+                                                                                            random_state=0)
+    model_synth = model["model"]()
+    model_oracle = model["model"]()
+    model_synth.fit(dataset2_X_train, dataset2_y_train.values.ravel())
+    model_oracle.fit(dataset1_X_train, dataset1_y_train.values.ravel())
+
+    # y_pred_oracle = model_oracle.predict(dataset1_X_test)
+    # y_pred_synthetic = model_synth.predict(dataset1_X_test)
+
+    oracle_score, synth_score = model_oracle.score(dataset1_X_test, dataset1_y_test), model_synth.score(dataset1_X_test,
+                                                                                                        dataset1_y_test)
+    return oracle_score, synth_score, abs(1 - abs(oracle_score - synth_score) / oracle_score)
+
+
+synth_stat_models = [{"model": LogisticRegression, "variables": get_LogisticRegression_variables}]
+#               {"model": LinearRegression, "variables": self.get_LinearRegression_variables}]
+
+def compare_pred_performance(dataset1, dataset2, user_stat_models=[]):
+    for stat_model in synth_stat_models:
+        print(
+            "Prediction confidence for %s when trained on synthetic data: %.3f \nOracle score : %.3f \nSynth score : %.3f" %
+            (stat_model["model"].__name__, get_stat_confidence(dataset1, dataset2, stat_model)[2],
+             get_stat_confidence(dataset1, dataset2, stat_model)[0],
+             get_stat_confidence(dataset1, dataset2, stat_model)[1]))
+
+    for stat_model in user_stat_models:
+        get_stat_confidence(dataset1, dataset2, stat_model)
+
 
 class TestingEnvironment:
     def __init__(self):
