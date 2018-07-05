@@ -5,6 +5,8 @@ from math import isclose
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+import calendar
+import datetime
 
 
 def clean_dataset(df):
@@ -24,7 +26,15 @@ def segment_by_month(df):
 
 def reconstruct_dates(df, year):
     df = df.copy()
-    df['date'] = df.apply(lambda row: '{:04d}-{:02d}-{:02d}'.format(year, 1 + int(row['segment_id']) % 12, int(row['day'])), axis=1)
+
+    def reconstruct_date(row):
+        month = 1 + int(row['segment_id']) % 12
+        day = int(row['day'])
+        last_day = calendar.monthrange(year, month)[1]
+        day = min(day, last_day)
+        return datetime.datetime(year, month, day)
+
+    df['date'] = df.apply(reconstruct_date, axis=1)
     df.drop(columns=['day'], inplace=True)
     return df
 
@@ -80,7 +90,9 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
 
         dfs = []
         for _, row in pd.DataFrame(X).iterrows():
-            dfs.append(to_transactions(row))
+            df = to_transactions(row)
+            if not df.empty:
+                dfs.append(df)
         return pd.concat(dfs, ignore_index=True)
 
 
