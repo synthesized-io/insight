@@ -10,16 +10,63 @@ import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 
-from sklearn import metrics
+from sklearn import clone
 from plotly.offline import init_notebook_mode, iplot
+from sklearn.preprocessing import StandardScaler
 
-__all__ = [
-    'TestingEnvironment'
-]
 
 # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
+
+def estimate_utility(df_orig, df_synth, continuous_columns, categorical_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
+    continuous_columns_set = set(continuous_columns)
+    categorical_columns_set = set(categorical_columns)
+    intersection = continuous_columns_set.intersection(categorical_columns_set)
+    if len(intersection) > 0:
+        raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))
+    columns = continuous_columns_set.union(categorical_columns_set)
+    df_orig = df_orig.apply(pd.to_numeric)
+    df_synth = df_synth.apply(pd.to_numeric)
+    result = []
+    for column in columns:
+        X_columns = list(columns.difference([column]))
+
+        X_orig = df_orig[X_columns]
+        y_orig = df_orig[column]
+
+        X_synth = df_synth[X_columns]
+        y_synth = df_synth[column]
+
+        X_orig = StandardScaler().fit_transform(X_orig)
+        X_synth = StandardScaler().fit_transform(X_synth)
+
+        X_orig_train, X_orig_test, y_orig_train, y_orig_test = train_test_split(X_orig, y_orig, test_size=0.2, random_state=0)
+        X_synth_train, X_synth_test, y_synth_train, y_synth_test = train_test_split(X_synth, y_synth, test_size=0.2, random_state=0)
+
+        if column in categorical_columns:
+            estimator = classifier
+        else:
+            estimator = regressor
+
+        baseline_score = clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
+        synth_score = clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
+        if baseline_score < min_score or synth_score < min_score:
+            utility = float('nan')
+        else:
+            diff = baseline_score - synth_score
+            utility = round((1 - diff / baseline_score) * 100, 2)
+        result.append({
+            'target_column': column,
+            'estimator': estimator.__class__.__name__,
+            'baseline_score': baseline_score,
+            'synth_score': synth_score,
+            'change': synth_score - baseline_score,
+            'utility': utility,
+        })
+
+    return pd.DataFrame.from_records(result, columns=['target_column', 'estimator', 'baseline_score', 'synth_score', 'change', 'utility'])
+
 
 class TestingEnvironment:
     def __init__(self):
@@ -49,37 +96,6 @@ class TestingEnvironment:
                 next_month_df = user[(user["date"].dt.month == month + 1) & (user["operation"] == 2)]
                 y = np.concatenate((y, np.array([next_month_df["amount"].sum() ] )))
         return {"X" : X, "y" : y}
-
-    def get_stat_confidence(self, original_dataset, synthetic_dataset, model = None):
-        #X and y should be specified by a user
-        original_dataset = model["variables"](original_dataset)
-        synthetic_dataset = model["variables"](synthetic_dataset)
-
-        original_dataset_X, original_dataset_y  = original_dataset["X"], original_dataset["y"]
-        synthetic_dataset_X, synthetic_dataset_y = synthetic_dataset["X"], synthetic_dataset["y"]
-
-        dataset1_X_train, dataset1_X_test, dataset1_y_train, dataset1_y_test = train_test_split(original_dataset_X, original_dataset_y, test_size=0.2, random_state=0)
-        dataset2_X_train, dataset2_X_test, dataset2_y_train, dataset2_y_test = train_test_split(synthetic_dataset_X, synthetic_dataset_y, test_size=0.2, random_state=0)
-        model_synth = model["model"]()
-        model_oracle = model["model"]()
-        model_synth.fit(dataset2_X_train, dataset2_y_train)
-        model_oracle.fit(dataset1_X_train, dataset1_y_train)
-
-       # y_pred_oracle = model_oracle.predict(dataset1_X_test)
-       # y_pred_synthetic = model_synth.predict(dataset1_X_test)
-
-        oracle_score, synth_score = model_oracle.score(dataset1_X_test, dataset1_y_test), model_synth.score(dataset1_X_test, dataset1_y_test)
-       # print(oracle_score, synth_score, 1 - abs(oracle_score - synth_score)/ synth_score)
-        return(1 - abs(oracle_score - synth_score) / synth_score)
-
-
-    def compare_pred_performance(self, dataset1, dataset2, user_stat_models = []):
-        for stat_model in self.synth_stat_models:
-            print("Prediction confidence for %s when trained on synthetic data: %.3f" %
-                  (stat_model["model"].__name__, self.get_stat_confidence(dataset1, dataset2, stat_model)) )
-
-        for stat_model in user_stat_models:
-            self.get_stat_confidence(dataset1, dataset2, stat_model)
 
     def compare_empirical_densities(self, original_dataset, synthetic_dataset, target_field):
 
