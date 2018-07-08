@@ -1,25 +1,26 @@
 import tensorflow as tf
+from synthesized.core import util
 from synthesized.core.encodings import Encoding
 
 
 class BasicEncoding(Encoding):
 
-    def __init__(self, name, encoding_size, sampling='normal'):
+    def __init__(self, name, encoding_size, sampling='uniform'):
         super().__init__(name=name, encoding_size=encoding_size)
         self.sampling = sampling
 
     def _initialize(self):
         self.weight = tf.get_variable(
             name='weight', shape=(self.encoding_size, self.encoding_size), dtype=tf.float32,
-            initializer=None, regularizer=None, trainable=True, collections=None,
-            caching_device=None, partitioner=None, validate_shape=True, use_resource=None,
-            custom_getter=None, constraint=None
+            initializer=util.initializers['normal'], regularizer=util.regularizers['l2'],
+            trainable=True, collections=None, caching_device=None, partitioner=None,
+            validate_shape=True, use_resource=None, custom_getter=None
         )
         self.bias = tf.get_variable(
             name='bias', shape=(self.encoding_size,), dtype=tf.float32,
-            initializer=None, regularizer=None, trainable=True, collections=None,
-            caching_device=None, partitioner=None, validate_shape=True, use_resource=None,
-            custom_getter=None, constraint=None
+            initializer=util.initializers['normal'], regularizer=util.regularizers['l2'],
+            trainable=True, collections=None, caching_device=None, partitioner=None,
+            validate_shape=True, use_resource=None, custom_getter=None
         )
 
     def encode(self, x, encoding_loss=False):

@@ -4,9 +4,10 @@ from synthesized.core.values import Value
 
 class CategoricalValue(Value):
 
-    def __init__(self, name, num_categories):
+    def __init__(self, name, num_categories, smoothing=0.25):
         super().__init__(name=name)
         self.num_categories = num_categories
+        self.smoothing = smoothing
 
     def size(self):
         return self.num_categories
@@ -28,7 +29,7 @@ class CategoricalValue(Value):
     def loss(self, x):
         target = self.input_tensor()
         loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=target, logits=x, weights=1.0, label_smoothing=0, scope=None,
+            onehot_labels=target, logits=x, weights=1.0, label_smoothing=self.smoothing, scope=None,
             loss_collection=tf.GraphKeys.LOSSES
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         return loss

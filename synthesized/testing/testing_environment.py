@@ -19,9 +19,9 @@ from sklearn.preprocessing import StandardScaler
 
 # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
 
-def estimate_utility(df_orig, df_synth, continuous_columns, categorical_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
-    continuous_columns_set = set(continuous_columns)
+def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
     categorical_columns_set = set(categorical_columns)
+    continuous_columns_set = set(continuous_columns)
     intersection = continuous_columns_set.intersection(categorical_columns_set)
     if len(intersection) > 0:
         raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))

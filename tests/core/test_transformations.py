@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import tensorflow as tf
-from synthesized.core.transformations import MlpTransformation
+from synthesized.core.transformations import DenseTransformation, MlpTransformation
 
 
 class TestTransformations(unittest.TestCase):
@@ -19,8 +19,14 @@ class TestTransformations(unittest.TestCase):
             )
             assert transformed.shape == (4, 6)
 
+    def test_dense(self):
+        transformation = DenseTransformation(
+            name='dense', input_size=8, output_size=6, batchnorm=True, activation='relu'
+        )
+        self._test_transformation(transformation=transformation)
+
     def test_mlp(self):
         transformation = MlpTransformation(
-            name='mlp', input_size=8, output_size=6, layer_sizes=(10, 4), activation='relu'
+            name='mlp', input_size=8, output_size=6, layer_sizes=(10, 4)
         )
         self._test_transformation(transformation=transformation)
