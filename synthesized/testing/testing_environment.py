@@ -17,9 +17,22 @@ from plotly.offline import init_notebook_mode, iplot
 from sklearn.preprocessing import StandardScaler
 
 
+def to_categorical(a, edges):
+    def to_bucket(x):
+        idx = np.searchsorted(edges, x)
+        if idx == len(edges) - 1:
+            idx -= 1
+        start = edges[idx]
+        end = edges[idx + 1]
+        return "[{}-{})".format(start, end)
+
+    to_bucketv = np.vectorize(to_bucket)
+    return to_bucketv(a)
+
 # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
 
-def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
+
+def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), min_score=0.01):
     categorical_columns_set = set(categorical_columns)
     continuous_columns_set = set(continuous_columns)
     intersection = continuous_columns_set.intersection(categorical_columns_set)
@@ -38,19 +51,19 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
         X_synth = df_synth[X_columns]
         y_synth = df_synth[column]
 
+        if column in continuous_columns_set:
+            _, edges = np.histogram(y_orig)
+            y_orig = to_categorical(y_orig, edges)
+            y_synth = to_categorical(y_synth, edges)
+
         X_orig = StandardScaler().fit_transform(X_orig)
         X_synth = StandardScaler().fit_transform(X_synth)
 
         X_orig_train, X_orig_test, y_orig_train, y_orig_test = train_test_split(X_orig, y_orig, test_size=0.2, random_state=0)
         X_synth_train, X_synth_test, y_synth_train, y_synth_test = train_test_split(X_synth, y_synth, test_size=0.2, random_state=0)
 
-        if column in categorical_columns:
-            estimator = classifier
-        else:
-            estimator = regressor
-
-        baseline_score = clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
-        synth_score = clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
+        baseline_score = clone(classifier).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
+        synth_score = clone(classifier).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
         if baseline_score < min_score or synth_score < min_score:
             utility = float('nan')
         else:
@@ -58,7 +71,7 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
             utility = round((1 - diff / baseline_score) * 100, 2)
         result.append({
             'target_column': column,
-            'estimator': estimator.__class__.__name__,
+            'classifier': classifier.__class__.__name__,
             'baseline_score': baseline_score,
             'synth_score': synth_score,
             'change': synth_score - baseline_score,
