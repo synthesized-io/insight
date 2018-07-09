@@ -78,7 +78,7 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
             'utility': utility,
         })
 
-    return pd.DataFrame.from_records(result, columns=['target_column', 'estimator', 'baseline_score', 'synth_score', 'change', 'utility'])
+    return pd.DataFrame.from_records(result, columns=['target_column', 'classifier', 'baseline_score', 'synth_score', 'change', 'utility'])
 
 
 class TestingEnvironment:
