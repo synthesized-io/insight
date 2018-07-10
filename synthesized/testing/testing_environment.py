@@ -67,8 +67,8 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
         else:
             estimator = regressor
 
-        baseline_score = clone(classifier).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
-        synth_score = clone(classifier).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
+        baseline_score = clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
+        synth_score = clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
         if baseline_score < min_score or synth_score < min_score:
             utility = float('nan')
         else:
