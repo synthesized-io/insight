@@ -98,7 +98,8 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
         if synth_error == 0.0:
             error_utility = 1.0
         else:
-            error_utility = min(orig_error / synth_error, 1.0)
+            error_utility = orig_error / synth_error
+            # error_utility = min(orig_error / synth_error, 1.0)
 
         result.append({
             'target_column': y_column,
