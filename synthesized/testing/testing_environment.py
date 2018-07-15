@@ -9,6 +9,7 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
+from pyemd.emd import emd_samples
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import train_test_split
@@ -115,6 +116,20 @@ def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns,
         })
 
     return pd.DataFrame.from_records(result, columns=['target_column', 'estimator', 'baseline_original_score', 'original_score', 'baseline_synth_score',  'synth_score', 'orig_error', 'synth_error', 'score_utility', 'error_utility'])
+
+
+def compare_marginal_distributions(df_orig, df_synth, target_column, filter_column, bins=4):
+    _, edges = np.histogram(df_orig[filter_column], bins=bins)
+    result = []
+    for i in range(1, len(edges - 1)):
+        df_orig_target = df_orig[df_orig[filter_column] < edges[i]][target_column]
+        df_synth_target = df_synth[df_synth[filter_column] < edges[i]][target_column]
+        result.append({
+            'filter': '{} < {}'.format(filter_column, edges[i]),
+            'column': target_column,
+            'emd': emd_samples(df_orig_target, df_synth_target)
+        })
+    return pd.DataFrame.from_records(result, columns=['filter', 'column', 'emd'])
 
 
 class TestingEnvironment:
