@@ -39,7 +39,7 @@ def to_categorical(a, edges):
 # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
 
 
-def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
+def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression()):
     categorical_columns_set = set(categorical_columns)
     continuous_columns_set = set(continuous_columns)
     intersection = continuous_columns_set.intersection(categorical_columns_set)
