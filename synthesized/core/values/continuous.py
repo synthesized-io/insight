@@ -8,26 +8,39 @@ class ContinuousValue(Value):
         super().__init__(name=name)
         self.positive = positive
 
-    def size(self):
+    def specification(self):
+        spec = super().specification()
+        spec.update(positive=self.positive)
+        return spec
+
+    def input_size(self):
         return 1
 
-    def _initialize(self):
+    def feature(self, x=None):
+        if x is None:
+            return tf.FixedLenFeature(shape=(), dtype=tf.float32, default_value=None)
+        else:
+            return tf.train.Feature(float_list=tf.train.FloatList(value=(x,)))
+
+    def tf_initialize(self):
+        super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.float32, shape=(None,), name='input')
 
-    def input_tensor(self):
-        tensor = tf.expand_dims(input=self.placeholder, axis=1, name=None)
-        return tensor
+    def tf_input_tensor(self, feed=None):
+        x = self.placeholder if feed is None else feed
+        x = tf.expand_dims(input=x, axis=1, name=None)
+        return x
 
-    def output_tensor(self, x):
+    def tf_output_tensor(self, x):
         if self.positive:
             x = tf.nn.softplus(features=x, name=None)
         x = tf.squeeze(input=x, axis=1, name=None)
         return x
 
-    def loss(self, x):
+    def tf_loss(self, x, feed=None):
         if self.positive:
             x = tf.nn.softplus(features=x, name=None)
-        target = self.input_tensor()
+        target = self.input_tensor(feed=feed)
         # target = tf.Print(target, (x, target))
 
         # relative = tf.maximum(x=x, y=target, name=None) / (tf.minimum(x=x, y=target, name=None) + 1.0)

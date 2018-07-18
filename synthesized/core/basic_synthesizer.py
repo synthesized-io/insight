@@ -2,89 +2,136 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from synthesized.core import value_modules, transformation_modules, encoding_modules, Synthesizer
+from synthesized.core.transformations import DenseTransformation
+from synthesized.core.optimizers import Optimizer
 
 
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, dtypes, encoding='variational', encoding_size=64, encoder=(64,), decoder=(64,)
+        self, dtypes, encoding='variational', encoding_size=64, encoder=(64, 64), decoder=(64, 64),
+        embedding_size=32, iterations=50000
     ):
         super().__init__(name='basic_synthesizer')
+
         self.values = list()
-        self.value_sizes = list()
-        self.data_size = 0
-        submodules = list()
+        self.value_output_sizes = list()
+        input_size = 0
+        output_size = 0
         for name, dtype in zip(dtypes.axes[0], dtypes):
             if dtype.kind == 'O':
                 value = self.add_module(
                     module='categorical', modules=value_modules, name=name,
-                    num_categories=len(dtype.categories)
+                    num_categories=len(dtype.categories), embedding_size=embedding_size, similarity_based=True
                 )
             else:
                 value = self.add_module(
-                    module='continuous', modules=value_modules, name=name, positive=False
+                    module='continuous', modules=value_modules, name=name, positive=True
                 )
             self.values.append(value)
-            self.value_sizes.append(value.size())
-            self.data_size += value.size()
-            submodules.append(value)
+            self.value_output_sizes.append(value.output_size())
+            input_size += value.input_size()
+            output_size += value.output_size()
 
         self.encoder = self.add_module(
             module='mlp', modules=transformation_modules, name='encoder',
-            input_size=self.data_size, output_size=encoding_size, layer_sizes=encoder
+            input_size=input_size, layer_sizes=encoder
         )
-        submodules.append(self.encoder)
 
-        self.encoding = self.add_module(module=encoding, modules=encoding_modules, name='encoding', encoding_size=encoding_size)
-        submodules.append(self.encoding)
+        self.encoding = self.add_module(module=encoding, modules=encoding_modules, name='encoding', input_size=self.encoder.size(), encoding_size=encoding_size)
 
         self.decoder = self.add_module(
             module='mlp', modules=transformation_modules, name='decoder',
-            input_size=encoding_size, output_size=self.data_size, layer_sizes=decoder
+            input_size=self.encoding.size(), layer_sizes=decoder
         )
-        submodules.append(self.decoder)
 
-    def _initialize(self):
-        # learn
+        self.output = self.add_module(
+            module=DenseTransformation, name='output', input_size=self.decoder.size(),
+            output_size=output_size, batchnorm=False, activation='none'
+        )
+
+        # https://twitter.com/karpathy/status/801621764144971776  ;-)
+        self.optimizer = self.add_module(
+            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=3e-4,
+            clip_gradients=1.0
+        )
+
+        self.iterations = iterations
+
+    def specification(self):
+        spec = super().specification()
+        # values?
+        spec.update(encoding=self.encoding, encoder=self.encoder, decoder=self.decoder, iterations=self.iterations)
+        return spec
+
+    def tf_initialize(self):
+        super().tf_initialize()
+
+        # dataset
+        self.filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
+        dataset = tf.data.TFRecordDataset(
+            filenames=self.filenames, compression_type='GZIP', buffer_size=None
+            # num_parallel_reads=None
+        )
+        dataset = dataset.shuffle(buffer_size=1024, seed=None, reshuffle_each_iteration=True)
+        dataset = dataset.map(
+            map_func=(lambda serialized: tf.parse_single_example(
+                serialized=serialized,
+                features={value.name: value.feature() for value in self.values},
+                name=None, example_names=None
+            )),
+            num_parallel_calls=None
+        )
+        dataset = dataset.batch(batch_size=64)
+        self.iterator = dataset.make_initializable_iterator(shared_name=None)
+        next_values = self.iterator.get_next()
         xs = list()
         for value in self.values:
-            xs.append(value.input_tensor())
+            x = value.input_tensor(feed=next_values[value.name])
+            xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x, encoding_loss=True)
         x = self.decoder.transform(x=x)
-        xs = tf.split(value=x, num_or_size_splits=self.value_sizes, axis=1, num=None, name=None)
+        x = self.output.transform(x=x)
+        xs = tf.split(
+            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
+        )
+        losses = tf.losses.get_regularization_losses(scope=None)
         for value, x in zip(self.values, xs):
-            value.loss(x=x)
+            loss = value.loss(x=x, feed=next_values[value.name])
+            losses.append(loss)
+        self.loss_dataset = tf.add_n(inputs=losses, name=None)
+        # self.loss_dataset = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
+        self.optimized_dataset = self.optimizer.optimize(loss=self.loss_dataset)
 
-        self.loss = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
-        self.optimizer = tf.train.AdamOptimizer(
-            learning_rate=3e-4,  # https://twitter.com/karpathy/status/801621764144971776  ;-)
-            beta1=0.9, beta2=0.999, epsilon=1e-8, use_locking=False, name='Adam'
+        # learn
+        xs = list()
+        for value in self.values:
+            x = value.input_tensor()
+            xs.append(x)
+        x = tf.concat(values=xs, axis=1, name=None)
+        x = self.encoder.transform(x=x)
+        x = self.encoding.encode(x=x, encoding_loss=True)
+        x = self.decoder.transform(x=x)
+        x = self.output.transform(x=x)
+        xs = tf.split(
+            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
-        grads_and_vars = self.optimizer.compute_gradients(
-            loss=self.loss, var_list=None, aggregation_method=None,
-            colocate_gradients_with_ops=False, grad_loss=None  # gate_gradients=GATE_OP
-        )
-        grads_and_vars = [
-            (tf.clip_by_value(t=grad, clip_value_min=-1.0, clip_value_max=1.0, name=None), var)
-            for grad, var in grads_and_vars
-        ]
-        self.optimized = self.optimizer.apply_gradients(
-            grads_and_vars=grads_and_vars, global_step=None, name=None
-        )
-        # self.optimized = self.optimizer.minimize(
-        #     loss=self.loss, global_step=None, var_list=None, aggregation_method=None,
-        #     colocate_gradients_with_ops=False, name=None, grad_loss=None  # gate_gradients=GATE_OP
-        # )
+        losses = tf.losses.get_regularization_losses(scope=None)
+        for value, x in zip(self.values, xs):
+            loss = value.loss(x=x)
+            losses.append(loss)
+        self.loss = tf.add_n(inputs=losses, name=None)
+        # self.loss = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
+        self.optimized = self.optimizer.optimize(loss=self.loss)
 
         # synthesize
         self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         x = self.encoding.sample(n=self.num_synthesize)
         x = self.decoder.transform(x=x)
-        xs = tf.split(
-            value=x, num_or_size_splits=self.value_sizes, axis=1, num=None, name=None
-        )
+        x = self.output.transform(x=x)
+        xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
         for value, x in zip(self.values, xs):
             self.synthesized[value.name] = value.output_tensor(x=x)
@@ -97,31 +144,44 @@ class BasicSynthesizer(Synthesizer):
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
         x = self.decoder.transform(x=x)
+        x = self.output.transform(x=x)
         xs = tf.split(
-            value=x, num_or_size_splits=self.value_sizes, axis=1, num=None, name=None
+            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
         self.transformed = dict()
         for value, x in zip(self.values, xs):
             self.transformed[value.name] = value.output_tensor(x=x)
 
-    def learn(self, data, verbose=0):
-        data = [data[value.name].get_values() for value in self.values]
-        num_data = len(data[0])
-        for i in range(50000):
-            batch = np.random.randint(num_data, size=64)
-            feed_dict = {value.placeholder: d[batch] for value, d in zip(self.values, data)}
-            loss, _ = self.session.run(
-                fetches=(self.loss, self.optimized), feed_dict=feed_dict, options=None,
-                run_metadata=None
-            )
-            if verbose and i % verbose + 1 == verbose:
-                print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
-            #     print('{iteration}: {loss:1.2e} ({details})'.format(
-            #         iteration=(i + 1), loss=loss, details=', '.join(
-            #             '{name}={loss:1.2e}'.format(name=name, loss=loss)
-            #             for name, loss in losses.items()
-            #         )
-            #     ))
+    def learn(self, data=None, filenames=None, verbose=0):
+        if (data is None) == (filenames is None):
+            raise NotImplementedError
+
+        # TODO: increment global step
+        if filenames is None:
+            data = [data[value.name].get_values() for value in self.values]
+            num_data = len(data[0])
+            fetches = (self.loss, self.optimized)
+            for i in range(self.iterations):
+                batch = np.random.randint(num_data, size=64)
+                feed_dict = {value.placeholder: d[batch] for value, d in zip(self.values, data)}
+                loss, _ = self.session.run(
+                    fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
+                )
+                if verbose and i % verbose + 1 == verbose:
+                    print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
+
+        else:
+            fetches = self.iterator.initializer
+            feed_dict = {self.filenames: filenames}
+            self.session.run(fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None)
+            fetches = (self.loss_dataset, self.optimized_dataset)
+            # TODO: while loop for training
+            for i in range(self.iterations):
+                loss, _ = self.session.run(
+                    fetches=fetches, feed_dict=None, options=None, run_metadata=None
+                )
+                if verbose and i % verbose + 1 == verbose:
+                    print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
 
     def synthesize(self, n):
         feed_dict = {self.num_synthesize: n}

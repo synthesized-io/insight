@@ -8,5 +8,13 @@ class Transformation(Module):
         self.input_size = input_size
         self.output_size = output_size
 
-    def transform(self, x):
+    def specification(self):
+        spec = super().specification()
+        spec.update(input_size=self.input_size, output_size=self.output_size)
+        return spec
+
+    def size(self):
+        return self.output_size
+
+    def tf_transform(self, x, *args):
         raise NotImplementedError
