@@ -9,63 +9,143 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
+from pyemd.emd import emd_samples
+from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import train_test_split
 
 from sklearn import clone
 from plotly.offline import init_notebook_mode, iplot
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error
 
 
-# a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
+class Testing:
+    def __init__(self, df_orig, df_synth):
+        self.df_orig = df_orig
+        self.df_synth = df_synth
 
-def estimate_utility(df_orig, df_synth, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression(), min_score=0.01):
-    categorical_columns_set = set(categorical_columns)
-    continuous_columns_set = set(continuous_columns)
-    intersection = continuous_columns_set.intersection(categorical_columns_set)
-    if len(intersection) > 0:
-        raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))
-    columns = continuous_columns_set.union(categorical_columns_set)
-    df_orig = df_orig.apply(pd.to_numeric)
-    df_synth = df_synth.apply(pd.to_numeric)
-    result = []
-    for column in columns:
-        X_columns = list(columns.difference([column]))
+    @staticmethod
+    def edges(a):
+        _, edges = np.histogram(a)
+        return edges
 
-        X_orig = df_orig[X_columns]
-        y_orig = df_orig[column]
+    @staticmethod
+    def to_categorical(a, edges):
+        def to_bucket(x):
+            idx = np.searchsorted(edges, x)
+            if idx == len(edges) - 1:
+                idx -= 1
+            start = edges[idx]
+            end = edges[idx + 1]
+            return "[{}-{})".format(start, end)
 
-        X_synth = df_synth[X_columns]
-        y_synth = df_synth[column]
+        to_bucketv = np.vectorize(to_bucket)
+        return to_bucketv(a)
 
-        X_orig = StandardScaler().fit_transform(X_orig)
-        X_synth = StandardScaler().fit_transform(X_synth)
+    # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
+    def estimate_utility(self, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression()):
+        categorical_columns_set = set(categorical_columns)
+        continuous_columns_set = set(continuous_columns)
+        intersection = continuous_columns_set.intersection(categorical_columns_set)
+        if len(intersection) > 0:
+            raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))
+        columns_set = continuous_columns_set.union(categorical_columns_set)
+        df_orig = self.df_orig.apply(pd.to_numeric)
+        df_synth = self.df_synth.apply(pd.to_numeric)
+        result = []
+        for y_column in sorted(list(columns_set)):
+            X_columns = list(columns_set.difference([y_column]))
 
-        X_orig_train, X_orig_test, y_orig_train, y_orig_test = train_test_split(X_orig, y_orig, test_size=0.2, random_state=0)
-        X_synth_train, X_synth_test, y_synth_train, y_synth_test = train_test_split(X_synth, y_synth, test_size=0.2, random_state=0)
+            X_orig = df_orig[X_columns]
+            y_orig = df_orig[y_column]
 
-        if column in categorical_columns:
-            estimator = classifier
-        else:
-            estimator = regressor
+            X_synth = df_synth[X_columns]
+            y_synth = df_synth[y_column]
 
-        baseline_score = clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test)
-        synth_score = clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test)
-        if baseline_score < min_score or synth_score < min_score:
-            utility = float('nan')
-        else:
-            diff = baseline_score - synth_score
-            utility = round((1 - diff / baseline_score) * 100, 2)
-        result.append({
-            'target_column': column,
-            'estimator': estimator.__class__.__name__,
-            'baseline_score': baseline_score,
-            'synth_score': synth_score,
-            'change': synth_score - baseline_score,
-            'utility': utility,
-        })
+            scaler = StandardScaler()
+            X_orig = scaler.fit_transform(X_orig)
+            X_synth = scaler.transform(X_synth)
 
-    return pd.DataFrame.from_records(result, columns=['target_column', 'estimator', 'baseline_score', 'synth_score', 'change', 'utility'])
+            X_orig_train, X_orig_test, y_orig_train, y_orig_test = train_test_split(X_orig, y_orig, test_size=0.2, random_state=0)
+            X_synth_train, X_synth_test, y_synth_train, y_synth_test = train_test_split(X_synth, y_synth, test_size=0.2, random_state=0)
+
+            if y_column in categorical_columns:
+                estimator = classifier
+                dummy_estimator = DummyClassifier(strategy="most_frequent")
+            else:
+                estimator = regressor
+                dummy_estimator = DummyRegressor()
+
+            orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
+            synth_score = max(clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test), 0.0)
+            dummy_orig_score = max(dummy_estimator.fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
+            dummy_synth_score = max(dummy_estimator.fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test), 0.0)
+
+            y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
+            y_synth_pred = clone(estimator).fit(X_synth_train, y_synth_train).predict(X_orig_test)
+
+            orig_error = mean_squared_error(y_orig_test, y_orig_pred)
+            synth_error = mean_squared_error(y_orig_test, y_synth_pred)
+
+            orig_gain = max(orig_score - dummy_orig_score, 0.0)
+            synth_gain = max(synth_score - dummy_synth_score, 0.0)
+
+            if orig_gain == 0.0:
+                if synth_gain == 0.0:
+                    score_utility = float("nan")
+                else:
+                    score_utility = 0.0
+            else:
+                score_utility = synth_gain / orig_gain
+
+            if synth_error == 0.0:
+                error_utility = 1.0
+            else:
+                error_utility = orig_error / synth_error
+
+            result.append({
+                'target_column': y_column,
+                'estimator': estimator.__class__.__name__,
+                'dummy_original_score': dummy_orig_score,
+                'original_score': orig_score,
+                'dummy_synth_score': dummy_synth_score,
+                'synth_score': synth_score,
+                'orig_error': orig_error,
+                'synth_error': synth_error,
+                'score_utility': score_utility,
+                'error_utility': error_utility
+            })
+
+        return pd.DataFrame.from_records(result, columns=[
+            'target_column',
+            'estimator',
+            'dummy_original_score',
+            'original_score',
+            'dummy_synth_score',
+            'synth_score',
+            'orig_error',
+            'synth_error',
+            'score_utility',
+            'error_utility'
+        ])
+
+    def compare_marginal_distributions(self, target_column, filter_column, bins=4):
+        _, edges = np.histogram(self.df_orig[filter_column], bins=bins)
+        target_emd = '{} EMD'.format(target_column)
+        result = []
+        for i in range(0, len(edges)-1):
+            df_orig_target = self.df_orig[(self.df_orig[filter_column] >= edges[i]) & (self.df_orig[filter_column] < edges[i+1])][target_column]
+            df_synth_target = self.df_synth[(self.df_synth[filter_column] >= edges[i]) & (self.df_synth[filter_column] < edges[i+1])][target_column]
+            if len(df_orig_target) == 0 or len(df_synth_target) == 0:
+                emd = 1.0
+            else:
+                emd = emd_samples(df_orig_target, df_synth_target)
+            result.append({
+                filter_column: '[{}, {})'.format(edges[i], edges[i+1]),
+                target_emd: emd
+            })
+        return pd.DataFrame.from_records(result, columns=[filter_column, target_emd])
 
 
 class TestingEnvironment:
