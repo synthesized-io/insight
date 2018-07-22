@@ -6,14 +6,20 @@ class Value(Module):
     def __init__(self, name):
         super().__init__(name=name)
 
-    def size(self):
+    def input_size(self, x=None):
         raise NotImplementedError
 
-    def input_tensor(self):
+    def output_size(self):
+        return self.input_size()
+
+    def feature(self, x=None):
         raise NotImplementedError
 
-    def output_tensor(self, x):
+    def tf_input_tensor(self, feed=None):
         raise NotImplementedError
 
-    def loss(self, x):
+    def tf_output_tensor(self, x):
+        raise NotImplementedError
+
+    def tf_loss(self, x, feed=None):
         raise NotImplementedError

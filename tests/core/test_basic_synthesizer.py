@@ -8,24 +8,6 @@ from synthesized.core import BasicSynthesizer
 from synthesized.testing.testing_environment import estimate_utility
 
 
-# ContinuousValue:
-# - other loss, even bounded: bad
-
-# CategoricalValue:
-# - noise 0.0: not so good
-
-# DenseTransformation:
-# - no batchnorm: bad
-# - tanh activation: bad
-
-# Encoding:
-# - basic: worse
-
-# Current architecture:
-# - layer 16 and 128: not so good?
-# - amount varies a lot
-
-
 class TestEncodings(unittest.TestCase):
 
     def test_basic(self):
@@ -41,10 +23,7 @@ class TestEncodings(unittest.TestCase):
         data['operation'] = data['operation'].astype(dtype='category')
         data['amount'] = data['amount'].astype(dtype='float32')
 
-        with BasicSynthesizer(
-            dtypes=data.dtypes,
-            # encoding='variational', encoding_size=64, encoder=(64,), decoder=(64,)
-        ) as synthesizer:
+        with BasicSynthesizer(dtypes=data.dtypes) as synthesizer:
             synthesizer.learn(data=data, verbose=5000)
             synthesized = synthesizer.synthesize(n=10000)
 
