@@ -28,26 +28,26 @@ class ContinuousValue(Value):
 
     def tf_input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed
-        x = tf.expand_dims(input=x, axis=1, name=None)
+        x = tf.expand_dims(input=x, axis=1)
         return x
 
     def tf_output_tensor(self, x):
         if self.positive:
-            x = tf.nn.softplus(features=x, name=None)
-        x = tf.squeeze(input=x, axis=1, name=None)
+            x = tf.nn.softplus(features=x)
+        x = tf.squeeze(input=x, axis=1)
         return x
 
     def tf_loss(self, x, feed=None):
         if self.positive:
-            x = tf.nn.softplus(features=x, name=None)
+            x = tf.nn.softplus(features=x)
         target = self.input_tensor(feed=feed)
         # target = tf.Print(target, (x, target))
 
-        # relative = tf.maximum(x=x, y=target, name=None) / (tf.minimum(x=x, y=target, name=None) + 1.0)
+        # relative = tf.maximum(x=x, y=target) / (tf.minimum(x=x, y=target) + 1.0)
         # # relative = tf.Print(relative, (relative,))
         # relative = tf.minimum(x=relative, y=10.0)
-        # relative = tf.squeeze(input=relative, axis=1, name=None)
-        # loss = tf.reduce_mean(input_tensor=(relative - 1.0), axis=0, keepdims=False, name=None)
+        # relative = tf.squeeze(input=relative, axis=1)
+        # loss = tf.reduce_mean(input_tensor=(relative - 1.0), axis=0, keepdims=False)
         # loss = tf.losses.add_loss(loss=loss, loss_collection=tf.GraphKeys.LOSSES)
         loss = tf.losses.mean_squared_error(
             labels=target, predictions=x, weights=1.0, scope=None,

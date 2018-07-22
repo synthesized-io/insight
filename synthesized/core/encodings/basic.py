@@ -24,19 +24,17 @@ class BasicEncoding(Encoding):
 
     def tf_encode(self, x, encoding_loss=False):
         x = self.embedding.transform(x=x)
-        x = tf.tanh(x=x, name=None)
+        x = tf.tanh(x=x)
         return x
 
     def tf_sample(self, n):
         if self.sampling == 'uniform':
             x = tf.random_uniform(
-                shape=(n, self.encoding_size), minval=-1.0, maxval=1.0, dtype=tf.float32,
-                seed=None, name=None
+                shape=(n, self.encoding_size), minval=-1.0, maxval=1.0, dtype=tf.float32, seed=None
             )
         elif self.sampling == 'normal':
             x = tf.truncated_normal(
-                shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32,
-                seed=None, name=None
+                shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
             )
         else:
             raise NotImplementedError

@@ -6,20 +6,27 @@ from synthesized.core.transformations import DenseTransformation
 from synthesized.core.optimizers import Optimizer
 
 
-class BasicSynthesizer(Synthesizer):
+class IdSynthesizer(Synthesizer):
 
     def __init__(
         self, dtypes, encoding='variational', encoding_size=64, encoder=(64, 64), decoder=(64, 64),
-        embedding_size=32, iterations=50000
+        embedding_size=32, id_embedding_size=128, iterations=50000
     ):
-        super().__init__(name='basic_synthesizer')
+        super().__init__(name='id_synthesizer')
 
         self.values = list()
+        self.identifier_value = None
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
         for name, dtype in zip(dtypes.axes[0], dtypes):
-            if dtype.kind == 'O':
+            if name == 'account_id':
+                self.identifier_value = self.add_module(
+                    module='identifier', modules=value_modules, name=name,
+                    num_identifiers=4500, embedding_size=id_embedding_size
+                )
+                continue
+            elif dtype.kind == 'O':
                 value = self.add_module(
                     module='categorical', modules=value_modules, name=name,
                     num_categories=len(dtype.categories), embedding_size=embedding_size
@@ -33,6 +40,9 @@ class BasicSynthesizer(Synthesizer):
             input_size += value.input_size()
             output_size += value.output_size()
 
+        if self.identifier_value is None:
+            raise NotImplementedError
+
         self.encoder = self.add_module(
             module='mlp', modules=transformation_modules, name='encoder',
             input_size=input_size, layer_sizes=encoder
@@ -41,6 +51,11 @@ class BasicSynthesizer(Synthesizer):
         self.encoding = self.add_module(
             module=encoding, modules=encoding_modules, name='encoding',
             input_size=self.encoder.size(), encoding_size=encoding_size
+        )
+
+        self.modulation = self.add_module(
+            module='modulation', modules=transformation_modules, name='modulation',
+            input_size=encoding_size, condition_size=id_embedding_size
         )
 
         self.decoder = self.add_module(
@@ -71,7 +86,7 @@ class BasicSynthesizer(Synthesizer):
         return spec
 
     def get_values(self):
-        return list(self.values)
+        return self.values + [self.identifier_value]
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -84,6 +99,8 @@ class BasicSynthesizer(Synthesizer):
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x, encoding_loss=True)
+        condition = self.identifier_value.input_tensor()
+        x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -100,14 +117,14 @@ class BasicSynthesizer(Synthesizer):
         # # dataset learn
         # self.filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
         # dataset = tf.data.TFRecordDataset(
-        #     filenames=self.filenames, compression_type='GZIP', buffer_size=1e6
+        #     filenames=self.filenames, compression_type='GZIP', buffer_size=1e7
         #     # num_parallel_reads=None
         # )
         # dataset = dataset.shuffle(buffer_size=10000, seed=None, reshuffle_each_iteration=True)
         # dataset = dataset.map(
         #     map_func=(lambda serialized: tf.parse_single_example(
         #         serialized=serialized,
-        #         features={value.name: value.feature() for value in self.values},
+        #         features={value.name: value.feature() for value in self.get_values()},
         #         name=None, example_names=None
         #     )),
         #     num_parallel_calls=None
@@ -122,6 +139,10 @@ class BasicSynthesizer(Synthesizer):
         # x = tf.concat(values=xs, axis=1, name=None)
         # x = self.encoder.transform(x=x)
         # x = self.encoding.encode(x=x, encoding_loss=True)
+        # condition = self.identifier_value.input_tensor(
+        #     feed=next_values[self.identifier_value.name]
+        # )
+        # x = self.modulation.transform(x=x, condition=condition)
         # x = self.decoder.transform(x=x)
         # x = self.output.transform(x=x)
         # xs = tf.split(
@@ -138,20 +159,26 @@ class BasicSynthesizer(Synthesizer):
         # synthesize
         self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         x = self.encoding.sample(n=self.num_synthesize)
+        identifier, condition = self.identifier_value.random_value(n=self.num_synthesize)
+        x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
         for value, x in zip(self.values, xs):
             self.synthesized[value.name] = value.output_tensor(x=x)
+        self.synthesized[self.identifier_value.name] = identifier
 
         # transform
         xs = list()
         for value in self.values:
-            xs.append(value.input_tensor())
+            x = value.input_tensor()
+            xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
+        condition = self.identifier_value.input_tensor()
+        x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -160,6 +187,7 @@ class BasicSynthesizer(Synthesizer):
         self.transformed = dict()
         for value, x in zip(self.values, xs):
             self.transformed[value.name] = value.output_tensor(x=x)
+        self.transformed[self.identifier_value.name] = self.identifier_value.placeholder
 
     def learn(self, data=None, filenames=None, verbose=0):
         if (data is None) == (filenames is None):

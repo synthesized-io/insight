@@ -29,25 +29,20 @@ class VariationalEncoding(Encoding):
     def tf_encode(self, x, encoding_loss=False):
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
-        # stddev = tf.nn.softplus(features=stddev, name=None)
         x = tf.random_normal(
-            shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None,
-            name=None
+            shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         x = mean + stddev * x
         if encoding_loss:
-            encoding_loss = 0.5 * (tf.square(x=mean, name=None) + tf.square(x=stddev, name=None)) \
-                - tf.log(x=tf.maximum(x=stddev, y=1e-6, name=None), name=None) - 0.5
-            encoding_loss = tf.reduce_sum(
-                input_tensor=encoding_loss, axis=(0, 1), keepdims=False, name=None
-            )
+            encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
+                - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+            encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             encoding_loss *= self.beta
             tf.losses.add_loss(loss=encoding_loss, loss_collection=tf.GraphKeys.LOSSES)
         return x
 
     def tf_sample(self, n):
         x = tf.random_normal(
-            shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None,
-            name=None
+            shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         return x

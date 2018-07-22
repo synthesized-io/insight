@@ -108,7 +108,7 @@ class Module(object):
         )
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
-        self.session.run(fetches=initialize, feed_dict=None, options=None, run_metadata=None)
+        self.session.run(fetches=initialize, feed_dict={value.placeholder: [] for value in self.values}, options=None, run_metadata=None)
         # self.session.run(fetches=graph_summary, feed_dict=None, options=None, run_metadata=None)
         # with self.summary_writer.as_default():
         #     tf.contrib.summary.initialize(graph=self.graph, session=self.session)
