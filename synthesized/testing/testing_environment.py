@@ -21,8 +21,9 @@ from sklearn.metrics import mean_squared_error
 
 
 class Testing:
-    def __init__(self, df_orig, df_synth):
+    def __init__(self, df_orig, df_test, df_synth):
         self.df_orig = df_orig
+        self.df_test = df_test
         self.df_synth = df_synth
 
     @staticmethod
@@ -52,23 +53,25 @@ class Testing:
             raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))
         columns_set = continuous_columns_set.union(categorical_columns_set)
         df_orig = self.df_orig.apply(pd.to_numeric)
+        df_test = self.df_test.apply(pd.to_numeric)
         df_synth = self.df_synth.apply(pd.to_numeric)
         result = []
         for y_column in sorted(list(columns_set)):
             X_columns = list(columns_set.difference([y_column]))
 
-            X_orig = df_orig[X_columns]
-            y_orig = df_orig[y_column]
+            X_orig_train = df_orig[X_columns]
+            y_orig_train = df_orig[y_column]
+
+            X_orig_test = df_test[X_columns]
+            y_orig_test = df_test[y_column]
 
             X_synth = df_synth[X_columns]
             y_synth = df_synth[y_column]
 
             scaler = StandardScaler()
-            X_orig = scaler.fit_transform(X_orig)
+            X_orig_train = scaler.fit_transform(X_orig_train)
+            X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
-
-            X_orig_train, X_orig_test, y_orig_train, y_orig_test = train_test_split(X_orig, y_orig, test_size=0.2, random_state=0)
-            X_synth_train, X_synth_test, y_synth_train, y_synth_test = train_test_split(X_synth, y_synth, test_size=0.2, random_state=0)
 
             if y_column in categorical_columns:
                 estimator = classifier
@@ -78,18 +81,17 @@ class Testing:
                 dummy_estimator = DummyRegressor()
 
             orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
-            synth_score = max(clone(estimator).fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test), 0.0)
+            synth_score = max(clone(estimator).fit(X_synth, y_synth).score(X_orig_test, y_orig_test), 0.0)
             dummy_orig_score = max(dummy_estimator.fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
-            dummy_synth_score = max(dummy_estimator.fit(X_synth_train, y_synth_train).score(X_orig_test, y_orig_test), 0.0)
 
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
-            y_synth_pred = clone(estimator).fit(X_synth_train, y_synth_train).predict(X_orig_test)
+            y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
             orig_error = mean_squared_error(y_orig_test, y_orig_pred)
             synth_error = mean_squared_error(y_orig_test, y_synth_pred)
 
             orig_gain = max(orig_score - dummy_orig_score, 0.0)
-            synth_gain = max(synth_score - dummy_synth_score, 0.0)
+            synth_gain = max(synth_score - dummy_orig_score, 0.0)
 
             if orig_gain == 0.0:
                 if synth_gain == 0.0:
@@ -109,7 +111,6 @@ class Testing:
                 'estimator': estimator.__class__.__name__,
                 'dummy_original_score': dummy_orig_score,
                 'original_score': orig_score,
-                'dummy_synth_score': dummy_synth_score,
                 'synth_score': synth_score,
                 'orig_error': orig_error,
                 'synth_error': synth_error,
@@ -122,7 +123,6 @@ class Testing:
             'estimator',
             'dummy_original_score',
             'original_score',
-            'dummy_synth_score',
             'synth_score',
             'orig_error',
             'synth_error',
