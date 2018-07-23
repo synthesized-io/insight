@@ -1,11 +1,12 @@
-import warnings
-warnings.filterwarnings(action='ignore', message="numpy.dtype size changed")
-
 import unittest
+import warnings
+
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
 from synthesized.core import BasicSynthesizer
-from synthesized.testing.testing_environment import estimate_utility
+
+warnings.filterwarnings(action='ignore', message="numpy.dtype size changed")
 
 
 class TestEncodings(unittest.TestCase):
