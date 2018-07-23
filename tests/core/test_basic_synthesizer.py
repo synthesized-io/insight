@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from synthesized.core import BasicSynthesizer
+from synthesized.testing.testing_environment import Testing
 
 warnings.filterwarnings(action='ignore', message="numpy.dtype size changed")
 
@@ -47,7 +48,8 @@ class TestEncodings(unittest.TestCase):
             normalize=True, sort=False
         ))
 
-        print(estimate_utility(
+        testing = Testing(data, data, synthesized)
+        print(testing.estimate_utility(
             df_orig=data, df_synth=synthesized,
             continuous_columns=['amount'], categorical_columns=['type', 'operation'],
             classifier=DecisionTreeClassifier(), regressor=DecisionTreeRegressor()
