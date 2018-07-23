@@ -1,5 +1,6 @@
 import tensorflow as tf
-from synthesized.core import Module
+
+from ..module import Module
 
 
 class Optimizer(Module):

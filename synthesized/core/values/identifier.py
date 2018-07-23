@@ -1,6 +1,7 @@
 import tensorflow as tf
-from synthesized.core import util
-from synthesized.core.values import Value
+
+from .value import Value
+from .. import util
 
 
 class IdentifierValue(Value):

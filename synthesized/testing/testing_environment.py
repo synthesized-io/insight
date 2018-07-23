@@ -9,15 +9,13 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
+from plotly.offline import init_notebook_mode, iplot
 from pyemd.emd import emd_samples
+from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.model_selection import train_test_split
-
-from sklearn import clone
-from plotly.offline import init_notebook_mode, iplot
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
 
 
 class Testing:

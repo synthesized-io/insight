@@ -1,6 +1,7 @@
-from sklearn.base import BaseEstimator, TransformerMixin
 import tensorflow as tf
-from synthesized.core import Module
+from sklearn.base import TransformerMixin
+
+from .module import Module
 
 
 class Synthesizer(Module, TransformerMixin):

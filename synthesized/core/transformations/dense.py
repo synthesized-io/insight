@@ -1,6 +1,7 @@
 import tensorflow as tf
-from synthesized.core import util
-from synthesized.core.transformations import Transformation
+
+from .transformation import Transformation
+from .. import util
 
 
 class DenseTransformation(Transformation):
