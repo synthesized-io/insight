@@ -1,5 +1,6 @@
 import tensorflow as tf
-from synthesized.core.values import Value
+
+from .value import Value
 
 
 class ContinuousValue(Value):

@@ -1,4 +1,4 @@
-from synthesized.core import Module
+from ..module import Module
 
 
 class Encoding(Module):

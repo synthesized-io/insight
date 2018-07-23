@@ -1,6 +1,7 @@
 import tensorflow as tf
-from synthesized.core.transformations import DenseTransformation
-from synthesized.core.encodings import Encoding
+
+from .encoding import Encoding
+from ..transformations import DenseTransformation
 
 
 class VariationalEncoding(Encoding):

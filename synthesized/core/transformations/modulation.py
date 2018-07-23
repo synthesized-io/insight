@@ -1,4 +1,4 @@
-from synthesized.core.transformations import Transformation, DenseTransformation
+from ..transformations import Transformation, DenseTransformation
 
 
 class ModulationTransformation(Transformation):

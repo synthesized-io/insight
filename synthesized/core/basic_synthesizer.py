@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from synthesized.core import value_modules, transformation_modules, encoding_modules, Synthesizer
-from synthesized.core.transformations import DenseTransformation
-from synthesized.core.optimizers import Optimizer
+
+from . import value_modules, transformation_modules, encoding_modules, Synthesizer
+from .optimizers import Optimizer
+from .transformations import DenseTransformation
 
 
 class BasicSynthesizer(Synthesizer):
