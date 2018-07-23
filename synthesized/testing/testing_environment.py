@@ -12,7 +12,6 @@ import plotly.figure_factory as ff
 from pyemd.emd import emd_samples
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.model_selection import train_test_split
 
 from sklearn import clone
 from plotly.offline import init_notebook_mode, iplot
