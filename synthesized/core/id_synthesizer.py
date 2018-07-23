@@ -2,9 +2,12 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from . import value_modules, transformation_modules, encoding_modules, Synthesizer
+from .encodings import encoding_modules
 from .optimizers import Optimizer
+from .synthesizer import Synthesizer
 from .transformations import DenseTransformation
+from .transformations import transformation_modules
+from .values import value_modules
 
 
 class IdSynthesizer(Synthesizer):

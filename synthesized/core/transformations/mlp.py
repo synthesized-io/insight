@@ -1,4 +1,5 @@
-from ..transformations import Transformation, DenseTransformation
+from .dense import DenseTransformation
+from .transformation import Transformation
 
 
 class MlpTransformation(Transformation):
