@@ -40,3 +40,4 @@ docs/_build
 output/
 venv/
 .ipynb_checkpoints
+logs/
