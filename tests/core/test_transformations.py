@@ -20,13 +20,13 @@ def _test_transformation(transformation):
 
 def test_dense():
     transformation = DenseTransformation(
-        name='dense', input_size=8, output_size=6, batchnorm=True, activation='relu'
+        name='dense', input_size=8, output_size=6, bias=True, batchnorm=True, activation='relu'
     )
     _test_transformation(transformation=transformation)
 
 
 def test_mlp():
     transformation = MlpTransformation(
-        name='mlp', input_size=8, layer_sizes=(10, 4)
+        name='mlp', input_size=8, layer_sizes=(10, 6)
     )
     _test_transformation(transformation=transformation)

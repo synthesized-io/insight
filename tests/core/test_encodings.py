@@ -16,23 +16,23 @@ def _test_encoding(encoding):
         encoded = session.run(
             fetches=encode_output, feed_dict={encode_input: np.random.randn(4, 8)}
         )
-        assert encoded.shape == (4, 8)
+        assert encoded.shape == (4, 6)
         sampled = session.run(
             fetches=sample_output, feed_dict={sample_input: 4}
         )
-        assert sampled.shape == (4, 8)
+        assert sampled.shape == (4, 6)
 
 
 def test_basic_normal():
-    encoding = BasicEncoding(name='basic', encoding_size=8, sampling='normal')
+    encoding = BasicEncoding(name='basic', input_size=8, encoding_size=6, sampling='normal')
     _test_encoding(encoding=encoding)
 
 
 def test_basic_uniform():
-    encoding = BasicEncoding(name='basic', encoding_size=8, sampling='uniform')
+    encoding = BasicEncoding(name='basic', input_size=8, encoding_size=6, sampling='uniform')
     _test_encoding(encoding=encoding)
 
 
 def test_variational():
-    encoding = VariationalEncoding(name='basic', encoding_size=8, loss_weight=1.0)
+    encoding = VariationalEncoding(name='basic', input_size=8, encoding_size=6, beta=1.0)
     _test_encoding(encoding=encoding)
