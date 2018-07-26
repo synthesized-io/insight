@@ -1,7 +1,7 @@
 # dev tools
 sphinx
 sphinx_rtd_theme
-nose
+pytest
 coverage
 ipykernel
 jupyter

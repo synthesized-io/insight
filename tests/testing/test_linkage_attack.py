@@ -1,5 +1,4 @@
 import pandas as pd
-from nose.tools import assert_equals
 from pandas.util.testing import assert_frame_equal
 
 from synthesized.testing.linkage_attack import linkage_attack, Column
@@ -19,13 +18,13 @@ def test_t_closeness_check():
         {'key1': 1, 'key2': 2, 'attr1': 1, 'attr2': 1},
         {'key1': 2, 'key2': 3, 'attr1': 2, 'attr2': 1}
     ])
-    assert_equals(len(t_closeness_check(df, schema, threshold=0.2)), 24)
+    assert len(t_closeness_check(df, schema, threshold=0.2)) == 24
 
     df = pd.DataFrame.from_records([
         {'key1': 1, 'key2': 1, 'attr1': 1, 'attr2': 1},
         {'key1': 1, 'key2': 1, 'attr1': 1, 'attr2': 1}
     ])
-    assert_equals(len(t_closeness_check(df, schema, threshold=0.2)), 0)
+    assert len(t_closeness_check(df, schema, threshold=0.2)) == 0
 
 
 def test_find_boundaries():
@@ -43,16 +42,16 @@ def test_find_boundaries():
     }
 
     down, up = find_neighbour_distances(df, {'key1': 10, 'key2': 11}, schema)
-    assert_equals(down, {'key1': 5., 'key2': 5.})
-    assert_equals(up, {})
+    assert down == {'key1': 5., 'key2': 5.}
+    assert up == {}
 
     down, up = find_neighbour_distances(df, {'key1': 1, 'key2': 2}, schema)
-    assert_equals(down, {})
-    assert_equals(up, {'key1': 4., 'key2': 4.})
+    assert down == {}
+    assert up == {'key1': 4., 'key2': 4.}
 
     down, up = find_neighbour_distances(df, {'key1': 5, 'key2': 6}, schema)
-    assert_equals(down, {'key1': 4., 'key2': 4.})
-    assert_equals(up, {'key1': 5., 'key2': 5.})
+    assert down == {'key1': 4., 'key2': 4.}
+    assert up == {'key1': 5., 'key2': 5.}
 
 
 def test_find_eq_class():
@@ -121,4 +120,4 @@ def test_linkage_attack():
         'attr1': Column(key_attribute=True, sensitive=True, categorical=False),
         'attr2': Column(key_attribute=True, sensitive=True, categorical=False)
     }
-    assert_equals(41, len(linkage_attack(df1, df2, schema)))
+    assert 41 == len(linkage_attack(df1, df2, schema))
