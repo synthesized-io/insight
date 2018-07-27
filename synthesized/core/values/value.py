@@ -12,6 +12,12 @@ class Value(Module):
     def output_size(self):
         return self.input_size()
 
+    def preprocess(self, data):
+        return data
+
+    def postprocess(self, data):
+        return data
+
     def feature(self, x=None):
         raise NotImplementedError
 
