@@ -27,7 +27,6 @@ class ColumnType(Enum):
 
 
 class Testing:
-
     def __init__(self, df_orig, df_test, df_synth, schema):
         self.df_orig = df_orig
         self.df_test = df_test
@@ -41,26 +40,34 @@ class Testing:
 
     @staticmethod
     def to_categorical(a, edges):
-        def to_bucket(x):
-            idx = np.searchsorted(edges, x)
-            if idx == len(edges) - 1:
-                idx -= 1
-            start = edges[idx]
-            end = edges[idx + 1]
-            return "[{}-{})".format(start, end)
+        return np.digitize(a, edges)
 
-        to_bucketv = np.vectorize(to_bucket)
-        return to_bucketv(a)
-
-    # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         df_orig = self.df_orig.apply(pd.to_numeric)
         df_test = self.df_test.apply(pd.to_numeric)
         df_synth = self.df_synth.apply(pd.to_numeric)
         result = []
         columns_set = set(self.schema.keys())
-        for y_column in sorted(list(self.schema.keys())):
-            X_columns = list(columns_set.difference([y_column]))
+        y_columns = sorted(list(self.schema.keys()))
+        schema = dict(self.schema)
+        y_columns_new = []
+        y_orig_columns = {}
+        for i, y_column in enumerate(y_columns):
+            y_columns_new.append(y_column)
+            if self.schema[y_column] == ColumnType.CONTINUOUS:
+                categorical_y_column = y_column + ' (categorical reduction)'
+                edges = Testing.edges(df_orig[y_column])
+                df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
+                df_test[categorical_y_column] = Testing.to_categorical(df_test[y_column], edges)
+                df_synth[categorical_y_column] = Testing.to_categorical(df_synth[y_column], edges)
+                schema[categorical_y_column] = ColumnType.CATEGORICAL
+                y_columns_new.append(categorical_y_column)
+                y_orig_columns[categorical_y_column] = y_column
+        for y_column in y_columns_new:
+            to_exclude = [y_column]
+            if y_column in y_orig_columns:
+                to_exclude.append(y_orig_columns[y_column])
+            X_columns = list(columns_set.difference(to_exclude))
 
             X_orig_train = df_orig[X_columns]
             y_orig_train = df_orig[y_column]
@@ -76,7 +83,7 @@ class Testing:
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-            if self.schema[y_column] == ColumnType.CATEGORICAL:
+            if schema[y_column] == ColumnType.CATEGORICAL:
                 estimator = classifier
                 dummy_estimator = DummyClassifier(strategy="most_frequent")
             else:
