@@ -6,10 +6,13 @@
 
 from __future__ import division, print_function, absolute_import
 
+from enum import Enum
+
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 from plotly.offline import init_notebook_mode, iplot
+from pyemd import emd
 from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
@@ -18,11 +21,17 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 
 
+class ColumnType(Enum):
+    CONTINUOUS = 1
+    CATEGORICAL = 2
+
+
 class Testing:
-    def __init__(self, df_orig, df_test, df_synth):
+    def __init__(self, df_orig, df_test, df_synth, schema):
         self.df_orig = df_orig
         self.df_test = df_test
         self.df_synth = df_synth
+        self.schema = schema
 
     @staticmethod
     def edges(a):
@@ -31,31 +40,34 @@ class Testing:
 
     @staticmethod
     def to_categorical(a, edges):
-        def to_bucket(x):
-            idx = np.searchsorted(edges, x)
-            if idx == len(edges) - 1:
-                idx -= 1
-            start = edges[idx]
-            end = edges[idx + 1]
-            return "[{}-{})".format(start, end)
+        return np.digitize(a, edges)
 
-        to_bucketv = np.vectorize(to_bucket)
-        return to_bucketv(a)
-
-    # a good reference to logreg - https://towardsdatascience.com/building-a-logistic-regression-in-python-step-by-step-becd4d56c9c8
-    def estimate_utility(self, categorical_columns, continuous_columns, classifier=LogisticRegression(), regressor=LinearRegression()):
-        categorical_columns_set = set(categorical_columns)
-        continuous_columns_set = set(continuous_columns)
-        intersection = continuous_columns_set.intersection(categorical_columns_set)
-        if len(intersection) > 0:
-            raise ValueError('Columns should be either continuous or categorical: {}'.format(intersection))
-        columns_set = continuous_columns_set.union(categorical_columns_set)
+    def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         df_orig = self.df_orig.apply(pd.to_numeric)
         df_test = self.df_test.apply(pd.to_numeric)
         df_synth = self.df_synth.apply(pd.to_numeric)
         result = []
-        for y_column in sorted(list(columns_set)):
-            X_columns = list(columns_set.difference([y_column]))
+        columns_set = set(self.schema.keys())
+        y_columns = sorted(list(self.schema.keys()))
+        schema = dict(self.schema)
+        y_columns_new = []
+        y_orig_columns = {}
+        for i, y_column in enumerate(y_columns):
+            y_columns_new.append(y_column)
+            if self.schema[y_column] == ColumnType.CONTINUOUS:
+                categorical_y_column = y_column + ' (categorical reduction)'
+                edges = Testing.edges(df_orig[y_column])
+                df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
+                df_test[categorical_y_column] = Testing.to_categorical(df_test[y_column], edges)
+                df_synth[categorical_y_column] = Testing.to_categorical(df_synth[y_column], edges)
+                schema[categorical_y_column] = ColumnType.CATEGORICAL
+                y_columns_new.append(categorical_y_column)
+                y_orig_columns[categorical_y_column] = y_column
+        for y_column in y_columns_new:
+            to_exclude = [y_column]
+            if y_column in y_orig_columns:
+                to_exclude.append(y_orig_columns[y_column])
+            X_columns = list(columns_set.difference(to_exclude))
 
             X_orig_train = df_orig[X_columns]
             y_orig_train = df_orig[y_column]
@@ -71,7 +83,7 @@ class Testing:
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-            if y_column in categorical_columns:
+            if schema[y_column] == ColumnType.CATEGORICAL:
                 estimator = classifier
                 dummy_estimator = DummyClassifier(strategy="most_frequent")
             else:
@@ -128,22 +140,72 @@ class Testing:
             'error_utility'
         ])
 
-    def compare_marginal_distributions(self, target_column, filter_column, bins=4):
-        _, edges = np.histogram(self.df_orig[filter_column], bins=bins)
+    def compare_marginal_distributions(self, target_column, conditional_column, bins=4):
+        if self.schema[conditional_column] == ColumnType.CATEGORICAL:
+            return self._compare_marginal_distributions_categorical(target_column, conditional_column)
+        elif self.schema[conditional_column] == ColumnType.CONTINUOUS:
+            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
+        else:
+            raise ValueError('Unknown type of column: {}'.format(conditional_column))
+
+    def _compare_marginal_distributions_categorical(self, target_column, conditional_column):
+        target_emd = '{} EMD'.format(target_column)
+        result = []
+        for val in np.unique(self.df_orig[conditional_column]):
+            df_orig_target = self.df_orig[self.df_orig[conditional_column] == val][target_column]
+            df_synth_target = self.df_synth[(self.df_synth[conditional_column] == val)][target_column]
+            if len(df_orig_target) == 0 or len(df_synth_target) == 0:
+                emd = float('inf')
+            else:
+                if self.schema[target_column] == ColumnType.CATEGORICAL:
+                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
+                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                    emd = emd_samples(df_orig_target, df_synth_target)
+            result.append({
+                conditional_column: val,
+                target_emd: emd
+            })
+        return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
+
+    def _compare_marginal_distributions_continuous(self, target_column, conditional_column, bins):
+        _, edges = np.histogram(self.df_orig[conditional_column], bins=bins)
         target_emd = '{} EMD'.format(target_column)
         result = []
         for i in range(0, len(edges)-1):
-            df_orig_target = self.df_orig[(self.df_orig[filter_column] >= edges[i]) & (self.df_orig[filter_column] < edges[i+1])][target_column]
-            df_synth_target = self.df_synth[(self.df_synth[filter_column] >= edges[i]) & (self.df_synth[filter_column] < edges[i+1])][target_column]
+            df_orig_target = self.df_orig[(self.df_orig[conditional_column] >= edges[i]) & (self.df_orig[conditional_column] < edges[i + 1])][target_column]
+            df_synth_target = self.df_synth[(self.df_synth[conditional_column] >= edges[i]) & (self.df_synth[conditional_column] < edges[i + 1])][target_column]
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
-                emd = 1.0
+                emd = float('inf')
             else:
-                emd = emd_samples(df_orig_target, df_synth_target)
+                if self.schema[target_column] == ColumnType.CATEGORICAL:
+                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
+                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                    emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
-                filter_column: '[{}, {})'.format(edges[i], edges[i+1]),
+                conditional_column: '[{}, {})'.format(edges[i], edges[i + 1]),
                 target_emd: emd
             })
-        return pd.DataFrame.from_records(result, columns=[filter_column, target_emd])
+        return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
+
+    @staticmethod
+    def categorical_emd(a, b):
+        space = sorted(list(set(a).union(set(b))))
+
+        a_unique, counts = np.unique(a, return_counts=True)
+        a_counts = dict(zip(a_unique, counts))
+
+        b_unique, counts = np.unique(b, return_counts=True)
+        b_counts = dict(zip(b_unique, counts))
+
+        p = np.array([float(a_counts[x]) if x in a_counts else 0.0 for x in space])
+        q = np.array([float(b_counts[x]) if x in b_counts else 0.0 for x in space])
+
+        p /= np.sum(p)
+        q /= np.sum(q)
+
+        distances = 1 - np.eye(len(space))
+
+        return emd(p, q, distances)
 
 
 class TestingEnvironment:
