@@ -17,7 +17,7 @@ from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import StandardScaler
 
 
@@ -54,7 +54,7 @@ class Testing:
         y_orig_columns = {}
         for i, y_column in enumerate(y_columns):
             y_columns_new.append(y_column)
-            if self.schema[y_column] == ColumnType.CONTINUOUS:
+            if self.schema[y_column].value == ColumnType.CONTINUOUS.value:
                 categorical_y_column = y_column + ' (categorical reduction)'
                 edges = Testing.edges(df_orig[y_column])
                 df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
@@ -63,12 +63,12 @@ class Testing:
                 schema[categorical_y_column] = ColumnType.CATEGORICAL
                 y_columns_new.append(categorical_y_column)
                 y_orig_columns[categorical_y_column] = y_column
+
         for y_column in y_columns_new:
             to_exclude = [y_column]
             if y_column in y_orig_columns:
                 to_exclude.append(y_orig_columns[y_column])
             X_columns = list(columns_set.difference(to_exclude))
-
             X_orig_train = df_orig[X_columns]
             y_orig_train = df_orig[y_column]
 
@@ -78,27 +78,36 @@ class Testing:
             X_synth = df_synth[X_columns]
             y_synth = df_synth[y_column]
 
+
             scaler = StandardScaler()
             X_orig_train = scaler.fit_transform(X_orig_train)
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-            if schema[y_column] == ColumnType.CATEGORICAL:
+
+            if schema[y_column].value == ColumnType.CATEGORICAL.value:
                 estimator = classifier
-                dummy_estimator = DummyClassifier(strategy="most_frequent")
+                dummy_estimator = DummyClassifier(strategy="prior")
             else:
                 estimator = regressor
                 dummy_estimator = DummyRegressor()
 
+
             orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             synth_score = max(clone(estimator).fit(X_synth, y_synth).score(X_orig_test, y_orig_test), 0.0)
-            dummy_orig_score = max(dummy_estimator.fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
-
+            dummy_orig_score = max(clone(dummy_estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
-            orig_error = mean_squared_error(y_orig_test, y_orig_pred)
-            synth_error = mean_squared_error(y_orig_test, y_synth_pred)
+
+            if schema[y_column].value == ColumnType.CATEGORICAL.value:
+                orig_error = 1 - accuracy_score(y_orig_test, y_orig_pred)
+                synth_error = 1 - accuracy_score(y_orig_test, y_synth_pred)
+            else:
+                orig_error = np.sqrt(mean_squared_error(y_orig_test, y_orig_pred))
+                synth_error = np.sqrt(mean_squared_error(y_orig_test, y_synth_pred))
+
+
 
             orig_gain = max(orig_score - dummy_orig_score, 0.0)
             synth_gain = max(synth_score - dummy_orig_score, 0.0)
