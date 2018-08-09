@@ -13,8 +13,8 @@ from .values import value_modules
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, dtypes, encoding='variational', encoding_size=64, encoder=(64, 64), decoder=(64, 64),
-        embedding_size=32, batch_size=64, iterations=50000
+        self, dtypes, encoding='variational', encoding_size=128, encoder=(64, 64),
+        decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000
     ):
         super().__init__(name='basic_synthesizer')
 
