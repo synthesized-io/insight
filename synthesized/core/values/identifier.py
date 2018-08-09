@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
+from ..module import Module
 
 
 class IdentifierValue(Value):
@@ -22,6 +23,11 @@ class IdentifierValue(Value):
     def output_size(self):
         return 0
 
+    def preprocess(self, data):
+        # normalization = {x: n for n, x in enumerate(data[self.name].unique())}
+        # data[self.name] = data[self.name].map(arg=normalization)
+        return data
+
     def feature(self, x=None):
         if x is None:
             return tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
@@ -31,6 +37,7 @@ class IdentifierValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
+        Module.placeholders[self.name] = self.placeholder
         # tf.TensorArray???
         # self.identifiers = tf.get_variable(
         #     name='identifiers', shape=(self.num_identifiers,), dtype=tf.int32,
@@ -60,7 +67,7 @@ class IdentifierValue(Value):
         )
         return x
 
-    def random_value(self, n):
+    def random_value(self, n, multiples=1):
         identifier = tf.random_uniform(
             shape=(n,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
         )
@@ -68,4 +75,10 @@ class IdentifierValue(Value):
             params=self.embeddings, ids=identifier, partition_strategy='mod',
             validate_indices=True, max_norm=None
         )
+        identifier = tf.expand_dims(input=identifier, axis=0)
+        identifier = tf.tile(input=identifier, multiples=tf.stack(values=(multiples, 1), axis=0))
+        identifier = tf.reshape(tensor=identifier, shape=tf.expand_dims(input=(n * multiples), axis=0))
+        x = tf.expand_dims(input=x, axis=0)
+        x = tf.tile(input=x, multiples=tf.stack(values=(multiples, 1, 1), axis=0))
+        x = tf.reshape(tensor=x, shape=tf.stack(values=(n * multiples, self.embedding_size), axis=0))
         return identifier, x

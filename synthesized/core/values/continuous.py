@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from .value import Value
+from ..module import Module
 
 
 class ContinuousValue(Value):
@@ -17,6 +18,10 @@ class ContinuousValue(Value):
     def input_size(self):
         return 1
 
+    def preprocess(self, data):
+        data[self.name] = data[self.name].astype(dtype='float32')
+        return data
+
     def feature(self, x=None):
         if x is None:
             return tf.FixedLenFeature(shape=(), dtype=tf.float32, default_value=None)
@@ -26,6 +31,7 @@ class ContinuousValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.float32, shape=(None,), name='input')
+        Module.placeholders[self.name] = self.placeholder
 
     def tf_input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed

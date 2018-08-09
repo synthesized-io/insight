@@ -14,7 +14,7 @@ class BasicSynthesizer(Synthesizer):
 
     def __init__(
         self, dtypes, encoding='variational', encoding_size=64, encoder=(64, 64), decoder=(64, 64),
-        embedding_size=32, iterations=50000
+        embedding_size=32, batch_size=64, iterations=50000
     ):
         super().__init__(name='basic_synthesizer')
 
@@ -23,15 +23,17 @@ class BasicSynthesizer(Synthesizer):
         input_size = 0
         output_size = 0
         for name, dtype in zip(dtypes.axes[0], dtypes):
-            if dtype.kind == 'O':
-                value = self.add_module(
-                    module='categorical', modules=value_modules, name=name,
-                    num_categories=len(dtype.categories), embedding_size=embedding_size
-                )
-            else:
+            if dtype.kind == 'f':
                 value = self.add_module(
                     module='continuous', modules=value_modules, name=name, positive=True
                 )
+            elif dtype.kind == 'O':
+                value = self.add_module(
+                    module='categorical', modules=value_modules, name=name,
+                    categories=dtype.categories, embedding_size=embedding_size
+                )
+            else:
+                raise NotImplementedError
             self.values.append(value)
             self.value_output_sizes.append(value.output_size())
             input_size += value.input_size()
@@ -63,6 +65,7 @@ class BasicSynthesizer(Synthesizer):
             clip_gradients=1.0
         )
 
+        self.batch_size = batch_size
         self.iterations = iterations
 
     def specification(self):
@@ -70,7 +73,7 @@ class BasicSynthesizer(Synthesizer):
         # values?
         spec.update(
             encoding=self.encoding, encoder=self.encoder, decoder=self.decoder,
-            iterations=self.iterations
+            batch_size=self.batch_size, iterations=self.iterations
         )
         return spec
 
@@ -171,11 +174,13 @@ class BasicSynthesizer(Synthesizer):
 
         # TODO: increment global step
         if filenames is None:
+            for value in self.values:
+                data = value.preprocess(data=data)
             data = [data[value.name].get_values() for value in self.get_values()]
             num_data = len(data[0])
             fetches = (self.loss, self.optimized)
             for i in range(self.iterations):
-                batch = np.random.randint(num_data, size=64)
+                batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {
                     value.placeholder: d[batch] for value, d in zip(self.get_values(), data)
                 }
@@ -203,12 +208,20 @@ class BasicSynthesizer(Synthesizer):
         synthesized = self.session.run(
             fetches=self.synthesized, feed_dict=feed_dict, options=None, run_metadata=None
         )
-        return pd.DataFrame.from_dict(synthesized)
+        synthesized = pd.DataFrame.from_dict(synthesized)
+        for value in self.values:
+            synthesized = value.postprocess(data=synthesized)
+        return synthesized
 
     def transform(self, X, **transform_params):
         assert not transform_params
+        for value in self.values:
+            X = value.preprocess(data=X)
         feed_dict = {value.placeholder: X[value.name].get_values() for value in self.get_values()}
         transformed = self.session.run(
             fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None
         )
-        return pd.DataFrame.from_dict(transformed)
+        transformed = pd.DataFrame.from_dict(transformed)
+        for value in self.values:
+            transformed = value.postprocess(data=transformed)
+        return transformed

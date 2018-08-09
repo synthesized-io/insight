@@ -14,7 +14,7 @@ class IdSynthesizer(Synthesizer):
 
     def __init__(
         self, dtypes, encoding='variational', encoding_size=64, encoder=(64, 64), decoder=(64, 64),
-        embedding_size=32, id_embedding_size=128, iterations=50000
+        embedding_size=32, id_embedding_size=128, batch_size=64, iterations=50000
     ):
         super().__init__(name='id_synthesizer')
 
@@ -30,15 +30,17 @@ class IdSynthesizer(Synthesizer):
                     num_identifiers=4500, embedding_size=id_embedding_size
                 )
                 continue
-            elif dtype.kind == 'O':
-                value = self.add_module(
-                    module='categorical', modules=value_modules, name=name,
-                    num_categories=len(dtype.categories), embedding_size=embedding_size
-                )
-            else:
+            elif dtype.kind == 'f':
                 value = self.add_module(
                     module='continuous', modules=value_modules, name=name, positive=True
                 )
+            elif dtype.kind == 'O':
+                value = self.add_module(
+                    module='categorical', modules=value_modules, name=name,
+                    categories=dtype.categories, embedding_size=embedding_size
+                )
+            else:
+                raise NotImplementedError
             self.values.append(value)
             self.value_output_sizes.append(value.output_size())
             input_size += value.input_size()
@@ -78,6 +80,7 @@ class IdSynthesizer(Synthesizer):
             clip_gradients=1.0
         )
 
+        self.batch_size = batch_size
         self.iterations = iterations
 
     def specification(self):
@@ -85,7 +88,7 @@ class IdSynthesizer(Synthesizer):
         # values?
         spec.update(
             encoding=self.encoding, encoder=self.encoder, decoder=self.decoder,
-            iterations=self.iterations
+            batch_size=self.batch_size, iterations=self.iterations
         )
         return spec
 
@@ -133,7 +136,7 @@ class IdSynthesizer(Synthesizer):
         #     )),
         #     num_parallel_calls=None
         # )
-        # dataset = dataset.batch(batch_size=64)
+        # dataset = dataset.batch(batch_size=self.batch_size)
         # self.iterator = dataset.make_initializable_iterator(shared_name=None)
         # next_values = self.iterator.get_next()
         # xs = list()
@@ -199,11 +202,13 @@ class IdSynthesizer(Synthesizer):
 
         # TODO: increment global step
         if filenames is None:
+            for value in self.values:
+                data = value.preprocess(data=data)
             data = [data[value.name].get_values() for value in self.get_values()]
             num_data = len(data[0])
             fetches = (self.loss, self.optimized)
             for i in range(self.iterations):
-                batch = np.random.randint(num_data, size=64)
+                batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {
                     value.placeholder: d[batch] for value, d in zip(self.get_values(), data)
                 }
@@ -231,12 +236,20 @@ class IdSynthesizer(Synthesizer):
         synthesized = self.session.run(
             fetches=self.synthesized, feed_dict=feed_dict, options=None, run_metadata=None
         )
-        return pd.DataFrame.from_dict(synthesized)
+        synthesized = pd.DataFrame.from_dict(synthesized)
+        for value in self.values:
+            synthesized = value.postprocess(data=synthesized)
+        return synthesized
 
     def transform(self, X, **transform_params):
         assert not transform_params
+        for value in self.values:
+            X = value.preprocess(data=X)
         feed_dict = {value.placeholder: X[value.name].get_values() for value in self.get_values()}
         transformed = self.session.run(
             fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None
         )
-        return pd.DataFrame.from_dict(transformed)
+        transformed = pd.DataFrame.from_dict(transformed)
+        for value in self.values:
+            transformed = value.postprocess(data=transformed)
+        return transformed

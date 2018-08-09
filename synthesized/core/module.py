@@ -3,6 +3,8 @@ import tensorflow as tf
 
 class Module(object):
 
+    placeholders = None
+
     def __init__(self, name, submodules=()):
         self.name = name
         self.submodules = list(submodules)
@@ -82,7 +84,7 @@ class Module(object):
             raise NotImplementedError
 
     def __enter__(self):
-        # graph
+        Module.placeholders = dict()
         self.graph = tf.Graph()
         self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
         with self.graph.as_default():
@@ -103,16 +105,22 @@ class Module(object):
                 #     param=graph_str, step=self.global_step, name=None
                 # )
         self.graph.finalize()
-        self.summary_writer = tf.summary.FileWriter(
-            logdir='logs', graph=self.graph, max_queue=10, flush_secs=120, filename_suffix=None
-        )
+        # self.summary_writer = tf.summary.FileWriter(
+        #     logdir='logs', graph=self.graph, max_queue=10, flush_secs=120, filename_suffix=None
+        # )
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
-        self.session.run(fetches=initialize, feed_dict={value.placeholder: [] for value in self.values}, options=None, run_metadata=None)
+        self.run(fetches=initialize, feed_dict={name: () for name in Module.placeholders})
         # self.session.run(fetches=graph_summary, feed_dict=None, options=None, run_metadata=None)
         # with self.summary_writer.as_default():
         #     tf.contrib.summary.initialize(graph=self.graph, session=self.session)
         return self
+
+    def run(self, fetches, feed_dict):
+        feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+        return self.session.run(
+            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
+        )
 
     def __exit__(self, type, value, traceback):
         self.session.__exit__(type, value, traceback)
