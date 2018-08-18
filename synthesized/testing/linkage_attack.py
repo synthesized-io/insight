@@ -14,7 +14,7 @@ class Column:
 
 def linkage_attack(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
     """
-    Returns a dict with keys, values that corresponds to the background knowledge of an attacker and leads to
+    Returns a dict with keys, values that correspond to the background knowledge of an attacker and lead to
     sensitive attribute disclosure
 
     """
@@ -99,7 +99,7 @@ def find_neighbour_distances(df, attr_dict, schema):
 
 def find_eq_class(df, attrs):
     """
-    Return an equivalence class with exact matching of a key attribute
+    Returns an equivalence class with exact matching of a key attribute
 
     """
     f = pd.Series([True] * len(df), index=df.index)
@@ -110,7 +110,7 @@ def find_eq_class(df, attrs):
 
 def find_eq_class_fuzzy(df, attrs, down, up, schema):
     """
-    Return an equivalence class with fuzzy matching of a key attribute
+    Returns an equivalence class with fuzzy matching of a key attribute
 
     """
     f = pd.Series([True] * len(df), index=df.index)
