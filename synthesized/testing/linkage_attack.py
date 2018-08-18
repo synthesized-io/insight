@@ -13,7 +13,11 @@ class Column:
 
 
 def linkage_attack(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
+    """
+    Returns a dict with keys, values that corresponds to the background knowledge of an attacker and leads to
+    sensitive attribute disclosure
 
+    """
 
     columns = set(df_orig.columns.values)
     result = []
@@ -76,7 +80,7 @@ def t_closeness_check(df, schema, threshold=0.2):
 
 def find_neighbour_distances(df, attr_dict, schema):
     """
-    Returns two dictionaries with distances to the closest biggest and the closest smallest numbers
+    Returns two dicts with distances to the nearest neighbours for a given key attribute
 
     """
     up = {}
@@ -94,6 +98,10 @@ def find_neighbour_distances(df, attr_dict, schema):
 
 
 def find_eq_class(df, attrs):
+    """
+    Return an equivalence class with exact matching of a key attribute
+
+    """
     f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
         f = f & (df[attr] == val)  # double comparison?
@@ -101,6 +109,10 @@ def find_eq_class(df, attrs):
 
 
 def find_eq_class_fuzzy(df, attrs, down, up, schema):
+    """
+    Return an equivalence class with fuzzy matching of a key attribute
+
+    """
     f = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
         if schema[attr].categorical:
