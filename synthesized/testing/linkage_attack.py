@@ -12,14 +12,17 @@ class Column:
         self.categorical = categorical
 
 
-def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.8):
+def linkage_attack(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
+
+
     columns = set(df_orig.columns.values)
     result = []
     for attrs in t_closeness_check(df_orig, schema, t_closeness):
-        eq_class_orig = find_eq_class(df_orig, attrs)
-
+       # eq_class_orig = find_eq_class(df_orig, attrs)
         down, up = find_neighbour_distances(df_orig, attrs, schema)
+
         eq_class_synth = find_eq_class_fuzzy(df_synth, attrs, down, up, schema)
+        eq_class_orig = find_eq_class_fuzzy(df_orig, attrs, down, up, schema)
         if len(eq_class_synth) == 0:
             continue
 
@@ -27,11 +30,13 @@ def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.8):
         for sensitive_column in sensitive_columns:
             a = eq_class_orig[sensitive_column]
             b = eq_class_synth[sensitive_column]
+            c = df_synth[sensitive_column]
+            d = df_orig[sensitive_column]
             if schema[sensitive_column].categorical:
                 emd_function = Testing.categorical_emd
             else:
                 emd_function = emd_samples
-            if emd_function(a, b) < k_distance:
+            if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a, d) > t_closeness:
                 result.append(attrs)
                 break
     return result
@@ -48,7 +53,7 @@ def t_closeness_check(df, schema, threshold=0.2):
         for column in columns:
             a = df[column]
             b = group[column]
-            if emd_samples(a, b, bins=100) > threshold:
+            if emd_samples(a, b) > threshold:
                 return False
         return True
 
@@ -70,6 +75,10 @@ def t_closeness_check(df, schema, threshold=0.2):
 
 
 def find_neighbour_distances(df, attr_dict, schema):
+    """
+    Returns two dictionaries with distances to the closest biggest and the closest smallest numbers
+
+    """
     up = {}
     down = {}
     for attr, val in attr_dict.items():
@@ -98,8 +107,8 @@ def find_eq_class_fuzzy(df, attrs, down, up, schema):
             f = f & (df[attr] == val)
         else:
             if attr in up:
-                f = f & (df[attr] < val + up[attr] / 2.)
+                f = f & (df[attr] < val + up[attr] * 1.05 )
             if attr in down:
-                f = f & (df[attr] > val - down[attr] / 2.)
+                f = f & (df[attr] > val - down[attr] * 1.05 )
     return df[f]
 
