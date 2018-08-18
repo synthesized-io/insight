@@ -2,6 +2,7 @@ from itertools import combinations
 
 import pandas as pd
 from pyemd import emd_samples
+from synthesized.testing.testing_environment import Testing
 
 
 class Column:
@@ -12,7 +13,6 @@ class Column:
 
 
 def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.8):
-    """categorical sensitive columns are not supported yet"""
     columns = set(df_orig.columns.values)
     result = []
     for attrs in t_closeness_check(df_orig, schema, t_closeness):
@@ -27,7 +27,11 @@ def linkage_attack(df_orig, df_synth, schema, t_closeness=0.2, k_distance=0.8):
         for sensitive_column in sensitive_columns:
             a = eq_class_orig[sensitive_column]
             b = eq_class_synth[sensitive_column]
-            if emd_samples(a, b, bins=100) < k_distance:
+            if schema[sensitive_column].categorical:
+                emd_function = Testing.categorical_emd
+            else:
+                emd_function = emd_samples
+            if emd_function(a, b) < k_distance:
                 result.append(attrs)
                 break
     return result
