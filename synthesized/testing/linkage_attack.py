@@ -71,9 +71,8 @@ def eradicate_attacks(df_orig, df_synth, attacks, schema, radical = False, t_clo
     df = df_synth
     while len(attacks) != 0:
         print("remaining attacks : ",len(attacks))
-        df = eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical, t_closeness, k_distance)
+        df = eradicate_attacks_iteration(df_orig, df, attacks, schema, radical, t_closeness, k_distance)
         attacks = identify_attacks(df_orig, df, schema)
-
     return df
 
 def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical = False, t_closeness=0.3, k_distance=0.02):
@@ -105,8 +104,8 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical = Fa
         return df
 
     cleared_df = clear_df(df_synth, attacks, schema)
-
-    if radical == True or (len(cleared_df) / len(df_synth) > 0.995) :
+    print(len(cleared_df))
+    if radical == True or ( np.abs(len(df_synth) - len(cleared_df)) / len(df_synth) < 0.02) :
         return cleared_df
     for attack in attacks:
         target = attack["target"]
