@@ -1,6 +1,7 @@
 from itertools import combinations
 
 import pandas as pd
+import numpy as np
 from pyemd import emd_samples
 from synthesized.testing.testing_environment import Testing
 
@@ -12,9 +13,9 @@ class Column:
         self.categorical = categorical
 
 
-def linkage_attack(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
+def identify_attacks(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
     """
-    Returns a dict with keys, values that correspond to the background knowledge of an attacker and lead to
+    Returns a dict of attacks with keys, values that correspond to the background knowledge of an attacker and lead to
     sensitive attribute disclosure
 
     """
@@ -41,10 +42,99 @@ def linkage_attack(df_orig, df_synth, schema, t_closeness=0.3, k_distance=0.02):
             else:
                 emd_function = emd_samples
             if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a, d) > t_closeness:
-                result.append(attrs)
+                attack = {"knowledge" : {k : {"value" : v, "lower" : down[k], "upper" : up[k]} for k,v in attrs.items()}, "target" : sensitive_column}
+                result.append(attack)
                 break
     return result
 
+def get_df_subset(df, knowledge, schema) :
+    ind = pd.Series([False] * len(df), index=df.index)
+    for k, v in knowledge.items() :
+        if schema[k].categorical:
+            ind = ind | (df[k] == v["value"])
+        else:
+            ind = ind | (df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"])
+    df = df[ind]
+    return df
+
+def show_attacked_data(df_orig, df_synth, attack,schema) :
+    orig_df_subset = get_df_subset(df_orig, attack["knowledge"],schema)
+    synth_df_subset = get_df_subset(df_synth, attack["knowledge"],schema)
+    print("original df subset: \n", orig_df_subset)
+    print("\n\n synthetic df subset: \n", synth_df_subset)
+
+def eradicate_attacks(df_orig, df_synth, attacks, schema, radical = False, t_closeness=0.3, k_distance=0.02):
+    """
+    Returns a dataframe cleared of all recurrent attacks
+
+    """
+    df = df_synth
+    while len(attacks) != 0:
+        print("remaining attacks : ",len(attacks))
+        df = eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical, t_closeness, k_distance)
+        attacks = identify_attacks(df_orig, df, schema)
+
+    return df
+
+def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical = False, t_closeness=0.3, k_distance=0.02):
+    """
+    Returns a dataframe cleared of current attacks
+
+    """
+    def enlarge_boundaries(knowledge, schema) :
+        new_knowledge = {}
+        for k, v in knowledge.items() :
+            if schema[k].categorical:
+                #Add random sampling
+                continue
+            else:
+                new_knowledge[k] =  {"value" : v["value"], "lower" : v["lower"] * 2, "upper" : v["upper"] * 2}
+        return new_knowledge
+
+    def clear_df(df, attacks, schema) :
+        ind_final = pd.Series([False] * len(df), index=df.index)
+        for attack in attacks:
+            ind = pd.Series([True] * len(df), index=df.index)
+            for k, v in attack["knowledge"].items() :
+                if schema[k].categorical:
+                    ind = ind & (df[k] == v["value"])
+                else:
+                    ind = ind & ((df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"]))
+            ind_final = ind_final | ind
+        df = df[~ind_final]
+        return df
+
+    cleared_df = clear_df(df_synth, attacks, schema)
+
+    if radical == True or (len(cleared_df) / len(df_synth) > 0.995) :
+        return cleared_df
+    for attack in attacks:
+        target = attack["target"]
+        knowledge = attack["knowledge"]
+        eq_class_synth = get_df_subset(df_synth, knowledge, schema)
+        enlarged_knowledge = enlarge_boundaries(knowledge, schema)
+        eq_class_synth_enlarged = get_df_subset(df_synth, enlarged_knowledge,schema)
+
+        eq_class_orig = get_df_subset(df_orig, knowledge,schema)
+        a = eq_class_orig[target]
+        b = eq_class_synth[target]
+        c = df_synth[target]
+        d = df_orig[target]
+        e = eq_class_synth_enlarged[target]
+        if schema[target].categorical:
+            emd_function = Testing.categorical_emd
+        else:
+            emd_function = emd_samples
+        while emd_function(a, e) < k_distance and emd_function(e, c) > t_closeness and emd_function(a, d) > t_closeness:
+            enlarged_knowledge = enlarge_boundaries(enlarged_knowledge,schema)
+            e = get_df_subset(df_synth, enlarge_boundaries(enlarged_knowledge,schema),schema)[target]
+        b = np.random.choice(e, len(b))
+        while emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a, d) > t_closeness:
+            b = np.random.choice(e, len(b))
+        eq_class_synth[target] = b
+        cleared_df = cleared_df.append(eq_class_synth, ignore_index=False)
+
+    return cleared_df
 
 def t_closeness_check(df, schema, threshold=0.2):
     """
@@ -52,7 +142,6 @@ def t_closeness_check(df, schema, threshold=0.2):
     to find equivalence classes which do not satisfy t-closeness requirement
 
     """
-
     def is_t_close(group, columns):
         for column in columns:
             a = df[column]
