@@ -27,19 +27,19 @@ def _test_value(value, x):
         # assert loss.shape == () and loss >= 0.0
 
 
-def test_categorical():
-    value = CategoricalValue(
-        name='categorical', num_categories=8, embedding_size=64, similarity_based=False,
-        temperature=1.0, smoothing=0.1, moving_average=True
-    )
-    _test_value(value=value, x=np.asarray([0, 3, 5, 7]))
-
-
-def test_continuous():
-    value = ContinuousValue(name='continuous', positive=False)
-    _test_value(value=value, x=np.asarray([-10.0, -0.1, 0.1, 10.0]))
-
-
-def test_continuous_positive():
-    value = ContinuousValue(name='continuous', positive=True)
-    _test_value(value=value, x=np.asarray([0.1, 1.0, 10.0, 100.0]))
+# def test_categorical():
+#     value = CategoricalValue(
+#         name='categorical', num_categories=8, embedding_size=64, similarity_based=False,
+#         temperature=1.0, smoothing=0.1, moving_average=True
+#     )
+#     _test_value(value=value, x=np.asarray([0, 3, 5, 7]))
+#
+#
+# def test_continuous():
+#     value = ContinuousValue(name='continuous', positive=False)
+#     _test_value(value=value, x=np.asarray([-10.0, -0.1, 0.1, 10.0]))
+#
+#
+# def test_continuous_positive():
+#     value = ContinuousValue(name='continuous', positive=True)
+#     _test_value(value=value, x=np.asarray([0.1, 1.0, 10.0, 100.0]))
