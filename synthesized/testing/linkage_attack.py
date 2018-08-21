@@ -57,7 +57,7 @@ def get_df_subset(df, knowledge, schema) :
     df = df[ind]
     return df
 
-def show_attacked_data(df_orig, df_synth, attack,schema) :
+def show_attacked_data(df_orig, df_synth, attack, schema) :
     orig_df_subset = get_df_subset(df_orig, attack["knowledge"],schema)
     synth_df_subset = get_df_subset(df_synth, attack["knowledge"],schema)
     print("original df subset: \n", orig_df_subset)
