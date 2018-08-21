@@ -98,13 +98,12 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical = Fa
                 if schema[k].categorical:
                     ind = ind & (df[k] == v["value"])
                 else:
-                    ind = ind & ((df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"]))
+                    ind = ind & ((df[k] <= v["value"] + v["upper"] * 1.05) & (df[k] >= v["value"] - v["lower"] * 1.05))
             ind_final = ind_final | ind
         df = df[~ind_final]
         return df
 
     cleared_df = clear_df(df_synth, attacks, schema)
-    print(len(cleared_df))
     if radical == True or ( np.abs(len(df_synth) - len(cleared_df)) / len(df_synth) < 0.02) :
         return cleared_df
     for attack in attacks:
