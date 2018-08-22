@@ -50,6 +50,14 @@ jobs:
             . venv/bin/activate
             python -m pytest
 
+      - run:
+          name: pacakge
+          command: |
+            . venv/bin/activate
+            python setup.py bdist_wheel
+            zip -d dist/*.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py"
+
+
       - store_artifacts:
-          path: test-reports
-          destination: test-reports
+          path: dist
+          destination: dist
