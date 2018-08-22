@@ -38,7 +38,7 @@ setup(
     ext_modules=cythonize(
         [
             Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
-            Extension("synthesized.core.basic_synthesizer", ["synthesized/core/date_synthesizer.py"]),
+            Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
             Extension("synthesized.core.id_synthesizer", ["synthesized/core/id_synthesizer.py"]),
             Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
          ],
