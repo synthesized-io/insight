@@ -51,7 +51,7 @@ jobs:
             python -m pytest
 
       - run:
-          name: pacakge
+          name: package
           command: |
             . venv/bin/activate
             python setup.py bdist_wheel
