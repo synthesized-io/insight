@@ -228,9 +228,8 @@ def find_eq_class_fuzzy(df, attrs, down, up, schema):
     Returns an equivalence class with fuzzy matching of a key attribute
 
     """
-    ind_final = pd.Series([False] * len(df), index=df.index)
+    ind = pd.Series([True] * len(df), index=df.index)
     for attr, val in attrs.items():
-        ind = pd.Series([True] * len(df), index=df.index)
         if schema[attr].categorical:
             ind = ind & (df[attr] == val)
         else:
@@ -238,5 +237,4 @@ def find_eq_class_fuzzy(df, attrs, down, up, schema):
                 ind = ind & (df[attr] < val + up[attr] * NEAREST_NEIGHBOUR_MULT)
             if attr in down:
                 ind = ind & (df[attr] > val - down[attr] * NEAREST_NEIGHBOUR_MULT)
-        ind_final = ind_final | ind
-    return df[ind_final]
+    return df[ind]
