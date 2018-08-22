@@ -1,2 +1,0 @@
-prune synthesized/core/*.py
-include tox.ini
