@@ -33,8 +33,12 @@ Note: if you cannot install venv without root check that virtualenv executable i
 3. Active it:
 
         source venv/bin/activate
+        
+4. Install deps:
 
-4. Run Tests
+        pip install -r requriements-dev.txt
+        
+5. Run Tests
 
         python -m pytest
 
