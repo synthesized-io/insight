@@ -1,2 +1,2 @@
-include README.md
-include requirements.txt
+prune synthesized/core/*.py
+include tox.ini

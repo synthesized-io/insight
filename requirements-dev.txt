@@ -1,0 +1,9 @@
+sphinx
+sphinx_rtd_theme
+pytest
+coverage
+ipykernel
+jupyter
+Cython
+
+-r requirements.txt

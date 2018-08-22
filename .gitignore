@@ -20,6 +20,7 @@ develop-eggs
 .installed.cfg
 lib
 lib64
+dist
 
 # Installer logs
 pip-log.txt
@@ -28,6 +29,7 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
+.pytest_cache
 
 # Complexity
 output/*.html

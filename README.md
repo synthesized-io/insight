@@ -1,9 +1,3 @@
-synthesized
-===============================
-
-version number: 1.0.0
-author: Synthesized Ltd.
-
 Overview
 --------
 
@@ -14,7 +8,7 @@ Installation / Usage
 
 Clone the repo:
 
-    $ git clone https://github.com/nbaldin/synthesized.git
+    $ git clone git@github.com:synthesized-io/synthesized.git
     $ python setup.py install
     
 Contributing
@@ -40,20 +34,11 @@ Note: if you cannot install venv without root check that virtualenv executable i
 
         source venv/bin/activate
 
-4. Install the project:
+4. Run Tests
 
-        python setup.py install
+        python -m pytest
 
-5. Install the current venv as a kernel for jupyter:
-
-        python -m ipykernel install --user --name synthesized
-        
-Run Tests
---------
-
-        python -m nose
-
-Note: `nosetests` command may run a system version. Call via module forces to run venv version
+Note: `pytest` command may run a system version. Call via module forces to run venv version
 
 Example
 -------
