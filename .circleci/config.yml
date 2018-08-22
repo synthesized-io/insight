@@ -57,7 +57,6 @@ jobs:
             python setup.py bdist_wheel
             zip -d dist/*.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py"
 
-
       - store_artifacts:
           path: dist
           destination: dist
