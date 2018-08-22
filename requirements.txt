@@ -6,4 +6,3 @@ pandas
 plotly
 matplotlib
 pyemd
-
