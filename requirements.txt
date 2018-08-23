@@ -1,13 +1,4 @@
-# dev tools
-sphinx
-sphinx_rtd_theme
-pytest
-coverage
-ipykernel
-jupyter
-
-# libraries
-numpy
+numpy==1.14.5
 scipy
 scikit-learn
 tensorflow

@@ -23,7 +23,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}
+          - v1-dependencies-{{ checksum "requirements-dev.txt" }}
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
@@ -32,12 +32,12 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip install -r requirements.txt
+            pip install -r requirements-dev.txt
 
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
+          key: v1-dependencies-{{ checksum "requirements-dev.txt" }}
         
       # run tests!
       # this example uses Django's built-in test-runner
@@ -50,6 +50,13 @@ jobs:
             . venv/bin/activate
             python -m pytest
 
+      - run:
+          name: package
+          command: |
+            . venv/bin/activate
+            python setup.py bdist_wheel
+            zip -d dist/*.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/date_synthesizer.py" "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py"
+
       - store_artifacts:
-          path: test-reports
-          destination: test-reports
+          path: dist
+          destination: dist
