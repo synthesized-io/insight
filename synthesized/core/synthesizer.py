@@ -1,6 +1,5 @@
 import base64
 import os
-import sys
 from datetime import datetime
 
 import tensorflow as tf
@@ -8,7 +7,7 @@ from sklearn.base import TransformerMixin
 
 from .module import Module
 
-print("Copyright (C) Synthesized Ltd. - All Rights Reserved", file=sys.stderr)
+print("Copyright (C) Synthesized Ltd. - All Rights Reserved")
 license_key = os.environ.get('SYNTHESIZED_KEY', None)
 if license_key is None:
     raise Exception('No license key detected (check env variable SYNTHESIZED_KEY)')
@@ -23,7 +22,7 @@ now = datetime.now()
 if now >= date:
     raise Exception('License has been expired')
 else:
-    print('Expires at: ' + str(date), file=sys.stderr)
+    print('Expires at: ' + str(date))
 
 
 class Synthesizer(Module, TransformerMixin):
