@@ -37,7 +37,7 @@ setup(
     install_requires=install_requires,
     ext_modules=cythonize(
         [
-            Extension("synthesized.core.basic_synthesizer", ["synthesized/core/synthesizer.py"]),
+            Extension("synthesized.core.synthesizer", ["synthesized/core/synthesizer.py"]),
             Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
             Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
             Extension("synthesized.core.id_synthesizer", ["synthesized/core/id_synthesizer.py"]),
