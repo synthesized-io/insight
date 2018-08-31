@@ -16,6 +16,8 @@ jobs:
       # - image: circleci/postgres:9.4
 
     working_directory: ~/repo
+    environment:
+      SYNTHESIZED_KEY: EE6B-6720-67A2-32F3-3138-2D31-322D-B531
 
     steps:
       - checkout
@@ -55,7 +57,7 @@ jobs:
           command: |
             . venv/bin/activate
             python setup.py bdist_wheel
-            zip -d dist/*.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/date_synthesizer.py" "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py" "synthesized/testing/testing_environment.py"
+            zip -d dist/*.whl "synthesized/core/synthesizer.py" "synthesized/core/basic_synthesizer.py" "synthesized/core/date_synthesizer.py" "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py" "synthesized/testing/testing_environment.py"
 
       - store_artifacts:
           path: dist
