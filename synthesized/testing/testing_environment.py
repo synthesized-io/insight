@@ -35,7 +35,7 @@ class Testing:
 
     @staticmethod
     def edges(a):
-        _, edges = np.histogram(a)
+        _, edges = np.histogram(a, bins=10)
         return edges
 
     @staticmethod
@@ -162,7 +162,7 @@ class Testing:
         result = []
         for val in np.unique(self.df_orig[conditional_column]):
             df_orig_target = self.df_orig[self.df_orig[conditional_column] == val][target_column]
-            df_synth_target = self.df_synth[(self.df_synth[conditional_column] == val)][target_column]
+            df_synth_target = self.df_synth[self.df_synth[conditional_column] == val][target_column]
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:

@@ -18,6 +18,12 @@ class ContinuousValue(Value):
     def input_size(self):
         return 1
 
+    def labels(self):
+        yield self.name
+
+    def placeholders(self):
+        yield self.placeholder
+
     def preprocess(self, data):
         data[self.name] = data[self.name].astype(dtype='float32')
         return data
@@ -38,11 +44,11 @@ class ContinuousValue(Value):
         x = tf.expand_dims(input=x, axis=1)
         return x
 
-    def tf_output_tensor(self, x):
+    def tf_output_tensors(self, x):
         if self.positive:
             x = tf.nn.softplus(features=x)
         x = tf.squeeze(input=x, axis=1)
-        return x
+        return {self.name: x}
 
     def tf_loss(self, x, feed=None):
         if self.positive:

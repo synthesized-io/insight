@@ -16,28 +16,24 @@ class BasicSynthesizer(Synthesizer):
         self, dtypes, encoding='variational', encoding_size=128, encoder=(64, 64),
         decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000
     ):
-        super().__init__(name='basic_synthesizer')
+        super().__init__(name='synthesizer')
+
+        self.encoding_size = encoding_size
+        self.embedding_size = embedding_size
+        self.batch_size = batch_size
+        self.iterations = iterations
 
         self.values = list()
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
         for name, dtype in zip(dtypes.axes[0], dtypes):
-            if dtype.kind == 'f':
-                value = self.add_module(
-                    module='continuous', modules=value_modules, name=name, positive=True
-                )
-            elif dtype.kind == 'O':
-                value = self.add_module(
-                    module='categorical', modules=value_modules, name=name,
-                    categories=dtype.categories, embedding_size=embedding_size
-                )
-            else:
-                raise NotImplementedError
-            self.values.append(value)
-            self.value_output_sizes.append(value.output_size())
-            input_size += value.input_size()
-            output_size += value.output_size()
+            value = self.get_value(name=name, dtype=dtype)
+            if value is not None:
+                self.values.append(value)
+                self.value_output_sizes.append(value.output_size())
+                input_size += value.input_size()
+                output_size += value.output_size()
 
         self.encoder = self.add_module(
             module='mlp', modules=transformation_modules, name='encoder',
@@ -65,20 +61,39 @@ class BasicSynthesizer(Synthesizer):
             clip_gradients=1.0
         )
 
-        self.batch_size = batch_size
-        self.iterations = iterations
-
     def specification(self):
         spec = super().specification()
-        # values?
+        # TODO: values?
         spec.update(
             encoding=self.encoding, encoder=self.encoder, decoder=self.decoder,
             batch_size=self.batch_size, iterations=self.iterations
         )
         return spec
 
-    def get_values(self):
-        return list(self.values)
+    def get_value(self, name, dtype):
+        if dtype.kind == 'f':
+            # float defaults to continuous (positive?)
+            value = self.add_module(
+                module='continuous', modules=value_modules, name=name, positive=True
+            )
+
+        elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
+            # non-float defaults to categorical (requires dtype.categories?)
+            value = self.add_module(
+                module='categorical', modules=value_modules, name=name,
+                categories=dtype.categories, embedding_size=self.embedding_size
+            )
+
+        else:
+            raise NotImplementedError
+
+        return value
+
+    def customized_transform(self, x):
+        return x
+
+    def customized_synthesize(self, x):
+        return x
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -87,10 +102,12 @@ class BasicSynthesizer(Synthesizer):
         xs = list()
         for value in self.values:
             x = value.input_tensor()
-            xs.append(x)
+            if x is not None:
+                xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x, encoding_loss=True)
+        x = self.customized_transform(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -99,7 +116,8 @@ class BasicSynthesizer(Synthesizer):
         losses = tf.losses.get_regularization_losses(scope=None)
         for value, x in zip(self.values, xs):
             loss = value.loss(x=x)
-            losses.append(loss)
+            if loss is not None:
+                losses.append(loss)
         self.loss = tf.add_n(inputs=losses, name=None)
         # self.loss = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
         self.optimized = self.optimizer.optimize(loss=self.loss)
@@ -145,20 +163,26 @@ class BasicSynthesizer(Synthesizer):
         # synthesize
         self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         x = self.encoding.sample(n=self.num_synthesize)
+        x = self.customized_synthesize(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
         for value, x in zip(self.values, xs):
-            self.synthesized[value.name] = value.output_tensor(x=x)
+            xs = value.output_tensors(x=x)
+            for label, x in xs.items():
+                self.synthesized[label] = x
 
         # transform
         xs = list()
         for value in self.values:
-            xs.append(value.input_tensor())
+            x = value.input_tensor()
+            if x is not None:
+                xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
+        x = self.customized_transform(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -166,7 +190,9 @@ class BasicSynthesizer(Synthesizer):
         )
         self.transformed = dict()
         for value, x in zip(self.values, xs):
-            self.transformed[value.name] = value.output_tensor(x=x)
+            xs = value.output_tensors(x=x)
+            for label, x in xs.items():
+                self.transformed[label] = x
 
     def learn(self, data=None, filenames=None, verbose=0):
         if (data is None) == (filenames is None):
@@ -176,13 +202,16 @@ class BasicSynthesizer(Synthesizer):
         if filenames is None:
             for value in self.values:
                 data = value.preprocess(data=data)
-            data = [data[value.name].get_values() for value in self.get_values()]
-            num_data = len(data[0])
+            num_data = len(data)
+            data = [
+                [data[label].get_values() for label in value.labels()] for value in self.values
+            ]
             fetches = (self.loss, self.optimized)
             for i in range(self.iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {
-                    value.placeholder: d[batch] for value, d in zip(self.get_values(), data)
+                    placeholder: d[batch] for value, value_data in zip(self.values, data)
+                    for placeholder, d in zip(value.placeholders(), value_data)
                 }
                 loss, _ = self.session.run(
                     fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
@@ -217,7 +246,10 @@ class BasicSynthesizer(Synthesizer):
         assert not transform_params
         for value in self.values:
             X = value.preprocess(data=X)
-        feed_dict = {value.placeholder: X[value.name].get_values() for value in self.get_values()}
+        feed_dict = {
+            placeholder: X[label].get_values() for value in self.values
+            for label, placeholder in zip(value.labels(), value.placeholders())
+        }
         transformed = self.session.run(
             fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None
         )
