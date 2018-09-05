@@ -7,13 +7,13 @@ from .optimizers import Optimizer
 from .synthesizer import Synthesizer
 from .transformations import DenseTransformation
 from .transformations import transformation_modules
-from .values import value_modules
+from .values import get_value
 
 
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, dtypes, encoding='variational', encoding_size=128, encoder=(64, 64),
+        self, data, encoding='variational', encoding_size=128, encoder=(64, 64),
         decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000
     ):
         super().__init__(name='synthesizer')
@@ -27,9 +27,10 @@ class BasicSynthesizer(Synthesizer):
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
-        for name, dtype in zip(dtypes.axes[0], dtypes):
+        for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype)
             if value is not None:
+                value.extract(data=data)
                 self.values.append(value)
                 self.value_output_sizes.append(value.output_size())
                 input_size += value.input_size()
@@ -71,23 +72,7 @@ class BasicSynthesizer(Synthesizer):
         return spec
 
     def get_value(self, name, dtype):
-        if dtype.kind == 'f':
-            # float defaults to continuous (positive?)
-            value = self.add_module(
-                module='continuous', modules=value_modules, name=name, positive=True
-            )
-
-        elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
-            # non-float defaults to categorical (requires dtype.categories?)
-            value = self.add_module(
-                module='categorical', modules=value_modules, name=name,
-                categories=dtype.categories, embedding_size=self.embedding_size
-            )
-
-        else:
-            raise NotImplementedError
-
-        return value
+        return get_value(self=self, name=name, dtype=dtype)
 
     def customized_transform(self, x):
         return x
@@ -204,7 +189,7 @@ class BasicSynthesizer(Synthesizer):
                 data = value.preprocess(data=data)
             num_data = len(data)
             data = [
-                [data[label].get_values() for label in value.labels()] for value in self.values
+                [data[label].get_values() for label in value.trainable_labels()] for value in self.values
             ]
             fetches = (self.loss, self.optimized)
             for i in range(self.iterations):
@@ -248,7 +233,7 @@ class BasicSynthesizer(Synthesizer):
             X = value.preprocess(data=X)
         feed_dict = {
             placeholder: X[label].get_values() for value in self.values
-            for label, placeholder in zip(value.labels(), value.placeholders())
+            for label, placeholder in zip(value.trainable_labels(), value.placeholders())
         }
         transformed = self.session.run(
             fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None

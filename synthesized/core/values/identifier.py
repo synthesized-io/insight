@@ -23,9 +23,6 @@ class IdentifierValue(Value):
     def output_size(self):
         return 0
 
-    def labels(self):
-        yield self.name
-
     def placeholders(self):
         yield self.placeholder
 

@@ -6,9 +6,6 @@ from .value import Value
 from .categorical import CategoricalValue
 
 
-# TODO: gender expects "male" or "female"
-
-
 class PersonValue(Value):
 
     def __init__(self, name, gender_label=None, gender_embedding_size=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None):
@@ -24,7 +21,7 @@ class PersonValue(Value):
             self.gender = None
         else:
             self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, categories=('male', 'female'),
+                module=CategoricalValue, name=gender_label, categories=['female', 'male'],
                 embedding_size=gender_embedding_size
             )
 
@@ -41,10 +38,22 @@ class PersonValue(Value):
             return self.gender.output_size()
 
     def labels(self):
+        if self.gender is not None:
+            yield from self.gender.labels()
+        if self.name_label is not None:
+            yield self.name_label
+        if self.firstname_label is not None:
+            yield self.firstname_label
+        if self.lastname_label is not None:
+            yield self.lastname_label
+        if self.email_label is not None:
+            yield self.email_label
+
+    def trainable_labels(self):
         if self.gender is None:
             return
         else:
-            yield from self.gender.labels()
+            yield from self.gender.trainable_labels()
 
     def placeholders(self):
         if self.gender is None:
@@ -52,22 +61,18 @@ class PersonValue(Value):
         else:
             yield from self.gender.placeholders()
 
+    def extract(self, data):
+        if self.gender is not None:
+            self.gender.extract(data=data)
+
     def preprocess(self, data):
         if self.gender is not None:
             data = self.gender.preprocess(data=data)
-        if self.name_label is not None:
-            data = data.drop(labels=self.name_label, axis=1)
-        if self.firstname_label is not None:
-            data = data.drop(labels=self.firstname_label, axis=1)
-        if self.lastname_label is not None:
-            data = data.drop(labels=self.lastname_label, axis=1)
-        if self.email_label is not None:
-            data = data.drop(labels=self.email_label, axis=1)
         return data
 
     def postprocess(self, data):
         if self.gender is None:
-            gender = np.random.choice(a=['male', 'female'], size=len(data))
+            gender = np.random.choice(a=['female', 'male'], size=len(data))
         else:
             data = self.gender.postprocess(data=data)
             gender = data[self.gender_label]

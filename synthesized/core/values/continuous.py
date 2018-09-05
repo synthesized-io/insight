@@ -6,7 +6,7 @@ from ..module import Module
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, positive=False):
+    def __init__(self, name, positive=None):
         super().__init__(name=name)
         self.positive = positive
 
@@ -18,11 +18,17 @@ class ContinuousValue(Value):
     def input_size(self):
         return 1
 
-    def labels(self):
+    def trainable_labels(self):
         yield self.name
 
     def placeholders(self):
         yield self.placeholder
+
+    def extract(self, data):
+        if self.positive is None:
+            self.positive = (data[self.name] > 0.0).all()
+        elif self.positive != (data[self.name] > 0.0).all():
+            raise NotImplementedError
 
     def preprocess(self, data):
         data[self.name] = data[self.name].astype(dtype='float32')

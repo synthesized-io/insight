@@ -13,12 +13,18 @@ class Value(Module):
         return self.input_size()
 
     def labels(self):
+        yield self.name
+
+    def trainable_labels(self):
         return
         yield
 
     def placeholders(self):
         return
         yield
+
+    def extract(self, data):
+        pass
 
     def preprocess(self, data):
         return data

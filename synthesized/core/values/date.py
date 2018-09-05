@@ -6,16 +6,13 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 
 
-# TODO: start date in first scan or configurable
-
-
 class DateValue(Value):
 
-    def __init__(self, name, embedding_size):
+    def __init__(self, name, embedding_size, start_date=None):
         super().__init__(name=name)
 
         self.embedding_size = embedding_size
-        self.start_date = pd.to_datetime('1993-01-01 00:00:00')
+        self.start_date = start_date
 
         self.delta = self.add_module(
             module=ContinuousValue, name=self.name, positive=True
@@ -49,12 +46,12 @@ class DateValue(Value):
     def output_size(self):
         return self.delta.output_size()
 
-    def labels(self):
-        yield from self.delta.labels()
-        yield from self.hour.labels()
-        yield from self.dow.labels()
-        yield from self.day.labels()
-        yield from self.month.labels()
+    def trainable_labels(self):
+        yield from self.delta.trainable_labels()
+        yield from self.hour.trainable_labels()
+        yield from self.dow.trainable_labels()
+        yield from self.day.trainable_labels()
+        yield from self.month.trainable_labels()
 
     def placeholders(self):
         yield from self.delta.placeholders()
@@ -62,6 +59,12 @@ class DateValue(Value):
         yield from self.dow.placeholders()
         yield from self.day.placeholders()
         yield from self.month.placeholders()
+
+    def extract(self, data):
+        if self.start_date is None:
+            self.start_date = data[self.name].astype(dtype='datetime64').min()
+        elif data[self.name].astype(dtype='datetime64').min() == self.start_date:
+            raise NotImplementedError
 
     def preprocess(self, data):
         data[self.name] = data[self.name].astype(dtype='datetime64')

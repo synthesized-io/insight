@@ -8,18 +8,22 @@ from ..module import Module
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, categories, embedding_size, similarity_based=False, temperature=1.0,
+        self, name, embedding_size, categories=None, similarity_based=False, temperature=1.0,
         smoothing=0.1, moving_average=False
     ):
         super().__init__(name=name)
 
-        if isinstance(categories, int):
+        self.embedding_size = embedding_size
+
+        if categories is None:
+            self.categories = None
+            self.num_categories = None
+        elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
 
-        self.embedding_size = embedding_size
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.smoothing = smoothing
@@ -43,11 +47,18 @@ class CategoricalValue(Value):
         else:
             return self.num_categories
 
-    def labels(self):
+    def trainable_labels(self):
         yield self.name
 
     def placeholders(self):
         yield self.placeholder
+
+    def extract(self, data):
+        if self.categories is None:
+            self.categories = sorted(data[self.name].unique())
+            self.num_categories = len(self.categories)
+        elif sorted(data[self.name].unique()) != self.categories:
+            raise NotImplementedError
 
     def preprocess(self, data):
         if not isinstance(self.categories, int):
