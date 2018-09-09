@@ -7,7 +7,11 @@ class Value(Module):
         super().__init__(name=name)
 
     def input_size(self):
-        raise NotImplementedError
+        try:
+            next(self.trainable_labels())
+            raise NotImplementedError
+        except StopIteration:
+            return 0
 
     def output_size(self):
         return self.input_size()

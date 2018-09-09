@@ -5,12 +5,16 @@ from .. import util
 from ..module import Module
 
 
+# TODO: num_identifiers multiplied by 3
+
+
 class IdentifierValue(Value):
 
-    def __init__(self, name, num_identifiers, embedding_size):
+    def __init__(self, name, embedding_size, num_identifiers=None):
         super().__init__(name=name)
-        self.num_identifiers = num_identifiers
+
         self.embedding_size = embedding_size
+        self.num_identifiers = num_identifiers
 
     def specification(self):
         spec = super().specification()
@@ -25,6 +29,12 @@ class IdentifierValue(Value):
 
     def placeholders(self):
         yield self.placeholder
+
+    def extract(self, data):
+        if self.num_identifiers is None:
+            self.num_identifiers = data[self.name].nunique() * 3
+        elif data[self.name].nunique() > self.num_identifiers:
+            raise NotImplementedError
 
     def preprocess(self, data):
         # normalization = {x: n for n, x in enumerate(data[self.name].unique())}

@@ -14,7 +14,14 @@ class BasicSynthesizer(Synthesizer):
 
     def __init__(
         self, data, encoding='variational', encoding_size=128, encoder=(64, 64),
-        decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000
+        decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000,
+        # person
+        gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
+        email_label=None,
+        # address
+        postcode_label=None, street_label=None,
+        # identifier
+        identifier_label=None
     ):
         super().__init__(name='synthesizer')
 
@@ -23,12 +30,27 @@ class BasicSynthesizer(Synthesizer):
         self.batch_size = batch_size
         self.iterations = iterations
 
+        # person
+        self.person_value = None
+        self.gender_label = gender_label
+        self.name_label = name_label
+        self.firstname_label = firstname_label
+        self.lastname_label = lastname_label
+        self.email_label = email_label
+        # address
+        self.address_value = None
+        self.postcode_label = postcode_label
+        self.street_label = street_label
+        # identifier
+        self.identifier_value = None
+        self.identifier_label = identifier_label
+
         self.values = list()
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = self.get_value(name=name, dtype=dtype)
+            value = self.get_value(name=name, dtype=dtype, data=data)
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
@@ -71,8 +93,8 @@ class BasicSynthesizer(Synthesizer):
         )
         return spec
 
-    def get_value(self, name, dtype):
-        return get_value(self=self, name=name, dtype=dtype)
+    def get_value(self, name, dtype, data):
+        return get_value(self=self, name=name, dtype=dtype, data=data)
 
     def customized_transform(self, x):
         return x
