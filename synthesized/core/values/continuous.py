@@ -6,13 +6,22 @@ from ..module import Module
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, positive=None):
+    def __init__(self, name, positive=None, integer=None):
         super().__init__(name=name)
         self.positive = positive
+        self.integer = integer
+
+    def __str__(self):
+        string = super().__str__()
+        if self.positive:
+            string += '-positive'
+        if self.integer:
+            string += '-integer'
+        return string
 
     def specification(self):
         spec = super().specification()
-        spec.update(positive=self.positive)
+        spec.update(positive=self.positive, integer=self.integer)
         return spec
 
     def input_size(self):
@@ -27,11 +36,20 @@ class ContinuousValue(Value):
     def extract(self, data):
         if self.positive is None:
             self.positive = (data[self.name] > 0.0).all()
-        elif self.positive != (data[self.name] > 0.0).all():
+        elif self.positive and (data[self.name] <= 0.0).all():
+            raise NotImplementedError
+        if self.integer is None:
+            self.integer = (data[self.name].dtype.kind == 'i')
+        elif self.integer and data[self.name].dtype.kind != 'i':
             raise NotImplementedError
 
     def preprocess(self, data):
-        data[self.name] = data[self.name].astype(dtype='float32')
+        data.loc[:, self.name] = data[self.name].astype(dtype='float32')
+        return data
+
+    def postprocess(self, data):
+        if self.integer:
+            data.loc[:, self.name] = data[self.name].astype(dtype='int32')
         return data
 
     def feature(self, x=None):
@@ -47,18 +65,20 @@ class ContinuousValue(Value):
 
     def tf_input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed
+        if self.positive:
+            x = tf.log(x=(tf.exp(x=x) - 1))  # ???????????????????????????????????????
         x = tf.expand_dims(input=x, axis=1)
         return x
 
     def tf_output_tensors(self, x):
+        x = tf.squeeze(input=x, axis=1)
         if self.positive:
             x = tf.nn.softplus(features=x)
-        x = tf.squeeze(input=x, axis=1)
         return {self.name: x}
 
     def tf_loss(self, x, feed=None):
-        if self.positive:
-            x = tf.nn.softplus(features=x)
+        # if self.positive:                      ??????????????????????????????????????
+        #     x = tf.nn.softplus(features=x)
         target = self.input_tensor(feed=feed)
         # target = tf.Print(target, (x, target))
 

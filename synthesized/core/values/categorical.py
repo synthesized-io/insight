@@ -9,7 +9,7 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name, embedding_size, categories=None, similarity_based=False, temperature=1.0,
-        smoothing=0.1, moving_average=False
+        smoothing=0.1, moving_average=True
     ):
         super().__init__(name=name)
 
@@ -28,6 +28,12 @@ class CategoricalValue(Value):
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
+
+    def __str__(self):
+        string = super().__str__()
+        if self.similarity_based:
+            string += '-similarity'
+        return string
 
     def specification(self):
         spec = super().specification()
@@ -62,14 +68,14 @@ class CategoricalValue(Value):
 
     def preprocess(self, data):
         if not isinstance(self.categories, int):
-            data[self.name] = data[self.name].map(arg=self.categories.index)
-        data[self.name] = data[self.name].astype(dtype='int64')
+            data.loc[:, self.name] = data[self.name].map(arg=self.categories.index)
+        data.loc[:, self.name] = data[self.name].astype(dtype='int64')
         return data
 
     def postprocess(self, data):
         if not isinstance(self.categories, int):
-            data[self.name] = data[self.name].map(arg=self.categories.__getitem__)
-        data[self.name] = data[self.name].astype(dtype='category')
+            data.loc[:, self.name] = data[self.name].map(arg=self.categories.__getitem__)
+        data.loc[:, self.name] = data[self.name].astype(dtype='category')
         return data
 
     def feature(self, x=None):

@@ -6,6 +6,9 @@ class Value(Module):
     def __init__(self, name):
         super().__init__(name=name)
 
+    def __str__(self):
+        return self.__class__.__name__[:-5].lower()
+
     def input_size(self):
         try:
             next(self.trainable_labels())

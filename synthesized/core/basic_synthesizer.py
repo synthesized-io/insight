@@ -44,13 +44,17 @@ class BasicSynthesizer(Synthesizer):
         # identifier
         self.identifier_value = None
         self.identifier_label = identifier_label
+        # date
+        self.date_value = None
 
         self.values = list()
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
+        print('value types:')
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
+            print(name, value)
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
@@ -95,6 +99,11 @@ class BasicSynthesizer(Synthesizer):
 
     def get_value(self, name, dtype, data):
         return get_value(self=self, name=name, dtype=dtype, data=data)
+
+    def preprocess(self, data):
+        for value in self.values:
+            data = value.preprocess(data=data)
+        return data
 
     def customized_transform(self, x):
         return x

@@ -4,8 +4,11 @@ from .address import AddressValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
+from .enumeration import EnumerationValue
+from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .person import PersonValue
+from .poisson import PoissonValue
 from .sampling import SamplingValue
 from .value import Value
 
@@ -15,8 +18,10 @@ value_modules = dict(
     categorical=CategoricalValue,
     continuous=ContinuousValue,
     date=DateValue,
+    gaussian=GaussianValue,
     identifier=IdentifierValue,
     person=PersonValue,
+    poisson=PoissonValue,
     sampling=SamplingValue
 )
 
@@ -48,10 +53,21 @@ def get_value(self, name, dtype, data):
         )
         self.identifier_value = value
 
-    elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
-        # non-float defaults to categorical (requires dtype.categories?)
+    elif dtype.kind == 'M':  # 'm' timedelta
+        if self.date_value is not None:
+            raise NotImplementedError
+        value = self.add_module(module=DateValue, name=name, embedding_size=self.embedding_size)
+        self.date_value = value
+
+    elif dtype.kind == 'b':
         value = self.add_module(
-            module=CategoricalValue, modules=value_modules, name=name, categories=dtype.categories,
+            module=CategoricalValue, name=name, categories=[False, True],
+            embedding_size=self.embedding_size
+        )
+
+    elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
+        value = self.add_module(
+            module=CategoricalValue, name=name, categories=dtype.categories,
             embedding_size=self.embedding_size
         )
 
@@ -61,20 +77,25 @@ def get_value(self, name, dtype, data):
 
         if num_unique <= log(num_data):
             value = self.add_module(
-                module=CategoricalValue, modules=value_modules, name=name,
-                embedding_size=self.embedding_size
+                module=CategoricalValue, name=name, embedding_size=self.embedding_size
             )
 
         elif num_unique <= sqrt(num_data):
             value = self.add_module(
-                module=CategoricalValue, modules=value_modules, name=name,
-                embedding_size=self.embedding_size, similarity_based=True
+                module=CategoricalValue, name=name, embedding_size=self.embedding_size,
+                similarity_based=True
             )
 
-        elif dtype.kind == 'f':
-            value = self.add_module(module=ContinuousValue, modules=value_modules, name=name)
+        elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
+            value = self.add_module(module=EnumerationValue, name=name)
+
+        elif dtype.kind == 'f' or dtype.kind == 'i':
+            value = self.add_module(
+                module=ContinuousValue, name=name, integer=(dtype.kind == 'i')
+            )
 
         else:
-            value = self.add_module(module='sampling', modules=value_modules, name=name)
+            print(name, dtype, num_data, num_unique)
+            value = self.add_module(module=SamplingValue, name=name)
 
     return value

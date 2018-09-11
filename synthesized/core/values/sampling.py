@@ -32,7 +32,7 @@ class SamplingValue(Value):
                 self.categories **= self.smoothing
                 self.categories /= self.categories.sum()
             self.categories = self.categories.cumsum()
-            if (self.categories.tail(n=1) != 1.0).bool():
+            if (self.categories.tail(n=1).astype(dtype='float32') != 1.0).bool():
                 raise NotImplementedError
 
             def sample(p):
