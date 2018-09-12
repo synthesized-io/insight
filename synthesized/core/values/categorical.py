@@ -8,16 +8,32 @@ from ..module import Module
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, categories, embedding_size, similarity_based=False, temperature=1.0,
+        self, name, embedding_size, categories=None, similarity_based=False, temperature=1.0,
         smoothing=0.1, moving_average=True
     ):
         super().__init__(name=name)
-        self.categories = sorted(categories)
+
         self.embedding_size = embedding_size
+
+        if categories is None:
+            self.categories = None
+            self.num_categories = None
+        elif isinstance(categories, int):
+            self.categories = self.num_categories = categories
+        else:
+            self.categories = sorted(categories)
+            self.num_categories = len(self.categories)
+
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
+
+    def __str__(self):
+        string = super().__str__()
+        if self.similarity_based:
+            string += '-similarity'
+        return string
 
     def specification(self):
         spec = super().specification()
@@ -35,16 +51,31 @@ class CategoricalValue(Value):
         if self.similarity_based:
             return self.embedding_size
         else:
-            return len(self.categories)
+            return self.num_categories
+
+    def trainable_labels(self):
+        yield self.name
+
+    def placeholders(self):
+        yield self.placeholder
+
+    def extract(self, data):
+        if self.categories is None:
+            self.categories = sorted(data[self.name].unique())
+            self.num_categories = len(self.categories)
+        elif sorted(data[self.name].unique()) != self.categories:
+            raise NotImplementedError
 
     def preprocess(self, data):
-        data[self.name] = data[self.name].map(arg=self.categories.index)
-        data[self.name] = data[self.name].astype(dtype='int64')
+        if not isinstance(self.categories, int):
+            data.loc[:, self.name] = data[self.name].map(arg=self.categories.index)
+        data.loc[:, self.name] = data[self.name].astype(dtype='int64')
         return data
 
     def postprocess(self, data):
-        data[self.name] = data[self.name].map(arg=self.categories.__getitem__)
-        data[self.name] = data[self.name].astype(dtype='category')
+        if not isinstance(self.categories, int):
+            data.loc[:, self.name] = data[self.name].map(arg=self.categories.__getitem__)
+        data.loc[:, self.name] = data[self.name].astype(dtype='category')
         return data
 
     def feature(self, x=None):
@@ -58,7 +89,7 @@ class CategoricalValue(Value):
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         Module.placeholders[self.name] = self.placeholder
         self.embeddings = tf.get_variable(
-            name='embeddings', shape=(len(self.categories), self.embedding_size), dtype=tf.float32,
+            name='embeddings', shape=(self.num_categories, self.embedding_size), dtype=tf.float32,
             initializer=util.initializers['normal'], regularizer=util.regularizers['l2'],
             trainable=True, collections=None, caching_device=None, partitioner=None,
             validate_shape=True, use_resource=None, custom_getter=None
@@ -72,7 +103,7 @@ class CategoricalValue(Value):
 
     def tf_input_tensor(self, feed=None):
         # tensor = tf.one_hot(
-        #     indices=self.placeholder, depth=len(self.categories), on_value=1.0, off_value=0.0,
+        #     indices=self.placeholder, depth=self.num_categories, on_value=1.0, off_value=0.0,
         #     axis=1, dtype=tf.float32
         # )
         x = self.placeholder if feed is None else feed
@@ -82,20 +113,20 @@ class CategoricalValue(Value):
         )
         return x
 
-    def tf_output_tensor(self, x):
+    def tf_output_tensors(self, x):
         if self.similarity_based:
             x = tf.expand_dims(input=x, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
             x = tf.reduce_sum(input_tensor=(x * embeddings), axis=2, keepdims=False)
         x = tf.argmax(input=x, axis=1)
-        return x
+        return {self.name: x}
 
     def tf_loss(self, x, feed=None):
         target = self.placeholder if feed is None else feed
         if self.moving_average is not None:
-            frequency = tf.concat(values=(list(range(len(self.categories))), target), axis=0)
+            frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
-            frequency = tf.reshape(tensor=frequency, shape=(len(self.categories),))
+            frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
             frequency = frequency - 1
             frequency = frequency / tf.reduce_sum(input_tensor=frequency, axis=0, keepdims=False)
             update = self.moving_average.apply(var_list=(frequency,))
@@ -110,7 +141,7 @@ class CategoricalValue(Value):
         else:
             weights = 1.0
         target = tf.one_hot(
-            indices=target, depth=len(self.categories), on_value=1.0, off_value=0.0, axis=1,
+            indices=target, depth=self.num_categories, on_value=1.0, off_value=0.0, axis=1,
             dtype=tf.float32
         )
         if self.similarity_based:  # is that right?

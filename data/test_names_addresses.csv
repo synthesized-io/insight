@@ -1,0 +1,6 @@
+gender,name,firstname,lastname,email,postcode,street,attr1,attr2,attr3
+male,John Doe,John,Doe,john.doe@gmail.com,CR2 6XH,1 Main Street,1,2.0,abc
+female,Jane Doe,Jane,Doe,jane.doe@yahoo.com,CR2 6XI,2 Main Street,2,1.0,abc abd
+male,John Smith,John,Smith,john.smith@gmail.com,CR2 7XH,3 Main Street,1,1.0,abc
+female,Jane Smith,Jane,Smith,jane.smith@yahoo.com,CR3 6XH,4 Main Street,2,2.0,abd abc
+male,Joe Smith,Joe,Smith,joe.smith@gmail.com,CS2 6XH,5 Main Street,0,3.0,abc abd
