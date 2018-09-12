@@ -7,7 +7,7 @@ from .optimizers import Optimizer
 from .synthesizer import Synthesizer
 from .transformations import DenseTransformation
 from .transformations import transformation_modules
-from .values import get_value
+from .values.identify_value import identify_value
 
 
 class BasicSynthesizer(Synthesizer):
@@ -98,7 +98,7 @@ class BasicSynthesizer(Synthesizer):
         return spec
 
     def get_value(self, name, dtype, data):
-        return get_value(self=self, name=name, dtype=dtype, data=data)
+        return identify_value(synthesizer=self, name=name, dtype=dtype, data=data)
 
     def preprocess(self, data):
         for value in self.values:
