@@ -8,9 +8,11 @@ from __future__ import division, print_function, absolute_import
 
 from enum import Enum
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
+import seaborn as sns
 from plotly.offline import init_notebook_mode, iplot
 from pyemd import emd
 from pyemd.emd import emd_samples
@@ -19,6 +21,27 @@ from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import StandardScaler
+
+
+def show_corr_matrix(df, title=None, ax=None):
+    sns.set(style="white")
+
+    # Compute the correlation matrix
+    corr = df.corr()
+
+    # Generate a mask for the upper triangle
+    mask = np.zeros_like(corr, dtype=np.bool)
+    mask[np.triu_indices_from(mask)] = True
+
+    # Generate a custom diverging colormap
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    # Draw the heatmap with the mask and correct aspect ratio
+    hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
+                     square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
+
+    if title is not None:
+        hm.set_title(title)
 
 
 class ColumnType(Enum):
@@ -32,6 +55,12 @@ class Testing:
         self.df_test = df_test
         self.df_synth = df_synth
         self.schema = schema
+
+    def show_corr_matrices(self, figsize=(15, 11)):
+        # Set up the matplotlib figure
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        show_corr_matrix(self.df_orig, title='Original', ax=ax1)
+        show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
     @staticmethod
     def edges(a):
