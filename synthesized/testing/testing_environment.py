@@ -37,7 +37,7 @@ def show_corr_matrix(df, title=None, ax=None):
     cmap = sns.diverging_palette(220, 10, as_cmap=True)
 
     # Draw the heatmap with the mask and correct aspect ratio
-    hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
+    hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
                      square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
 
     if title is not None:
@@ -107,12 +107,10 @@ class Testing:
             X_synth = df_synth[X_columns]
             y_synth = df_synth[y_column]
 
-
             scaler = StandardScaler()
             X_orig_train = scaler.fit_transform(X_orig_train)
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
-
 
             if schema[y_column].value == ColumnType.CATEGORICAL.value:
                 estimator = classifier
@@ -121,13 +119,11 @@ class Testing:
                 estimator = regressor
                 dummy_estimator = DummyRegressor()
 
-
             orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             synth_score = max(clone(estimator).fit(X_synth, y_synth).score(X_orig_test, y_orig_test), 0.0)
             dummy_orig_score = max(clone(dummy_estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
-
 
             if schema[y_column].value == ColumnType.CATEGORICAL.value:
                 orig_error = 1 - accuracy_score(y_orig_test, y_orig_pred)
@@ -135,8 +131,6 @@ class Testing:
             else:
                 orig_error = np.sqrt(mean_squared_error(y_orig_test, y_orig_pred))
                 synth_error = np.sqrt(mean_squared_error(y_orig_test, y_synth_pred))
-
-
 
             orig_gain = max(orig_score - dummy_orig_score, 0.0)
             synth_gain = max(synth_score - dummy_orig_score, 0.0)
