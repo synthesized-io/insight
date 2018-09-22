@@ -21,6 +21,8 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import StandardScaler
 
+from .util import categorical_emd
+
 
 def show_corr_matrix(df, title=None, ax=None):
     sns.set(style="white")
@@ -189,7 +191,7 @@ class Testing:
                 emd = float('inf')
             else:
                 if self.schema[target_column] == ColumnType.CATEGORICAL:
-                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
+                    emd = categorical_emd(df_orig_target, df_synth_target)
                 elif self.schema[target_column] == ColumnType.CONTINUOUS:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
@@ -209,7 +211,7 @@ class Testing:
                 emd = float('inf')
             else:
                 if self.schema[target_column] == ColumnType.CATEGORICAL:
-                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
+                    emd = categorical_emd(df_orig_target, df_synth_target)
                 elif self.schema[target_column] == ColumnType.CONTINUOUS:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
@@ -217,26 +219,6 @@ class Testing:
                 target_emd: emd
             })
         return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
-
-    @staticmethod
-    def categorical_emd(a, b):
-        space = sorted(list(set(a).union(set(b))))
-
-        a_unique, counts = np.unique(a, return_counts=True)
-        a_counts = dict(zip(a_unique, counts))
-
-        b_unique, counts = np.unique(b, return_counts=True)
-        b_counts = dict(zip(b_unique, counts))
-
-        p = np.array([float(a_counts[x]) if x in a_counts else 0.0 for x in space])
-        q = np.array([float(b_counts[x]) if x in b_counts else 0.0 for x in space])
-
-        p /= np.sum(p)
-        q /= np.sum(q)
-
-        distances = 1 - np.eye(len(space))
-
-        return emd(p, q, distances)
 
 
 class TestingEnvironment:
