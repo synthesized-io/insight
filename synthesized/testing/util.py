@@ -1,4 +1,5 @@
 import numpy as np
+from pyemd import emd
 
 
 def categorical_emd(a, b):

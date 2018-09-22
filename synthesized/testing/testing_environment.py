@@ -14,7 +14,6 @@ import pandas as pd
 import plotly.figure_factory as ff
 import seaborn as sns
 from plotly.offline import init_notebook_mode, iplot
-from pyemd import emd
 from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
