@@ -5,6 +5,7 @@ import numpy as np
 from pyemd import emd_samples
 
 from .util import categorical_emd
+from functools import partial
 
 NEAREST_NEIGHBOUR_MULT = 1.05
 ENLARGED_NEIGHBOUR_MULT = 2.0
@@ -45,7 +46,7 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
             if schema[sensitive_column].categorical:
                 emd_function = categorical_emd
             else:
-                emd_function = emd_samples
+                emd_function = partial(emd_samples, bins='rice')  # doane can be better
             if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a,
                                                                                                      d) > t_closeness:
                 attack = {"knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
@@ -149,7 +150,7 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=Fals
         if schema[target].categorical:
             emd_function = categorical_emd
         else:
-            emd_function = emd_samples
+            emd_function = partial(emd_samples, bins='rice')  # doane can be better
         while emd_function(a, e) < k_distance and emd_function(e, c) > t_closeness and emd_function(a, d) > t_closeness:
             enlarged_knowledge = enlarge_boundaries(df_synth, enlarged_knowledge, schema)
             e = get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
@@ -176,7 +177,7 @@ def t_closeness_check(df, schema, threshold=0.2):
             if schema[column].categorical:
                 emd_function = categorical_emd
             else:
-                emd_function = emd_samples
+                emd_function = partial(emd_samples, bins='rice')  # doane can be better
             if emd_function(a, b) > threshold:
                 return False
         return True
