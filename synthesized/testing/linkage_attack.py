@@ -173,7 +173,11 @@ def t_closeness_check(df, schema, threshold=0.2):
         for column in columns:
             a = df[column]
             b = group[column]
-            if emd_samples(a, b) > threshold:
+            if schema[column].categorical:
+                emd_function = categorical_emd
+            else:
+                emd_function = emd_samples
+            if emd_function(a, b) > threshold:
                 return False
         return True
 
