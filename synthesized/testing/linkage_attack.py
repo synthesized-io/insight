@@ -3,7 +3,8 @@ from itertools import combinations
 import pandas as pd
 import numpy as np
 from pyemd import emd_samples
-from synthesized.testing.testing_environment import Testing
+
+from .util import categorical_emd
 
 NEAREST_NEIGHBOUR_MULT = 1.05
 ENLARGED_NEIGHBOUR_MULT = 2.0
@@ -42,7 +43,7 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
             c = df_synth[sensitive_column]
             d = df_orig[sensitive_column]
             if schema[sensitive_column].categorical:
-                emd_function = Testing.categorical_emd
+                emd_function = categorical_emd
             else:
                 emd_function = emd_samples
             if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a,
@@ -146,7 +147,7 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=Fals
         d = df_orig[target]
         e = eq_class_synth_enlarged[target]
         if schema[target].categorical:
-            emd_function = Testing.categorical_emd
+            emd_function = categorical_emd
         else:
             emd_function = emd_samples
         while emd_function(a, e) < k_distance and emd_function(e, c) > t_closeness and emd_function(a, d) > t_closeness:
