@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
-from synthesized.testing.linkage_attack import identify_attacks, Column
+from synthesized.testing.linkage_attack import Column
 from synthesized.testing.linkage_attack import t_closeness_check, find_neighbour_distances, \
     find_eq_class_fuzzy, find_eq_class
 
