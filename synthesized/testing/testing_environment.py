@@ -51,17 +51,20 @@ class ColumnType(Enum):
 
 
 class Testing:
-    def __init__(self, df_orig, df_test, df_synth, schema):
+    def __init__(self, df_orig, df_test, df_synth):
         self.df_orig = df_orig
         self.df_test = df_test
         self.df_synth = df_synth
-        self.schema = schema
 
     def show_corr_matrices(self, figsize=(15, 11)):
         # Set up the matplotlib figure
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
-        show_corr_matrix(self.df_orig, title='Original', ax=ax1)
-        show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
+
+        df_orig = self.df_orig.apply(pd.to_numeric)
+        df_synth = self.df_synth.apply(pd.to_numeric)
+
+        show_corr_matrix(df_orig, title='Original', ax=ax1)
+        show_corr_matrix(df_synth, title='Synthetic', ax=ax2)
 
     @staticmethod
     def edges(a):
@@ -73,24 +76,24 @@ class Testing:
         return np.digitize(a, edges)
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
+        dtypes = {col:self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
         df_orig = self.df_orig.apply(pd.to_numeric)
         df_test = self.df_test.apply(pd.to_numeric)
         df_synth = self.df_synth.apply(pd.to_numeric)
         result = []
-        columns_set = set(self.schema.keys())
-        y_columns = sorted(list(self.schema.keys()))
-        schema = dict(self.schema)
+        columns_set = set(df_orig.columns.values)
+        y_columns = sorted(list(columns_set))
         y_columns_new = []
         y_orig_columns = {}
         for i, y_column in enumerate(y_columns):
             y_columns_new.append(y_column)
-            if self.schema[y_column].value == ColumnType.CONTINUOUS.value:
+            if dtypes[y_column] != 'O':
                 categorical_y_column = y_column + ' (categorical reduction)'
                 edges = Testing.edges(df_orig[y_column])
                 df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
                 df_test[categorical_y_column] = Testing.to_categorical(df_test[y_column], edges)
                 df_synth[categorical_y_column] = Testing.to_categorical(df_synth[y_column], edges)
-                schema[categorical_y_column] = ColumnType.CATEGORICAL
+                dtypes[categorical_y_column] = 'O'
                 y_columns_new.append(categorical_y_column)
                 y_orig_columns[categorical_y_column] = y_column
 
@@ -113,7 +116,7 @@ class Testing:
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-            if schema[y_column].value == ColumnType.CATEGORICAL.value:
+            if dtypes[y_column] == 'O':
                 estimator = classifier
                 dummy_estimator = DummyClassifier(strategy="prior")
             else:
@@ -126,7 +129,7 @@ class Testing:
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
-            if schema[y_column].value == ColumnType.CATEGORICAL.value:
+            if dtypes[y_column] == 'O':
                 orig_error = 1 - accuracy_score(y_orig_test, y_orig_pred)
                 synth_error = 1 - accuracy_score(y_orig_test, y_synth_pred)
             else:
@@ -174,12 +177,10 @@ class Testing:
         ])
 
     def compare_marginal_distributions(self, target_column, conditional_column, bins=4):
-        if self.schema[conditional_column] == ColumnType.CATEGORICAL:
+        if self.df_orig[conditional_column].dtype == 'O':
             return self._compare_marginal_distributions_categorical(target_column, conditional_column)
-        elif self.schema[conditional_column] == ColumnType.CONTINUOUS:
-            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
         else:
-            raise ValueError('Unknown type of column: {}'.format(conditional_column))
+            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
 
     def _compare_marginal_distributions_categorical(self, target_column, conditional_column):
         target_emd = '{} EMD'.format(target_column)
@@ -190,9 +191,9 @@ class Testing:
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:
-                if self.schema[target_column] == ColumnType.CATEGORICAL:
+                if self.df_orig[target_column].dtype.kind == 'O':
                     emd = categorical_emd(df_orig_target, df_synth_target)
-                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                else:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
                 conditional_column: val,
@@ -210,9 +211,9 @@ class Testing:
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:
-                if self.schema[target_column] == ColumnType.CATEGORICAL:
+                if self.df_orig[target_column].dtype.kind == 'O':
                     emd = categorical_emd(df_orig_target, df_synth_target)
-                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                else:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
                 conditional_column: '[{}, {})'.format(edges[i], edges[i + 1]),
