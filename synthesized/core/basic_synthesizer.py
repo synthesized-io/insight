@@ -5,16 +5,22 @@ import tensorflow as tf
 from .encodings import encoding_modules
 from .optimizers import Optimizer
 from .synthesizer import Synthesizer
-from .transformations import DenseTransformation
-from .transformations import transformation_modules
-from .values.identify_value import identify_value
+from .transformations import DenseTransformation, transformation_modules
+from .values import identify_value
 
 
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data, encoding='variational', encoding_size=128, encoder=(64, 64),
-        decoder=(64, 64), embedding_size=32, batch_size=64, iterations=50000,
+        self, data,
+        # encoding
+        encoding='variational', encoding_size=128,
+        # encoder/decoder
+        network_type='resnet', encoder=(64, 64, 64, 64), decoder=(64, 64, 64, 64),
+        # embeddings
+        embedding_size=32,
+        # training
+        batch_size=64, iterations=50000,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -63,7 +69,7 @@ class BasicSynthesizer(Synthesizer):
                 output_size += value.output_size()
 
         self.encoder = self.add_module(
-            module='mlp', modules=transformation_modules, name='encoder',
+            module=network_type, modules=transformation_modules, name='encoder',
             input_size=input_size, layer_sizes=encoder
         )
 
@@ -73,7 +79,7 @@ class BasicSynthesizer(Synthesizer):
         )
 
         self.decoder = self.add_module(
-            module='mlp', modules=transformation_modules, name='decoder',
+            module=network_type, modules=transformation_modules, name='decoder',
             input_size=self.encoding.size(), layer_sizes=decoder
         )
 
@@ -98,8 +104,9 @@ class BasicSynthesizer(Synthesizer):
         return spec
 
     def get_value(self, name, dtype, data):
-        return identify_value(synthesizer=self, name=name, dtype=dtype, data=data)
+        return identify_value(module=self, name=name, dtype=dtype, data=data)
 
+    # not needed?
     def preprocess(self, data):
         for value in self.values:
             data = value.preprocess(data=data)
@@ -249,9 +256,10 @@ class BasicSynthesizer(Synthesizer):
                     print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
 
     def synthesize(self, n):
+        fetches = self.synthesized
         feed_dict = {self.num_synthesize: n}
         synthesized = self.session.run(
-            fetches=self.synthesized, feed_dict=feed_dict, options=None, run_metadata=None
+            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
         )
         synthesized = pd.DataFrame.from_dict(synthesized)
         for value in self.values:
@@ -262,12 +270,13 @@ class BasicSynthesizer(Synthesizer):
         assert not transform_params
         for value in self.values:
             X = value.preprocess(data=X)
+        fetches = self.transformed
         feed_dict = {
             placeholder: X[label].get_values() for value in self.values
             for label, placeholder in zip(value.trainable_labels(), value.placeholders())
         }
         transformed = self.session.run(
-            fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None
+            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
         )
         transformed = pd.DataFrame.from_dict(transformed)
         for value in self.values:
