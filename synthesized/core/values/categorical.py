@@ -8,8 +8,9 @@ from ..module import Module
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, embedding_size, categories=None, similarity_based=False, temperature=1.0,
-        smoothing=0.1, moving_average=True
+        self, name, embedding_size, categories=None, pandas_category=False, similarity_based=False,
+        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.01,
+        entropy_regularization=0.01
     ):
         super().__init__(name=name)
 
@@ -24,10 +25,13 @@ class CategoricalValue(Value):
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
 
+        self.pandas_category = pandas_category
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
+        self.similarity_regularization = similarity_regularization
+        self.entropy_regularization = entropy_regularization
 
     def __str__(self):
         string = super().__str__()
@@ -40,7 +44,9 @@ class CategoricalValue(Value):
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based, temperature=self.temperature,
-            smoothing=self.smoothing, moving_average=self.moving_average
+            smoothing=self.smoothing, moving_average=self.moving_average,
+            similarity_regularization=self.similarity_regularization,
+            entropy_regularization=self.entropy_regularization
         )
         return spec
 
@@ -75,7 +81,8 @@ class CategoricalValue(Value):
     def postprocess(self, data):
         if not isinstance(self.categories, int):
             data.loc[:, self.name] = data[self.name].map(arg=self.categories.__getitem__)
-        data.loc[:, self.name] = data[self.name].astype(dtype='category')
+        if self.pandas_category:
+            data.loc[:, self.name] = data[self.name].astype(dtype='category')
         return data
 
     def feature(self, x=None):
@@ -153,4 +160,24 @@ class CategoricalValue(Value):
             onehot_labels=target, logits=x, weights=weights, label_smoothing=self.smoothing,
             scope=None, loss_collection=tf.GraphKeys.LOSSES
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
+        if self.similarity_regularization > 0.0:
+            similarity_loss = tf.matmul(
+                a=self.embeddings, b=self.embeddings, transpose_a=False, transpose_b=True,
+                adjoint_a=False, adjoint_b=False, a_is_sparse=False, b_is_sparse=False
+            )
+            similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=1)
+            similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=0)
+            similarity_loss = self.similarity_regularization * similarity_loss
+            tf.losses.add_loss(
+                loss=similarity_loss, loss_collection=tf.GraphKeys.REGULARIZATION_LOSSES
+            )
+        if self.entropy_regularization > 0.0:
+            probs = tf.nn.softmax(logits=x, axis=-1)
+            logprobs = tf.log(x=probs)
+            entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
+            entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
+            entropy_loss *= -self.entropy_regularization
+            tf.losses.add_loss(
+                loss=entropy_loss, loss_collection=tf.GraphKeys.REGULARIZATION_LOSSES
+            )
         return loss
