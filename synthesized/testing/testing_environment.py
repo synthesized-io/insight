@@ -8,17 +8,41 @@ from __future__ import division, print_function, absolute_import
 
 from enum import Enum
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
+import seaborn as sns
 from plotly.offline import init_notebook_mode, iplot
-from pyemd import emd
 from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import StandardScaler
+
+from .util import categorical_emd
+
+
+def show_corr_matrix(df, title=None, ax=None):
+    sns.set(style="white")
+
+    # Compute the correlation matrix
+    corr = df.corr()
+
+    # Generate a mask for the upper triangle
+    mask = np.zeros_like(corr, dtype=np.bool)
+    mask[np.triu_indices_from(mask)] = True
+
+    # Generate a custom diverging colormap
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    # Draw the heatmap with the mask and correct aspect ratio
+    hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                     square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
+
+    if title is not None:
+        hm.set_title(title)
 
 
 class ColumnType(Enum):
@@ -27,11 +51,20 @@ class ColumnType(Enum):
 
 
 class Testing:
-    def __init__(self, df_orig, df_test, df_synth, schema):
+    def __init__(self, df_orig, df_test, df_synth):
         self.df_orig = df_orig
         self.df_test = df_test
         self.df_synth = df_synth
-        self.schema = schema
+
+    def show_corr_matrices(self, figsize=(15, 11)):
+        # Set up the matplotlib figure
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+
+        df_orig = self.df_orig.apply(pd.to_numeric)
+        df_synth = self.df_synth.apply(pd.to_numeric)
+
+        show_corr_matrix(df_orig, title='Original', ax=ax1)
+        show_corr_matrix(df_synth, title='Synthetic', ax=ax2)
 
     @staticmethod
     def edges(a):
@@ -43,24 +76,24 @@ class Testing:
         return np.digitize(a, edges)
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
+        dtypes = {col:self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
         df_orig = self.df_orig.apply(pd.to_numeric)
         df_test = self.df_test.apply(pd.to_numeric)
         df_synth = self.df_synth.apply(pd.to_numeric)
         result = []
-        columns_set = set(self.schema.keys())
-        y_columns = sorted(list(self.schema.keys()))
-        schema = dict(self.schema)
+        columns_set = set(df_orig.columns.values)
+        y_columns = sorted(list(columns_set))
         y_columns_new = []
         y_orig_columns = {}
         for i, y_column in enumerate(y_columns):
             y_columns_new.append(y_column)
-            if self.schema[y_column].value == ColumnType.CONTINUOUS.value:
+            if dtypes[y_column] != 'O':
                 categorical_y_column = y_column + ' (categorical reduction)'
                 edges = Testing.edges(df_orig[y_column])
                 df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
                 df_test[categorical_y_column] = Testing.to_categorical(df_test[y_column], edges)
                 df_synth[categorical_y_column] = Testing.to_categorical(df_synth[y_column], edges)
-                schema[categorical_y_column] = ColumnType.CATEGORICAL
+                dtypes[categorical_y_column] = 'O'
                 y_columns_new.append(categorical_y_column)
                 y_orig_columns[categorical_y_column] = y_column
 
@@ -78,20 +111,17 @@ class Testing:
             X_synth = df_synth[X_columns]
             y_synth = df_synth[y_column]
 
-
             scaler = StandardScaler()
             X_orig_train = scaler.fit_transform(X_orig_train)
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-
-            if schema[y_column].value == ColumnType.CATEGORICAL.value:
+            if dtypes[y_column] == 'O':
                 estimator = classifier
                 dummy_estimator = DummyClassifier(strategy="prior")
             else:
                 estimator = regressor
                 dummy_estimator = DummyRegressor()
-
 
             orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             synth_score = max(clone(estimator).fit(X_synth, y_synth).score(X_orig_test, y_orig_test), 0.0)
@@ -99,15 +129,12 @@ class Testing:
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
-
-            if schema[y_column].value == ColumnType.CATEGORICAL.value:
+            if dtypes[y_column] == 'O':
                 orig_error = 1 - accuracy_score(y_orig_test, y_orig_pred)
                 synth_error = 1 - accuracy_score(y_orig_test, y_synth_pred)
             else:
                 orig_error = np.sqrt(mean_squared_error(y_orig_test, y_orig_pred))
                 synth_error = np.sqrt(mean_squared_error(y_orig_test, y_synth_pred))
-
-
 
             orig_gain = max(orig_score - dummy_orig_score, 0.0)
             synth_gain = max(synth_score - dummy_orig_score, 0.0)
@@ -150,12 +177,10 @@ class Testing:
         ])
 
     def compare_marginal_distributions(self, target_column, conditional_column, bins=4):
-        if self.schema[conditional_column] == ColumnType.CATEGORICAL:
+        if self.df_orig[conditional_column].dtype == 'O':
             return self._compare_marginal_distributions_categorical(target_column, conditional_column)
-        elif self.schema[conditional_column] == ColumnType.CONTINUOUS:
-            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
         else:
-            raise ValueError('Unknown type of column: {}'.format(conditional_column))
+            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
 
     def _compare_marginal_distributions_categorical(self, target_column, conditional_column):
         target_emd = '{} EMD'.format(target_column)
@@ -166,9 +191,9 @@ class Testing:
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:
-                if self.schema[target_column] == ColumnType.CATEGORICAL:
-                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
-                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                if self.df_orig[target_column].dtype.kind == 'O':
+                    emd = categorical_emd(df_orig_target, df_synth_target)
+                else:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
                 conditional_column: val,
@@ -186,35 +211,15 @@ class Testing:
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:
-                if self.schema[target_column] == ColumnType.CATEGORICAL:
-                    emd = Testing.categorical_emd(df_orig_target, df_synth_target)
-                elif self.schema[target_column] == ColumnType.CONTINUOUS:
+                if self.df_orig[target_column].dtype.kind == 'O':
+                    emd = categorical_emd(df_orig_target, df_synth_target)
+                else:
                     emd = emd_samples(df_orig_target, df_synth_target)
             result.append({
                 conditional_column: '[{}, {})'.format(edges[i], edges[i + 1]),
                 target_emd: emd
             })
         return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
-
-    @staticmethod
-    def categorical_emd(a, b):
-        space = sorted(list(set(a).union(set(b))))
-
-        a_unique, counts = np.unique(a, return_counts=True)
-        a_counts = dict(zip(a_unique, counts))
-
-        b_unique, counts = np.unique(b, return_counts=True)
-        b_counts = dict(zip(b_unique, counts))
-
-        p = np.array([float(a_counts[x]) if x in a_counts else 0.0 for x in space])
-        q = np.array([float(b_counts[x]) if x in b_counts else 0.0 for x in space])
-
-        p /= np.sum(p)
-        q /= np.sum(q)
-
-        distances = 1 - np.eye(len(space))
-
-        return emd(p, q, distances)
 
 
 class TestingEnvironment:
