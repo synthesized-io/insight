@@ -6,6 +6,7 @@
 # pycharm
 .idea/
 .idea
+*.iml
 
 # Packages
 *.egg
