@@ -216,6 +216,7 @@ class BasicSynthesizer(Synthesizer):
 
         # TODO: increment global step
         if filenames is None:
+            data = data.copy()
             for value in self.values:
                 data = value.preprocess(data=data)
             num_data = len(data)
