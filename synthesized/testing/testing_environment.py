@@ -51,20 +51,17 @@ class ColumnType(Enum):
 
 
 class Testing:
-    def __init__(self, df_orig, df_test, df_synth):
-        self.df_orig = df_orig
-        self.df_test = df_test
-        self.df_synth = df_synth
+    def __init__(self, synthesizer, df_orig, df_test, df_synth):
+        self.df_orig = synthesizer.preprocess(data=df_orig.copy())
+        self.df_test = synthesizer.preprocess(data=df_test.copy())
+        self.df_synth = synthesizer.preprocess(data=df_synth.copy())
 
     def show_corr_matrices(self, figsize=(15, 11)):
         # Set up the matplotlib figure
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
-        df_orig = self.df_orig.apply(pd.to_numeric)
-        df_synth = self.df_synth.apply(pd.to_numeric)
-
-        show_corr_matrix(df_orig, title='Original', ax=ax1)
-        show_corr_matrix(df_synth, title='Synthetic', ax=ax2)
+        show_corr_matrix(self.df_orig, title='Original', ax=ax1)
+        show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
     @staticmethod
     def edges(a):
@@ -76,10 +73,10 @@ class Testing:
         return np.digitize(a, edges)
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
-        dtypes = {col:self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
-        df_orig = self.df_orig.apply(pd.to_numeric)
-        df_test = self.df_test.apply(pd.to_numeric)
-        df_synth = self.df_synth.apply(pd.to_numeric)
+        dtypes = {col: self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
+        df_orig = self.df_orig.copy()
+        df_test = self.df_test.copy()
+        df_synth = self.df_synth.copy()
         result = []
         columns_set = set(df_orig.columns.values)
         y_columns = sorted(list(columns_set))
