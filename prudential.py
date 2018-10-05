@@ -3,10 +3,7 @@ warnings.filterwarnings(action='ignore', message='numpy.dtype size changed')
 
 from datetime import datetime
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from synthesized.core import BasicSynthesizer
-from synthesized.testing.testing_environment import Testing
-
 
 data = pd.read_csv('data/prudential_train.csv')
 
