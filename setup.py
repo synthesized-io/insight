@@ -42,7 +42,7 @@ setup(
             Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
             Extension("synthesized.core.id_synthesizer", ["synthesized/core/id_synthesizer.py"]),
             Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
-            Extension("synthesized.testing.testing_environment", ["synthesized/testing/testing_environment.py"]),
+            Extension("synthesized.testing.testing_environment", ["synthesized/testing/utility.py"]),
          ],
         build_dir="build",
     ),

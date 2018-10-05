@@ -1,2 +1,2 @@
-from .testing_environment import Testing
-from .testing_environment import show_corr_matrix
+from .utility import UtilityTesting, ColumnType
+from .linkage_attack import LinkageAttackTesting, Column

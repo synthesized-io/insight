@@ -24,53 +24,43 @@ from sklearn.preprocessing import StandardScaler
 from .util import categorical_emd
 
 
-def show_corr_matrix(df, title=None, ax=None):
-    sns.set(style="white")
-
-    # Compute the correlation matrix
-    corr = df.corr()
-
-    # Generate a mask for the upper triangle
-    mask = np.zeros_like(corr, dtype=np.bool)
-    mask[np.triu_indices_from(mask)] = True
-
-    # Generate a custom diverging colormap
-    cmap = sns.diverging_palette(220, 10, as_cmap=True)
-
-    # Draw the heatmap with the mask and correct aspect ratio
-    hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                     square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
-
-    if title is not None:
-        hm.set_title(title)
-
-
 class ColumnType(Enum):
     CONTINUOUS = 1
     CATEGORICAL = 2
 
 
-class Testing:
+class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
 
     def show_corr_matrices(self, figsize=(15, 11)):
+        def show_corr_matrix(df, title=None, ax=None):
+            sns.set(style="white")
+
+            # Compute the correlation matrix
+            corr = df.corr()
+
+            # Generate a mask for the upper triangle
+            mask = np.zeros_like(corr, dtype=np.bool)
+            mask[np.triu_indices_from(mask)] = True
+
+            # Generate a custom diverging colormap
+            cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+            # Draw the heatmap with the mask and correct aspect ratio
+            hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                             square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
+
+            if title is not None:
+                hm.set_title(title)
+
         # Set up the matplotlib figure
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
         show_corr_matrix(self.df_orig, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
-
-    @staticmethod
-    def edges(a):
-        _, edges = np.histogram(a, bins=10)
-        return edges
-
-    @staticmethod
-    def to_categorical(a, edges):
-        return np.digitize(a, edges)
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         dtypes = {col: self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
@@ -86,10 +76,10 @@ class Testing:
             y_columns_new.append(y_column)
             if dtypes[y_column] != 'O':
                 categorical_y_column = y_column + ' (categorical reduction)'
-                edges = Testing.edges(df_orig[y_column])
-                df_orig[categorical_y_column] = Testing.to_categorical(df_orig[y_column], edges)
-                df_test[categorical_y_column] = Testing.to_categorical(df_test[y_column], edges)
-                df_synth[categorical_y_column] = Testing.to_categorical(df_synth[y_column], edges)
+                edges = bin_edges(df_orig[y_column])
+                df_orig[categorical_y_column] = to_categorical(df_orig[y_column], edges)
+                df_test[categorical_y_column] = to_categorical(df_test[y_column], edges)
+                df_synth[categorical_y_column] = to_categorical(df_synth[y_column], edges)
                 dtypes[categorical_y_column] = 'O'
                 y_columns_new.append(categorical_y_column)
                 y_orig_columns[categorical_y_column] = y_column
@@ -122,7 +112,8 @@ class Testing:
 
             orig_score = max(clone(estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             synth_score = max(clone(estimator).fit(X_synth, y_synth).score(X_orig_test, y_orig_test), 0.0)
-            dummy_orig_score = max(clone(dummy_estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
+            dummy_orig_score = max(
+                clone(dummy_estimator).fit(X_orig_train, y_orig_train).score(X_orig_test, y_orig_test), 0.0)
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
@@ -202,9 +193,13 @@ class Testing:
         _, edges = np.histogram(self.df_orig[conditional_column], bins=bins)
         target_emd = '{} EMD'.format(target_column)
         result = []
-        for i in range(0, len(edges)-1):
-            df_orig_target = self.df_orig[(self.df_orig[conditional_column] >= edges[i]) & (self.df_orig[conditional_column] < edges[i + 1])][target_column]
-            df_synth_target = self.df_synth[(self.df_synth[conditional_column] >= edges[i]) & (self.df_synth[conditional_column] < edges[i + 1])][target_column]
+        for i in range(0, len(edges) - 1):
+            df_orig_target = self.df_orig[
+                (self.df_orig[conditional_column] >= edges[i]) & (self.df_orig[conditional_column] < edges[i + 1])][
+                target_column]
+            df_synth_target = self.df_synth[
+                (self.df_synth[conditional_column] >= edges[i]) & (self.df_synth[conditional_column] < edges[i + 1])][
+                target_column]
             if len(df_orig_target) == 0 or len(df_synth_target) == 0:
                 emd = float('inf')
             else:
@@ -219,34 +214,44 @@ class Testing:
         return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
 
 
+def bin_edges(a):
+    _, edges = np.histogram(a, bins=10)
+    return edges
+
+
+def to_categorical(a, edges):
+    return np.digitize(a, edges)
+
+
+# Deprecated
 class TestingEnvironment:
     def __init__(self):
-        self.synth_stat_models = [{"model" : LogisticRegression, "variables" : self.get_LogisticRegression_variables},
+        self.synth_stat_models = [{"model": LogisticRegression, "variables": self.get_LogisticRegression_variables},
                                   {"model": LinearRegression, "variables": self.get_LinearRegression_variables}]
 
     def get_LogisticRegression_variables(self, dataset):
         X = ["operation", "amount", "balance"]
         y = ["type"]
         dataset = dataset[X + y].dropna()
-        return {"X" : dataset[X], "y" : dataset[y]}
+        return {"X": dataset[X], "y": dataset[y]}
 
     def get_LinearRegression_variables(self, dataset):
         dataset['date'] = pd.to_datetime(dataset['date'])
         account_ids = dataset["account_id"].unique()
         operations = dataset["operation"].unique()
-        X = np.array([]).reshape(0,5)
+        X = np.array([]).reshape(0, 5)
         y = np.array([])
         for account_id in account_ids:
             user = dataset[dataset["account_id"] == account_id]
-            for month in range(1,12):
+            for month in range(1, 12):
                 X_local = np.array([])
-                user_local = user[ user["date"].dt.month == month]
+                user_local = user[user["date"].dt.month == month]
                 for operation in operations:
                     X_local = np.append(X_local, user_local[user_local["operation"] == operation]["amount"].sum())
                 X = np.vstack((X, X_local))
                 next_month_df = user[(user["date"].dt.month == month + 1) & (user["operation"] == 2)]
-                y = np.concatenate((y, np.array([next_month_df["amount"].sum() ] )))
-        return {"X" : X, "y" : y}
+                y = np.concatenate((y, np.array([next_month_df["amount"].sum()])))
+        return {"X": X, "y": y}
 
     def compare_empirical_densities(self, original_dataset, synthetic_dataset, target_field):
 
@@ -311,10 +316,3 @@ class TestingEnvironment:
 
         # Plot!
         iplot(fig, filename='jupyter/basic_bar')
-
-# num = 54
-# print(pd.DataFrame(data=np.asarray(testing_set[num]).reshape(32,4), index=np.arange(1,33), columns=np.arange(1,5)))
-
-# errors = [get_the_closest_element(fake_data_set_as_arrays_of_arraya, testing_set_outlier[i])[1] for i in range(2,562,1)]
-# errors[1:10]
-# print(pd.DataFrame(data=np.asarray(synth).reshape(32,4), index=np.arange(1,33), columns=np.arange(1,5)))

@@ -1,11 +1,11 @@
+from functools import partial
 from itertools import combinations
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from pyemd import emd_samples
 
 from .util import categorical_emd
-from functools import partial
 
 NEAREST_NEIGHBOUR_MULT = 1.05
 ENLARGED_NEIGHBOUR_MULT = 2.0
@@ -18,6 +18,42 @@ class Column:
         self.key_attribute = key_attribute
         self.sensitive = sensitive
         self.categorical = categorical
+
+
+class LinkageAttackTesting:
+    def __init__(self, df_orig, df_synth, schema):
+        self.df_orig = df_orig
+        self.df_synth = df_synth
+        self.schema = schema
+
+    def identify_attacks(self, t_closeness=T_CLOSENESS_DEFAULT, k_distance=K_DISTANCE_DEFAULT):
+        """
+        Returns a dict of attacks with keys, values that correspond to the background knowledge of an attacker and lead to
+        sensitive attribute disclosure
+
+        """
+        return identify_attacks(self.df_orig, self.df_synth, self.schema, t_closeness, k_distance)
+
+    def show_attacked_data(self, attack):
+        orig_df_subset = get_df_subset(self.df_orig, attack["knowledge"], self.schema)
+        synth_df_subset = get_df_subset(self.df_synth, attack["knowledge"], self.schema)
+        print("attribute under attack: ", attack["target"])
+        print("\nbacground knowledge: ", list(attack["knowledge"].keys())[0])
+        print("\n\n original df subset: \n", orig_df_subset)
+        print("\n\n synthetic df subset: \n", synth_df_subset)
+
+    def eradicate_attacks(self, attacks, t_closeness=T_CLOSENESS_DEFAULT,
+                          k_distance=K_DISTANCE_DEFAULT, radical=False):
+        """
+        Returns a dataframe cleared of all recurrent attacks
+
+        """
+        df = self.df_synth
+        while len(attacks) != 0:
+            print("remaining attacks : ", len(attacks))
+            df = eradicate_attacks_iteration(self.df_orig, df, attacks, self.schema, t_closeness, k_distance, radical)
+            attacks = identify_attacks(self.df_orig, df, self.schema, t_closeness, k_distance)
+        return df
 
 
 def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT, k_distance=K_DISTANCE_DEFAULT):
@@ -49,53 +85,16 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
                 emd_function = partial(emd_samples, bins='rice')  # doane can be better
             if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a,
                                                                                                      d) > t_closeness:
-                attack = {"knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
-                          "target": sensitive_column}
+                attack = {
+                    "knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
+                    "target": sensitive_column}
                 result.append(attack)
                 break
     return result
 
 
-def get_df_subset(df, knowledge, schema):
-    ind = pd.Series([False] * len(df), index=df.index)
-    for k, v in knowledge.items():
-        if schema[k].categorical:
-            if isinstance(v["value"], list):
-                for i in v["value"]:
-                    ind = ind | (df[k] == i)
-            else:
-                ind = ind | (df[k] == v["value"])
-        else:
-            ind = ind | (df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"])
-    df = df[ind]
-    return df
-
-
-def show_attacked_data(df_orig, df_synth, attack, schema):
-    orig_df_subset = get_df_subset(df_orig, attack["knowledge"], schema)
-    synth_df_subset = get_df_subset(df_synth, attack["knowledge"], schema)
-    print("attribute under attack: ", attack["target"])
-    print("\nbacground knowledge: ", list(attack["knowledge"].keys())[0])
-    print("\n\n original df subset: \n", orig_df_subset)
-    print("\n\n synthetic df subset: \n", synth_df_subset)
-
-
-def eradicate_attacks(df_orig, df_synth, attacks, schema, radical=False, t_closeness=T_CLOSENESS_DEFAULT,
-                      k_distance=K_DISTANCE_DEFAULT):
-    """
-    Returns a dataframe cleared of all recurrent attacks
-
-    """
-    df = df_synth
-    while len(attacks) != 0:
-        print("remaining attacks : ", len(attacks))
-        df = eradicate_attacks_iteration(df_orig, df, attacks, schema, radical, t_closeness, k_distance)
-        attacks = identify_attacks(df_orig, df, schema)
-    return df
-
-
-def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=False, t_closeness=T_CLOSENESS_DEFAULT,
-                                k_distance=K_DISTANCE_DEFAULT):
+def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=T_CLOSENESS_DEFAULT,
+                                k_distance=K_DISTANCE_DEFAULT, radical=False):
     """
     Returns a dataframe cleared of current attacks
 
@@ -111,7 +110,7 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=Fals
                     new_value = v["value"].append(new_value)
                 else:
                     new_value = [v["value"], new_value]
-                new_knowledge[k] = {"value": new_value, "lower": v["lower"], "upper": v["upper"] }
+                new_knowledge[k] = {"value": new_value, "lower": v["lower"], "upper": v["upper"]}
             else:
                 new_knowledge[k] = {"value": v["value"], "lower": v["lower"] * ENLARGED_NEIGHBOUR_MULT,
                                     "upper": v["upper"] * ENLARGED_NEIGHBOUR_MULT}
@@ -132,7 +131,7 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=Fals
         return df
 
     cleared_df = clear_df(df_synth, attacks, schema)
-    if radical == True or (np.abs(len(df_synth) - len(cleared_df)) / len(df_synth) < 0.02):
+    if radical or (np.abs(len(df_synth) - len(cleared_df)) / len(df_synth) < 0.02):
         return cleared_df
     for attack in attacks:
         target = attack["target"]
@@ -161,6 +160,21 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, radical=Fals
         cleared_df = cleared_df.append(eq_class_synth, ignore_index=False)
 
     return cleared_df
+
+
+def get_df_subset(df, knowledge, schema):
+    ind = pd.Series([False] * len(df), index=df.index)
+    for k, v in knowledge.items():
+        if schema[k].categorical:
+            if isinstance(v["value"], list):
+                for i in v["value"]:
+                    ind = ind | (df[k] == i)
+            else:
+                ind = ind | (df[k] == v["value"])
+        else:
+            ind = ind | (df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"])
+    df = df[ind]
+    return df
 
 
 def t_closeness_check(df, schema, threshold=0.2):
@@ -209,12 +223,13 @@ def find_neighbour_distances(df, attr_dict, schema):
     for attr, val in attr_dict.items():
         if schema[attr].categorical:
             up[attr] = down[attr] = None
+            continue
         higher = df[df[attr] > val][attr]
         lower = df[df[attr] < val][attr]
         if len(higher) > 0:
             up[attr] = higher.min() - val
         if len(lower) > 0:
-            down[attr] = val - lower. max()
+            down[attr] = val - lower.max()
     return down, up
 
 
