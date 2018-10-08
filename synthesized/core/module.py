@@ -32,7 +32,7 @@ class Module(object):
     def create_tf_function(tf_function, name):
 
         def function(*args, **kwargs):
-            with tf.name_scope(name=name.replace(' ', '_'), default_name=None, values=None):
+            with tf.name_scope(name=name.replace(' ', '_').replace(':', ''), default_name=None, values=None):
                 results = tf_function(*args, **kwargs)
             return results
 
@@ -57,7 +57,7 @@ class Module(object):
             setattr(self, function_name[3:], function)
 
         with tf.variable_scope(
-            name_or_scope=self.name.replace(' ', '_'), default_name=None, values=None,
+            name_or_scope=self.name.replace(' ', '_').replace(':', ''), default_name=None, values=None,
             initializer=None, regularizer=None, caching_device=None, partitioner=None,
             custom_getter=None, reuse=None, dtype=None, use_resource=None, constraint=None,
             auxiliary_name_scope=True

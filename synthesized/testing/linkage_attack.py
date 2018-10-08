@@ -63,7 +63,7 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
 
     """
 
-    columns = set(df_orig.columns.values)
+    columns = set(schema.keys())
     result = []
     for attrs in t_closeness_check(df_orig, schema, t_closeness):
         down, up = find_neighbour_distances(df_orig, attrs, schema)
@@ -75,16 +75,17 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
 
         sensitive_columns = filter(lambda column: schema[column].sensitive, columns - attrs.keys())
         for sensitive_column in sensitive_columns:
-            a = eq_class_orig[sensitive_column]
-            b = eq_class_synth[sensitive_column]
-            c = df_synth[sensitive_column]
-            d = df_orig[sensitive_column]
+            arr_orig = df_orig[sensitive_column]
+            arr_synth = df_synth[sensitive_column]
+            arr_eq_orig = eq_class_orig[sensitive_column]
+            arr_eq_synth = eq_class_synth[sensitive_column]
             if schema[sensitive_column].categorical:
                 emd_function = categorical_emd
             else:
                 emd_function = partial(emd_samples, bins='rice')  # doane can be better
-            if emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a,
-                                                                                                     d) > t_closeness:
+            if emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
+                    and emd_function(arr_eq_synth, arr_synth) > t_closeness \
+                    and emd_function(arr_eq_orig, arr_orig) > t_closeness:
                 attack = {
                     "knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
                     "target": sensitive_column}
@@ -140,23 +141,27 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=
         enlarged_knowledge = enlarge_boundaries(df_synth, knowledge, schema)
         eq_class_synth_enlarged = get_df_subset(df_synth, enlarged_knowledge, schema)
 
+        arr_orig = df_orig[target]
+        arr_synth = df_synth[target]
         eq_class_orig = get_df_subset(df_orig, knowledge, schema)
-        a = eq_class_orig[target]
-        b = eq_class_synth[target]
-        c = df_synth[target]
-        d = df_orig[target]
-        e = eq_class_synth_enlarged[target]
+        arr_eq_orig = eq_class_orig[target]
+        arr_eq_synth = eq_class_synth[target]
+        arr_eq_synth_enlarged = eq_class_synth_enlarged[target]
         if schema[target].categorical:
             emd_function = categorical_emd
         else:
             emd_function = partial(emd_samples, bins='rice')  # doane can be better
-        while emd_function(a, e) < k_distance and emd_function(e, c) > t_closeness and emd_function(a, d) > t_closeness:
+        while emd_function(arr_eq_orig, arr_eq_synth_enlarged) < k_distance \
+                and emd_function(arr_eq_synth_enlarged, arr_synth) > t_closeness\
+                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
             enlarged_knowledge = enlarge_boundaries(df_synth, enlarged_knowledge, schema)
-            e = get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
-        b = np.random.choice(e, len(b))
-        while emd_function(a, b) < k_distance and emd_function(b, c) > t_closeness and emd_function(a, d) > t_closeness:
-            b = np.random.choice(e, len(b))
-        eq_class_synth[target] = b
+            arr_eq_synth_enlarged = get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
+        arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
+        while emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
+                and emd_function(arr_eq_synth, arr_synth) > t_closeness \
+                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+            arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
+        eq_class_synth[target] = arr_eq_synth
         cleared_df = cleared_df.append(eq_class_synth, ignore_index=False)
 
     return cleared_df
@@ -197,7 +202,7 @@ def t_closeness_check(df, schema, threshold=0.2):
         return True
 
     result = []
-    columns = set(df.columns.values)
+    columns = set(schema.keys())
     all_key_columns = set(filter(lambda column: schema[column].key_attribute, columns))
     all_sensitive_columns = set(filter(lambda column: schema[column].sensitive, columns))
     for i in range(1, len(all_key_columns) + 1):
@@ -228,8 +233,12 @@ def find_neighbour_distances(df, attr_dict, schema):
         lower = df[df[attr] < val][attr]
         if len(higher) > 0:
             up[attr] = higher.min() - val
+        else:
+            up[attr] = val
         if len(lower) > 0:
             down[attr] = val - lower.max()
+        else:
+            down[attr] = val
     return down, up
 
 
@@ -255,7 +264,7 @@ def find_eq_class_fuzzy(df, attrs, down, up, schema):
             ind = ind & (df[attr] == val)
         else:
             if attr in up:
-                ind = ind & (df[attr] < val + up[attr] * NEAREST_NEIGHBOUR_MULT)
+                ind = ind & (df[attr] <= val + up[attr] * NEAREST_NEIGHBOUR_MULT)
             if attr in down:
-                ind = ind & (df[attr] > val - down[attr] * NEAREST_NEIGHBOUR_MULT)
+                ind = ind & (df[attr] >= val - down[attr] * NEAREST_NEIGHBOUR_MULT)
     return df[ind]
