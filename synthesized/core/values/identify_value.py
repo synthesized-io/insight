@@ -12,49 +12,49 @@ from .poisson import PoissonValue
 from .sampling import SamplingValue
 
 
-def identify_value(synthesizer, name, dtype, data):
+def identify_value(module, name, dtype, data):
 
-    if name in (synthesizer.gender_label, synthesizer.name_label, synthesizer.firstname_label, synthesizer.lastname_label, synthesizer.email_label):
-        if synthesizer.person_value is None:
-            value = synthesizer.add_module(
-                module=PersonValue, name='person', gender_label=synthesizer.gender_label,
-                gender_embedding_size=synthesizer.embedding_size, name_label=synthesizer.name_label,
-                firstname_label=synthesizer.firstname_label, lastname_label=synthesizer.lastname_label,
-                email_label=synthesizer.email_label
+    if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
+        if module.person_value is None:
+            value = module.add_module(
+                module=PersonValue, name='person', gender_label=module.gender_label,
+                gender_embedding_size=module.embedding_size, name_label=module.name_label,
+                firstname_label=module.firstname_label, lastname_label=module.lastname_label,
+                email_label=module.email_label
             )
-            synthesizer.person_value = value
+            module.person_value = value
 
-    elif name in (synthesizer.postcode_label, synthesizer.street_label):
-        if synthesizer.address_value is None:
-            value = synthesizer.add_module(
+    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'street_label', None)):
+        if module.address_value is None:
+            value = module.add_module(
                 module=AddressValue, name='address', postcode_level=1,
-                postcode_label=synthesizer.postcode_label, postcode_embedding_size=synthesizer.embedding_size,
-                street_label=synthesizer.street_label
+                postcode_label=module.postcode_label, postcode_embedding_size=module.embedding_size,
+                street_label=module.street_label
             )
-            synthesizer.address_value = value
+            module.address_value = value
 
-    elif name == synthesizer.identifier_label:
-        value = synthesizer.add_module(
-            module=IdentifierValue, name=name, embedding_size=synthesizer.id_embedding_size
+    elif name == getattr(module, 'identifier_label', None):
+        value = module.add_module(
+            module=IdentifierValue, name=name, embedding_size=module.id_embedding_size
         )
-        synthesizer.identifier_value = value
+        module.identifier_value = value
 
     elif dtype.kind == 'M':  # 'm' timedelta
-        if synthesizer.date_value is not None:
+        if module.date_value is not None:
             raise NotImplementedError
-        value = synthesizer.add_module(module=DateValue, name=name, embedding_size=synthesizer.embedding_size)
-        synthesizer.date_value = value
+        value = module.add_module(module=DateValue, name=name, embedding_size=module.embedding_size)
+        module.date_value = value
 
     elif dtype.kind == 'b':
-        value = synthesizer.add_module(
-            module=CategoricalValue, name=name, categories=[False, True],
-            embedding_size=synthesizer.embedding_size
+        value = module.add_module(
+            module=CategoricalValue, name=name, embedding_size=module.embedding_size,
+            categories=[False, True]
         )
 
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
-        value = synthesizer.add_module(
-            module=CategoricalValue, name=name, categories=dtype.categories,
-            embedding_size=synthesizer.embedding_size
+        value = module.add_module(
+            module=CategoricalValue, name=name, embedding_size=module.embedding_size,
+            categories=dtype.categories, pandas_category=True
         )
 
     else:
@@ -62,26 +62,26 @@ def identify_value(synthesizer, name, dtype, data):
         num_unique = data[name].nunique()
 
         if num_unique <= log(num_data):
-            value = synthesizer.add_module(
-                module=CategoricalValue, name=name, embedding_size=synthesizer.embedding_size
+            value = module.add_module(
+                module=CategoricalValue, name=name, embedding_size=module.embedding_size
             )
 
         elif num_unique <= sqrt(num_data):
-            value = synthesizer.add_module(
-                module=CategoricalValue, name=name, embedding_size=synthesizer.embedding_size,
+            value = module.add_module(
+                module=CategoricalValue, name=name, embedding_size=module.embedding_size,
                 similarity_based=True
             )
 
         elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
-            value = synthesizer.add_module(module=EnumerationValue, name=name)
+            value = module.add_module(module=EnumerationValue, name=name)
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
-            value = synthesizer.add_module(
+            value = module.add_module(
                 module=ContinuousValue, name=name, integer=(dtype.kind == 'i')
             )
 
         else:
             print(name, dtype, num_data, num_unique)
-            value = synthesizer.add_module(module=SamplingValue, name=name)
+            value = module.add_module(module=SamplingValue, name=name)
 
     return value

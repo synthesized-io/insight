@@ -9,7 +9,7 @@ class MlpTransformation(Transformation):
         self.layer_sizes = layer_sizes
         self.layers = list()
         previous_size = self.input_size
-        for n, layer_size in enumerate(layer_sizes):
+        for n, layer_size in enumerate(self.layer_sizes):
             layer = self.add_module(
                 module=DenseTransformation, name=('layer' + str(n)), input_size=previous_size,
                 output_size=layer_size
