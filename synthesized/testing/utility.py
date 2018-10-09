@@ -11,9 +11,7 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.figure_factory as ff
 import seaborn as sns
-from plotly.offline import init_notebook_mode, iplot
 from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
@@ -254,6 +252,8 @@ class TestingEnvironment:
         return {"X": X, "y": y}
 
     def compare_empirical_densities(self, original_dataset, synthetic_dataset, target_field):
+        import plotly.figure_factory as ff
+        from plotly.offline import init_notebook_mode, iplot
 
         init_notebook_mode()  # distribution of spending on the first month in the first category
 
@@ -294,6 +294,7 @@ class TestingEnvironment:
         return (the_closest_fake_user, minimal_distance)
 
     def get_reconstruction_errors(self, original_dataset, original_dataset_batch, synthetic_dataset):
+        import plotly.figure_factory as ff
         from plotly.offline import init_notebook_mode, iplot
 
         init_notebook_mode()  # distribution of spending on the first month in the first category
