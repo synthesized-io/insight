@@ -177,7 +177,7 @@ def get_df_subset(df, knowledge, schema):
             else:
                 ind = ind | (df[k] == v["value"])
         else:
-            ind = ind | (df[k] <= v["value"] + v["upper"]) & (df[k] >= v["value"] - v["lower"])
+            ind = ind | (df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT) & (df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT)
     df = df[ind]
     return df
 
