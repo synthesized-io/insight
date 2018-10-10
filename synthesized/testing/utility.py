@@ -29,6 +29,8 @@ class ColumnType(Enum):
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
+        # TODO: side-effect of synthesizer is type detection:
+        self.dtypes = {col: df_synth[col].dtype.kind for col in df_synth.columns.values}
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
@@ -61,7 +63,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
-        dtypes = {col: self.df_synth[col].dtype.kind for col in self.df_synth.columns.values}
+        dtypes = dict(self.dtypes)
         df_orig = self.df_orig.copy()
         df_test = self.df_test.copy()
         df_synth = self.df_synth.copy()
