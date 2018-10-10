@@ -62,6 +62,18 @@ class UtilityTesting:
         show_corr_matrix(self.df_orig, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
+    def show_distributions(self, figsize=(14, 40), cols=2):
+        con = pd.concat([self.df_orig.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
+        fig = plt.figure(figsize=figsize)
+        for i, (col, dtype) in enumerate(self.dtypes.items()):
+            ax = fig.add_subplot(len(self.dtypes), cols, i+1)
+            if dtype == 'O':
+                sns.countplot(x=col, data=con, hue='dataset')
+            else:
+                sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
+                sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
+            ax.legend()
+
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         dtypes = dict(self.dtypes)
         df_orig = self.df_orig.copy()
