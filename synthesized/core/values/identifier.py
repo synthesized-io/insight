@@ -50,6 +50,7 @@ class IdentifierValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
+        assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
         # tf.TensorArray???
         # self.identifiers = tf.get_variable(

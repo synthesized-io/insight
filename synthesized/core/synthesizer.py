@@ -69,17 +69,25 @@ class Synthesizer(Module, TransformerMixin):
         self.learn(data=X)
         return self
 
-    def tfrecords(self, data, name):
-        data = [data[value.name].get_values() for value in self.get_values()]
+    def tfrecords(self, data, path):
+        data = data.copy()
+        for value in self.values:
+            data = value.preprocess(data=data)
+        data = [
+            data[label].get_values() for value in self.values for label in value.trainable_labels()
+        ]
         options = tf.python_io.TFRecordOptions(
             compression_type=tf.python_io.TFRecordCompressionType.GZIP
         )
-        with tf.python_io.TFRecordWriter(path=(name + '.tfrecords'), options=options) as writer:
+        with tf.python_io.TFRecordWriter(path=(path + '.tfrecords'), options=options) as writer:
             for n in range(len(data[0])):
                 features = dict()
                 # feature_lists = dict()
-                for value, d in zip(self.get_values(), data):
-                    features[value.name] = value.feature(x=d[n])
+                i = 0
+                for value in self.values:
+                    for label in value.trainable_labels():
+                        features[label] = value.feature(x=data[i][n])
+                        i += 1
                 # record = tf.train.SequenceExample(context=tf.train.Features(feature=features), feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
                 record = tf.train.Example(features=tf.train.Features(feature=features))
                 serialized_record = record.SerializeToString()

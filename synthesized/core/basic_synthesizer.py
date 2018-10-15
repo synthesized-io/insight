@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .encodings import encoding_modules
+from .module import Module
 from .optimizers import Optimizer
 from .synthesizer import Synthesizer
 from .transformations import DenseTransformation, transformation_modules
@@ -124,8 +125,8 @@ class BasicSynthesizer(Synthesizer):
         # learn
         xs = list()
         for value in self.values:
-            x = value.input_tensor()
-            if x is not None:
+            for label in value.trainable_labels():
+                x = value.input_tensor()
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
@@ -138,54 +139,73 @@ class BasicSynthesizer(Synthesizer):
         )
         losses = tf.losses.get_regularization_losses(scope=None)
         for value, x in zip(self.values, xs):
-            loss = value.loss(x=x)
-            if loss is not None:
-                losses.append(loss)
+            for label in value.trainable_labels():
+                # critically assumes max one trainable label
+                loss = value.loss(x=x)
+                if loss is not None:
+                    losses.append(loss)
         self.loss = tf.add_n(inputs=losses, name=None)
-        # self.loss = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
         self.optimized = self.optimizer.optimize(loss=self.loss)
 
-        # # dataset learn
-        # self.filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
-        # dataset = tf.data.TFRecordDataset(
-        #     filenames=self.filenames, compression_type='GZIP', buffer_size=1e6
-        #     # num_parallel_reads=None
-        # )
-        # dataset = dataset.shuffle(buffer_size=10000, seed=None, reshuffle_each_iteration=True)
+        # learn from file
+        filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
+        assert 'filenames' not in Module.placeholders
+        Module.placeholders['filenames'] = filenames
+        dataset = tf.data.TFRecordDataset(
+            filenames=filenames, compression_type='GZIP', buffer_size=100000
+            # num_parallel_reads=None
+        )
+        # dataset = dataset.cache(filename='')
+        # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
+        dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
+        dataset = dataset.repeat(count=None)
+        features = {  # critically assumes max one trainable label
+            label: value.feature() for value in self.values for label in value.trainable_labels()
+        }
+        # better performance after batch
         # dataset = dataset.map(
         #     map_func=(lambda serialized: tf.parse_single_example(
-        #         serialized=serialized,
-        #         features={value.name: value.feature() for value in self.values},
-        #         name=None, example_names=None
-        #     )),
-        #     num_parallel_calls=None
+        #         serialized=serialized, features=features, name=None, example_names=None
+        #     )), num_parallel_calls=None
         # )
-        # dataset = dataset.batch(batch_size=64)
-        # self.iterator = dataset.make_initializable_iterator(shared_name=None)
-        # next_values = self.iterator.get_next()
-        # xs = list()
-        # for value in self.values:
-        #     x = value.input_tensor(feed=next_values[value.name])
-        #     xs.append(x)
-        # x = tf.concat(values=xs, axis=1, name=None)
-        # x = self.encoder.transform(x=x)
-        # x = self.encoding.encode(x=x, encoding_loss=True)
-        # x = self.decoder.transform(x=x)
-        # x = self.output.transform(x=x)
-        # xs = tf.split(
-        #     value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
-        # )
-        # losses = tf.losses.get_regularization_losses(scope=None)
-        # for value, x in zip(self.values, xs):
-        #     loss = value.loss(x=x, feed=next_values[value.name])
-        #     losses.append(loss)
-        # self.loss_dataset = tf.add_n(inputs=losses, name=None)
-        # # self.loss_dataset = tf.losses.get_total_loss(add_regularization_losses=True, name=None)
-        # self.optimized_dataset = self.optimizer.optimize(loss=self.loss_dataset)
+        dataset = dataset.batch(batch_size=self.batch_size)  # newer: drop_remainder=False
+        dataset = dataset.map(
+            map_func=(lambda serialized: tf.parse_example(
+                serialized=serialized, features=features, name=None, example_names=None
+            )), num_parallel_calls=None
+        )
+        dataset = dataset.prefetch(buffer_size=1)
+        self.iterator = dataset.make_initializable_iterator(shared_name=None)
+        next_values = self.iterator.get_next()
+        xs = list()
+        for value in self.values:
+            for label in value.trainable_labels():
+                # critically assumes max one trainable label
+                x = value.input_tensor(feed=next_values[value.name])
+                xs.append(x)
+        x = tf.concat(values=xs, axis=1, name=None)
+        x = self.encoder.transform(x=x)
+        x = self.encoding.encode(x=x, encoding_loss=True)
+        x = self.customized_transform(x=x)
+        x = self.decoder.transform(x=x)
+        x = self.output.transform(x=x)
+        xs = tf.split(
+            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
+        )
+        losses = tf.losses.get_regularization_losses(scope=None)
+        for value, x in zip(self.values, xs):
+            for label in value.trainable_labels():
+                loss = value.loss(x=x, feed=next_values[value.name])
+                if loss is not None:
+                    losses.append(loss)
+        self.loss_fromfile = tf.add_n(inputs=losses, name=None)
+        self.optimized_fromfile = self.optimizer.optimize(loss=self.loss_fromfile)
 
         # synthesize
-        self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
-        x = self.encoding.sample(n=self.num_synthesize)
+        num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
+        assert 'num_synthesize' not in Module.placeholders
+        Module.placeholders['num_synthesize'] = num_synthesize
+        x = self.encoding.sample(n=num_synthesize)
         x = self.customized_synthesize(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
@@ -199,8 +219,8 @@ class BasicSynthesizer(Synthesizer):
         # transform
         xs = list()
         for value in self.values:
-            x = value.input_tensor()
-            if x is not None:
+            for label in value.trainable_labels():
+                x = value.input_tensor()
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
@@ -218,7 +238,7 @@ class BasicSynthesizer(Synthesizer):
                 self.transformed[label] = x
 
     def learn(self, data=None, filenames=None, verbose=0):
-        if (data is None) == (filenames is None):
+        if (data is None) is (filenames is None):
             raise NotImplementedError
 
         # TODO: increment global step
@@ -227,41 +247,33 @@ class BasicSynthesizer(Synthesizer):
             for value in self.values:
                 data = value.preprocess(data=data)
             num_data = len(data)
-            data = [
-                [data[label].get_values() for label in value.trainable_labels()] for value in self.values
-            ]
+            data = {
+                label: data[label].get_values() for value in self.values
+                for label in value.trainable_labels()
+            }
             fetches = (self.loss, self.optimized)
             for i in range(self.iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
-                feed_dict = {
-                    placeholder: d[batch] for value, value_data in zip(self.values, data)
-                    for placeholder, d in zip(value.placeholders(), value_data)
-                }
-                loss, _ = self.session.run(
-                    fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-                )
+                feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+                loss, _ = self.run(fetches=fetches, feed_dict=feed_dict)
                 if verbose and i % verbose + 1 == verbose:
                     print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
 
         else:
             fetches = self.iterator.initializer
-            feed_dict = {self.filenames: filenames}
-            self.session.run(fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None)
-            fetches = (self.loss_dataset, self.optimized_dataset)
+            feed_dict = {'filenames': filenames}
+            self.run(fetches=fetches, feed_dict=feed_dict)
+            fetches = (self.loss_fromfile, self.optimized_fromfile)
             # TODO: while loop for training
             for i in range(self.iterations):
-                loss, _ = self.session.run(
-                    fetches=fetches, feed_dict=None, options=None, run_metadata=None
-                )
+                loss, _ = self.run(fetches=fetches)
                 if verbose and i % verbose + 1 == verbose:
                     print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
 
     def synthesize(self, n):
         fetches = self.synthesized
-        feed_dict = {self.num_synthesize: n}
-        synthesized = self.session.run(
-            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-        )
+        feed_dict = {'num_synthesize': n}
+        synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
         synthesized = pd.DataFrame.from_dict(synthesized)
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
@@ -273,12 +285,10 @@ class BasicSynthesizer(Synthesizer):
             X = value.preprocess(data=X)
         fetches = self.transformed
         feed_dict = {
-            placeholder: X[label].get_values() for value in self.values
-            for label, placeholder in zip(value.trainable_labels(), value.placeholders())
+            label: X[label].get_values() for value in self.values
+            for label in value.trainable_labels()
         }
-        transformed = self.session.run(
-            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-        )
+        transformed = self.run(fetches=fetches, feed_dict=feed_dict)
         transformed = pd.DataFrame.from_dict(transformed)
         for value in self.values:
             transformed = value.postprocess(data=transformed)

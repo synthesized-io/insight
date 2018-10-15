@@ -113,14 +113,15 @@ class Module(object):
         # )
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
-        self.run(fetches=initialize, feed_dict={name: () for name in Module.placeholders})
+        self.run(fetches=initialize)  # , feed_dict={name: () for name in Module.placeholders})
         # self.session.run(fetches=graph_summary, feed_dict=None, options=None, run_metadata=None)
         # with self.summary_writer.as_default():
         #     tf.contrib.summary.initialize(graph=self.graph, session=self.session)
         return self
 
-    def run(self, fetches, feed_dict):
-        feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+    def run(self, fetches, feed_dict=None):
+        if feed_dict is not None:
+            feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
         return self.session.run(
             fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
         )

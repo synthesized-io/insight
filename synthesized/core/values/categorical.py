@@ -94,6 +94,7 @@ class CategoricalValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
+        assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
         self.embeddings = tf.get_variable(
             name='embeddings', shape=(self.num_categories, self.embedding_size), dtype=tf.float32,
@@ -168,16 +169,12 @@ class CategoricalValue(Value):
             similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=1)
             similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=0)
             similarity_loss = self.similarity_regularization * similarity_loss
-            tf.losses.add_loss(
-                loss=similarity_loss, loss_collection=tf.GraphKeys.REGULARIZATION_LOSSES
-            )
+            loss = loss + similarity_loss
         if self.entropy_regularization > 0.0:
             probs = tf.nn.softmax(logits=x, axis=-1)
             logprobs = tf.log(x=probs)
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
-            tf.losses.add_loss(
-                loss=entropy_loss, loss_collection=tf.GraphKeys.REGULARIZATION_LOSSES
-            )
+            loss = loss + entropy_loss
         return loss

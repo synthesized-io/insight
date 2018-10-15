@@ -5,10 +5,9 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
-from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .person import PersonValue
-from .poisson import PoissonValue
+from .probability import ProbabilityValue
 from .sampling import SamplingValue
 
 
@@ -71,6 +70,9 @@ def identify_value(module, name, dtype, data):
                 module=CategoricalValue, name=name, embedding_size=module.embedding_size,
                 similarity_based=True
             )
+
+        elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
+            value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
             value = module.add_module(module=EnumerationValue, name=name)

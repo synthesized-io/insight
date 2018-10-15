@@ -23,6 +23,7 @@ class Value(Module):
         yield self.name
 
     def trainable_labels(self):
+        # at most one label allowed currently!?
         return
         yield
 
