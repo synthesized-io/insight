@@ -8,7 +8,7 @@ class ContinuousValue(Value):
 
     def __init__(self, name, positive=None, nonnegative=None, integer=None):
         assert positive is None or nonnegative is None
-        assert positive is False or nonnegative is False
+        assert not (positive is True and nonnegative is True)
         super().__init__(name=name)
         self.positive = positive
         self.nonnegative = nonnegative
@@ -91,7 +91,9 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             x = tf.nn.softplus(features=x)
             if self.nonnegative:
-                x = tf.where(condition=(x >= 0.001), x=x, y=0.0)
+                x = tf.where(condition=(x >= 0.001), x=x, y=tf.zeros_like(
+                    tensor=x, dtype=tf.float32, optimize=True
+                ))
         return {self.name: x}
 
     def tf_loss(self, x, feed=None):
