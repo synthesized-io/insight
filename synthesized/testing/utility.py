@@ -15,8 +15,9 @@ import seaborn as sns
 from pyemd.emd import emd_samples
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 from .util import categorical_emd
@@ -73,6 +74,29 @@ class UtilityTesting:
                 sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
                 sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
             ax.legend()
+
+    def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
+        X, y = self.df_orig.drop(target, 1), self.df_orig[target]
+        X_synth, y_synth = self.df_synth.drop(target, 1), self.df_synth[target]
+        X_test, y_test = self.df_test.drop(target, 1), self.df_test[target]
+        if self.dtypes[target] == 'O':
+            clf = classifier
+            clf.fit(X, y)
+            y_pred_orig = clf.decision_function(X_test)
+            clf = clone(clf)
+            clf.fit(X_synth, y_synth)
+            y_pred_synth = clf.decision_function(X_test)
+            print('ROC AUC (orig):', roc_auc_score(y_test, y_pred_orig))
+            print('ROC AUC (synth):', roc_auc_score(y_test, y_pred_synth))
+        else:
+            clf = regressor
+            clf.fit(X, y)
+            y_pred_orig = clf.predict(X_test)
+            clf = clone(clf)
+            clf.fit(X_synth, y_synth)
+            y_pred_synth = clf.predict(X_test)
+            print('RMSE (orig):', np.sqrt(mean_squared_error(y_test, y_pred_orig)))
+            print('RMSE (synth):', np.sqrt(mean_squared_error(y_test, y_pred_synth)))
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         dtypes = dict(self.dtypes)
