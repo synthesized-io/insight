@@ -118,14 +118,14 @@ class BasicSynthesizer(Synthesizer):
     def customized_synthesize(self, x):
         return x
 
-    def tf_initialize(self):
-        super().tf_initialize()
-
-        # learn
+    def tf_train_iteration(self, feed=None):
+        if feed is None:
+            feed = dict()
         xs = list()
         for value in self.values:
             for label in value.trainable_labels():
-                x = value.input_tensor()
+                # critically assumes max one trainable label
+                x = value.input_tensor(feed=feed.get(value.name))
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
@@ -137,17 +137,26 @@ class BasicSynthesizer(Synthesizer):
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
         reg_losses = tf.losses.get_regularization_losses(scope=None)
-        self.losses = dict(regularization=tf.add_n(inputs=reg_losses))
+        losses = dict(regularization=tf.add_n(inputs=reg_losses))
         for value, x in zip(self.values, xs):
             for label in value.trainable_labels():
-                # critically assumes max one trainable label
-                loss = value.loss(x=x)
+                loss = value.loss(x=x, feed=feed.get(value.name))
                 if loss is not None:
-                    self.losses[label] = loss
-        self.loss = tf.add_n(inputs=[self.losses[name] for name in sorted(self.losses)])
-        self.optimized = self.optimizer.optimize(loss=self.loss)
+                    losses[label] = loss
+        loss = tf.add_n(inputs=[losses[name] for name in sorted(losses)])
+        optimized = self.optimizer.optimize(loss=loss)
+        return losses, loss, optimized
+
+    def tf_initialize(self):
+        super().tf_initialize()
+
+        # learn
+        self.losses, self.loss, self.optimized = self.train_iteration()
 
         # learn from file
+        num_iterations = tf.placeholder(dtype=tf.int64, shape=(), name='num-iterations')
+        assert 'num_iterations' not in Module.placeholders
+        Module.placeholders['num_iterations'] = num_iterations
         filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
         assert 'filenames' not in Module.placeholders
         Module.placeholders['filenames'] = filenames
@@ -168,7 +177,7 @@ class BasicSynthesizer(Synthesizer):
         #         serialized=serialized, features=features, name=None, example_names=None
         #     )), num_parallel_calls=None
         # )
-        dataset = dataset.batch(batch_size=self.batch_size)  # newer: drop_remainder=False
+        dataset = dataset.batch(batch_size=self.batch_size, drop_remainder=False)
         dataset = dataset.map(
             map_func=(lambda serialized: tf.parse_example(
                 serialized=serialized, features=features, name=None, example_names=None
@@ -176,33 +185,22 @@ class BasicSynthesizer(Synthesizer):
         )
         dataset = dataset.prefetch(buffer_size=1)
         self.iterator = dataset.make_initializable_iterator(shared_name=None)
-        next_values = self.iterator.get_next()
-        xs = list()
-        for value in self.values:
-            for label in value.trainable_labels():
-                # critically assumes max one trainable label
-                x = value.input_tensor(feed=next_values[value.name])
-                xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
-        x = self.encoder.transform(x=x)
-        x = self.encoding.encode(x=x, encoding_loss=True)
-        x = self.customized_transform(x=x)
-        x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
-        xs = tf.split(
-            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
-        )
-        reg_losses = tf.losses.get_regularization_losses(scope=None)
-        self.losses_fromfile = dict(regularization=tf.add_n(inputs=reg_losses))
-        for value, x in zip(self.values, xs):
-            for label in value.trainable_labels():
-                loss = value.loss(x=x, feed=next_values[value.name])
-                if loss is not None:
-                    self.losses_fromfile[label] = loss
-        self.loss_fromfile = tf.add_n(
-            inputs=[self.losses_fromfile[name] for name in sorted(self.losses_fromfile)]
-        )
-        self.optimized_fromfile = self.optimizer.optimize(loss=self.loss_fromfile)
+
+        def cond(iteration, losses, loss):
+            return iteration < num_iterations
+
+        def body(iteration, losses, loss):
+            losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+            with tf.control_dependencies(control_inputs=(optimized, loss)):
+                iteration += 1
+            return iteration, losses, loss
+
+        losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+        with tf.control_dependencies(control_inputs=(optimized,)):
+            iteration = tf.constant(value=1, dtype=tf.int64, shape=(), verify_shape=False)
+            self.optimized_fromfile, self.losses_fromfile, self.loss_fromfile = tf.while_loop(
+                cond=cond, body=body, loop_vars=(iteration, losses, loss)
+            )
 
         # synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
@@ -240,7 +238,7 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.transformed[label] = x
 
-    def learn(self, iterations, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -257,13 +255,13 @@ class BasicSynthesizer(Synthesizer):
             fetches = dict(self.losses)
             fetches['loss'] = self.loss
             fetches['optimized'] = self.optimized
-            for i in range(iterations):
+            for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-                if verbose and i % verbose + 1 == verbose:
+                if verbose > 0 and iteration % verbose + 1 == verbose:
                     print('{iteration}: {loss:1.2e}  ({losses})'.format(
-                        iteration=(i + 1), loss=fetched['loss'], losses=', '.join(
+                        iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
                             '{name}: {loss}'.format(name=name, loss=fetched[name])
                             for name in self.losses
                         )
@@ -271,17 +269,22 @@ class BasicSynthesizer(Synthesizer):
 
         else:
             fetches = self.iterator.initializer
-            feed_dict = {'filenames': filenames}
+            feed_dict = dict(filenames=filenames)
             self.run(fetches=fetches, feed_dict=feed_dict)
             fetches = dict(self.losses_fromfile)
             fetches['loss'] = self.loss_fromfile
             fetches['optimized'] = self.optimized_fromfile
-            # TODO: while loop for training
-            for i in range(iterations):
-                fetched = self.run(fetches=fetches)
-                if verbose and i % verbose + 1 == verbose:
+            if verbose == 0:
+                feed_dict = dict(num_iterations=num_iterations)
+                fetched = self.run(fetches=fetches, feed_dict=feed_dict)
+            else:
+                assert num_iterations % verbose == 0
+                for iteration in range(num_iterations // verbose):
+                    feed_dict = dict(num_iterations=verbose)
+                    fetched = self.run(fetches=fetches, feed_dict=feed_dict)
                     print('{iteration}: {loss:1.2e}  ({losses})'.format(
-                        iteration=(i + 1), loss=fetched['loss'], losses=', '.join(
+                        iteration=((iteration + 1) * verbose), loss=fetched['loss'],
+                        losses=', '.join(
                             '{name}: {loss}'.format(name=name, loss=fetched[name])
                             for name in self.losses
                         )
