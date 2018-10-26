@@ -8,6 +8,7 @@ class Module(object):
     def __init__(self, name, submodules=()):
         self.name = name
         self.submodules = list(submodules)
+        self.placeholders = None
         self.initialized = False
 
     def specification(self):
@@ -87,6 +88,7 @@ class Module(object):
             raise NotImplementedError
 
     def __enter__(self):
+        assert Module.placeholders is None
         Module.placeholders = dict()
         self.graph = tf.Graph()
         self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
@@ -108,12 +110,14 @@ class Module(object):
                 #     param=graph_str, step=self.global_step, name=None
                 # )
         self.graph.finalize()
+        self.placeholders = Module.placeholders
+        Module.placeholders = None
         # self.summary_writer = tf.summary.FileWriter(
         #     logdir='logs', graph=self.graph, max_queue=10, flush_secs=120, filename_suffix=None
         # )
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
-        self.run(fetches=initialize)  # , feed_dict={name: () for name in Module.placeholders})
+        self.run(fetches=initialize)  # , feed_dict={name: () for name in self.placeholders})
         # self.session.run(fetches=graph_summary, feed_dict=None, options=None, run_metadata=None)
         # with self.summary_writer.as_default():
         #     tf.contrib.summary.initialize(graph=self.graph, session=self.session)
@@ -121,7 +125,7 @@ class Module(object):
 
     def run(self, fetches, feed_dict=None):
         if feed_dict is not None:
-            feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+            feed_dict = {self.placeholders[name]: value for name, value in feed_dict.items()}
         return self.session.run(
             fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
         )

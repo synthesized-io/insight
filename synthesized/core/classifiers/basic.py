@@ -5,15 +5,14 @@ import tensorflow as tf
 from .classifier import Classifier
 from ..module import Module
 from ..optimizers import Optimizer
-from ..transformations import DenseTransformation, transformation_modules
+from ..transformations import transformation_modules
 from ..values import CategoricalValue, identify_value
 
 
 class BasicClassifier(Classifier):
 
     def __init__(
-        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64,
-        iterations=50000
+        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64
     ):
         super().__init__(name='classifier')
 
@@ -24,7 +23,6 @@ class BasicClassifier(Classifier):
 
         self.embedding_size = embedding_size
         self.batch_size = batch_size
-        self.iterations = iterations
 
         self.values = list()
         self.input_values = list()
@@ -44,13 +42,14 @@ class BasicClassifier(Classifier):
                     input_size += value.input_size()
 
         self.encoder = self.add_module(
-            module='mlp', modules=transformation_modules, name='encoder',
+            module='resnet', modules=transformation_modules, name='encoder',
             input_size=input_size, layer_sizes=layers
         )
 
         self.output = self.add_module(
-            module=DenseTransformation, name='output', input_size=self.encoder.size(),
-            output_size=output_size, batchnorm=False, activation='none'
+            module='dense', modules=transformation_modules, name='output',
+            input_size=self.encoder.size(), output_size=output_size, batchnorm=False,
+            activation='none'
         )
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
@@ -62,9 +61,7 @@ class BasicClassifier(Classifier):
     def specification(self):
         spec = super().specification()
         # TODO: values?
-        spec.update(
-            encoder=self.encoder, batch_size=self.batch_size, iterations=self.iterations
-        )
+        spec.update(encoder=self.encoder, batch_size=self.batch_size)
         return spec
 
     def get_value(self, name, dtype, data):
@@ -148,7 +145,7 @@ class BasicClassifier(Classifier):
         for label, x in xs.items():
             self.classified[label] = x
 
-    def learn(self, data=None, filenames=None, verbose=0):
+    def learn(self, iterations, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -162,7 +159,7 @@ class BasicClassifier(Classifier):
                 for label in value.trainable_labels()
             }
             fetches = (self.loss, self.optimized)
-            for i in range(self.iterations):
+            for i in range(iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 loss, _ = self.run(fetches=fetches, feed_dict=feed_dict)
@@ -175,7 +172,7 @@ class BasicClassifier(Classifier):
             self.run(fetches=fetches, feed_dict=feed_dict)
             fetches = (self.loss_fromfile, self.optimized_fromfile)
             # TODO: while loop for training
-            for i in range(self.iterations):
+            for i in range(iterations):
                 loss, _ = self.run(fetches=fetches)
                 if verbose and i % verbose + 1 == verbose:
                     print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))

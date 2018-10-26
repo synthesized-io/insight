@@ -41,6 +41,7 @@ class PoissonValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
+        assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
 
     def tf_input_tensor(self, feed=None):

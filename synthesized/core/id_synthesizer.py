@@ -1,6 +1,5 @@
 from .basic_synthesizer import BasicSynthesizer
 from .transformations import transformation_modules
-from .values import value_modules
 
 
 class IdSynthesizer(BasicSynthesizer):
@@ -12,7 +11,7 @@ class IdSynthesizer(BasicSynthesizer):
 
         self.modulation = self.add_module(
             module='modulation', modules=transformation_modules, name='modulation',
-            input_size=self.encoding_size, condition_size=id_embedding_size
+            input_size=self.encoding.encoding_size, condition_size=id_embedding_size
         )
 
         if self.identifier_value is None:
