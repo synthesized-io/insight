@@ -47,7 +47,7 @@ def test_find_boundaries():
 
     down, up = find_neighbour_distances(df, {'key1': 1, 'key2': 2}, schema)
     assert down == {'key1': 1., 'key2': 2.}
-    assert up == {'key1': 4., 'key2': 4.}
+    assert up == {}
 
     down, up = find_neighbour_distances(df, {'key1': 5, 'key2': 6}, schema)
     assert down == {'key1': 4., 'key2': 4.}
