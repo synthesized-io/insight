@@ -15,7 +15,7 @@ class ProbabilityValue(CategoricalValue):
 
         categories = [
             min(n * granularity, 1.0)
-            for n in range(1.0 // granularity + (1.0 % granularity > 0.0))
+            for n in range(int(1.0 // granularity + (1.0 % granularity > 0.0)))
         ]
         super().__init__(
             name=name, embedding_size=embedding_size, categories=categories, pandas_category=False,
@@ -47,7 +47,7 @@ class ProbabilityValue(CategoricalValue):
         else:
             data[self.name] = ((data[self.name] / self.granularity).round() * self.granularity) \
                 .clip(upper=1.0)
-        super().preprocess(data=data)
+        return super().preprocess(data=data)
 
     def postprocess(self, data):
         super().postprocess(data=data)

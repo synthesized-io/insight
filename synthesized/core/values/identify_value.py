@@ -72,10 +72,10 @@ def identify_value(module, name, dtype, data):
             )
 
         elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
-            value = module.add_module(module=ProbabilityValue, name=name)
+            value = module.add_module(module=ProbabilityValue, name=name, embedding_size=module.embedding_size)
 
         elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
-            value = module.add_module(module=EnumerationValue, name=name)
+            value = module.add_module(module=EnumerationValue, name=name, embedding_size=module.embedding_size)
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
             value = module.add_module(
