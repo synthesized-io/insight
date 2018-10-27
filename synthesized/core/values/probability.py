@@ -50,7 +50,7 @@ class ProbabilityValue(CategoricalValue):
         return super().preprocess(data=data)
 
     def postprocess(self, data):
-        super().postprocess(data=data)
+        data = super().postprocess(data=data)
         noise = np.random.random(len(data)) * self.granularity - 0.5 * self.granularity
         data[self.name] = (data[self.name] + noise).clip(lower=0.0, upper=1.0)
         return data
