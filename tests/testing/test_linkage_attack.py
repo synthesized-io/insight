@@ -51,7 +51,7 @@ def test_find_boundaries():
 
     down, up = find_neighbour_distances(df, {'key1': 5, 'key2': 6}, schema)
     assert down == {'key1': 4., 'key2': 4.}
-    assert up == {'key1': 5., 'key2': 5.}
+    assert up == {}
 
 
 def test_find_eq_class():
