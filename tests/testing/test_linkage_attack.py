@@ -46,12 +46,12 @@ def test_find_boundaries():
     assert up == {}
 
     down, up = find_neighbour_distances(df, {'key1': 1, 'key2': 2}, schema)
-    assert down == {'key1': 1., 'key2': 2.}
-    assert up == {}
+    assert down == {}
+    assert up == {'key1': 4., 'key2': 4.}
 
     down, up = find_neighbour_distances(df, {'key1': 5, 'key2': 6}, schema)
     assert down == {'key1': 4., 'key2': 4.}
-    assert up == {}
+    assert up == {'key1': 5., 'key2': 5.}
 
 
 def test_find_eq_class():
@@ -84,9 +84,7 @@ def test_find_eq_class_fuzzy():
     ])
 
     df_expected = pd.DataFrame.from_records([
-        {'key1': 1, 'key2': 'a', 'attr1': 3, 'attr2': 4},
         {'key1': 5.5, 'key2': 'a', 'attr1': 7.5, 'attr2': 8.5},
-        {'key1': 9, 'key2': 'a', 'attr1': 11, 'attr2': 12},
     ])
 
     schema = {
