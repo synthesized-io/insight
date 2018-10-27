@@ -14,13 +14,20 @@ print('Parse arguments...')
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', type=str, help="dataset name")
 parser.add_argument('-t', '--target', default=-1, help="target column")
-parser.add_argument('-i', '--iterations', type=int, default=10000, help="training iterations")
+parser.add_argument('-i', '--iterations', type=int, help="training iterations")
+parser.add_argument('-e', '--evaluation', type=int, default=0, help="evaluation frequency")
+parser.add_argument(
+    '-c', '--classifier-iterations', type=int, default=1000, help="classifier training iterations"
+)
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
 args = parser.parse_args()
+if args.evaluation == 0:
+    args.evaluation = args.iterations
 
 
 print('Load dataset...')
 data = pd.read_csv('data/{}.csv'.format(args.dataset))
+tfrecords_filename = 'data/{}.tfrecords'.format(args.dataset)
 num_with_nan = len(data)
 data = data.dropna()
 print('Nans dropped:', num_with_nan - len(data), 'of', num_with_nan)
@@ -48,7 +55,7 @@ print()
 
 
 print('Initialize synthesizer...')
-synthesizer = BasicSynthesizer(data=data, iterations=args.iterations)
+synthesizer = BasicSynthesizer(data=data)
 print(repr(synthesizer))
 print()
 
@@ -64,33 +71,36 @@ print()
 
 
 print('Original score...')
-estimator = LogisticRegression()
+estimator = LogisticRegression(solver='liblinear', multi_class='auto')
 estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
 predictions = estimator.predict(X=test.drop(labels=target, axis=1))
 accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
-precision = precision_score(y_true=test[target], y_pred=predictions)
-recall = recall_score(y_true=test[target], y_pred=predictions)
-f1 = f1_score(y_true=test[target], y_pred=predictions)
+precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
+recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
+f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
 print('original:', accuracy, precision, recall, f1)
 print()
 
 
 print('Original classifier score...')
-with BasicClassifier(data=data, target_label=target, iterations=args.iterations) as classifier:
+with BasicClassifier(data=data, target_label=target) as classifier:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     if args.tfrecords:
-        classifier.learn(filenames=('data/{}.tfrecords'.format(args.dataset),), verbose=10000)
+        classifier.learn(
+            num_iterations=args.classifier_iterations, filenames=(tfrecords_filename,), verbose=200
+        )
     else:
-        classifier.learn(data=original.copy(), verbose=10000)
+        classifier.learn(
+            num_iterations=args.classifier_iterations, data=original.copy(), verbose=200
+        )
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     print()
-# score = (classified[target] == heldout[target]).sum() / len(classified)
 accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
-precision = precision_score(y_true=heldout[target], y_pred=classified[target])
-recall = recall_score(y_true=heldout[target], y_pred=classified[target])
-f1 = f1_score(y_true=heldout[target], y_pred=classified[target])
+precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 print('original classifier:', accuracy, precision, recall, f1)
 print()
 
@@ -98,14 +108,31 @@ print()
 print('Synthesis...')
 with synthesizer:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    if args.tfrecords:
-        synthesizer.learn(filenames=('data/{}.tfrecords'.format(args.dataset),), verbose=10000)
-    else:
-        synthesizer.learn(data=original.copy(), verbose=10000)
-    print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    synthesized = synthesizer.synthesize(n=10000)
-    print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    print()
+    for i in range(args.iterations // args.evaluation):
+        if args.tfrecords:
+            synthesizer.learn(
+                num_iterations=args.evaluation, filenames=(tfrecords_filename,), verbose=1000
+            )
+        else:
+            synthesizer.learn(num_iterations=args.evaluation, data=original.copy(), verbose=1000)
+        print(datetime.now().strftime('%H:%M:%S'), flush=True)
+        synthesized = synthesizer.synthesize(n=10000)
+
+        print('Synthetic classifier score...')
+        with BasicClassifier(data=data, target_label=target) as classifier:
+            classifier.learn(
+                num_iterations=args.classifier_iterations, data=synthesized.copy(), verbose=200
+            )
+            classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
+        accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
+        precision = precision_score(
+            y_true=heldout[target], y_pred=classified[target], average='binary'
+        )
+        recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+        f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+        print('synthesized classifier:', accuracy, precision, recall, f1)
+        print(datetime.now().strftime('%H:%M:%S'), flush=True)
+        print()
 
 
 print('Synthetic data...')
@@ -114,34 +141,35 @@ print()
 
 
 print('Synthetic score...')
-train = synthesizer.preprocess(data=synthesized.copy())
-estimator = LogisticRegression()
-estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-test = synthesizer.preprocess(data=heldout.copy())
-predictions = estimator.predict(X=test.drop(labels=target, axis=1))
-accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
-precision = precision_score(y_true=test[target], y_pred=predictions)
-recall = recall_score(y_true=test[target], y_pred=predictions)
-f1 = f1_score(y_true=test[target], y_pred=predictions)
-print('synthesized:', accuracy, precision, recall, f1)
+try:
+    train = synthesizer.preprocess(data=synthesized.copy())
+    estimator = LogisticRegression(solver='liblinear', multi_class='auto')
+    estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
+    test = synthesizer.preprocess(data=heldout.copy())
+    predictions = estimator.predict(X=test.drop(labels=target, axis=1))
+    accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
+    precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
+    recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
+    f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
+    print('synthesized:', accuracy, precision, recall, f1)
+except ValueError as exc:
+    print(exc)
 print()
 
 
 print('Synthetic classifier score...')
-with BasicClassifier(data=data, target_label=target, iterations=args.iterations) as classifier:
+with BasicClassifier(data=data, target_label=target) as classifier:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    if args.tfrecords:
-        classifier.learn(filenames=('data/{}.tfrecords'.format(args.dataset),), verbose=10000)
-    else:
-        classifier.learn(data=synthesized.copy(), verbose=10000)
+    classifier.learn(
+        num_iterations=args.classifier_iterations, data=synthesized.copy(), verbose=200
+    )
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     print()
-# score = (classified[target] == heldout[target]).sum() / len(classified)
 accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
-precision = precision_score(y_true=heldout[target], y_pred=classified[target])
-recall = recall_score(y_true=heldout[target], y_pred=classified[target])
-f1 = f1_score(y_true=heldout[target], y_pred=classified[target])
+precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 print('synthesized classifier:', accuracy, precision, recall, f1)
 print()

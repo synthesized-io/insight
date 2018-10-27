@@ -9,8 +9,8 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name, embedding_size, categories=None, pandas_category=False, similarity_based=False,
-        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.01,
-        entropy_regularization=0.01
+        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
+        entropy_regularization=0.1
     ):
         super().__init__(name=name)
 

@@ -55,7 +55,7 @@ class Synthesizer(Module, TransformerMixin):
     def get_values(self):
         raise NotImplementedError
 
-    def learn(self, data=None, filenames=None, verbose=False):
+    def learn(self, iterations, data=None, filenames=None, verbose=False):
         raise NotImplementedError
 
     def synthesize(self, n):
@@ -66,7 +66,7 @@ class Synthesizer(Module, TransformerMixin):
 
     def fit(self, X, y=None, **fit_params):
         assert y is None and not fit_params
-        self.learn(data=X)
+        self.learn(iteration=fit_params['iterations'], data=X)
         return self
 
     def tfrecords(self, data, path):

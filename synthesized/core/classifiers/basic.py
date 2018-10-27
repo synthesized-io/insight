@@ -5,15 +5,14 @@ import tensorflow as tf
 from .classifier import Classifier
 from ..module import Module
 from ..optimizers import Optimizer
-from ..transformations import DenseTransformation, transformation_modules
+from ..transformations import transformation_modules
 from ..values import CategoricalValue, identify_value
 
 
 class BasicClassifier(Classifier):
 
     def __init__(
-        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64,
-        iterations=50000
+        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64
     ):
         super().__init__(name='classifier')
 
@@ -24,7 +23,6 @@ class BasicClassifier(Classifier):
 
         self.embedding_size = embedding_size
         self.batch_size = batch_size
-        self.iterations = iterations
 
         self.values = list()
         self.input_values = list()
@@ -44,13 +42,14 @@ class BasicClassifier(Classifier):
                     input_size += value.input_size()
 
         self.encoder = self.add_module(
-            module='mlp', modules=transformation_modules, name='encoder',
+            module='resnet', modules=transformation_modules, name='encoder',
             input_size=input_size, layer_sizes=layers
         )
 
         self.output = self.add_module(
-            module=DenseTransformation, name='output', input_size=self.encoder.size(),
-            output_size=output_size, batchnorm=False, activation='none'
+            module='dense', modules=transformation_modules, name='output',
+            input_size=self.encoder.size(), output_size=output_size, batchnorm=False,
+            activation='none'
         )
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
@@ -62,33 +61,40 @@ class BasicClassifier(Classifier):
     def specification(self):
         spec = super().specification()
         # TODO: values?
-        spec.update(
-            encoder=self.encoder, batch_size=self.batch_size, iterations=self.iterations
-        )
+        spec.update(encoder=self.encoder, batch_size=self.batch_size)
         return spec
 
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def tf_initialize(self):
-        super().tf_initialize()
-
-        # learn
+    def tf_train_iteration(self, feed=None):
+        if feed is None:
+            feed = dict()
         xs = list()
         for value in self.input_values:
             for label in value.trainable_labels():
-                x = value.input_tensor()
+                x = value.input_tensor(feed=feed.get(label))
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.output.transform(x=x)
-        loss = self.target_value.loss(x=x)
+        loss = self.target_value.loss(x=x, feed=feed.get(self.target_value.name))
         losses = tf.losses.get_regularization_losses(scope=None)
         losses.append(loss)
-        self.loss = tf.add_n(inputs=losses, name=None)
-        self.optimized = self.optimizer.optimize(loss=self.loss)
+        loss = tf.add_n(inputs=losses, name=None)
+        optimized = self.optimizer.optimize(loss=loss)
+        return loss, optimized
+
+    def tf_initialize(self):
+        super().tf_initialize()
+
+        # learn
+        self.loss, self.optimized = self.train_iteration()
 
         # learn from file
+        num_iterations = tf.placeholder(dtype=tf.int64, shape=(), name='num-iterations')
+        assert 'num_iterations' not in Module.placeholders
+        Module.placeholders['num_iterations'] = num_iterations
         filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
         assert 'filenames' not in Module.placeholders
         Module.placeholders['filenames'] = filenames
@@ -96,20 +102,12 @@ class BasicClassifier(Classifier):
             filenames=filenames, compression_type='GZIP', buffer_size=1000000
             # num_parallel_reads=None
         )
-        # dataset = dataset.cache(filename='')
-        # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
         dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
         dataset = dataset.repeat(count=None)
         features = {  # critically assumes max one trainable label
             label: value.feature() for value in self.values for label in value.trainable_labels()
         }
-        # better performance after batch
-        # dataset = dataset.map(
-        #     map_func=(lambda serialized: tf.parse_single_example(
-        #         serialized=serialized, features=features, name=None, example_names=None
-        #     )), num_parallel_calls=None
-        # )
-        dataset = dataset.batch(batch_size=self.batch_size)  # newer: drop_remainder=False
+        dataset = dataset.batch(batch_size=self.batch_size, drop_remainder=False)
         dataset = dataset.map(
             map_func=(lambda serialized: tf.parse_example(
                 serialized=serialized, features=features, name=None, example_names=None
@@ -117,20 +115,22 @@ class BasicClassifier(Classifier):
         )
         dataset = dataset.prefetch(buffer_size=1)
         self.iterator = dataset.make_initializable_iterator(shared_name=None)
-        next_values = self.iterator.get_next()
-        xs = list()
-        for value in self.input_values:
-            for label in value.trainable_labels():
-                x = value.input_tensor(feed=next_values[label])
-                xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
-        x = self.encoder.transform(x=x)
-        x = self.output.transform(x=x)
-        loss = self.target_value.loss(x=x, feed=next_values[self.target_value.name])
-        losses = tf.losses.get_regularization_losses(scope=None)
-        losses.append(loss)
-        self.loss_fromfile = tf.add_n(inputs=losses, name=None)
-        self.optimized_fromfile = self.optimizer.optimize(loss=self.loss_fromfile)
+
+        def cond(iteration, loss):
+            return iteration < num_iterations
+
+        def body(iteration, loss):
+            loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+            with tf.control_dependencies(control_inputs=(optimized,)):
+                iteration += 1
+            return iteration, loss
+
+        loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+        with tf.control_dependencies(control_inputs=(optimized,)):
+            iteration = tf.constant(value=1, dtype=tf.int64, shape=(), verify_shape=False)
+            self.optimized_fromfile, self.loss_fromfile = tf.while_loop(
+                cond=cond, body=body, loop_vars=(iteration, loss)
+            )
 
         # classify
         xs = list()
@@ -148,7 +148,7 @@ class BasicClassifier(Classifier):
         for label, x in xs.items():
             self.classified[label] = x
 
-    def learn(self, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -162,23 +162,28 @@ class BasicClassifier(Classifier):
                 for label in value.trainable_labels()
             }
             fetches = (self.loss, self.optimized)
-            for i in range(self.iterations):
+            for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 loss, _ = self.run(fetches=fetches, feed_dict=feed_dict)
-                if verbose and i % verbose + 1 == verbose:
-                    print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
+                if verbose > 0 and iteration % verbose + 1 == verbose:
+                    print('{iteration}: {loss:1.2e}'.format(iteration=(iteration + 1), loss=loss))
 
         else:
             fetches = self.iterator.initializer
             feed_dict = {'filenames': filenames}
             self.run(fetches=fetches, feed_dict=feed_dict)
             fetches = (self.loss_fromfile, self.optimized_fromfile)
-            # TODO: while loop for training
-            for i in range(self.iterations):
-                loss, _ = self.run(fetches=fetches)
-                if verbose and i % verbose + 1 == verbose:
-                    print('{iteration}: {loss:1.2e}'.format(iteration=(i + 1), loss=loss))
+            if verbose == 0:
+                feed_dict = dict(num_iterations=num_iterations, feed_dict=feed_dict)
+            else:
+                assert num_iterations % verbose == 0
+                for iteration in range(num_iterations // verbose):
+                    feed_dict = dict(num_iterations=verbose)
+                    loss, _ = self.run(fetches=fetches, feed_dict=feed_dict)
+                    print('{iteration}: {loss:1.2e}'.format(
+                        iteration=((iteration + 1) * verbose), loss=loss
+                    ))
 
     def classify(self, data):
         for value in self.input_values:
