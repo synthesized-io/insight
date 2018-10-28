@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+
+import pandas as pd
+import warnings
+import time
+
+warnings.filterwarnings(action='ignore', message='compiletime version 3.5 of module')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('filename', metavar='FILE', help='A file name')
+parser.add_argument('-o', '--output', required=True, help='Name of output file')
+parser.add_argument('-i', '--iterations', type=int, default=20000, help='Number of iteration')
+parser.add_argument('-n', '--num', help='Number of rows to generate (default is input size)')
+
+# parser.add_argument('-c', '--column', nargs='*', help='A column to use')
+# parser.add_argument('-e', '--exclude', nargs='*', help='A column to exclude')
+
+args = parser.parse_args()
+
+try:
+    data = pd.read_csv(args.filename)
+    print('columns: ' + ', '.join(data.columns.values))
+    input_size = len(data)
+    print('num of rows: ' + str(input_size))
+    data.dropna(inplace=True)
+
+    if args.num:
+        num = args.num
+    else:
+        num = input_size
+
+    print('synthesizing data...')
+
+    start = time.time()
+    from synthesized.core import BasicSynthesizer
+    with BasicSynthesizer(data=data) as synthesizer:
+        synthesizer.learn(data=data, num_iterations=args.iterations)
+        synthesized = synthesizer.synthesize(n=num)
+    print('took', time.time() - start, 's')
+    data.to_csv(args.output)
+
+except Exception as e:
+    sys.exit('error:' + str(e))
