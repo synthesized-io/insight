@@ -5,5 +5,6 @@ pytest
 coverage
 ipykernel
 Cython
+jupyterthemes
 
 -r requirements.txt
