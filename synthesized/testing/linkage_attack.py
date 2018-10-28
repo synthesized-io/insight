@@ -7,7 +7,7 @@ from pyemd import emd_samples
 
 from .util import categorical_emd
 
-NEAREST_NEIGHBOUR_MULT = 1.05
+NEAREST_NEIGHBOUR_MULT = 0.5
 ENLARGED_NEIGHBOUR_MULT = 2.0
 T_CLOSENESS_DEFAULT = 0.3
 K_DISTANCE_DEFAULT = 0.02
@@ -38,9 +38,10 @@ class LinkageAttackTesting:
         orig_df_subset = get_df_subset(self.df_orig, attack["knowledge"], self.schema)
         synth_df_subset = get_df_subset(self.df_synth, attack["knowledge"], self.schema)
         print("attribute under attack: ", attack["target"])
-        print("\nbacground knowledge: ", list(attack["knowledge"].keys())[0])
-        print("\n\n original df subset: \n", orig_df_subset)
-        print("\n\n synthetic df subset: \n", synth_df_subset)
+        columns = list(attack["knowledge"].keys()) + [attack["target"]]
+        print("\nbackground knowledge: ", list(attack["knowledge"]))
+        print("\n\n original df subset: \n", orig_df_subset[columns].head())
+        print("\n\n synthetic df subset: \n", synth_df_subset[columns].head())
 
     def eradicate_attacks(self, attacks, t_closeness=T_CLOSENESS_DEFAULT,
                           k_distance=K_DISTANCE_DEFAULT, radical=False):
@@ -233,12 +234,8 @@ def find_neighbour_distances(df, attr_dict, schema):
         lower = df[df[attr] < val][attr]
         if len(higher) > 0:
             up[attr] = higher.min() - val
-        else:
-            up[attr] = val
         if len(lower) > 0:
             down[attr] = val - lower.max()
-        else:
-            down[attr] = val
     return down, up
 
 
