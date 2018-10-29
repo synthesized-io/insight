@@ -7,6 +7,7 @@
 from __future__ import division, print_function, absolute_import
 
 from enum import Enum
+from math import sqrt
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,10 +18,13 @@ from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score
+from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
 
 from .util import categorical_emd
+
+MAX_CATEGORIES = 50
 
 
 class ColumnType(Enum):
@@ -30,8 +34,7 @@ class ColumnType(Enum):
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        # TODO: side-effect of synthesizer is type detection:
-        self.dtypes = {col: df_synth[col].dtype.kind for col in df_synth.columns.values}
+        self.dtypes = detect_display_types(df_orig)
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
@@ -71,30 +74,44 @@ class UtilityTesting:
             if dtype == 'O':
                 sns.countplot(x=col, data=con, hue='dataset')
             else:
+                start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
                 sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
                 sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
+                ax.set(xlim=(start, end))
             ax.legend()
+
+    def improve_column(self, column, clf):
+        X_columns = list(set(self.df_orig.columns.values) - {column})
+        X = self.df_orig[X_columns]
+        y = self.df_orig[column]
+        clf.fit(X, y)
+        self.df_synth[column] = clf.predict(self.df_synth[X_columns])
+        return self.df_synth
 
     def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
         X, y = self.df_orig.drop(target, 1), self.df_orig[target]
         X_synth, y_synth = self.df_synth.drop(target, 1), self.df_synth[target]
         X_test, y_test = self.df_test.drop(target, 1), self.df_test[target]
         if self.dtypes[target] == 'O':
-            clf = classifier
+            clf = clone(classifier)
             clf.fit(X, y)
-            y_pred_orig = clf.decision_function(X_test)
-            clf = clone(clf)
+            orig_score = roc_auc_scorer(clf, X_test, y_test)
+
+            clf = clone(classifier)
             clf.fit(X_synth, y_synth)
-            y_pred_synth = clf.decision_function(X_test)
-            print('ROC AUC (orig):', roc_auc_score(y_test, y_pred_orig))
-            print('ROC AUC (synth):', roc_auc_score(y_test, y_pred_synth))
+            synth_score = roc_auc_scorer(clf, X_test, y_test)
+
+            print('ROC AUC (orig):', orig_score)
+            print('ROC AUC (synth):', synth_score)
         else:
-            clf = regressor
+            clf = clone(regressor)
             clf.fit(X, y)
             y_pred_orig = clf.predict(X_test)
-            clf = clone(clf)
+
+            clf = clone(regressor)
             clf.fit(X_synth, y_synth)
             y_pred_synth = clf.predict(X_test)
+
             print('RMSE (orig):', np.sqrt(mean_squared_error(y_test, y_pred_orig)))
             print('RMSE (synth):', np.sqrt(mean_squared_error(y_test, y_pred_synth)))
 
@@ -248,6 +265,22 @@ class UtilityTesting:
                 target_emd: emd
             })
         return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
+
+
+def detect_display_types(df):
+    result = {}
+    for col in df.columns.values:
+        kind = df[col].dtype.kind
+        if kind == 'b':
+            result[col] = 'O'
+        else:
+            num_data = len(df)
+            num_unique = df[col].nunique()
+            if num_unique <= sqrt(num_data) and num_unique <= MAX_CATEGORIES:
+                result[col] = 'O'
+            else:
+                result[col] = kind
+    return result
 
 
 def bin_edges(a):
