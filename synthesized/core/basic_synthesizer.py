@@ -13,15 +13,11 @@ from .values import identify_value
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data,
-        # encoding
-        encoding='variational', encoding_size=64,
-        # encoder/decoder
-        network_type='resnet', encoder=(64, 64, 64, 64), decoder=(64, 64, 64, 64),
-        # embeddings
-        embedding_size=64,
-        # training
-        learning_rate=3e-4, batch_size=64,
+        self, data, exclude_encoding_loss=False,
+        # architecture
+        network_type='resnet', encoding='variational',
+        # hyperparameters
+        capacity=64, depth=4, learning_rate=3e-4, batch_size=64,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -32,7 +28,11 @@ class BasicSynthesizer(Synthesizer):
     ):
         super().__init__(name='synthesizer')
 
-        self.embedding_size = embedding_size
+        self.exclude_encoding_loss = exclude_encoding_loss
+
+        self.capacity = capacity
+        self.depth = depth
+        self.learning_rate = learning_rate
         self.batch_size = batch_size
 
         # person
@@ -69,17 +69,17 @@ class BasicSynthesizer(Synthesizer):
 
         self.encoder = self.add_module(
             module=network_type, modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=encoder
+            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)]
         )
 
         self.encoding = self.add_module(
             module=encoding, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=encoding_size
+            input_size=self.encoder.size(), encoding_size=self.capacity
         )
 
         self.decoder = self.add_module(
             module=network_type, modules=transformation_modules, name='decoder',
-            input_size=self.encoding.size(), layer_sizes=decoder
+            input_size=self.encoding.size(), layer_sizes=[self.capacity for _ in range(self.depth)]
         )
 
         self.output = self.add_module(
@@ -90,7 +90,7 @@ class BasicSynthesizer(Synthesizer):
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=learning_rate,
+            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
             clip_gradients=1.0
         )
 
@@ -129,15 +129,17 @@ class BasicSynthesizer(Synthesizer):
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
-        x = self.encoding.encode(x=x, encoding_loss=True)
+        x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
         x = self.customized_transform(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
-        reg_losses = tf.losses.get_regularization_losses(scope=None)
-        losses = dict(regularization=tf.add_n(inputs=reg_losses))
+        reg_loss = tf.add_n(inputs=tf.losses.get_regularization_losses(scope=None))
+        losses = dict(encoding=encoding_loss, regularization=reg_loss)
+        if self.exclude_encoding_loss:
+            losses.pop('encoding')
         for value, x in zip(self.values, xs):
             for label in value.trainable_labels():
                 loss = value.loss(x=x, feed=feed.get(value.name))
@@ -177,7 +179,7 @@ class BasicSynthesizer(Synthesizer):
         #         serialized=serialized, features=features, name=None, example_names=None
         #     )), num_parallel_calls=None
         # )
-        dataset = dataset.batch(batch_size=self.batch_size, drop_remainder=False)
+        dataset = dataset.batch(batch_size=self.batch_size)  # drop_remainder=False
         dataset = dataset.map(
             map_func=(lambda serialized: tf.parse_example(
                 serialized=serialized, features=features, name=None, example_names=None

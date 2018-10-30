@@ -1,3 +1,4 @@
+from math import log
 import tensorflow as tf
 
 from .value import Value
@@ -7,14 +8,14 @@ from ..module import Module
 
 class CategoricalValue(Value):
 
+    embedding_size_multiplier = 25
+
     def __init__(
-        self, name, embedding_size, categories=None, pandas_category=False, similarity_based=False,
-        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
-        entropy_regularization=0.1
+        self, name, categories=None, embedding_size=None, pandas_category=False,
+        similarity_based=False, temperature=1.0, smoothing=0.1, moving_average=True,
+        similarity_regularization=0.1, entropy_regularization=0.1
     ):
         super().__init__(name=name)
-
-        self.embedding_size = embedding_size
 
         if categories is None:
             self.categories = None
@@ -24,6 +25,12 @@ class CategoricalValue(Value):
         else:
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
+
+        if embedding_size is None and self.num_categories is not None:
+            multiplier = self.__class__.embedding_size_multiplier
+            self.embedding_size = int(log(self.num_categories) * multiplier)
+        else:
+            self.embedding_size = embedding_size
 
         self.pandas_category = pandas_category
         self.similarity_based = similarity_based
@@ -69,6 +76,9 @@ class CategoricalValue(Value):
         if self.categories is None:
             self.categories = sorted(data[self.name].unique())
             self.num_categories = len(self.categories)
+            if self.embedding_size is None:
+                multiplier = self.__class__.embedding_size_multiplier
+                self.embedding_size = int(log(self.num_categories) * multiplier)
         elif sorted(data[self.name].unique()) != self.categories:
             raise NotImplementedError
 

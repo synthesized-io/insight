@@ -9,5 +9,6 @@ initializers = dict(
 )
 
 regularizers = dict(
+    none=tf.no_regularizer,
     l2=tf.contrib.layers.l2_regularizer(scale=1e-5, scope=None)
 )

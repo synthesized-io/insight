@@ -12,11 +12,12 @@ class VariationalEncoding(Encoding):
 
         self.mean = self.add_module(
             module=DenseTransformation, name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none'
+            output_size=self.encoding_size, batchnorm=False, activation='none', regularizer='none'
         )
         self.stddev = self.add_module(
             module=DenseTransformation, name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'  # 'none'
+            output_size=self.encoding_size, batchnorm=False, activation='softplus',
+            regularizer='none'
         )
 
     def specification(self):
@@ -39,8 +40,9 @@ class VariationalEncoding(Encoding):
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             encoding_loss *= self.beta
-            tf.losses.add_loss(loss=encoding_loss, loss_collection=tf.GraphKeys.LOSSES)
-        return x
+            return x, encoding_loss
+        else:
+            return x
 
     def tf_sample(self, n):
         x = tf.random_normal(
