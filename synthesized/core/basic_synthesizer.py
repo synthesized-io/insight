@@ -85,7 +85,7 @@ class BasicSynthesizer(Synthesizer):
         self.output = self.add_module(
             module='dense', modules=transformation_modules, name='output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
-            activation='none'
+            activation='none', regularizer='none'
         )
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)

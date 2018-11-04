@@ -45,18 +45,16 @@ class DenseTransformation(Transformation):
         if self.batchnorm:
             shape = (self.output_size,)
             initializer = util.initializers['zero']
-            regularizer = util.regularizers[self.regularizer]
             self.offset = tf.get_variable(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+                regularizer=None, trainable=True, collections=None, caching_device=None,
                 partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
             )
             shape = (self.output_size,)
             initializer = util.initializers['zero']
-            regularizer = util.regularizers[self.regularizer]
             self.scale = tf.get_variable(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+                regularizer=None, trainable=True, collections=None, caching_device=None,
                 partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
             )
 
