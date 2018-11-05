@@ -21,7 +21,7 @@ class BasicSynthesizer(Synthesizer):
         # embeddings
         embedding_size=64,
         # training
-        learning_rate=3e-4, batch_size=64,
+        learning_rate=3e-4, batch_size=128,  # seems to be a good value for GPU-efficient learning
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -127,7 +127,7 @@ class BasicSynthesizer(Synthesizer):
                 # critically assumes max one trainable label
                 x = value.input_tensor(feed=feed.get(value.name))
                 xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
+        x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x, encoding_loss=True)
         x = self.customized_transform(x=x)
@@ -223,7 +223,7 @@ class BasicSynthesizer(Synthesizer):
             for label in value.trainable_labels():
                 x = value.input_tensor()
                 xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
+        x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
         x = self.customized_transform(x=x)

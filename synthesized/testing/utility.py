@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from pyemd.emd import emd_samples
+from scipy.stats import ks_2samp, pearsonr
 from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
@@ -67,17 +68,19 @@ class UtilityTesting:
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
     def show_distributions(self, figsize=(14, 40), cols=2):
-        con = pd.concat([self.df_orig.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.dtypes.items()):
             ax = fig.add_subplot(len(self.dtypes), cols, i+1)
             if dtype == 'O':
-                sns.countplot(x=col, data=con, hue='dataset')
+                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'])
+                ax.set_xlabel(col)
             else:
                 start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
-                sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
-                sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
-                ax.set(xlim=(start, end))
+                # sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
+                # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
+                # ax.set(xlim=(start, end))
+                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
+                ax.set_xlabel(col)
             ax.legend()
 
     def improve_column(self, column, clf):
@@ -265,6 +268,35 @@ class UtilityTesting:
                 target_emd: emd
             })
         return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
+
+    def show_distribution_distances(self):
+        result = []
+        for col in self.df_orig.columns.values:
+            distance = ks_2samp(self.df_orig[col], self.df_synth[col])[0]
+            result.append({'column': col, 'distance': distance})
+        df = pd.DataFrame.from_records(result)
+        print('Average distance:', df['distance'].mean())
+        sns.barplot(y='column', x='distance', data=df)
+
+    def show_correlation_diffs(self, threshold=0.0):
+        result = []
+        cols = list(self.df_orig.columns.values)
+        for i in range(len(cols)):
+            for j in range(len(cols)):
+                if i < j:
+                    corr1 = pearsonr(self.df_orig[cols[i]], self.df_orig[cols[j]])[0]
+                    corr2 = pearsonr(self.df_synth[cols[i]], self.df_synth[cols[j]])[0]
+                    result.append({'pair': cols[i] + ' / ' + cols[j], 'diff': np.abs(corr2 - corr1)})
+        df = pd.DataFrame.from_records(result)
+        print('Average diff:', df['diff'].mean())
+        df = df[df['diff'] > threshold]
+        df = df.sort_values(by='diff', ascending=False)
+        return df
+
+    def debug_column(self, col):
+        start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
+        plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
+        plt.legend()
 
 
 def detect_display_types(df):
