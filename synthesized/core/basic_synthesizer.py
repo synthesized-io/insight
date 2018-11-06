@@ -127,7 +127,7 @@ class BasicSynthesizer(Synthesizer):
                 # critically assumes max one trainable label
                 x = value.input_tensor(feed=feed.get(value.name))
                 xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
+        x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
         x = self.customized_transform(x=x)
@@ -225,7 +225,7 @@ class BasicSynthesizer(Synthesizer):
             for label in value.trainable_labels():
                 x = value.input_tensor()
                 xs.append(x)
-        x = tf.concat(values=xs, axis=1, name=None)
+        x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
         x = self.customized_transform(x=x)

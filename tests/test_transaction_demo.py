@@ -3,7 +3,7 @@ from pandas.testing import assert_series_equal
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from examples.transaction_demo import TransactionVectorizer
+from examples.old_notebooks.transaction_demo import TransactionVectorizer
 
 
 def test_pipeline():
