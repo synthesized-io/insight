@@ -82,7 +82,7 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative:
                 x = tf.maximum(x=x, y=0.001)
-            x = tf.log(x=(tf.exp(x=x) - 1))  # ???????????????????????????????????????
+            x = tf.where(condition=(x < 10.0), x=tf.log(x=(tf.exp(x=x) - 1.0)), y=x)
         x = tf.expand_dims(input=x, axis=1)
         return x
 
