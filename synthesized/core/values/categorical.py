@@ -35,6 +35,7 @@ class CategoricalValue(Value):
 
     def __str__(self):
         string = super().__str__()
+        string += '{}-{}'.format(self.num_categories, self.embedding_size)
         if self.similarity_based:
             string += '-similarity'
         return string
