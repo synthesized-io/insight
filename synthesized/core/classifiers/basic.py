@@ -12,7 +12,9 @@ from ..values import CategoricalValue, identify_value
 class BasicClassifier(Classifier):
 
     def __init__(
-        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64
+        self, data, target_label=None,
+        # hyperparameters
+        capacity=64, depth=2, learning_rate=3e-4, batch_size=64
     ):
         super().__init__(name='classifier')
 
@@ -21,7 +23,9 @@ class BasicClassifier(Classifier):
         else:
             self.target_label = target_label
 
-        self.embedding_size = embedding_size
+        self.capacity = capacity
+        self.depth = depth
+        self.learning_rate = learning_rate
         self.batch_size = batch_size
 
         self.values = list()
@@ -43,7 +47,7 @@ class BasicClassifier(Classifier):
 
         self.encoder = self.add_module(
             module='resnet', modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=layers
+            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)]
         )
 
         self.output = self.add_module(
@@ -54,7 +58,7 @@ class BasicClassifier(Classifier):
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=3e-4,
+            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
             clip_gradients=1.0
         )
 

@@ -55,7 +55,7 @@ print()
 
 
 print('Initialize synthesizer...')
-synthesizer = BasicSynthesizer(data=data)
+synthesizer = BasicSynthesizer(data=data, exclude_encoding_loss=True)
 print(repr(synthesizer))
 print()
 

@@ -8,10 +8,8 @@ from ..module import Module
 
 class CategoricalValue(Value):
 
-    embedding_size_multiplier = 25
-
     def __init__(
-        self, name, categories=None, embedding_size=None, pandas_category=False,
+        self, name, categories=None, capacity=None, embedding_size=None, pandas_category=False,
         similarity_based=False, temperature=1.0, smoothing=0.1, moving_average=True,
         similarity_regularization=0.1, entropy_regularization=0.1
     ):
@@ -26,9 +24,9 @@ class CategoricalValue(Value):
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
 
+        self.capacity = capacity
         if embedding_size is None and self.num_categories is not None:
-            multiplier = self.__class__.embedding_size_multiplier
-            self.embedding_size = int(log(self.num_categories) * multiplier)
+            self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
         else:
             self.embedding_size = embedding_size
 
@@ -42,6 +40,7 @@ class CategoricalValue(Value):
 
     def __str__(self):
         string = super().__str__()
+        string += '{}-{}'.format(self.num_categories, self.embedding_size)
         if self.similarity_based:
             string += '-similarity'
         return string
@@ -77,8 +76,7 @@ class CategoricalValue(Value):
             self.categories = sorted(data[self.name].unique())
             self.num_categories = len(self.categories)
             if self.embedding_size is None:
-                multiplier = self.__class__.embedding_size_multiplier
-                self.embedding_size = int(log(self.num_categories) * multiplier)
+                self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
         elif sorted(data[self.name].unique()) != self.categories:
             raise NotImplementedError
 

@@ -59,13 +59,13 @@ class BasicSynthesizer(Synthesizer):
         print('value types:')
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
-            print(name, value)
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
                 self.value_output_sizes.append(value.output_size())
                 input_size += value.input_size()
                 output_size += value.output_size()
+            print(name, value)
 
         self.encoder = self.add_module(
             module=network_type, modules=transformation_modules, name='encoder',

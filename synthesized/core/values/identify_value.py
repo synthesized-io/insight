@@ -43,11 +43,14 @@ def identify_value(module, name, dtype, data):
         module.date_value = value
 
     elif dtype.kind == 'b':
-        value = module.add_module(module=CategoricalValue, name=name, categories=[False, True])
+        value = module.add_module(
+            module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
+        )
 
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
         value = module.add_module(
-            module=CategoricalValue, name=name, categories=dtype.categories, pandas_category=True
+            module=CategoricalValue, name=name, categories=dtype.categories,
+            capacity=module.capacity, pandas_category=True
         )
 
     else:
@@ -55,13 +58,15 @@ def identify_value(module, name, dtype, data):
         num_unique = data[name].nunique()
 
         if num_unique <= log(num_data):
-            value = module.add_module(module=CategoricalValue, name=name)
+            value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
 
         elif num_unique <= sqrt(num_data):
-            value = module.add_module(module=CategoricalValue, name=name, similarity_based=True)
+            value = module.add_module(
+                module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
+            )
 
         elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
-            value = module.add_module(module=ProbabilityValue, name=name, embedding_size=module.embedding_size)
+            value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
             value = module.add_module(module=EnumerationValue, name=name)
@@ -72,7 +77,8 @@ def identify_value(module, name, dtype, data):
             )
 
         else:
-            print(name, dtype, num_data, num_unique)
             value = module.add_module(module=SamplingValue, name=name)
+            print(name, dtype, num_data, num_unique)
+            raise NotImplementedError
 
     return value
