@@ -251,9 +251,7 @@ class BasicSynthesizer(Synthesizer):
 
         # TODO: increment global step
         if filenames is None:
-            data = data.copy()
-            for value in self.values:
-                data = value.preprocess(data=data)
+            data = self.preprocess(data=data.copy())
             num_data = len(data)
             data = {
                 label: data[label].get_values() for value in self.values
@@ -308,11 +306,10 @@ class BasicSynthesizer(Synthesizer):
 
     def transform(self, X, **transform_params):
         assert not transform_params
-        for value in self.values:
-            X = value.preprocess(data=X)
+        data = self.preprocess(data=X.copy())
         fetches = self.transformed
         feed_dict = {
-            label: X[label].get_values() for value in self.values
+            label: data[label].get_values() for value in self.values
             for label in value.trainable_labels()
         }
         transformed = self.run(fetches=fetches, feed_dict=feed_dict)
