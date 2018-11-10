@@ -1,0 +1,31 @@
+[
+    {
+        "name": "capacity",
+        "type": "continuous",
+        "domain": [1.0, 3.0],
+        "transformations": ["pow", "int"]
+    },
+    {
+        "name": "depth",
+        "type": "discrete",
+        "domain": [1, 2, 3, 4, 5, 6]
+    },
+    {
+        "name": "batch_size",
+        "type": "continuous",
+        "domain": [1.0, 3.0],
+        "transformations": ["pow", "int"]
+    },
+    {
+        "name": "learning_rate",
+        "type": "continuous",
+        "domain": [-5.0, -1.0],
+        "transformations": ["pow"]
+    },
+    {
+        "name": "weight_decay",
+        "type": "continuous",
+        "domain": [-6.0, -1.0],
+        "transformations": ["pow"]
+    }
+]

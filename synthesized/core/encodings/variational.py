@@ -12,12 +12,11 @@ class VariationalEncoding(Encoding):
 
         self.mean = self.add_module(
             module=DenseTransformation, name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none', regularizer='none'
+            output_size=self.encoding_size, batchnorm=False, activation='none'
         )
         self.stddev = self.add_module(
             module=DenseTransformation, name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus',
-            regularizer='none'
+            output_size=self.encoding_size, batchnorm=False, activation='softplus'
         )
 
     def specification(self):

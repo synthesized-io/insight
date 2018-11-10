@@ -15,9 +15,9 @@ class BasicSynthesizer(Synthesizer):
     def __init__(
         self, data, exclude_encoding_loss=False,
         # architecture
-        network_type='resnet', encoding='variational',
+        network='resnet', encoding='variational',
         # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, batch_size=64,
+        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=64,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -30,9 +30,12 @@ class BasicSynthesizer(Synthesizer):
 
         self.exclude_encoding_loss = exclude_encoding_loss
 
+        self.network_type = network
+        self.encoding_type = encoding
         self.capacity = capacity
         self.depth = depth
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.batch_size = batch_size
 
         # person
@@ -68,24 +71,26 @@ class BasicSynthesizer(Synthesizer):
             print(name, value)
 
         self.encoder = self.add_module(
-            module=network_type, modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)]
+            module=self.network_type, modules=transformation_modules, name='encoder',
+            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)],
+            weight_decay=self.weight_decay
         )
 
         self.encoding = self.add_module(
-            module=encoding, modules=encoding_modules, name='encoding',
+            module=self.encoding_type, modules=encoding_modules, name='encoding',
             input_size=self.encoder.size(), encoding_size=self.capacity
         )
 
         self.decoder = self.add_module(
-            module=network_type, modules=transformation_modules, name='decoder',
-            input_size=self.encoding.size(), layer_sizes=[self.capacity for _ in range(self.depth)]
+            module=self.network_type, modules=transformation_modules, name='decoder',
+            input_size=self.encoding.size(),
+            layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
         )
 
         self.output = self.add_module(
             module='dense', modules=transformation_modules, name='output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
-            activation='none', regularizer='none'
+            activation='none'
         )
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
@@ -96,9 +101,9 @@ class BasicSynthesizer(Synthesizer):
 
     def specification(self):
         spec = super().specification()
-        # TODO: values?
         spec.update(
-            encoding=self.encoding, encoder=self.encoder, decoder=self.decoder,
+            network=self.network_type, encoding=self.encoding_type, capacity=self.capacity,
+            depth=self.depth, learning_rate=self.learning_rate, weight_decay=self.weight_decay,
             batch_size=self.batch_size
         )
         return spec

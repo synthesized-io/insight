@@ -6,6 +6,7 @@ class ModulationTransformation(Transformation):
 
     def __init__(self, name, input_size, condition_size):
         super().__init__(name=name, input_size=input_size, output_size=input_size)
+
         self.condition_size = condition_size
 
         self.offset = self.add_module(
@@ -26,4 +27,5 @@ class ModulationTransformation(Transformation):
         offset = self.offset.transform(x=condition)
         scale = self.scale.transform(x=condition)
         x = x * scale + offset
+
         return x

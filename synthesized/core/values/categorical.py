@@ -10,8 +10,8 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name, categories=None, capacity=None, embedding_size=None, pandas_category=False,
-        similarity_based=False, temperature=1.0, smoothing=0.1, moving_average=True,
-        similarity_regularization=0.1, entropy_regularization=0.1
+        similarity_based=False, weight_decay=0.0, temperature=1.0, smoothing=0.1,
+        moving_average=True, similarity_regularization=0.1, entropy_regularization=0.1
     ):
         super().__init__(name=name)
 
@@ -32,6 +32,7 @@ class CategoricalValue(Value):
 
         self.pandas_category = pandas_category
         self.similarity_based = similarity_based
+        self.weight_decay = weight_decay
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
@@ -49,8 +50,9 @@ class CategoricalValue(Value):
         spec = super().specification()
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
-            similarity_based=self.similarity_based, temperature=self.temperature,
-            smoothing=self.smoothing, moving_average=self.moving_average,
+            similarity_based=self.similarity_based, weight_decay=self.weight_decay,
+            temperature=self.temperature, smoothing=self.smoothing,
+            moving_average=self.moving_average,
             similarity_regularization=self.similarity_regularization,
             entropy_regularization=self.entropy_regularization
         )
@@ -104,11 +106,13 @@ class CategoricalValue(Value):
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
+        shape = (self.num_categories, self.embedding_size)
+        initializer = util.get_initializer(initializer='normal')
+        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.embeddings = tf.get_variable(
-            name='embeddings', shape=(self.num_categories, self.embedding_size), dtype=tf.float32,
-            initializer=util.initializers['normal'], regularizer=util.regularizers['l2'],
-            trainable=True, collections=None, caching_device=None, partitioner=None,
-            validate_shape=True, use_resource=None, custom_getter=None
+            name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
         )
         if self.moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(
