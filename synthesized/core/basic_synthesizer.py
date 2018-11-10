@@ -17,7 +17,7 @@ class BasicSynthesizer(Synthesizer):
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=64,
+        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=128,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
