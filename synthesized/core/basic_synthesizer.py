@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy.stats import ks_2samp
 
 from .encodings import encoding_modules
 from .module import Module
@@ -265,12 +266,7 @@ class BasicSynthesizer(Synthesizer):
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 fetched = self.run(fetches=fetches, feed_dict=feed_dict)
                 if verbose > 0 and iteration % verbose + 1 == verbose:
-                    print('{iteration}: {loss:1.2e}  ({losses})'.format(
-                        iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-                            '{name}: {loss}'.format(name=name, loss=fetched[name])
-                            for name in self.losses
-                        )
-                    ))
+                    self.log_metrics(data, fetched, iteration)
 
         else:
             fetches = self.iterator.initializer
@@ -287,13 +283,22 @@ class BasicSynthesizer(Synthesizer):
                 for iteration in range(num_iterations // verbose):
                     feed_dict = dict(num_iterations=verbose)
                     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-                    print('{iteration}: {loss:1.2e}  ({losses})'.format(
-                        iteration=((iteration + 1) * verbose), loss=fetched['loss'],
-                        losses=', '.join(
-                            '{name}: {loss}'.format(name=name, loss=fetched[name])
-                            for name in self.losses
-                        )
-                    ))
+                    self.log_metrics(data, fetched, iteration)
+
+    def log_metrics(self, data, fetched, iteration):
+        print('\niteration: {}'.format(iteration + 1))
+        print('loss: total={loss:1.2e} ({losses})'.format(
+            iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
+                '{name}={loss}'.format(name=name, loss=fetched[name])
+                for name in self.losses
+            )
+        ))
+        synthesized = self.synthesize(10000)
+        synthesized = self.preprocess(data=synthesized)
+        dist_by_col = [(col, ks_2samp(data[col], synthesized[col].get_values())[0]) for col in data.keys()]
+        avg_dist = np.mean([dist for (col, dist) in dist_by_col])
+        dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
+        print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
 
     def synthesize(self, n):
         fetches = self.synthesized
