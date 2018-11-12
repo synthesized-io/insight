@@ -120,7 +120,6 @@ for hyperparams in iterator:
         print()
 
     elif args.score == 'ks-closeness':
-        synthesized = synthesizer.synthesize(n=10000)
         synthesized_ = synthesizer.preprocess(synthesized)
         data_ = synthesizer.preprocess(data.copy())
         score = 1 - np.mean([ks_2samp(data_[col], synthesized_[col])[0] for col in data.columns])
