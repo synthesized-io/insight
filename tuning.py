@@ -122,7 +122,7 @@ for hyperparams in iterator:
     elif args.score == 'ks-closeness':
         synthesized_ = synthesizer.preprocess(synthesized)
         data_ = synthesizer.preprocess(data.copy())
-        score = 1 - np.mean([ks_2samp(data_[col], synthesized_[col])[0] for col in data.columns])
+        score = 1 - np.mean([ks_2samp(data_[col], synthesized_[col])[0] for col in synthesized_.columns])
         print('avg KS closeness:', score)
         print()
 
