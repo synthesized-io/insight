@@ -78,8 +78,8 @@ class ResidualTransformation(Transformation):
         if self.batchnorm:
             mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keep_dims=False)
             x = tf.nn.batch_normalization(
-                x=x, mean=mean, variance=variance, offset=self.offset, scale=self.scale,
-                variance_epsilon=1e-6
+                x=x, mean=mean, variance=variance, offset=self.offset,
+                scale=tf.nn.softplus(features=self.scale), variance_epsilon=1e-6
             )
 
         if self.activation == 'none':
