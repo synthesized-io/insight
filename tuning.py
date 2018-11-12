@@ -1,15 +1,16 @@
 import argparse
 from datetime import datetime
-import sys
+
+import numpy as np
 import pandas as pd
-from sklearn.dummy import DummyClassifier, DummyRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from scipy.stats import ks_2samp
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
+
 from synthesized.core import BasicSynthesizer
 from synthesized.core.classifiers import BasicClassifier
 from synthesized.tuning import HyperparamSpec
-
 
 print('Parse arguments...')
 parser = argparse.ArgumentParser()
@@ -116,6 +117,14 @@ for hyperparams in iterator:
         # recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
         score = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
         print('synthesized classifier:', score)
+        print()
+
+    elif args.score == 'ks-closeness':
+        synthesized = synthesizer.synthesize(n=10000)
+        synthesized_ = synthesizer.preprocess(synthesized)
+        data_ = synthesizer.preprocess(data.copy())
+        score = 1 - np.mean([ks_2samp(data_[col], synthesized_[col])[0] for col in data.columns])
+        print('avg KS closeness:', score)
         print()
 
     from random import random
