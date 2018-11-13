@@ -51,6 +51,7 @@ jobs:
           command: |
             . venv/bin/activate
             python -m pytest
+          no_output_timeout: 20m
 
       - run:
           name: package
