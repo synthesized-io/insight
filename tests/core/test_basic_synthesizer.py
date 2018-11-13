@@ -1,39 +1,18 @@
 import numpy as np
-import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
+from loaders import credit
 from synthesized.core import BasicSynthesizer
 
 
 @pytest.mark.integration
-def test_continuous_variable_generation():
-    r = np.random.normal(loc=10000, scale=100, size=1000)
-    data = pd.DataFrame({'r': r})
-    with BasicSynthesizer(data=data) as synthesizer:
-        synthesizer.learn(num_iterations=5000, data=data)
+def test_james_dataset_generation():
+    data = credit.load_data()
+    with BasicSynthesizer(data=data, exclude_encoding_loss=True) as synthesizer:
+        synthesizer.learn(data=data, num_iterations=20000, verbose=1000)
         synthesized = synthesizer.synthesize(n=len(data))
-    distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.1
-
-
-@pytest.mark.integration
-def test_categorical_similarity_variable_generation():
-    r = np.random.normal(loc=10, scale=2, size=1000)
-    data = pd.DataFrame({'r': list(map(int, r))})
-    with BasicSynthesizer(data=data) as synthesizer:
-        synthesizer.learn(num_iterations=5000, data=data)
-        synthesized = synthesizer.synthesize(n=len(data))
-    distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.1
-
-
-@pytest.mark.integration
-def test_categorical_variable_generation():
-    r = np.random.normal(loc=5, scale=1, size=1000)
-    data = pd.DataFrame({'r': list(map(int, r))})
-    with BasicSynthesizer(data=data) as synthesizer:
-        synthesizer.learn(num_iterations=5000, data=data)
-        synthesized = synthesizer.synthesize(n=len(data))
-    distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.1
+    synthesized = synthesizer.preprocess(synthesized)
+    data = synthesizer.preprocess(data.copy())
+    avg_distance = np.mean([ks_2samp(data[col], synthesized[col])[0] for col in data.columns])
+    assert avg_distance < 0.2
