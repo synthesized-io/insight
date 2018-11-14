@@ -184,7 +184,7 @@ class CategoricalValue(Value):
             loss = loss + similarity_loss
         if self.entropy_regularization > 0.0:
             probs = tf.nn.softmax(logits=x, axis=-1)
-            logprobs = tf.log(x=probs)
+            logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
