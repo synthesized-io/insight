@@ -27,13 +27,13 @@ parser.add_argument(
 parser.add_argument(
     '-c', '--classifier-iterations', type=int, default=1000, help="classifier training iterations"
 )
-parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
+# parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
 args = parser.parse_args()
 
 
 print('Load dataset...')
 data = pd.read_csv('data/{}.csv'.format(args.dataset))
-tfrecords_filename = 'data/{}.tfrecords'.format(args.dataset)
+# tfrecords_filename = 'data/{}.tfrecords'.format(args.dataset)
 num_with_nan = len(data)
 data = data.dropna()
 print('Nans dropped:', num_with_nan - len(data), 'of', num_with_nan)
@@ -73,7 +73,11 @@ best_hyperparams = [None for _ in range(10)]
 print()
 
 
-for hyperparams in iterator:
+for iteration, hyperparams in enumerate(iterator):
+    print('==============================')
+    print('        iteration {:>4}        '.format(iteration))
+    print('==============================')
+
     print('Initialize synthesizer...')
     synthesizer = BasicSynthesizer(data=data, exclude_encoding_loss=True, **hyperparams)
     print(repr(synthesizer))
@@ -82,10 +86,10 @@ for hyperparams in iterator:
     print('Synthesis...')
     with synthesizer:
         print(datetime.now().strftime('%H:%M:%S'), flush=True)
-        if args.tfrecords:
-            synthesizer.learn(num_iterations=args.iterations, filenames=(tfrecords_filename,))
-        else:
-            synthesizer.learn(num_iterations=args.iterations, data=original.copy())
+        # if args.tfrecords:
+        #     synthesizer.learn(num_iterations=args.iterations, filenames=(tfrecords_filename,))
+        # else:
+        synthesizer.learn(num_iterations=args.iterations, data=original.copy())
         synthesized = synthesizer.synthesize(n=10000)
         print(datetime.now().strftime('%H:%M:%S'), flush=True)
         print()
