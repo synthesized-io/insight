@@ -26,7 +26,10 @@ class BasicEncoding(Encoding):
     def tf_encode(self, x, encoding_loss=False):
         x = self.embedding.transform(x=x)
         x = tf.tanh(x=x)
-        return x
+        if encoding_loss:
+            return x, tf.constant(value=0.0, dtype=tf.float32)
+        else:
+            return x
 
     def tf_sample(self, n):
         if self.sampling == 'uniform':

@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from synthesized.core.transformations import DenseTransformation, MlpTransformation
+from synthesized.core.transformations import DenseTransformation, MlpTransformation, \
+    ResidualTransformation, ResnetTransformation
 
 
 def _test_transformation(transformation):
@@ -20,13 +21,29 @@ def _test_transformation(transformation):
 
 def test_dense():
     transformation = DenseTransformation(
-        name='dense', input_size=8, output_size=6, bias=True, batchnorm=True, activation='relu'
+        name='dense', input_size=8, output_size=6, bias=True, batchnorm=True, activation='relu',
+        weight_decay=0.1
     )
     _test_transformation(transformation=transformation)
 
 
 def test_mlp():
     transformation = MlpTransformation(
-        name='mlp', input_size=8, layer_sizes=(10, 6)
+        name='mlp', input_size=8, layer_sizes=(10, 6), weight_decay=0.1
+    )
+    _test_transformation(transformation=transformation)
+
+
+def test_residual():
+    transformation = ResidualTransformation(
+        name='residual', input_size=8, output_size=6, depth=2, layer_type='dense', batchnorm=True,
+        activation='relu', weight_decay=0.1
+    )
+    _test_transformation(transformation=transformation)
+
+
+def test_resnet():
+    transformation = ResnetTransformation(
+        name='resnet', input_size=8, layer_sizes=(10, 6), weight_decay=0.1, depths=3
     )
     _test_transformation(transformation=transformation)
