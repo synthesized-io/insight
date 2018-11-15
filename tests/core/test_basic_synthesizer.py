@@ -15,7 +15,7 @@ def test_continuous_variable_generation():
         synthesizer.learn(num_iterations=10000, data=data)
         synthesized = synthesizer.synthesize(n=len(data))
     distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.2
+    assert distribution_distance < 0.3
 
 
 @pytest.mark.integration
@@ -26,7 +26,7 @@ def test_categorical_similarity_variable_generation():
         synthesizer.learn(num_iterations=10000, data=data)
         synthesized = synthesizer.synthesize(n=len(data))
     distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.2
+    assert distribution_distance < 0.3
 
 
 @pytest.mark.integration
@@ -37,4 +37,4 @@ def test_categorical_variable_generation():
         synthesizer.learn(num_iterations=10000, data=data)
         synthesized = synthesizer.synthesize(n=len(data))
     distribution_distance = ks_2samp(data['r'], synthesized['r'])[0]
-    assert distribution_distance < 0.2
+    assert distribution_distance < 0.3
