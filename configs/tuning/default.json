@@ -2,7 +2,7 @@
     {
         "name": "capacity",
         "type": "continuous",
-        "domain": [1.0, 3.0],
+        "domain": [1.0, 2.5],
         "transformations": ["pow", "int"]
     },
     {
@@ -13,7 +13,7 @@
     {
         "name": "batch_size",
         "type": "continuous",
-        "domain": [1.0, 3.0],
+        "domain": [1.0, 2.5],
         "transformations": ["pow", "int"]
     },
     {
