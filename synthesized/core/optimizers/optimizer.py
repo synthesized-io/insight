@@ -5,7 +5,7 @@ from ..module import Module
 
 class Optimizer(Module):
 
-    def __init__(self, name, algorithm='adam', learning_rate=3e-4, clip_gradients=1.0):
+    def __init__(self, name, algorithm='adam', learning_rate=3e-4, clip_gradients=None):
         super().__init__(name=name)
         self.algorithm = algorithm
         self.learning_rate = learning_rate

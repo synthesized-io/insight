@@ -1,3 +1,4 @@
+from math import log
 import tensorflow as tf
 
 from .value import Value
@@ -8,13 +9,11 @@ from ..module import Module
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, embedding_size, categories=None, pandas_category=False, similarity_based=False,
-        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
-        entropy_regularization=0.1
+        self, name, categories=None, capacity=None, embedding_size=None, pandas_category=False,
+        similarity_based=False, weight_decay=0.0, temperature=1.0, smoothing=0.1,
+        moving_average=True, similarity_regularization=0.1, entropy_regularization=0.1
     ):
         super().__init__(name=name)
-
-        self.embedding_size = embedding_size
 
         if categories is None:
             self.categories = None
@@ -25,8 +24,15 @@ class CategoricalValue(Value):
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
 
+        self.capacity = capacity
+        if embedding_size is None and self.num_categories is not None:
+            self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
+        else:
+            self.embedding_size = embedding_size
+
         self.pandas_category = pandas_category
         self.similarity_based = similarity_based
+        self.weight_decay = weight_decay
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
@@ -44,8 +50,9 @@ class CategoricalValue(Value):
         spec = super().specification()
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
-            similarity_based=self.similarity_based, temperature=self.temperature,
-            smoothing=self.smoothing, moving_average=self.moving_average,
+            similarity_based=self.similarity_based, weight_decay=self.weight_decay,
+            temperature=self.temperature, smoothing=self.smoothing,
+            moving_average=self.moving_average,
             similarity_regularization=self.similarity_regularization,
             entropy_regularization=self.entropy_regularization
         )
@@ -70,6 +77,8 @@ class CategoricalValue(Value):
         if self.categories is None:
             self.categories = sorted(data[self.name].unique())
             self.num_categories = len(self.categories)
+            if self.embedding_size is None:
+                self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
         elif sorted(data[self.name].unique()) != self.categories:
             raise NotImplementedError
 
@@ -97,11 +106,13 @@ class CategoricalValue(Value):
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
+        shape = (self.num_categories, self.embedding_size)
+        initializer = util.get_initializer(initializer='normal')
+        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.embeddings = tf.get_variable(
-            name='embeddings', shape=(self.num_categories, self.embedding_size), dtype=tf.float32,
-            initializer=util.initializers['normal'], regularizer=util.regularizers['l2'],
-            trainable=True, collections=None, caching_device=None, partitioner=None,
-            validate_shape=True, use_resource=None, custom_getter=None
+            name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
         )
         if self.moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(
@@ -173,7 +184,7 @@ class CategoricalValue(Value):
             loss = loss + similarity_loss
         if self.entropy_regularization > 0.0:
             probs = tf.nn.softmax(logits=x, axis=-1)
-            logprobs = tf.log(x=probs)
+            logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization

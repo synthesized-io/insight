@@ -12,7 +12,11 @@ from ..values import CategoricalValue, identify_value
 class BasicClassifier(Classifier):
 
     def __init__(
-        self, data, target_label=None, layers=(64, 64), embedding_size=32, batch_size=64
+        self, data, target_label=None,
+        # architecture
+        network='resnet',
+        # hyperparameters
+        capacity=64, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64
     ):
         super().__init__(name='classifier')
 
@@ -21,7 +25,11 @@ class BasicClassifier(Classifier):
         else:
             self.target_label = target_label
 
-        self.embedding_size = embedding_size
+        self.network_type = network
+        self.capacity = capacity
+        self.depth = depth
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.batch_size = batch_size
 
         self.values = list()
@@ -42,8 +50,9 @@ class BasicClassifier(Classifier):
                     input_size += value.input_size()
 
         self.encoder = self.add_module(
-            module='resnet', modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=layers
+            module=self.network_type, modules=transformation_modules, name='encoder',
+            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)],
+            weight_decay=1e-5
         )
 
         self.output = self.add_module(
@@ -54,14 +63,17 @@ class BasicClassifier(Classifier):
 
         # https://twitter.com/karpathy/status/801621764144971776  ;-)
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=3e-4,
+            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
             clip_gradients=1.0
         )
 
     def specification(self):
         spec = super().specification()
-        # TODO: values?
-        spec.update(encoder=self.encoder, batch_size=self.batch_size)
+        spec.update(
+            network=self.network_type, capacity=self.capacity, depth=self.depth,
+            learning_rate=self.learning_rate, weight_decay=self.weight_decay,
+            batch_size=self.batch_size
+        )
         return spec
 
     def get_value(self, name, dtype, data):

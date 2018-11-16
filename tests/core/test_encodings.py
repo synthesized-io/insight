@@ -13,10 +13,11 @@ def _test_encoding(encoding):
     initialize = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(fetches=initialize)
-        encoded = session.run(
+        encoded, loss = session.run(
             fetches=encode_output, feed_dict={encode_input: np.random.randn(4, 8)}
         )
         assert encoded.shape == (4, 6)
+        assert loss.shape == ()
         sampled = session.run(
             fetches=sample_output, feed_dict={sample_input: 4}
         )

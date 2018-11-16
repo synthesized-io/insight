@@ -6,7 +6,7 @@ from ..transformations import DenseTransformation
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=5.0):
+    def __init__(self, name, input_size, encoding_size, beta=None):  # 5.0
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 
@@ -16,7 +16,7 @@ class VariationalEncoding(Encoding):
         )
         self.stddev = self.add_module(
             module=DenseTransformation, name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'  # 'none'
+            output_size=self.encoding_size, batchnorm=False, activation='softplus'
         )
 
     def specification(self):
@@ -38,9 +38,11 @@ class VariationalEncoding(Encoding):
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
-            encoding_loss *= self.beta
-            tf.losses.add_loss(loss=encoding_loss, loss_collection=tf.GraphKeys.LOSSES)
-        return x
+            if self.beta is not None:
+                encoding_loss *= self.beta
+            return x, encoding_loss
+        else:
+            return x
 
     def tf_sample(self, n):
         x = tf.random_normal(

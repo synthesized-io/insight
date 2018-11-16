@@ -2,7 +2,6 @@ import base64
 import os
 from datetime import datetime
 
-import tensorflow as tf
 from sklearn.base import TransformerMixin
 
 from .module import Module
@@ -68,27 +67,3 @@ class Synthesizer(Module, TransformerMixin):
         assert y is None and not fit_params
         self.learn(iteration=fit_params['iterations'], data=X)
         return self
-
-    def tfrecords(self, data, path):
-        data = data.copy()
-        for value in self.values:
-            data = value.preprocess(data=data)
-        data = [
-            data[label].get_values() for value in self.values for label in value.trainable_labels()
-        ]
-        options = tf.python_io.TFRecordOptions(
-            compression_type=tf.python_io.TFRecordCompressionType.GZIP
-        )
-        with tf.python_io.TFRecordWriter(path=(path + '.tfrecords'), options=options) as writer:
-            for n in range(len(data[0])):
-                features = dict()
-                # feature_lists = dict()
-                i = 0
-                for value in self.values:
-                    for label in value.trainable_labels():
-                        features[label] = value.feature(x=data[i][n])
-                        i += 1
-                # record = tf.train.SequenceExample(context=tf.train.Features(feature=features), feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
-                record = tf.train.Example(features=tf.train.Features(feature=features))
-                serialized_record = record.SerializeToString()
-                writer.write(record=serialized_record)

@@ -13,8 +13,8 @@ from synthesized.core.classifiers import BasicClassifier
 print('Parse arguments...')
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', type=str, help="dataset name")
-parser.add_argument('-t', '--target', default=-1, help="target column")
 parser.add_argument('-i', '--iterations', type=int, help="training iterations")
+parser.add_argument('-t', '--target', default=-1, help="target column")
 parser.add_argument('-e', '--evaluation', type=int, default=0, help="evaluation frequency")
 parser.add_argument(
     '-c', '--classifier-iterations', type=int, default=1000, help="classifier training iterations"
@@ -55,7 +55,7 @@ print()
 
 
 print('Initialize synthesizer...')
-synthesizer = BasicSynthesizer(data=data)
+synthesizer = BasicSynthesizer(data=data, exclude_encoding_loss=True)
 print(repr(synthesizer))
 print()
 

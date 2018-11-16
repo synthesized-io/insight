@@ -276,7 +276,8 @@ class UtilityTesting:
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
-        sns.barplot(y='column', x='distance', data=df)
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
 
     def show_correlation_diffs(self, threshold=0.0):
         result = []

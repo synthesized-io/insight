@@ -82,7 +82,8 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative:
                 x = tf.maximum(x=x, y=0.001)
-            x = tf.log(x=(tf.exp(x=x) - 1))  # ???????????????????????????????????????
+            reversed_softplus = tf.log(x=tf.maximum(x=(tf.exp(x=x) - 1.0), y=1e-6))
+            x = tf.where(condition=(x < 10.0), x=reversed_softplus, y=x)
         x = tf.expand_dims(input=x, axis=1)
         return x
 
@@ -91,9 +92,8 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             x = tf.nn.softplus(features=x)
             if self.nonnegative:
-                x = tf.where(condition=(x >= 0.001), x=x, y=tf.zeros_like(
-                    tensor=x, dtype=tf.float32, optimize=True
-                ))
+                zeros = tf.zeros_like(tensor=x, dtype=tf.float32, optimize=True)
+                x = tf.where(condition=(x >= 0.001), x=x, y=zeros)
         return {self.name: x}
 
     def tf_loss(self, x, feed=None):

@@ -132,3 +132,4 @@ class Module(object):
 
     def __exit__(self, type, value, traceback):
         self.session.__exit__(type, value, traceback)
+        Module.placeholders = None
