@@ -130,9 +130,6 @@ for iteration, hyperparams in enumerate(iterator):
         print('avg KS closeness:', score)
         print()
 
-    from random import random
-    score = random()
-
     print('Update best hyperparameters...')
     for n, best_score in enumerate(best_scores):
         if best_score is None or score > best_score:
