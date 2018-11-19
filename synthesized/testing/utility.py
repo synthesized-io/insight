@@ -72,14 +72,14 @@ class UtilityTesting:
         for i, (col, dtype) in enumerate(self.dtypes.items()):
             ax = fig.add_subplot(len(self.dtypes), cols, i+1)
             if dtype == 'O':
-                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'])
+                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'])
                 ax.set_xlabel(col)
             else:
-                start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
-                # sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
+                start, end = np.percentile(self.df_test[col], [2.5, 97.5])  #TODO parametrize
+                # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
-                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
+                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
                 ax.set_xlabel(col)
             ax.legend()
 
@@ -271,8 +271,8 @@ class UtilityTesting:
 
     def show_distribution_distances(self):
         result = []
-        for col in self.df_orig.columns.values:
-            distance = ks_2samp(self.df_orig[col], self.df_synth[col])[0]
+        for col in self.df_test.columns.values:
+            distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
