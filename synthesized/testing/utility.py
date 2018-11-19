@@ -72,7 +72,7 @@ class UtilityTesting:
         for i, (col, dtype) in enumerate(self.dtypes.items()):
             ax = fig.add_subplot(len(self.dtypes), cols, i+1)
             if dtype == 'O':
-                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'])
+                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
                 ax.set_xlabel(col)
             else:
                 start, end = np.percentile(self.df_test[col], [2.5, 97.5])  #TODO parametrize
