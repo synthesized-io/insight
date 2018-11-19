@@ -79,7 +79,7 @@ class UtilityTesting:
                 # sns.distplot(self.df_orig[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
-                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
+                plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
                 ax.set_xlabel(col)
             ax.legend()
 
