@@ -29,9 +29,9 @@ def test_basic_normal():
     _test_encoding(encoding=encoding)
 
 
-def test_basic_uniform():
-    encoding = BasicEncoding(name='basic', input_size=8, encoding_size=6, sampling='uniform')
-    _test_encoding(encoding=encoding)
+# def test_basic_uniform():
+#     encoding = BasicEncoding(name='basic', input_size=8, encoding_size=6, sampling='uniform')
+#     _test_encoding(encoding=encoding)
 
 
 def test_variational():
