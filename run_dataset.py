@@ -116,7 +116,7 @@ with synthesizer:
         else:
             synthesizer.learn(num_iterations=args.evaluation, data=original.copy(), verbose=1000)
         print(datetime.now().strftime('%H:%M:%S'), flush=True)
-        synthesized = synthesizer.synthesize(n=10000)
+        synthesized = synthesizer.synthesize(n=100000)
 
         print('Synthetic classifier score...')
         with BasicClassifier(data=data, target_label=target) as classifier:

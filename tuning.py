@@ -92,7 +92,7 @@ for iteration, hyperparams in enumerate(iterator):
         #     synthesizer.learn(num_iterations=args.iterations, filenames=(tfrecords_filename,))
         # else:
         synthesizer.learn(num_iterations=args.iterations, data=original.copy())
-        synthesized = synthesizer.synthesize(n=10000)
+        synthesized = synthesizer.synthesize(n=100000)
         print(datetime.now().strftime('%H:%M:%S'), flush=True)
         print()
 
