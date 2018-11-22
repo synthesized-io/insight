@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import f1_score
+from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.model_selection import train_test_split
 
 from synthesized.core import BasicSynthesizer
@@ -109,8 +110,9 @@ for iteration, hyperparams in enumerate(iterator):
             estimator = GradientBoostingClassifier()
             estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
             test = synthesizer.preprocess(data=heldout.copy())
-            predictions = estimator.predict(X=test.drop(labels=target, axis=1))
-            score = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
+            score = roc_auc_scorer(
+                clf=estimator, X=test.drop(labels=target, axis=1), y=test[target]
+            )
             # else:
             #     estimator = GradientBoostingRegressor()
             #     estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
@@ -139,7 +141,7 @@ for iteration, hyperparams in enumerate(iterator):
         with BasicClassifier(data=data, target_label=target) as classifier:
             classifier.learn(num_iterations=args.classifier_iterations, data=synthesized)
             classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
-        score = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
+        score = f1_score(y_true=heldout[target], y_pred=classified[target], average='macro')
         print('synthesized classifier:', score)
         print()
 

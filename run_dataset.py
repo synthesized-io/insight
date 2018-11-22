@@ -3,7 +3,8 @@ from datetime import datetime
 import pandas as pd
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.model_selection import train_test_split
 from synthesized.core import BasicSynthesizer
 from synthesized.core.classifiers import BasicClassifier
@@ -77,7 +78,7 @@ accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
 precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
 recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
 f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
-roc_auc = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
+roc_auc = roc_auc_scorer(clf=estimator, X=test.drop(labels=target, axis=1), y=test[target])
 print('original:', accuracy, precision, recall, f1, roc_auc)
 print()
 
@@ -101,8 +102,7 @@ accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
 precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-roc_auc = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
-print('original classifier:', accuracy, precision, recall, f1, roc_auc)
+print('original classifier:', accuracy, precision, recall, f1)
 print()
 
 
@@ -152,7 +152,7 @@ try:
     precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
     recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
     f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
-    roc_auc = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
+    roc_auc = roc_auc_scorer(clf=estimator, X=test.drop(labels=target, axis=1), y=test[target])
     print('synthesized:', accuracy, precision, recall, f1, roc_auc)
 except ValueError as exc:
     print(exc)
@@ -173,6 +173,5 @@ accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
 precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-roc_auc = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
 print('synthesized classifier:', accuracy, precision, recall, f1, roc_auc)
 print()
