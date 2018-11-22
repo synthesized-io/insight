@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score
-from sklearn.metrics.scorer import roc_auc_scorer
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
 from synthesized.core import BasicSynthesizer
@@ -22,7 +20,7 @@ parser.add_argument('-t', '--target', default=-1, help="target column")
 parser.add_argument(
     '-y', '--hyperparams', type=str, default='default', help="hyperparameter specification"
 )
-parser.add_argument('-s', '--score', type=str, default='tf', help="score")
+parser.add_argument('-s', '--score', type=str, default='sklearn', help="score")
 parser.add_argument(
     '-v', '--values', default='random', help="random, or number of values for grid search"
 )
@@ -97,13 +95,22 @@ for iteration, hyperparams in enumerate(iterator):
         print()
 
     print('Synthetic score...')
-    if args.score == 'sklearn':
+    if args.score == 'ks-closeness':
+        synthesized = synthesizer.preprocess(data=synthesized)
+        data_ = synthesizer.preprocess(data.copy())
+        score = 1 - np.mean([ks_2samp(data_[col], synthesized[col])[0] for col in synthesized.columns])
+        print('avg KS closeness:', score)
+        print()
+
+    elif args.score == 'sklearn':
         try:
             train = synthesizer.preprocess(data=synthesized)
             # if self.dtypes[target] == 'O':
             estimator = GradientBoostingClassifier()
             estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-            score = roc_auc_scorer(estimator, X_test, y_test)
+            test = synthesizer.preprocess(data=heldout.copy())
+            predictions = estimator.predict(X=test.drop(labels=target, axis=1))
+            score = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
             # else:
             #     estimator = GradientBoostingRegressor()
             #     estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
@@ -132,19 +139,12 @@ for iteration, hyperparams in enumerate(iterator):
         with BasicClassifier(data=data, target_label=target) as classifier:
             classifier.learn(num_iterations=args.classifier_iterations, data=synthesized)
             classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
-        # accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
-        # precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-        # recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-        score = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
+        score = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
         print('synthesized classifier:', score)
         print()
 
-    elif args.score == 'ks-closeness':
-        synthesized = synthesizer.preprocess(data=synthesized)
-        data_ = synthesizer.preprocess(data.copy())
-        score = 1 - np.mean([ks_2samp(data_[col], synthesized[col])[0] for col in synthesized.columns])
-        print('avg KS closeness:', score)
-        print()
+    else:
+        raise NotImplementedError
 
     print('Update best hyperparameters...')
     for n, best_score in enumerate(best_scores):

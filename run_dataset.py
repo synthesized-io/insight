@@ -1,10 +1,9 @@
 import argparse
 from datetime import datetime
-import sys
 import pandas as pd
 from sklearn.dummy import DummyClassifier, DummyRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from synthesized.core import BasicSynthesizer
 from synthesized.core.classifiers import BasicClassifier
@@ -71,14 +70,15 @@ print()
 
 
 print('Original score...')
-estimator = LogisticRegression(solver='liblinear', multi_class='auto')
+estimator = GradientBoostingClassifier()
 estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
 predictions = estimator.predict(X=test.drop(labels=target, axis=1))
 accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
 precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
 recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
 f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
-print('original:', accuracy, precision, recall, f1)
+roc_auc = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
+print('original:', accuracy, precision, recall, f1, roc_auc)
 print()
 
 
@@ -101,7 +101,8 @@ accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
 precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-print('original classifier:', accuracy, precision, recall, f1)
+roc_auc = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
+print('original classifier:', accuracy, precision, recall, f1, roc_auc)
 print()
 
 
@@ -143,7 +144,7 @@ print()
 print('Synthetic score...')
 try:
     train = synthesizer.preprocess(data=synthesized.copy())
-    estimator = LogisticRegression(solver='liblinear', multi_class='auto')
+    estimator = GradientBoostingClassifier()
     estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
     test = synthesizer.preprocess(data=heldout.copy())
     predictions = estimator.predict(X=test.drop(labels=target, axis=1))
@@ -151,7 +152,8 @@ try:
     precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
     recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
     f1 = f1_score(y_true=test[target], y_pred=predictions, average='binary')
-    print('synthesized:', accuracy, precision, recall, f1)
+    roc_auc = roc_auc_score(y_true=test[target], y_score=predictions, average='macro')
+    print('synthesized:', accuracy, precision, recall, f1, roc_auc)
 except ValueError as exc:
     print(exc)
 print()
@@ -171,5 +173,6 @@ accuracy = accuracy_score(y_true=heldout[target], y_pred=classified[target])
 precision = precision_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 recall = recall_score(y_true=heldout[target], y_pred=classified[target], average='binary')
 f1 = f1_score(y_true=heldout[target], y_pred=classified[target], average='binary')
-print('synthesized classifier:', accuracy, precision, recall, f1)
+roc_auc = roc_auc_score(y_true=heldout[target], y_score=classified[target], average='macro')
+print('synthesized classifier:', accuracy, precision, recall, f1, roc_auc)
 print()
