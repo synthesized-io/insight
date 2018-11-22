@@ -106,6 +106,7 @@ class UtilityTesting:
 
             print('ROC AUC (orig):', orig_score)
             print('ROC AUC (synth):', synth_score)
+            return synth_score
         else:
             clf = clone(regressor)
             clf.fit(X, y)
@@ -115,8 +116,11 @@ class UtilityTesting:
             clf.fit(X_synth, y_synth)
             y_pred_synth = clf.predict(X_test)
 
-            print('RMSE (orig):', np.sqrt(mean_squared_error(y_test, y_pred_orig)))
-            print('RMSE (synth):', np.sqrt(mean_squared_error(y_test, y_pred_synth)))
+            orig_score = np.sqrt(mean_squared_error(y_test, y_pred_orig))
+            synth_score = np.sqrt(mean_squared_error(y_test, y_pred_synth))
+            print('RMSE (orig):', orig_score)
+            print('RMSE (synth):', synth_score)
+            return synth_score
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         dtypes = dict(self.dtypes)
