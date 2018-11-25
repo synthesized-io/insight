@@ -23,22 +23,43 @@ from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
 
+from synthesized.core.values import ContinuousValue
+from synthesized.core.values import CategoricalValue
+
+
 from .util import categorical_emd
 
 MAX_CATEGORIES = 50
+COLOR_ORIG = "#00AB26"
+COLOR_SYNTH = "#2794F3"
 
 
-class ColumnType(Enum):
-    CONTINUOUS = 1
-    CATEGORICAL = 2
+class DisplayType(Enum):
+    CATEGORICAL = 1
+    CATEGORICAL_SIMILARITY = 2
+    CONTINUOUS  = 3
 
+
+def detect_display_types(synthesizer, df):
+    result = {}
+    for name, dtype in zip(df.dtypes.axes[0], df.dtypes):
+        value = synthesizer.get_value(name=name, dtype=dtype, data=df)
+        if isinstance(value, ContinuousValue):
+            result[name] = DisplayType.CONTINUOUS
+        elif isinstance(value, CategoricalValue):
+            if value.similarity_based:
+                result[name] = DisplayType.CATEGORICAL_SIMILARITY
+            else:
+                result[name] = DisplayType.CATEGORICAL
+    return result
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        self.dtypes = detect_display_types(df_orig)
+        self.dtypes = detect_display_types(synthesizer, df_orig)
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
+
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
@@ -71,17 +92,25 @@ class UtilityTesting:
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.dtypes.items()):
             ax = fig.add_subplot(len(self.dtypes), cols, i+1)
-            if dtype == 'O':
-                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
-                ax.set_xlabel(col)
-            else:
+            if dtype == DisplayType.CATEGORICAL:
+                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde = False, hist = True, norm_hist = True)
+                sns.distplot(self.df_synth[col], color = COLOR_SYNTH, label = 'Synth', kde = False, hist = True, norm_hist = True)
+
+                #  plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
+             #   ax.set_xlabel(col)
+            elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
+                start, end = np.percentile(self.df_test[col], [2.5, 97.5])
+                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde = True, hist = True, norm_hist = True, kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_ORIG,'range': [start, end]})
+                sns.distplot(self.df_synth[col],color = COLOR_SYNTH, label = 'Synth',  kde = True, hist = True, norm_hist = True, kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_SYNTH ,'range': [start, end] } )
+            elif dtype == DisplayType.CONTINUOUS:
                 start, end = np.percentile(self.df_test[col], [2.5, 97.5])  #TODO parametrize
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
-                plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
-                ax.set_xlabel(col)
-            ax.legend()
+                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_ORIG,'range': [start, end]})
+                sns.distplot(self.df_synth[col],color = COLOR_SYNTH,label = 'Synth', kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_SYNTH ,'range': [start, end] } )
+                #plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
+            plt.legend()
 
     def improve_column(self, column, clf):
         X_columns = list(set(self.df_orig.columns.values) - {column})
@@ -283,7 +312,7 @@ class UtilityTesting:
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
 
-    def show_correlation_diffs(self, threshold=0.0):
+    def show_correlation_diffs(self, threshold= 0.0, report = False):
         result = []
         cols = list(self.df_orig.columns.values)
         for i in range(len(cols)):
@@ -291,12 +320,15 @@ class UtilityTesting:
                 if i < j:
                     corr1 = pearsonr(self.df_orig[cols[i]], self.df_orig[cols[j]])[0]
                     corr2 = pearsonr(self.df_synth[cols[i]], self.df_synth[cols[j]])[0]
-                    result.append({'pair': cols[i] + ' / ' + cols[j], 'diff': np.abs(corr2 - corr1)})
+                    result.append({'pair': cols[i] + ' / ' + cols[j], 'diff': corr2 - corr1})
         df = pd.DataFrame.from_records(result)
         print('Average diff:', df['diff'].mean())
-        df = df[df['diff'] > threshold]
+        df = df[np.abs(df['diff']) > threshold]
         df = df.sort_values(by='diff', ascending=False)
-        return df
+        corrs = [i["diff"] for i in result]
+        sns.distplot(corrs, color=COLOR_ORIG, label='Correlations Difference', kde=False, hist=True)
+        if report:
+            return df
 
     def debug_column(self, col):
         start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
@@ -304,20 +336,6 @@ class UtilityTesting:
         plt.legend()
 
 
-def detect_display_types(df):
-    result = {}
-    for col in df.columns.values:
-        kind = df[col].dtype.kind
-        if kind == 'b':
-            result[col] = 'O'
-        else:
-            num_data = len(df)
-            num_unique = df[col].nunique()
-            if num_unique <= sqrt(num_data) and num_unique <= MAX_CATEGORIES:
-                result[col] = 'O'
-            else:
-                result[col] = kind
-    return result
 
 
 def bin_edges(a):
