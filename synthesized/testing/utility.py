@@ -7,7 +7,6 @@
 from __future__ import division, print_function, absolute_import
 
 from enum import Enum
-from math import sqrt
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +36,7 @@ COLOR_SYNTH = "#2794F3"
 class DisplayType(Enum):
     CATEGORICAL = 1
     CATEGORICAL_SIMILARITY = 2
-    CONTINUOUS  = 3
+    CONTINUOUS = 3
 
 
 def detect_display_types(synthesizer, df):
@@ -53,13 +52,13 @@ def detect_display_types(synthesizer, df):
                 result[name] = DisplayType.CATEGORICAL
     return result
 
+
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
         self.dtypes = detect_display_types(synthesizer, df_orig)
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
-
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
@@ -91,25 +90,29 @@ class UtilityTesting:
     def show_distributions(self, figsize=(14, 40), cols=2):
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.dtypes.items()):
-            ax = fig.add_subplot(len(self.dtypes), cols, i+1)
+            ax = fig.add_subplot(len(self.dtypes), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
-                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde = False, hist = True, norm_hist = True)
-                sns.distplot(self.df_synth[col], color = COLOR_SYNTH, label = 'Synth', kde = False, hist = True, norm_hist = True)
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=False, hist=True, norm_hist=True)
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=False, hist=True, norm_hist=True)
 
-                #  plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
-             #   ax.set_xlabel(col)
+                # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
+                # ax.set_xlabel(col)
             elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
                 start, end = np.percentile(self.df_test[col], [2.5, 97.5])
-                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde = True, hist = True, norm_hist = True, kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_ORIG,'range': [start, end]})
-                sns.distplot(self.df_synth[col],color = COLOR_SYNTH, label = 'Synth',  kde = True, hist = True, norm_hist = True, kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_SYNTH ,'range': [start, end] } )
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=True, hist=True, norm_hist=True,
+                             kde_kws={'clip': (start, end)}, hist_kws={"color": COLOR_ORIG, 'range': [start, end]})
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=True, hist=True, norm_hist=True,
+                             kde_kws={'clip': (start, end)}, hist_kws={"color": COLOR_SYNTH, 'range': [start, end]})
             elif dtype == DisplayType.CONTINUOUS:
-                start, end = np.percentile(self.df_test[col], [2.5, 97.5])  #TODO parametrize
+                start, end = np.percentile(self.df_test[col], [2.5, 97.5])  # TODO parametrize
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
-                sns.distplot(self.df_test[col], color = COLOR_ORIG, label = 'Orig', kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_ORIG,'range': [start, end]})
-                sns.distplot(self.df_synth[col],color = COLOR_SYNTH,label = 'Synth', kde_kws={'clip': (start, end )}, hist_kws={"color" : COLOR_SYNTH ,'range': [start, end] } )
-                #plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde_kws={'clip': (start, end)},
+                             hist_kws={"color": COLOR_ORIG, 'range': [start, end]})
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde_kws={'clip': (start, end)},
+                             hist_kws={"color": COLOR_SYNTH, 'range': [start, end]})
+                # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
             plt.legend()
 
     def improve_column(self, column, clf):
@@ -312,7 +315,7 @@ class UtilityTesting:
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
 
-    def show_correlation_diffs(self, threshold= 0.0, report = False):
+    def show_correlation_diffs(self, threshold=0.0, report=False):
         result = []
         cols = list(self.df_orig.columns.values)
         for i in range(len(cols)):
@@ -334,8 +337,6 @@ class UtilityTesting:
         start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
         plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
         plt.legend()
-
-
 
 
 def bin_edges(a):
