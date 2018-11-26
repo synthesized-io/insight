@@ -111,9 +111,14 @@ class UtilityTesting:
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde_kws={'clip': (start, end)},
+                # workaround for kde failing on datasets with only one value
+                if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
+                    kde = False
+                else:
+                    kde = True
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={"color": COLOR_ORIG, 'range': [start, end]})
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde_kws={'clip': (start, end)},
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={"color": COLOR_SYNTH, 'range': [start, end]})
                 # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
             plt.legend()
