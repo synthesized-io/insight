@@ -94,15 +94,18 @@ class UtilityTesting:
             if dtype == DisplayType.CATEGORICAL:
                 sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=False, hist=True, norm_hist=True)
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=False, hist=True, norm_hist=True)
-
                 # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
                 # ax.set_xlabel(col)
             elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
-                start, end = np.percentile(self.df_test[col], [2.5, 97.5])
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=True, hist=True, norm_hist=True,
-                             kde_kws={'clip': (start, end)}, hist_kws={"color": COLOR_ORIG, 'range': [start, end]})
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=True, hist=True, norm_hist=True,
-                             kde_kws={'clip': (start, end)}, hist_kws={"color": COLOR_SYNTH, 'range': [start, end]})
+                # workaround for kde failing on datasets with only one value
+                if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
+                    kde = False
+                else:
+                    kde = True
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=kde, hist=True, norm_hist=True,
+                             hist_kws={"color": COLOR_ORIG})
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, hist=True, norm_hist=True,
+                             hist_kws={"color": COLOR_SYNTH})
             elif dtype == DisplayType.CONTINUOUS:
                 start, end = np.percentile(self.df_test[col], [2.5, 97.5])  # TODO parametrize
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
