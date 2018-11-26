@@ -55,7 +55,7 @@ def detect_display_types(synthesizer, df):
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        self.dtypes = detect_display_types(synthesizer, df_orig)
+        self.display_types = detect_display_types(synthesizer, df_orig)
         self.df_orig = synthesizer.preprocess(data=df_orig.copy())
         self.df_test = synthesizer.preprocess(data=df_test.copy())
         self.df_synth = synthesizer.preprocess(data=df_synth.copy())
@@ -89,8 +89,8 @@ class UtilityTesting:
 
     def show_distributions(self, figsize=(14, 40), cols=2):
         fig = plt.figure(figsize=figsize)
-        for i, (col, dtype) in enumerate(self.dtypes.items()):
-            ax = fig.add_subplot(len(self.dtypes), cols, i + 1)
+        for i, (col, dtype) in enumerate(self.display_types.items()):
+            ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
                 sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=False, hist=True, norm_hist=True)
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=False, hist=True, norm_hist=True)
@@ -127,7 +127,7 @@ class UtilityTesting:
         X, y = self.df_orig.drop(target, 1), self.df_orig[target]
         X_synth, y_synth = self.df_synth.drop(target, 1), self.df_synth[target]
         X_test, y_test = self.df_test.drop(target, 1), self.df_test[target]
-        if self.dtypes[target] == 'O':
+        if self.display_types[target] == DisplayType.CATEGORICAL:
             clf = clone(classifier)
             clf.fit(X, y)
             orig_score = roc_auc_scorer(clf, X_test, y_test)
@@ -155,7 +155,7 @@ class UtilityTesting:
             return synth_score
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
-        dtypes = dict(self.dtypes)
+        dtypes = dict(self.display_types)
         df_orig = self.df_orig.copy()
         df_test = self.df_test.copy()
         df_synth = self.df_synth.copy()
@@ -166,13 +166,13 @@ class UtilityTesting:
         y_orig_columns = {}
         for i, y_column in enumerate(y_columns):
             y_columns_new.append(y_column)
-            if dtypes[y_column] != 'O':
+            if dtypes[y_column] != DisplayType.CATEGORICAL:
                 categorical_y_column = y_column + ' (categorical reduction)'
                 edges = bin_edges(df_orig[y_column])
                 df_orig[categorical_y_column] = to_categorical(df_orig[y_column], edges)
                 df_test[categorical_y_column] = to_categorical(df_test[y_column], edges)
                 df_synth[categorical_y_column] = to_categorical(df_synth[y_column], edges)
-                dtypes[categorical_y_column] = 'O'
+                dtypes[categorical_y_column] = DisplayType.CATEGORICAL
                 y_columns_new.append(categorical_y_column)
                 y_orig_columns[categorical_y_column] = y_column
 
@@ -195,7 +195,7 @@ class UtilityTesting:
             X_orig_test = scaler.transform(X_orig_test)
             X_synth = scaler.transform(X_synth)
 
-            if dtypes[y_column] == 'O':
+            if dtypes[y_column] == DisplayType.CATEGORICAL:
                 estimator = classifier
                 dummy_estimator = DummyClassifier(strategy="prior")
             else:
@@ -209,7 +209,7 @@ class UtilityTesting:
             y_orig_pred = clone(estimator).fit(X_orig_train, y_orig_train).predict(X_orig_test)
             y_synth_pred = clone(estimator).fit(X_synth, y_synth).predict(X_orig_test)
 
-            if dtypes[y_column] == 'O':
+            if dtypes[y_column] == DisplayType.CATEGORICAL:
                 orig_error = 1 - accuracy_score(y_orig_test, y_orig_pred)
                 synth_error = 1 - accuracy_score(y_orig_test, y_synth_pred)
             else:
