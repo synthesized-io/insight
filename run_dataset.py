@@ -120,9 +120,7 @@ with synthesizer:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     for i in range(args.iterations // args.evaluation):
         if args.tfrecords:
-            synthesizer.learn(
-                num_iterations=args.evaluation, filenames=(tfrecords_filename,), verbose=1000
-            )
+            synthesizer.learn(num_iterations=args.evaluation, filenames=(tfrecords_filename,))
         else:
             synthesizer.learn(num_iterations=args.evaluation, data=original.copy(), verbose=1000)
         print(datetime.now().strftime('%H:%M:%S'), flush=True)
