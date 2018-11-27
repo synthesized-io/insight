@@ -270,9 +270,8 @@ class BasicSynthesizer(Synthesizer):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
-                do_logging = iteration == 0 or iteration + 1 == verbose // 2 or \
-                    iteration % verbose + 1 == verbose
-                if verbose > 0 and do_logging:
+                if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
+                        iteration % verbose + 1 == verbose):
                     batch = np.random.randint(num_data, size=1024)
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
