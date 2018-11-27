@@ -48,8 +48,8 @@ if not _check_license():
 
 class Synthesizer(Module, TransformerMixin):
 
-    def __init__(self, name):
-        super().__init__(name=name)
+    def __init__(self, name, summarizer=False):
+        super().__init__(name=name, summarizer=summarizer)
 
     def get_values(self):
         raise NotImplementedError

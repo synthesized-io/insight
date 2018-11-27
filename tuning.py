@@ -159,7 +159,7 @@ for iteration, hyperparams in enumerate(iterator):
     for n in range(10):
         if best_hyperparams[n] is None:
             break
-        str_hyperparams = ', '.join(
+        str_hyperparams = ','.join(
             '{}={}'.format(*hyparparam) for hyparparam in best_hyperparams[n].items()
         )
         print('{}: {} ({})'.format(n + 1, best_scores[n], str_hyperparams))

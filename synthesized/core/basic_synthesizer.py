@@ -14,7 +14,7 @@ from .values import identify_value
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data, exclude_encoding_loss=False,
+        self, data, exclude_encoding_loss=False, summarizer=False,
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
@@ -27,7 +27,7 @@ class BasicSynthesizer(Synthesizer):
         # identifier
         identifier_label=None
     ):
-        super().__init__(name='synthesizer')
+        super().__init__(name='synthesizer', summarizer=summarizer)
 
         self.exclude_encoding_loss = exclude_encoding_loss
 
@@ -264,7 +264,7 @@ class BasicSynthesizer(Synthesizer):
             for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                fetched = self.run(fetches=fetches, feed_dict=feed_dict)
+                fetched = self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
                 if verbose > 0 and iteration % verbose + 1 == verbose:
                     self.log_metrics(data, fetched, iteration)
 
@@ -277,12 +277,12 @@ class BasicSynthesizer(Synthesizer):
             fetches['optimized'] = self.optimized_fromfile
             if verbose == 0:
                 feed_dict = dict(num_iterations=num_iterations)
-                fetched = self.run(fetches=fetches, feed_dict=feed_dict)
+                fetched = self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
             else:
                 assert num_iterations % verbose == 0
                 for iteration in range(num_iterations // verbose):
                     feed_dict = dict(num_iterations=verbose)
-                    fetched = self.run(fetches=fetches, feed_dict=feed_dict)
+                    fetched = self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
                     self.log_metrics(data, fetched, iteration)
 
     def log_metrics(self, data, fetched, iteration):
