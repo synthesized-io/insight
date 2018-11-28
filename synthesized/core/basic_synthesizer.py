@@ -60,6 +60,9 @@ class BasicSynthesizer(Synthesizer):
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
+
+        self.loss_history = list()
+        self.ks_distance_history = list()
         print('value types:')
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
@@ -300,12 +303,21 @@ class BasicSynthesizer(Synthesizer):
                 for name in self.losses
             )
         ))
+        self.loss_history.append({name: fetched[name] for name in self.losses})
+
         synthesized = self.synthesize(10000)
         synthesized = self.preprocess(data=synthesized)
         dist_by_col = [(col, ks_2samp(data[col], synthesized[col].get_values())[0]) for col in data.keys()]
         avg_dist = np.mean([dist for (col, dist) in dist_by_col])
         dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
+        self.ks_distance_history.append(dict(dist_by_col))
+
+    def get_loss_history(self):
+        return pd.DataFrame.from_records(self.loss_history)
+
+    def get_ks_distance_history(self):
+        return pd.DataFrame.from_records(self.ks_distance_history)
 
     def synthesize(self, n):
         fetches = self.synthesized
