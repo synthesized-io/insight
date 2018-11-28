@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp
-from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import f1_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.model_selection import train_test_split
@@ -12,6 +12,8 @@ from sklearn.model_selection import train_test_split
 from synthesized.core import BasicSynthesizer
 from synthesized.core.classifiers import BasicClassifier
 from synthesized.tuning import HyperparamSpec
+
+NUM_RUNS = 3
 
 print('Parse arguments...')
 parser = argparse.ArgumentParser()
@@ -74,75 +76,62 @@ best_hyperparams = [None for _ in range(10)]
 print()
 
 
+def neg_ks_distance_score(synthesizer, synthesized):
+    synthesized = synthesizer.preprocess(data=synthesized)
+    data_ = synthesizer.preprocess(data.copy())
+    return -np.mean([ks_2samp(data_[col], synthesized[col])[0] for col in synthesized.columns])
+
+
+def sklearn_score(synthesizer, synthesized):
+    train = synthesizer.preprocess(data=synthesized)
+    estimator = GradientBoostingClassifier()
+    estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
+    test = synthesizer.preprocess(data=heldout.copy())
+    return roc_auc_scorer(
+        clf=estimator, X=test.drop(labels=target, axis=1), y=test[target]
+    )
+
+
+def tf_score(synthesizer, synthesized):
+    with BasicClassifier(data=data, target_label=target) as classifier:
+        classifier.learn(num_iterations=args.classifier_iterations, data=synthesized)
+        classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
+    return f1_score(y_true=heldout[target], y_pred=classified[target], average='macro')
+
+
+def pessimistic_score(hyperparams, n_runs, scorer_fn):
+    def _score():
+        with BasicSynthesizer(data=data, exclude_encoding_loss=True, **hyperparams) as synthesizer:
+            print(datetime.now().strftime('%H:%M:%S'), 'synthesis...', flush=True)
+            synthesizer.learn(num_iterations=args.iterations, data=original.copy())
+            synthesized = synthesizer.synthesize(n=10000)
+            print(datetime.now().strftime('%H:%M:%S'), 'computing score...', flush=True)
+            result = scorer_fn(synthesizer, synthesized)
+            print(datetime.now().strftime('%H:%M:%S'), 'synthetic score:', result, flush=True)
+            print()
+            return result
+    return min([_score() for _ in range(n_runs)])
+
+
 for iteration, hyperparams in enumerate(iterator):
     print('==============================')
     print('        iteration {:>4}        '.format(iteration))
     print('==============================')
-
-    print('Initialize synthesizer...')
-    synthesizer = BasicSynthesizer(data=data, exclude_encoding_loss=True, **hyperparams)
-    print(repr(synthesizer))
     print()
 
-    print('Synthesis...')
-    with synthesizer:
-        print(datetime.now().strftime('%H:%M:%S'), flush=True)
-        # if args.tfrecords:
-        #     synthesizer.learn(num_iterations=args.iterations, filenames=(tfrecords_filename,))
-        # else:
-        synthesizer.learn(num_iterations=args.iterations, data=original.copy())
-        synthesized = synthesizer.synthesize(n=100000)
-        print(datetime.now().strftime('%H:%M:%S'), flush=True)
-        print()
-
-    print('Synthetic score...')
-    if args.score == 'ks-closeness':
-        synthesized = synthesizer.preprocess(data=synthesized)
-        data_ = synthesizer.preprocess(data.copy())
-        score = 1 - np.mean([ks_2samp(data_[col], synthesized[col])[0] for col in synthesized.columns])
-        print('avg KS closeness:', score)
+    if args.score == 'neg_ks_distance':
+        score = pessimistic_score(hyperparams, NUM_RUNS, neg_ks_distance_score)
+        print('neg KS-distance:', score)
         print()
 
     elif args.score == 'sklearn':
-        try:
-            train = synthesizer.preprocess(data=synthesized)
-            # if self.dtypes[target] == 'O':
-            estimator = GradientBoostingClassifier()
-            estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-            test = synthesizer.preprocess(data=heldout.copy())
-            score = roc_auc_scorer(
-                clf=estimator, X=test.drop(labels=target, axis=1), y=test[target]
-            )
-            # else:
-            #     estimator = GradientBoostingRegressor()
-            #     estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-            #     y_pred_orig = estimator.predict(X_test)
-            #
-            #     clf.fit(X_synth, y_synth)
-            #     y_pred_synth = clf.predict(X_test)
-            #     np.sqrt(mean_squared_error(y_test, y_pred_orig))
-
-            # estimator = LogisticRegression(solver='liblinear', multi_class='auto')
-            # estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-            # test = synthesizer.preprocess(data=heldout.copy())
-            # predictions = estimator.predict(X=test.drop(labels=target, axis=1))
-            # # accuracy = accuracy_score(y_true=test[target], y_pred=predictions)
-            # # precision = precision_score(y_true=test[target], y_pred=predictions, average='binary')
-            # # recall = recall_score(y_true=test[target], y_pred=predictions, average='binary')
-            # score = f1_score(y_true=test[target], y_pred=predictions, average='binary')
-
-            print('synthesized:', score)
-        except ValueError as exc:
-            score = 0.0
-            print(exc)
+        score = pessimistic_score(hyperparams, NUM_RUNS, sklearn_score)
+        print('sklearn (roc_auc):', score)
         print()
 
     elif args.score == 'tf':
-        with BasicClassifier(data=data, target_label=target) as classifier:
-            classifier.learn(num_iterations=args.classifier_iterations, data=synthesized)
-            classified = classifier.classify(data=heldout.drop(labels=target, axis=1))
-        score = f1_score(y_true=heldout[target], y_pred=classified[target], average='macro')
-        print('synthesized classifier:', score)
+        score = pessimistic_score(hyperparams, NUM_RUNS, tf_score)
+        print('tf (f1):', score)
         print()
 
     else:
