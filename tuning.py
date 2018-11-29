@@ -118,6 +118,8 @@ for iteration, hyperparams in enumerate(iterator):
     print('        iteration {:>4}        '.format(iteration))
     print('==============================')
     print()
+    print('params:', ', '.join('{}={}'.format(*h) for h in hyperparams.items()))
+    print()
 
     if args.score == 'neg_ks_distance':
         score = pessimistic_score(hyperparams, NUM_RUNS, neg_ks_distance_score)
