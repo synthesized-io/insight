@@ -7,7 +7,6 @@ from ..module import Module
 class ContinuousValue(Value):
 
     def __init__(self, name, positive=None, nonnegative=None, integer=None):
-        assert positive is None or nonnegative is None
         super().__init__(name=name)
         self.positive = positive
         self.nonnegative = nonnegative
