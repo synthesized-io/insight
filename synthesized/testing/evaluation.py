@@ -39,5 +39,6 @@ class Evaluation:
             for name, vals in self.metrics.items():
                 data[name + '_mean'] = np.mean(vals)
                 data[name + '_std'] = np.std(vals)
+                data[name + '_count'] = len(vals)
             json.dump(data, f)
             f.write('\n')
