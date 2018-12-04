@@ -1,12 +1,13 @@
 {
   "james": {
     "source": "default.ipynb",
-    "data": "data/credit.csv",
+    "data": "data/credit_with_categoricals.csv",
     "num_iterations": 5000,
     "num_passes": 3,
-    "params": [
-      {"exclude_encoding_loss": true, "learning_rate": 1e-5},
-    ],
+    "params": {
+      "exclude_encoding_loss": true,
+      "learning_rate": 1e-5
+    },
     "target": "SeriousDlqin2yrs"
   }
 }

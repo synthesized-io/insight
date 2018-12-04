@@ -32,8 +32,8 @@ class Evaluation:
         with open(self.metrics_file, 'a') as f:
             data = OrderedDict()
             data['evaluation'] = self.evaluation
-            data['branch'] = os.environ['BRANCH']
-            data['revision'] = os.environ['REVISION']
+            data['branch'] = os.environ.get('BRANCH', 'n/a')
+            data['revision'] = os.environ.get('REVISION', 'n/a')
             data['timestamp'] = timestamp
             data['config'] = json.dumps(self.config)
             for name, vals in self.metrics.items():
