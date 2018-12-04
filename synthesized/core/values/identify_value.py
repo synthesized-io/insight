@@ -5,8 +5,10 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
+from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .person import PersonValue
+from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
 
@@ -57,24 +59,34 @@ def identify_value(module, name, dtype, data):
         num_data = len(data)
         num_unique = data[name].nunique()
 
-        if num_unique <= log(num_data):
+        if num_unique <= 2.5 * log(num_data):
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
+
+        elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
+            value = module.add_module(module=ProbabilityValue, name=name)
+
+        elif dtype.kind == 'f':
+            value = module.add_module(module=ContinuousValue, name=name)
+
+        elif False:
+            value = module.add_module(module=GaussianValue, name=name)
+
+        elif False:
+            value = module.add_module(module=PowerlawValue, name=name)
+
+        elif dtype.kind == 'i' and num_unique <= num_data / 3:
+            # positive since implicit floor
+            value = module.add_module(
+                module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
+            )
 
         elif num_unique <= sqrt(num_data):
             value = module.add_module(
                 module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
             )
 
-        elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
-            value = module.add_module(module=ProbabilityValue, name=name)
-
         elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
             value = module.add_module(module=EnumerationValue, name=name)
-
-        elif dtype.kind == 'f' or dtype.kind == 'i':
-            value = module.add_module(
-                module=ContinuousValue, name=name, integer=(dtype.kind == 'i')
-            )
 
         else:
             value = module.add_module(module=SamplingValue, name=name)

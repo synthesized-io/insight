@@ -97,7 +97,6 @@ class BasicSynthesizer(Synthesizer):
             activation='none'
         )
 
-        # https://twitter.com/karpathy/status/801621764144971776  ;-)
         self.optimizer = self.add_module(
             module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
             clip_gradients=1.0

@@ -8,6 +8,11 @@ class GaussianValue(ContinuousValue):
         self.mean = mean
         self.stddev = stddev
 
+    def __str__(self):
+        string = super().__str__()
+        string += '-gaussian'
+        return string
+
     def specification(self):
         spec = super().specification()
         spec.update(mean=self.mean, stddev=self.stddev)
@@ -20,12 +25,11 @@ class GaussianValue(ContinuousValue):
         if self.stddev is None:
             self.stddev = data[self.name].std()
 
-    def tf_input_tensor(self, feed=None):
-        x = super().tf_input_tensor(feed=feed)
-        x = (x - self.mean) / self.stddev
-        return x
+    def preprocess(self, data):
+        data = (data - self.mean) / self.stddev
+        return super().preprocess(data=data)
 
-    def tf_output_tensors(self, x):
-        x = super().tf_output_tensors(x=x)[self.name]
-        x = x * self.stddev + self.mean
-        return {self.name: x}
+    def postprocess(self, data):
+        data = super().postprocess(data=data)
+        data = data * self.stddev + self.mean
+        return data
