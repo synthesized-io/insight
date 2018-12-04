@@ -6,6 +6,7 @@
 
 from __future__ import division, print_function, absolute_import
 
+import math
 from enum import Enum
 
 import matplotlib.pyplot as plt
@@ -331,6 +332,8 @@ class UtilityTesting:
                 if i < j:
                     corr1 = pearsonr(self.df_orig[cols[i]], self.df_orig[cols[j]])[0]
                     corr2 = pearsonr(self.df_synth[cols[i]], self.df_synth[cols[j]])[0]
+                    if math.isnan(corr1) or math.isnan(corr2):
+                        continue
                     result.append({'pair': cols[i] + ' / ' + cols[j], 'diff': corr2 - corr1})
         df = pd.DataFrame.from_records(result)
         print('Average diff:', df['diff'].mean())
