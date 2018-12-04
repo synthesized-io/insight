@@ -6,12 +6,19 @@ from collections import OrderedDict
 
 import numpy as np
 
+CONFIGS_PATH = 'configs/evaluation/default.json'
+
 
 class Evaluation:
-    def __init__(self):
-        self.evaluation = os.environ['EVALUATION']
-        self.metrics_path = os.environ['METRICS_PATH']
-        self.config = json.loads(os.environ['CONFIG'], object_pairs_hook=collections.OrderedDict)
+    def __init__(self, evaluation=None, metrics_file='../metrics.jsonl'):
+        if evaluation:
+            self.evaluation = evaluation
+        else:
+            self.evaluation = os.environ['EVALUATION']
+        self.metrics_file = metrics_file
+        with open(CONFIGS_PATH, 'r') as f:
+            configs = json.load(f, object_pairs_hook=collections.OrderedDict)
+            self.config = configs[evaluation]
         self.metrics = OrderedDict()
 
     def __setitem__(self, key, value):
@@ -22,7 +29,7 @@ class Evaluation:
 
     def write_metrics(self):
         timestamp = datetime.datetime.now().isoformat()
-        with open(self.metrics_path, 'a') as f:
+        with open(self.metrics_file, 'a') as f:
             data = OrderedDict()
             data['evaluation'] = self.evaluation
             data['branch'] = os.environ['BRANCH']

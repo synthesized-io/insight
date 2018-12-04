@@ -1,14 +1,12 @@
-[
-  {
-    "evaluation": "james",
+{
+  "james": {
     "source": "default.ipynb",
     "data": "data/credit.csv",
     "num_iterations": 5000,
     "num_passes": 3,
     "params": [
       {"exclude_encoding_loss": true, "learning_rate": 1e-5},
-      {"exclude_encoding_loss": true, "learning_rate": 1e-6}
     ],
     "target": "SeriousDlqin2yrs"
   }
-]
+}
