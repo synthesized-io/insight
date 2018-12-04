@@ -66,7 +66,10 @@ def identify_value(module, name, dtype, data):
             value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind == 'f':
-            value = module.add_module(module=ContinuousValue, name=name)
+            value = module.add_module(
+                module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
+                nonnegative=(data[name] >= 0.0).all()
+            )
 
         elif False:
             value = module.add_module(module=GaussianValue, name=name)

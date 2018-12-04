@@ -8,7 +8,6 @@ class ContinuousValue(Value):
 
     def __init__(self, name, positive=None, nonnegative=None, integer=None):
         assert positive is None or nonnegative is None
-        assert not (positive is True and nonnegative is True)
         super().__init__(name=name)
         self.positive = positive
         self.nonnegative = nonnegative
@@ -80,7 +79,7 @@ class ContinuousValue(Value):
     def tf_input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed
         if self.positive or self.nonnegative:
-            if self.nonnegative:
+            if self.nonnegative and not self.positive:
                 x = tf.maximum(x=x, y=0.001)
             reversed_softplus = tf.log(x=tf.maximum(x=(tf.exp(x=x) - 1.0), y=1e-6))
             x = tf.where(condition=(x < 10.0), x=reversed_softplus, y=x)
@@ -91,7 +90,7 @@ class ContinuousValue(Value):
         x = tf.squeeze(input=x, axis=1)
         if self.positive or self.nonnegative:
             x = tf.nn.softplus(features=x)
-            if self.nonnegative:
+            if self.nonnegative and not self.positive:
                 zeros = tf.zeros_like(tensor=x, dtype=tf.float32, optimize=True)
                 x = tf.where(condition=(x >= 0.001), x=x, y=zeros)
         return {self.name: x}
