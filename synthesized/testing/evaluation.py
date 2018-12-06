@@ -6,19 +6,29 @@ from collections import OrderedDict
 
 import numpy as np
 
-CONFIGS_PATH = 'configs/evaluation/default.json'
+EVALUATION_NAME = 'EVALUATION_NAME'
+EVALUATION_CONFIG_PATH = 'EVALUATION_CONFIG_PATH'
+EVALUATION_BRANCH = 'EVALUATION_BRANCH'
+EVALUATION_REVISION = 'EVALUATION_REVISION'
 
 
 class Evaluation:
-    def __init__(self, evaluation=None, metrics_file='../metrics.jsonl'):
-        if evaluation:
-            self.evaluation = evaluation
+    def __init__(self, config_path=None, name=None, metrics_file='../metrics.jsonl'):
+        if name:
+            self.name = name
         else:
-            self.evaluation = os.environ['EVALUATION']
+            self.name = os.environ[EVALUATION_NAME]
+
+        if config_path:
+            self.config_path = config_path
+        else:
+            self.config_path = os.environ[EVALUATION_CONFIG_PATH]
+
         self.metrics_file = metrics_file
-        with open(CONFIGS_PATH, 'r') as f:
+
+        with open(self.config_path, 'r') as f:
             configs = json.load(f, object_pairs_hook=collections.OrderedDict)
-            self.config = configs[evaluation]
+            self.config = configs['instances'][name]
         self.metrics = OrderedDict()
 
     def __setitem__(self, key, value):
@@ -31,9 +41,9 @@ class Evaluation:
         timestamp = datetime.datetime.now().isoformat()
         with open(self.metrics_file, 'a') as f:
             data = OrderedDict()
-            data['evaluation'] = self.evaluation
-            data['branch'] = os.environ.get('BRANCH', 'n/a')
-            data['revision'] = os.environ.get('REVISION', 'n/a')
+            data['evaluation'] = self.name
+            data['branch'] = os.environ.get(EVALUATION_BRANCH, 'n/a')
+            data['revision'] = os.environ.get(EVALUATION_REVISION, 'n/a')
             data['timestamp'] = timestamp
             data['config'] = json.dumps(self.config)
             for name, vals in self.metrics.items():
