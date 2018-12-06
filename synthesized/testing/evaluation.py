@@ -30,6 +30,8 @@ class Evaluation:
             configs = json.load(f, object_pairs_hook=collections.OrderedDict)
             print(configs['instances'])
             print(name)
+            if True:
+                raise Exception('Name: ' + name)
             print(configs['instances'][name])
             self.config = configs['instances'][name]
         self.metrics = OrderedDict()
