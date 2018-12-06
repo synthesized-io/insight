@@ -28,12 +28,7 @@ class Evaluation:
 
         with open(self.config_path, 'r') as f:
             configs = json.load(f, object_pairs_hook=collections.OrderedDict)
-            print(configs['instances'])
-            print(name)
-            if True:
-                raise Exception('Name: ' + name)
-            print(configs['instances'][name])
-            self.config = configs['instances'][name]
+            self.config = configs['instances'][self.name]
         self.metrics = OrderedDict()
 
     def __setitem__(self, key, value):
