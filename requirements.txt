@@ -8,3 +8,5 @@ seaborn~=0.9.0
 plotly~=3.4.0
 names~=0.3.0
 pyemd~=0.5.1
+flask~=1.0.2
+flask_restful~=0.3.6
