@@ -4,7 +4,7 @@
     "synthetic": {
       "num_iterations": 5000,
       "params": {
-        "exclude_encoding_loss": true
+        "exclude_encoding_loss": false
       }
     }
   }
