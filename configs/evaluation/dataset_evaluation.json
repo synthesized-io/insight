@@ -3,6 +3,7 @@
   "instances": {
     "james": {
       "data": "data/credit_with_categoricals.csv",
+      "ignore_columns": [],
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
@@ -12,6 +13,7 @@
     },
     "sweden_motor_insurance": {
       "data": "data/insurance/sweden_motor_insurance/sweden_motor_insurance.csv",
+      "ignore_columns": [],
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
@@ -21,6 +23,7 @@
     },
     "uci_creditcard_default": {
       "data": "data/uci/creditcard_default.csv",
+      "ignore_columns": ["ID"],
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
