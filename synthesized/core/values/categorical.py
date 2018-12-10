@@ -82,7 +82,7 @@ class CategoricalValue(Value):
         elif sorted(data[self.name].unique()) != self.categories:
             raise NotImplementedError
 
-    def preprocess(self, data):
+    def encode(self, data):
         if not isinstance(self.categories, int):
             data.loc[:, self.name] = data[self.name].map(arg=self.categories.index)
         data.loc[:, self.name] = data[self.name].astype(dtype='int64')

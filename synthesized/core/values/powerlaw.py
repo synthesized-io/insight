@@ -29,10 +29,12 @@ class PowerlawValue(ContinuousValue):
             self.offset = 0.0
 
     def preprocess(self, data):
+        # bug?
         data = ((data - self.offset) / self.scale) ** self.exponent
         return super().preprocess(data=data)
 
     def postprocess(self, data):
+        # bug?
         data = super().postprocess(data=data)
         data = (data ** (1.0 / self.exponent)) * self.scale + self.offset
         return data

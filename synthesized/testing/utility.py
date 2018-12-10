@@ -57,9 +57,9 @@ def detect_display_types(synthesizer, df):
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
         self.display_types = detect_display_types(synthesizer, df_orig)
-        self.df_orig = synthesizer.preprocess(data=df_orig.copy())
-        self.df_test = synthesizer.preprocess(data=df_test.copy())
-        self.df_synth = synthesizer.preprocess(data=df_synth.copy())
+        self.df_orig = synthesizer.encode(data=df_orig.copy())
+        self.df_test = synthesizer.encode(data=df_test.copy())
+        self.df_synth = synthesizer.encode(data=df_synth.copy())
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
