@@ -11,7 +11,24 @@ from .person import PersonValue
 from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
+from .gumbel import GumbelDistrValue
+from .gamma import GammaDistrValue
+from .weibull import WeibullDistrValue
 
+from scipy.stats import beta, ks_2samp
+from scipy.stats import gamma
+from scipy.stats import gumbel_r
+from scipy.stats import weibull_min
+
+CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min]
+PROB_DISTRIBUTIONS = [beta]
+
+
+DIST_TO_VALUE_MAPPING = {
+    'gamma' : GammaDistrValue,
+    'gumbel_r' : GumbelDistrValue,
+    'weibull_min' : WeibullDistrValue
+}
 
 def identify_value(module, name, dtype, data):
 
@@ -66,10 +83,26 @@ def identify_value(module, name, dtype, data):
             value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind == 'f':
-            value = module.add_module(
-                module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
-                nonnegative=(data[name] >= 0.0).all()
-            )
+            distance = 1
+            for distr in CONT_DISTRIBUTIONS:
+                params = distr.fit(data[name])
+                if len(params) == 2:
+                    ghost_sample = distr.rvs(params[0], params[1], size=len(data[name]))
+                elif len(params) == 3:
+                    ghost_sample = distr.rvs(params[0], params[1], params[2], size=len(data[name]))
+                distance_distr = ks_2samp(data[name], ghost_sample)[0]
+                if distance_distr < distance:
+                    distance = distance_distr
+                    distr_fitted = [distr, params]
+            if distance < 0.1:
+                value = module.add_module(
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted[0].name], params=distr_fitted[1], name=name)
+            else:
+                # default continuous value fit
+                value = module.add_module(
+                    module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
+                    nonnegative=(data[name] >= 0.0).all()
+                )
 
         elif False:
             value = module.add_module(module=GaussianValue, name=name)

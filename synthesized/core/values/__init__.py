@@ -10,6 +10,10 @@ from .person import PersonValue
 from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
+from .beta import BetaDistrValue
+from .gamma import GammaDistrValue
+from .gumbel import GumbelDistrValue
+from .weibull import WeibullDistrValue
 from .value import Value
 
 
@@ -24,5 +28,11 @@ value_modules = dict(
     person=PersonValue,
     powerlaw=PowerlawValue,
     orobability=ProbabilityValue,
+    beta =BetaDistrValue,
+    gamma=GammaDistrValue,
+    gumbel_r=GumbelDistrValue,
+    weibull_min=WeibullDistrValue,
+    probability=ProbabilityValue,
     sampling=SamplingValue
 )
+
