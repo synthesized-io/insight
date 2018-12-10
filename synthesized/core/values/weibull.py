@@ -30,11 +30,11 @@ class WeibullDistrValue(ContinuousValue):
             self.location = 1.
 
     def preprocess(self, data):
+        data = super().preprocess(data=data)
         data[self.name] = data[self.name].apply(lambda x: norm.ppf(weibull_min.cdf(x, self.shape, self.location, self.scale)))
         data = data[data != float('inf')].dropna()
-        return super().preprocess(data=data)
+        return data
 
     def postprocess(self, data):
-        data = super().postprocess(data=data)
         data[self.name] = data[self.name].apply(lambda x : weibull_min.ppf(norm.cdf(x), self.shape, self.location, self.scale))
-        return data
+        return super().postprocess(data=data)

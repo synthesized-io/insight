@@ -28,15 +28,15 @@ class GumbelDistrValue(ContinuousValue):
             self.location = 1.
             self.scale = 1.
 
+    def encode(self, data):
+        return super().encode(data=data)
+
     def preprocess(self, data):
+        data = super().preprocess(data=data)
         data[self.name] = data[self.name].apply(lambda x : norm.ppf(gumbel_r.cdf(x, self.location, self.scale)))
         data = data[data != float('inf')].dropna()
-     #   print(data[self.name][:10])
-        return  super().preprocess(data=data)
+        return data
 
     def postprocess(self, data):
-        data = super().postprocess(data=data)
-        print(self.location, self.scale)
         data[self.name] = data[self.name].apply(lambda x : gumbel_r.ppf(norm.cdf(x), self.location, self.scale))
-     #   print(data[self.name][:10])
-        return data
+        return super().postprocess(data=data)

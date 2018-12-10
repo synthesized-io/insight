@@ -54,7 +54,7 @@ class ContinuousValue(Value):
         elif self.integer and data[self.name].dtype.kind != 'i':
             raise NotImplementedError
 
-    def preprocess(self, data):
+    def encode(self, data):
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         return data
 

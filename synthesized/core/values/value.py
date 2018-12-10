@@ -34,8 +34,12 @@ class Value(Module):
     def extract(self, data):
         pass
 
-    def preprocess(self, data):
+
+    def encode(self, data):
         return data
+
+    def preprocess(self, data):
+        return self.encode(data)
 
     def postprocess(self, data):
         return data
