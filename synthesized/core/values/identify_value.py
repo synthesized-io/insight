@@ -77,7 +77,7 @@ def identify_value(module, name, dtype, data):
         elif False:
             value = module.add_module(module=PowerlawValue, name=name)
 
-        elif dtype.kind == 'i' and num_unique <= num_data / 3:
+        elif dtype.kind == 'i':
             # positive since implicit floor
             value = module.add_module(
                 module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
