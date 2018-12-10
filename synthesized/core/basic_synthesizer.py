@@ -14,7 +14,7 @@ from .values import identify_value
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data, exclude_encoding_loss=False,
+        self, data, exclude_encoding_loss=False, summarizer=False,
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
@@ -27,7 +27,7 @@ class BasicSynthesizer(Synthesizer):
         # identifier
         identifier_label=None
     ):
-        super().__init__(name='synthesizer')
+        super().__init__(name='synthesizer', summarizer=summarizer)
 
         self.exclude_encoding_loss = exclude_encoding_loss
 
@@ -97,7 +97,6 @@ class BasicSynthesizer(Synthesizer):
             activation='none'
         )
 
-        # https://twitter.com/karpathy/status/801621764144971776  ;-)
         self.optimizer = self.add_module(
             module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
             clip_gradients=1.0
@@ -265,32 +264,35 @@ class BasicSynthesizer(Synthesizer):
                 label: data[label].get_values() for value in self.values
                 for label in value.trainable_labels()
             }
-            fetches = dict(self.losses)
-            fetches['loss'] = self.loss
-            fetches['optimized'] = self.optimized
+            fetches = self.optimized
+            if verbose > 0:
+                verbose_fetches = dict(self.losses)
+                verbose_fetches['loss'] = self.loss
             for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-                if verbose > 0 and iteration % verbose + 1 == verbose:
+                self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+                if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
+                        iteration % verbose + 1 == verbose):
+                    batch = np.random.randint(num_data, size=1024)
+                    feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+                    fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
                     self.log_metrics(data, fetched, iteration)
 
         else:
+            if verbose > 0:
+                raise NotImplementedError
             fetches = self.iterator.initializer
             feed_dict = dict(filenames=filenames)
             self.run(fetches=fetches, feed_dict=feed_dict)
-            fetches = dict(self.losses_fromfile)
-            fetches['loss'] = self.loss_fromfile
-            fetches['optimized'] = self.optimized_fromfile
-            if verbose == 0:
-                feed_dict = dict(num_iterations=num_iterations)
-                fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-            else:
-                assert num_iterations % verbose == 0
-                for iteration in range(num_iterations // verbose):
-                    feed_dict = dict(num_iterations=verbose)
-                    fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-                    self.log_metrics(data, fetched, iteration)
+            fetches = self.optimized_fromfile
+            feed_dict = dict(num_iterations=num_iterations)
+            self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+            # assert num_iterations % verbose == 0
+            # for iteration in range(num_iterations // verbose):
+            #     feed_dict = dict(num_iterations=verbose)
+            #     fetched = self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+            #     self.log_metrics(data, fetched, iteration)
 
     def log_metrics(self, data, fetched, iteration):
         print('\niteration: {}'.format(iteration + 1))

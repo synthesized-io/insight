@@ -5,9 +5,11 @@ class Module(object):
 
     placeholders = None
 
-    def __init__(self, name, submodules=()):
+    def __init__(self, name, summarizer=False):
         self.name = name
-        self.submodules = list(submodules)
+        self.summarizer = summarizer
+
+        self.submodules = list()
         self.placeholders = None
         self.initialized = False
 
@@ -93,43 +95,62 @@ class Module(object):
         self.graph = tf.Graph()
         self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
         with self.graph.as_default():
-            self.initialize()
-            initialize = tf.global_variables_initializer()
-            # self.summary_writer = tf.contrib.summary.create_file_writer(
-            #     logdir='logs', max_queue=None, flush_millis=None, filename_suffix=None, name=None
-            # )
-            # with self.summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
-            #     self.initialize()
-            #     initialize = (tf.global_variables_initializer(), self.summary_writer.init())
-                # graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
-                # graph_str = tf.constant(
-                #     value=graph_def.SerializeToString(), dtype=tf.string, shape=(), name=None,
-                #     verify_shape=False
-                # )
-                # graph_summary = tf.contrib.summary.graph(
-                #     param=graph_str, step=self.global_step, name=None
-                # )
+
+            if self.summarizer:
+                with tf.name_scope(name='summarizer', default_name=None, values=None):
+                    self.summarizer = tf.contrib.summary.create_file_writer(
+                        logdir=('summaries_' + self.name), max_queue=None, flush_millis=10000,
+                        filename_suffix=None
+                    )
+
+                with self.summarizer.as_default():  # tf.contrib.summary.always_record_summaries():
+                    self.initialize()
+
+                    with tf.name_scope(name='initialization', default_name=None, values=None):
+                        summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
+                        assert len(summarizer_init) == 1
+                        initialization = (tf.global_variables_initializer(), summarizer_init[0])
+                        self.summarizer_close = self.summarizer.close()
+                        graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
+                        graph_str = tf.constant(
+                            value=graph_def.SerializeToString(), dtype=tf.string, shape=(),
+                            verify_shape=False
+                        )
+                        graph_summary = tf.contrib.summary.graph(
+                            param=graph_str, step=self.global_step
+                        )
+
+            else:
+                self.summarizer = None
+                self.initialize()
+                initialization = tf.global_variables_initializer()
+
         self.graph.finalize()
         self.placeholders = Module.placeholders
         Module.placeholders = None
-        # self.summary_writer = tf.summary.FileWriter(
-        #     logdir='logs', graph=self.graph, max_queue=10, flush_secs=120, filename_suffix=None
-        # )
+        self.summaries = tf.contrib.summary.all_summary_ops()
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
-        self.run(fetches=initialize)  # , feed_dict={name: () for name in self.placeholders})
-        # self.session.run(fetches=graph_summary, feed_dict=None, options=None, run_metadata=None)
-        # with self.summary_writer.as_default():
-        #     tf.contrib.summary.initialize(graph=self.graph, session=self.session)
+        self.run(fetches=initialization)
+        if self.summarizer is not None:
+            self.run(fetches=graph_summary)
         return self
 
-    def run(self, fetches, feed_dict=None):
+    def run(self, fetches, feed_dict=None, summarize=False):
         if feed_dict is not None:
             feed_dict = {self.placeholders[name]: value for name, value in feed_dict.items()}
-        return self.session.run(
-            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-        )
+        if summarize and self.summarizer is not None:
+            fetches = (fetches, self.summaries)
+            return self.session.run(
+                fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
+            )[0]
+        else:
+            return self.session.run(
+                fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
+            )
 
     def __exit__(self, type, value, traceback):
+        if self.summarizer is not None:
+            self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
         Module.placeholders = None
