@@ -1,20 +1,18 @@
 from .continuous import ContinuousValue
 from scipy.stats import norm
 from scipy.stats import gumbel_r
-import numpy as np
 
 
 class GumbelDistrValue(ContinuousValue):
 
-    def __init__(self, name, params = None):
-        super().__init__(name=name, positive=False)
+    def __init__(self, name, params=None):
+        super().__init__(name=name)
         self.params = params
         self.location = params[0]
         self.scale = params[1]
 
     def __str__(self):
         string = super().__str__()
-        string += '-gumbel'
         return string
 
     def specification(self):
@@ -23,7 +21,6 @@ class GumbelDistrValue(ContinuousValue):
         return spec
 
     def extract(self, data):
-        super().extract(data=data)
         if self.params is None:
             self.location = 1.
             self.scale = 1.
@@ -33,10 +30,15 @@ class GumbelDistrValue(ContinuousValue):
 
     def preprocess(self, data):
         data = super().preprocess(data=data)
-        data[self.name] = data[self.name].apply(lambda x : norm.ppf(gumbel_r.cdf(x, self.location, self.scale)))
-        data = data[data != float('inf')].dropna()
+        data[self.name] = norm.ppf(gumbel_r.cdf(data[self.name], self.location, self.scale))
+        data = data.dropna()
+        data = data[data[self.name] != float('inf')]
+        data = data[data[self.name] != float('-inf')]
         return data
 
     def postprocess(self, data):
-        data[self.name] = data[self.name].apply(lambda x : gumbel_r.ppf(norm.cdf(x), self.location, self.scale))
+        data[self.name] = gumbel_r.ppf(norm.cdf(data[self.name]), self.location, self.scale)
+        data = data.dropna()
+        data = data[data[self.name] != float('inf')]
+        data = data[data[self.name] != float('-inf')]
         return super().postprocess(data=data)
