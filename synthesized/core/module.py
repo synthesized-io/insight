@@ -89,6 +89,21 @@ class Module(object):
         else:
             raise NotImplementedError
 
+    # def add_summary(self, name, tensor):
+    #     # name = '{}-{}'.format(self.name, name)
+    #     shape = tuple(tensor.get_shape().as_list())
+    #     if shape == () or shape == (-1):
+    #         summary = tf.contrib.summary.scalar(name=name, tensor=tensor, family=None, step=None)
+
+    #     elif shape == (1,) or shape == (-1, 1):
+    #         tensor = tf.squeeze(input=tensor, axis=-1)
+    #         summary = tf.contrib.summary.scalar(name=name, tensor=tensor, family=None, step=None)
+
+    #     else:
+    #         summary = tf.contrib.summary.histogram(name=name, tensor=tensor, family=None, step=None)
+
+    #     self.summaries[name] = summary
+
     def __enter__(self):
         assert Module.placeholders is None
         Module.placeholders = dict()
@@ -103,7 +118,8 @@ class Module(object):
                         filename_suffix=None
                     )
 
-                with self.summarizer.as_default():  # tf.contrib.summary.always_record_summaries():
+                # tf.contrib.summary.record_summaries_every_n_global_steps(n=100, global_step=None)
+                with self.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
                     self.initialize()
 
                     with tf.name_scope(name='initialization', default_name=None, values=None):
@@ -128,7 +144,6 @@ class Module(object):
         self.graph.finalize()
         self.placeholders = Module.placeholders
         Module.placeholders = None
-        self.summaries = tf.contrib.summary.all_summary_ops()
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
@@ -136,18 +151,12 @@ class Module(object):
             self.run(fetches=graph_summary)
         return self
 
-    def run(self, fetches, feed_dict=None, summarize=False):
+    def run(self, fetches, feed_dict=None):
         if feed_dict is not None:
             feed_dict = {self.placeholders[name]: value for name, value in feed_dict.items()}
-        if summarize and self.summarizer is not None:
-            fetches = (fetches, self.summaries)
-            return self.session.run(
-                fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-            )[0]
-        else:
-            return self.session.run(
-                fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-            )
+        return self.session.run(
+            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
+        )
 
     def __exit__(self, type, value, traceback):
         if self.summarizer is not None:

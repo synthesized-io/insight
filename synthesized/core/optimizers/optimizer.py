@@ -29,11 +29,17 @@ class Optimizer(Module):
         else:
             raise NotImplementedError
 
-    def tf_optimize(self, loss):
+    def tf_optimize(self, loss, gradient_norms=False):
         grads_and_vars = self.optimizer.compute_gradients(
             loss=loss, var_list=None, aggregation_method=None, colocate_gradients_with_ops=False,
             grad_loss=None  # gate_gradients=GATE_OP
         )
+        if gradient_norms:
+            gradient_norms = dict()
+            for grad, var in grads_and_vars:
+                gradient_norms[var.name] = tf.norm(
+                    tensor=grad, ord='euclidean', axis=None, keepdims=None
+                )
         if self.clip_gradients is not None:
             for n in range(len(grads_and_vars)):
                 grad, var = grads_and_vars[n]
@@ -42,4 +48,7 @@ class Optimizer(Module):
                 )
                 grads_and_vars[n] = (clipped_grad, var)
         optimized = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars, global_step=None)
-        return optimized
+        if gradient_norms is False:
+            return optimized
+        else:
+            return optimized, gradient_norms
