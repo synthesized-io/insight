@@ -34,7 +34,6 @@ class Value(Module):
     def extract(self, data):
         pass
 
-
     def encode(self, data):
         return data
 

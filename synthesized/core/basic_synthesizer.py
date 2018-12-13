@@ -114,7 +114,6 @@ class BasicSynthesizer(Synthesizer):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    # not needed?
     def encode(self, data):
         for value in self.values:
             data = value.encode(data=data)
