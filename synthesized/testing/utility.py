@@ -108,8 +108,8 @@ class UtilityTesting:
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, hist=True, norm_hist=True,
                              hist_kws={"color": COLOR_SYNTH})
             elif dtype == DisplayType.CONTINUOUS:
-                perecntiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
-                start, end = np.percentile(self.df_test[col], perecntiles)
+                percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+                start, end = np.percentile(self.df_test[col], percentiles)
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
