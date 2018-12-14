@@ -21,6 +21,8 @@ If you do so, please notify colleagues and provide a reason for that.
 * Create a branch for the feature.
 * If you want results be evaluated add `experiment` to the name.
 * Push logical steps of the tasks as separate commits with meaningful messages.
+* Work considered done when you found evidence that change has a positive effect.
+Check evaluation, perform more detailed analysis if needed.
 * When work is done create a Pull Request and ask somebody to review it.
 * If pull request is created, the feature is considered finished and other people can review it.
 * If there is a need to get early feedback for a change before work is done it's fine to create
