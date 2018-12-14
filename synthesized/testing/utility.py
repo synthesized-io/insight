@@ -88,7 +88,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_orig, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_distributions(self, figsize=(14, 40), cols=2):
+    def show_distributions(self, remove_outliers=0.0, figsize=(14, 40), cols=2):
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
@@ -108,7 +108,8 @@ class UtilityTesting:
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, hist=True, norm_hist=True,
                              hist_kws={"color": COLOR_SYNTH})
             elif dtype == DisplayType.CONTINUOUS:
-                start, end = np.percentile(self.df_test[col], [2.5, 97.5])  # TODO parametrize
+                perecntiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+                start, end = np.percentile(self.df_test[col], perecntiles)
                 # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
                 # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
                 # ax.set(xlim=(start, end))
