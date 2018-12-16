@@ -30,19 +30,15 @@ class GammaDistrValue(ContinuousValue):
 
     def preprocess(self, data):
         data = super().preprocess(data=data)
-        print(self.shape, self.location, self.scale)
         data[self.name] = norm.ppf(gamma.cdf(data[self.name], self.shape, self.location, self.scale))
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
-        print(data[self.name].head(10))
         return data
 
     def postprocess(self, data):
-        print(self.shape, self.location, self.scale)
         data[self.name] = gamma.ppf(norm.cdf(data[self.name]),  self.shape, self.location, self.scale)
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
-        print(data[self.name].head(10))
         return super().postprocess(data=data)
