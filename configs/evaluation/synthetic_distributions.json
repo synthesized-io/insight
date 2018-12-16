@@ -2,7 +2,7 @@
   "source": "evaluation/synthetic_distributions.ipynb",
   "instances": {
     "synthetic": {
-      "num_iterations": 5000,
+      "num_iterations": 20000,
       "params": {
         "exclude_encoding_loss": true
       }
