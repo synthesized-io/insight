@@ -1,16 +1,15 @@
 from .continuous import ContinuousValue
 from scipy.stats import norm
-from scipy.stats import gamma
+from scipy.stats import gilbrat
 
 
-class GammaDistrValue(ContinuousValue):
+class GilbratDistrValue(ContinuousValue):
 
     def __init__(self, name, params=None):
         super().__init__(name=name)
         self.params = params
         self.shape = params[0]
         self.location = params[1]
-        self.scale = params[2]
 
     def __str__(self):
         string = super().__str__()
@@ -18,7 +17,7 @@ class GammaDistrValue(ContinuousValue):
 
     def specification(self):
         spec = super().specification()
-        spec.update(shape=self.shape, location=self.location, scale=self.scale)
+        spec.update(shape=self.shape, location=self.location)
         return spec
 
     def extract(self, data):
@@ -26,12 +25,11 @@ class GammaDistrValue(ContinuousValue):
         if self.params is None:
             self.shape = 1.
             self.scale = 1.
-            self.location = 1.
 
     def preprocess(self, data):
         data = super().preprocess(data=data)
-        print(self.shape, self.location, self.scale)
-        data[self.name] = norm.ppf(gamma.cdf(data[self.name], self.shape, self.location, self.scale))
+        print(self.shape, self.location)
+        data[self.name] = norm.ppf(gilbrat.cdf(data[self.name], self.shape, self.location))
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
@@ -39,8 +37,8 @@ class GammaDistrValue(ContinuousValue):
         return data
 
     def postprocess(self, data):
-        print(self.shape, self.location, self.scale)
-        data[self.name] = gamma.ppf(norm.cdf(data[self.name]),  self.shape, self.location, self.scale)
+        print(self.shape, self.location)
+        data[self.name] = gilbrat.ppf(norm.cdf(data[self.name]),  self.shape, self.location)
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
