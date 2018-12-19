@@ -18,7 +18,7 @@ from .weibull import WeibullDistrValue
 
 from scipy.stats import ks_2samp, gamma, gumbel_r, weibull_min, gilbrat
 
-MIN_FIT_DISTANCE = 0.35
+MIN_FIT_DISTANCE = 0.1
 CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min, gilbrat]
 DIST_TO_VALUE_MAPPING = {
     'gamma': GammaDistrValue,
@@ -91,7 +91,6 @@ def identify_value(module, name, dtype, data):
                     distr_fitted = [distr, params]
 
             if distance < MIN_FIT_DISTANCE:
-                print(distance)
                 value = module.add_module(
                     module=DIST_TO_VALUE_MAPPING[distr_fitted[0].name], name=name, params=distr_fitted[1]
                 )
