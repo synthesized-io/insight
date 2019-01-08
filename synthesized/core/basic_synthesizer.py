@@ -187,8 +187,8 @@ class BasicSynthesizer(Synthesizer):
             summaries.append(tf.contrib.summary.scalar(
                 name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
             ))
-        with tf.control_dependencies(control_inputs=[optimized] + summaries):
-            optimized = self.global_step.assign_add(delta=1, use_locking=False, read_value=False)
+        with tf.control_dependencies(control_inputs=([optimized] + summaries)):
+            optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
         return losses, loss, optimized
 
     def tf_initialize(self):
