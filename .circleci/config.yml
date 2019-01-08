@@ -17,7 +17,7 @@ jobs:
 
     working_directory: ~/repo
     environment:
-      SYNTHESIZED_KEY: EE6B-6720-67A2-32F3-3138-2D31-322D-B531
+      SYNTHESIZED_KEY: EE6B-6720-67A2-32F3-3139-2DF3-5D2D-B5F3
 
     steps:
       - checkout
