@@ -12,20 +12,19 @@ from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .gumbel import GumbelDistrValue
+from .gilbrat import GilbratDistrValue
 from .gamma import GammaDistrValue
 from .weibull import WeibullDistrValue
 
-from scipy.stats import ks_2samp
-from scipy.stats import gamma
-from scipy.stats import gumbel_r
-from scipy.stats import weibull_min
+from scipy.stats import ks_2samp, gamma, gumbel_r, weibull_min, gilbrat
 
 MIN_FIT_DISTANCE = 0.1
-CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min]
+CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min, gilbrat]
 DIST_TO_VALUE_MAPPING = {
     'gamma': GammaDistrValue,
     'gumbel_r': GumbelDistrValue,
-    'weibull_min': WeibullDistrValue
+    'weibull_min': WeibullDistrValue,
+    'gilbrat': GilbratDistrValue
 }
 
 
@@ -81,7 +80,7 @@ def identify_value(module, name, dtype, data):
         elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
             value = module.add_module(module=ProbabilityValue, name=name)
 
-        elif dtype.kind == 'f':
+        elif dtype.kind == 'f' or dtype.kind == 'i':
             distance = 1
             for distr in CONT_DISTRIBUTIONS:
                 params = distr.fit(data[name])
@@ -90,15 +89,20 @@ def identify_value(module, name, dtype, data):
                 if distance_distr < distance:
                     distance = distance_distr
                     distr_fitted = [distr, params]
+
             if distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
                     module=DIST_TO_VALUE_MAPPING[distr_fitted[0].name], name=name, params=distr_fitted[1]
                 )
-            else:
+            elif dtype.kind == 'f':
                 # default continuous value fit
                 value = module.add_module(
                     module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
                     nonnegative=(data[name] >= 0.0).all()
+                )
+            elif dtype.kind == 'i':
+                value = module.add_module(
+                    module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
                 )
 
         elif False:
@@ -106,12 +110,6 @@ def identify_value(module, name, dtype, data):
 
         elif False:
             value = module.add_module(module=PowerlawValue, name=name)
-
-        elif dtype.kind == 'i':
-            # positive since implicit floor
-            value = module.add_module(
-                module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
-            )
 
         elif num_unique <= sqrt(num_data):
             value = module.add_module(
