@@ -15,12 +15,14 @@ from .gumbel import GumbelDistrValue
 from .gilbrat import GilbratDistrValue
 from .gamma import GammaDistrValue
 from .weibull import WeibullDistrValue
+from .uniform import UniformDistrValue
 
-from scipy.stats import ks_2samp, gamma, gumbel_r, weibull_min, gilbrat
+from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm
 
 MIN_FIT_DISTANCE = 0.1
-CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min, gilbrat]
+CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat]
 DIST_TO_VALUE_MAPPING = {
+    'uniform': UniformDistrValue,
     'gamma': GammaDistrValue,
     'gumbel_r': GumbelDistrValue,
     'weibull_min': WeibullDistrValue,
@@ -77,22 +79,21 @@ def identify_value(module, name, dtype, data):
         if num_unique <= 2.5 * log(num_data):
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
 
-        elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
-            value = module.add_module(module=ProbabilityValue, name=name)
+        # elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
+        #     value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
-            distance = 1
+            min_distance = 1
             for distr in CONT_DISTRIBUTIONS:
                 params = distr.fit(data[name])
-                ghost_sample = distr.rvs(*params, size=len(data[name]))
-                distance_distr = ks_2samp(data[name], ghost_sample)[0]
-                if distance_distr < distance:
-                    distance = distance_distr
-                    distr_fitted = [distr, params]
-
-            if distance < MIN_FIT_DISTANCE:
+                transformed = norm.ppf(distr.cdf(data[name], *params))
+                norm_dist, _ = kstest(transformed, 'norm')
+                if norm_dist < min_distance:
+                    min_distance = norm_dist
+                    distr_fitted, params_fitted = distr, params
+            if min_distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
-                    module=DIST_TO_VALUE_MAPPING[distr_fitted[0].name], name=name, params=distr_fitted[1]
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, params=params_fitted
                 )
             elif dtype.kind == 'f':
                 # default continuous value fit
