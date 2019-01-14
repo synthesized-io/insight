@@ -7,7 +7,7 @@
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
-        "exclude_encoding_loss": true
+        "exclude_encoding_loss": false
       },
       "target": "SeriousDlqin2yrs"
     },
@@ -17,7 +17,7 @@
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
-        "exclude_encoding_loss": true
+        "exclude_encoding_loss": false
       },
       "target": "Payment"
     },
@@ -27,7 +27,7 @@
       "num_iterations": 5000,
       "num_passes": 3,
       "params": {
-        "exclude_encoding_loss": true
+        "exclude_encoding_loss": false
       },
       "target": "default payment next month"
     }
