@@ -18,7 +18,7 @@ class BasicSynthesizer(Synthesizer):
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=64,
+        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=None,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -82,7 +82,7 @@ class BasicSynthesizer(Synthesizer):
 
         self.encoding = self.add_module(
             module=self.encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.capacity
+            input_size=self.encoder.size(), encoding_size=self.capacity, beta=encoding_beta
         )
 
         self.decoder = self.add_module(
