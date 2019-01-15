@@ -64,7 +64,7 @@ class ContinuousValue(Value):
     def preprocess(self, data):
         data = super().preprocess(data)
         # TODO: mb removal makes learning more stable (?), an investigation required
-        # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
+        data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
         return data
 
     def postprocess(self, data):
