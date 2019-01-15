@@ -9,7 +9,6 @@ from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .person import PersonValue
 from .powerlaw import PowerlawValue
-from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .gumbel import GumbelDistrValue
 from .gilbrat import GilbratDistrValue
@@ -19,6 +18,8 @@ from .uniform import UniformDistrValue
 
 from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm
 
+REMOVE_OUTLIERS_PCT = 1.0
+MAX_FIT_DISTANCE = 1.0
 MIN_FIT_DISTANCE = 0.1
 CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat]
 DIST_TO_VALUE_MAPPING = {
@@ -83,10 +84,11 @@ def identify_value(module, name, dtype, data):
         #     value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
-            min_distance = 1
+            min_distance = MAX_FIT_DISTANCE
+            column_cleaned = ContinuousValue.remove_outliers(data, name, pct=REMOVE_OUTLIERS_PCT)[name]
             for distr in CONT_DISTRIBUTIONS:
-                params = distr.fit(data[name])
-                transformed = norm.ppf(distr.cdf(data[name], *params))
+                params = distr.fit(column_cleaned)
+                transformed = norm.ppf(distr.cdf(column_cleaned, *params))
                 norm_dist, _ = kstest(transformed, 'norm')
                 if norm_dist < min_distance:
                     min_distance = norm_dist
