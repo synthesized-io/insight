@@ -4,7 +4,7 @@
     "james": {
       "data": "data/credit_with_categoricals.csv",
       "ignore_columns": [],
-      "num_iterations": 5000,
+      "num_iterations": 2500,
       "num_passes": 3,
       "params": {
         "exclude_encoding_loss": false
