@@ -22,6 +22,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
+import sklearn
 
 from synthesized.core.values import ContinuousValue
 from synthesized.core.values import CategoricalValue
@@ -138,6 +139,7 @@ class UtilityTesting:
         X_synth, y_synth = self.df_synth.drop(target, 1), self.df_synth[target]
         X_test, y_test = self.df_test.drop(target, 1), self.df_test[target]
         if self.display_types[target] == DisplayType.CATEGORICAL:
+            print('sklearn version', sklearn.__version__)
             clf = clone(classifier)
             clf.fit(X, y)
             orig_score = roc_auc_scorer(clf, X_test, y_test)
