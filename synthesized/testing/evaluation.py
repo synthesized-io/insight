@@ -30,6 +30,7 @@ class Evaluation:
         with open(self.config_path, 'r') as f:
             configs = json.load(f, object_pairs_hook=collections.OrderedDict)
             self.config = configs['instances'][self.name]
+            print('config', self.config)
         self.metrics = OrderedDict()
 
     def __setitem__(self, key, value):
