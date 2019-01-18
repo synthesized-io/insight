@@ -18,7 +18,7 @@ class Evaluation:
             self.name = name
         else:
             self.name = os.environ[EVALUATION_NAME]
-        print('evaluating', name)
+        print('evaluating', self.name)
 
         if config_path:
             self.config_path = config_path
