@@ -76,7 +76,7 @@ class Module(object):
                 if kwargs.get(key, value) != value:
                     raise ValueError
                 kwargs[key] = value
-            module = module.pop('module')
+            module = kwargs.pop('module')
             return self.add_module(module=module, modules=modules, **kwargs)
         elif isinstance(module, str):
             if modules is None or module not in modules:

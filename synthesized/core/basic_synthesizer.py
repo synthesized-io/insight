@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -56,13 +58,15 @@ class BasicSynthesizer(Synthesizer):
         # date
         self.date_value = None
 
+        # history
+        self.loss_history = list()
+        self.ks_distance_history = list()
+
         self.values = list()
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
 
-        self.loss_history = list()
-        self.ks_distance_history = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
             if value is not None:
@@ -159,17 +163,9 @@ class BasicSynthesizer(Synthesizer):
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
-        reg_losses = tf.losses.get_regularization_losses(scope=None)
-        if len(reg_losses) > 0:
-            regularization_loss = tf.add_n(inputs=reg_losses)
-            summaries.append(tf.contrib.summary.scalar(
-                name='regularization-loss', tensor=regularization_loss, family=None, step=None
-            ))
-            losses = dict(encoding=encoding_loss, regularization=regularization_loss)
-        else:
-            losses = dict(encoding=encoding_loss)
-        if self.exclude_encoding_loss:
-            losses.pop('encoding')
+        losses = OrderedDict()
+        if not self.exclude_encoding_loss:
+            losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
             for label in value.trainable_labels():
                 loss = value.loss(x=x, feed=feed.get(value.name))
@@ -178,7 +174,14 @@ class BasicSynthesizer(Synthesizer):
                     summaries.append(tf.contrib.summary.scalar(
                         name=(label + '-loss'), tensor=loss, family=None, step=None
                     ))
-        loss = tf.add_n(inputs=[losses[name] for name in sorted(losses)])
+        reg_losses = tf.losses.get_regularization_losses(scope=None)
+        if len(reg_losses) > 0:
+            regularization_loss = tf.add_n(inputs=reg_losses)
+            summaries.append(tf.contrib.summary.scalar(
+                name='regularization-loss', tensor=regularization_loss, family=None, step=None
+            ))
+            losses['regularization'] = regularization_loss
+        loss = tf.add_n(inputs=list(losses.values()))
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -286,7 +289,6 @@ class BasicSynthesizer(Synthesizer):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
-        # TODO: increment global step
         if filenames is None:
             data = self.preprocess(data=data.copy())
             num_data = len(data)
