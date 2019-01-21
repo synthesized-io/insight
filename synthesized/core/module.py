@@ -4,6 +4,7 @@ import tensorflow as tf
 class Module(object):
 
     placeholders = None
+    global_step = None
 
     def __init__(self, name, summarizer=False):
         self.name = name
@@ -108,7 +109,7 @@ class Module(object):
         assert Module.placeholders is None
         Module.placeholders = dict()
         self.graph = tf.Graph()
-        self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
+        Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
         with self.graph.as_default():
 
             if self.summarizer:

@@ -5,7 +5,7 @@ from scipy.stats import norm, weibull_min
 class WeibullDistrValue(ContinuousValue):
 
     def __init__(self, name, params=None):
-        super().__init__(name=name, positive=True)
+        super().__init__(name=name)
         self.params = params
         self.shape = params[0]
         self.location = params[1]
