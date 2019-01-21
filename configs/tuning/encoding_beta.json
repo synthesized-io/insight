@@ -1,0 +1,8 @@
+[
+  {
+    "name": "encoding_beta",
+    "type": "continuous",
+    "domain": [-4.0, 0.0],
+    "transformations": ["pow"]
+  }
+]

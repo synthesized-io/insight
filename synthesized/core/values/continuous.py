@@ -2,6 +2,9 @@ import tensorflow as tf
 
 from .value import Value
 from ..module import Module
+import numpy as np
+
+REMOVE_OUTLIERS_PCT = 0.5
 
 
 class ContinuousValue(Value):
@@ -58,6 +61,12 @@ class ContinuousValue(Value):
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         return data
 
+    def preprocess(self, data):
+        data = super().preprocess(data)
+        # TODO: mb removal makes learning more stable (?), an investigation required
+        # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
+        return data
+
     def postprocess(self, data):
         if self.integer:
             data.loc[:, self.name] = data[self.name].astype(dtype='int32')
@@ -111,3 +120,12 @@ class ContinuousValue(Value):
             loss_collection=tf.GraphKeys.LOSSES
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         return loss
+
+    @staticmethod
+    def remove_outliers(data, name, pct):
+        percentiles = [pct / 2., 100 - pct / 2.]
+        start, end = np.percentile(data[name], percentiles)
+        data = data[data[name] != float('nan')]
+        data = data[data[name] != float('inf')]
+        data = data[data[name] != float('-inf')]
+        return data[(data[name] > start) & (data[name] < end)]
