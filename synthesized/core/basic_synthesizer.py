@@ -325,12 +325,13 @@ class BasicSynthesizer(Synthesizer):
     def synthesize(self, n):
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
+        columns = [label for value in self.values for label in value.trainable_labels()]
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-        synthesized = pd.DataFrame.from_dict(synthesized)
+        synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         feed_dict = {'num_synthesize': 1024}
         for k in range(n // 1024):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
-            other = pd.DataFrame.from_dict(other)
+            other = pd.DataFrame.from_dict(other)[columns]
             synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
