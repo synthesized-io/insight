@@ -5,8 +5,8 @@ from scipy.stats import gumbel_r
 
 class GumbelDistrValue(ContinuousValue):
 
-    def __init__(self, name, params=None):
-        super().__init__(name=name)
+    def __init__(self, name, integer=None, params=None):
+        super().__init__(name=name, integer=integer)
         self.params = params
         self.location = params[0]
         self.scale = params[1]

@@ -95,7 +95,7 @@ def identify_value(module, name, dtype, data):
                     distr_fitted, params_fitted = distr, params
             if min_distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
-                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, params=params_fitted
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, integer=dtype.kind == 'i', params=params_fitted
                 )
             elif dtype.kind == 'f':
                 # default continuous value fit
