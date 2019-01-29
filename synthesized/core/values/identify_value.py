@@ -20,7 +20,7 @@ from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, 
 
 REMOVE_OUTLIERS_PCT = 1.0
 MAX_FIT_DISTANCE = 1.0
-MIN_FIT_DISTANCE = 0.1
+MIN_FIT_DISTANCE = 0.15
 CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat]
 DIST_TO_VALUE_MAPPING = {
     'uniform': UniformDistrValue,
