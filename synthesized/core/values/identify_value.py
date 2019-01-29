@@ -15,16 +15,18 @@ from .gilbrat import GilbratDistrValue
 from .gamma import GammaDistrValue
 from .weibull import WeibullDistrValue
 from .uniform import UniformDistrValue
+from .lognorm import LognormDistrValue
 
-from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm
+from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm, lognorm
 
 REMOVE_OUTLIERS_PCT = 1.0
 MAX_FIT_DISTANCE = 1.0
 MIN_FIT_DISTANCE = 0.15
-CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat]
+CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat, lognorm]
 DIST_TO_VALUE_MAPPING = {
     'uniform': UniformDistrValue,
     'gamma': GammaDistrValue,
+    'lognorm': LognormDistrValue,
     'gumbel_r': GumbelDistrValue,
     'weibull_min': WeibullDistrValue,
     'gilbrat': GilbratDistrValue
