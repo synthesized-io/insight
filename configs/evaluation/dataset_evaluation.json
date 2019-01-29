@@ -19,6 +19,15 @@
       },
       "target": "Payment"
     },
+    "arx": {
+      "data": "data/arx_adult.csv",
+      "ignore_columns": [],
+      "num_iterations": 2500,
+      "num_passes": 1,
+      "params": {
+      },
+      "target": "salary-class"
+    },
     "uci_creditcard_default": {
       "data": "data/uci/creditcard_default.csv",
       "ignore_columns": ["ID"],
