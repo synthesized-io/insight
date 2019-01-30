@@ -54,3 +54,6 @@ class Value(Module):
 
     def tf_loss(self, x, feed=None):
         return None
+
+    def tf_distribution_loss(self, samples):
+        return None

@@ -26,13 +26,13 @@ class CorrelationMatrixFunctional(Functional):
         spec.update(correlation_matrix=self.correlation_matrix)
         return spec
 
-    def tf_loss(self, *outputs):
-        outputs = tf.stack(values=outputs, axis=0)
-        means, variances = tf.nn.moments(x=outputs, axes=1)
+    def tf_loss(self, *samples):
+        samples = tf.stack(values=samples, axis=0)
+        means, variances = tf.nn.moments(x=samples, axes=1)
         means = tf.stop_gradient(input=means)
         means = tf.expand_dims(input=means, axis=1)
-        outputs_x = tf.expand_dims(input=outputs, axis=1)
-        outputs_y = tf.expand_dims(input=outputs, axis=0)
+        outputs_x = tf.expand_dims(input=samples, axis=1)
+        outputs_y = tf.expand_dims(input=samples, axis=0)
         means_x = tf.expand_dims(input=means, axis=1)
         means_y = tf.expand_dims(input=means, axis=0)
         covariance_matrix = tf.reduce_mean(

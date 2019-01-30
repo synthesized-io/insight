@@ -15,7 +15,7 @@ class VarianceFunctional(Functional):
         spec.update(variance=self.variance)
         return spec
 
-    def tf_loss(self, output):
-        _, variance = tf.nn.moments(x=output, axes=0)
+    def tf_loss(self, samples):
+        _, variance = tf.nn.moments(x=samples, axes=0)
         loss = tf.squared_difference(x=variance, y=self.variance)
         return loss

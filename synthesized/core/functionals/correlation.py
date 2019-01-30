@@ -17,12 +17,12 @@ class CorrelationFunctional(Functional):
         spec.update(correlation=self.correlation)
         return spec
 
-    def tf_loss(self, output1, output2):
-        mean1, variance1 = tf.nn.moments(x=output1, axes=0)
-        mean2, variance2 = tf.nn.moments(x=output2, axes=0)
+    def tf_loss(self, samples1, samples2):
+        mean1, variance1 = tf.nn.moments(x=samples1, axes=0)
+        mean2, variance2 = tf.nn.moments(x=samples2, axes=0)
         mean1 = tf.stop_gradient(input=mean1)
         mean2 = tf.stop_gradient(input=mean2)
-        covariance = tf.reduce_mean(input_tensor=((output1 - mean1) * (output2 - mean2)), axis=0)
+        covariance = tf.reduce_mean(input_tensor=((samples1 - mean1) * (samples2 - mean2)), axis=0)
         correlation = covariance / tf.sqrt(x=variance1) / tf.sqrt(x=variance2)
         loss = tf.squared_difference(x=correlation, y=self.correlation)
         return loss

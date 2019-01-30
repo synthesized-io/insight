@@ -1,17 +1,19 @@
 {
     "values": {
         "value1": "continuous",
-        "value2": "continuous",
-        "value3": "continuous"
+        "value2": {"module": "gaussian", "mean": -1.0, "stddev": 0.4},
+        "value3": "continuous",
+        "value4": {"module": "categorical", "categories": ["yes", "no"], "probabilities": [0.7, 0.3], "capacity": 32}
     },
     "functionals": [
         {"module": "mean", "output": "value1", "mean": 1.0},
-        {"module": "mean", "output": "value2", "mean": -1.0},
         {"module": "mean", "output": "value3", "mean": 0.0},
         {"module": "variance", "output": "value1", "variance": 0.2},
-        {"module": "variance", "output": "value2", "variance": 0.4},
         {"module": "variance", "output": "value3", "variance": 0.1},
         {"module": "correlation", "output1": "value1", "output2": "value2", "correlation": 0.7},
-        {"module": "correlation_matrix", "correlation_matrix": [[1.0, 0.7, 0.0], [0.7, 1.0, 0.2], [0.0, 0.2, 1.0]]}
+        {
+            "module": "correlation_matrix", "outputs": ["value1", "value2", "value3"],
+            "correlation_matrix": [[1.0, 0.7, 0.0], [0.7, 1.0, 0.2], [0.0, 0.2, 1.0]]
+        }
     ]
 }

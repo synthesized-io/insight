@@ -46,6 +46,7 @@ class Optimizer(Module):
             loss=loss, var_list=None, aggregation_method=None, colocate_gradients_with_ops=False,
             grad_loss=None  # gate_gradients=GATE_OP
         )
+        grads_and_vars = [(grad, var) for grad, var in grads_and_vars if grad is not None]
         if gradient_norms:
             gradient_norms = dict()
             for grad, var in grads_and_vars:

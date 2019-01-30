@@ -9,9 +9,10 @@ from ..module import Module
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, categories=None, capacity=None, embedding_size=None, pandas_category=False,
-        similarity_based=False, weight_decay=0.0, temperature=1.0, smoothing=0.1,
-        moving_average=True, similarity_regularization=0.1, entropy_regularization=0.1
+        self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
+        pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
+        smoothing=0.1, moving_average=True, similarity_regularization=0.1,
+        entropy_regularization=0.1
     ):
         super().__init__(name=name)
 
@@ -23,6 +24,8 @@ class CategoricalValue(Value):
         else:
             self.categories = sorted(categories)
             self.num_categories = len(self.categories)
+
+        self.probabilities = probabilities
 
         self.capacity = capacity
         if embedding_size is None and self.num_categories is not None:
@@ -189,4 +192,20 @@ class CategoricalValue(Value):
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
             loss = loss + entropy_loss
+        return loss
+
+    def tf_distribution_loss(self, samples):
+        # assert not self.moving_average
+        if self.similarity_based:  # is that right?
+            samples = tf.expand_dims(input=samples, axis=1)
+            embeddings = tf.expand_dims(input=self.embeddings, axis=0)
+            samples = tf.reduce_sum(input_tensor=(samples * embeddings), axis=2, keepdims=False)
+        samples = tf.math.argmax(input=samples, axis=1, output_type=tf.int32)
+        num_samples = tf.shape(input=samples)[0]
+        samples = tf.concat(values=(tf.range(start=0, limit=self.num_categories), samples), axis=0)
+        _, _, counts = tf.unique_with_counts(x=samples)
+        counts = counts - 1
+        probs = tf.cast(x=counts, dtype=tf.float32) / tf.cast(x=num_samples, dtype=tf.float32)
+        loss = tf.squared_difference(x=probs, y=self.probabilities)
+        loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss

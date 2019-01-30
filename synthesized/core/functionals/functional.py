@@ -23,5 +23,5 @@ class Functional(Module):
     def required_outputs(self):
         return self.outputs
 
-    def tf_loss(self, *outputs):
+    def tf_loss(self, *samples):
         raise NotImplementedError

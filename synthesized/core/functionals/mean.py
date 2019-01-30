@@ -15,7 +15,7 @@ class MeanFunctional(Functional):
         spec.update(mean=self.mean)
         return spec
 
-    def tf_loss(self, output):
-        mean = tf.reduce_mean(input_tensor=output, axis=0)
+    def tf_loss(self, samples):
+        mean = tf.reduce_mean(input_tensor=samples, axis=0)
         loss = tf.squared_difference(x=mean, y=self.mean)
         return loss

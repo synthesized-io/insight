@@ -34,15 +34,8 @@ class ScenarioSynthesizer(Synthesizer):
         self.values = list()
         self.value_output_sizes = list()
         output_size = 0
-        for name, kwargs in values.items():
-            if isinstance(kwargs, str):
-                dtype = kwargs
-                kwargs = dict()
-            elif isinstance(kwargs, dict):
-                dtype = kwargs.pop('dtype')
-            else:
-                assert False
-            value = self.add_module(module=dtype, modules=value_modules, name=name, **kwargs)
+        for name, value in values.items():
+            value = self.add_module(module=value, modules=value_modules, name=name)
             self.values.append(value)
             self.value_output_sizes.append(value.output_size())
             output_size += value.output_size()
@@ -101,17 +94,24 @@ class ScenarioSynthesizer(Synthesizer):
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
         self.synthesized = OrderedDict()
+        self.losses = OrderedDict()
         for value, x in zip(self.values, xs):
+            loss = value.distribution_loss(samples=x)
+            assert value.name not in self.losses
+            if loss is not None:
+                self.losses[value.name] = loss
+                summaries.append(tf.contrib.summary.scalar(
+                    name=(value.name + '-loss'), tensor=loss, family=None, step=None
+                ))
             xs = value.output_tensors(x=x)
             for label, x in xs.items():
                 self.synthesized[label] = x
-        self.losses = OrderedDict()
         for functional in self.functionals:
             if functional.required_outputs() is None:
-                outputs = list(self.synthesized.values())
+                samples = list(self.synthesized.values())
             else:
-                outputs = [self.synthesized[label] for label in functional.required_outputs()]
-            loss = functional.loss(*outputs)
+                samples = [self.synthesized[label] for label in functional.required_outputs()]
+            loss = functional.loss(*samples)
             assert functional.name not in self.losses
             self.losses[functional.name] = loss
             summaries.append(tf.contrib.summary.scalar(
