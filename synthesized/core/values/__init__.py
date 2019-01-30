@@ -13,6 +13,7 @@ from .sampling import SamplingValue
 from .beta import BetaDistrValue
 from .gamma import GammaDistrValue
 from .gumbel import GumbelDistrValue
+from .gilbrat import GilbratDistrValue
 from .weibull import WeibullDistrValue
 from .value import Value
 
@@ -28,11 +29,12 @@ value_modules = dict(
     person=PersonValue,
     powerlaw=PowerlawValue,
     orobability=ProbabilityValue,
-    beta =BetaDistrValue,
+    beta=BetaDistrValue,
     gamma=GammaDistrValue,
     gumbel_r=GumbelDistrValue,
     weibull_min=WeibullDistrValue,
     probability=ProbabilityValue,
-    sampling=SamplingValue
+    sampling=SamplingValue,
+    gilbrat=GilbratDistrValue
 )
 

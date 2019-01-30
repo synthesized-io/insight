@@ -9,26 +9,29 @@ from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .person import PersonValue
 from .powerlaw import PowerlawValue
-from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .gumbel import GumbelDistrValue
+from .gilbrat import GilbratDistrValue
 from .gamma import GammaDistrValue
 from .weibull import WeibullDistrValue
+from .uniform import UniformDistrValue
+from .lognorm import LognormDistrValue
 
-from scipy.stats import beta, ks_2samp
-from scipy.stats import gamma
-from scipy.stats import gumbel_r
-from scipy.stats import weibull_min
+from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm, lognorm
 
-CONT_DISTRIBUTIONS = [gamma, gumbel_r, weibull_min]
-PROB_DISTRIBUTIONS = [beta]
-
-
+REMOVE_OUTLIERS_PCT = 1.0
+MAX_FIT_DISTANCE = 1.0
+MIN_FIT_DISTANCE = 0.15
+CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat, lognorm]
 DIST_TO_VALUE_MAPPING = {
-    'gamma' : GammaDistrValue,
-    'gumbel_r' : GumbelDistrValue,
-    'weibull_min' : WeibullDistrValue
+    'uniform': UniformDistrValue,
+    'gamma': GammaDistrValue,
+    'lognorm': LognormDistrValue,
+    'gumbel_r': GumbelDistrValue,
+    'weibull_min': WeibullDistrValue,
+    'gilbrat': GilbratDistrValue
 }
+
 
 def identify_value(module, name, dtype, data):
 
@@ -79,29 +82,32 @@ def identify_value(module, name, dtype, data):
         if num_unique <= 2.5 * log(num_data):
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
 
-        elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
-            value = module.add_module(module=ProbabilityValue, name=name)
+        # elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
+        #     value = module.add_module(module=ProbabilityValue, name=name)
 
-        elif dtype.kind == 'f':
-            distance = 1
+        elif dtype.kind == 'f' or dtype.kind == 'i':
+            min_distance = MAX_FIT_DISTANCE
+            column_cleaned = ContinuousValue.remove_outliers(data, name, pct=REMOVE_OUTLIERS_PCT)[name]
             for distr in CONT_DISTRIBUTIONS:
-                params = distr.fit(data[name])
-                if len(params) == 2:
-                    ghost_sample = distr.rvs(params[0], params[1], size=len(data[name]))
-                elif len(params) == 3:
-                    ghost_sample = distr.rvs(params[0], params[1], params[2], size=len(data[name]))
-                distance_distr = ks_2samp(data[name], ghost_sample)[0]
-                if distance_distr < distance:
-                    distance = distance_distr
-                    distr_fitted = [distr, params]
-            if distance < 0.1:
+                params = distr.fit(column_cleaned)
+                transformed = norm.ppf(distr.cdf(column_cleaned, *params))
+                norm_dist, _ = kstest(transformed, 'norm')
+                if norm_dist < min_distance:
+                    min_distance = norm_dist
+                    distr_fitted, params_fitted = distr, params
+            if min_distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
-                    module=DIST_TO_VALUE_MAPPING[distr_fitted[0].name], params=distr_fitted[1], name=name)
-            else:
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, integer=dtype.kind == 'i', params=params_fitted
+                )
+            elif dtype.kind == 'f':
                 # default continuous value fit
                 value = module.add_module(
                     module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
                     nonnegative=(data[name] >= 0.0).all()
+                )
+            elif dtype.kind == 'i':
+                value = module.add_module(
+                    module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
                 )
 
         elif False:
@@ -109,12 +115,6 @@ def identify_value(module, name, dtype, data):
 
         elif False:
             value = module.add_module(module=PowerlawValue, name=name)
-
-        elif dtype.kind == 'i':
-            # positive since implicit floor
-            value = module.add_module(
-                module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
-            )
 
         elif num_unique <= sqrt(num_data):
             value = module.add_module(

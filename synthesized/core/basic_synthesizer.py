@@ -18,7 +18,7 @@ class BasicSynthesizer(Synthesizer):
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5, batch_size=64,
+        capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -82,7 +82,7 @@ class BasicSynthesizer(Synthesizer):
 
         self.encoding = self.add_module(
             module=self.encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.capacity
+            input_size=self.encoder.size(), encoding_size=self.capacity, beta=encoding_beta
         )
 
         self.decoder = self.add_module(
@@ -114,7 +114,6 @@ class BasicSynthesizer(Synthesizer):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    # not needed?
     def encode(self, data):
         for value in self.values:
             data = value.encode(data=data)
@@ -326,12 +325,13 @@ class BasicSynthesizer(Synthesizer):
     def synthesize(self, n):
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
+        columns = [label for value in self.values for label in value.trainable_labels()]
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-        synthesized = pd.DataFrame.from_dict(synthesized)
+        synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         feed_dict = {'num_synthesize': 1024}
         for k in range(n // 1024):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
-            other = pd.DataFrame.from_dict(other)
+            other = pd.DataFrame.from_dict(other)[columns]
             synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
