@@ -10,6 +10,7 @@ from synthesized.core import BasicSynthesizer
 from synthesized.core.classifiers import BasicClassifier
 
 
+print()
 print('Parse arguments...')
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', type=str, help="dataset name")

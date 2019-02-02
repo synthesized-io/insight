@@ -6,7 +6,7 @@ from ..transformations import DenseTransformation
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=None):  # 5.0
+    def __init__(self, name, input_size, encoding_size, beta=None):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 

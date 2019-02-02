@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -56,14 +58,15 @@ class BasicSynthesizer(Synthesizer):
         # date
         self.date_value = None
 
+        # history
+        self.loss_history = list()
+        self.ks_distance_history = list()
+
         self.values = list()
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
 
-        self.loss_history = list()
-        self.ks_distance_history = list()
-        print('value types:')
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
             if value is not None:
@@ -72,7 +75,6 @@ class BasicSynthesizer(Synthesizer):
                 self.value_output_sizes.append(value.output_size())
                 input_size += value.input_size()
                 output_size += value.output_size()
-            print(name, value)
 
         self.encoder = self.add_module(
             module=self.network_type, modules=transformation_modules, name='encoder',
@@ -131,6 +133,7 @@ class BasicSynthesizer(Synthesizer):
         return x
 
     def tf_train_iteration(self, feed=None):
+        summaries = list()
         if feed is None:
             feed = dict()
         xs = list()
@@ -142,27 +145,53 @@ class BasicSynthesizer(Synthesizer):
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
+        summaries.append(tf.contrib.summary.scalar(
+            name='encoding-loss', tensor=encoding_loss, family=None, step=None
+        ))
+        encoding_mean, encoding_variance = tf.nn.moments(
+            x=x, axes=(0, 1), shift=None, keep_dims=False
+        )
+        summaries.append(tf.contrib.summary.scalar(
+            name='encoding-mean', tensor=encoding_mean, family=None, step=None
+        ))
+        summaries.append(tf.contrib.summary.scalar(
+            name='encoding-variance', tensor=encoding_variance, family=None, step=None
+        ))
         x = self.customized_transform(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
-        reg_losses = tf.losses.get_regularization_losses(scope=None)
-        if len(reg_losses) > 0:
-            reg_loss = tf.add_n(inputs=reg_losses)
-            losses = dict(encoding=encoding_loss, regularization=reg_loss)
-        else:
-            losses = dict(encoding=encoding_loss)
-        if self.exclude_encoding_loss:
-            losses.pop('encoding')
+        losses = OrderedDict()
+        if not self.exclude_encoding_loss:
+            losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
             for label in value.trainable_labels():
                 loss = value.loss(x=x, feed=feed.get(value.name))
                 if loss is not None:
                     losses[label] = loss
-        loss = tf.add_n(inputs=[losses[name] for name in sorted(losses)])
-        optimized = self.optimizer.optimize(loss=loss)
+                    summaries.append(tf.contrib.summary.scalar(
+                        name=(label + '-loss'), tensor=loss, family=None, step=None
+                    ))
+        reg_losses = tf.losses.get_regularization_losses(scope=None)
+        if len(reg_losses) > 0:
+            regularization_loss = tf.add_n(inputs=reg_losses)
+            summaries.append(tf.contrib.summary.scalar(
+                name='regularization-loss', tensor=regularization_loss, family=None, step=None
+            ))
+            losses['regularization'] = regularization_loss
+        loss = tf.add_n(inputs=list(losses.values()))
+        summaries.append(tf.contrib.summary.scalar(
+            name='loss', tensor=loss, family=None, step=None
+        ))
+        optimized, gradient_norms = self.optimizer.optimize(loss=loss, gradient_norms=True)
+        for name, gradient_norm in gradient_norms.items():
+            summaries.append(tf.contrib.summary.scalar(
+                name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
+            ))
+        with tf.control_dependencies(control_inputs=([optimized] + summaries)):
+            optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
         return losses, loss, optimized
 
     def tf_initialize(self):
@@ -260,7 +289,6 @@ class BasicSynthesizer(Synthesizer):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
-        # TODO: increment global step
         if filenames is None:
             data = self.preprocess(data=data.copy())
             num_data = len(data)
@@ -275,7 +303,7 @@ class BasicSynthesizer(Synthesizer):
             for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+                self.run(fetches=fetches, feed_dict=feed_dict)
                 if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
                         iteration % verbose + 1 == verbose):
                     batch = np.random.randint(num_data, size=1024)
@@ -291,11 +319,11 @@ class BasicSynthesizer(Synthesizer):
             self.run(fetches=fetches, feed_dict=feed_dict)
             fetches = self.optimized_fromfile
             feed_dict = dict(num_iterations=num_iterations)
-            self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+            self.run(fetches=fetches, feed_dict=feed_dict)
             # assert num_iterations % verbose == 0
             # for iteration in range(num_iterations // verbose):
             #     feed_dict = dict(num_iterations=verbose)
-            #     fetched = self.run(fetches=fetches, feed_dict=feed_dict, summarize=True)
+            #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
     def log_metrics(self, data, fetched, iteration):
