@@ -121,6 +121,9 @@ class ContinuousValue(Value):
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         return loss
 
+    def tf_distribution_loss(self, samples):
+        return 0.0
+
     @staticmethod
     def remove_outliers(data, name, pct):
         percentiles = [pct / 2., 100 - pct / 2.]

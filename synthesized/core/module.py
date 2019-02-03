@@ -79,8 +79,7 @@ class Module(object):
             module = kwargs.pop('module')
             return self.add_module(module=module, modules=modules, **kwargs)
         elif isinstance(module, str):
-            if modules is None or module not in modules:
-                raise NotImplementedError
+            assert modules is not None and module in modules, module
             module = modules[module]
             return self.add_module(module=module, modules=None, **kwargs)
         elif issubclass(module, Module):

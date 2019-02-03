@@ -4,9 +4,9 @@ import tensorflow as tf
 from .functional import Functional
 
 
-class MeanFunctional(Functional):
+class StandardDeviationFunctional(Functional):
 
-    def __init__(self, mean, value=None, values=None, name=None):
+    def __init__(self, stddev, value=None, values=None, name=None):
         if values is None:
             assert value is not None
             values = (value,)
@@ -15,17 +15,18 @@ class MeanFunctional(Functional):
 
         super().__init__(values=values, name=name)
 
-        self.mean = mean
+        self.stddev = stddev
 
     def specification(self):
         spec = super().specification()
-        spec.update(mean=self.mean)
+        spec.update(stddev=self.stddev)
         return spec
 
     def tf_loss(self, samples):
-        mean = tf.reduce_mean(input_tensor=samples, axis=0)
-        loss = tf.squared_difference(x=mean, y=self.mean)
+        _, variance = tf.nn.moments(x=samples, axes=0)
+        stddev = tf.sqrt(x=variance)
+        loss = tf.squared_difference(x=stddev, y=self.stddev)
         return loss
 
     def check_distance(self, samples):
-        return abs(np.mean(samples) - self.mean)
+        return abs(np.std(samples) - self.stddev)

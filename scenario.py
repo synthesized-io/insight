@@ -46,15 +46,22 @@ print('Synthesis...')
 with synthesizer:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
     for i in range(args.iterations // args.evaluation):
-        synthesizer.learn(num_iterations=args.evaluation, num_samples=args.num_samples, verbose=1000)
+        synthesizer.learn(num_iterations=args.evaluation, num_samples=args.num_samples)
         # print(datetime.now().strftime('%H:%M:%S'), flush=True)
         # synthesized = synthesizer.synthesize(n=100000)
         # evaluation?
-        print(datetime.now().strftime('%H:%M:%S'), flush=True)
+        print(datetime.now().strftime('%H:%M:%S'), i * args.evaluation, flush=True)
+        print('Distances...')
+        synthesized = synthesizer.synthesize(n=10000)
+        for functional in synthesizer.functionals:
+            if functional.required_outputs() == '*':
+                samples_args = synthesized
+            else:
+                samples_args = [synthesized[label] for label in functional.required_outputs()]
+            print(functional.name, functional.check_distance(*samples_args), flush=True)
         print()
-    synthesized = synthesizer.synthesize(n=10)
-
 
 print('Synthetic data...')
-print(synthesized)
+print(synthesized.head(20))
 print()
+

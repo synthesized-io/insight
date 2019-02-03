@@ -195,6 +195,9 @@ class CategoricalValue(Value):
         return loss
 
     def tf_distribution_loss(self, samples):
+        if self.probabilities is None:
+            return 0.0
+
         # assert not self.moving_average
         if self.similarity_based:  # is that right?
             samples = tf.expand_dims(input=samples, axis=1)
