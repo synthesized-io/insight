@@ -15,7 +15,7 @@ class AddressValue(Value):
 
     postcode_regex = re.compile(r'^[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2}$')
 
-    def __init__(self, name, postcode_level=0, postcode_label=None, postcode_embedding_size=None, street_label=None, postcodes=None):
+    def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, street_label=None, postcodes=None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -35,7 +35,7 @@ class AddressValue(Value):
         else:
             self.postcode = self.add_module(
                 module=CategoricalValue, name=postcode_label, categories=self.postcodes,
-                embedding_size=postcode_embedding_size
+                capacity=capacity
             )
 
     def input_size(self):
@@ -80,7 +80,7 @@ class AddressValue(Value):
         for n, row in data.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
-                raise NotImplementedError
+                raise ValueError(postcode)
             if self.postcode_level == 0:  # 1-2 letters
                 index = 2 - postcode[1].isdigit()
             elif self.postcode_level == 1:
@@ -106,7 +106,7 @@ class AddressValue(Value):
         for n, row in data.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
-                raise NotImplementedError
+                raise ValueError(postcode)
             if self.postcode_level == 0:  # 1-2 letters
                 index = 2 - postcode[1].isdigit()
             elif self.postcode_level == 1:
