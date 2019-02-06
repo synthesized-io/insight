@@ -53,7 +53,7 @@ def identify_value(module, name, dtype, data):
             )
             module.address_value = value
         else:
-            value = module.address_value
+            value = None
 
     elif name == getattr(module, 'identifier_label', None):
         value = module.add_module(
