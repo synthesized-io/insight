@@ -105,7 +105,6 @@ class Module(object):
     #     self.summaries[name] = summary
 
     def __enter__(self):
-        assert Module.placeholders is None
         Module.placeholders = dict()
         self.graph = tf.Graph()
         Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)

@@ -64,4 +64,3 @@ with synthesizer:
 print('Synthetic data...')
 print(synthesized.head(20))
 print()
-
