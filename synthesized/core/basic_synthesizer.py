@@ -288,7 +288,7 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.transformed[label] = x
 
-    def learn(self, num_iterations, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
