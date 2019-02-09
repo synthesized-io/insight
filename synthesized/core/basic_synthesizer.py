@@ -26,6 +26,7 @@ class BasicSynthesizer(Synthesizer):
         email_label=None,
         # address
         postcode_label=None, street_label=None,
+        address_label=None, postcode_regex=None,
         # identifier
         identifier_label=None
     ):
@@ -52,6 +53,8 @@ class BasicSynthesizer(Synthesizer):
         self.address_value = None
         self.postcode_label = postcode_label
         self.street_label = street_label
+        self.address_label = address_label
+        self.postcode_regex = postcode_regex
         # identifier
         self.identifier_value = None
         self.identifier_label = identifier_label
@@ -285,7 +288,7 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.transformed[label] = x
 
-    def learn(self, num_iterations, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 

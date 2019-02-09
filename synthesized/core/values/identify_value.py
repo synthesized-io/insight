@@ -1,6 +1,7 @@
 from math import log, sqrt
 
 from .address import AddressValue
+from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
@@ -34,7 +35,6 @@ DIST_TO_VALUE_MAPPING = {
 
 
 def identify_value(module, name, dtype, data):
-
     if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
@@ -48,9 +48,21 @@ def identify_value(module, name, dtype, data):
         if module.address_value is None:
             value = module.add_module(
                 module=AddressValue, name='address', postcode_level=1,
-                postcode_label=module.postcode_label, street_label=module.street_label
+                postcode_label=module.postcode_label, street_label=module.street_label,
+                capacity=module.capacity
             )
             module.address_value = value
+        else:
+            value = None
+
+    elif name == getattr(module, 'address_label', None):
+        value = module.add_module(
+            module=CompoundAddressValue, name='address', postcode_level=1,
+            address_label=module.address_label,
+            postcode_regex=module.postcode_regex,
+            capacity=module.capacity
+        )
+        module.address_value = value
 
     elif name == getattr(module, 'identifier_label', None):
         value = module.add_module(
