@@ -96,7 +96,7 @@ class DatasetResource(Resource):
 
         sample_size = args['sample_size']
         if sample_size > MAX_SAMPLE_SIZE:
-            abort(400, message='Sample size is too bib: ' + str(sample_size))
+            abort(400, message='Sample size is too big: ' + str(sample_size))
 
         dataset = datasetRepo.find(dataset_id)
         if not dataset:
@@ -153,7 +153,7 @@ class SynthesisResource(Resource):
 
         sample_size = args['sample_size']
         if sample_size > MAX_SAMPLE_SIZE:
-            abort(400, message='Sample size is too bib: ' + str(sample_size))
+            abort(400, message='Sample size is too big: ' + str(sample_size))
 
         synthesis = synthesisRepo.find(synthesis_id)
         if not synthesis:
