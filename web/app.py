@@ -13,6 +13,7 @@ from .model import Dataset, Synthesis
 from .repository import InMemoryRepository
 
 SAMPLE_SIZE = 20
+MAX_SAMPLE_SIZE = 10000
 REMOVE_OUTLIERS = 0.01
 
 app = Flask(__name__)
@@ -77,11 +78,10 @@ class DatasetsResource(Resource):
                         'bins': bins
                     })
             meta = {
-                'rows': len(data),
-                'columns': len(data.columns),
+                'nrows': len(data),
+                'ncolumns': len(data.columns),
                 'ntypes': len(value_types),
-                'columns_info': columns_info,
-                'sample': data[:SAMPLE_SIZE].to_dict(orient='list')
+                'columns': columns_info,
             }
             dataset = Dataset(None, output.getvalue(), simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
@@ -90,12 +90,24 @@ class DatasetsResource(Resource):
 
 class DatasetResource(Resource):
     def get(self, dataset_id):
+        parse = reqparse.RequestParser()
+        parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
+        args = parse.parse_args()
+
+        sample_size = args['sample_size']
+        if sample_size > MAX_SAMPLE_SIZE:
+            abort(400, message='Sample size is too bib: ' + str(sample_size))
+
         dataset = datasetRepo.find(dataset_id)
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
+
+        data = pd.read_csv(StringIO(dataset.blob))
+
         return {
             'dataset_id': dataset.entity_id,
-            'meta': simplejson.loads(dataset.meta)
+            'meta': simplejson.loads(dataset.meta),
+            'sample': data[:sample_size].to_dict(orient='list')
         }
 
     def delete(self, dataset_id):
@@ -135,6 +147,14 @@ class SynthesesResource(Resource):
 
 class SynthesisResource(Resource):
     def get(self, synthesis_id):
+        parse = reqparse.RequestParser()
+        parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
+        args = parse.parse_args()
+
+        sample_size = args['sample_size']
+        if sample_size > MAX_SAMPLE_SIZE:
+            abort(400, message='Sample size is too bib: ' + str(sample_size))
+
         synthesis = synthesisRepo.find(synthesis_id)
         if not synthesis:
             abort(404, messsage="Couldn't find requested synthesis: " + synthesis_id)
@@ -144,8 +164,8 @@ class SynthesisResource(Resource):
         return {
             'synthesis_id': synthesis_id,
             'meta': {
-                'sample': data[:SAMPLE_SIZE].to_dict(orient='list')
-            }
+            },
+            'sample': data[:sample_size].to_dict(orient='list')
         }
 
 
