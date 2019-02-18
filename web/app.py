@@ -36,7 +36,7 @@ class DatasetsResource(Resource):
             data.to_csv(output, index=False)
             synthesizer = BasicSynthesizer(data=data.dropna())
             value_types = set()
-            columns_meta = []
+            columns_info = []
             for value in synthesizer.values:
                 value_types.add(str(value))
                 if isinstance(value, ContinuousValue):
@@ -46,7 +46,7 @@ class DatasetsResource(Resource):
                     hist, edges = np.histogram(column_cleaned, bins='auto')
                     hist = list(map(int, hist))
                     edges = list(map(float, edges))
-                    columns_meta.append({
+                    columns_info.append({
                         'name': value.name,
                         'plot_type': 'density',
                         'type': str(value),
@@ -66,7 +66,7 @@ class DatasetsResource(Resource):
                     hist = [counts[x] for x in bins]
                     bins = list(map(str, bins))
                     hist = list(map(int, hist))
-                    columns_meta.append({
+                    columns_info.append({
                         'name': value.name,
                         'plot_type': 'histogram',
                         'type': str(value),
@@ -80,7 +80,7 @@ class DatasetsResource(Resource):
                 'rows': len(data),
                 'columns': len(data.columns),
                 'ntypes': len(value_types),
-                'columns_info': columns_meta,
+                'columns_info': columns_info,
                 'sample': data[:SAMPLE_SIZE].to_dict(orient='list')
             }
             dataset = Dataset(None, output.getvalue(), json.dumps(meta))
