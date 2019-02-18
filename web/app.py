@@ -1,8 +1,8 @@
 from io import StringIO
-import simplejson
 
 import numpy as np
 import pandas as pd
+import simplejson
 import werkzeug
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, abort
