@@ -1,5 +1,5 @@
-import json
 from io import StringIO
+import simplejson
 
 import numpy as np
 import pandas as pd
@@ -83,7 +83,7 @@ class DatasetsResource(Resource):
                 'columns_info': columns_info,
                 'sample': data[:SAMPLE_SIZE].to_dict(orient='list')
             }
-            dataset = Dataset(None, output.getvalue(), json.dumps(meta))
+            dataset = Dataset(None, output.getvalue(), simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
             return {'dataset_id': dataset.entity_id}, 201
 
@@ -95,7 +95,7 @@ class DatasetResource(Resource):
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
         return {
             'dataset_id': dataset.entity_id,
-            'meta': json.loads(dataset.meta)
+            'meta': simplejson.loads(dataset.meta)
         }
 
     def delete(self, dataset_id):

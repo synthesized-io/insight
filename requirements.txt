@@ -11,3 +11,4 @@ pyemd~=0.5.1
 flask~=1.0.2
 flask_restful~=0.3.6
 faker~=1.0.2
+simplejson~=3.16.0
