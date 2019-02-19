@@ -6,11 +6,11 @@ import simplejson
 import werkzeug
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, abort
+from flask_sqlalchemy import SQLAlchemy
 
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
-from .model import Dataset, Synthesis
-from .repository import InMemoryRepository
+from .repository import SQLAlchemyRepository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -18,10 +18,17 @@ REMOVE_OUTLIERS = 0.01
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/synthesized_web.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 api = Api(app)
 
-datasetRepo = InMemoryRepository()
-synthesisRepo = InMemoryRepository()
+db = SQLAlchemy(app)
+from .model import Dataset, Synthesis
+db.create_all()
+
+datasetRepo = SQLAlchemyRepository(db, Dataset)
+synthesisRepo = SQLAlchemyRepository(db, Synthesis)
 
 
 class DatasetsResource(Resource):
@@ -83,9 +90,9 @@ class DatasetsResource(Resource):
                 'ntypes': len(value_types),
                 'columns': columns_info,
             }
-            dataset = Dataset(None, output.getvalue(), simplejson.dumps(meta, ignore_nan=True))
+            dataset = Dataset(blob=output.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
-            return {'dataset_id': dataset.entity_id}, 201
+            return {'dataset_id': dataset.id}, 201
 
 
 class DatasetResource(Resource):
@@ -105,7 +112,7 @@ class DatasetResource(Resource):
         data = pd.read_csv(StringIO(dataset.blob))
 
         return {
-            'dataset_id': dataset.entity_id,
+            'dataset_id': dataset.id,
             'meta': simplejson.loads(dataset.meta),
             'sample': data[:sample_size].to_dict(orient='list')
         }
@@ -139,10 +146,10 @@ class SynthesesResource(Resource):
         output = StringIO()
         synthesized.to_csv(output, index=False)
 
-        synthesis = Synthesis(None, dataset_id, output.getvalue(), rows)
+        synthesis = Synthesis(dataset_id=dataset_id, blob=output.getvalue(), size=rows)
         synthesisRepo.save(synthesis)
 
-        return {'synthesis_id': synthesis.entity_id}, 201
+        return {'synthesis_id': synthesis.id}, 201
 
 
 class SynthesisResource(Resource):

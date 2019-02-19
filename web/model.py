@@ -1,18 +1,20 @@
-class Entity:
-    def __init__(self, entity_id):
-        self.entity_id = entity_id
+from .app import db
 
 
-class Dataset(Entity):
-    def __init__(self, dataset_id, blob, meta):
-        super().__init__(dataset_id)
-        self.blob = blob
-        self.meta = meta
+class Dataset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    blob = db.Column(db.Text, nullable=False)
+    meta = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return '<Dataset {}>'.format(self.id)
 
 
-class Synthesis(Entity):
-    def __init__(self, synthesis_id, dataset_id, blob, size):
-        super().__init__(synthesis_id)
-        self.dataset_id = dataset_id
-        self.blob = blob
-        self.size = size
+class Synthesis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    blob = db.Column(db.Text, nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id), nullable=False)
+
+    def __repr__(self):
+        return '<Synthesis {}>'.format(self.id)
