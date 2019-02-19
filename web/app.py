@@ -40,9 +40,10 @@ class DatasetsResource(Resource):
 
         with file.stream as stream:
             data = pd.read_csv(stream)
-            output = StringIO()
-            data.to_csv(output, index=False)
-            synthesizer = BasicSynthesizer(data=data.dropna())
+            raw_data = StringIO()
+            data.to_csv(raw_data, index=False)
+            data = data.dropna()
+            synthesizer = BasicSynthesizer(data=data)
             value_types = set()
             columns_info = []
             for value in synthesizer.values:
@@ -90,7 +91,7 @@ class DatasetsResource(Resource):
                 'ntypes': len(value_types),
                 'columns': columns_info,
             }
-            dataset = Dataset(blob=output.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
+            dataset = Dataset(blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
             return {'dataset_id': dataset.id}, 201
 
