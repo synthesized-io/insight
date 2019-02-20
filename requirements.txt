@@ -13,3 +13,4 @@ flask_restful~=0.3.6
 faker~=1.0.2
 simplejson~=3.16.0
 flask-sqlalchemy~=2.3.2
+psycopg2~=2.7.7
