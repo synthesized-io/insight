@@ -58,16 +58,16 @@ class DatasetsResource(Resource):
             data = pd.read_csv(stream)
             raw_data = StringIO()
             data.to_csv(raw_data, index=False)
-            data = data.dropna()
-            synthesizer = BasicSynthesizer(data=data)
+            data_wo_nans = data.dropna()
+            synthesizer = BasicSynthesizer(data=data_wo_nans)
             value_types = set()
             columns_info = []
             for value in synthesizer.values:
                 value_types.add(str(value))
                 if isinstance(value, ContinuousValue):
                     q = [REMOVE_OUTLIERS / 2., 1 - REMOVE_OUTLIERS / 2.]
-                    start, end = np.quantile(data[value.name], q)
-                    column_cleaned = data[(data[value.name] > start) & (data[value.name] < end)][value.name]
+                    start, end = np.quantile(data_wo_nans[value.name], q)
+                    column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
                     hist, edges = np.histogram(column_cleaned, bins='auto')
                     hist = list(map(int, hist))
                     edges = list(map(float, edges))
