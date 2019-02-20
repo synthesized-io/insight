@@ -24,6 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 api = Api(app)
 
 db = SQLAlchemy(app)
+# models use `db` object, therefore should be imported after
 from .model import Dataset, Synthesis
 db.create_all()
 
