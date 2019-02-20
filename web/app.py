@@ -5,9 +5,10 @@ import numpy as np
 import pandas as pd
 import simplejson
 import werkzeug
-from flask import Flask
+from flask import Flask, jsonify
 from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
+from flask.json import JSONEncoder
 
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
@@ -19,7 +20,16 @@ REMOVE_OUTLIERS = 0.01
 
 logging.basicConfig(level=logging.INFO)
 
+
+# By default NaN is serialized as "NaN". We enforce "null" instead.
+class JSONCompliantEncoder(JSONEncoder):
+    def __init__(self, *args, **kwargs):
+        kwargs["ignore_nan"] = True
+        super().__init__(*args, **kwargs)
+
+
 app = Flask(__name__)
+app.json_encoder = JSONCompliantEncoder
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/synthesized_web.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -120,11 +130,11 @@ class DatasetResource(Resource):
 
         data = pd.read_csv(StringIO(dataset.blob))
 
-        return {
+        return jsonify({
             'dataset_id': dataset.id,
             'meta': simplejson.loads(dataset.meta),
             'sample': data[:sample_size].to_dict(orient='list')
-        }
+        })
 
     def delete(self, dataset_id):
         datasetRepo.delete(dataset_id)
@@ -177,12 +187,12 @@ class SynthesisResource(Resource):
 
         data = pd.read_csv(StringIO(synthesis.blob))
 
-        return {
+        return jsonify({
             'synthesis_id': synthesis_id,
             'meta': {
             },
             'sample': data[:sample_size].to_dict(orient='list')
-        }
+        })
 
 
 api.add_resource(DatasetsResource, '/dataset')
