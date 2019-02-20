@@ -65,9 +65,11 @@ class DatasetsResource(Resource):
                         'median': float(data[value.name].median()),
                         'min': float(data[value.name].min()),
                         'max': float(data[value.name].max()),
-                        'nulls': int(data[value.name].isnull().sum()),
-                        'hist': hist,
-                        'edges': edges
+                        'n_nulls': int(data[value.name].isnull().sum()),
+                        'plot_data': {
+                            'hist': hist,
+                            'edges': edges
+                        }
                     })
                 else:
                     most_frequent = data[value.name].value_counts().idxmax()
@@ -80,16 +82,18 @@ class DatasetsResource(Resource):
                         'name': value.name,
                         'plot_type': 'histogram',
                         'type': str(value),
-                        'nunique': int(data[value.name].nunique()),
+                        'n_unique': int(data[value.name].nunique()),
                         'most_frequent': str(most_frequent),
                         'most_occurrences': int(len(data[data[value.name] == most_frequent])),
-                        'hist': hist,
-                        'bins': bins
+                        'plot_data': {
+                            'hist': hist,
+                            'bins': bins
+                        }
                     })
             meta = {
-                'nrows': len(data),
-                'ncolumns': len(data.columns),
-                'ntypes': len(value_types),
+                'n_rows': len(data),
+                'n_columns': len(data.columns),
+                'n_types': len(value_types),
                 'columns': columns_info,
             }
             dataset = Dataset(blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
