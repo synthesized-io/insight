@@ -1,3 +1,4 @@
+import logging
 from io import StringIO
 
 import numpy as np
@@ -15,6 +16,8 @@ from .repository import SQLAlchemyRepository
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
 REMOVE_OUTLIERS = 0.01
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
