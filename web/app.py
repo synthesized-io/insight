@@ -13,6 +13,7 @@ from flask.json import JSONEncoder
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 from .repository import SQLAlchemyRepository
+from .config import ProductionConfig, DevelopmentConfig
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -30,9 +31,10 @@ class JSONCompliantEncoder(JSONEncoder):
 
 app = Flask(__name__)
 app.json_encoder = JSONCompliantEncoder
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/synthesized_web.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if app.config['ENV'] == 'production':
+    app.config.from_object(ProductionConfig)
+else:
+    app.config.from_object(DevelopmentConfig)
 
 api = Api(app)
 
