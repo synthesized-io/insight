@@ -197,7 +197,7 @@ class SynthesisResource(Resource):
         })
 
 
-api.add_resource(DatasetsResource, '/dataset')
-api.add_resource(DatasetResource, '/dataset/<dataset_id>')
-api.add_resource(SynthesesResource, '/synthesis')
-api.add_resource(SynthesisResource, '/synthesis/<synthesis_id>')
+api.add_resource(DatasetsResource, '/datasets')
+api.add_resource(DatasetResource, '/datasets/<dataset_id>')
+api.add_resource(SynthesesResource, '/syntheses')
+api.add_resource(SynthesisResource, '/syntheses/<synthesis_id>')
