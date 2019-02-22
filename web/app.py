@@ -139,7 +139,9 @@ class DatasetResource(Resource):
         })
 
     def delete(self, dataset_id):
-        datasetRepo.delete(dataset_id)
+        dataset = datasetRepo.find(dataset_id)
+        if dataset:
+            datasetRepo.delete(dataset)
         return '', 204
 
 

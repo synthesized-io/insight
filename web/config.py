@@ -8,11 +8,11 @@ class Config(object):
 
 class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'postgresql+psycopg2://{user}:{pw}@{host}:{port}/{db}'.format(
-        user=os.environ['RDS_USERNAME'],
-        pw=os.environ['RDS_PASSWORD'],
-        host=os.environ['RDS_HOSTNAME'],
-        port=os.environ['RDS_PORT'],
-        db=os.environ['RDS_DB_NAME'])
+        user=os.environ.get('RDS_USERNAME', None),
+        pw=os.environ.get('RDS_PASSWORD', None),
+        host=os.environ.get('RDS_HOSTNAME', None),
+        port=os.environ.get('RDS_PORT', None),
+        db=os.environ.get('RDS_DB_NAME', None))
 
 
 class DevelopmentConfig(Config):

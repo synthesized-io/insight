@@ -8,7 +8,7 @@ class Repository:
     def find(self, entity_id):
         pass
 
-    def delete(self, entity_id):
+    def delete(self, entity):
         pass
 
 
@@ -24,8 +24,8 @@ class InMemoryRepository(Repository):
     def find(self, entity_id):
         return self.mapping.get(entity_id, None)
 
-    def delete(self, entity_id):
-        self.mapping.pop(entity_id, None)
+    def delete(self, entity):
+        self.mapping.pop(entity.id, None)
 
 
 class SQLAlchemyRepository(Repository):
@@ -40,6 +40,6 @@ class SQLAlchemyRepository(Repository):
     def find(self, entity_id):
         return self.db.session.query(self.cls).get(entity_id)
 
-    def delete(self, entity_id):
-        self.db.session.query(self.cls).delete()
+    def delete(self, entity):
+        self.db.session.delete(entity)
         self.db.session.commit()
