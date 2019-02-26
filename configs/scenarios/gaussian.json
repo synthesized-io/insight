@@ -1,0 +1,6 @@
+{
+    "values": {
+        "value": {"module": "gaussian", "mean": 0.0, "stddev": 1.0}
+    },
+    "functionals": []
+}

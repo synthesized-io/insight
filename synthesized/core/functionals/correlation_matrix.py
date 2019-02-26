@@ -6,7 +6,7 @@ from .functional import Functional
 
 class CorrelationMatrixFunctional(Functional):
 
-    def __init__(self, correlation_matrix, outputs=None, name=None):
+    def __init__(self, correlation_matrix, values='*', name=None):
         correlation_matrix = np.asarray(correlation_matrix)
         assert correlation_matrix.ndim == 2
         assert correlation_matrix.shape[0] == correlation_matrix.shape[1]
@@ -15,9 +15,9 @@ class CorrelationMatrixFunctional(Functional):
             correlation_matrix[x, y] == correlation_matrix[y, x]
             for x in range(correlation_matrix.shape[0]) for y in range(x)
         )
-        assert outputs is None or len(set(outputs)) == len(outputs)
+        assert values == '*' or len(set(values)) == len(values)
 
-        super().__init__(outputs=outputs, name=name)
+        super().__init__(values=values, name=name)
 
         self.correlation_matrix = correlation_matrix
 
@@ -26,8 +26,8 @@ class CorrelationMatrixFunctional(Functional):
         spec.update(correlation_matrix=self.correlation_matrix)
         return spec
 
-    def tf_loss(self, *samples):
-        samples = tf.stack(values=samples, axis=0)
+    def tf_loss(self, *samples_args):
+        samples = tf.stack(values=samples_args, axis=0)
         means, variances = tf.nn.moments(x=samples, axes=1)
         means = tf.stop_gradient(input=means)
         means = tf.expand_dims(input=means, axis=1)
@@ -45,3 +45,9 @@ class CorrelationMatrixFunctional(Functional):
         # loss = tf.Print(loss, (correlation_matrix,), summarize=9)
         loss = tf.reduce_mean(input_tensor=loss, axis=(0, 1))
         return loss
+
+    def check_distance(self, *samples_args):
+        return abs(np.mean(
+            np.cov(samples_args) / np.expand_dims(np.std(samples_args, 1), 1)
+            / np.expand_dims(np.std(samples_args, 1), 2) - self.correlation_matrix
+        ))

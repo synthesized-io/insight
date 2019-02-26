@@ -10,22 +10,14 @@ class Value(Module):
         return self.__class__.__name__[:-5].lower()
 
     def input_size(self):
-        try:
-            next(self.trainable_labels())
-            raise NotImplementedError
-        except StopIteration:
-            return 0
+        return 0
 
     def output_size(self):
         return self.input_size()
 
     def labels(self):
-        yield self.name
-
-    def trainable_labels(self):
-        # at most one label allowed currently!?
-        return
-        yield
+        if self.input_size() > 0:
+            yield self.name
 
     def placeholders(self):
         return
@@ -43,8 +35,8 @@ class Value(Module):
     def postprocess(self, data):
         return data
 
-    def feature(self, x=None):
-        return None
+    def features(self, x=None):
+        return dict()
 
     def tf_input_tensor(self, feed=None):
         return None

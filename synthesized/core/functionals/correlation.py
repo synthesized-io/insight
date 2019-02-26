@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
@@ -5,10 +6,14 @@ from .functional import Functional
 
 class CorrelationFunctional(Functional):
 
-    def __init__(self, output1, output2, correlation, name=None):
-        assert output1 != output2
+    def __init__(self, correlation, value1=None, value2=None, values=None, name=None):
+        if values is None:
+            assert value1 is not None and value2 is not None and value1 != value2
+            values = (value1, value2)
+        else:
+            assert value1 is None and value2 is None and len(values) == 2
 
-        super().__init__(outputs=(output1, output2), name=name)
+        super().__init__(values=values, name=name)
 
         self.correlation = correlation
 
@@ -26,3 +31,9 @@ class CorrelationFunctional(Functional):
         correlation = covariance / tf.sqrt(x=variance1) / tf.sqrt(x=variance2)
         loss = tf.squared_difference(x=correlation, y=self.correlation)
         return loss
+
+    def check_distance(self, samples1, samples2):
+        return abs(
+            np.cov([samples1, samples2])[0, 1] / np.std(samples1) / np.std(samples2)
+            - self.correlation
+        )

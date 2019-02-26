@@ -107,11 +107,11 @@ class ScenarioSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
         for functional in self.functionals:
-            if functional.required_outputs() is None:
-                samples = list(self.synthesized.values())
+            if functional.required_outputs() == '*':
+                samples_args = list(self.synthesized.values())
             else:
-                samples = [self.synthesized[label] for label in functional.required_outputs()]
-            loss = functional.loss(*samples)
+                samples_args = [self.synthesized[label] for label in functional.required_outputs()]
+            loss = functional.loss(*samples_args)
             assert functional.name not in self.losses
             self.losses[functional.name] = loss
             summaries.append(tf.contrib.summary.scalar(

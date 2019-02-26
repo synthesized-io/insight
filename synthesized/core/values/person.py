@@ -40,25 +40,17 @@ class PersonValue(Value):
     def labels(self):
         if self.gender is not None:
             yield from self.gender.labels()
-        if self.name_label is not None:
-            yield self.name_label
-        if self.firstname_label is not None:
-            yield self.firstname_label
-        if self.lastname_label is not None:
-            yield self.lastname_label
-        if self.email_label is not None:
-            yield self.email_label
-
-    def trainable_labels(self):
-        if self.gender is None:
-            return
-        else:
-            yield from self.gender.trainable_labels()
+        # if self.name_label is not None:
+        #     yield self.name_label
+        # if self.firstname_label is not None:
+        #     yield self.firstname_label
+        # if self.lastname_label is not None:
+        #     yield self.lastname_label
+        # if self.email_label is not None:
+        #     yield self.email_label
 
     def placeholders(self):
-        if self.gender is None:
-            return
-        else:
+        if self.gender is not None:
             yield from self.gender.placeholders()
 
     def extract(self, data):
@@ -92,11 +84,11 @@ class PersonValue(Value):
                 .str.cat(others=domain, sep='@')
         return data
 
-    def feature(self, x=None):
-        if self.gender is None:
-            return None
-        else:
-            return self.gender.feature(x=x)
+    def features(self, x=None):
+        features = super().features(x=x)
+        if self.gender is not None:
+            features.update(self.gender.features(x=x))
+        return features
 
     def tf_input_tensor(self, feed=None):
         if self.gender is None:

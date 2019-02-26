@@ -1,5 +1,7 @@
 from math import log, sqrt
 
+import pandas as pd
+
 from .address import AddressValue
 from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
@@ -35,6 +37,8 @@ DIST_TO_VALUE_MAPPING = {
 
 
 def identify_value(module, name, dtype, data):
+    value = None
+
     if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
@@ -73,7 +77,7 @@ def identify_value(module, name, dtype, data):
     elif dtype.kind == 'M':  # 'm' timedelta
         if module.date_value is not None:
             raise NotImplementedError
-        value = module.add_module(module=DateValue, name=name)
+        value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
         module.date_value = value
 
     elif dtype.kind == 'b':
@@ -81,13 +85,24 @@ def identify_value(module, name, dtype, data):
             module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
         )
 
-    elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
-        value = module.add_module(
-            module=CategoricalValue, name=name, categories=dtype.categories,
-            capacity=module.capacity, pandas_category=True
-        )
+    elif dtype.kind == 'O':
+        if hasattr(dtype, 'categories'):
+            value = module.add_module(
+                module=CategoricalValue, name=name, categories=dtype.categories,
+                capacity=module.capacity, pandas_category=True
+            )
 
-    else:
+        else:
+            try:
+                data[name] = pd.to_datetime(data[name])
+                if module.date_value is not None:
+                    raise NotImplementedError
+                value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
+                module.date_value = value
+            except ValueError:
+                pass
+
+    if value is None:
         num_data = len(data)
         num_unique = data[name].nunique()
 
@@ -138,7 +153,7 @@ def identify_value(module, name, dtype, data):
 
         else:
             value = module.add_module(module=SamplingValue, name=name)
-            print(name, dtype, num_data, num_unique)
-            raise NotImplementedError
+            # print(name, dtype, num_data, num_unique)
+            # raise NotImplementedError
 
     return value
