@@ -14,6 +14,9 @@ from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 from .repository import SQLAlchemyRepository
 from .config import ProductionConfig, DevelopmentConfig
+from flask_jwt import JWT, jwt_required, current_identity
+from werkzeug.security import safe_str_cmp
+
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -35,6 +38,39 @@ if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
     app.config.from_object(DevelopmentConfig)
+app.config['SECRET_KEY'] = 'super-secret'
+
+
+class User(object):
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
+
+    def __str__(self):
+        return "User(id='%s')" % self.id
+
+users = [
+    User(1, 'user1', 'abcxyz'),
+    User(2, 'user2', 'abcxyz'),
+]
+
+username_table = {u.username: u for u in users}
+userid_table = {u.id: u for u in users}
+
+
+def authenticate(username, password):
+    user = username_table.get(username, None)
+    if user and safe_str_cmp(user.password.encode('utf-8'), password.encode('utf-8')):
+        return user
+
+
+def identity(payload):
+    user_id = payload['identity']
+    return userid_table.get(user_id, None)
+
+
+jwt = JWT(app, authenticate, identity)
 
 api = Api(app)
 
@@ -48,6 +84,8 @@ synthesisRepo = SQLAlchemyRepository(db, Synthesis)
 
 
 class DatasetsResource(Resource):
+    decorators = [jwt_required()]
+
     def post(self):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
@@ -117,6 +155,8 @@ class DatasetsResource(Resource):
 
 
 class DatasetResource(Resource):
+    decorators = [jwt_required()]
+
     def get(self, dataset_id):
         parse = reqparse.RequestParser()
         parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
@@ -146,6 +186,8 @@ class DatasetResource(Resource):
 
 
 class SynthesesResource(Resource):
+    decorators = [jwt_required()]
+
     def post(self):
         parse = reqparse.RequestParser()
         parse.add_argument('dataset_id', type=str, required=True)
@@ -176,6 +218,8 @@ class SynthesesResource(Resource):
 
 
 class SynthesisResource(Resource):
+    decorators = [jwt_required()]
+
     def get(self, synthesis_id):
         parse = reqparse.RequestParser()
         parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)

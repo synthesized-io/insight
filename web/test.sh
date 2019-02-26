@@ -3,12 +3,15 @@
 set -e
 set -x
 
-DS_ID=$(curl -XPOST -F "file=@credit.csv" http://localhost:5000/dataset | jq -r .dataset_id)
+BASE_URL=http://localhost:5000
+#BASE_URL=https://webui.synthesized.io
 
-curl -i http://localhost:5000/dataset/${DS_ID}
+DS_ID=$(curl -XPOST -F "file=@credit.csv" ${BASE_URL}/datasets | jq -r .dataset_id)
 
-S_ID=$(curl -XPOST -d "dataset_id=$DS_ID&rows=500" http://localhost:5000/synthesis | jq -r .synthesis_id)
+curl -i ${BASE_URL}/datasets/${DS_ID}
 
-curl -i http://localhost:5000/synthesis/${S_ID}
+S_ID=$(curl -XPOST -d "dataset_id=$DS_ID&rows=500" ${BASE_URL}/syntheses | jq -r .synthesis_id)
 
-#curl -i -XDELETE http://localhost:5000/dataset/${DS_ID}
+curl -i ${BASE_URL}/syntheses/${S_ID}
+
+curl -i -XDELETE ${BASE_URL}/datasets/${DS_ID}
