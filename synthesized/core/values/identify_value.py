@@ -1,6 +1,7 @@
 from math import log, sqrt
 
 from .address import AddressValue
+from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
@@ -15,16 +16,18 @@ from .gilbrat import GilbratDistrValue
 from .gamma import GammaDistrValue
 from .weibull import WeibullDistrValue
 from .uniform import UniformDistrValue
+from .lognorm import LognormDistrValue
 
-from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm
+from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm, lognorm
 
 REMOVE_OUTLIERS_PCT = 1.0
 MAX_FIT_DISTANCE = 1.0
-MIN_FIT_DISTANCE = 0.1
-CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat]
+MIN_FIT_DISTANCE = 0.15
+CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat, lognorm]
 DIST_TO_VALUE_MAPPING = {
     'uniform': UniformDistrValue,
     'gamma': GammaDistrValue,
+    'lognorm': LognormDistrValue,
     'gumbel_r': GumbelDistrValue,
     'weibull_min': WeibullDistrValue,
     'gilbrat': GilbratDistrValue
@@ -32,7 +35,6 @@ DIST_TO_VALUE_MAPPING = {
 
 
 def identify_value(module, name, dtype, data):
-
     if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
@@ -46,9 +48,21 @@ def identify_value(module, name, dtype, data):
         if module.address_value is None:
             value = module.add_module(
                 module=AddressValue, name='address', postcode_level=1,
-                postcode_label=module.postcode_label, street_label=module.street_label
+                postcode_label=module.postcode_label, street_label=module.street_label,
+                capacity=module.capacity
             )
             module.address_value = value
+        else:
+            value = None
+
+    elif name == getattr(module, 'address_label', None):
+        value = module.add_module(
+            module=CompoundAddressValue, name='address', postcode_level=1,
+            address_label=module.address_label,
+            postcode_regex=module.postcode_regex,
+            capacity=module.capacity
+        )
+        module.address_value = value
 
     elif name == getattr(module, 'identifier_label', None):
         value = module.add_module(
@@ -95,7 +109,7 @@ def identify_value(module, name, dtype, data):
                     distr_fitted, params_fitted = distr, params
             if min_distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
-                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, params=params_fitted
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, integer=dtype.kind == 'i', params=params_fitted
                 )
             elif dtype.kind == 'f':
                 # default continuous value fit

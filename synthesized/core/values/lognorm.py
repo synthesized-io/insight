@@ -1,8 +1,9 @@
 from .continuous import ContinuousValue
-from scipy.stats import norm, weibull_min
+from scipy.stats import norm
+from scipy.stats import lognorm
 
 
-class WeibullDistrValue(ContinuousValue):
+class LognormDistrValue(ContinuousValue):
 
     def __init__(self, name, integer=None, params=None):
         super().__init__(name=name, integer=integer)
@@ -17,25 +18,26 @@ class WeibullDistrValue(ContinuousValue):
 
     def specification(self):
         spec = super().specification()
-        spec.update(scale=self.scale, location = self.location, shape=self.shape)
+        spec.update(shape=self.shape, location=self.location, scale=self.scale)
         return spec
 
     def extract(self, data):
+        # super().extract(data=data)
         if self.params is None:
-            self.scale = 1.
             self.shape = 1.
+            self.scale = 1.
             self.location = 1.
 
     def preprocess(self, data):
         data = super().preprocess(data=data)
-        data[self.name] = norm.ppf(weibull_min.cdf(data[self.name], self.shape, self.location, self.scale))
+        data[self.name] = norm.ppf(lognorm.cdf(data[self.name], self.shape, self.location, self.scale))
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return data
 
     def postprocess(self, data):
-        data[self.name] = weibull_min.ppf(norm.cdf(data[self.name]), self.shape, self.location, self.scale)
+        data[self.name] = lognorm.ppf(norm.cdf(data[self.name]),  self.shape, self.location, self.scale)
         data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
