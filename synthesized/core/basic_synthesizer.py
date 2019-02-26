@@ -139,8 +139,9 @@ class BasicSynthesizer(Synthesizer):
         summaries = list()
         xs = list()
         for value in self.values:
-            x = value.input_tensor(feed=feed)
-            xs.append(x)
+            if value.input_size() > 0:
+                x = value.input_tensor(feed=feed)
+                xs.append(x)
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
@@ -265,8 +266,9 @@ class BasicSynthesizer(Synthesizer):
         # transform
         xs = list()
         for value in self.values:
-            x = value.input_tensor()
-            xs.append(x)
+            if value.input_size() > 0:
+                x = value.input_tensor()
+                xs.append(x)
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
