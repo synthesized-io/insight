@@ -185,6 +185,41 @@ class DatasetResource(Resource):
         return '', 204
 
 
+models = {}
+
+
+class ModelResource(Resource):
+    decorators = [jwt_required()]
+
+    def get(self, dataset_id):
+        model_key = (current_identity.id, dataset_id)
+        model = models.get(model_key, None)
+        if not model:
+            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+        return ''
+
+    def post(self, dataset_id):
+        dataset = datasetRepo.find(dataset_id)
+        if not dataset:
+            abort(404, message="Couldn't find requested dataset: " + dataset_id)
+
+        model_key = (current_identity.id, dataset_id)
+        model = models.get(model_key, None)
+        if model:
+            return '', 204
+
+        data = pd.read_csv(StringIO(dataset.blob))
+        data = data.dropna()
+
+        synthesizer = BasicSynthesizer(data=data)
+        synthesizer.__enter__()
+        synthesizer.learn(data=data)
+
+        models[model_key] = synthesizer
+
+        return '', 204
+
+
 class SynthesesResource(Resource):
     decorators = [jwt_required()]
 
@@ -197,16 +232,12 @@ class SynthesesResource(Resource):
         dataset_id = args['dataset_id']
         rows = args['rows']
 
-        dataset = datasetRepo.find(dataset_id)
-        if not dataset:
-            abort(409, message="Couldn't find requested dataset: " + dataset_id)
+        model_key = (current_identity.id, dataset_id)
+        model = models.get(model_key, None)
+        if not model:
+            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
 
-        data = pd.read_csv(StringIO(dataset.blob))
-        data = data.dropna()
-
-        with BasicSynthesizer(data=data) as synthesizer:
-            synthesizer.learn(data=data)
-            synthesized = synthesizer.synthesize(rows)
+        synthesized = model.synthesize(rows)
 
         output = StringIO()
         synthesized.to_csv(output, index=False)
@@ -245,5 +276,6 @@ class SynthesisResource(Resource):
 
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
+api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
 api.add_resource(SynthesesResource, '/syntheses')
 api.add_resource(SynthesisResource, '/syntheses/<synthesis_id>')

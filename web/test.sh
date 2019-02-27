@@ -6,12 +6,22 @@ set -x
 BASE_URL=http://localhost:5000
 #BASE_URL=https://webui.synthesized.io
 
-DS_ID=$(curl -XPOST -F "file=@credit.csv" ${BASE_URL}/datasets | jq -r .dataset_id)
+TOKEN=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "user1", "password": "abcxyz"}' ${BASE_URL}/auth | jq -r .access_token)
+AUTH_HEADER="Authorization: JWT $TOKEN"
 
-curl -i ${BASE_URL}/datasets/${DS_ID}
+DS_ID=$(curl -f -XPOST -F "file=@credit.csv" -H "$AUTH_HEADER" ${BASE_URL}/datasets | jq -r .dataset_id)
+if [[ -z ${DS_ID} ]];
+then
+    echo 'Could not upload dataset'
+    exit 1
+fi
 
-S_ID=$(curl -XPOST -d "dataset_id=$DS_ID&rows=500" ${BASE_URL}/syntheses | jq -r .synthesis_id)
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 
-curl -i ${BASE_URL}/syntheses/${S_ID}
+curl -f -i -XPOST -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
 
-curl -i -XDELETE ${BASE_URL}/datasets/${DS_ID}
+S_ID=$(curl -f -XPOST -d "dataset_id=$DS_ID&rows=500" -H "$AUTH_HEADER" ${BASE_URL}/syntheses | jq -r .synthesis_id)
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/syntheses/${S_ID}
+
+curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
