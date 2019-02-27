@@ -75,10 +75,10 @@ def identify_value(module, name, dtype, data):
         module.identifier_value = value
 
     elif dtype.kind == 'M':  # 'm' timedelta
-        if module.date_value is not None:
-            raise NotImplementedError
+        # if module.date_value is not None:
+        #     raise NotImplementedError
         value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
-        module.date_value = value
+        # module.date_value = value
 
     elif dtype.kind == 'b':
         value = module.add_module(
@@ -95,10 +95,10 @@ def identify_value(module, name, dtype, data):
         else:
             try:
                 data[name] = pd.to_datetime(data[name])
-                if module.date_value is not None:
-                    raise NotImplementedError
+                # if module.date_value is not None:
+                #     raise NotImplementedError
                 value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
-                module.date_value = value
+                # module.date_value = value
             except ValueError:
                 pass
 
