@@ -293,7 +293,7 @@ class BasicSynthesizer(Synthesizer):
             num_data = len(data)
             data = {
                 label: data[label].get_values() for value in self.values
-                for label in value.labels()
+                for label in value.input_labels()
             }
             fetches = self.optimized
             if verbose > 0:
@@ -352,8 +352,8 @@ class BasicSynthesizer(Synthesizer):
     def synthesize(self, n):
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
-        columns = [label for value in self.values for label in value.labels()]
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
+        columns = [label for value in self.values for label in value.output_labels()]
         synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         feed_dict = {'num_synthesize': 1024}
         for k in range(n // 1024):
@@ -369,7 +369,8 @@ class BasicSynthesizer(Synthesizer):
         data = self.preprocess(data=X.copy())
         fetches = self.transformed
         feed_dict = {
-            label: data[label].get_values() for value in self.values for label in value.labels()
+            label: data[label].get_values() for value in self.values
+            for label in value.input_labels()
         }
         transformed = self.run(fetches=fetches, feed_dict=feed_dict)
         transformed = pd.DataFrame.from_dict(transformed)

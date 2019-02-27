@@ -49,11 +49,15 @@ class AddressValue(Value):
         else:
             return self.postcode.output_size()
 
-    def labels(self):
+    def input_labels(self):
         if self.postcode is not None:
-            yield from self.postcode.labels()
+            yield from self.postcode.input_labels()
         # if self.street_label is not None:
         #     yield self.street_label
+
+    def output_labels(self):
+        if self.postcode is not None:
+            yield from self.postcode.output_labels()
 
     def placeholders(self):
         if self.postcode is not None:

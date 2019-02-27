@@ -32,11 +32,11 @@ class CompoundAddressValue(Value):
     def output_size(self):
         return self.postcode.output_size()
 
-    def labels(self):
-        yield from self.postcode.labels()
+    def input_labels(self):
+        yield from self.postcode.input_labels()
 
-    def trainable_labels(self):
-        yield from self.postcode.trainable_labels()
+    def output_labels(self):
+        yield from self.postcode.output_labels()
 
     def placeholders(self):
         yield from self.postcode.placeholders()

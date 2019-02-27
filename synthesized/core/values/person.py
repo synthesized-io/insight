@@ -37,9 +37,9 @@ class PersonValue(Value):
         else:
             return self.gender.output_size()
 
-    def labels(self):
+    def input_labels(self):
         if self.gender is not None:
-            yield from self.gender.labels()
+            yield from self.gender.input_labels()
         # if self.name_label is not None:
         #     yield self.name_label
         # if self.firstname_label is not None:
@@ -48,6 +48,10 @@ class PersonValue(Value):
         #     yield self.lastname_label
         # if self.email_label is not None:
         #     yield self.email_label
+
+    def output_labels(self):
+        if self.gender is not None:
+            yield from self.gender.output_labels()
 
     def placeholders(self):
         if self.gender is not None:

@@ -49,12 +49,15 @@ class DateValue(Value):
     def output_size(self):
         return self.delta.output_size()
 
-    def labels(self):
-        yield from self.delta.labels()
-        yield from self.hour.labels()
-        yield from self.dow.labels()
-        yield from self.day.labels()
-        yield from self.month.labels()
+    def input_labels(self):
+        yield from self.delta.input_labels()
+        yield from self.hour.input_labels()
+        yield from self.dow.input_labels()
+        yield from self.day.input_labels()
+        yield from self.month.input_labels()
+
+    def output_labels(self):
+        yield from self.delta.output_labels()
 
     def placeholders(self):
         yield from self.delta.placeholders()

@@ -15,9 +15,12 @@ class Value(Module):
     def output_size(self):
         return self.input_size()
 
-    def labels(self):
+    def input_labels(self):
         if self.input_size() > 0:
             yield self.name
+
+    def output_labels(self):
+        yield from self.input_labels()
 
     def placeholders(self):
         return
