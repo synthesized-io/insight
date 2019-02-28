@@ -70,9 +70,6 @@ class CategoricalValue(Value):
         else:
             return self.num_categories
 
-    def trainable_labels(self):
-        yield self.name
-
     def placeholders(self):
         yield self.placeholder
 
@@ -98,11 +95,15 @@ class CategoricalValue(Value):
             data.loc[:, self.name] = data[self.name].astype(dtype='category')
         return data
 
-    def feature(self, x=None):
+    def features(self, x=None):
+        features = super().features(x=x)
         if x is None:
-            return tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
+            features[self.name] = tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
         else:
-            return tf.train.Feature(int64_list=tf.train.Int64List(value=(x,)))
+            features[self.name] = tf.train.Feature(
+                int64_list=tf.train.Int64List(value=(x[self.name],))
+            )
+        return features
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -129,7 +130,7 @@ class CategoricalValue(Value):
         #     indices=self.placeholder, depth=self.num_categories, on_value=1.0, off_value=0.0,
         #     axis=1, dtype=tf.float32
         # )
-        x = self.placeholder if feed is None else feed
+        x = self.placeholder if feed is None else feed[self.name]
         x = tf.nn.embedding_lookup(
             params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
             max_norm=None
@@ -145,7 +146,7 @@ class CategoricalValue(Value):
         return {self.name: x}
 
     def tf_loss(self, x, feed=None):
-        target = self.placeholder if feed is None else feed
+        target = self.placeholder if feed is None else feed[self.name]
         if self.moving_average is not None:
             frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
@@ -195,6 +196,9 @@ class CategoricalValue(Value):
         return loss
 
     def tf_distribution_loss(self, samples):
+        if self.probabilities is None:
+            return 0.0
+
         # assert not self.moving_average
         if self.similarity_based:  # is that right?
             samples = tf.expand_dims(input=samples, axis=1)

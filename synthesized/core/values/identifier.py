@@ -28,6 +28,7 @@ class IdentifierValue(Value):
         return 0
 
     def placeholders(self):
+        raise NotImplementedError
         yield self.placeholder
 
     def extract(self, data):
@@ -41,11 +42,15 @@ class IdentifierValue(Value):
         # data[self.name] = data[self.name].map(arg=normalization)
         return data
 
-    def feature(self, x=None):
+    def features(self, x=None):
+        features = super().features(x=x)
         if x is None:
-            return tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
+            features[self.name] = tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
         else:
-            return tf.train.Feature(int64_list=tf.train.Int64List(value=(x,)))
+            features[self.name] = tf.train.Feature(
+                int64_list=tf.train.Int64List(value=(x[self.name],))
+            )
+        return features
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -74,7 +79,7 @@ class IdentifierValue(Value):
         #         shape=(new_max_index - max_index, self.embedding_size), mean=0.0, stddev=1.0,
         #         dtype=tf.float32, seed=None
         #     )
-        x = self.placeholder if feed is None else feed
+        x = self.placeholder if feed is None else feed[self.name]
         x = tf.nn.embedding_lookup(
             params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
             max_norm=None

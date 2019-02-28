@@ -37,9 +37,6 @@ class ContinuousValue(Value):
     def input_size(self):
         return 1
 
-    def trainable_labels(self):
-        yield self.name
-
     def placeholders(self):
         yield self.placeholder
 
@@ -72,11 +69,17 @@ class ContinuousValue(Value):
             data.loc[:, self.name] = data[self.name].astype(dtype='int32')
         return data
 
-    def feature(self, x=None):
+    def features(self, x=None):
+        features = super().features(x=x)
         if x is None:
-            return tf.FixedLenFeature(shape=(), dtype=tf.float32, default_value=None)
+            features[self.name] = tf.FixedLenFeature(
+                shape=(), dtype=tf.float32, default_value=None
+            )
         else:
-            return tf.train.Feature(float_list=tf.train.FloatList(value=(x,)))
+            features[self.name] = tf.train.Feature(
+                float_list=tf.train.FloatList(value=(x[self.name],))
+            )
+        return features
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -85,7 +88,7 @@ class ContinuousValue(Value):
         Module.placeholders[self.name] = self.placeholder
 
     def tf_input_tensor(self, feed=None):
-        x = self.placeholder if feed is None else feed
+        x = self.placeholder if feed is None else feed[self.name]
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 x = tf.maximum(x=x, y=0.001)
@@ -120,6 +123,9 @@ class ContinuousValue(Value):
             loss_collection=tf.GraphKeys.LOSSES
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         return loss
+
+    def tf_distribution_loss(self, samples):
+        return 0.0
 
     @staticmethod
     def remove_outliers(data, name, pct):

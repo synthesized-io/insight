@@ -24,10 +24,13 @@ with tf.python_io.TFRecordWriter(path=(path + '.tfrecords'), options=options) as
         features = dict()
         # feature_lists = dict()
         i = 0
+        row = dict()
         for value in synthesizer.values:
-            for label in value.trainable_labels():
-                features[label] = value.feature(x=data[i][n])
+            for label in value.labels():
+                row[label] = data[i][n]
                 i += 1
+        for value in synthesizer.values:
+            features.update(value.features(x=row))
         # record = tf.train.SequenceExample(context=tf.train.Features(feature=features), feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
         record = tf.train.Example(features=tf.train.Features(feature=features))
         serialized_record = record.SerializeToString()

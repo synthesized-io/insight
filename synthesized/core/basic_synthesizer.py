@@ -137,13 +137,10 @@ class BasicSynthesizer(Synthesizer):
 
     def tf_train_iteration(self, feed=None):
         summaries = list()
-        if feed is None:
-            feed = dict()
         xs = list()
         for value in self.values:
-            for label in value.trainable_labels():
-                # critically assumes max one trainable label
-                x = value.input_tensor(feed=feed.get(value.name))
+            if value.input_size() > 0:
+                x = value.input_tensor(feed=feed)
                 xs.append(x)
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
@@ -170,13 +167,12 @@ class BasicSynthesizer(Synthesizer):
         if not self.exclude_encoding_loss:
             losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
-            for label in value.trainable_labels():
-                loss = value.loss(x=x, feed=feed.get(value.name))
-                if loss is not None:
-                    losses[label] = loss
-                    summaries.append(tf.contrib.summary.scalar(
-                        name=(label + '-loss'), tensor=loss, family=None, step=None
-                    ))
+            loss = value.loss(x=x, feed=feed)
+            if loss is not None:
+                losses[value.name] = loss
+                summaries.append(tf.contrib.summary.scalar(
+                    name=(value.name + '-loss'), tensor=loss, family=None, step=None
+                ))
         reg_losses = tf.losses.get_regularization_losses(scope=None)
         if len(reg_losses) > 0:
             regularization_loss = tf.add_n(inputs=reg_losses)
@@ -218,9 +214,9 @@ class BasicSynthesizer(Synthesizer):
         # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
         dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
         dataset = dataset.repeat(count=None)
-        features = {  # critically assumes max one trainable label
-            label: value.feature() for value in self.values for label in value.trainable_labels()
-        }
+        features = dict()
+        for value in self.values:
+            features.update(value.features())
         # better performance after batch
         # dataset = dataset.map(
         #     map_func=(lambda serialized: tf.parse_single_example(
@@ -270,7 +266,7 @@ class BasicSynthesizer(Synthesizer):
         # transform
         xs = list()
         for value in self.values:
-            for label in value.trainable_labels():
+            if value.input_size() > 0:
                 x = value.input_tensor()
                 xs.append(x)
         x = tf.concat(values=xs, axis=1)
@@ -297,7 +293,7 @@ class BasicSynthesizer(Synthesizer):
             num_data = len(data)
             data = {
                 label: data[label].get_values() for value in self.values
-                for label in value.trainable_labels()
+                for label in value.input_labels()
             }
             fetches = self.optimized
             if verbose > 0:
@@ -356,8 +352,8 @@ class BasicSynthesizer(Synthesizer):
     def synthesize(self, n):
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
-        columns = [label for value in self.values for label in value.trainable_labels()]
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
+        columns = [label for value in self.values for label in value.output_labels()]
         synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         feed_dict = {'num_synthesize': 1024}
         for k in range(n // 1024):
@@ -374,7 +370,7 @@ class BasicSynthesizer(Synthesizer):
         fetches = self.transformed
         feed_dict = {
             label: data[label].get_values() for value in self.values
-            for label in value.trainable_labels()
+            for label in value.input_labels()
         }
         transformed = self.run(fetches=fetches, feed_dict=feed_dict)
         transformed = pd.DataFrame.from_dict(transformed)

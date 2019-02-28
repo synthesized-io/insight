@@ -40,26 +40,29 @@ class DisplayType(Enum):
     CONTINUOUS = 3
 
 
-def detect_display_types(synthesizer, df):
+def detect_display_types(synthesizer):
     result = {}
-    for name, dtype in zip(df.dtypes.axes[0], df.dtypes):
-        value = synthesizer.get_value(name=name, dtype=dtype, data=df)
+    for value in synthesizer.values:
         if isinstance(value, ContinuousValue):
-            result[name] = DisplayType.CONTINUOUS
+            result[value.name] = DisplayType.CONTINUOUS
         elif isinstance(value, CategoricalValue):
             if value.similarity_based:
-                result[name] = DisplayType.CATEGORICAL_SIMILARITY
+                result[value.name] = DisplayType.CATEGORICAL_SIMILARITY
             else:
-                result[name] = DisplayType.CATEGORICAL
+                result[value.name] = DisplayType.CATEGORICAL
     return result
 
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        self.display_types = detect_display_types(synthesizer, df_orig)
-        self.df_orig = synthesizer.encode(data=df_orig.copy())
-        self.df_test = synthesizer.encode(data=df_test.copy())
-        self.df_synth = synthesizer.encode(data=df_synth.copy())
+        self.display_types = detect_display_types(synthesizer)
+        self.df_orig = df_orig
+        self.df_test = df_test
+        self.df_synth = df_synth
+
+        self.df_orig_encoded = synthesizer.encode(data=df_orig.copy())
+        self.df_test_encoded = synthesizer.encode(data=df_test.copy())
+        self.df_synth_encoded = synthesizer.encode(data=df_synth.copy())
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
@@ -88,41 +91,36 @@ class UtilityTesting:
         show_corr_matrix(self.df_orig, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_distributions(self, remove_outliers=0.0, figsize=(14, 40), cols=2):
+    def show_distributions(self, remove_outliers=0.0, figsize=(14, 50), cols=2):
+        concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=False, hist=True, norm_hist=True)
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=False, hist=True, norm_hist=True)
-                # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], normed=True)
-                # ax.set_xlabel(col)
+                ax = sns.countplot(x=col, hue='dataset', data=concatenated, palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
             elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
                 # workaround for kde failing on datasets with only one value
                 if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
                     kde = False
                 else:
                     kde = True
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=kde, hist=True, norm_hist=True,
-                             hist_kws={"color": COLOR_ORIG})
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, hist=True, norm_hist=True,
-                             hist_kws={"color": COLOR_SYNTH})
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, hist=True, norm_hist=True,
+                             hist_kws={"color": COLOR_ORIG}, ax=ax)
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde, hist=True, norm_hist=True,
+                             hist_kws={"color": COLOR_SYNTH}, ax=ax)
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(self.df_test[col], percentiles)
-                # sns.distplot(self.df_test[col], hist=False, kde=True, label='orig', ax=ax)
-                # sns.distplot(self.df_synth[col], hist=False, kde=True, label='synth', ax=ax)
-                # ax.set(xlim=(start, end))
                 # workaround for kde failing on datasets with only one value
                 if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
                     kde = False
                 else:
                     kde = True
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='Orig', kde=kde, kde_kws={'clip': (start, end)},
-                             hist_kws={"color": COLOR_ORIG, 'range': [start, end]})
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='Synth', kde=kde, kde_kws={'clip': (start, end)},
-                             hist_kws={"color": COLOR_SYNTH, 'range': [start, end]})
-                # plt.hist([self.df_test[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end), normed=True)
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
+                             hist_kws={"color": COLOR_ORIG, 'range': [start, end]}, ax=ax)
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde, kde_kws={'clip': (start, end)},
+                             hist_kws={"color": COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
 
     def improve_column(self, column, clf):
@@ -134,9 +132,9 @@ class UtilityTesting:
         return self.df_synth
 
     def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
-        X, y = self.df_orig.drop(target, 1), self.df_orig[target]
-        X_synth, y_synth = self.df_synth.drop(target, 1), self.df_synth[target]
-        X_test, y_test = self.df_test.drop(target, 1), self.df_test[target]
+        X, y = self.df_orig_encoded.drop(target, 1), self.df_orig_encoded[target]
+        X_synth, y_synth = self.df_synth_encoded.drop(target, 1), self.df_synth_encoded[target]
+        X_test, y_test = self.df_test_encoded.drop(target, 1), self.df_test_encoded[target]
         if self.display_types[target] == DisplayType.CATEGORICAL:
             clf = clone(classifier)
             clf.fit(X, y)
@@ -328,6 +326,7 @@ class UtilityTesting:
     def show_correlation_diffs(self, threshold=0.0, report=False):
         result = []
         cols = list(self.df_orig.columns.values)
+        cols = list(filter(lambda col: self.df_orig.dtypes[col].kind != 'O', cols))
         for i in range(len(cols)):
             for j in range(len(cols)):
                 if i < j:

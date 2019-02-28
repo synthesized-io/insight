@@ -1,4 +1,3 @@
-import names
 import numpy as np
 import pandas as pd
 import re
@@ -50,22 +49,18 @@ class AddressValue(Value):
         else:
             return self.postcode.output_size()
 
-    def labels(self):
+    def input_labels(self):
         if self.postcode is not None:
-            yield from self.postcode.labels()
-        if self.street_label is not None:
-            yield self.street_label
+            yield from self.postcode.input_labels()
+        # if self.street_label is not None:
+        #     yield self.street_label
 
-    def trainable_labels(self):
-        if self.postcode is None:
-            return
-        else:
-            yield from self.postcode.trainable_labels()
+    def output_labels(self):
+        if self.postcode is not None:
+            yield from self.postcode.output_labels()
 
     def placeholders(self):
-        if self.postcode is None:
-            return
-        else:
+        if self.postcode is not None:
             yield from self.postcode.placeholders()
 
     def extract(self, data):
@@ -138,11 +133,11 @@ class AddressValue(Value):
         data[self.street_label] = street
         return data
 
-    def feature(self, x=None):
-        if self.postcode is None:
-            return None
-        else:
-            return self.postcode.feature(x=x)
+    def features(self, x=None):
+        features = super().features(x=x)
+        if self.postcode is not None:
+            features.update(self.postcode.features(x=x))
+        return features
 
     def tf_input_tensor(self, feed=None):
         if self.postcode is None:
