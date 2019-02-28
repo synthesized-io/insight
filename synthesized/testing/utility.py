@@ -326,6 +326,7 @@ class UtilityTesting:
     def show_correlation_diffs(self, threshold=0.0, report=False):
         result = []
         cols = list(self.df_orig.columns.values)
+        cols = list(filter(lambda col: self.df_orig.dtypes[col].kind != 'O', cols))
         for i in range(len(cols)):
             for j in range(len(cols)):
                 if i < j:
