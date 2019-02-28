@@ -91,7 +91,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_orig, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_distributions(self, remove_outliers=0.0, figsize=(14, 40), cols=2):
+    def show_distributions(self, remove_outliers=0.0, figsize=(14, 50), cols=2):
         concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
