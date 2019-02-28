@@ -6,6 +6,7 @@ from .enumeration import EnumerationValue
 from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .identify_value import identify_value
+from .nan import NanValue
 from .person import PersonValue
 from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
@@ -37,4 +38,3 @@ value_modules = dict(
     sampling=SamplingValue,
     gilbrat=GilbratDistrValue
 )
-
