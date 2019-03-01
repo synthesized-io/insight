@@ -6,17 +6,16 @@ import pandas as pd
 import simplejson
 import werkzeug
 from flask import Flask, jsonify
+from flask.json import JSONEncoder
+from flask_bcrypt import Bcrypt
+from flask_jwt import JWT, jwt_required, current_identity
 from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask.json import JSONEncoder
 
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
-from .repository import SQLAlchemyRepository
 from .config import ProductionConfig, DevelopmentConfig
-from flask_jwt import JWT, jwt_required, current_identity
-from werkzeug.security import safe_str_cmp
-
+from .repository import SQLAlchemyRepository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -40,47 +39,50 @@ else:
     app.config.from_object(DevelopmentConfig)
 app.config['SECRET_KEY'] = 'super-secret'
 
-
-class User(object):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password = password
-
-    def __str__(self):
-        return "User(id='%s')" % self.id
-
-users = [
-    User(1, 'user1', 'abcxyz'),
-    User(2, 'user2', 'abcxyz'),
-]
-
-username_table = {u.username: u for u in users}
-userid_table = {u.id: u for u in users}
-
-
-def authenticate(username, password):
-    user = username_table.get(username, None)
-    if user and safe_str_cmp(user.password.encode('utf-8'), password.encode('utf-8')):
-        return user
-
-
-def identity(payload):
-    user_id = payload['identity']
-    return userid_table.get(user_id, None)
-
-
-jwt = JWT(app, authenticate, identity)
-
-api = Api(app)
-
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after
-from .model import Dataset, Synthesis
+from .model import Dataset, Synthesis, User
 db.create_all()
 
 datasetRepo = SQLAlchemyRepository(db, Dataset)
 synthesisRepo = SQLAlchemyRepository(db, Synthesis)
+userRepo = SQLAlchemyRepository(db, User)
+
+bcrypt = Bcrypt(app)
+
+
+def authenticate(username, password):
+    users = userRepo.find_by_props({'username': username})
+    if len(users) > 0 and bcrypt.check_password_hash(users[0].password, password):
+        return users[0]
+
+
+def identity(payload):
+    user_id = payload['identity']
+    return userRepo.get(user_id)
+
+
+jwt = JWT(app, authenticate, identity)
+
+
+class UsersResource(Resource):
+    def post(self):
+        parse = reqparse.RequestParser()
+        parse.add_argument('username', type=str, required=True)
+        parse.add_argument('password', type=str, required=True)
+        args = parse.parse_args()
+
+        username = args['username']
+        password = args['password']
+
+        users = userRepo.find_by_props({'username': username})
+        if len(users) > 0:
+            abort(409, message='User with username={} already exists'.format(username))
+
+        user = User(username=username, password=bcrypt.generate_password_hash(password))
+        userRepo.save(user)
+
+        return {'user_id': user.id}, 201
 
 
 class DatasetsResource(Resource):
@@ -149,7 +151,7 @@ class DatasetsResource(Resource):
                 'n_types': len(value_types),
                 'columns': columns_info,
             }
-            dataset = Dataset(blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
+            dataset = Dataset(user_id=current_identity.id, blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
             return {'dataset_id': dataset.id}, 201
 
@@ -166,7 +168,7 @@ class DatasetResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        dataset = datasetRepo.find(dataset_id)
+        dataset = datasetRepo.get(dataset_id)
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
 
@@ -179,7 +181,7 @@ class DatasetResource(Resource):
         })
 
     def delete(self, dataset_id):
-        dataset = datasetRepo.find(dataset_id)
+        dataset = datasetRepo.get(dataset_id)
         if dataset:
             datasetRepo.delete(dataset)
         return '', 204
@@ -199,7 +201,7 @@ class ModelResource(Resource):
         return ''
 
     def post(self, dataset_id):
-        dataset = datasetRepo.find(dataset_id)
+        dataset = datasetRepo.get(dataset_id)
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
 
@@ -260,7 +262,7 @@ class SynthesisResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        synthesis = synthesisRepo.find(synthesis_id)
+        synthesis = synthesisRepo.get(synthesis_id)
         if not synthesis:
             abort(404, messsage="Couldn't find requested synthesis: " + synthesis_id)
 
@@ -274,6 +276,8 @@ class SynthesisResource(Resource):
         })
 
 
+api = Api(app)
+api.add_resource(UsersResource, '/users')
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
