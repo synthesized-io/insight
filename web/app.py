@@ -171,6 +171,8 @@ class DatasetResource(Resource):
         dataset = datasetRepo.get(dataset_id)
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != current_identity.id:
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         data = pd.read_csv(StringIO(dataset.blob))
 
@@ -182,6 +184,8 @@ class DatasetResource(Resource):
 
     def delete(self, dataset_id):
         dataset = datasetRepo.get(dataset_id)
+        if dataset.user_id != current_identity.id:
+            abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
         if dataset:
             datasetRepo.delete(dataset)
         return '', 204
@@ -204,6 +208,8 @@ class ModelResource(Resource):
         dataset = datasetRepo.get(dataset_id)
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != current_identity.id:
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         model_key = (current_identity.id, dataset_id)
         model = models.get(model_key, None)
