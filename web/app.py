@@ -16,6 +16,7 @@ from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 from .config import ProductionConfig, DevelopmentConfig
 from .repository import SQLAlchemyRepository
+from threading import Lock
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -191,6 +192,7 @@ class DatasetResource(Resource):
         return '', 204
 
 
+models_lock = Lock()
 models = {}
 
 
@@ -199,10 +201,11 @@ class ModelResource(Resource):
 
     def get(self, dataset_id):
         model_key = (current_identity.id, dataset_id)
-        model = models.get(model_key, None)
-        if not model:
-            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
-        return ''
+        with models_lock:
+            model = models.get(model_key, None)
+            if not model:
+                abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+        return {'model': str(model)}, 200
 
     def post(self, dataset_id):
         dataset = datasetRepo.get(dataset_id)
@@ -212,9 +215,10 @@ class ModelResource(Resource):
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         model_key = (current_identity.id, dataset_id)
-        model = models.get(model_key, None)
-        if model:
-            return '', 204
+        with models_lock:
+            model = models.get(model_key, None)
+            if model:
+                return '', 204
 
         data = pd.read_csv(StringIO(dataset.blob))
         data = data.dropna()
@@ -223,7 +227,8 @@ class ModelResource(Resource):
         synthesizer.__enter__()
         synthesizer.learn(data=data)
 
-        models[model_key] = synthesizer
+        with models_lock:
+            models[model_key] = synthesizer
 
         return '', 204
 
@@ -241,9 +246,10 @@ class SynthesesResource(Resource):
         rows = args['rows']
 
         model_key = (current_identity.id, dataset_id)
-        model = models.get(model_key, None)
-        if not model:
-            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+        with models_lock:
+            model = models.get(model_key, None)
+            if not model:
+                abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
 
         synthesized = model.synthesize(rows)
 
