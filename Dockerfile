@@ -21,4 +21,4 @@ EXPOSE 80
 WORKDIR /app
 
 # note that database file is shared and we can run only 1 worker
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:80", "-t", "600", "--access-logfile", "-", "web.app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "1", "--threads", "4", "--timeout", "600", "--access-logfile", "-", "web.app:app"]
