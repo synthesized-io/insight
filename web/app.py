@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import simplejson
 import werkzeug
-from flask import Flask, jsonify, current_app as app
+from flask import Flask, jsonify
 from flask.json import JSONEncoder
 from flask_bcrypt import Bcrypt
 from flask_jwt import JWT, jwt_required, current_identity
