@@ -310,7 +310,13 @@ class SynthesisResource(Resource):
         })
 
 
+class StatusResource(Resource):
+    def get(self):
+        return {'success': True}
+
+
 api = Api(app)
+api.add_resource(StatusResource, '/')
 api.add_resource(UsersResource, '/users')
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
