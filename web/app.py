@@ -52,6 +52,10 @@ bcrypt = Bcrypt(app)
 
 def authenticate(username, password):
     users = userRepo.find_by_props({'username': username})
+    if len(users) > 0:
+        app.logger.info(users[0].password)
+        app.logger.info(password)
+        app.logger.info(password.encode('utf-8'))
     if len(users) > 0 and bcrypt.check_password_hash(users[0].password, password.encode('utf-8')):
         return users[0]
 
