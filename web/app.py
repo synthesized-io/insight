@@ -32,11 +32,12 @@ class JSONCompliantEncoder(JSONEncoder):
 app = Flask(__name__)
 app.json_encoder = JSONCompliantEncoder
 app.config['SQLALCHEMY_ECHO'] = False
+app.config['PROPAGATE_EXCEPTIONS'] = True
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
     app.config.from_object(DevelopmentConfig)
-app.config['SECRET_KEY'] = 'super-secret'
+app.config['SECRET_KEY'] = 'synthesized-secret'
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after
