@@ -32,7 +32,7 @@ class JSONCompliantEncoder(JSONEncoder):
 app = Flask(__name__)
 app.json_encoder = JSONCompliantEncoder
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['PROPAGATE_EXCEPTIONS'] = True  # this is crucial to enable handling of JWTError
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
