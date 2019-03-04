@@ -53,11 +53,9 @@ bcrypt = Bcrypt(app)
 def authenticate(username, password):
     users = userRepo.find_by_props({'username': username})
     if len(users) > 0:
-        app.logger.info(users[0].password)
-        app.logger.info(password)
-        app.logger.info(password.encode('utf-8'))
-    if len(users) > 0 and bcrypt.check_password_hash(users[0].password, password.encode('utf-8')):
-        return users[0]
+        password_hash = bytes.fromhex(users[0].password)
+        if bcrypt.check_password_hash(password_hash, password):
+            return users[0]
 
 
 def identity(payload):
@@ -85,7 +83,7 @@ class UsersResource(Resource):
             app.logger.info('found existing user {}'.format(users[0]))
             abort(409, message='User with username={} already exists'.format(username))
 
-        user = User(username=username, password=bcrypt.generate_password_hash(password))
+        user = User(username=username, password=bcrypt.generate_password_hash(password).hex())
         userRepo.save(user)
         app.logger.info('created a user {}'.format(user))
 
