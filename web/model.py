@@ -7,7 +7,7 @@ class User(db.Model):
     password = db.Column(db.Text, nullable=False)
 
     def __str__(self):
-        return "<User {}>" % self.id
+        return "<User {}>".format(self.id)
 
 
 class Dataset(db.Model):
@@ -17,7 +17,7 @@ class Dataset(db.Model):
     meta = db.Column(db.Text, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
 
-    def __repr__(self):
+    def __str__(self):
         return '<Dataset {}>'.format(self.id)
 
 
@@ -27,5 +27,5 @@ class Synthesis(db.Model):
     size = db.Column(db.Integer, nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id), nullable=False)
 
-    def __repr__(self):
+    def __str__(self):
         return '<Synthesis {}>'.format(self.id)

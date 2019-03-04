@@ -1,11 +1,11 @@
-import logging
 from io import StringIO
+from threading import Lock
 
 import numpy as np
 import pandas as pd
 import simplejson
 import werkzeug
-from flask import Flask, jsonify
+from flask import Flask, jsonify, current_app as app
 from flask.json import JSONEncoder
 from flask_bcrypt import Bcrypt
 from flask_jwt import JWT, jwt_required, current_identity
@@ -16,13 +16,10 @@ from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 from .config import ProductionConfig, DevelopmentConfig
 from .repository import SQLAlchemyRepository
-from threading import Lock
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
 REMOVE_OUTLIERS = 0.01
-
-logging.basicConfig(level=logging.INFO)
 
 
 # By default NaN is serialized as "NaN". We enforce "null" instead.
@@ -34,6 +31,7 @@ class JSONCompliantEncoder(JSONEncoder):
 
 app = Flask(__name__)
 app.json_encoder = JSONCompliantEncoder
+app.config['SQLALCHEMY_ECHO'] = False
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
@@ -76,12 +74,16 @@ class UsersResource(Resource):
         username = args['username']
         password = args['password']
 
+        app.logger.info('registering user {}'.format(username))
+
         users = userRepo.find_by_props({'username': username})
         if len(users) > 0:
+            app.logger.info('found existing user {}'.format(users[0]))
             abort(409, message='User with username={} already exists'.format(username))
 
         user = User(username=username, password=bcrypt.generate_password_hash(password))
         userRepo.save(user)
+        app.logger.info('created a user {}'.format(user))
 
         return {'user_id': user.id}, 201
 
@@ -94,6 +96,8 @@ class DatasetsResource(Resource):
         parse.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
         args = parse.parse_args()
         file = args['file']
+
+        app.logger.info('processing file {}'.format(file.filename))
 
         with file.stream as stream:
             data = pd.read_csv(stream)
@@ -154,6 +158,8 @@ class DatasetsResource(Resource):
             }
             dataset = Dataset(user_id=current_identity.id, blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
+            app.logger.info('created a dataset {}'.format(dataset))
+
             return {'dataset_id': dataset.id}, 201
 
 
@@ -170,6 +176,8 @@ class DatasetResource(Resource):
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
         dataset = datasetRepo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
+
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != current_identity.id:
@@ -185,9 +193,10 @@ class DatasetResource(Resource):
 
     def delete(self, dataset_id):
         dataset = datasetRepo.get(dataset_id)
-        if dataset.user_id != current_identity.id:
-            abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if dataset:
+            if dataset.user_id != current_identity.id:
+                abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
             datasetRepo.delete(dataset)
         return '', 204
 
@@ -209,6 +218,7 @@ class ModelResource(Resource):
 
     def post(self, dataset_id):
         dataset = datasetRepo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != current_identity.id:
@@ -217,15 +227,18 @@ class ModelResource(Resource):
         model_key = (current_identity.id, dataset_id)
         with models_lock:
             model = models.get(model_key, None)
+            app.logger.info('model by key={} is {}'.format(model_key, model))
             if model:
                 return '', 204
 
         data = pd.read_csv(StringIO(dataset.blob))
         data = data.dropna()
 
+        app.logger.info('starting model training')
         synthesizer = BasicSynthesizer(data=data)
         synthesizer.__enter__()
         synthesizer.learn(data=data)
+        app.logger.info('model has been trained')
 
         with models_lock:
             models[model_key] = synthesizer
@@ -245,12 +258,17 @@ class SynthesesResource(Resource):
         dataset_id = args['dataset_id']
         rows = args['rows']
 
+        app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
+
         model_key = (current_identity.id, dataset_id)
+        app.logger.info('model key is {}'.format(model_key))
         with models_lock:
             model = models.get(model_key, None)
+            app.logger.info('found a model {}'.format(model))
             if not model:
                 abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
 
+        app.logger.info('starting synthesis')
         synthesized = model.synthesize(rows)
 
         output = StringIO()
@@ -258,6 +276,8 @@ class SynthesesResource(Resource):
 
         synthesis = Synthesis(dataset_id=dataset_id, blob=output.getvalue(), size=rows)
         synthesisRepo.save(synthesis)
+
+        app.logger.info('created a synthesis {}'.format(synthesis))
 
         return {'synthesis_id': synthesis.id}, 201
 
@@ -275,6 +295,8 @@ class SynthesisResource(Resource):
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
         synthesis = synthesisRepo.get(synthesis_id)
+        app.logger.info('synthesis by id={} is {}'.format(synthesis_id, synthesis))
+
         if not synthesis:
             abort(404, messsage="Couldn't find requested synthesis: " + synthesis_id)
 
