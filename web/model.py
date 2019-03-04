@@ -13,6 +13,8 @@ class User(db.Model):
 class Dataset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    title = db.Column(db.Text)
+    description = db.Column(db.Text)
     blob = db.Column(db.Text, nullable=False)
     meta = db.Column(db.Text, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')

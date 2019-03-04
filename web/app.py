@@ -16,6 +16,7 @@ from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 from .config import ProductionConfig, DevelopmentConfig
 from .repository import SQLAlchemyRepository
+import os
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -94,6 +95,19 @@ class UsersResource(Resource):
 class DatasetsResource(Resource):
     decorators = [jwt_required()]
 
+    def get(self):
+        datasets = datasetRepo.find_by_props({})
+        return jsonify({
+            'datasets': [
+                {
+                    'dataset_id': d.id,
+                    'title': d.title,
+                    'description': d.description
+                }
+                for d in datasets
+            ]
+        })
+
     def post(self):
         parse = reqparse.RequestParser()
         parse.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
@@ -159,7 +173,8 @@ class DatasetsResource(Resource):
                 'n_types': len(value_types),
                 'columns': columns_info,
             }
-            dataset = Dataset(user_id=current_identity.id, blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
+            title = os.path.splitext(file.filename)[0]
+            dataset = Dataset(user_id=current_identity.id, title=title, blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
             datasetRepo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
@@ -190,6 +205,8 @@ class DatasetResource(Resource):
 
         return jsonify({
             'dataset_id': dataset.id,
+            'title': dataset.title,
+            'description': dataset.description,
             'meta': simplejson.loads(dataset.meta),
             'sample': data[:sample_size].to_dict(orient='list')
         })
@@ -201,6 +218,30 @@ class DatasetResource(Resource):
             if dataset.user_id != current_identity.id:
                 abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
             datasetRepo.delete(dataset)
+        return '', 204
+
+
+class DatasetUpdateInfoResource(Resource):
+    decorators = [jwt_required()]
+
+    def post(self, dataset_id):
+        parse = reqparse.RequestParser()
+        parse.add_argument('title', type=str, required=False)
+        parse.add_argument('description', type=str, required=False)
+        args = parse.parse_args()
+
+        dataset = datasetRepo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
+        if not dataset:
+            abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
+
+        app.logger.info('updating the dataset with args {}'.format(args))
+
+        dataset.title = args['title']
+        dataset.description = args['description']
+
+        db.session.commit()
+
         return '', 204
 
 
@@ -323,6 +364,7 @@ api.add_resource(StatusResource, '/')
 api.add_resource(UsersResource, '/users')
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
+api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
 api.add_resource(SynthesesResource, '/syntheses')
 api.add_resource(SynthesisResource, '/syntheses/<synthesis_id>')
