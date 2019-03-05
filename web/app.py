@@ -32,7 +32,7 @@ class JSONCompliantEncoder(JSONEncoder):
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)  # TODO: delete in final version
 app.json_encoder = JSONCompliantEncoder
 app.config['SQLALCHEMY_ECHO'] = False
 app.config['PROPAGATE_EXCEPTIONS'] = True  # this is crucial to enable handling of JWTError
