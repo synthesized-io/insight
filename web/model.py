@@ -1,7 +1,13 @@
 from .app import db
+from datetime import datetime
 
 
-class User(db.Model):
+class AuditMixin(object):
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+
+class User(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.Text, nullable=False, unique=True)
     password = db.Column(db.Text, nullable=False)
@@ -10,7 +16,7 @@ class User(db.Model):
         return "<User {}>".format(self.id)
 
 
-class Dataset(db.Model):
+class Dataset(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
     title = db.Column(db.Text)
@@ -23,7 +29,7 @@ class Dataset(db.Model):
         return '<Dataset {}>'.format(self.id)
 
 
-class Synthesis(db.Model):
+class Synthesis(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     blob = db.Column(db.Text, nullable=False)
     size = db.Column(db.Integer, nullable=False)
