@@ -1,23 +1,22 @@
+import os
 from io import StringIO
 from threading import Lock
 
-import numpy as np
 import pandas as pd
 import simplejson
 import werkzeug
 from flask import Flask, jsonify
 from flask.json import JSONEncoder
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
 
 from synthesized.core import BasicSynthesizer
-from synthesized.core.values import ContinuousValue
+from .analisys import extract_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
 from .repository import SQLAlchemyRepository
-import os
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -120,63 +119,16 @@ class DatasetsResource(Resource):
 
         with file.stream as stream:
             data = pd.read_csv(stream)
+
+            title = os.path.splitext(file.filename)[0]
+
             raw_data = StringIO()
             data.to_csv(raw_data, index=False)
-            data_wo_nans = data.dropna()
-            synthesizer = BasicSynthesizer(data=data_wo_nans)
-            value_types = set()
-            columns_info = []
-            for value in synthesizer.values:
-                value_types.add(str(value))
-                if isinstance(value, ContinuousValue):
-                    q = [REMOVE_OUTLIERS / 2., 1 - REMOVE_OUTLIERS / 2.]
-                    start, end = np.quantile(data_wo_nans[value.name], q)
-                    column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
-                    hist, edges = np.histogram(column_cleaned, bins='auto')
-                    hist = list(map(int, hist))
-                    edges = list(map(float, edges))
-                    columns_info.append({
-                        'name': value.name,
-                        'plot_type': 'density',
-                        'type': str(value),
-                        'mean': float(data[value.name].mean()),
-                        'std': float(data[value.name].std()),
-                        'median': float(data[value.name].median()),
-                        'min': float(data[value.name].min()),
-                        'max': float(data[value.name].max()),
-                        'n_nulls': int(data[value.name].isnull().sum()),
-                        'plot_data': {
-                            'hist': hist,
-                            'edges': edges
-                        }
-                    })
-                else:
-                    most_frequent = data[value.name].value_counts().idxmax()
-                    bins = sorted(data[value.name].dropna().unique())
-                    counts = data[value.name].value_counts().to_dict()
-                    hist = [counts[x] for x in bins]
-                    bins = list(map(str, bins))
-                    hist = list(map(int, hist))
-                    columns_info.append({
-                        'name': value.name,
-                        'plot_type': 'histogram',
-                        'type': str(value),
-                        'n_unique': int(data[value.name].nunique()),
-                        'most_frequent': str(most_frequent),
-                        'most_occurrences': int(len(data[data[value.name] == most_frequent])),
-                        'plot_data': {
-                            'hist': hist,
-                            'bins': bins
-                        }
-                    })
-            meta = {
-                'n_rows': len(data),
-                'n_columns': len(data.columns),
-                'n_types': len(value_types),
-                'columns': columns_info,
-            }
-            title = os.path.splitext(file.filename)[0]
-            dataset = Dataset(user_id=current_identity.id, title=title, blob=raw_data.getvalue(), meta=simplejson.dumps(meta, ignore_nan=True))
+
+            meta = extract_dataset_meta(data)
+            meta_json = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True)
+
+            dataset = Dataset(user_id=current_identity.id, title=title, blob=raw_data.getvalue(), meta=meta_json)
             datasetRepo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
