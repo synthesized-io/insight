@@ -25,25 +25,30 @@ Contributing
 
         cd synthesized
 
-1. Install virtualenv command:
+2. Install virtualenv command:
 
         pip3 install --user virtualenv
         
 Note: if you cannot install venv without root check that virtualenv executable is owned by your user
 
-2. Create a virtual environment:
+3. Create a virtual environment:
 
         virtualenv -p python3 venv
         
-3. Active it:
+4. Active it:
 
         source venv/bin/activate
         
-4. Install deps:
+5. Install deps:
 
         pip install -r requriements-dev.txt
+
+6. If running on mac OS X, set matplotlib backend:        
         
-5. Run Tests
+        mkdir -p ~/.matplotlib
+        echo 'backend: TkAgg' > ~/.matplotlib/matplotlibrc
+
+7. Run Tests:
 
         python -m pytest
 
