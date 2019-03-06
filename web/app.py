@@ -186,7 +186,7 @@ class DatasetUpdateInfoResource(Resource):
         dataset.title = args['title']
         dataset.description = args['description']
 
-        db.session.commit()
+        datasetRepo.save(dataset)
 
         return '', 204
 
