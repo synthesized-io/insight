@@ -317,8 +317,7 @@ class SynthesisResource(Resource):
 
         return jsonify({
             'synthesis_id': synthesis_id,
-            'meta': {
-            },
+            'meta': simplejson.load(BytesIO(synthesis.meta), encoding='utf-8'),
             'sample': data[:sample_size].to_dict(orient='list')
         })
 

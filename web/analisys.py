@@ -126,7 +126,8 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
     data.to_csv(raw_data, index=False)
     columns_meta = []
     for column_meta in meta.columns:
-        if isinstance(column_meta, ContinuousMeta):
+        if column_meta.plot_type == 'density':  # we want duck typing here
+            column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
             hist = list(map(int, hist))
@@ -145,11 +146,13 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                     edges=edges
                 )
             ))
-        elif isinstance(column_meta, CategoricalMeta):
+        elif column_meta.plot_type == 'histogram':  # we want duck typing here
+            column_meta: CategoricalMeta = column_meta
             most_frequent = data[column_meta.name].value_counts().idxmax()
             bins = column_meta.plot_data.bins
             counts = data[column_meta.name].value_counts().to_dict()
-            hist = [counts[x] for x in bins if x in counts]
+            counts = {str(k): v for k, v in counts.items()}  # bins in original meta are always strings
+            hist = [counts.get(x, 0) for x in bins]
             hist = list(map(int, hist))
             columns_meta.append(CategoricalMeta(
                 name=column_meta.name,
