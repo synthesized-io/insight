@@ -1,9 +1,4 @@
-jupyter>=1.0.0
-sphinx
-sphinx_rtd_theme
 pytest
-coverage
 Cython
-jupyterthemes
 
 -r requirements.txt
