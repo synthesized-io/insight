@@ -62,10 +62,10 @@ jwt = JWT(app, authenticate, identity)
 
 class UsersResource(Resource):
     def post(self):
-        parse = reqparse.RequestParser()
-        parse.add_argument('username', type=str, required=True)
-        parse.add_argument('password', type=str, required=True)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        args = parser.parse_args()
 
         username = args['username']
         password = args['password']
@@ -101,9 +101,9 @@ class DatasetsResource(Resource):
         })
 
     def post(self):
-        parse = reqparse.RequestParser()
-        parse.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
+        args = parser.parse_args()
         file = args['file']
 
         app.logger.info('processing file {}'.format(file.filename))
@@ -131,9 +131,9 @@ class DatasetResource(Resource):
     decorators = [jwt_required()]
 
     def get(self, dataset_id):
-        parse = reqparse.RequestParser()
-        parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
+        args = parser.parse_args()
 
         sample_size = args['sample_size']
         if sample_size > MAX_SAMPLE_SIZE:
@@ -171,10 +171,10 @@ class DatasetUpdateInfoResource(Resource):
     decorators = [jwt_required()]
 
     def post(self, dataset_id):
-        parse = reqparse.RequestParser()
-        parse.add_argument('title', type=str, required=False)
-        parse.add_argument('description', type=str, required=False)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('title', type=str, required=False)
+        parser.add_argument('description', type=str, required=False)
+        args = parser.parse_args()
 
         dataset = datasetRepo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
@@ -240,10 +240,10 @@ class SynthesesResource(Resource):
     decorators = [jwt_required()]
 
     def post(self):
-        parse = reqparse.RequestParser()
-        parse.add_argument('dataset_id', type=str, required=True)
-        parse.add_argument('rows', type=int, required=True)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('dataset_id', type=str, required=True)
+        parser.add_argument('rows', type=int, required=True)
+        args = parser.parse_args()
 
         dataset_id = args['dataset_id']
         rows = args['rows']
@@ -289,9 +289,9 @@ class SynthesisResource(Resource):
     decorators = [jwt_required()]
 
     def get(self, synthesis_id):
-        parse = reqparse.RequestParser()
-        parse.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
-        args = parse.parse_args()
+        parser = reqparse.RequestParser()
+        parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
+        args = parser.parse_args()
 
         sample_size = args['sample_size']
         if sample_size > MAX_SAMPLE_SIZE:
