@@ -126,10 +126,10 @@ class DatasetsResource(Resource):
             data.to_csv(raw_data, index=False, encoding='utf-8')
 
             meta = extract_dataset_meta(data)
-            meta_json = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True)
+            meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
             blob = raw_data.getvalue().encode('utf-8')
-            dataset = Dataset(user_id=current_identity.id, title=title, blob=blob, meta=meta_json)
+            dataset = Dataset(user_id=current_identity.id, title=title, blob=blob, meta=meta)
             datasetRepo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
@@ -162,7 +162,7 @@ class DatasetResource(Resource):
             'dataset_id': dataset.id,
             'title': dataset.title,
             'description': dataset.description,
-            'meta': simplejson.loads(dataset.meta),
+            'meta': simplejson.load(BytesIO(dataset.meta), encoding='utf-8'),
             'sample': data[:sample_size].to_dict(orient='list')
         })
 
