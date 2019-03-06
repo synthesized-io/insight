@@ -1,4 +1,5 @@
 import os
+from collections import namedtuple
 from io import StringIO, BytesIO
 from threading import Lock
 
@@ -14,7 +15,7 @@ from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
 
 from synthesized.core import BasicSynthesizer
-from .analisys import extract_dataset_meta
+from .analisys import extract_dataset_meta, recompute_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
 from .repository import SQLAlchemyRepository
 
@@ -259,6 +260,11 @@ class SynthesesResource(Resource):
 
         app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
 
+        dataset = datasetRepo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
+        if not dataset:
+            abort(404, message="Couldn't find requested dataset: " + dataset_id)
+
         model_key = (current_identity.id, dataset_id)
         app.logger.info('model key is {}'.format(model_key))
         with models_lock:
@@ -275,7 +281,13 @@ class SynthesesResource(Resource):
 
         blob = output.getvalue().encode('utf-8')
 
-        synthesis = Synthesis(dataset_id=dataset_id, blob=blob, size=rows)
+        # Parse JSON into an object with attributes corresponding to dict keys.
+        original_meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+
+        synthetic_meta = recompute_dataset_meta(synthesized, original_meta)
+        synthetic_meta = simplejson.dumps(synthetic_meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
+
+        synthesis = Synthesis(dataset_id=dataset_id, blob=blob, meta=synthetic_meta, size=rows)
         synthesisRepo.save(synthesis)
 
         app.logger.info('created a synthesis {}'.format(synthesis))
