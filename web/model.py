@@ -21,7 +21,7 @@ class Dataset(db.Model, AuditMixin):
     user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
     title = db.Column(db.Text)
     description = db.Column(db.Text)
-    blob = db.Column(db.Text, nullable=False)
+    blob = db.Column(db.LargeBinary, nullable=False)
     meta = db.Column(db.Text, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
 
@@ -31,7 +31,7 @@ class Dataset(db.Model, AuditMixin):
 
 class Synthesis(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
-    blob = db.Column(db.Text, nullable=False)
+    blob = db.Column(db.LargeBinary, nullable=False)
     size = db.Column(db.Integer, nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id), nullable=False)
 

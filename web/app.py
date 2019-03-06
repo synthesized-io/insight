@@ -1,5 +1,5 @@
 import os
-from io import StringIO
+from io import StringIO, BytesIO
 from threading import Lock
 
 import pandas as pd
@@ -123,12 +123,13 @@ class DatasetsResource(Resource):
             title = os.path.splitext(file.filename)[0]
 
             raw_data = StringIO()
-            data.to_csv(raw_data, index=False)
+            data.to_csv(raw_data, index=False, encoding='utf-8')
 
             meta = extract_dataset_meta(data)
             meta_json = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True)
 
-            dataset = Dataset(user_id=current_identity.id, title=title, blob=raw_data.getvalue(), meta=meta_json)
+            blob = raw_data.getvalue().encode('utf-8')
+            dataset = Dataset(user_id=current_identity.id, title=title, blob=blob, meta=meta_json)
             datasetRepo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
@@ -155,7 +156,7 @@ class DatasetResource(Resource):
         if dataset.user_id != current_identity.id:
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        data = pd.read_csv(StringIO(dataset.blob))
+        data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
 
         return jsonify({
             'dataset_id': dataset.id,
@@ -229,7 +230,7 @@ class ModelResource(Resource):
             if model:
                 return '', 204
 
-        data = pd.read_csv(StringIO(dataset.blob))
+        data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.dropna()
 
         app.logger.info('starting model training')
@@ -270,9 +271,11 @@ class SynthesesResource(Resource):
         synthesized = model.synthesize(rows)
 
         output = StringIO()
-        synthesized.to_csv(output, index=False)
+        synthesized.to_csv(output, index=False, encoding='utf-8')
 
-        synthesis = Synthesis(dataset_id=dataset_id, blob=output.getvalue(), size=rows)
+        blob = output.getvalue().encode('utf-8')
+
+        synthesis = Synthesis(dataset_id=dataset_id, blob=blob, size=rows)
         synthesisRepo.save(synthesis)
 
         app.logger.info('created a synthesis {}'.format(synthesis))
@@ -298,7 +301,7 @@ class SynthesisResource(Resource):
         if not synthesis:
             abort(404, messsage="Couldn't find requested synthesis: " + synthesis_id)
 
-        data = pd.read_csv(StringIO(synthesis.blob))
+        data = pd.read_csv(BytesIO(synthesis.blob))
 
         return jsonify({
             'synthesis_id': synthesis_id,
