@@ -12,9 +12,10 @@ REMOVE_OUTLIERS = 0.01
 
 
 class ColumnMeta(ABC):
-    def __init__(self, name: str, type: str):
+    def __init__(self, name: str, type: str, plot_type: str):
         self.name = name
         self.type = type
+        self.plot_type = plot_type
 
 
 class ContinuousPlotData:
@@ -32,7 +33,7 @@ class CategoricalPlotData:
 class ContinuousMeta(ColumnMeta):
     def __init__(self, name: str, type: str, mean: float, std: float, median: float, min: float, max: float,
                  n_nulls: int, plot_data: ContinuousPlotData) -> None:
-        super().__init__(name, type)
+        super().__init__(name, type, "density")
         self.mean = mean
         self.std = std
         self.median = median
@@ -40,18 +41,16 @@ class ContinuousMeta(ColumnMeta):
         self.max = max
         self.n_nulls = n_nulls
         self.plot_data = plot_data
-        self.plot_type = "density"
 
 
 class CategoricalMeta(ColumnMeta):
     def __init__(self, name: str, type: str, n_unique: int, most_frequent: str, most_occurrences: int,
                  plot_data: CategoricalPlotData) -> None:
-        super().__init__(name, type)
+        super().__init__(name, type, "histogram")
         self.n_unique = n_unique
         self.most_frequent = most_frequent
         self.most_occurrences = most_occurrences
         self.plot_data = plot_data
-        self.plot_type = "histogram"
 
 
 class DatasetMeta:
