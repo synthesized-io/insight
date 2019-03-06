@@ -21,7 +21,6 @@ from .repository import SQLAlchemyRepository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
-REMOVE_OUTLIERS = 0.01
 
 
 app = Flask(__name__)
