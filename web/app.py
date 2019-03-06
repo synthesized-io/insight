@@ -24,15 +24,13 @@ MAX_SAMPLE_SIZE = 10000
 
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)  # TODO: delete in final version
-app.json_encoder = JSONCompliantEncoder
-app.config['SQLALCHEMY_ECHO'] = False
-app.config['PROPAGATE_EXCEPTIONS'] = True  # this is crucial to enable handling of JWTError
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
     app.config.from_object(DevelopmentConfig)
-app.config['SECRET_KEY'] = 'synthesized-secret'
+app.json_encoder = JSONCompliantEncoder
+
+CORS(app, supports_credentials=True)  # TODO: delete in final version
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after

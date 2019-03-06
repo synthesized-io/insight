@@ -4,6 +4,9 @@ import os
 class Config(object):
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ECHO = False
+    PROPAGATE_EXCEPTIONS = True  # this is crucial to enable handling of JWTError
+    SECRET_KEY = 'synthesized-secret'
 
 
 class ProductionConfig(Config):
