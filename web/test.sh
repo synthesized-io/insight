@@ -16,6 +16,8 @@ then
     exit 1
 fi
 
+curl -f -i -XPOST -d 'title=title&description=description' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updateinfo
+
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 
 curl -f -i -XPOST -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
