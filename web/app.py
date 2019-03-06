@@ -37,11 +37,11 @@ db = SQLAlchemy(app)
 from .model import Dataset, Synthesis, User
 db.create_all()
 
+bcrypt = Bcrypt(app)
+
 datasetRepo = SQLAlchemyRepository(db, Dataset)
 synthesisRepo = SQLAlchemyRepository(db, Synthesis)
 userRepo = SQLAlchemyRepository(db, User)
-
-bcrypt = Bcrypt(app)
 
 
 def authenticate(username, password):
