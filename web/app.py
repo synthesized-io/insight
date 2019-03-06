@@ -7,7 +7,6 @@ import pandas as pd
 import simplejson
 import werkzeug
 from flask import Flask, jsonify
-from flask.json import JSONEncoder
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_jwt import JWT, jwt_required, current_identity
@@ -17,18 +16,12 @@ from flask_sqlalchemy import SQLAlchemy
 from synthesized.core import BasicSynthesizer
 from .analisys import extract_dataset_meta, recompute_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
+from .middleware import JSONCompliantEncoder
 from .repository import SQLAlchemyRepository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
 REMOVE_OUTLIERS = 0.01
-
-
-# By default NaN is serialized as "NaN". We enforce "null" instead.
-class JSONCompliantEncoder(JSONEncoder):
-    def __init__(self, *args, **kwargs):
-        kwargs["ignore_nan"] = True
-        super().__init__(*args, **kwargs)
 
 
 app = Flask(__name__)
