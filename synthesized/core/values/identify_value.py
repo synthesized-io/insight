@@ -69,9 +69,7 @@ def identify_value(module, name, dtype, data):
         module.address_value = value
 
     elif name == getattr(module, 'identifier_label', None):
-        value = module.add_module(
-            module=IdentifierValue, name=name, embedding_size=None
-        )
+        value = module.add_module(module=IdentifierValue, name=name, capacity=module.capacity)
         module.identifier_value = value
 
     elif dtype.kind == 'M':  # 'm' timedelta

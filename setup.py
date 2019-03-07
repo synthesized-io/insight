@@ -39,8 +39,6 @@ setup(
         [
             Extension("synthesized.core.synthesizer", ["synthesized/core/synthesizer.py"]),
             Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
-            Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
-            Extension("synthesized.core.id_synthesizer", ["synthesized/core/id_synthesizer.py"]),
             Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
             Extension("synthesized.testing.utility", ["synthesized/testing/utility.py"]),
          ],
@@ -50,4 +48,4 @@ setup(
 )
 
 # run this to delete original files
-# zip -d dist/synthesized-1.0.0-cp36-cp36m-macosx_10_11_x86_64.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/date_synthesizer.py"  "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py"
+# zip -d dist/synthesized-1.0.0-cp36-cp36m-macosx_10_11_x86_64.whl "synthesized/core/basic_synthesizer.py" "synthesized/testing/linkage_attack.py"
