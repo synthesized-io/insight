@@ -7,7 +7,7 @@ from io import StringIO, BytesIO
 
 import pandas as pd
 import simplejson
-import werkzeug
+from werkzeug.datastructures import FileStorage
 from flask import Flask, jsonify
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -106,7 +106,7 @@ class DatasetsResource(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('file', type=werkzeug.FileStorage, location='files', required=True)
+        parser.add_argument('file', type=FileStorage, location='files', required=True)
         args = parser.parse_args()
         file = args['file']
 
