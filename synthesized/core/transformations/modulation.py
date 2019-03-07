@@ -24,7 +24,6 @@ class ModulationTransformation(Transformation):
         return spec
 
     def tf_transform(self, x, condition):
-        print(condition)
         offset = self.offset.transform(x=condition)
         scale = self.scale.transform(x=condition)
         x = x * scale + offset
