@@ -1,7 +1,9 @@
+from .middleware import configure_logger
+configure_logger()
+
 import os
 from collections import namedtuple
 from io import StringIO, BytesIO
-from threading import Lock
 
 import pandas as pd
 import simplejson
@@ -13,11 +15,13 @@ from flask_jwt import JWT, jwt_required, current_identity
 from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
 
-from synthesized.core import BasicSynthesizer
 from .analisys import extract_dataset_meta, recompute_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
 from .middleware import JSONCompliantEncoder
+
 from .repository import SQLAlchemyRepository
+from .synthesizer_manager import SynthesizerManager, ModelStatus
+
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -191,19 +195,17 @@ class DatasetUpdateInfoResource(Resource):
         return '', 204
 
 
-models_lock = Lock()
-models = {}
+synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo)
 
 
 class ModelResource(Resource):
     decorators = [jwt_required()]
 
     def get(self, dataset_id):
-        model_key = (current_identity.id, dataset_id)
-        with models_lock:
-            model = models.get(model_key, None)
-            if not model:
-                abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+        model = synthesizer_manager.get_model(dataset_id)
+        if not model:
+            abort(404, message='Model does not exist for dataset={}'.format(dataset_id))
+
         return {'model': str(model)}, 200
 
     def post(self, dataset_id):
@@ -214,26 +216,22 @@ class ModelResource(Resource):
         if dataset.user_id != current_identity.id:
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        model_key = (current_identity.id, dataset_id)
-        with models_lock:
-            model = models.get(model_key, None)
-            app.logger.info('model by key={} is {}'.format(model_key, model))
-            if model:
-                return '', 204
+        synthesizer_manager.train_async(dataset_id)
 
-        data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
-        data = data.dropna()
+        return {'status': 'training'}, 202, {'Location': '/datasets/{}/model-training'.format(dataset_id)}
 
-        app.logger.info('starting model training')
-        synthesizer = BasicSynthesizer(data=data)
-        synthesizer.__enter__()
-        synthesizer.learn(data=data)
-        app.logger.info('model has been trained')
 
-        with models_lock:
-            models[model_key] = synthesizer
+class ModelTrainingResource(Resource):
+    decorators = [jwt_required()]
 
-        return '', 204
+    def get(self, dataset_id):
+        status = synthesizer_manager.get_status(dataset_id)
+        if status == ModelStatus.NO_MODEL:
+            abort(404, message="No training for dataset_id " + dataset_id)
+        if status == ModelStatus.TRAINING:
+            return {'status': 'training'}, 200
+
+        return {'status': 'ready'}, 303, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
 class SynthesesResource(Resource):
@@ -255,13 +253,10 @@ class SynthesesResource(Resource):
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
 
-        model_key = (current_identity.id, dataset_id)
-        app.logger.info('model key is {}'.format(model_key))
-        with models_lock:
-            model = models.get(model_key, None)
-            app.logger.info('found a model {}'.format(model))
-            if not model:
-                abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+        model = synthesizer_manager.get_model(dataset_id)
+        app.logger.info('found a model {}'.format(model))
+        if not model:
+            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
 
         app.logger.info('starting synthesis')
         synthesized = model.synthesize(rows)
@@ -324,5 +319,6 @@ api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
+api.add_resource(ModelTrainingResource, '/datasets/<dataset_id>/model-training')
 api.add_resource(SynthesesResource, '/syntheses')
 api.add_resource(SynthesisResource, '/syntheses/<synthesis_id>')

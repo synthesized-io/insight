@@ -22,6 +22,15 @@ curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 
 curl -f -i -XPOST -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
 
+while true; do
+    STATUS=$(curl -f -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model-training | jq -r .status)
+    if [[ "$STATUS" != "training" ]]; then
+        break
+    fi
+    sleep 5
+done
+
+
 S_ID=$(curl -f -XPOST -d "dataset_id=$DS_ID&rows=500" -H "$AUTH_HEADER" ${BASE_URL}/syntheses | jq -r .synthesis_id)
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/syntheses/${S_ID}
