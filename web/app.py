@@ -92,7 +92,7 @@ class DatasetsResource(Resource):
     decorators = [jwt_required()]
 
     def get(self):
-        datasets = dataset_repo.find_by_props({})
+        datasets = dataset_repo.find_by_props({'user_id': current_identity.id})
         return jsonify({
             'datasets': [
                 {
