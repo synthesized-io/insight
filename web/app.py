@@ -34,7 +34,7 @@ else:
     app.config.from_object(DevelopmentConfig)
 app.json_encoder = JSONCompliantEncoder
 
-CORS(app, supports_credentials=True, send_wildcard=True)  # TODO: delete in final version
+CORS(app, supports_credentials=True)  # TODO: delete in final version
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after
