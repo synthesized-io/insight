@@ -39,13 +39,13 @@ db.create_all()
 
 bcrypt = Bcrypt(app)
 
-datasetRepo = SQLAlchemyRepository(db, Dataset)
-synthesisRepo = SQLAlchemyRepository(db, Synthesis)
-userRepo = SQLAlchemyRepository(db, User)
+dataset_repo = SQLAlchemyRepository(db, Dataset)
+synthesis_repo = SQLAlchemyRepository(db, Synthesis)
+user_repo = SQLAlchemyRepository(db, User)
 
 
 def authenticate(username, password):
-    users = userRepo.find_by_props({'username': username})
+    users = user_repo.find_by_props({'username': username})
     if len(users) > 0:
         password_hash = bytes.fromhex(users[0].password)
         if bcrypt.check_password_hash(password_hash, password):
@@ -54,7 +54,7 @@ def authenticate(username, password):
 
 def identity(payload):
     user_id = payload['identity']
-    return userRepo.get(user_id)
+    return user_repo.get(user_id)
 
 
 jwt = JWT(app, authenticate, identity)
@@ -72,13 +72,13 @@ class UsersResource(Resource):
 
         app.logger.info('registering user {}'.format(username))
 
-        users = userRepo.find_by_props({'username': username})
+        users = user_repo.find_by_props({'username': username})
         if len(users) > 0:
             app.logger.info('found existing user {}'.format(users[0]))
             abort(409, message='User with username={} already exists'.format(username))
 
         user = User(username=username, password=bcrypt.generate_password_hash(password).hex())
-        userRepo.save(user)
+        user_repo.save(user)
         app.logger.info('created a user {}'.format(user))
 
         return {'user_id': user.id}, 201
@@ -88,7 +88,7 @@ class DatasetsResource(Resource):
     decorators = [jwt_required()]
 
     def get(self):
-        datasets = datasetRepo.find_by_props({})
+        datasets = dataset_repo.find_by_props({})
         return jsonify({
             'datasets': [
                 {
@@ -121,7 +121,7 @@ class DatasetsResource(Resource):
 
             blob = raw_data.getvalue().encode('utf-8')
             dataset = Dataset(user_id=current_identity.id, title=title, blob=blob, meta=meta)
-            datasetRepo.save(dataset)
+            dataset_repo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
             return {'dataset_id': dataset.id}, 201
@@ -139,7 +139,7 @@ class DatasetResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        dataset = datasetRepo.get(dataset_id)
+        dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
 
         if not dataset:
@@ -158,12 +158,12 @@ class DatasetResource(Resource):
         })
 
     def delete(self, dataset_id):
-        dataset = datasetRepo.get(dataset_id)
+        dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if dataset:
             if dataset.user_id != current_identity.id:
                 abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
-            datasetRepo.delete(dataset)
+            dataset_repo.delete(dataset)
         return '', 204
 
 
@@ -176,7 +176,7 @@ class DatasetUpdateInfoResource(Resource):
         parser.add_argument('description', type=str, required=False)
         args = parser.parse_args()
 
-        dataset = datasetRepo.get(dataset_id)
+        dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
@@ -186,7 +186,7 @@ class DatasetUpdateInfoResource(Resource):
         dataset.title = args['title']
         dataset.description = args['description']
 
-        datasetRepo.save(dataset)
+        dataset_repo.save(dataset)
 
         return '', 204
 
@@ -207,7 +207,7 @@ class ModelResource(Resource):
         return {'model': str(model)}, 200
 
     def post(self, dataset_id):
-        dataset = datasetRepo.get(dataset_id)
+        dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
@@ -250,7 +250,7 @@ class SynthesesResource(Resource):
 
         app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
 
-        dataset = datasetRepo.get(dataset_id)
+        dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
@@ -278,7 +278,7 @@ class SynthesesResource(Resource):
         synthetic_meta = simplejson.dumps(synthetic_meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
         synthesis = Synthesis(dataset_id=dataset_id, blob=blob, meta=synthetic_meta, size=rows)
-        synthesisRepo.save(synthesis)
+        synthesis_repo.save(synthesis)
 
         app.logger.info('created a synthesis {}'.format(synthesis))
 
@@ -297,7 +297,7 @@ class SynthesisResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        synthesis = synthesisRepo.get(synthesis_id)
+        synthesis = synthesis_repo.get(synthesis_id)
         app.logger.info('synthesis by id={} is {}'.format(synthesis_id, synthesis))
 
         if not synthesis:
