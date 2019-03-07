@@ -264,7 +264,9 @@ class BasicSynthesizer(Synthesizer):
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
-        self.synthesized = {self.identifier_label: identifier}
+        self.synthesized = dict()
+        if self.identifier_value is not None:
+            self.synthesized[self.identifier_label] = identifier
         for value, x in zip(self.values, xs):
             xs = value.output_tensors(x=x)
             for label, x in xs.items():
