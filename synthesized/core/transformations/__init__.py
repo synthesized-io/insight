@@ -1,4 +1,5 @@
 from .dense import DenseTransformation
+from .lstm import LstmTransformation
 from .mlp import MlpTransformation
 from .modulation import ModulationTransformation
 from .residual import ResidualTransformation
@@ -7,6 +8,7 @@ from .transformation import Transformation
 
 transformation_modules = dict(
     dense=DenseTransformation,
+    lstm=LstmTransformation,
     mlp=MlpTransformation,
     modulation=ModulationTransformation,
     residual=ResidualTransformation,
