@@ -1,3 +1,4 @@
+
 from .middleware import configure_logger
 configure_logger()
 
@@ -8,12 +9,13 @@ from io import StringIO, BytesIO
 import pandas as pd
 import simplejson
 from werkzeug.datastructures import FileStorage
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-from flask_jwt import JWT, jwt_required, current_identity
 from flask_restful import Resource, Api, reqparse, abort
 from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, create_refresh_token, get_jwt_identity, \
+    jwt_refresh_token_required
 
 from .analisys import extract_dataset_meta, recompute_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
@@ -56,12 +58,40 @@ def authenticate(username, password):
             return users[0]
 
 
-def identity(payload):
-    user_id = payload['identity']
-    return user_repo.get(user_id)
+jwt = JWTManager(app)
 
 
-jwt = JWT(app, authenticate, identity)
+@app.route('/login', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"message": "Missing JSON in request"}), 400
+
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if not username:
+        return jsonify({"message": "Missing username parameter"}), 400
+    if not password:
+        return jsonify({"message": "Missing password parameter"}), 400
+
+    user = authenticate(username, password)
+    if not user:
+        return {"message": "Bad username or password"}, 401
+
+    ret = {
+        'access_token': create_access_token(identity=user.id),
+        'refresh_token': create_refresh_token(identity=user.id)
+    }
+    return jsonify(ret), 200
+
+
+@app.route('/refresh', methods=['POST'])
+@jwt_refresh_token_required
+def refresh():
+    current_user = get_jwt_identity()
+    ret = {
+        'access_token': create_access_token(identity=current_user)
+    }
+    return jsonify(ret), 200
 
 
 class UsersResource(Resource):
@@ -85,14 +115,18 @@ class UsersResource(Resource):
         user_repo.save(user)
         app.logger.info('created a user {}'.format(user))
 
-        return {'user_id': user.id}, 201
+        ret = {
+            'access_token': create_access_token(identity=user.id),
+            'refresh_token': create_refresh_token(identity=user.id)
+        }
+        return ret, 201
 
 
 class DatasetsResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def get(self):
-        datasets = dataset_repo.find_by_props({'user_id': current_identity.id})
+        datasets = dataset_repo.find_by_props({'user_id': get_jwt_identity()})
         return jsonify({
             'datasets': [
                 {
@@ -124,15 +158,15 @@ class DatasetsResource(Resource):
             meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
             blob = raw_data.getvalue().encode('utf-8')
-            dataset = Dataset(user_id=current_identity.id, title=title, blob=blob, meta=meta)
+            dataset = Dataset(user_id=get_jwt_identity(), title=title, blob=blob, meta=meta)
             dataset_repo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
-            return {'dataset_id': dataset.id}, 201
+            return {'dataset_id': dataset.id}, 201, {'Location': '/datasets/{}'.format(dataset.id)}
 
 
 class DatasetResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def get(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -148,7 +182,7 @@ class DatasetResource(Resource):
 
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != current_identity.id:
+        if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
@@ -165,14 +199,14 @@ class DatasetResource(Resource):
         dataset = dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if dataset:
-            if dataset.user_id != current_identity.id:
+            if dataset.user_id != get_jwt_identity():
                 abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
             dataset_repo.delete(dataset)
         return '', 204
 
 
 class DatasetUpdateInfoResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def post(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -199,7 +233,7 @@ synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo)
 
 
 class ModelResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def get(self, dataset_id):
         model = synthesizer_manager.get_model(dataset_id)
@@ -213,7 +247,7 @@ class ModelResource(Resource):
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != current_identity.id:
+        if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         synthesizer_manager.train_async(dataset_id)
@@ -222,7 +256,7 @@ class ModelResource(Resource):
 
 
 class ModelTrainingResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def get(self, dataset_id):
         status = synthesizer_manager.get_status(dataset_id)
@@ -235,7 +269,7 @@ class ModelTrainingResource(Resource):
 
 
 class SynthesesResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -256,7 +290,7 @@ class SynthesesResource(Resource):
         model = synthesizer_manager.get_model(dataset_id)
         app.logger.info('found a model {}'.format(model))
         if not model:
-            abort(404, message='Model does not exist for user={} and dataset={}'.format(current_identity.id, dataset_id))
+            abort(404, message='Model does not exist for user={} and dataset={}'.format(get_jwt_identity(), dataset_id))
 
         app.logger.info('starting synthesis')
         synthesized = model.synthesize(rows)
@@ -277,11 +311,11 @@ class SynthesesResource(Resource):
 
         app.logger.info('created a synthesis {}'.format(synthesis))
 
-        return {'synthesis_id': synthesis.id}, 201
+        return {'synthesis_id': synthesis.id}, 201, {'Location': '/synthesis/{}'.format(synthesis.id)}
 
 
 class SynthesisResource(Resource):
-    decorators = [jwt_required()]
+    decorators = [jwt_required]
 
     def get(self, synthesis_id):
         parser = reqparse.RequestParser()

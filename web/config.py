@@ -6,7 +6,8 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
     PROPAGATE_EXCEPTIONS = True  # this is crucial to enable handling of JWTError
-    SECRET_KEY = 'synthesized-secret'
+    JWT_SECRET_KEY = 'synthesized-secret'
+    JWT_ERROR_MESSAGE_KEY = 'message'
 
 
 class ProductionConfig(Config):

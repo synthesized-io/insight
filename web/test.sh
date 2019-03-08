@@ -6,8 +6,13 @@ set -x
 BASE_URL=http://localhost:5000
 #BASE_URL=https://webui.synthesized.io
 
-TOKEN=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "denis", "password": "123"}' ${BASE_URL}/auth | jq -r .access_token)
-AUTH_HEADER="Authorization: JWT $TOKEN"
+TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "denis", "password": "123"}' ${BASE_URL}/login)
+ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)
+REFRESH_TOKEN=$(echo ${TOKENS_JSON} | jq -r .refresh_token)
+AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
+REFRESH_HEADER="Authorization: Bearer $REFRESH_TOKEN"
+
+curl -f -i -XPOST -H "$REFRESH_HEADER" ${BASE_URL}/refresh
 
 DS_ID=$(curl -f -XPOST -F "file=@credit.csv" -H "$AUTH_HEADER" ${BASE_URL}/datasets | jq -r .dataset_id)
 if [[ -z ${DS_ID} ]];
