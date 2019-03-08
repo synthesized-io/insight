@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 class ModelStatus(Enum):
     NO_MODEL = 1
     TRAINING = 2
-    READY = 3
+    FAILED = 3
+    READY = 4
 
 
 class SynthesizerManager:
@@ -32,11 +33,11 @@ class SynthesizerManager:
     def _run(self):
         while True:
             dataset_id = self.request_queue.get()
-            synthesizer = self._train_model(dataset_id)
-            if not synthesizer:
+            synthesizer_or_error = self._train_model(dataset_id)
+            if not synthesizer_or_error:
                 continue
             with self.cache_lock:
-                self.cache[dataset_id] = synthesizer
+                self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)
 
@@ -49,7 +50,7 @@ class SynthesizerManager:
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.dropna()
 
-        logger.info('starting model training')
+        logger.info('start model training')
         try:
             synthesizer = BasicSynthesizer(data=data)
             synthesizer.__enter__()
@@ -58,6 +59,7 @@ class SynthesizerManager:
             return synthesizer
         except Exception as e:
             logger.exception(e)
+            return e
 
     def train_async(self, dataset_id):
         with self.requests_lock:
@@ -68,7 +70,10 @@ class SynthesizerManager:
     def get_status(self, dataset_id):
         with self.cache_lock:
             if dataset_id in self.cache:
-                return ModelStatus.READY
+                if isinstance(self.cache[dataset_id], Exception):
+                    return ModelStatus.FAILED
+                else:
+                    return ModelStatus.READY
         with self.requests_lock:
             if dataset_id in self.requests:
                 return ModelStatus.TRAINING
@@ -76,4 +81,8 @@ class SynthesizerManager:
 
     def get_model(self, dataset_id):
         with self.cache_lock:
-            return self.cache.get(dataset_id, None)
+            synthesizer_or_error = self.cache.get(dataset_id, None)
+            if isinstance(str, Exception):
+                return None
+            else:
+                return synthesizer_or_error
