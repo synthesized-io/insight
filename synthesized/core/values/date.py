@@ -1,21 +1,17 @@
 import pandas as pd
 import tensorflow as tf
 
-from .value import Value
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 
 
-class DateValue(Value):
+class DateValue(ContinuousValue):
 
     def __init__(self, name, capacity=None, embedding_size=None, start_date=None):
-        super().__init__(name=name)
+        super().__init__(name=name, positive=True)
 
         self.start_date = start_date
 
-        self.delta = self.add_module(
-            module=ContinuousValue, name=self.name, positive=True
-        )
         self.hour = self.add_module(
             module=CategoricalValue, name=(self.name + '-hour'), categories=24, capacity=capacity,
             embedding_size=embedding_size
@@ -36,39 +32,31 @@ class DateValue(Value):
     def specification(self):
         spec = super().specification()
         spec.update(
-            delta=self.delta.specification(), hour=self.hour.specification(),
-            dow=self.dow.specification(), day=self.day.specification(),
-            month=self.month.specification()
+            hour=self.hour.specification(), dow=self.dow.specification(),
+            day=self.day.specification(), month=self.month.specification()
         )
         return spec
 
     def input_size(self):
-        return self.delta.input_size() + self.hour.input_size() + self.dow.input_size() + \
+        return super().input_size() + self.hour.input_size() + self.dow.input_size() + \
             self.day.input_size() + self.month.input_size()
 
-    def output_size(self):
-        return self.delta.output_size()
-
     def input_labels(self):
-        yield from self.delta.input_labels()
+        yield from super().input_labels()
         yield from self.hour.input_labels()
         yield from self.dow.input_labels()
         yield from self.day.input_labels()
         yield from self.month.input_labels()
 
-    def output_labels(self):
-        yield from self.delta.output_labels()
-
     def placeholders(self):
-        yield from self.delta.placeholders()
+        yield from super().placeholders()
         yield from self.hour.placeholders()
         yield from self.dow.placeholders()
         yield from self.day.placeholders()
         yield from self.month.placeholders()
 
     def extract(self, data):
-        # happens in identify_value
-        # data[self.name] = pd.to_datetime(data[self.name])
+        data[self.name] = pd.to_datetime(data[self.name])
         if self.start_date is None:
             # self.start_date = data[self.name].astype(dtype='datetime64').min()
             self.start_date = data[self.name].min()
@@ -96,7 +84,6 @@ class DateValue(Value):
 
     def features(self, x=None):
         features = super().features(x=x)
-        features.update(self.delta.features(x=x))
         features.update(self.hour.features(x=x))
         features.update(self.dow.features(x=x))
         features.update(self.day.features(x=x))
@@ -104,7 +91,7 @@ class DateValue(Value):
         return features
 
     def tf_input_tensor(self, feed=None):
-        delta = self.delta.input_tensor(feed=feed)
+        delta = super().input_tensor(feed=feed)
         hour = self.hour.input_tensor(feed=feed)
         dow = self.dow.input_tensor(feed=feed)
         day = self.day.input_tensor(feed=feed)
@@ -112,9 +99,5 @@ class DateValue(Value):
         x = tf.concat(values=(delta, hour, dow, day, month), axis=1)
         return x
 
-    def tf_output_tensors(self, x):
-        return self.delta.output_tensors(x=x)
-
-    def tf_loss(self, x, feed=None):
-        # skip last and assume absolute value
-        return self.delta.loss(x=x, feed=feed)
+    # skip last and assume absolute value
+    # def tf_loss(self, x, feed=None):
