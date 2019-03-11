@@ -217,6 +217,8 @@ class DatasetUpdateInfoResource(Resource):
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         app.logger.info('updating the dataset with args {}'.format(args))
 
@@ -235,6 +237,13 @@ class ModelResource(Resource):
     decorators = [jwt_required]
 
     def get(self, dataset_id):
+        dataset = dataset_repo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
+        if not dataset:
+            abort(404, message="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
+
         model = synthesizer_manager.get_model(dataset_id)
         if not model:
             abort(404, message='Model does not exist for dataset={}'.format(dataset_id))
@@ -267,16 +276,46 @@ class ModelTrainingResource(Resource):
         return {'status': 'ready'}, 303, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
-class SynthesesResource(Resource):
+class SynthesisResource(Resource):
     decorators = [jwt_required]
 
-    def post(self):
+    def get(self, dataset_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('dataset_id', type=str, required=True)
+        parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
+        args = parser.parse_args()
+
+        sample_size = args['sample_size']
+        if sample_size > MAX_SAMPLE_SIZE:
+            abort(400, message='Sample size is too big: ' + str(sample_size))
+
+        dataset = dataset_repo.get(dataset_id)
+        app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
+        if not dataset:
+            abort(404, message="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
+
+        syntheses = synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))
+
+        if len(syntheses) == 0:
+            abort(404, messsage="Couldn't find requested synthesis")
+
+        synthesis = syntheses[0]  # assumes the only one synthesis always
+
+        data = pd.read_csv(BytesIO(synthesis.blob))
+
+        return jsonify({
+            'meta': simplejson.load(BytesIO(synthesis.meta), encoding='utf-8'),
+            'sample': data[:sample_size].to_dict(orient='list'),
+            'size': synthesis.size
+        })
+
+    def post(self, dataset_id):
+        parser = reqparse.RequestParser()
         parser.add_argument('rows', type=int, required=True)
         args = parser.parse_args()
 
-        dataset_id = args['dataset_id']
         rows = args['rows']
 
         app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
@@ -285,11 +324,13 @@ class SynthesesResource(Resource):
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         model = synthesizer_manager.get_model(dataset_id)
         app.logger.info('found a model {}'.format(model))
         if not model:
-            abort(404, message='Model does not exist for user={} and dataset={}'.format(get_jwt_identity(), dataset_id))
+            abort(409, message='Model does not exist for user={} and dataset={}'.format(get_jwt_identity(), dataset_id))
 
         app.logger.info('starting synthesis')
         synthesized = model.synthesize(rows)
@@ -306,38 +347,17 @@ class SynthesesResource(Resource):
         synthetic_meta = simplejson.dumps(synthetic_meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
         synthesis = Synthesis(dataset_id=dataset_id, blob=blob, meta=synthetic_meta, size=rows)
+
+        old_syntheses = synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        for s in old_syntheses:
+            app.logger.info('deleting an old synthesis: {}'.format(s))
+            synthesis_repo.delete(s)
+
         synthesis_repo.save(synthesis)
 
         app.logger.info('created a synthesis {}'.format(synthesis))
 
-        return {'synthesis_id': synthesis.id}, 201, {'Location': '/synthesis/{}'.format(synthesis.id)}
-
-
-class SynthesisResource(Resource):
-    decorators = [jwt_required]
-
-    def get(self, synthesis_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
-        args = parser.parse_args()
-
-        sample_size = args['sample_size']
-        if sample_size > MAX_SAMPLE_SIZE:
-            abort(400, message='Sample size is too big: ' + str(sample_size))
-
-        synthesis = synthesis_repo.get(synthesis_id)
-        app.logger.info('synthesis by id={} is {}'.format(synthesis_id, synthesis))
-
-        if not synthesis:
-            abort(404, messsage="Couldn't find requested synthesis: " + synthesis_id)
-
-        data = pd.read_csv(BytesIO(synthesis.blob))
-
-        return jsonify({
-            'synthesis_id': synthesis_id,
-            'meta': simplejson.load(BytesIO(synthesis.meta), encoding='utf-8'),
-            'sample': data[:sample_size].to_dict(orient='list')
-        })
+        return '', 204, {'Location': '/datasets/{}/synthesis'.format(dataset_id)}
 
 
 class StatusResource(Resource):
@@ -355,5 +375,4 @@ api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
 api.add_resource(ModelTrainingResource, '/datasets/<dataset_id>/model-training')
-api.add_resource(SynthesesResource, '/syntheses')
-api.add_resource(SynthesisResource, '/syntheses/<synthesis_id>')
+api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis')

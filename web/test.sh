@@ -35,9 +35,8 @@ while true; do
     sleep 5
 done
 
+curl -f -i -XPOST -d 'rows=10' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
 
-S_ID=$(curl -f -XPOST -d "dataset_id=$DS_ID&rows=500" -H "$AUTH_HEADER" ${BASE_URL}/syntheses | jq -r .synthesis_id)
-
-curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/syntheses/${S_ID}
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
 
 curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
