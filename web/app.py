@@ -93,7 +93,7 @@ class RefreshResource(Resource):
         return ret, 200
 
 
-class RegisterResource(Resource):
+class UsersResource(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -349,7 +349,7 @@ api = Api(app)
 api.add_resource(StatusResource, '/')
 api.add_resource(LoginResource, '/login')
 api.add_resource(RefreshResource, '/refresh')
-api.add_resource(RegisterResource, '/register')
+api.add_resource(UsersResource, '/users')
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
