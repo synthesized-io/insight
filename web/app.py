@@ -61,40 +61,37 @@ def authenticate(username, password):
 jwt = JWTManager(app)
 
 
-@app.route('/login', methods=['POST'])
-def login():
-    if not request.is_json:
-        return jsonify({"message": "Missing JSON in request"}), 400
+class LoginResource(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('password', type=str, required=True)
+        args = parser.parse_args()
 
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
-    if not username:
-        return jsonify({"message": "Missing username parameter"}), 400
-    if not password:
-        return jsonify({"message": "Missing password parameter"}), 400
+        username = args['username']
+        password = args['password']
 
-    user = authenticate(username, password)
-    if not user:
-        return {"message": "Bad username or password"}, 401
+        user = authenticate(username, password)
+        if not user:
+            return {"message": "Bad username or password"}, 401
 
-    ret = {
-        'access_token': create_access_token(identity=user.id),
-        'refresh_token': create_refresh_token(identity=user.id)
-    }
-    return jsonify(ret), 200
+        ret = {
+            'access_token': create_access_token(identity=user.id),
+            'refresh_token': create_refresh_token(identity=user.id)
+        }
+        return ret, 200
 
 
-@app.route('/refresh', methods=['POST'])
-@jwt_refresh_token_required
-def refresh():
-    current_user = get_jwt_identity()
-    ret = {
-        'access_token': create_access_token(identity=current_user)
-    }
-    return jsonify(ret), 200
+class RefreshResource(Resource):
+    def post(self):
+        current_user = get_jwt_identity()
+        ret = {
+            'access_token': create_access_token(identity=current_user)
+        }
+        return ret, 200
 
 
-class UsersResource(Resource):
+class RegisterResource(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -348,7 +345,9 @@ class StatusResource(Resource):
 
 api = Api(app)
 api.add_resource(StatusResource, '/')
-api.add_resource(UsersResource, '/users')
+api.add_resource(LoginResource, '/login')
+api.add_resource(RefreshResource, '/refresh')
+api.add_resource(RegisterResource, '/register')
 api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
