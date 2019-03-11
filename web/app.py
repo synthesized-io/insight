@@ -83,6 +83,8 @@ class LoginResource(Resource):
 
 
 class RefreshResource(Resource):
+    decorators = [jwt_refresh_token_required]
+
     def post(self):
         current_user = get_jwt_identity()
         ret = {
