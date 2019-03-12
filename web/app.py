@@ -272,6 +272,8 @@ class ModelTrainingResource(Resource):
             abort(404, message="No training for dataset_id " + dataset_id)
         if status == ModelStatus.TRAINING:
             return {'status': 'training'}, 200
+        if status == ModelStatus.FAILED:
+            return {'status': 'failed'}, 200
 
         return {'status': 'ready'}, 303, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
