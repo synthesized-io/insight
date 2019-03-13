@@ -28,7 +28,7 @@ curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 curl -f -i -XPOST -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
 
 while true; do
-    STATUS=$(curl -f -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model-training | jq -r .status)
+    STATUS=$(curl -f -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model | jq -r .status)
     if [[ "$STATUS" != "training" ]]; then
         break
     fi
