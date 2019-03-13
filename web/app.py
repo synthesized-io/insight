@@ -161,7 +161,7 @@ class DatasetsResource(Resource):
             dataset_repo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
-            return '', 204, {'Location': '/datasets/{}'.format(dataset.id)}
+            return {'dataset_id': dataset.id}, 201, {'Location': '/datasets/{}'.format(dataset.id)}
 
 
 class DatasetResource(Resource):
@@ -244,11 +244,15 @@ class ModelResource(Resource):
         if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        model = synthesizer_manager.get_model(dataset_id)
-        if not model:
-            abort(404, message='Model does not exist for dataset={}'.format(dataset_id))
+        status = synthesizer_manager.get_status(dataset_id)
+        if status == ModelStatus.NO_MODEL:
+            abort(404, message="No training for dataset_id " + dataset_id)
+        if status == ModelStatus.TRAINING:
+            return {'status': 'training'}, 200
+        if status == ModelStatus.FAILED:
+            return {'status': 'failed'}, 200
 
-        return {'model': str(model)}, 200
+        return {'status': 'ready'}, 200
 
     def post(self, dataset_id):
         dataset = dataset_repo.get(dataset_id)
@@ -260,22 +264,7 @@ class ModelResource(Resource):
 
         synthesizer_manager.train_async(dataset_id)
 
-        return {'status': 'training'}, 202, {'Location': '/datasets/{}/model-training'.format(dataset_id)}
-
-
-class ModelTrainingResource(Resource):
-    decorators = [jwt_required]
-
-    def get(self, dataset_id):
-        status = synthesizer_manager.get_status(dataset_id)
-        if status == ModelStatus.NO_MODEL:
-            abort(404, message="No training for dataset_id " + dataset_id)
-        if status == ModelStatus.TRAINING:
-            return {'status': 'training'}, 200
-        if status == ModelStatus.FAILED:
-            return {'status': 'failed'}, 200
-
-        return {'status': 'ready'}, 303, {'Location': '/datasets/{}/model'.format(dataset_id)}
+        return {'status': 'training'}, 202, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
 class SynthesisResource(Resource):
@@ -376,5 +365,4 @@ api.add_resource(DatasetsResource, '/datasets')
 api.add_resource(DatasetResource, '/datasets/<dataset_id>')
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
-api.add_resource(ModelTrainingResource, '/datasets/<dataset_id>/model-training')
 api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis')
