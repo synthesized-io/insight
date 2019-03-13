@@ -118,7 +118,7 @@ class UsersResource(Resource):
             'access_token': create_access_token(identity=user.id),
             'refresh_token': create_refresh_token(identity=user.id)
         }
-        return ret, 201
+        return ret, 200
 
 
 class DatasetsResource(Resource):
@@ -161,7 +161,7 @@ class DatasetsResource(Resource):
             dataset_repo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
-            return {'dataset_id': dataset.id}, 201, {'Location': '/datasets/{}'.format(dataset.id)}
+            return '', 204, {'Location': '/datasets/{}'.format(dataset.id)}
 
 
 class DatasetResource(Resource):
