@@ -4,11 +4,13 @@ from typing import Iterable
 
 import numpy as np
 import pandas as pd
+from sklearn.neighbors import KernelDensity
 
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 
 REMOVE_OUTLIERS = 0.01
+DEFAULT_KERNEL = 'epanechnikov'
 
 
 class ColumnMeta(ABC):
@@ -19,9 +21,10 @@ class ColumnMeta(ABC):
 
 
 class ContinuousPlotData:
-    def __init__(self, edges: Iterable[float], hist: Iterable[int]):
+    def __init__(self, edges: Iterable[float], hist: Iterable[int], density: Iterable[float]):
         self.edges = edges
         self.hist = hist
+        self.density = density
 
 
 class CategoricalPlotData:
@@ -74,11 +77,16 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
         if isinstance(value, ContinuousValue):
             q = [remove_outliers / 2., 1 - remove_outliers / 2.]
             start, end = np.quantile(data_wo_nans[value.name], q)
-            column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][
-                value.name]
+            column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
             hist, edges = np.histogram(column_cleaned, bins='auto')
+            kde = KernelDensity(kernel=DEFAULT_KERNEL)
+            log_density = kde.fit(column_cleaned.values.reshape(-1, 1)).score_samples(edges.reshape(-1, 1))
+            density = np.exp(log_density)
+
             hist = list(map(int, hist))
             edges = list(map(float, edges))
+            density = list(map(float, density))
+
             columns_meta.append(ContinuousMeta(
                 name=value.name,
                 type=str(value),
@@ -90,7 +98,8 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
                 n_nulls=int(data[value.name].isnull().sum()),
                 plot_data=ContinuousPlotData(
                     hist=hist,
-                    edges=edges
+                    edges=edges,
+                    density=density
                 )
             ))
         else:
@@ -98,8 +107,10 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             bins = sorted(data[value.name].dropna().unique())
             counts = data[value.name].value_counts().to_dict()
             hist = [counts[x] for x in bins]
-            bins = list(map(str, bins))
+
             hist = list(map(int, hist))
+            bins = list(map(str, bins))
+
             columns_meta.append(CategoricalMeta(
                 name=value.name,
                 type=str(value),
@@ -130,8 +141,14 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
+            kde = KernelDensity(kernel=DEFAULT_KERNEL)
+            log_density = kde.fit(column_cleaned.values.reshape(-1, 1)).score_samples(edges.reshape(-1, 1))
+            density = np.exp(log_density)
+
             hist = list(map(int, hist))
             edges = list(map(float, edges))
+            density = list(map(float, density))
+
             columns_meta.append(ContinuousMeta(
                 name=column_meta.name,
                 type=column_meta.type,
@@ -143,7 +160,8 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 n_nulls=int(data[column_meta.name].isnull().sum()),
                 plot_data=ContinuousPlotData(
                     hist=hist,
-                    edges=edges
+                    edges=edges,
+                    density=density
                 )
             ))
         elif column_meta.plot_type == 'histogram':  # we want duck typing here
