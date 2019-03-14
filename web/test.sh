@@ -3,12 +3,40 @@
 set -e
 set -x
 
-DS_ID=$(curl -XPOST -F "file=@credit.csv" http://localhost:5000/dataset | jq -r .dataset_id)
+BASE_URL=http://localhost:5000
+#BASE_URL=https://webui.synthesized.io
 
-curl -i http://localhost:5000/dataset/${DS_ID}
+TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "denis", "password": "123"}' ${BASE_URL}/login)
+ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)
+REFRESH_TOKEN=$(echo ${TOKENS_JSON} | jq -r .refresh_token)
+AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
+REFRESH_HEADER="Authorization: Bearer $REFRESH_TOKEN"
 
-S_ID=$(curl -XPOST -d "dataset_id=$DS_ID&rows=500" http://localhost:5000/synthesis | jq -r .synthesis_id)
+curl -f -i -XPOST -H "$REFRESH_HEADER" ${BASE_URL}/refresh
 
-curl -i http://localhost:5000/synthesis/${S_ID}
+DS_ID=$(curl -f -XPOST -F "file=@credit.csv" -H "$AUTH_HEADER" ${BASE_URL}/datasets | jq -r .dataset_id)
+if [[ -z ${DS_ID} ]];
+then
+    echo 'Could not upload dataset'
+    exit 1
+fi
 
-#curl -i -XDELETE http://localhost:5000/dataset/${DS_ID}
+curl -f -i -XPOST -d 'title=title&description=description' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updateinfo
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
+
+curl -f -i -XPOST -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
+
+while true; do
+    STATUS=$(curl -f -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model | jq -r .status)
+    if [[ "$STATUS" != "training" ]]; then
+        break
+    fi
+    sleep 5
+done
+
+curl -f -i -XPOST -d 'rows=10' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
+
+curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
