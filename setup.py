@@ -19,7 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     install_requires = f.read().split('\n')
 
-packages = find_packages(exclude=['tests*'])
+packages = find_packages(exclude=['tests*', 'web'])
 
 # TODO: compile all modules
 # ext_modules = [Extension(p + '.*', [p.replace('.', '/') + '/*.py'], include_dirs=['.']) for p in packages]
@@ -39,6 +39,8 @@ setup(
         [
             Extension("synthesized.core.synthesizer", ["synthesized/core/synthesizer.py"]),
             Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
+            Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
+            Extension("synthesized.core.scenario_synthesizer", ["synthesized/core/scenario_synthesizer.py"]),
             Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
             Extension("synthesized.testing.utility", ["synthesized/testing/utility.py"]),
          ],
