@@ -64,7 +64,12 @@ class IdentifierValue(Value):
         )
         return x
 
-    def random_value(self, n, multiples=1):
+    def tf_next_value(self):
+        assignment = self.current_identifier.assign_add(delta=1)
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf.identity(tensor=self.current_identifier)
+
+    def tf_random_value(self, n):
         identifier = tf.random_uniform(
             shape=(n,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
         )
@@ -72,10 +77,4 @@ class IdentifierValue(Value):
             params=self.embeddings, ids=identifier, partition_strategy='mod',
             validate_indices=True, max_norm=None
         )
-        identifier = tf.expand_dims(input=identifier, axis=0)
-        identifier = tf.tile(input=identifier, multiples=tf.stack(values=(multiples, 1), axis=0))
-        identifier = tf.reshape(tensor=identifier, shape=tf.expand_dims(input=(n * multiples), axis=0))
-        x = tf.expand_dims(input=x, axis=0)
-        x = tf.tile(input=x, multiples=tf.stack(values=(multiples, 1, 1), axis=0))
-        x = tf.reshape(tensor=x, shape=tf.stack(values=(n * multiples, self.embedding_size), axis=0))
         return identifier, x

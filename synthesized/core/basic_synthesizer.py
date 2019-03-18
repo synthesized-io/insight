@@ -21,7 +21,7 @@ class BasicSynthesizer(Synthesizer):
         # architecture
         network='resnet', encoding='variational',
         # hyperparameters
-        capacity=128, depth=2, use_lstm=False, learning_rate=3e-4, encoding_beta=1e-3,
+        capacity=128, depth=2, lstm_mode=0, learning_rate=3e-4, encoding_beta=1e-3,
         weight_decay=1e-5, batch_size=64,
         # person
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
@@ -40,7 +40,7 @@ class BasicSynthesizer(Synthesizer):
         self.encoding_type = encoding
         self.capacity = capacity
         self.depth = depth
-        self.use_lstm = use_lstm
+        self.lstm_mode = lstm_mode
         self.learning_rate = learning_rate
         self.encoding_beta = encoding_beta
         self.weight_decay = weight_decay
@@ -79,8 +79,8 @@ class BasicSynthesizer(Synthesizer):
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
+                self.value_output_sizes.append(value.output_size())
                 if name != self.identifier_label:
-                    self.value_output_sizes.append(value.output_size())
                     input_size += value.input_size()
                     output_size += value.output_size()
 
@@ -90,12 +90,16 @@ class BasicSynthesizer(Synthesizer):
             weight_decay=self.weight_decay
         )
 
+        if self.lstm_mode == 2:
+            encoding_type = 'rnn_' + self.encoding_type
+        else:
+            encoding_type = self.encoding_type
         self.encoding = self.add_module(
-            module=self.encoding_type, modules=encoding_modules, name='encoding',
+            module=encoding_type, modules=encoding_modules, name='encoding',
             input_size=self.encoder.size(), encoding_size=self.capacity, beta=self.encoding_beta
         )
 
-        if self.identifier_label is None:
+        if self.lstm_mode == 2 or self.identifier_label is None:
             self.modulation = None
         else:
             self.modulation = self.add_module(
@@ -103,7 +107,7 @@ class BasicSynthesizer(Synthesizer):
                 input_size=self.capacity, condition_size=self.identifier_value.embedding_size
             )
 
-        if self.use_lstm:
+        if self.lstm_mode == 1:
             self.lstm = self.add_module(
                 module='lstm', modules=transformation_modules, name='lstm',
                 input_size=self.encoding.size(), output_size=self.capacity
@@ -134,8 +138,8 @@ class BasicSynthesizer(Synthesizer):
         spec = super().specification()
         spec.update(
             network=self.network_type, encoding=self.encoding_type, capacity=self.capacity,
-            depth=self.depth, learning_rate=self.learning_rate, weight_decay=self.weight_decay,
-            batch_size=self.batch_size
+            depth=self.depth, lstm_mode=self.lstm_mode, learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay, batch_size=self.batch_size
         )
         return spec
 
@@ -174,13 +178,13 @@ class BasicSynthesizer(Synthesizer):
         summaries.append(tf.contrib.summary.scalar(
             name='encoding-variance', tensor=encoding_variance, family=None, step=None
         ))
-        if self.use_lstm:
+        if self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
                 state = self.identifier_value.input_tensor()
                 x = self.lstm.transform(x=x, state=state[0])
-        elif self.identifier_label is not None:
+        elif self.lstm_mode == 0 and self.identifier_label is not None:
             condition = self.identifier_value.input_tensor()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
@@ -278,14 +282,17 @@ class BasicSynthesizer(Synthesizer):
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
         x = self.encoding.sample(n=num_synthesize)
-        if self.use_lstm:
+        if self.lstm_mode == 2:
+            identifier = self.identifier_value.next_value()
+            identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
+        elif self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
                 identifier, state = self.identifier_value.random_value(n=1)
                 identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
                 x = self.lstm.transform(x=x, state=state[0])
-        elif self.identifier_label is not None:
+        elif self.lstm_mode == 0 and self.identifier_label is not None:
             identifier, condition = self.identifier_value.random_value(n=num_synthesize)
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
@@ -308,13 +315,13 @@ class BasicSynthesizer(Synthesizer):
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
-        if self.use_lstm:
+        if self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
                 state = self.identifier_value.input_tensor()
                 x = self.lstm.transform(x=x, state=state[0])
-        elif self.identifier_label is not None:
+        elif self.lstm_mode == 0 and self.identifier_label is not None:
             condition = self.identifier_value.input_tensor()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
@@ -335,7 +342,7 @@ class BasicSynthesizer(Synthesizer):
         if filenames is None:
             data = self.preprocess(data=data.copy())
 
-            if self.use_lstm and self.identifier_label is not None:
+            if self.lstm_mode != 0 and self.identifier_label is not None:
                 groups = [group[1] for group in data.groupby(by=self.identifier_label)]
                 num_data = [len(group) for group in groups]
                 for n, group in enumerate(groups):
@@ -356,12 +363,12 @@ class BasicSynthesizer(Synthesizer):
                 verbose_fetches['loss'] = self.loss
 
             for iteration in range(num_iterations):
-                if self.use_lstm and self.identifier_label is not None:
+                if self.lstm_mode != 0 and self.identifier_label is not None:
                     group = randrange(len(num_data))
                     data = groups[group]
                     start = randrange(max(num_data[group] - self.batch_size, 1))
                     batch = np.arange(start, min(start + self.batch_size, num_data[group]))
-                elif self.use_lstm:
+                elif self.lstm_mode != 0:
                     start = randrange(max(num_data - self.batch_size, 1))
                     batch = np.arange(start, max(start + self.batch_size, num_data))
                 else:
@@ -373,12 +380,12 @@ class BasicSynthesizer(Synthesizer):
                 if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
                         iteration % verbose + 1 == verbose):
 
-                    if self.use_lstm and self.identifier_label is not None:
+                    if self.lstm_mode != 0 and self.identifier_label is not None:
                         group = randrange(len(num_data))
                         data = groups[group]
                         start = randrange(max(num_data[group] - 1024, 1))
                         batch = np.arange(start, min(start + 1024, num_data[group]))
-                    elif self.use_lstm:
+                    elif self.lstm_mode != 0:
                         start = randrange(max(num_data - 1024, 1))
                         batch = np.arange(start, max(start + 1024, num_data))
                     else:

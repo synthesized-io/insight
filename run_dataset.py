@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', type=str, help="dataset name")
 parser.add_argument('-t', '--target', default=-1, help="target column")
 parser.add_argument('-i', '--identifier-label', default=None, help="identifier label")
-parser.add_argument('-l', '--lstm', action='store_true', help="lstm")
+parser.add_argument('-l', '--lstm-mode', type=int, default=0, help="lstm mode")
 parser.add_argument('-n', '--num-iterations', type=int, help="training iterations")
 parser.add_argument('-e', '--evaluation', type=int, default=0, help="evaluation frequency")
 parser.add_argument(
@@ -64,17 +64,15 @@ print()
 print('Initialize synthesizer...')
 if args.hyperparameters is None:
     synthesizer = BasicSynthesizer(
-        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard, use_lstm=args.lstm,
-        identifier_label=args.identifier_label
+        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
+        lstm_mode=args.lstm_mode, identifier_label=args.identifier_label
     )
 else:
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',')]
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
-    if args.lstm:
-        kwargs['use_lstm'] = True
     synthesizer = BasicSynthesizer(
         data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
-        identifier_label=args.identifier_label, **kwargs
+        lstm_mode=args.lstm_mode, identifier_label=args.identifier_label, **kwargs
     )
 print(repr(synthesizer))
 print()
