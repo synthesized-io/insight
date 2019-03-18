@@ -58,6 +58,7 @@ jobs:
           command: |
             . venv/bin/activate
             python setup.py bdist_wheel
+            ./clean_dist.sh
 
       - store_artifacts:
           path: dist

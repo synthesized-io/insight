@@ -1,5 +1,5 @@
 from codecs import open
-from os import path
+from os import path, listdir
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -20,7 +20,20 @@ with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     install_requires = f.read().split('\n')
 
 packages = find_packages(exclude=['tests*', 'web'])
-ext_modules = [Extension(p + '.*', [p.replace('.', '/') + '/*.py']) for p in packages]
+
+
+def source_files(base_dir):
+    result = []
+    for f in listdir(base_dir):
+        p = path.join(base_dir, f)
+        if path.isdir(p):
+            result.extend(source_files(p))
+        elif p.endswith('.py') and not p.endswith('__init__.py'):
+            result.append(p)
+    return result
+
+
+ext_modules = [Extension(f.replace('/', '.')[:-3], [f]) for f in source_files('synthesized')]
 
 setup(
     name='synthesized',
@@ -31,7 +44,7 @@ setup(
     author='Synthesized Ltd.',
     author_email='team@synthesized.io',
     license='Proprietary',
-    packages=[],
+    packages=packages,
     install_requires=install_requires,
     ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
     cmdclass={'build_ext': build_ext}
