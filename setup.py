@@ -20,9 +20,7 @@ with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     install_requires = f.read().split('\n')
 
 packages = find_packages(exclude=['tests*', 'web'])
-
-# TODO: compile all modules
-# ext_modules = [Extension(p + '.*', [p.replace('.', '/') + '/*.py'], include_dirs=['.']) for p in packages]
+ext_modules = [Extension(p + '.*', [p.replace('.', '/') + '/*.py']) for p in packages]
 
 setup(
     name='synthesized',
@@ -33,21 +31,8 @@ setup(
     author='Synthesized Ltd.',
     author_email='team@synthesized.io',
     license='Proprietary',
-    packages=packages,
+    packages=[],
     install_requires=install_requires,
-    ext_modules=cythonize(
-        [
-            Extension("synthesized.core.synthesizer", ["synthesized/core/synthesizer.py"]),
-            Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
-            Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
-            Extension("synthesized.core.scenario_synthesizer", ["synthesized/core/scenario_synthesizer.py"]),
-            Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
-            Extension("synthesized.testing.utility", ["synthesized/testing/utility.py"]),
-         ],
-        build_dir="build",
-    ),
+    ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
     cmdclass={'build_ext': build_ext}
 )
-
-# run this to delete original files
-# zip -d dist/synthesized-1.0.0-cp36-cp36m-macosx_10_11_x86_64.whl "synthesized/core/basic_synthesizer.py" "synthesized/testing/linkage_attack.py"
