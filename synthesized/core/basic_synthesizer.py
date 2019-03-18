@@ -178,7 +178,11 @@ class BasicSynthesizer(Synthesizer):
         summaries.append(tf.contrib.summary.scalar(
             name='encoding-variance', tensor=encoding_variance, family=None, step=None
         ))
-        if self.lstm_mode == 1:
+        if self.lstm_mode == 2 and self.identifier_label is not None:
+            update = self.identifier_value.input_tensor()
+            with tf.control_dependencies(control_inputs=(update,)):
+                x = x + 0.0  # trivial operation to enforce dependency
+        elif self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
@@ -282,8 +286,9 @@ class BasicSynthesizer(Synthesizer):
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
         x = self.encoding.sample(n=num_synthesize)
-        if self.lstm_mode == 2:
+        if self.lstm_mode == 2 and self.identifier_label is not None:
             identifier = self.identifier_value.next_value()
+            identifier = tf.expand_dims(input=identifier, axis=0)
             identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
         elif self.lstm_mode == 1:
             if self.identifier_label is None:

@@ -31,7 +31,7 @@ class IdentifierValue(Value):
         return 0
 
     def extract(self, data):
-        self.num_identifiers = data[self.name].nunique() * 3
+        self.num_identifiers = data[self.name].nunique() * 10
 
     def features(self, x=None):
         features = super().features(x=x)
@@ -55,19 +55,26 @@ class IdentifierValue(Value):
             caching_device=None, partitioner=None, validate_shape=True, use_resource=None,
             custom_getter=None
         )
+        self.current_identifier = tf.get_variable(
+            name='current-identifier', shape=(), dtype=tf.int64, trainable=False
+        )
 
     def tf_input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
-        x = tf.nn.embedding_lookup(
-            params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
-            max_norm=None
+        assignment = self.current_identifier.assign(
+            value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))
         )
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            x = tf.nn.embedding_lookup(
+                params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
+                max_norm=None
+            )
         return x
 
     def tf_next_value(self):
         assignment = self.current_identifier.assign_add(delta=1)
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.identity(tensor=self.current_identifier)
+            return self.current_identifier + 0  # trivial operation to enforce dependency
 
     def tf_random_value(self, n):
         identifier = tf.random_uniform(
