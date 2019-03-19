@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 from enum import Enum
 from io import BytesIO
 from queue import Queue
@@ -11,6 +12,9 @@ from .repository import Repository
 
 logger = logging.getLogger(__name__)
 
+# each model is about 275MB in RAM
+DEFAULT_MAX_MODELS = 20
+
 
 class ModelStatus(Enum):
     NO_MODEL = 1
@@ -20,8 +24,9 @@ class ModelStatus(Enum):
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository):
-        self.cache = {}
+    def __init__(self, dataset_repo: Repository, max_models=DEFAULT_MAX_MODELS):
+        self.cache = OrderedDict()
+        self.max_models = max_models
         self.requests = set()
         self.cache_lock = Lock()
         self.requests_lock = Lock()
@@ -37,6 +42,9 @@ class SynthesizerManager:
             if not synthesizer_or_error:
                 continue
             with self.cache_lock:
+                if len(self.cache) == self.max_models:
+                    logger.info("popping first item from cache")
+                    self.cache.popitem(last=False)
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)

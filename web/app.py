@@ -230,7 +230,7 @@ class DatasetUpdateInfoResource(Resource):
         return '', 204
 
 
-synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo)
+synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=3)
 
 
 class ModelResource(Resource):
