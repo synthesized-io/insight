@@ -4,6 +4,7 @@ from enum import Enum
 from io import BytesIO
 from queue import Queue
 from threading import Lock, Thread
+import gc
 
 import pandas as pd
 
@@ -50,6 +51,7 @@ class SynthesizerManager:
                             old_model.__exit__(None, None, None)
                         except Exception as e:
                             logger.error(e)
+                    gc.collect()
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)
