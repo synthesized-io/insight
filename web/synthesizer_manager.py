@@ -13,8 +13,6 @@ from .repository import Repository
 
 logger = logging.getLogger(__name__)
 
-# each model is about 275MB in RAM
-DEFAULT_MAX_MODELS = 20
 
 
 class ModelStatus(Enum):
@@ -25,7 +23,7 @@ class ModelStatus(Enum):
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository, max_models=DEFAULT_MAX_MODELS):
+    def __init__(self, dataset_repo: Repository, max_models):
         self.cache = OrderedDict()
         self.max_models = max_models
         self.requests = set()

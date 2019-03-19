@@ -230,7 +230,8 @@ class DatasetUpdateInfoResource(Resource):
         return '', 204
 
 
-synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=2)
+# each model is about 275MB in RAM
+synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=15)
 
 
 class ModelResource(Resource):
