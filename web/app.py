@@ -17,7 +17,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, create_refresh_token, get_jwt_identity, \
     jwt_refresh_token_required
 
-from .analisys import extract_dataset_meta, recompute_dataset_meta
+from .analysis import extract_dataset_meta, recompute_dataset_meta
 from .config import ProductionConfig, DevelopmentConfig
 from .middleware import JSONCompliantEncoder
 
