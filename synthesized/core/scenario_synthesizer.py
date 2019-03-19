@@ -73,8 +73,8 @@ class ScenarioSynthesizer(Synthesizer):
     def customized_transform(self, x):
         return x
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # number of rows to synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')

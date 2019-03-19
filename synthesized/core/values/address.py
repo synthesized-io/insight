@@ -4,6 +4,7 @@ import re
 
 from .value import Value
 from .categorical import CategoricalValue
+from ..module import tensorflow_name_scoped
 
 
 # TODO: postcodes needs one-time scan to collect
@@ -139,20 +140,23 @@ class AddressValue(Value):
             features.update(self.postcode.features(x=x))
         return features
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         if self.postcode is None:
-            return super().tf_input_tensor(feed=feed)
+            return super().input_tensor(feed=feed)
         else:
             return self.postcode.input_tensor(feed=feed)
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         if self.postcode is None:
-            return super().tf_output_tensors(x=x)
+            return super().output_tensors(x=x)
         else:
             return self.postcode.output_tensors(x=x)
 
-    def tf_loss(self, x, feed=None):
+    @tensorflow_name_scoped
+    def loss(self, x, feed=None):
         if self.postcode is None:
-            return super().tf_loss(x=x, feed=feed)
+            return super().loss(x=x, feed=feed)
         else:
             return self.postcode.loss(x=x, feed=feed)

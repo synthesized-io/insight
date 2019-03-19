@@ -1,4 +1,4 @@
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Functional(Module):
@@ -23,7 +23,8 @@ class Functional(Module):
     def required_outputs(self):
         return self.values
 
-    def tf_loss(self, *samples_args):
+    @tensorflow_name_scoped
+    def loss(self, *samples_args):
         raise NotImplementedError
 
     def check_distance(self, *samples_args):

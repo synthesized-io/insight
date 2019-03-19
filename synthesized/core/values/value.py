@@ -1,4 +1,4 @@
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Value(Module):
@@ -41,14 +41,18 @@ class Value(Module):
     def features(self, x=None):
         return dict()
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         return None
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         return dict()
 
-    def tf_loss(self, x, feed=None):
+    @tensorflow_name_scoped
+    def loss(self, x, feed=None):
         return None
 
-    def tf_distribution_loss(self, samples):
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
         return None

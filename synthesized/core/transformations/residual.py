@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 from .. import util
 
 
@@ -49,8 +50,8 @@ class ResidualTransformation(Transformation):
         )
         return spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         if self.batchnorm:
             shape = (self.output_size,)
@@ -66,7 +67,8 @@ class ResidualTransformation(Transformation):
                 partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
             )
 
-    def tf_transform(self, x):
+    @tensorflow_name_scoped
+    def transform(self, x):
         residual = x
         for layer in self.layers:
             residual = layer.transform(x=residual)
