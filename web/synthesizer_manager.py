@@ -7,7 +7,7 @@ from threading import Lock, Thread
 
 import pandas as pd
 
-from synthesized.core import BasicSynthesizer
+from synthesized.core import BasicSynthesizer, Synthesizer
 from .repository import Repository
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,12 @@ class SynthesizerManager:
             with self.cache_lock:
                 if len(self.cache) == self.max_models:
                     logger.info("popping first item from cache")
-                    self.cache.popitem(last=False)
+                    old_model = self.cache.popitem(last=False)
+                    if isinstance(old_model, Synthesizer):
+                        try:
+                            old_model.__exit__(None, None, None)
+                        except Exception as e:
+                            logger.error(e)
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)
