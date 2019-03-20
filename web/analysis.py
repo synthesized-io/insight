@@ -4,6 +4,7 @@ from typing import Iterable
 
 import numpy as np
 import pandas as pd
+from numpy.lib import histograms
 from sklearn.neighbors import KernelDensity
 
 from synthesized.core import BasicSynthesizer
@@ -11,6 +12,7 @@ from synthesized.core.values import ContinuousValue
 
 REMOVE_OUTLIERS = 0.01
 DEFAULT_KERNEL = 'epanechnikov'
+DEFAULT_MAX_BINS = 50
 
 
 class ColumnMeta(ABC):
@@ -78,7 +80,8 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             q = [remove_outliers / 2., 1 - remove_outliers / 2.]
             start, end = np.quantile(data_wo_nans[value.name], q)
             column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
-            hist, edges = np.histogram(column_cleaned, bins='auto')
+            bins = _bounded_bin_selector(column_cleaned, max_bins=DEFAULT_MAX_BINS)
+            hist, edges = np.histogram(column_cleaned, bins=bins)
             kde = KernelDensity(kernel=DEFAULT_KERNEL)
             log_density = kde.fit(column_cleaned.values.reshape(-1, 1)).score_samples(edges.reshape(-1, 1))
             density = np.exp(log_density)
@@ -189,3 +192,13 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
         n_types=meta.n_types,
         columns=columns_meta,
     )
+
+
+def _bounded_bin_selector(a, max_bins):
+    first_edge, last_edge = histograms._get_outer_edges(a, range=None)
+    width = histograms._hist_bin_auto(a, (first_edge, last_edge))
+    if width:
+        bins_auto = int(np.ceil(histograms._unsigned_subtract(last_edge, first_edge) / width))
+    else:
+        bins_auto = 1
+    return min(bins_auto, max_bins)
