@@ -1,9 +1,11 @@
 import tensorflow as tf
+from functools import wraps
 
 
 def tensorflow_name_scoped(tf_function):
+    @wraps(tf_function)
     def function(self, *args, **kwargs):
-        name = f"{self.name}.{tf_function.__name__}"
+        name = "{}.{}".format(self.name, tf_function.__name__)
         with tf.name_scope(name=name.replace(' ', '_').replace(':', '')):
             results = tf_function(self, *args, **kwargs)
         return results
