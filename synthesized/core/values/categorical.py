@@ -113,10 +113,11 @@ class CategoricalValue(Value):
         shape = (self.num_categories, self.embedding_size)
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.variable = tf.get_variable(name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
-                                        regularizer=regularizer, trainable=True, collections=None, caching_device=None,
-                                        partitioner=None, validate_shape=True, use_resource=None, custom_getter=None)
-        self.embeddings = self.variable
+        self.embeddings = tf.get_variable(
+            name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+        )
         if self.moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(
                 decay=0.9, num_updates=None, zero_debias=False
