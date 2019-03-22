@@ -9,8 +9,8 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 from werkzeug.datastructures import FileStorage
 
-from ..analysis import extract_dataset_meta
-from ..model import Dataset
+from ..domain.analysis import extract_dataset_meta
+from ..domain.model import Dataset
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000

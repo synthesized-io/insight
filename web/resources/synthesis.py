@@ -8,9 +8,9 @@ from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 
-from ..analysis import recompute_dataset_meta
-from ..model import Synthesis
-from ..synthesizer_manager import ModelStatus
+from ..domain.analysis import recompute_dataset_meta
+from ..domain.model import Synthesis
+from ..application.synthesizer_manager import ModelStatus
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000

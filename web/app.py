@@ -1,5 +1,4 @@
-
-from .middleware import configure_logger
+from web.infastructure.flask_support import configure_logger
 configure_logger()
 
 from flask import Flask
@@ -10,11 +9,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 
 from .config import ProductionConfig, DevelopmentConfig
-from .middleware import JSONCompliantEncoder
+from .infastructure.flask_support import JSONCompliantEncoder
 
-from .repository import SQLAlchemyRepository
-from .synthesizer_manager import SynthesizerManager
-from .authenticator import Authenticator
+from .domain.repository import SQLAlchemyRepository
+from .application.synthesizer_manager import SynthesizerManager
+from .application.authenticator import Authenticator
 
 
 app = Flask(__name__)
@@ -28,7 +27,7 @@ CORS(app, supports_credentials=True)  # TODO: delete in final version
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after
-from .model import Dataset, Synthesis, User
+from web.domain.model import Dataset, Synthesis, User
 db.create_all()
 
 bcrypt = Bcrypt(app)
