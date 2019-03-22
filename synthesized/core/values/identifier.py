@@ -46,6 +46,7 @@ class IdentifierValue(Value):
     def tf_initialize(self):
         super().tf_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
+        # tf.placeholder_with_default(input=(-1,), shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
         initializer = util.get_initializer(initializer='normal')

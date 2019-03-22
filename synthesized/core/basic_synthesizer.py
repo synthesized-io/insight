@@ -27,8 +27,7 @@ class BasicSynthesizer(Synthesizer):
         gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
         # address
-        postcode_label=None, street_label=None,
-        address_label=None, postcode_regex=None,
+        postcode_label=None, street_label=None, address_label=None, postcode_regex=None,
         # identifier
         identifier_label=None
     ):
@@ -312,26 +311,20 @@ class BasicSynthesizer(Synthesizer):
                 self.synthesized[label] = x
 
     def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+        if self.lstm_mode != 0 and self.identifier_label is not None:
+            raise NotImplementedError
+
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
         if filenames is None:
             data = self.preprocess(data=data.copy())
 
-            if self.lstm_mode != 0 and self.identifier_label is not None:
-                groups = [group[1] for group in data.groupby(by=self.identifier_label)]
-                num_data = [len(group) for group in groups]
-                for n, group in enumerate(groups):
-                    groups[n] = {
-                        label: group[label].get_values() for value in self.values
-                        for label in value.input_labels()
-                    }
-            else:
-                num_data = len(data)
-                data = {
-                    label: data[label].get_values() for value in self.values
-                    for label in value.input_labels()
-                }
+            num_data = len(data)
+            data = {
+                label: data[label].get_values() for value in self.values
+                for label in value.input_labels()
+            }
 
             fetches = self.optimized
             if verbose > 0:
@@ -339,12 +332,7 @@ class BasicSynthesizer(Synthesizer):
                 verbose_fetches['loss'] = self.loss
 
             for iteration in range(num_iterations):
-                if self.lstm_mode != 0 and self.identifier_label is not None:
-                    group = randrange(len(num_data))
-                    data = groups[group]
-                    start = randrange(max(num_data[group] - self.batch_size, 1))
-                    batch = np.arange(start, min(start + self.batch_size, num_data[group]))
-                elif self.lstm_mode != 0:
+                if self.lstm_mode != 0:
                     start = randrange(max(num_data - self.batch_size, 1))
                     batch = np.arange(start, max(start + self.batch_size, num_data))
                 else:
@@ -353,15 +341,11 @@ class BasicSynthesizer(Synthesizer):
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-                if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                        iteration % verbose + 1 == verbose):
-
-                    if self.lstm_mode != 0 and self.identifier_label is not None:
-                        group = randrange(len(num_data))
-                        data = groups[group]
-                        start = randrange(max(num_data[group] - 1024, 1))
-                        batch = np.arange(start, min(start + 1024, num_data[group]))
-                    elif self.lstm_mode != 0:
+                if verbose > 0 and (
+                    iteration == 0 or iteration + 1 == verbose // 2 or
+                    iteration % verbose + 1 == verbose
+                ):
+                    if self.lstm_mode != 0:
                         start = randrange(max(num_data - 1024, 1))
                         batch = np.arange(start, max(start + 1024, num_data))
                     else:
@@ -411,16 +395,22 @@ class BasicSynthesizer(Synthesizer):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
     def synthesize(self, n):
+        if self.lstm_mode != 0 and self.identifier_label is not None:
+            raise NotImplementedError
+
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
         columns = [label for value in self.values for label in value.output_labels()]
         synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+
         feed_dict = {'num_synthesize': 1024}
-        for k in range(n // 1024):
+        for _ in range(n // 1024):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
             other = pd.DataFrame.from_dict(other)[columns]
             synthesized = synthesized.append(other, ignore_index=True)
+
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
+
         return synthesized

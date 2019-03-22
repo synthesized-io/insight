@@ -55,7 +55,7 @@ class Synthesizer(Module):
     def learn(self, iterations, data=None, filenames=None, verbose=False):
         raise NotImplementedError
 
-    def synthesize(self, n):
+    def synthesize(self, *args, **kwargs):
         raise NotImplementedError
 
     def fit(self, X, y=None, **fit_params):

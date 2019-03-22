@@ -1,8 +1,7 @@
 import argparse
 from datetime import datetime
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from synthesized.core import BasicSynthesizer
+from synthesized.core import BasicSynthesizer, SeriesSynthesizer
 
 
 print()
@@ -16,7 +15,7 @@ parser.add_argument('-i', '--identifier-label', default=None, help="identifier l
 parser.add_argument('-l', '--lstm-mode', type=int, default=0, help="lstm mode")
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument(
-    '-y', '--hyperparameters', default=None, help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=32', help="list of hyperparameters (comma, equal)"
 )
 parser.add_argument('-b', '--tensorboard', action='store_true', help="TensorBoard summaries")
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
@@ -41,15 +40,19 @@ print()
 
 
 print('Initialize synthesizer...')
+if args.lstm_mode != 0 and args.identifier_label is not None:
+    synthesizer_cls = SeriesSynthesizer
+else:
+    synthesizer_cls = BasicSynthesizer
 if args.hyperparameters is None:
-    synthesizer = BasicSynthesizer(
+    synthesizer = synthesizer_cls(
         data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
         lstm_mode=args.lstm_mode, identifier_label=args.identifier_label
     )
 else:
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',')]
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
-    synthesizer = BasicSynthesizer(
+    synthesizer = synthesizer_cls(
         data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
         lstm_mode=args.lstm_mode, identifier_label=args.identifier_label, **kwargs
     )
@@ -64,7 +67,11 @@ with synthesizer:
         synthesizer.learn(num_iterations=args.num_iterations, filenames=(tfrecords_filename,))
     else:
         synthesizer.learn(num_iterations=args.num_iterations, data=data.copy())
-    synthesized = synthesizer.synthesize(n=1000)
+    if args.lstm_mode != 0 and args.identifier_label is not None:
+        synthesized = synthesizer.synthesize(num_series=2, series_length=50)
+        synthesized = synthesizer.synthesize(series_lengths=(49, 51))
+    else:
+        synthesized = synthesizer.synthesize(n=100)
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
 print()
 
