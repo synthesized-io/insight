@@ -13,6 +13,7 @@ from synthesized.core.values import ContinuousValue
 REMOVE_OUTLIERS = 0.01
 DEFAULT_KERNEL = 'epanechnikov'
 DEFAULT_MAX_BINS = 50
+SYNTHESIZER_SUBSAMPLE = 1000
 
 
 class ColumnMeta(ABC):
@@ -71,7 +72,7 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
     raw_data = StringIO()
     data.to_csv(raw_data, index=False)
     data_wo_nans = data.dropna()
-    synthesizer = BasicSynthesizer(data=data_wo_nans.sample(1000))
+    synthesizer = BasicSynthesizer(data=data_wo_nans.sample(SYNTHESIZER_SUBSAMPLE))
     value_types = set()
     columns_meta = []
     for value in synthesizer.values:
