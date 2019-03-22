@@ -48,7 +48,7 @@ class SynthesizerManager:
                             old_model.__exit__(None, None, None)
                         except Exception as e:
                             logger.error(e)
-                    old_model = None  # loose ref to the object
+                    del old_model
                     gc.collect()
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
