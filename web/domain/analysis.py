@@ -14,6 +14,7 @@ REMOVE_OUTLIERS = 0.01
 DEFAULT_KERNEL = 'epanechnikov'
 DEFAULT_MAX_BINS = 50
 SYNTHESIZER_SUBSAMPLE = 1000
+MAX_BINS = 20
 
 
 class ColumnMeta(ABC):
@@ -108,7 +109,7 @@ def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             ))
         else:
             most_frequent = data[value.name].value_counts().idxmax()
-            bins = sorted(data[value.name].dropna().unique())
+            bins = sorted(data[value.name].dropna().unique())[:MAX_BINS]
             counts = data[value.name].value_counts().to_dict()
             hist = [counts[x] for x in bins]
 
