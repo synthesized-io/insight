@@ -14,7 +14,6 @@ from .repository import Repository
 logger = logging.getLogger(__name__)
 
 
-
 class ModelStatus(Enum):
     NO_MODEL = 1
     TRAINING = 2
