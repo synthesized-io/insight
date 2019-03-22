@@ -1,12 +1,14 @@
 import logging
+from collections import OrderedDict
 from enum import Enum
 from io import BytesIO
 from queue import Queue
 from threading import Lock, Thread
+import gc
 
 import pandas as pd
 
-from synthesized.core import BasicSynthesizer
+from synthesized.core import BasicSynthesizer, Synthesizer
 from .repository import Repository
 
 logger = logging.getLogger(__name__)
@@ -20,8 +22,9 @@ class ModelStatus(Enum):
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository):
-        self.cache = {}
+    def __init__(self, dataset_repo: Repository, max_models):
+        self.cache = OrderedDict()
+        self.max_models = max_models
         self.requests = set()
         self.cache_lock = Lock()
         self.requests_lock = Lock()
@@ -37,6 +40,16 @@ class SynthesizerManager:
             if not synthesizer_or_error:
                 continue
             with self.cache_lock:
+                if len(self.cache) == self.max_models:
+                    logger.info("popping first item from cache")
+                    old_model = self.cache.popitem(last=False)
+                    if isinstance(old_model, Synthesizer):
+                        try:
+                            old_model.__exit__(None, None, None)
+                        except Exception as e:
+                            logger.error(e)
+                    del old_model
+                    gc.collect()
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)
