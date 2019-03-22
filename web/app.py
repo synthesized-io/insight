@@ -25,13 +25,14 @@ app.json_encoder = JSONCompliantEncoder
 CORS(app, supports_credentials=True)  # TODO: delete in final version
 
 db = SQLAlchemy(app)
-# models use `db` object, therefore should be imported after
-from web.domain.model import Dataset, Synthesis, User
 db.create_all()
 
 bcrypt = Bcrypt(app)
 
 jwt = JWTManager(app)
+
+# models use `db` object, therefore should be imported after `db` creation
+from web.domain.model import Dataset, Synthesis, User
 
 dataset_repo = SQLAlchemyRepository(db, Dataset)
 synthesis_repo = SQLAlchemyRepository(db, Synthesis)
