@@ -10,8 +10,7 @@ from flask_jwt_extended import JWTManager
 
 from .config import ProductionConfig, DevelopmentConfig
 from .infastructure.flask_support import JSONCompliantEncoder
-
-from .domain.repository import SQLAlchemyRepository
+from .infastructure.repository_impl import SQLAlchemyRepository
 from .application.synthesizer_manager import SynthesizerManager
 from .application.authenticator import Authenticator
 
