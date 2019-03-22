@@ -45,23 +45,26 @@ db.create_all()
 
 bcrypt = Bcrypt(app)
 
-dataset_repo = SQLAlchemyRepository(db, Dataset)
-synthesis_repo = SQLAlchemyRepository(db, Synthesis)
-user_repo = SQLAlchemyRepository(db, User)
 
+class Authenticator:
+    def __init__(self, user_repo):
+        self.user_repo = user_repo
 
-def authenticate(username, password):
-    users = user_repo.find_by_props({'username': username})
-    if len(users) > 0:
-        password_hash = bytes.fromhex(users[0].password)
-        if bcrypt.check_password_hash(password_hash, password):
-            return users[0]
+    def authenticate(self, username, password):
+        users = self.user_repo.find_by_props({'username': username})
+        if len(users) > 0:
+            password_hash = bytes.fromhex(users[0].password)
+            if bcrypt.check_password_hash(password_hash, password):
+                return users[0]
 
 
 jwt = JWTManager(app)
 
 
 class LoginResource(Resource):
+    def __init__(self, **kwargs):
+        self.authenticator = kwargs['authenticator']
+
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -71,7 +74,7 @@ class LoginResource(Resource):
         username = args['username']
         password = args['password']
 
-        user = authenticate(username, password)
+        user = self.authenticator.authenticate(username, password)
         if not user:
             return {"message": "Bad username or password"}, 401
 
@@ -94,6 +97,9 @@ class RefreshResource(Resource):
 
 
 class UsersResource(Resource):
+    def __init__(self, **kwargs):
+        self.user_repo = kwargs['user_repo']
+
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True)
@@ -105,13 +111,13 @@ class UsersResource(Resource):
 
         app.logger.info('registering user {}'.format(username))
 
-        users = user_repo.find_by_props({'username': username})
+        users = self.user_repo.find_by_props({'username': username})
         if len(users) > 0:
             app.logger.info('found existing user {}'.format(users[0]))
             abort(409, message='User with username={} already exists'.format(username))
 
         user = User(username=username, password=bcrypt.generate_password_hash(password).hex())
-        user_repo.save(user)
+        self.user_repo.save(user)
         app.logger.info('created a user {}'.format(user))
 
         ret = {
@@ -124,8 +130,11 @@ class UsersResource(Resource):
 class DatasetsResource(Resource):
     decorators = [jwt_required]
 
+    def __init__(self, **kwargs):
+        self.dataset_repo = kwargs['dataset_repo']
+
     def get(self):
-        datasets = dataset_repo.find_by_props({'user_id': get_jwt_identity()})
+        datasets = self.dataset_repo.find_by_props({'user_id': get_jwt_identity()})
         return jsonify({
             'datasets': [
                 {
@@ -158,7 +167,7 @@ class DatasetsResource(Resource):
 
             blob = raw_data.getvalue().encode('utf-8')
             dataset = Dataset(user_id=get_jwt_identity(), title=title, blob=blob, meta=meta)
-            dataset_repo.save(dataset)
+            self.dataset_repo.save(dataset)
             app.logger.info('created a dataset {}'.format(dataset))
 
             return {'dataset_id': dataset.id}, 201, {'Location': '/datasets/{}'.format(dataset.id)}
@@ -166,6 +175,9 @@ class DatasetsResource(Resource):
 
 class DatasetResource(Resource):
     decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo = kwargs['dataset_repo']
 
     def get(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -176,7 +188,7 @@ class DatasetResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
 
         if not dataset:
@@ -195,17 +207,20 @@ class DatasetResource(Resource):
         })
 
     def delete(self, dataset_id):
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if dataset:
             if dataset.user_id != get_jwt_identity():
                 abort(403, message='Dataset with id={} can be deleted only by an owner'.format(dataset_id))
-            dataset_repo.delete(dataset)
+            self.dataset_repo.delete(dataset)
         return '', 204
 
 
 class DatasetUpdateInfoResource(Resource):
     decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo = kwargs['dataset_repo']
 
     def post(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -213,7 +228,7 @@ class DatasetUpdateInfoResource(Resource):
         parser.add_argument('description', type=str, required=False)
         args = parser.parse_args()
 
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, messsage="Couldn't find requested dataset: " + dataset_id)
@@ -225,27 +240,27 @@ class DatasetUpdateInfoResource(Resource):
         dataset.title = args['title']
         dataset.description = args['description']
 
-        dataset_repo.save(dataset)
+        self.dataset_repo.save(dataset)
 
         return '', 204
-
-
-# each model is about 275MB in RAM
-synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=15)
 
 
 class ModelResource(Resource):
     decorators = [jwt_required]
 
+    def __init__(self, **kwargs):
+        self.dataset_repo = kwargs['dataset_repo']
+        self.synthesizer_manager = kwargs['synthesizer_manager']
+
     def get(self, dataset_id):
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        status = synthesizer_manager.get_status(dataset_id)
+        status = self.synthesizer_manager.get_status(dataset_id)
         if status == ModelStatus.NO_MODEL:
             abort(404, message="No training for dataset_id " + dataset_id)
         if status == ModelStatus.TRAINING:
@@ -256,20 +271,24 @@ class ModelResource(Resource):
         return {'status': 'ready'}, 200
 
     def post(self, dataset_id):
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        synthesizer_manager.train_async(dataset_id)
+        self.synthesizer_manager.train_async(dataset_id)
 
         return {'status': 'training'}, 202, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
 class SynthesisResource(Resource):
     decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo = kwargs['dataset_repo']
+        self.synthesis_repo = kwargs['synthesis_repo']
 
     def get(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -280,14 +299,14 @@ class SynthesisResource(Resource):
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
 
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != get_jwt_identity():
             abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
-        syntheses = synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))
 
         if len(syntheses) == 0:
@@ -312,7 +331,7 @@ class SynthesisResource(Resource):
 
         app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
 
-        dataset = dataset_repo.get(dataset_id)
+        dataset = self.dataset_repo.get(dataset_id)
         app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
@@ -340,12 +359,12 @@ class SynthesisResource(Resource):
 
         synthesis = Synthesis(dataset_id=dataset_id, blob=blob, meta=synthetic_meta, size=rows)
 
-        old_syntheses = synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        old_syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         for s in old_syntheses:
             app.logger.info('deleting an old synthesis: {}'.format(s))
-            synthesis_repo.delete(s)
+            self.synthesis_repo.delete(s)
 
-        synthesis_repo.save(synthesis)
+        self.synthesis_repo.save(synthesis)
 
         app.logger.info('created a synthesis {}'.format(synthesis))
 
@@ -357,13 +376,21 @@ class StatusResource(Resource):
         return {'success': True}
 
 
+dataset_repo = SQLAlchemyRepository(db, Dataset)
+synthesis_repo = SQLAlchemyRepository(db, Synthesis)
+user_repo = SQLAlchemyRepository(db, User)
+authenticator = Authenticator(user_repo)
+
+# each model is about 275MB in RAM
+synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=15)
+
 api = Api(app)
 api.add_resource(StatusResource, '/')
-api.add_resource(LoginResource, '/login')
+api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
 api.add_resource(RefreshResource, '/refresh')
-api.add_resource(UsersResource, '/users')
-api.add_resource(DatasetsResource, '/datasets')
-api.add_resource(DatasetResource, '/datasets/<dataset_id>')
-api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo')
-api.add_resource(ModelResource, '/datasets/<dataset_id>/model')
-api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis')
+api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo})
+api.add_resource(DatasetsResource, '/datasets', resource_class_kwargs={'dataset_repo': dataset_repo})
+api.add_resource(DatasetResource, '/datasets/<dataset_id>', resource_class_kwargs={'dataset_repo': dataset_repo})
+api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo', resource_class_kwargs={'dataset_repo': dataset_repo})
+api.add_resource(ModelResource, '/datasets/<dataset_id>/model', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})
+api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesis_repo': synthesis_repo})
