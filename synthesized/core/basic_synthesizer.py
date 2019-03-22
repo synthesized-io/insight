@@ -311,35 +311,6 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-        # transform
-        xs = list()
-        for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
-                x = value.input_tensor()
-                xs.append(x)
-        x = tf.concat(values=xs, axis=1)
-        x = self.encoder.transform(x=x)
-        x = self.encoding.encode(x=x)
-        if self.lstm_mode == 1:
-            if self.identifier_label is None:
-                x = self.lstm.transform(x=x)
-            else:
-                state = self.identifier_value.input_tensor()
-                x = self.lstm.transform(x=x, state=state[0])
-        elif self.lstm_mode == 0 and self.identifier_label is not None:
-            condition = self.identifier_value.input_tensor()
-            x = self.modulation.transform(x=x, condition=condition)
-        x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
-        xs = tf.split(
-            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
-        )
-        self.transformed = dict()
-        for value, x in zip(self.values, xs):
-            xs = value.output_tensors(x=x)
-            for label, x in xs.items():
-                self.transformed[label] = x
-
     def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
@@ -453,17 +424,3 @@ class BasicSynthesizer(Synthesizer):
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
         return synthesized
-
-    def transform(self, X, **transform_params):
-        assert not transform_params
-        data = self.preprocess(data=X.copy())
-        fetches = self.transformed
-        feed_dict = {
-            label: data[label].get_values() for value in self.values
-            for label in value.input_labels()
-        }
-        transformed = self.run(fetches=fetches, feed_dict=feed_dict)
-        transformed = pd.DataFrame.from_dict(transformed)
-        for value in self.values:
-            transformed = value.postprocess(data=transformed)
-        return transformed

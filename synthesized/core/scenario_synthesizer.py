@@ -70,9 +70,6 @@ class ScenarioSynthesizer(Synthesizer):
         )
         return spec
 
-    def customized_transform(self, x):
-        return x
-
     def tf_initialize(self):
         super().tf_initialize()
 
@@ -87,7 +84,6 @@ class ScenarioSynthesizer(Synthesizer):
             shape=(num_synthesize, self.capacity), mean=0.0, stddev=1.0, dtype=tf.float32,
             seed=None
         )
-        x = self.customized_transform(x=x)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
