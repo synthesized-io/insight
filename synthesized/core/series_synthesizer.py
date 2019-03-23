@@ -14,7 +14,9 @@ class SeriesSynthesizer(BasicSynthesizer):
         return spec
 
     def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
-        if self.lstm_mode == 0 or self.identifier_label is None:
+        if self.lstm_mode == 0 or (
+            self.identifier_label is None and len(self.condition_labels) == 0
+        ):
             raise NotImplementedError
 
         if (data is None) is (filenames is None):
@@ -42,7 +44,12 @@ class SeriesSynthesizer(BasicSynthesizer):
                 start = randrange(max(num_data[group] - self.batch_size, 1))
                 batch = np.arange(start, min(start + self.batch_size, num_data[group]))
 
-                feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+                feed_dict = dict()
+                for label, value_data in data.items():
+                    if label in self.condition_labels and self.lstm_mode == 2:
+                        feed_dict[label] = value_data[:1]
+                    else:
+                        feed_dict[label] = value_data[batch]
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
                 if verbose > 0 and (
@@ -73,17 +80,26 @@ class SeriesSynthesizer(BasicSynthesizer):
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
-    def synthesize(self, num_series=None, series_length=None, series_lengths=None):
+    def synthesize(self, num_series=None, series_length=None, series_lengths=None, condition=None):
         # Either num_series and series_length, or series_lenghts, or ???
-        if self.lstm_mode == 0 or self.identifier_label is None:
+        if self.lstm_mode == 0 or (
+            self.identifier_label is None and len(self.condition_labels) == 0
+        ):
             raise NotImplementedError
 
         fetches = self.synthesized
+        if condition is None:
+            feed_dict = dict()
+        else:
+            feed_dict = dict(condition)
 
         if num_series is not None:
             assert series_length is not None and series_lengths is None
-            feed_dict = {'num_synthesize': series_length}
-            columns = [label for value in self.values for label in value.output_labels()]
+            feed_dict['num_synthesize'] = series_length
+            columns = [
+                label for value in self.values if value.name not in self.condition_labels
+                for label in value.output_labels()
+            ]
             synthesized = None
             for _ in range(num_series):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
@@ -95,10 +111,13 @@ class SeriesSynthesizer(BasicSynthesizer):
 
         elif series_lengths is not None:
             assert series_length is None
-            columns = [label for value in self.values for label in value.output_labels()]
+            columns = [
+                label for value in self.values if value.name not in self.condition_labels
+                for label in value.output_labels()
+            ]
             synthesized = None
             for series_length in series_lengths:
-                feed_dict = {'num_synthesize': series_length}
+                feed_dict['num_synthesize'] = series_length
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
@@ -107,6 +126,7 @@ class SeriesSynthesizer(BasicSynthesizer):
                     synthesized = synthesized.append(other, ignore_index=True)
 
         for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+            if value.name not in self.condition_labels:
+                synthesized = value.postprocess(data=synthesized)
 
         return synthesized

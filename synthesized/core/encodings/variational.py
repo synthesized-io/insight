@@ -1,22 +1,32 @@
 import tensorflow as tf
 
 from .encoding import Encoding
-from ..transformations import DenseTransformation
+from ..transformations import transformation_modules
 
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=None):
-        super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
+    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=None):
+        super().__init__(
+            name=name, input_size=input_size, encoding_size=encoding_size,
+            condition_size=condition_size
+        )
         self.beta = beta
 
         self.mean = self.add_module(
-            module=DenseTransformation, name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none'
+            module='dense', modules=transformation_modules, name='mean',
+            input_size=self.input_size, output_size=self.encoding_size, batchnorm=False,
+            activation='none'
         )
         self.stddev = self.add_module(
-            module=DenseTransformation, name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'
+            module='dense', modules=transformation_modules, name='stddev',
+            input_size=self.input_size, output_size=self.encoding_size, batchnorm=False,
+            activation='softplus'
+        )
+        self.decoder = self.add_module(
+            module='dense', modules=transformation_modules, name='initial-input',
+            input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
+            batchnorm=False, activation='none'
         )
 
     def specification(self):
@@ -27,25 +37,34 @@ class VariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def tf_encode(self, x, encoding_loss=False):
+    def tf_encode(self, x, condition=(), encoding_plus_loss=False):
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
-        x = tf.random_normal(
+        encoding = tf.random_normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
-        x = mean + stddev * x
-        if encoding_loss:
+        encoding = mean + stddev * encoding
+
+        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
+        x = self.decoder.transform(x=x)
+
+        if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             if self.beta is not None:
                 encoding_loss *= self.beta
-            return x, encoding_loss
+            return x, encoding, encoding_loss
         else:
             return x
 
-    def tf_sample(self, n):
-        x = tf.random_normal(
+    def tf_sample(self, n, condition=()):
+        encoding = tf.random_normal(
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
+
+        condition = tuple(tf.tile(input=c, multiples=(n, 1)) for c in condition)
+        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
+        x = self.decoder.transform(x=x)
+
         return x

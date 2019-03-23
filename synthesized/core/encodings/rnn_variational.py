@@ -5,28 +5,36 @@ from ..transformations import transformation_modules
 
 class RnnVariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=None):
-        super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
+    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=None):
+        super().__init__(
+            name=name, input_size=input_size, encoding_size=encoding_size,
+            condition_size=condition_size
+        )
         self.beta = beta
-
-        state_size = 2 * self.encoding_size
 
         self.lstm_encoder = self.add_module(
             module='lstm', modules=transformation_modules, name='lstm', input_size=self.input_size,
-            output_size=state_size, return_state=True
+            output_size=self.encoding_size, return_state=True
         )
         self.mean = self.add_module(
-            module='dense', modules=transformation_modules, name='mean', input_size=state_size,
-            output_size=state_size, batchnorm=False, activation='none'
+            module='dense', modules=transformation_modules, name='mean',
+            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
+            activation='none'
         )
         self.stddev = self.add_module(
-            module='dense', modules=transformation_modules, name='stddev', input_size=state_size,
-            output_size=state_size, batchnorm=False, activation='softplus'
+            module='dense', modules=transformation_modules, name='stddev',
+            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
+            activation='softplus'
         )
         self.initial_input = self.add_module(
             module='dense', modules=transformation_modules, name='initial-input',
-            input_size=state_size, output_size=self.encoding_size, batchnorm=False,
-            activation='none'
+            input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
+            batchnorm=False, activation='none'
+        )
+        self.initial_state = self.add_module(
+            module='dense', modules=transformation_modules, name='initial-state',
+            input_size=(self.encoding_size + self.condition_size),
+            output_size=(2 * self.encoding_size), batchnorm=False, activation='none'
         )
         self.lstm_decoder = tf.keras.layers.LSTMCell(units=self.encoding_size)
 
@@ -40,21 +48,23 @@ class RnnVariationalEncoding(Encoding):
 
     def tf_initialize(self):
         super().tf_initialize()
-        self.lstm_decoder.build(input_shape=(None, self.input_size))
+        self.lstm_decoder.build(input_shape=(None, self.encoding_size))
 
-    def tf_encode(self, x, encoding_loss=False):
+    def tf_encode(self, x, condition=(), encoding_plus_loss=False):
         batch_size = tf.shape(input=x)[0]
         final_state = self.lstm_encoder.transform(x=x)
         final_state = tf.expand_dims(input=final_state, axis=0)
 
         mean = self.mean.transform(x=final_state)
         stddev = self.stddev.transform(x=final_state)
-        initial_state = tf.random_normal(
+        encoding = tf.random_normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32
         )
-        initial_state = mean + stddev * initial_state
+        encoding = mean + stddev * encoding
 
-        initial_input = self.initial_input.transform(x=initial_state)
+        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
+        initial_input = self.initial_input.transform(x=x)
+        initial_state = self.initial_state.transform(x=x)
         initial_state = [
             initial_state[:, :self.encoding_size], initial_state[:, self.encoding_size:]
         ]
@@ -68,21 +78,24 @@ class RnnVariationalEncoding(Encoding):
         )
         x = final_outputs.sample_id[0]
 
-        if encoding_loss:
+        if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             if self.beta is not None:
                 encoding_loss *= self.beta
-            return x, encoding_loss
+            return x, encoding, encoding_loss
         else:
             return x
 
-    def tf_sample(self, n):
-        initial_state = tf.random_normal(
-            shape=(1, 2 * self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32
+    def tf_sample(self, n, condition=()):
+        encoding = tf.random_normal(
+            shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32
         )
-        initial_input = self.initial_input.transform(x=initial_state)
+
+        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
+        initial_input = self.initial_input.transform(x=x)
+        initial_state = self.initial_state.transform(x=x)
         initial_state = [
             initial_state[:, :self.encoding_size], initial_state[:, self.encoding_size:]
         ]
