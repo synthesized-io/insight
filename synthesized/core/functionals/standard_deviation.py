@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class StandardDeviationFunctional(Functional):
@@ -22,7 +23,8 @@ class StandardDeviationFunctional(Functional):
         spec.update(stddev=self.stddev)
         return spec
 
-    def tf_loss(self, samples):
+    @tensorflow_name_scoped
+    def loss(self, samples):
         _, variance = tf.nn.moments(x=samples, axes=0)
         stddev = tf.sqrt(x=variance)
         loss = tf.squared_difference(x=stddev, y=self.stddev)

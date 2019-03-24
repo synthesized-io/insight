@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .encoding import Encoding
 from ..transformations import DenseTransformation
+from ..module import tensorflow_name_scoped
 
 
 class GumbelVariationalEncoding(Encoding):
@@ -33,7 +34,8 @@ class GumbelVariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size * self.num_categories
 
-    def tf_encode(self, x, encoding_loss=False):
+    @tensorflow_name_scoped
+    def encode(self, x, encoding_loss=False):
         assert x.shape[1].value == self.encoding_size
         logits = self.logits.transform(x=x)
         logits = tf.reshape(tensor=logits, shape=(-1, self.num_categories))
@@ -70,7 +72,8 @@ class GumbelVariationalEncoding(Encoding):
             tf.losses.add_loss(loss=encoding_loss, loss_collection=tf.GraphKeys.LOSSES)
         return x
 
-    def tf_sample(self, n):
+    @tensorflow_name_scoped
+    def sample(self, n):
         x = tf.random_uniform(
             shape=(n, self.encoding_size * self.num_categories), minval=0.0, maxval=1.0,
             dtype=tf.float32, seed=None

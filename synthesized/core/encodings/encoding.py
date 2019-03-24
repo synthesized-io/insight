@@ -1,4 +1,4 @@
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Encoding(Module):
@@ -16,8 +16,10 @@ class Encoding(Module):
     def size(self):
         raise NotImplementedError
 
-    def tf_encode(self, x, encoding_loss=False):
+    @tensorflow_name_scoped
+    def encode(self, x, encoding_loss=False):
         raise NotImplementedError
 
-    def tf_sample(self, n):
+    @tensorflow_name_scoped
+    def sample(self, n):
         raise NotImplementedError

@@ -1,5 +1,6 @@
 from .dense import DenseTransformation
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class MlpTransformation(Transformation):
@@ -25,7 +26,8 @@ class MlpTransformation(Transformation):
         spec.update(layer_sizes=list(self.layer_sizes), weight_decay=self.weight_decay)
         return spec
 
-    def tf_transform(self, x):
+    @tensorflow_name_scoped
+    def transform(self, x):
         for layer in self.layers:
             x = layer.transform(x=x)
 

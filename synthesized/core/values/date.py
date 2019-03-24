@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
+from ..module import tensorflow_name_scoped
 
 
 class DateValue(ContinuousValue):
@@ -90,7 +91,8 @@ class DateValue(ContinuousValue):
         features.update(self.month.features(x=x))
         return features
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         delta = super().input_tensor(feed=feed)
         hour = self.hour.input_tensor(feed=feed)
         dow = self.dow.input_tensor(feed=feed)

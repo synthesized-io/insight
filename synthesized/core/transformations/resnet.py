@@ -1,5 +1,6 @@
 from .residual import ResidualTransformation
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class ResnetTransformation(Transformation):
@@ -36,7 +37,8 @@ class ResnetTransformation(Transformation):
         )
         return spec
 
-    def tf_transform(self, x):
+    @tensorflow_name_scoped
+    def transform(self, x):
         for layer in self.layers:
             x = layer.transform(x=x)
 

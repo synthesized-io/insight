@@ -1,5 +1,6 @@
 from .dense import DenseTransformation
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class ModulationTransformation(Transformation):
@@ -23,7 +24,8 @@ class ModulationTransformation(Transformation):
         spec.update(condition_size=self.condition_size)
         return spec
 
-    def tf_transform(self, x, condition):
+    @tensorflow_name_scoped
+    def transform(self, x, condition):
         offset = self.offset.transform(x=condition)
         scale = self.scale.transform(x=condition)
         x = x * scale + offset

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Optimizer(Module):
@@ -24,8 +24,8 @@ class Optimizer(Module):
         )
         return spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         if self.decay_steps is None:
             learning_rate = self.learning_rate
         else:
@@ -41,7 +41,8 @@ class Optimizer(Module):
         else:
             raise NotImplementedError
 
-    def tf_optimize(self, loss, gradient_norms=False):
+    @tensorflow_name_scoped
+    def optimize(self, loss, gradient_norms=False):
         grads_and_vars = self.optimizer.compute_gradients(
             loss=loss, var_list=None, aggregation_method=None, colocate_gradients_with_ops=False,
             grad_loss=None  # gate_gradients=GATE_OP

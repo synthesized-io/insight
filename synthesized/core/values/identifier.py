@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 # TODO: num_identifiers multiplied by 3
@@ -43,8 +43,8 @@ class IdentifierValue(Value):
             )
         return features
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
@@ -56,7 +56,8 @@ class IdentifierValue(Value):
             custom_getter=None
         )
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
         x = tf.nn.embedding_lookup(
             params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,

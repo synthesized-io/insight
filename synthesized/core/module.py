@@ -1,4 +1,15 @@
 import tensorflow as tf
+from functools import wraps
+
+
+def tensorflow_name_scoped(tf_function):
+    @wraps(tf_function)
+    def function(self, *args, **kwargs):
+        name = "{}.{}".format(self.name, tf_function.__name__)
+        with tf.name_scope(name=name.replace(' ', '_').replace(':', '')):
+            results = tf_function(self, *args, **kwargs)
+        return results
+    return function
 
 
 class Module(object):
@@ -29,46 +40,18 @@ class Module(object):
     def __str__(self):
         return repr(self)
 
-    def tf_initialize(self):
+    def module_initialize(self):
         pass
-
-    @staticmethod
-    def create_tf_function(tf_function, name):
-
-        def function(*args, **kwargs):
-            with tf.name_scope(name=name.replace(' ', '_').replace(':', ''), default_name=None, values=None):
-                results = tf_function(*args, **kwargs)
-            return results
-
-        return function
 
     def initialize(self):
         if self.initialized:
             raise NotImplementedError
         self.initialized = True
 
-        # TODO: hp_ for hyperparameter, for automatic collection and placeholder?
-        for function_name in dir(self):
-            if not function_name.startswith('tf_') or function_name == 'tf_initialize':
-                continue
-            if hasattr(self, function_name[3:]):
-                raise NotImplementedError
-            tf_function = getattr(self, function_name)
-            if not callable(tf_function):
-                raise NotImplementedError
-            fct_name = '{name}.{function}'.format(name=self.name, function=function_name[3:])
-            function = Module.create_tf_function(tf_function=tf_function, name=fct_name)
-            setattr(self, function_name[3:], function)
-
-        with tf.variable_scope(
-            name_or_scope=self.name.replace(' ', '_').replace(':', ''), default_name=None, values=None,
-            initializer=None, regularizer=None, caching_device=None, partitioner=None,
-            custom_getter=None, reuse=None, dtype=None, use_resource=None, constraint=None,
-            auxiliary_name_scope=True
-        ):
+        with tf.variable_scope(name_or_scope=self.name.replace(' ', '_').replace(':', '')):
             for submodule in self.submodules:
                 submodule.initialize()
-            self.tf_initialize()
+            self.module_initialize()
 
     def add_module(self, module, modules=None, **kwargs):
         if isinstance(module, dict):

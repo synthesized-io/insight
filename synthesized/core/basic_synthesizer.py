@@ -6,7 +6,7 @@ import tensorflow as tf
 from scipy.stats import ks_2samp
 
 from .encodings import encoding_modules
-from .module import Module
+from .module import Module, tensorflow_name_scoped
 from .optimizers import Optimizer
 from .synthesizer import Synthesizer
 from .transformations import transformation_modules
@@ -138,7 +138,8 @@ class BasicSynthesizer(Synthesizer):
             data = value.preprocess(data=data)
         return data
 
-    def tf_train_iteration(self, feed=None):
+    @tensorflow_name_scoped
+    def train_iteration(self, feed=None):
         summaries = list()
         xs = list()
         for value in self.values:
@@ -198,8 +199,8 @@ class BasicSynthesizer(Synthesizer):
             optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
         return losses, loss, optimized
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # learn
         self.losses, self.loss, self.optimized = self.train_iteration()
