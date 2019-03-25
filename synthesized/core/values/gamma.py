@@ -51,17 +51,14 @@ class GammaDistrValue(ContinuousValue):
 
     @tensorflow_name_scoped
     def distribution_loss(self, samples):
-        temp = samples
         samples = tf.squeeze(input=samples, axis=1)
         tfd = tfp.distributions
-       # samples = tf.Print(samples, [samples])
         dist_normlal = tfd.Normal(loc=0., scale=1.)
         dist_gamma = tfd.Gamma(concentration=self.shape, rate=self.scale)
         samples = dist_gamma.cdf(value = samples)
         samples = dist_normlal.quantile(value = samples)
         samples = tf.boolean_mask(samples, tf.is_finite(samples))
         samples = tf.boolean_mask(samples, tf.math.logical_not(tf.is_nan(samples)))
-      #  samples = tf.Print(samples, [samples])
 
         mean, variance = tf.nn.moments(x=samples, axes=0)
         mean_loss = tf.squared_difference(x=mean, y=0.0)
@@ -81,7 +78,5 @@ class GammaDistrValue(ContinuousValue):
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
         jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
         loss = mean_loss + variance_loss + jarque_bera_loss
-        grads = tf.gradients(loss, [temp])
-        loss = tf.Print(loss, [grads, loss])
 
         return loss
