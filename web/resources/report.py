@@ -49,6 +49,10 @@ class ReportResource(Resource, DatasetAccessMixin):
                 settings = simplejson.load(BytesIO(report_item.settings), encoding='utf-8')
             else:
                 settings = {}
+            if report_item.results:
+                results = simplejson.load(BytesIO(report_item.results), encoding='utf-8')
+            else:
+                results = {}
             if report_item.item_type == ReportItemType.CORRELATION:
                 columns = []
                 for column_meta in meta.columns:
@@ -57,7 +61,7 @@ class ReportResource(Resource, DatasetAccessMixin):
                 item_views.append({
                     'id': report_item.id,
                     'order': report_item.ord,
-                    'results': {},
+                    'results': results,
                     'options': {
                         'columns': columns
                     },
@@ -74,7 +78,7 @@ class ReportResource(Resource, DatasetAccessMixin):
                 item_views.append({
                     'id': report_item.id,
                     'order': report_item.ord,
-                    'results': {},
+                    'results': results,
                     'options': {
                         'continuous_columns': continuous_columns,
                         'categorical_columns': categorical_columns,
