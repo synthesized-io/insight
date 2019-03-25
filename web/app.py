@@ -49,7 +49,7 @@ from .resources.status import StatusResource
 from .resources.auth import LoginResource, RefreshResource, UsersResource
 from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource
 from .resources.synthesis import ModelResource, SynthesisResource
-from .resources.report import ReportItemsResource, ReportResource
+from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource
 
 api = Api(app)
 api.add_resource(StatusResource, '/')
@@ -62,4 +62,5 @@ api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo',
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesis_repo': synthesis_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(ReportItemsResource, '/datasets/<dataset_id>/report-items', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo})
+api.add_resource(ReportItemsUpdateSettingsResource, '/datasets/<dataset_id>/report-items/<report_item_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_item_repo': report_item_repo})
 api.add_resource(ReportResource, '/datasets/<dataset_id>/report', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo})

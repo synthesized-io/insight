@@ -45,37 +45,43 @@ class ReportResource(Resource, DatasetAccessMixin):
 
         item_views = []
         for report_item in items:
+            if report_item.settings:
+                settings = simplejson.load(BytesIO(report_item.settings), encoding='utf-8')
+            else:
+                settings = {}
             if report_item.item_type == ReportItemType.CORRELATION:
                 columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == 'density':
+                    if column_meta.plot_type == 'density':  # TODO: replace with type
                         columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
-                    'data': {},
+                    'order': report_item.ord,
+                    'results': {},
                     'options': {
                         'columns': columns
                     },
-                    'settings': {}
+                    'settings': settings
                 })
             elif report_item.item_type == ReportItemType.MODELLING:
                 continuous_columns = []
                 categorical_columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == 'density':
+                    if column_meta.plot_type == 'density':  # TODO: replace with type
                         continuous_columns.append(column_meta.name)
                     else:
                         categorical_columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
-                    'data': {},
+                    'order': report_item.ord,
+                    'results': {},
                     'options': {
                         'continuous_columns': continuous_columns,
                         'categorical_columns': categorical_columns,
                         'continuous_models': ['LinearRegression', 'GradientBoostingRegressor'],
                         'categorical_models': ['LogisticRegression', 'GradientBoostingClassifier'],
                     },
-                    'settings': {}
+                    'settings': settings
                 })
             else:
                 abort(409, message='Unknown item type: ' + str(report_item.item_type))
@@ -125,7 +131,7 @@ class ReportItemsResource(Resource):
         report_item = ReportItem(ord=ord, report_id=report.id, item_type=type)
         self.report_item_repo.save(report_item)
 
-        return '', 204, {'Location': '/datasets/{}/report-items/{}'.format(dataset_id, report_item.id)}
+        return {'id': report_item.id}, 201, {'Location': '/datasets/{}/report-items/{}'.format(dataset_id, report_item.id)}
 
 
 class ReportItemsMoveResource(Resource):
@@ -135,8 +141,37 @@ class ReportItemsMoveResource(Resource):
         pass
 
 
-class ReportItemsUpdateSettingsResource(Resource):
+class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_item_repo: Repository = kwargs['report_item_repo']
+
     def post(self, dataset_id, report_item_id):
-        pass
+        self.get_dataset_authorized(dataset_id)
+
+        report_item: ReportItem = self.report_item_repo.get(report_item_id)
+        if not report_item:
+            abort(404, message='Requested item has not been found: ' + str(report_item_id))
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('settings', type=dict, required=True)
+        args = parser.parse_args()
+
+        settings = args['settings']
+
+        if report_item.item_type == ReportItemType.CORRELATION:
+            columns = settings['columns']
+            # TODO: compute correlations and save to `results`
+        elif report_item.item_type == ReportItemType.MODELLING:
+            response_variavle = settings['response_variable']
+            explanatory_variables = settings['explanatory_variables']
+            model = settings['model']
+            # TODO: run model and save results to `results`
+
+        settings_json = simplejson.dumps(settings).encode('utf-8')
+        report_item.settings = settings_json
+        self.report_item_repo.save(report_item)
+
+        return '', 204
