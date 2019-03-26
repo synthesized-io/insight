@@ -176,6 +176,6 @@ class ScenarioSynthesizer(Synthesizer):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
             other = pd.DataFrame.from_dict(other)
             synthesized = synthesized.append(other, ignore_index=True)
-        for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+       # for value in self.values:
+      #      synthesized = value.postprocess(data=synthesized)
         return synthesized

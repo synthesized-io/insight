@@ -54,8 +54,11 @@ class GammaDistrValue(ContinuousValue):
         samples = tf.squeeze(input=samples, axis=1)
         tfd = tfp.distributions
         dist_normlal = tfd.Normal(loc=0., scale=1.)
-        dist_gamma = tfd.Gamma(concentration=self.shape, rate=self.scale)
-        samples = dist_gamma.cdf(value = samples)
+        dist_gamma = tfd.Gamma(concentration=self.shape, rate=1.)
+        samples = tf.where (samples < self.location, tf.add(samples, 2 * self.location), samples)
+        samples = ( samples - self.location ) / self.scale
+        samples = dist_gamma.cdf(value = samples) / self.scale
+        samples = tf.boolean_mask(samples, tf.math.logical_not(tf.is_nan(samples)))
         samples = dist_normlal.quantile(value = samples)
         samples = tf.boolean_mask(samples, tf.is_finite(samples))
         samples = tf.boolean_mask(samples, tf.math.logical_not(tf.is_nan(samples)))
