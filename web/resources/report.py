@@ -10,7 +10,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 
 from .common import DatasetAccessMixin
-from ..domain.analysis import DatasetMeta
+from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 from ..domain.correlation import compute_correlation_similarity
 from ..domain.model import Report, ReportItem, ReportItemType, Dataset
 from ..domain.repository import Repository
@@ -59,7 +59,7 @@ class ReportResource(Resource, DatasetAccessMixin):
             if report_item.item_type == ReportItemType.CORRELATION:
                 columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == 'density':  # TODO: replace with type
+                    if column_meta.plot_type == DENSITY_PLOT_TYPE:  # TODO: replace with type
                         columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
@@ -74,7 +74,7 @@ class ReportResource(Resource, DatasetAccessMixin):
                 continuous_columns = []
                 categorical_columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == 'density':  # TODO: replace with type
+                    if column_meta.plot_type == DENSITY_PLOT_TYPE:  # TODO: replace with type
                         continuous_columns.append(column_meta.name)
                     else:
                         categorical_columns.append(column_meta.name)

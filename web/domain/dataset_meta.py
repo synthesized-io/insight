@@ -10,6 +10,8 @@ from sklearn.neighbors import KernelDensity
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
 
+DENSITY_PLOT_TYPE = "density"
+HISTOGRAM_PLOT_TYPE = "histogram"
 REMOVE_OUTLIERS = 0.01
 DEFAULT_KERNEL = 'epanechnikov'
 DEFAULT_MAX_BINS = 50
@@ -40,7 +42,7 @@ class CategoricalPlotData:
 class ContinuousMeta(ColumnMeta):
     def __init__(self, name: str, type: str, mean: float, std: float, median: float, min: float, max: float,
                  n_nulls: int, plot_data: ContinuousPlotData) -> None:
-        super().__init__(name, type, "density")
+        super().__init__(name, type, DENSITY_PLOT_TYPE)
         self.mean = mean
         self.std = std
         self.median = median
@@ -53,7 +55,7 @@ class ContinuousMeta(ColumnMeta):
 class CategoricalMeta(ColumnMeta):
     def __init__(self, name: str, type: str, n_unique: int, most_frequent: str, most_occurrences: int,
                  plot_data: CategoricalPlotData) -> None:
-        super().__init__(name, type, "histogram")
+        super().__init__(name, type, HISTOGRAM_PLOT_TYPE)
         self.n_unique = n_unique
         self.most_frequent = most_frequent
         self.most_occurrences = most_occurrences
@@ -69,7 +71,7 @@ class DatasetMeta:
 
 
 # Compute dataset's meta from scratch
-def extract_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIERS) -> DatasetMeta:
+def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIERS) -> DatasetMeta:
     raw_data = StringIO()
     data.to_csv(raw_data, index=False)
     data_wo_nans = data.dropna()
@@ -142,7 +144,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
     data.to_csv(raw_data, index=False)
     columns_meta = []
     for column_meta in meta.columns:
-        if column_meta.plot_type == 'density':  # we want duck typing here
+        if column_meta.plot_type == DENSITY_PLOT_TYPE:  # we want duck typing here
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
@@ -169,7 +171,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                     density=density
                 )
             ))
-        elif column_meta.plot_type == 'histogram':  # we want duck typing here
+        elif column_meta.plot_type == HISTOGRAM_PLOT_TYPE:  # we want duck typing here
             column_meta: CategoricalMeta = column_meta
             most_frequent = data[column_meta.name].value_counts().idxmax()
             bins = column_meta.plot_data.bins
