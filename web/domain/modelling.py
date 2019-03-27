@@ -7,12 +7,9 @@ from sklearn.preprocessing import OneHotEncoder, PowerTransformer
 from .dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 
 
-def r2_regression_score(regressor: RegressorMixin, train: pd.DataFrame, test: pd.DataFrame, meta: DatasetMeta, y_column: str):
+def r2_regression_score(regressor: RegressorMixin, train: pd.DataFrame, test: pd.DataFrame, meta: DatasetMeta, X_columns, y_column: str):
     train = train.dropna()
     test = test.dropna()
-
-    X_columns = list(train.columns.values)
-    X_columns.remove(y_column)
 
     X_train, y_train = train[X_columns], train[y_column]
     X_test, y_test = test[X_columns], test[y_column]
@@ -24,12 +21,9 @@ def r2_regression_score(regressor: RegressorMixin, train: pd.DataFrame, test: pd
     return r2_scorer(regressor, X_test, y_test)
 
 
-def roc_auc_classification_score(classifier: ClassifierMixin, train: pd.DataFrame, test: pd.DataFrame, meta: DatasetMeta, y_column: str):
+def roc_auc_classification_score(classifier: ClassifierMixin, train: pd.DataFrame, test: pd.DataFrame, meta: DatasetMeta, X_columns, y_column: str):
     train = train.dropna()
     test = test.dropna()
-
-    X_columns = list(train.columns.values)
-    X_columns.remove(y_column)
 
     X_train, y_train = train[X_columns], train[y_column]
     X_test, y_test = test[X_columns], test[y_column]

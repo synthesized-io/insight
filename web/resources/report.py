@@ -215,11 +215,6 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             explanatory_variables = settings['explanatory_variables']
             model = settings['model']
 
-            columns = list(explanatory_variables)
-            columns.append(response_variable)
-            df_orig = df_orig[columns]
-            df_synth = df_synth[columns]
-
             df_train, df_test = train_test_split(df_orig, test_size=0.2, random_state=42)
 
             meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
@@ -228,8 +223,8 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             if model in REGRESSORS:
                 model_class = REGRESSORS[model]
                 try:
-                    orig_score = r2_regression_score(model_class(), df_train, df_test, meta, response_variable)
-                    synth_score = r2_regression_score(model_class(), df_synth, df_test, meta, response_variable)
+                    orig_score = r2_regression_score(model_class(), df_train, df_test, meta, explanatory_variables, response_variable)
+                    synth_score = r2_regression_score(model_class(), df_synth, df_test, meta, explanatory_variables, response_variable)
                     results['r2_orig'] = orig_score
                     results['r2_synth'] = synth_score
                 except Exception as e:
@@ -241,11 +236,12 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             if model in CLASSIFIERS:
                 model_class = CLASSIFIERS[model]
                 try:
-                    orig_score = roc_auc_classification_score(model_class(), df_train, df_test, meta, response_variable)
-                    synth_score = roc_auc_classification_score(model_class(), df_synth, df_test, meta, response_variable)
+                    orig_score = roc_auc_classification_score(model_class(), df_train, df_test, meta, explanatory_variables, response_variable)
+                    synth_score = roc_auc_classification_score(model_class(), df_synth, df_test, meta, explanatory_variables, response_variable)
                     results['roc_auc_orig'] = orig_score
                     results['roc_auc_synth'] = synth_score
                 except Exception as e:
+                    current_app.logger.error(e)
                     results['roc_auc_orig'] = 0.0
                     results['roc_auc_synth'] = 0.0
                     results['error'] = str(e)
