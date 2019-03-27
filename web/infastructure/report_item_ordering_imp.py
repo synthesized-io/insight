@@ -15,7 +15,7 @@ class SQLAlchemyReportItemOrdering(ReportItemOrdering):
     def move_item(self, report_item_id, new_order):
         report_item: ReportItem = self.db.session.query(ReportItem).get(report_item_id)
         if not report_item:
-            logger.warning('Item not found: {}'.format(report_item_id))
+            logger.warning('item not found: {}'.format(report_item_id))
             return
 
         if report_item.ord > new_order:
