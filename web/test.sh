@@ -43,7 +43,8 @@ CORR_ID=$(curl -f -XPOST -d 'type=CORRELATION' -H "$AUTH_HEADER" ${BASE_URL}/dat
 MOD_ID=$(curl -f -XPOST -d 'type=MODELLING' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items | jq -r .id)
 
 curl -f -i -XPOST -d '{"settings": {"columns": ["age", "MonthlyIncome"]}, "max_sample_size": 10}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${CORR_ID}/updatesettings
-curl -f -i -XPOST -d '{"settings": {"response_variable": "SeriousDlqin2yrs", "explanatory_variables": ["NumberOfTimes90DaysLate", "age", "effort", "MonthlyIncome"], "model": "GradientBoostingClassifier"}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/updatesettings
+curl -f -i -XPOST -d '{"settings": {"response_variable": "SeriousDlqin2yrs", "explanatory_variables": ["NumberOfTimes90DaysLate", "age", "effort", "MonthlyIncome"], "model": "LogisticRegression"}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/updatesettings
+curl -f -i -XPOST -d '{"settings": {"response_variable": "MonthlyIncome", "explanatory_variables": ["NumberOfTimes90DaysLate", "age", "effort", "SeriousDlqin2yrs"], "model": "GradientBoostingRegressor"}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/updatesettings
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report
 
