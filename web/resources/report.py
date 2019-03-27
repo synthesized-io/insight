@@ -201,8 +201,8 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             correlation_similarity = compute_correlation_similarity(df_orig, df_synth, columns)
 
             size = min(len(df_orig), len(df_synth), max_sample_size)
-            df_orig_sample = df_orig[columns].sample(size)
-            df_synth_sample = df_synth[columns].sample(size)
+            df_orig_sample = df_orig[columns].dropna().sample(size)
+            df_synth_sample = df_synth[columns].dropna().sample(size)
 
             results = {
                 'correlation_similarity': correlation_similarity.to_dict(),
@@ -225,26 +225,25 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
                 try:
                     orig_score = r2_regression_score(model_class(), df_train, df_test, meta, explanatory_variables, response_variable)
                     synth_score = r2_regression_score(model_class(), df_synth, df_test, meta, explanatory_variables, response_variable)
-                    results['r2_orig'] = orig_score
-                    results['r2_synth'] = synth_score
+                    results['metric'] = 'r2'
+                    results['original_score'] = orig_score
+                    results['synthetic_score'] = synth_score
                 except Exception as e:
                     current_app.logger.error(e)
-                    results['r2_orig'] = 0.0
-                    results['r2_synth'] = 0.0
                     results['error'] = str(e)
-
-            if model in CLASSIFIERS:
+            elif model in CLASSIFIERS:
                 model_class = CLASSIFIERS[model]
                 try:
                     orig_score = roc_auc_classification_score(model_class(), df_train, df_test, meta, explanatory_variables, response_variable)
                     synth_score = roc_auc_classification_score(model_class(), df_synth, df_test, meta, explanatory_variables, response_variable)
-                    results['roc_auc_orig'] = orig_score
-                    results['roc_auc_synth'] = synth_score
+                    results['metric'] = 'roc_auc'
+                    results['original_score'] = orig_score
+                    results['synthetic_score'] = synth_score
                 except Exception as e:
                     current_app.logger.error(e)
-                    results['roc_auc_orig'] = 0.0
-                    results['roc_auc_synth'] = 0.0
                     results['error'] = str(e)
+            else:
+                abort(400, message='Unknown model: ' + model)
 
             report_item.results = simplejson.dumps(results).encode('utf-8')
 
