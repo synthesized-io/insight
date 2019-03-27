@@ -29,14 +29,6 @@ CLASSIFIERS = {
     'GradientBoostingClassifier': GradientBoostingClassifier
 }
 
-# Reports API
-#
-# GET  /datasets/123/report
-# POST /datasets/123/report-items
-# GET  /datasets/123/report-items/123
-# POST /datasets/123/reports-items/123/move
-# POST /datasets/123/reports-items/123/updatesettings
-
 DEFAULT_MAX_SAMPLE_SIZE = 1000
 
 
