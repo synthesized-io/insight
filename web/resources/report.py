@@ -37,7 +37,7 @@ CLASSIFIERS = {
 # POST /datasets/123/reports-items/123/move
 # POST /datasets/123/reports-items/123/updatesettings
 
-MAX_SAMPLE_SIZE = 1000
+DEFAULT_MAX_SAMPLE_SIZE = 1000
 
 
 class ReportResource(Resource, DatasetAccessMixin):
@@ -179,9 +179,11 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
         parser = reqparse.RequestParser()
         parser.add_argument('settings', type=dict, required=True)
+        parser.add_argument('max_sample_size', type=int, default=DEFAULT_MAX_SAMPLE_SIZE)
         args = parser.parse_args()
 
         settings = args['settings']
+        max_sample_size = args['max_sample_size']
 
         syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         if len(syntheses) == 0:
@@ -198,9 +200,9 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             columns = settings['columns']
             correlation_similarity = compute_correlation_similarity(df_orig, df_synth, columns)
 
-            size = min(len(df_orig), len(df_synth), MAX_SAMPLE_SIZE)
+            size = min(len(df_orig), len(df_synth), max_sample_size)
             df_orig_sample = df_orig[columns].sample(size)
-            df_synth_sample = df_orig[columns].sample(size)
+            df_synth_sample = df_synth[columns].sample(size)
 
             results = {
                 'correlation_similarity': correlation_similarity.to_dict(),
