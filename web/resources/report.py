@@ -77,6 +77,7 @@ class ReportResource(Resource, DatasetAccessMixin):
                         columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
+                    'type': report_item.item_type.name,
                     'order': report_item.ord,
                     'results': results,
                     'options': {
