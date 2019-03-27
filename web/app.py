@@ -45,11 +45,15 @@ authenticator = Authenticator(user_repo, bcrypt)
 # each model is about 275MB in RAM
 synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=15)
 
+# should be imported after `db` creation
+from .infastructure.report_item_ordering_imp import SQLAlchemyReportItemOrdering
+report_item_ordering = SQLAlchemyReportItemOrdering(db)
+
 from .resources.status import StatusResource
 from .resources.auth import LoginResource, RefreshResource, UsersResource
 from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource
 from .resources.synthesis import ModelResource, SynthesisResource
-from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource
+from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource
 
 api = Api(app)
 api.add_resource(StatusResource, '/')
@@ -64,3 +68,4 @@ api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis', resource
 api.add_resource(ReportItemsResource, '/datasets/<dataset_id>/report-items', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo})
 api.add_resource(ReportItemsUpdateSettingsResource, '/datasets/<dataset_id>/report-items/<report_item_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_item_repo': report_item_repo, 'synthesis_repo': synthesis_repo})
 api.add_resource(ReportResource, '/datasets/<dataset_id>/report', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo})
+api.add_resource(ReportItemsMoveResource, '/datasets/<dataset_id>/report-items/<report_item_id>/move', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_item_ordering': report_item_ordering})

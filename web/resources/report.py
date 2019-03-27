@@ -13,6 +13,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import train_test_split
 
 from .common import DatasetAccessMixin
+from ..application.report_item_ordering import ReportItemOrdering
 from ..domain.correlation import compute_correlation_similarity
 from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 from ..domain.model import Report, ReportItem, ReportItemType, Dataset
@@ -148,11 +149,25 @@ class ReportItemsResource(Resource):
         return {'id': report_item.id}, 201, {'Location': '/datasets/{}/report-items/{}'.format(dataset_id, report_item.id)}
 
 
-class ReportItemsMoveResource(Resource):
+class ReportItemsMoveResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
+
     def post(self, dataset_id, report_item_id):
-        pass
+        self.get_dataset_authorized(dataset_id)
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('new_order', type=int, required=True)
+        args = parser.parse_args()
+
+        new_order = args['new_order']
+
+        self.report_item_ordering.move_item(report_item_id, new_order)
+
+        return '', 204
 
 
 class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
