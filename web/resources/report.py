@@ -149,6 +149,23 @@ class ReportItemsResource(Resource):
         return {'id': report_item.id}, 201, {'Location': '/datasets/{}/report-items/{}'.format(dataset_id, report_item.id)}
 
 
+class ReportItemResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_item_repo: Repository = kwargs['report_item_repo']
+
+    def delete(self, dataset_id, report_item_id):
+        self.get_dataset_authorized(dataset_id)
+
+        report_item = self.report_item_repo.get(report_item_id)
+        if report_item:
+            self.report_item_repo.delete(report_item)
+
+        return '', 204
+
+
 class ReportItemsMoveResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 

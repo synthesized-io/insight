@@ -51,4 +51,6 @@ curl -f -i -XPOST -d '{"settings": {"response_variable": "MonthlyIncome", "expla
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report
 
+curl -f -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}
+
 curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
