@@ -42,16 +42,14 @@ def roc_auc_classification_score(classifier: ClassifierMixin, train: pd.DataFram
 
 
 def _preprocess_X(X_train: pd.DataFrame, X_test: pd.DataFrame, meta: DatasetMeta):
-    all_columns = set(X_train.columns.values)
     columns_to_encode = []
     columns_to_scale = []
-    for column in meta.columns:
-        if column.name not in all_columns:
-            continue
-        if column.plot_type == DENSITY_PLOT_TYPE:
-            columns_to_scale.append(column.name)
+    plot_type_by_columns = {col.name: col.plot_type for col in meta.columns}
+    for column in X_train.columns.values:
+        if plot_type_by_columns[column] == DENSITY_PLOT_TYPE:
+            columns_to_scale.append(column)
         else:
-            columns_to_encode.append(column.name)
+            columns_to_encode.append(column)
 
     pt = PowerTransformer()
     oh = OneHotEncoder(sparse=False)
