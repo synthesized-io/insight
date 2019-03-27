@@ -75,7 +75,8 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
     raw_data = StringIO()
     data.to_csv(raw_data, index=False)
     data_wo_nans = data.dropna()
-    synthesizer = BasicSynthesizer(data=data_wo_nans.sample(SYNTHESIZER_SUBSAMPLE))
+    sample_size = min(len(data_wo_nans), SYNTHESIZER_SUBSAMPLE)
+    synthesizer = BasicSynthesizer(data=data_wo_nans.sample(sample_size))
     value_types = set()
     columns_meta = []
     for value in synthesizer.values:

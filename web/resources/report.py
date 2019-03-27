@@ -8,12 +8,26 @@ import simplejson
 from flask import current_app, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.model_selection import train_test_split
 
 from .common import DatasetAccessMixin
-from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 from ..domain.correlation import compute_correlation_similarity
+from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 from ..domain.model import Report, ReportItem, ReportItemType, Dataset
+from ..domain.modelling import r2_regression_score, roc_auc_classification_score
 from ..domain.repository import Repository
+
+REGRESSORS = {
+    'LinearRegression': LinearRegression,
+    'GradientBoostingRegressor': GradientBoostingRegressor
+}
+
+CLASSIFIERS = {
+    'LogisticRegression': LogisticRegression,
+    'GradientBoostingClassifier': GradientBoostingClassifier
+}
 
 # Reports API
 #
@@ -85,8 +99,8 @@ class ReportResource(Resource, DatasetAccessMixin):
                     'options': {
                         'continuous_columns': continuous_columns,
                         'categorical_columns': categorical_columns,
-                        'continuous_models': ['LinearRegression', 'GradientBoostingRegressor'],
-                        'categorical_models': ['LogisticRegression', 'GradientBoostingClassifier'],
+                        'continuous_models': list(REGRESSORS.keys()),
+                        'categorical_models': list(CLASSIFIERS.keys()),
                     },
                     'settings': settings
                 })
@@ -129,7 +143,7 @@ class ReportItemsResource(Resource):
         else:
             report = reports[0]
 
-        exisitng_items = self.report_item_repo.find_by_props({'report_id': report.id})
+        exisitng_items = report.items
         if len(exisitng_items) > 0:
             ord = max(map(attrgetter('ord'), exisitng_items)) + 1
         else:
@@ -169,19 +183,19 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
         settings = args['settings']
 
+        syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        if len(syntheses) == 0:
+            abort(409, message='Not synthesis found for dataset: ' + str(dataset_id))
+        elif len(syntheses) > 1:
+            abort(409, message='There is more than one synthesis for dataset: ' + str(dataset_id))
+        else:
+            synthesis = syntheses[0]
+
+        df_orig = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
+        df_synth = pd.read_csv(BytesIO(synthesis.blob), encoding='utf-8')
+
         if report_item.item_type == ReportItemType.CORRELATION:
             columns = settings['columns']
-            syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
-            if len(syntheses) == 0:
-                abort(409, message='Not synthesis found for dataset: ' + str(dataset_id))
-            elif len(syntheses) > 1:
-                abort(409, message='There is more than one synthesis for dataset: ' + str(dataset_id))
-            else:
-                synthesis = syntheses[0]
-
-            df_orig = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
-            df_synth = pd.read_csv(BytesIO(synthesis.blob), encoding='utf-8')
-
             correlation_similarity = compute_correlation_similarity(df_orig, df_synth, columns)
 
             size = min(len(df_orig), len(df_synth), MAX_SAMPLE_SIZE)
@@ -195,10 +209,46 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
             }
             report_item.results = simplejson.dumps(results).encode('utf-8')
         elif report_item.item_type == ReportItemType.MODELLING:
-            response_variavle = settings['response_variable']
+            response_variable = settings['response_variable']
             explanatory_variables = settings['explanatory_variables']
             model = settings['model']
-            # TODO: run model and save results to `results`
+
+            columns = list(explanatory_variables)
+            columns.append(response_variable)
+            df_orig = df_orig[columns]
+            df_synth = df_synth[columns]
+
+            df_train, df_test = train_test_split(df_orig, test_size=0.2, random_state=42)
+
+            meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+
+            results = {}
+            if model in REGRESSORS:
+                model_class = REGRESSORS[model]
+                try:
+                    orig_score = r2_regression_score(model_class(), df_train, df_test, meta, response_variable)
+                    synth_score = r2_regression_score(model_class(), df_synth, df_test, meta, response_variable)
+                    results['r2_orig'] = orig_score
+                    results['r2_synth'] = synth_score
+                except Exception as e:
+                    current_app.logger.error(e)
+                    results['r2_orig'] = 0.0
+                    results['r2_synth'] = 0.0
+                    results['error'] = str(e)
+
+            if model in CLASSIFIERS:
+                model_class = CLASSIFIERS[model]
+                try:
+                    orig_score = roc_auc_classification_score(model_class(), df_train, df_test, meta, response_variable)
+                    synth_score = roc_auc_classification_score(model_class(), df_synth, df_test, meta, response_variable)
+                    results['roc_auc_orig'] = orig_score
+                    results['roc_auc_synth'] = synth_score
+                except Exception as e:
+                    results['roc_auc_orig'] = 0.0
+                    results['roc_auc_synth'] = 0.0
+                    results['error'] = str(e)
+
+            report_item.results = simplejson.dumps(results).encode('utf-8')
 
         settings_blob = simplejson.dumps(settings).encode('utf-8')
         report_item.settings = settings_blob
