@@ -1,1 +1,6 @@
 data/
+.git/
+logs/
+venv/
+dist/
+build/

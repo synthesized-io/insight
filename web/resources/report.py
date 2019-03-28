@@ -1,4 +1,3 @@
-from collections import namedtuple
 from io import BytesIO
 from operator import attrgetter
 from typing import Iterable
@@ -6,7 +5,7 @@ from typing import Iterable
 import pandas as pd
 import simplejson
 from flask import current_app, jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, abort
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression
@@ -43,8 +42,7 @@ class ReportResource(Resource, DatasetAccessMixin):
 
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
-        # Parse JSON into an object with attributes corresponding to dict keys.
-        meta: DatasetMeta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+        meta: DatasetMeta = dataset.get_meta_as_object()
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) > 0:
@@ -107,7 +105,7 @@ class ReportResource(Resource, DatasetAccessMixin):
         })
 
 
-class ReportItemsResource(Resource):
+class ReportItemsResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
@@ -116,18 +114,13 @@ class ReportItemsResource(Resource):
         self.report_item_repo: Repository = kwargs['report_item_repo']
 
     def post(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, choices=('CORRELATION', 'MODELLING'), required=True)
         args = parser.parse_args()
 
         type = args['type']
-
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) == 0:
@@ -155,35 +148,19 @@ class ReportItemResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
 
     def delete(self, dataset_id, report_item_id):
         self.get_dataset_authorized(dataset_id)
 
-        report_item = self.report_item_repo.get(report_item_id)
+        report_item: ReportItem = self.report_item_repo.get(report_item_id)
         if report_item:
+            report: Report = self.report_repo.get(report_item.report_id)
+            if report.dataset_id != int(dataset_id):
+                abort(403, message='Requested item does not correspond to the given dataset')
+
             self.report_item_repo.delete(report_item)
-
-        return '', 204
-
-
-class ReportItemsMoveResource(Resource, DatasetAccessMixin):
-    decorators = [jwt_required]
-
-    def __init__(self, **kwargs):
-        self.dataset_repo: Repository = kwargs['dataset_repo']
-        self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
-
-    def post(self, dataset_id, report_item_id):
-        self.get_dataset_authorized(dataset_id)
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('new_order', type=int, required=True)
-        args = parser.parse_args()
-
-        new_order = args['new_order']
-
-        self.report_item_ordering.move_item(report_item_id, new_order)
 
         return '', 204
 
@@ -193,6 +170,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
 
@@ -202,6 +180,10 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         report_item: ReportItem = self.report_item_repo.get(report_item_id)
         if not report_item:
             abort(404, message='Requested item has not been found: ' + str(report_item_id))
+
+        report: Report = self.report_repo.get(report_item.report_id)
+        if report.dataset_id != int(dataset_id):
+            abort(403, message='Requested item does not correspond to the given dataset')
 
         parser = reqparse.RequestParser()
         parser.add_argument('settings', type=dict, required=True)
@@ -243,7 +225,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
             df_train, df_test = train_test_split(df_orig, test_size=0.2, random_state=42)
 
-            meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+            meta = dataset.get_meta_as_object()
 
             results = {}
             if model in REGRESSORS:
@@ -278,5 +260,36 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         settings_blob = simplejson.dumps(settings).encode('utf-8')
         report_item.settings = settings_blob
         self.report_item_repo.save(report_item)
+
+        return '', 204
+
+
+class ReportItemsMoveResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
+        self.report_item_repo: Repository = kwargs['report_item_repo']
+        self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
+
+    def post(self, dataset_id, report_item_id):
+        self.get_dataset_authorized(dataset_id)
+
+        report_item: ReportItem = self.report_item_repo.get(report_item_id)
+        if not report_item:
+            abort(404, message='Requested item has not been found: ' + str(report_item_id))
+
+        report: Report = self.report_repo.get(report_item.report_id)
+        if report.dataset_id != int(dataset_id):
+            abort(403, message='Requested item does not correspond to the given dataset')
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('new_order', type=int, required=True)
+        args = parser.parse_args()
+
+        new_order = args['new_order']
+
+        self.report_item_ordering.move_item(report_item_id, new_order)
 
         return '', 204
