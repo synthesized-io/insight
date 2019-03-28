@@ -139,3 +139,26 @@ class ContinuousValue(Value):
         data = data[data[name] != float('inf')]
         data = data[data[name] != float('-inf')]
         return data[(data[name] > start) & (data[name] < end)]
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
+        mean, variance = tf.nn.moments(x=samples, axes=0)
+        mean_loss = tf.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.squared_difference(x=variance, y=1.0)
+
+        mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
+        difference = samples - mean
+        squared_difference = tf.square(x=difference)
+        variance = tf.reduce_mean(input_tensor=squared_difference, axis=0)
+        third_moment = tf.reduce_mean(input_tensor=(squared_difference * difference), axis=0)
+        fourth_moment = tf.reduce_mean(input_tensor=tf.square(x=squared_difference), axis=0)
+        skewness = third_moment / tf.pow(x=variance, y=1.5)
+        kurtosis = fourth_moment / tf.square(x=variance)
+        num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
+        # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
+        #     0.25 * tf.square(x=(kurtosis - 3.0)))
+        jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
+        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        loss = mean_loss + variance_loss + jarque_bera_loss
+
+        return loss
