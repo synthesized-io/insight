@@ -15,12 +15,18 @@ from .application.synthesizer_manager import SynthesizerManager
 from .application.authenticator import Authenticator
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
     app.config.from_object(DevelopmentConfig)
 app.json_encoder = JSONCompliantEncoder
+
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
 
 CORS(app, supports_credentials=True)  # TODO: delete in final version
 
@@ -49,14 +55,12 @@ synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=1
 from .infastructure.report_item_ordering_imp import SQLAlchemyReportItemOrdering
 report_item_ordering = SQLAlchemyReportItemOrdering(db)
 
-from .resources.status import StatusResource
 from .resources.auth import LoginResource, RefreshResource, UsersResource
 from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource
 from .resources.synthesis import ModelResource, SynthesisResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 
 api = Api(app)
-api.add_resource(StatusResource, '/')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
 api.add_resource(RefreshResource, '/refresh')
 api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo, 'bcrypt': bcrypt})
