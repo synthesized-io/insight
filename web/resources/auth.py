@@ -1,13 +1,16 @@
 from flask import current_app
+from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_refresh_token_required, get_jwt_identity
 from flask_restful import Resource, reqparse, abort
 
+from ..application.authenticator import Authenticator
 from ..domain.model import User
+from ..domain.repository import Repository
 
 
 class LoginResource(Resource):
     def __init__(self, **kwargs):
-        self.authenticator = kwargs['authenticator']
+        self.authenticator: Authenticator = kwargs['authenticator']
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -42,8 +45,8 @@ class RefreshResource(Resource):
 
 class UsersResource(Resource):
     def __init__(self, **kwargs):
-        self.user_repo = kwargs['user_repo']
-        self.bcrypt = kwargs['bcrypt']
+        self.user_repo: Repository = kwargs['user_repo']
+        self.bcrypt: Bcrypt = kwargs['bcrypt']
 
     def post(self):
         parser = reqparse.RequestParser()

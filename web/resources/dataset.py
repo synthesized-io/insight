@@ -11,6 +11,7 @@ from werkzeug.datastructures import FileStorage
 
 from ..domain.dataset_meta import compute_dataset_meta
 from ..domain.model import Dataset
+from ..domain.repository import Repository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -20,7 +21,7 @@ class DatasetsResource(Resource):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo = kwargs['dataset_repo']
+        self.dataset_repo: Repository = kwargs['dataset_repo']
 
     def get(self):
         datasets = self.dataset_repo.find_by_props({'user_id': get_jwt_identity()})
@@ -66,7 +67,7 @@ class DatasetResource(Resource):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo = kwargs['dataset_repo']
+        self.dataset_repo: Repository  = kwargs['dataset_repo']
 
     def get(self, dataset_id):
         parser = reqparse.RequestParser()
@@ -109,7 +110,7 @@ class DatasetUpdateInfoResource(Resource):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo = kwargs['dataset_repo']
+        self.dataset_repo: Repository = kwargs['dataset_repo']
 
     def post(self, dataset_id):
         parser = reqparse.RequestParser()

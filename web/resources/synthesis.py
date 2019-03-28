@@ -8,9 +8,11 @@ from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 
+from ..application.synthesizer_manager import ModelStatus
+from ..application.synthesizer_manager import SynthesizerManager
 from ..domain.dataset_meta import recompute_dataset_meta
 from ..domain.model import Synthesis
-from ..application.synthesizer_manager import ModelStatus
+from ..domain.repository import Repository
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -20,8 +22,8 @@ class ModelResource(Resource):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo = kwargs['dataset_repo']
-        self.synthesizer_manager = kwargs['synthesizer_manager']
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
 
     def get(self, dataset_id):
         dataset = self.dataset_repo.get(dataset_id)
@@ -58,9 +60,9 @@ class SynthesisResource(Resource):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo = kwargs['dataset_repo']
-        self.synthesis_repo = kwargs['synthesis_repo']
-        self.synthesizer_manager = kwargs['synthesizer_manager']
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.synthesis_repo: Repository = kwargs['synthesis_repo']
+        self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
 
     def get(self, dataset_id):
         parser = reqparse.RequestParser()
