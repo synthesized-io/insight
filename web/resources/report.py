@@ -18,6 +18,7 @@ from ..domain.correlation import compute_correlation_similarity
 from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
 from ..domain.model import Report, ReportItem, ReportItemType, Dataset
 from ..domain.modelling import r2_regression_score, roc_auc_classification_score
+from ..domain.quality import quality_pct
 from ..domain.repository import Repository
 
 REGRESSORS = {
@@ -253,6 +254,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
                     results['metric'] = 'r2'
                     results['original_score'] = orig_score
                     results['synthetic_score'] = synth_score
+                    results['quality'] = quality_pct(orig_score, synth_score)
                 except Exception as e:
                     current_app.logger.error(e)
                     results['error'] = str(e)
@@ -264,6 +266,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
                     results['metric'] = 'roc_auc'
                     results['original_score'] = orig_score
                     results['synthetic_score'] = synth_score
+                    results['quality'] = quality_pct(orig_score, synth_score)
                 except Exception as e:
                     current_app.logger.error(e)
                     results['error'] = str(e)
