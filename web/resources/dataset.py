@@ -53,10 +53,11 @@ class DatasetsResource(Resource):
             data.to_csv(raw_data, index=False, encoding='utf-8')
 
             meta = compute_dataset_meta(data)
-            meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
-
             blob = raw_data.getvalue().encode('utf-8')
-            dataset = Dataset(user_id=get_jwt_identity(), title=title, blob=blob, meta=meta)
+
+            dataset = Dataset(user_id=get_jwt_identity(), title=title, blob=blob)
+            dataset.set_meta_from_object(meta)
+
             self.dataset_repo.save(dataset)
             current_app.logger.info('created a dataset {}'.format(dataset))
 

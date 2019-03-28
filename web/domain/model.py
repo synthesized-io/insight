@@ -33,9 +33,12 @@ class Dataset(db.Model, AuditMixin):
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
 
-    def meta_as_object(self) -> DatasetMeta:
+    def get_meta_as_object(self) -> DatasetMeta:
         # Parse JSON into an object with attributes corresponding to dict keys.
         return simplejson.load(BytesIO(self.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+
+    def set_meta_from_object(self, meta: DatasetMeta):
+        self.meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
     def __str__(self):
         return '<Dataset {}>'.format(self.id)
@@ -47,6 +50,13 @@ class Synthesis(db.Model, AuditMixin):
     meta = db.Column(db.LargeBinary, nullable=False)
     size = db.Column(db.Integer, nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id), nullable=False)
+
+    def get_meta_as_object(self) -> DatasetMeta:
+        # Parse JSON into an object with attributes corresponding to dict keys.
+        return simplejson.load(BytesIO(self.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+
+    def set_meta_from_object(self, meta: DatasetMeta):
+        self.meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
     def __str__(self):
         return '<Synthesis {}>'.format(self.id)

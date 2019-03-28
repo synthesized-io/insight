@@ -1,4 +1,3 @@
-from collections import namedtuple
 from io import StringIO, BytesIO
 
 import pandas as pd
@@ -125,12 +124,11 @@ class SynthesisResource(Resource):
 
         blob = output.getvalue().encode('utf-8')
 
-        original_meta = dataset.meta_as_object()
-
+        original_meta = dataset.get_meta_as_object()
         synthetic_meta = recompute_dataset_meta(synthesized, original_meta)
-        synthetic_meta = simplejson.dumps(synthetic_meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
-        synthesis = Synthesis(dataset_id=dataset_id, blob=blob, meta=synthetic_meta, size=rows)
+        synthesis = Synthesis(dataset_id=dataset_id, blob=blob, size=rows)
+        synthesis.set_meta_from_object(synthetic_meta)
 
         old_syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         for s in old_syntheses:

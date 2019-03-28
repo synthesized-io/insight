@@ -1,4 +1,3 @@
-from collections import namedtuple
 from io import BytesIO
 from operator import attrgetter
 from typing import Iterable
@@ -43,7 +42,7 @@ class ReportResource(Resource, DatasetAccessMixin):
 
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
-        meta: DatasetMeta = dataset.meta_as_object()
+        meta: DatasetMeta = dataset.get_meta_as_object()
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) > 0:
@@ -242,7 +241,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
             df_train, df_test = train_test_split(df_orig, test_size=0.2, random_state=42)
 
-            meta = dataset.meta_as_object()
+            meta = dataset.get_meta_as_object()
 
             results = {}
             if model in REGRESSORS:
