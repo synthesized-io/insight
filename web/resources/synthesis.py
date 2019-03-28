@@ -7,6 +7,7 @@ from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 
+from .common import DatasetAccessMixin
 from ..application.synthesizer_manager import ModelStatus
 from ..application.synthesizer_manager import SynthesizerManager
 from ..domain.dataset_meta import recompute_dataset_meta
@@ -17,7 +18,7 @@ SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
 
 
-class ModelResource(Resource):
+class ModelResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
@@ -25,12 +26,7 @@ class ModelResource(Resource):
         self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
 
     def get(self, dataset_id):
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
+        self.get_dataset_authorized(dataset_id)
 
         status = self.synthesizer_manager.get_status(dataset_id)
         if status == ModelStatus.NO_MODEL:
@@ -43,19 +39,14 @@ class ModelResource(Resource):
         return {'status': 'ready'}, 200
 
     def post(self, dataset_id):
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
+        self.get_dataset_authorized(dataset_id)
 
         self.synthesizer_manager.train_async(dataset_id)
 
         return {'status': 'training'}, 202, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
-class SynthesisResource(Resource):
+class SynthesisResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
@@ -64,6 +55,8 @@ class SynthesisResource(Resource):
         self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
 
     def get(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
         parser = reqparse.RequestParser()
         parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
         args = parser.parse_args()
@@ -71,13 +64,6 @@ class SynthesisResource(Resource):
         sample_size = args['sample_size']
         if sample_size > MAX_SAMPLE_SIZE:
             abort(400, message='Sample size is too big: ' + str(sample_size))
-
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         current_app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))
@@ -96,6 +82,8 @@ class SynthesisResource(Resource):
         })
 
     def post(self, dataset_id):
+        dataset = self.get_dataset_authorized(dataset_id)
+
         parser = reqparse.RequestParser()
         parser.add_argument('rows', type=int, required=True)
         args = parser.parse_args()
@@ -103,13 +91,6 @@ class SynthesisResource(Resource):
         rows = args['rows']
 
         current_app.logger.info('synthesis for dataset_id={}'.format(dataset_id))
-
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         model = self.synthesizer_manager.get_model(dataset_id)
         current_app.logger.info('found a model {}'.format(model))

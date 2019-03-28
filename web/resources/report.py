@@ -5,7 +5,7 @@ from typing import Iterable
 import pandas as pd
 import simplejson
 from flask import current_app, jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, abort
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression
@@ -105,7 +105,7 @@ class ReportResource(Resource, DatasetAccessMixin):
         })
 
 
-class ReportItemsResource(Resource):
+class ReportItemsResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
@@ -114,18 +114,13 @@ class ReportItemsResource(Resource):
         self.report_item_repo: Repository = kwargs['report_item_repo']
 
     def post(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, choices=('CORRELATION', 'MODELLING'), required=True)
         args = parser.parse_args()
 
         type = args['type']
-
-        dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
-        if not dataset:
-            abort(404, message="Couldn't find requested dataset: " + dataset_id)
-        if dataset.user_id != get_jwt_identity():
-            abort(403, message='Dataset with id={} can be accessed only by an owner'.format(dataset_id))
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) == 0:
