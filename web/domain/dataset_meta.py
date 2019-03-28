@@ -5,7 +5,7 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 from numpy.lib import histograms
-from sklearn.neighbors import KernelDensity
+from scipy.stats import gaussian_kde
 
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import ContinuousValue
@@ -13,10 +13,11 @@ from synthesized.core.values import ContinuousValue
 DENSITY_PLOT_TYPE = "density"
 HISTOGRAM_PLOT_TYPE = "histogram"
 REMOVE_OUTLIERS = 0.01
-DEFAULT_KERNEL = 'epanechnikov'
 DEFAULT_MAX_BINS = 50
 SYNTHESIZER_SUBSAMPLE = 1000
 MAX_BINS = 20
+KDE_GRID_SIZE = 100
+KDE_CUT = 3
 
 
 class ColumnMeta(ABC):
@@ -27,9 +28,10 @@ class ColumnMeta(ABC):
 
 
 class ContinuousPlotData:
-    def __init__(self, edges: Iterable[float], hist: Iterable[int], density: Iterable[float]):
+    def __init__(self, edges: Iterable[float], hist: Iterable[int], density_support: Iterable[float], density: Iterable[float]):
         self.edges = edges
         self.hist = hist
+        self.density_support = density_support
         self.density = density
 
 
@@ -87,12 +89,15 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
             bins = _bounded_bin_selector(column_cleaned, max_bins=DEFAULT_MAX_BINS)
             hist, edges = np.histogram(column_cleaned, bins=bins)
-            kde = KernelDensity(kernel=DEFAULT_KERNEL)
-            log_density = kde.fit(column_cleaned.values.reshape(-1, 1)).score_samples(edges.reshape(-1, 1))
-            density = np.exp(log_density)
+
+            kde = gaussian_kde(column_cleaned)
+            bw = kde.scotts_factor() * np.std(column_cleaned)
+            density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
+            density = kde(density_support)
 
             hist = list(map(int, hist))
             edges = list(map(float, edges))
+            density_support = list(map(float, density))
             density = list(map(float, density))
 
             columns_meta.append(ContinuousMeta(
@@ -107,6 +112,7 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
                 plot_data=ContinuousPlotData(
                     hist=hist,
                     edges=edges,
+                    density_support=density_support,
                     density=density
                 )
             ))
@@ -149,12 +155,18 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
-            kde = KernelDensity(kernel=DEFAULT_KERNEL)
-            log_density = kde.fit(column_cleaned.values.reshape(-1, 1)).score_samples(edges.reshape(-1, 1))
-            density = np.exp(log_density)
+
+            kde = gaussian_kde(column_cleaned)
+            bw = kde.scotts_factor() * np.std(column_cleaned)
+            if hasattr(column_meta.plot_data, 'density_support'):
+                density_support = column_meta.plot_data.density_support
+            else:
+                density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
+            density = kde(density_support)
 
             hist = list(map(int, hist))
             edges = list(map(float, edges))
+            density_support = list(map(float, density_support))
             density = list(map(float, density))
 
             columns_meta.append(ContinuousMeta(
@@ -169,6 +181,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 plot_data=ContinuousPlotData(
                     hist=hist,
                     edges=edges,
+                    density_support=density_support,
                     density=density
                 )
             ))
@@ -207,3 +220,11 @@ def _bounded_bin_selector(a, max_bins):
     else:
         bins_auto = 1
     return min(bins_auto, max_bins)
+
+
+def _kde_support(data, bw, gridsize, cut):
+    """Establish support for a kernel density estimate."""
+    support_min = data.min() - bw * cut
+    support_max = data.max() + bw * cut
+    print(support_min, support_max)
+    return np.linspace(support_min, support_max, gridsize)
