@@ -148,35 +148,19 @@ class ReportItemResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
 
     def delete(self, dataset_id, report_item_id):
         self.get_dataset_authorized(dataset_id)
 
-        report_item = self.report_item_repo.get(report_item_id)
+        report_item: ReportItem = self.report_item_repo.get(report_item_id)
         if report_item:
+            report: Report = self.report_repo.get(report_item.report_id)
+            if report.dataset_id != int(dataset_id):
+                abort(403, message='Requested item does not correspond to the given dataset')
+
             self.report_item_repo.delete(report_item)
-
-        return '', 204
-
-
-class ReportItemsMoveResource(Resource, DatasetAccessMixin):
-    decorators = [jwt_required]
-
-    def __init__(self, **kwargs):
-        self.dataset_repo: Repository = kwargs['dataset_repo']
-        self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
-
-    def post(self, dataset_id, report_item_id):
-        self.get_dataset_authorized(dataset_id)
-
-        parser = reqparse.RequestParser()
-        parser.add_argument('new_order', type=int, required=True)
-        args = parser.parse_args()
-
-        new_order = args['new_order']
-
-        self.report_item_ordering.move_item(report_item_id, new_order)
 
         return '', 204
 
@@ -186,6 +170,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
 
@@ -195,6 +180,10 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         report_item: ReportItem = self.report_item_repo.get(report_item_id)
         if not report_item:
             abort(404, message='Requested item has not been found: ' + str(report_item_id))
+
+        report: Report = self.report_repo.get(report_item.report_id)
+        if report.dataset_id != int(dataset_id):
+            abort(403, message='Requested item does not correspond to the given dataset')
 
         parser = reqparse.RequestParser()
         parser.add_argument('settings', type=dict, required=True)
@@ -271,5 +260,36 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         settings_blob = simplejson.dumps(settings).encode('utf-8')
         report_item.settings = settings_blob
         self.report_item_repo.save(report_item)
+
+        return '', 204
+
+
+class ReportItemsMoveResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.report_repo: Repository = kwargs['report_repo']
+        self.report_item_repo: Repository = kwargs['report_item_repo']
+        self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
+
+    def post(self, dataset_id, report_item_id):
+        self.get_dataset_authorized(dataset_id)
+
+        report_item: ReportItem = self.report_item_repo.get(report_item_id)
+        if not report_item:
+            abort(404, message='Requested item has not been found: ' + str(report_item_id))
+
+        report: Report = self.report_repo.get(report_item.report_id)
+        if report.dataset_id != int(dataset_id):
+            abort(403, message='Requested item does not correspond to the given dataset')
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('new_order', type=int, required=True)
+        args = parser.parse_args()
+
+        new_order = args['new_order']
+
+        self.report_item_ordering.move_item(report_item_id, new_order)
 
         return '', 204
