@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class ProbabilitiesFunctional(Functional):
@@ -23,7 +24,8 @@ class ProbabilitiesFunctional(Functional):
         spec.update(probabilities=self.probabilities, categories=self.categories)
         return spec
 
-    def tf_loss(self, samples):
+    @tensorflow_name_scoped
+    def loss(self, samples):
         num_samples = tf.shape(input=samples)[0]
         samples = tf.concat(
             values=(tf.range(start=0, limit=len(self.probabilities)), samples), axis=0

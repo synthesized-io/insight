@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from .continuous import ContinuousValue
+from ..module import tensorflow_name_scoped
 
 
 class GaussianValue(ContinuousValue):
@@ -27,16 +28,19 @@ class GaussianValue(ContinuousValue):
         if self.stddev is None:
             self.stddev = data[self.name].std()
 
-    def tf_input_tensor(self, feed=None):
-        x = super().tf_input_tensor(feed=feed)
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
+        x = super().input_tensor(feed=feed)
         x = (x - self.mean) / self.stddev
         return x
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         x = x * self.stddev + self.mean
-        return super().tf_output_tensors(x=x)
+        return super().output_tensors(x=x)
 
-    def tf_distribution_loss(self, samples):
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
         samples = tf.squeeze(input=samples, axis=1)
 
         mean, variance = tf.nn.moments(x=samples, axes=0)

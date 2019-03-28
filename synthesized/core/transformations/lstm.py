@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .transformation import Transformation
 from .. import util
+from ..module import tensorflow_name_scoped
 
 
 class LstmTransformation(Transformation):
@@ -24,8 +25,8 @@ class LstmTransformation(Transformation):
         spec = super().specification()
         return spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.lstm.build(input_shape=(None, None, self.input_size))
 
     #     initializer = util.get_initializer(initializer='random')
@@ -40,7 +41,8 @@ class LstmTransformation(Transformation):
     #     value = initializer(shape=(2 * self.output_size,))
     #     return self.state.assign(value=value, read_value=False)
 
-    def tf_transform(self, x, state=None):
+    @tensorflow_name_scoped
+    def transform(self, x, state=None):
         expand_squeeze = (x.shape.ndims == 2)
 
         if expand_squeeze:

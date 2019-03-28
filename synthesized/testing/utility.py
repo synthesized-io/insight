@@ -19,14 +19,12 @@ from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics import mean_squared_error, accuracy_score, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
 
-from synthesized.core.values import ContinuousValue
 from synthesized.core.values import CategoricalValue
-
-
+from synthesized.core.values import ContinuousValue
 from .util import categorical_emd
 
 MAX_CATEGORIES = 50
@@ -156,10 +154,10 @@ class UtilityTesting:
             clf.fit(X_synth, y_synth)
             y_pred_synth = clf.predict(X_test)
 
-            orig_score = np.sqrt(mean_squared_error(y_test, y_pred_orig))
-            synth_score = np.sqrt(mean_squared_error(y_test, y_pred_synth))
-            print('RMSE (orig):', orig_score)
-            print('RMSE (synth):', synth_score)
+            orig_score = r2_score(y_test, y_pred_orig)
+            synth_score = r2_score(y_test, y_pred_synth)
+            print('R2 (orig):', orig_score)
+            print('R2 (synth):', synth_score)
             return synth_score
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):

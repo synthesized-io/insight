@@ -1,5 +1,6 @@
 import tensorflow as tf
 from .encoding import Encoding
+from ..module import tensorflow_name_scoped
 from ..transformations import transformation_modules
 
 
@@ -46,11 +47,12 @@ class RnnVariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.lstm_decoder.build(input_shape=(None, self.encoding_size))
 
-    def tf_encode(self, x, condition=(), encoding_plus_loss=False):
+    @tensorflow_name_scoped
+    def encode(self, x, condition=(), encoding_plus_loss=False):
         batch_size = tf.shape(input=x)[0]
         final_state = self.lstm_encoder.transform(x=x)
         final_state = tf.expand_dims(input=final_state, axis=0)
@@ -88,7 +90,8 @@ class RnnVariationalEncoding(Encoding):
         else:
             return x
 
-    def tf_sample(self, n, condition=()):
+    @tensorflow_name_scoped
+    def sample(self, n, condition=()):
         encoding = tf.random_normal(
             shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32
         )

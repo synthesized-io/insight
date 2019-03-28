@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 from .. import util
 
 
@@ -25,8 +26,8 @@ class DenseTransformation(Transformation):
         )
         return spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         shape = (self.input_size, self.output_size)
         initializer = util.get_initializer(initializer='normal')
@@ -60,7 +61,8 @@ class DenseTransformation(Transformation):
                 partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
             )
 
-    def tf_transform(self, x):
+    @tensorflow_name_scoped
+    def transform(self, x):
         x = tf.matmul(
             a=x, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,
             adjoint_b=False, a_is_sparse=False, b_is_sparse=False

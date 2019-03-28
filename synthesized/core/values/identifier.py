@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 # TODO: num_identifiers multiplied by 3
@@ -69,8 +69,8 @@ class IdentifierValue(Value):
             )
         return features
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         # tf.placeholder_with_default(input=(-1,), shape=(None,), name='input')
         assert self.name not in Module.placeholders
@@ -86,7 +86,8 @@ class IdentifierValue(Value):
             name='current-identifier', shape=(), dtype=tf.int64, trainable=False
         )
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
         assignment = self.current_identifier.assign(
             value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))
@@ -98,18 +99,21 @@ class IdentifierValue(Value):
             )
         return x
 
-    def tf_next_identifier(self):
+    @tensorflow_name_scoped
+    def next_identifier(self):
         assignment = self.current_identifier.assign_add(delta=1)
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.expand_dims(input=self.current_identifier, axis=0)
 
-    def tf_next_identifier_embedding(self):
+    @tensorflow_name_scoped
+    def next_identifier_embedding(self):
         x = tf.random.normal(
             shape=(1, self.embedding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         return self.next_identifier(), x
 
-    def tf_random_value(self, n):
+    @tensorflow_name_scoped
+    def random_value(self, n):
         identifier = tf.random_uniform(
             shape=(n,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
         )

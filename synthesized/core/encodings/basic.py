@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .encoding import Encoding
 from ..transformations import DenseTransformation
+from ..module import tensorflow_name_scoped
 
 
 class BasicEncoding(Encoding):
@@ -23,14 +24,16 @@ class BasicEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def tf_encode(self, x, encoding_loss=False):
+    @tensorflow_name_scoped
+    def encode(self, x, encoding_loss=False):
         x = self.embedding.transform(x=x)
         if encoding_loss:
             return x, tf.constant(value=0.0, dtype=tf.float32)
         else:
             return x
 
-    def tf_sample(self, n):
+    @tensorflow_name_scoped
+    def sample(self, n):
         if self.sampling == 'normal':
             x = tf.truncated_normal(
                 shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None

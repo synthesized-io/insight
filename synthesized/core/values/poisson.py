@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from .value import Value
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class PoissonValue(Value):
@@ -38,25 +38,28 @@ class PoissonValue(Value):
         else:
             return tf.train.Feature(float_list=tf.train.Int64List(value=(x,)))
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed
         x = (tf.to_float(x=x) - self.avgnum) / self.avgnum
         x = tf.expand_dims(input=x, axis=1)
         return x
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         x = tf.squeeze(input=x, axis=1)
         x = x * self.avgnum + self.avgnum
         x = tf.to_int64(x=x)
         return {self.name: x}
 
-    def tf_loss(self, x, feed=None):
+    @tensorflow_name_scoped
+    def loss(self, x, feed=None):
         target = self.input_tensor(feed=feed)
         # target = tf.Print(target, (x, target))
 

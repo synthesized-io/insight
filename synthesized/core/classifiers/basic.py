@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .classifier import Classifier
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import transformation_modules
 from ..values import CategoricalValue, identify_value
@@ -78,7 +78,8 @@ class BasicClassifier(Classifier):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def tf_train_iteration(self, feed=None):
+    @tensorflow_name_scoped
+    def train_iteration(self, feed=None):
         xs = list()
         for value in self.input_values:
             if value.input_size() > 0:
@@ -94,8 +95,8 @@ class BasicClassifier(Classifier):
         optimized = self.optimizer.optimize(loss=loss)
         return loss, optimized
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # learn
         self.loss, self.optimized = self.train_iteration()
