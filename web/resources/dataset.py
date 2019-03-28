@@ -9,8 +9,8 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 from werkzeug.datastructures import FileStorage
 
-from ..analysis import extract_dataset_meta
-from ..model import Dataset
+from ..domain.dataset_meta import compute_dataset_meta
+from ..domain.model import Dataset
 
 SAMPLE_SIZE = 20
 MAX_SAMPLE_SIZE = 10000
@@ -51,7 +51,7 @@ class DatasetsResource(Resource):
             raw_data = StringIO()
             data.to_csv(raw_data, index=False, encoding='utf-8')
 
-            meta = extract_dataset_meta(data)
+            meta = compute_dataset_meta(data)
             meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
             blob = raw_data.getvalue().encode('utf-8')

@@ -9,7 +9,7 @@ import gc
 import pandas as pd
 
 from synthesized.core import BasicSynthesizer, Synthesizer
-from .repository import Repository
+from ..domain.repository import Repository
 
 logger = logging.getLogger(__name__)
 

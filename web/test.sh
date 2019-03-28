@@ -35,8 +35,22 @@ while true; do
     sleep 5
 done
 
-curl -f -i -XPOST -d 'rows=10' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
+curl -f -i -XPOST -d 'rows=10000' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
+
+CORR_ID=$(curl -f -XPOST -d 'type=CORRELATION' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items | jq -r .id)
+MOD_ID=$(curl -f -XPOST -d 'type=MODELLING' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items | jq -r .id)
+
+curl -f -XPOST -d 'new_order=0' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/move
+curl -f -XPOST -d 'new_order=1' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/move
+
+curl -f -i -XPOST -d '{"settings": {"columns": ["age", "MonthlyIncome"]}, "max_sample_size": 10}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${CORR_ID}/updatesettings
+curl -f -i -XPOST -d '{"settings": {"response_variable": "SeriousDlqin2yrs", "explanatory_variables": ["NumberOfTimes90DaysLate", "age", "effort", "MonthlyIncome"], "model": "LogisticRegression"}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/updatesettings
+curl -f -i -XPOST -d '{"settings": {"response_variable": "MonthlyIncome", "explanatory_variables": ["NumberOfTimes90DaysLate", "age", "effort", "SeriousDlqin2yrs"], "model": "GradientBoostingRegressor"}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}/updatesettings
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report
+
+curl -f -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}
 
 curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
