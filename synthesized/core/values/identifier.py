@@ -10,8 +10,19 @@ from ..module import Module
 
 class IdentifierValue(Value):
 
-    def __init__(self, name, capacity=None, embedding_size=None):
+    def __init__(
+        self, name, identifiers=None, capacity=None, embedding_size=None
+    ):
         super().__init__(name=name)
+
+        if identifiers is None:
+            self.identifiers = None
+            self.num_identifiers = None
+        elif isinstance(identifiers, int):
+            self.identifiers = self.num_identifiers = identifiers
+        else:
+            self.identifiers = sorted(identifiers)
+            self.num_identifiers = len(self.identifiers)
 
         self.capacity = capacity
         if embedding_size is None:
@@ -19,9 +30,14 @@ class IdentifierValue(Value):
         else:
             self.embedding_size = embedding_size
 
+    def __str__(self):
+        string = super().__str__()
+        string += '{}-{}'.format(self.num_identifiers, self.embedding_size)
+        return string
+
     def specification(self):
         spec = super().specification()
-        spec.update(embedding_size=self.embedding_size)
+        spec.update(identifiers=self.identifiers, embedding_size=self.embedding_size)
         return spec
 
     def input_size(self):
@@ -31,7 +47,17 @@ class IdentifierValue(Value):
         return 0
 
     def extract(self, data):
-        self.num_identifiers = data[self.name].nunique() * 10
+        if self.identifiers is None:
+            self.identifiers = sorted(data[self.name].unique())
+            self.num_identifiers = len(self.identifiers)
+        elif sorted(data[self.name].unique()) != self.identifiers:
+            raise NotImplementedError
+
+    def encode(self, data):
+        if not isinstance(self.identifiers, int):
+            data.loc[:, self.name] = data[self.name].map(arg=self.identifiers.index)
+        data.loc[:, self.name] = data[self.name].astype(dtype='int64')
+        return data
 
     def features(self, x=None):
         features = super().features(x=x)
@@ -49,7 +75,7 @@ class IdentifierValue(Value):
         # tf.placeholder_with_default(input=(-1,), shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
-        initializer = util.get_initializer(initializer='normal')
+        initializer = util.get_initializer(initializer='normal-large')
         self.embeddings = tf.get_variable(
             name='embeddings', shape=(self.num_identifiers, self.embedding_size), dtype=tf.float32,
             initializer=initializer, regularizer=None, trainable=False, collections=None,
@@ -72,10 +98,16 @@ class IdentifierValue(Value):
             )
         return x
 
-    def tf_next_value(self):
+    def tf_next_identifier(self):
         assignment = self.current_identifier.assign_add(delta=1)
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return self.current_identifier + 0  # trivial operation to enforce dependency
+            return tf.expand_dims(input=self.current_identifier, axis=0)
+
+    def tf_next_identifier_embedding(self):
+        x = tf.random.normal(
+            shape=(1, self.embedding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
+        )
+        return self.next_identifier(), x
 
     def tf_random_value(self, n):
         identifier = tf.random_uniform(

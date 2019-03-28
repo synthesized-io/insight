@@ -13,9 +13,7 @@ class DateValue(Value):
 
         self.start_date = start_date
 
-        self.delta = self.add_module(
-            module=ContinuousValue, name=self.name, positive=True
-        )
+        self.delta = self.add_module(module=ContinuousValue, name=self.name, positive=True)
         self.hour = self.add_module(
             module=CategoricalValue, name=(self.name + '-hour'), categories=24, capacity=capacity,
             embedding_size=embedding_size

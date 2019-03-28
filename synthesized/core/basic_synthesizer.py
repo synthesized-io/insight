@@ -307,16 +307,15 @@ class BasicSynthesizer(Synthesizer):
                 condition.append(value.input_tensor())
         x = self.encoding.sample(n=num_synthesize, condition=condition)
         if self.lstm_mode == 2 and self.identifier_label is not None:
-            identifier = self.identifier_value.next_value()
-            identifier = tf.expand_dims(input=identifier, axis=0)
+            identifier = self.identifier_value.next_identifier()
             identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
         elif self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
-                identifier, state = self.identifier_value.random_value(n=1)
+                identifier, state = self.identifier_value.next_identifier_embedding()
                 identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
-                x = self.lstm.transform(x=x, state=state[0])
+                x = self.lstm.transform(x=x, state=state)
         elif self.lstm_mode == 0 and self.identifier_label is not None:
             identifier, condition = self.identifier_value.random_value(n=num_synthesize)
             x = self.modulation.transform(x=x, condition=condition)
