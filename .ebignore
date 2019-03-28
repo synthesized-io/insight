@@ -51,3 +51,4 @@ logs/
 !.elasticbeanstalk/config.yml
 
 data/
+.git/
