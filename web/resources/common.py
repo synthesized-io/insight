@@ -11,7 +11,6 @@ class DatasetAccessMixin:
 
     def get_dataset_authorized(self, dataset_id) -> Dataset:
         dataset = self.dataset_repo.get(dataset_id)
-        current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
             abort(404, message="Couldn't find requested dataset: " + dataset_id)
         if dataset.user_id != get_jwt_identity():
