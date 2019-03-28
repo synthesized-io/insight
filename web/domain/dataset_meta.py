@@ -226,5 +226,4 @@ def _kde_support(data, bw, gridsize, cut):
     """Establish support for a kernel density estimate."""
     support_min = data.min() - bw * cut
     support_max = data.max() + bw * cut
-    print(support_min, support_max)
     return np.linspace(support_min, support_max, gridsize)
