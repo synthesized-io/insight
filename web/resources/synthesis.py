@@ -125,8 +125,7 @@ class SynthesisResource(Resource):
 
         blob = output.getvalue().encode('utf-8')
 
-        # Parse JSON into an object with attributes corresponding to dict keys.
-        original_meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+        original_meta = dataset.meta_as_object()
 
         synthetic_meta = recompute_dataset_meta(synthesized, original_meta)
         synthetic_meta = simplejson.dumps(synthetic_meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')

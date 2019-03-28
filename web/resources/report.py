@@ -43,8 +43,7 @@ class ReportResource(Resource, DatasetAccessMixin):
 
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
-        # Parse JSON into an object with attributes corresponding to dict keys.
-        meta: DatasetMeta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+        meta: DatasetMeta = dataset.meta_as_object()
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) > 0:
@@ -243,7 +242,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
             df_train, df_test = train_test_split(df_orig, test_size=0.2, random_state=42)
 
-            meta = simplejson.load(BytesIO(dataset.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+            meta = dataset.meta_as_object()
 
             results = {}
             if model in REGRESSORS:

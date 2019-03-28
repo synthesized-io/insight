@@ -1,6 +1,12 @@
-from ..app import db
+from collections import namedtuple
 from datetime import datetime
 from enum import Enum
+from io import BytesIO
+
+import simplejson
+
+from .dataset_meta import DatasetMeta
+from ..app import db
 
 
 class AuditMixin(object):
@@ -26,6 +32,10 @@ class Dataset(db.Model, AuditMixin):
     meta = db.Column(db.LargeBinary, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
+
+    def meta_as_object(self) -> DatasetMeta:
+        # Parse JSON into an object with attributes corresponding to dict keys.
+        return simplejson.load(BytesIO(self.meta), encoding='utf-8', object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
 
     def __str__(self):
         return '<Dataset {}>'.format(self.id)

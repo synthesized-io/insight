@@ -1,13 +1,15 @@
 from flask import current_app
 from flask_jwt_extended import get_jwt_identity
 from flask_restful import abort
+
+from ..domain.model import Dataset
 from ..domain.repository import Repository
 
 
 class DatasetAccessMixin:
     dataset_repo: Repository
 
-    def get_dataset_authorized(self, dataset_id):
+    def get_dataset_authorized(self, dataset_id) -> Dataset:
         dataset = self.dataset_repo.get(dataset_id)
         current_app.logger.info('dataset by id={} is {}'.format(dataset_id, dataset))
         if not dataset:
