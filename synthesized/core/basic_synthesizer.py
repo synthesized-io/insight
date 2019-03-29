@@ -187,6 +187,7 @@ class BasicSynthesizer(Synthesizer):
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
+        losses['loss'] = loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -307,10 +308,9 @@ class BasicSynthesizer(Synthesizer):
                 label: data[label].get_values() for value in self.values
                 for label in value.input_labels()
             }
-            fetches = self.optimized
+            fetches = (self.optimized, self.loss)
             if verbose > 0:
-                verbose_fetches = dict(self.losses)
-                verbose_fetches['loss'] = self.loss
+                verbose_fetches = self.losses
             for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
@@ -328,7 +328,7 @@ class BasicSynthesizer(Synthesizer):
             fetches = self.iterator.initializer
             feed_dict = dict(filenames=filenames)
             self.run(fetches=fetches, feed_dict=feed_dict)
-            fetches = self.optimized_fromfile
+            fetches = (self.optimized_fromfile, self.loss_fromfile)
             feed_dict = dict(num_iterations=num_iterations)
             self.run(fetches=fetches, feed_dict=feed_dict)
             # assert num_iterations % verbose == 0

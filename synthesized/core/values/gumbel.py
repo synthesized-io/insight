@@ -1,7 +1,10 @@
 from .continuous import ContinuousValue
 from scipy.stats import norm
 from scipy.stats import gumbel_r
-
+from ..module import tensorflow_name_scoped
+import tensorflow as tf
+import tensorflow_probability as tfp
+import numpy as np
 
 class GumbelDistrValue(ContinuousValue):
 
@@ -42,3 +45,17 @@ class GumbelDistrValue(ContinuousValue):
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return super().postprocess(data=data)
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
+        samples = tf.squeeze(input=samples, axis=1)
+        tfd = tfp.distributions
+        dist_normlal = tfd.Normal(loc=0., scale=1.)
+        dist_gumbel = tfd.Gumbel(loc=self.location, scale = self.scale)
+        samples = tf.where (samples < self.location, tf.add(samples, 2 * self.location), samples)
+        samples = dist_gumbel.cdf(value = samples)
+        samples = tf.boolean_mask(samples, tf.math.logical_not(tf.is_nan(samples)))
+        samples = dist_normlal.quantile(value = samples)
+        samples = tf.boolean_mask(samples, tf.is_finite(samples))
+        samples = tf.boolean_mask(samples, tf.math.logical_not(tf.is_nan(samples)))
+        return  super.distribution_loss(samples = samples)
