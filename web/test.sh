@@ -3,8 +3,8 @@
 set -e
 set -x
 
-BASE_URL=http://localhost:5000
-#BASE_URL=https://webui.synthesized.io
+BASE_URL=http://localhost:5000/api
+#BASE_URL=https://webui.synthesized.io/api
 
 TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "denis", "password": "123"}' ${BASE_URL}/login)
 ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)

@@ -60,7 +60,7 @@ from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateI
 from .resources.synthesis import ModelResource, SynthesisResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 
-api = Api(app)
+api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
 api.add_resource(RefreshResource, '/refresh')
 api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo, 'bcrypt': bcrypt})
