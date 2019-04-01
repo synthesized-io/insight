@@ -23,8 +23,10 @@ else:
 app.json_encoder = JSONCompliantEncoder
 
 
-@app.route('/')
-def index():
+# "Catch-all" rule
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def index(path):
     return app.send_static_file('index.html')
 
 
