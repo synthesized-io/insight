@@ -2,6 +2,7 @@ import os
 
 
 class Config(object):
+    SEND_FILE_MAX_AGE_DEFAULT = 600  # TODO: implement proper static files serving
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
