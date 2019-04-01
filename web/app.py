@@ -1,7 +1,7 @@
 from web.infastructure.flask_support import configure_logger
 configure_logger()
 
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_restful import Api
@@ -13,9 +13,9 @@ from .infastructure.flask_support import JSONCompliantEncoder
 from .infastructure.repository_impl import SQLAlchemyRepository
 from .application.synthesizer_manager import SynthesizerManager
 from .application.authenticator import Authenticator
+import os
 
-
-app = Flask(__name__, static_url_path='', static_folder='frontend/build')
+app = Flask(__name__, static_url_path='/static', static_folder='frontend/build/static')
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
@@ -23,11 +23,22 @@ else:
 app.json_encoder = JSONCompliantEncoder
 
 
-# "Catch-all" rule
+def send_top_level_file(filename):
+    folder = os.path.join(app.root_path, 'frontend/build')
+    cache_timeout = app.get_send_file_max_age(filename)
+    return send_from_directory(folder, filename, cache_timeout=cache_timeout)
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_top_level_file('favicon.ico')
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def index(path):
-    return app.send_static_file('index.html')
+def catch_all(path):
+    print('catch_all', path)
+    return send_top_level_file('index.html')
 
 
 CORS(app, supports_credentials=True)  # TODO: delete in final version
