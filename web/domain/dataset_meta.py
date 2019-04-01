@@ -97,7 +97,7 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
 
             hist = list(map(int, hist))
             edges = list(map(float, edges))
-            density_support = list(map(float, density))
+            density_support = list(map(float, density_support))
             density = list(map(float, density))
 
             columns_meta.append(ContinuousMeta(
