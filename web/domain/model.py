@@ -90,12 +90,11 @@ class ReportItem(db.Model, AuditMixin):
 
 # this is not stored in the db
 class ProjectTemplate:
-    def __init__(self, id: int, title: str, description: str, original_file: str, synthetic_file: str):
+    def __init__(self, id: int, title: str, description: str, file: str):
         self.id = id
         self.title = title
         self.description = description
-        self.original_file = original_file
-        self.synthetic_file = synthetic_file
+        self.file = file
 
     def __str__(self):
         return '<Report {}>'.format(self.id)
