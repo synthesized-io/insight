@@ -8,11 +8,9 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
-from .gaussian import GaussianValue
 from .identifier import IdentifierValue
 from .nan import NanValue
 from .person import PersonValue
-from .powerlaw import PowerlawValue
 from .sampling import SamplingValue
 from .gumbel import GumbelDistrValue
 from .gilbrat import GilbratDistrValue
@@ -75,6 +73,15 @@ def identify_value(module, name, dtype, data):
         module.identifier_value = value
         return value
 
+    to_numeric = False
+    if dtype.kind == 'O':
+        numeric_data = pd.to_numeric(data[name], errors='coerce')
+        if numeric_data.isna().sum() / len(numeric_data) < 0.25:
+            data[name] = numeric_data
+            dtype = numeric_data.dtype
+            assert dtype.kind in ('f', 'i')
+            to_numeric = True
+
     is_nan = data[name].isna().any()
     clean = data.dropna(subset=(name,))
 
@@ -85,6 +92,7 @@ def identify_value(module, name, dtype, data):
         # module.date_value = value
 
     elif dtype.kind == 'b':
+        assert not is_nan
         value = module.add_module(
             module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
         )
@@ -95,6 +103,7 @@ def identify_value(module, name, dtype, data):
                 module=CategoricalValue, name=name, categories=dtype.categories,
                 capacity=module.capacity, pandas_category=True
             )
+            is_nan = False
 
         else:
             try:
@@ -106,12 +115,14 @@ def identify_value(module, name, dtype, data):
             except ValueError:
                 pass
 
-    if value is None:
-        num_data = len(clean)
-        num_unique = clean[name].nunique()
+    num_data = len(clean)
+    num_unique = clean[name].nunique()
 
+    if value is None and num_data > 0:
         if num_unique <= 2.5 * log(num_data):
+            assert not to_numeric
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
+            is_nan = False
 
         # elif dtype.kind == 'f' and (clean[name] <= 1.0).all() and (clean[name] >= 0.0).all():
         #     value = module.add_module(module=ProbabilityValue, name=name)
@@ -128,40 +139,39 @@ def identify_value(module, name, dtype, data):
                     distr_fitted, params_fitted = distr, params
             if min_distance < MIN_FIT_DISTANCE:
                 value = module.add_module(
-                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, integer=dtype.kind == 'i', params=params_fitted
+                    module=DIST_TO_VALUE_MAPPING[distr_fitted.name], name=name, integer=dtype.kind == 'i', to_numeric=to_numeric, params=params_fitted
                 )
             elif dtype.kind == 'f':
                 # default continuous value fit
                 value = module.add_module(
                     module=ContinuousValue, name=name, positive=(clean[name] > 0.0).all(),
-                    nonnegative=(clean[name] >= 0.0).all()
+                    nonnegative=(clean[name] >= 0.0).all(), to_numeric=to_numeric
                 )
             elif dtype.kind == 'i':
                 value = module.add_module(
                     module=ContinuousValue, name=name, positive=(clean[name] >= 0).all(),
-                    integer=True
+                    integer=True, to_numeric=to_numeric
                 )
 
-        elif False:
-            value = module.add_module(module=GaussianValue, name=name)
-
-        elif False:
-            value = module.add_module(module=PowerlawValue, name=name)
-
         elif num_unique <= sqrt(num_data):
+            assert not to_numeric
             value = module.add_module(
                 module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
             )
+            is_nan = False
 
         elif dtype.kind != 'f' and num_unique == num_data and clean[name].is_monotonic:
+            assert not to_numeric and not is_nan
             value = module.add_module(module=EnumerationValue, name=name)
 
     if value is None:
+        assert not to_numeric
         value = module.add_module(module=SamplingValue, name=name)
+        is_nan = False
         # print(name, dtype, num_data, num_unique)
         # raise NotImplementedError
 
-    elif is_nan:
+    if is_nan:
         value = module.add_module(
             module=NanValue, name=(name + '-nan'), value=value, capacity=module.capacity
         )

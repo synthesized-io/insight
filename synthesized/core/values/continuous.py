@@ -1,3 +1,4 @@
+import pandas as pd
 import tensorflow as tf
 
 from .value import Value
@@ -9,7 +10,7 @@ REMOVE_OUTLIERS_PCT = 0.5
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, positive=None, nonnegative=None, integer=None):
+    def __init__(self, name, positive=None, nonnegative=None, integer=None, to_numeric=False):
         super().__init__(name=name)
         self.positive = positive
         self.nonnegative = nonnegative
@@ -18,6 +19,7 @@ class ContinuousValue(Value):
         elif self.nonnegative is not None:
             self.positive = False
         self.integer = integer
+        self.to_numeric = to_numeric
 
     def __str__(self):
         string = super().__str__()
@@ -31,7 +33,10 @@ class ContinuousValue(Value):
 
     def specification(self):
         spec = super().specification()
-        spec.update(positive=self.positive, nonnegative=self.nonnegative, integer=self.integer)
+        spec.update(
+            positive=self.positive, nonnegative=self.nonnegative, integer=self.integer,
+            to_numeric=self.to_numeric
+        )
         return spec
 
     def input_size(self):
@@ -41,6 +46,8 @@ class ContinuousValue(Value):
         yield self.placeholder
 
     def extract(self, data):
+        if self.to_numeric:
+            data[self.name] = pd.to_numeric(data[self.name], errors='coerce')
         if self.positive is None:
             self.positive = (data[self.name] > 0.0).all()
         elif self.positive and (data[self.name] <= 0.0).all():
@@ -55,6 +62,8 @@ class ContinuousValue(Value):
             raise NotImplementedError
 
     def encode(self, data):
+        if self.to_numeric:
+            data[self.name] = pd.to_numeric(data[self.name], errors='coerce')
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         return data
 
@@ -109,7 +118,7 @@ class ContinuousValue(Value):
         return {self.name: x}
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
+    def loss(self, x, feed=None, mask=None):
         # if self.positive:                      ??????????????????????????????????????
         #     x = tf.nn.softplus(features=x)
         target = self.input_tensor(feed=feed)
@@ -121,6 +130,9 @@ class ContinuousValue(Value):
         # relative = tf.squeeze(input=relative, axis=1)
         # loss = tf.reduce_mean(input_tensor=(relative - 1.0), axis=0, keepdims=False)
         # loss = tf.losses.add_loss(loss=loss, loss_collection=tf.GraphKeys.LOSSES)
+        if mask is not None:
+            target = tf.boolean_mask(tensor=target, mask=mask)
+            x = tf.boolean_mask(tensor=x, mask=mask)
         loss = tf.losses.mean_squared_error(
             labels=target, predictions=x, weights=1.0, scope=None,
             loss_collection=tf.GraphKeys.LOSSES

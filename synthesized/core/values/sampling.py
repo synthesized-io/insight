@@ -27,7 +27,7 @@ class SamplingValue(Value):
             self.categories = data[self.name].unique()
 
         else:
-            self.categories = data[self.name].value_counts(normalize=True, sort=True)
+            self.categories = data[self.name].value_counts(normalize=True, sort=True, dropna=False)
             if self.smoothing != 1.0:
                 self.categories **= self.smoothing
                 self.categories /= self.categories.sum()
