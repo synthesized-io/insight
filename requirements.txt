@@ -12,9 +12,3 @@ pyemd==0.5.1
 flask==1.0.2
 flask_restful==0.3.7
 faker==1.0.2
-simplejson==3.16.0
-flask-sqlalchemy==2.3.2
-psycopg2==2.7.7
-flask-bcrypt==0.7.1
-flask-cors==3.0.7
-flask-jwt-extended==3.18.0
