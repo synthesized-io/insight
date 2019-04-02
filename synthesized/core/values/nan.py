@@ -12,6 +12,7 @@ from .. import util
 class NanValue(Value):
 
     def __init__(self, name, value, capacity=None, embedding_size=None, weight_decay=0.0):
+        assert name.endswith('-nan')
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousValue)

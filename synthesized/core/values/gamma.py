@@ -5,6 +5,7 @@ from scipy.stats import gamma
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+
 class GammaDistrValue(ContinuousValue):
 
     def __init__(self, name, integer=None, to_numeric=False, params=None):
@@ -38,7 +39,7 @@ class GammaDistrValue(ContinuousValue):
         return data
 
     def postprocess(self, data):
-        data[self.name] = gamma.ppf(norm.cdf(data[self.name]),  self.shape, self.location, self.scale)
+        data[self.name] = gamma.ppf(norm.cdf(data[self.name]), self.shape, self.location, self.scale)
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return super().postprocess(data=data)

@@ -136,7 +136,6 @@ class BasicSynthesizer(Synthesizer):
     def preprocess(self, data):
         for value in self.values:
             data = value.preprocess(data=data)
-            print(value.name, len(data))
         return data
 
     @tensorflow_name_scoped

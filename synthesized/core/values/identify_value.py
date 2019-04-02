@@ -118,7 +118,7 @@ def identify_value(module, name, dtype, data):
     num_data = len(clean)
     num_unique = clean[name].nunique()
 
-    if value is None and num_data > 0:
+    if value is None and num_unique > 1:
         if num_unique <= 2.5 * log(num_data):
             assert not to_numeric
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
