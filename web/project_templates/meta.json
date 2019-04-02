@@ -1,0 +1,10 @@
+{
+  "templates": [
+    {
+      "id": 1,
+      "title": "Credit scoring",
+      "description": "Credit scoring dataset from Kaggle",
+      "file": "credit.csv"
+    }
+  ]
+}

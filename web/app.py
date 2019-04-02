@@ -10,7 +10,7 @@ from flask_jwt_extended import JWTManager
 
 from .config import ProductionConfig, DevelopmentConfig
 from .infastructure.flask_support import JSONCompliantEncoder
-from .infastructure.repository_impl import SQLAlchemyRepository
+from .infastructure.repository_impl import SQLAlchemyRepository, JsonFileDirectory
 from .application.synthesizer_manager import SynthesizerManager
 from .application.authenticator import Authenticator
 import os
@@ -65,12 +65,17 @@ synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=1
 
 # should be imported after `db` creation
 from .infastructure.report_item_ordering_imp import SQLAlchemyReportItemOrdering
+from .application.project_templates import ProjectTemplates
+
 report_item_ordering = SQLAlchemyReportItemOrdering(db)
+template_directory = JsonFileDirectory(os.path.join(app.root_path, 'project_templates/meta.json'), 'templates')
+project_templates = ProjectTemplates(template_directory, dataset_repo)
 
 from .resources.auth import LoginResource, RefreshResource, UsersResource
 from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource
 from .resources.synthesis import ModelResource, SynthesisResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
+from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
 
 api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
@@ -86,3 +91,5 @@ api.add_resource(ReportItemsResource, '/datasets/<dataset_id>/report-items', res
 api.add_resource(ReportItemResource, '/datasets/<dataset_id>/report-items/<report_item_id>', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo})
 api.add_resource(ReportItemsUpdateSettingsResource, '/datasets/<dataset_id>/report-items/<report_item_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo, 'synthesis_repo': synthesis_repo})
 api.add_resource(ReportItemsMoveResource, '/datasets/<dataset_id>/report-items/<report_item_id>/move', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo, 'report_item_ordering': report_item_ordering})
+api.add_resource(ProjectTemplatesResource, '/templates', resource_class_kwargs={'template_directory': template_directory})
+api.add_resource(DatasetFromTemplateResource, '/templates/<template_id>/dataset', resource_class_kwargs={'project_templates': project_templates})

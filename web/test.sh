@@ -53,4 +53,9 @@ curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report
 
 curl -f -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}
 
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/templates
+
+TPL_DS_ID=$(curl -f -XPOST -H "$AUTH_HEADER" ${BASE_URL}/templates/1/dataset | jq -r .dataset_id)
+
 curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
+curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${TPL_DS_ID}
