@@ -37,7 +37,6 @@ def favicon():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
-    print('catch_all', path)
     return send_top_level_file('index.html')
 
 
