@@ -18,9 +18,18 @@ class User(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.Text, nullable=False, unique=True)
     password = db.Column(db.Text, nullable=False)
+    invites = db.relationship("UsedInvite", cascade="all, delete-orphan", lazy='select')
 
     def __str__(self):
         return "<User {}>".format(self.id)
+
+
+class UsedInvite(db.Model, AuditMixin):
+    code = db.Column(db.Text, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+
+    def __str__(self):
+        return "<UsedInvite {}>".format(self.code)
 
 
 class Dataset(db.Model, AuditMixin):

@@ -48,10 +48,11 @@ jwt = JWTManager(app)
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after `db` creation
-from web.domain.model import Dataset, Synthesis, User, Report, ReportItem
+from web.domain.model import Dataset, Synthesis, User, Report, ReportItem, UsedInvite
 db.create_all()
 
 dataset_repo = SQLAlchemyRepository(db, Dataset)
+used_invite_repo = SQLAlchemyRepository(db, UsedInvite)
 synthesis_repo = SQLAlchemyRepository(db, Synthesis)
 user_repo = SQLAlchemyRepository(db, User)
 report_repo = SQLAlchemyRepository(db, Report)
@@ -80,7 +81,7 @@ from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateRe
 api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
 api.add_resource(RefreshResource, '/refresh')
-api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo, 'bcrypt': bcrypt})
+api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo, 'used_invite_repo': used_invite_repo, 'bcrypt': bcrypt})
 api.add_resource(DatasetsResource, '/datasets', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(DatasetResource, '/datasets/<dataset_id>', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo', resource_class_kwargs={'dataset_repo': dataset_repo})
