@@ -6,7 +6,7 @@ import tensorflow as tf
 from scipy.stats import ks_2samp
 
 from .encodings import encoding_modules
-from .module import Module
+from .module import Module, tensorflow_name_scoped
 from .optimizers import Optimizer
 from .synthesizer import Synthesizer
 from .transformations import transformation_modules
@@ -75,9 +75,10 @@ class BasicSynthesizer(Synthesizer):
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
-                self.value_output_sizes.append(value.output_size())
-                input_size += value.input_size()
-                output_size += value.output_size()
+                if name != self.identifier_label:
+                    self.value_output_sizes.append(value.output_size())
+                    input_size += value.input_size()
+                    output_size += value.output_size()
 
         self.encoder = self.add_module(
             module=self.network_type, modules=transformation_modules, name='encoder',
@@ -89,6 +90,14 @@ class BasicSynthesizer(Synthesizer):
             module=self.encoding_type, modules=encoding_modules, name='encoding',
             input_size=self.encoder.size(), encoding_size=self.capacity, beta=encoding_beta
         )
+
+        if self.identifier_value is None:
+            self.modulation = None
+        else:
+            self.modulation = self.add_module(
+                module='modulation', modules=transformation_modules, name='modulation',
+                input_size=self.capacity, condition_size=self.identifier_value.embedding_size
+            )
 
         self.decoder = self.add_module(
             module=self.network_type, modules=transformation_modules, name='decoder',
@@ -129,17 +138,12 @@ class BasicSynthesizer(Synthesizer):
             data = value.preprocess(data=data)
         return data
 
-    def customized_transform(self, x):
-        return x
-
-    def customized_synthesize(self, x):
-        return x
-
-    def tf_train_iteration(self, feed=None):
+    @tensorflow_name_scoped
+    def train_iteration(self, feed=None):
         summaries = list()
         xs = list()
         for value in self.values:
-            if value.input_size() > 0:
+            if value.name != self.identifier_label and value.input_size() > 0:
                 x = value.input_tensor(feed=feed)
                 xs.append(x)
         x = tf.concat(values=xs, axis=1)
@@ -157,7 +161,9 @@ class BasicSynthesizer(Synthesizer):
         summaries.append(tf.contrib.summary.scalar(
             name='encoding-variance', tensor=encoding_variance, family=None, step=None
         ))
-        x = self.customized_transform(x=x)
+        if self.modulation is not None:
+            condition = self.identifier_value.input_tensor()
+            x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -181,6 +187,7 @@ class BasicSynthesizer(Synthesizer):
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
+        losses['loss'] = loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -193,8 +200,8 @@ class BasicSynthesizer(Synthesizer):
             optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
         return losses, loss, optimized
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # learn
         self.losses, self.loss, self.optimized = self.train_iteration()
@@ -253,11 +260,15 @@ class BasicSynthesizer(Synthesizer):
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
         x = self.encoding.sample(n=num_synthesize)
-        x = self.customized_synthesize(x=x)
+        if self.modulation is not None:
+            identifier, condition = self.identifier_value.random_value(n=num_synthesize)
+            x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
+        if self.identifier_value is not None:
+            self.synthesized[self.identifier_label] = identifier
         for value, x in zip(self.values, xs):
             xs = value.output_tensors(x=x)
             for label, x in xs.items():
@@ -266,13 +277,15 @@ class BasicSynthesizer(Synthesizer):
         # transform
         xs = list()
         for value in self.values:
-            if value.input_size() > 0:
+            if value.name != self.identifier_label and value.input_size() > 0:
                 x = value.input_tensor()
                 xs.append(x)
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x = self.encoding.encode(x=x)
-        x = self.customized_transform(x=x)
+        if self.modulation is not None:
+            condition = self.identifier_value.input_tensor()
+            x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(
@@ -295,10 +308,9 @@ class BasicSynthesizer(Synthesizer):
                 label: data[label].get_values() for value in self.values
                 for label in value.input_labels()
             }
-            fetches = self.optimized
+            fetches = (self.optimized, self.loss)
             if verbose > 0:
-                verbose_fetches = dict(self.losses)
-                verbose_fetches['loss'] = self.loss
+                verbose_fetches = self.losses
             for iteration in range(num_iterations):
                 batch = np.random.randint(num_data, size=self.batch_size)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
@@ -316,7 +328,7 @@ class BasicSynthesizer(Synthesizer):
             fetches = self.iterator.initializer
             feed_dict = dict(filenames=filenames)
             self.run(fetches=fetches, feed_dict=feed_dict)
-            fetches = self.optimized_fromfile
+            fetches = (self.optimized_fromfile, self.loss_fromfile)
             feed_dict = dict(num_iterations=num_iterations)
             self.run(fetches=fetches, feed_dict=feed_dict)
             # assert num_iterations % verbose == 0

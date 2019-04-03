@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class CategoricalValue(Value):
@@ -105,8 +105,8 @@ class CategoricalValue(Value):
             )
         return features
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
@@ -125,7 +125,8 @@ class CategoricalValue(Value):
         else:
             self.moving_average = None
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         # tensor = tf.one_hot(
         #     indices=self.placeholder, depth=self.num_categories, on_value=1.0, off_value=0.0,
         #     axis=1, dtype=tf.float32
@@ -137,7 +138,8 @@ class CategoricalValue(Value):
         )
         return x
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         if self.similarity_based:
             x = tf.expand_dims(input=x, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
@@ -145,7 +147,8 @@ class CategoricalValue(Value):
         x = tf.argmax(input=x, axis=1)
         return {self.name: x}
 
-    def tf_loss(self, x, feed=None):
+    @tensorflow_name_scoped
+    def loss(self, x, feed=None):
         target = self.placeholder if feed is None else feed[self.name]
         if self.moving_average is not None:
             frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
@@ -195,7 +198,8 @@ class CategoricalValue(Value):
             loss = loss + entropy_loss
         return loss
 
-    def tf_distribution_loss(self, samples):
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
         if self.probabilities is None:
             return 0.0
 

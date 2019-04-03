@@ -10,6 +10,7 @@ from .date import DateValue
 from .enumeration import EnumerationValue
 from .gaussian import GaussianValue
 from .identifier import IdentifierValue
+from .nan import NanValue
 from .person import PersonValue
 from .powerlaw import PowerlawValue
 from .sampling import SamplingValue
@@ -47,6 +48,7 @@ def identify_value(module, name, dtype, data):
                 lastname_label=module.lastname_label, email_label=module.email_label
             )
             module.person_value = value
+        return value
 
     elif name in (getattr(module, 'postcode_label', None), getattr(module, 'street_label', None)):
         if module.address_value is None:
@@ -56,8 +58,7 @@ def identify_value(module, name, dtype, data):
                 capacity=module.capacity
             )
             module.address_value = value
-        else:
-            value = None
+        return value
 
     elif name == getattr(module, 'address_label', None):
         value = module.add_module(
@@ -67,14 +68,17 @@ def identify_value(module, name, dtype, data):
             capacity=module.capacity
         )
         module.address_value = value
+        return value
 
     elif name == getattr(module, 'identifier_label', None):
-        value = module.add_module(
-            module=IdentifierValue, name=name, embedding_size=None
-        )
+        value = module.add_module(module=IdentifierValue, name=name, capacity=module.capacity)
         module.identifier_value = value
+        return value
 
-    elif dtype.kind == 'M':  # 'm' timedelta
+    is_nan = data[name].isna().any()
+    clean = data.dropna(subset=(name,))
+
+    if dtype.kind == 'M':  # 'm' timedelta
         # if module.date_value is not None:
         #     raise NotImplementedError
         value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
@@ -94,7 +98,7 @@ def identify_value(module, name, dtype, data):
 
         else:
             try:
-                data[name] = pd.to_datetime(data[name])
+                pd.to_datetime(clean)
                 # if module.date_value is not None:
                 #     raise NotImplementedError
                 value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
@@ -103,18 +107,18 @@ def identify_value(module, name, dtype, data):
                 pass
 
     if value is None:
-        num_data = len(data)
-        num_unique = data[name].nunique()
+        num_data = len(clean)
+        num_unique = clean[name].nunique()
 
         if num_unique <= 2.5 * log(num_data):
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
 
-        # elif dtype.kind == 'f' and (data[name] <= 1.0).all() and (data[name] >= 0.0).all():
+        # elif dtype.kind == 'f' and (clean[name] <= 1.0).all() and (clean[name] >= 0.0).all():
         #     value = module.add_module(module=ProbabilityValue, name=name)
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
             min_distance = MAX_FIT_DISTANCE
-            column_cleaned = ContinuousValue.remove_outliers(data, name, pct=REMOVE_OUTLIERS_PCT)[name]
+            column_cleaned = ContinuousValue.remove_outliers(clean, name, pct=REMOVE_OUTLIERS_PCT)[name]
             for distr in CONT_DISTRIBUTIONS:
                 params = distr.fit(column_cleaned)
                 transformed = norm.ppf(distr.cdf(column_cleaned, *params))
@@ -129,12 +133,13 @@ def identify_value(module, name, dtype, data):
             elif dtype.kind == 'f':
                 # default continuous value fit
                 value = module.add_module(
-                    module=ContinuousValue, name=name, positive=(data[name] > 0.0).all(),
-                    nonnegative=(data[name] >= 0.0).all()
+                    module=ContinuousValue, name=name, positive=(clean[name] > 0.0).all(),
+                    nonnegative=(clean[name] >= 0.0).all()
                 )
             elif dtype.kind == 'i':
                 value = module.add_module(
-                    module=ContinuousValue, name=name, positive=(data[name] >= 0).all(), integer=True
+                    module=ContinuousValue, name=name, positive=(clean[name] >= 0).all(),
+                    integer=True
                 )
 
         elif False:
@@ -148,12 +153,17 @@ def identify_value(module, name, dtype, data):
                 module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
             )
 
-        elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
+        elif dtype.kind != 'f' and num_unique == num_data and clean[name].is_monotonic:
             value = module.add_module(module=EnumerationValue, name=name)
 
-        else:
-            value = module.add_module(module=SamplingValue, name=name)
-            # print(name, dtype, num_data, num_unique)
-            # raise NotImplementedError
+    if value is None:
+        value = module.add_module(module=SamplingValue, name=name)
+        # print(name, dtype, num_data, num_unique)
+        # raise NotImplementedError
+
+    elif is_nan:
+        value = module.add_module(
+            module=NanValue, name=(name + '-nan'), value=value, capacity=module.capacity
+        )
 
     return value

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class CorrelationMatrixFunctional(Functional):
@@ -26,7 +27,8 @@ class CorrelationMatrixFunctional(Functional):
         spec.update(correlation_matrix=self.correlation_matrix)
         return spec
 
-    def tf_loss(self, *samples_args):
+    @tensorflow_name_scoped
+    def loss(self, *samples_args):
         samples = tf.stack(values=samples_args, axis=0)
         means, variances = tf.nn.moments(x=samples, axes=1)
         means = tf.stop_gradient(input=means)

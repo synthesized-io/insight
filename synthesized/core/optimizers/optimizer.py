@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Optimizer(Module):
@@ -24,8 +24,8 @@ class Optimizer(Module):
         )
         return spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         if self.decay_steps is None:
             learning_rate = self.learning_rate
         else:
@@ -41,12 +41,16 @@ class Optimizer(Module):
         else:
             raise NotImplementedError
 
-    def tf_optimize(self, loss, gradient_norms=False):
+    @tensorflow_name_scoped
+    def optimize(self, loss, gradient_norms=False):
         grads_and_vars = self.optimizer.compute_gradients(
             loss=loss, var_list=None, aggregation_method=None, colocate_gradients_with_ops=False,
             grad_loss=None  # gate_gradients=GATE_OP
         )
-        grads_and_vars = [(grad, var) for grad, var in grads_and_vars if grad is not None]
+        grads_and_vars = [
+            (tf.where(condition=tf.math.is_nan(x=grad), x=tf.zeros_like(tensor=grad), y=grad), var)
+            for grad, var in grads_and_vars if grad is not None
+        ]
         if gradient_norms:
             gradient_norms = dict()
             for grad, var in grads_and_vars:
@@ -60,9 +64,8 @@ class Optimizer(Module):
                     t=grad, clip_value_min=-self.clip_gradients, clip_value_max=self.clip_gradients
                 )
                 grads_and_vars[n] = (clipped_grad, var)
-        optimized = self.optimizer.apply_gradients(
-            grads_and_vars=grads_and_vars, global_step=Module.global_step
-        )
+        optimized = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
+        # , global_step=Module.global_step  (incremented in synthesizer?!)
         if gradient_norms is False:
             return optimized
         else:

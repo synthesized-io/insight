@@ -73,8 +73,8 @@ class ScenarioSynthesizer(Synthesizer):
     def customized_transform(self, x):
         return x
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # number of rows to synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
@@ -124,24 +124,24 @@ class ScenarioSynthesizer(Synthesizer):
                 name='regularization-loss', tensor=regularization_loss, family=None, step=None
             ))
             self.losses['regularization'] = regularization_loss
-        loss = tf.add_n(inputs=list(self.losses.values()))
+        self.loss = tf.add_n(inputs=list(self.losses.values()))
         assert 'loss' not in self.losses
-        self.losses['loss'] = loss
+        self.losses['loss'] = self.loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
-        optimized, gradient_norms = self.optimizer.optimize(loss=loss, gradient_norms=True)
+        optimized, gradient_norms = self.optimizer.optimize(loss=self.loss, gradient_norms=True)
         for name, gradient_norm in gradient_norms.items():
             summaries.append(tf.contrib.summary.scalar(
                 name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
             ))
         with tf.control_dependencies(control_inputs=([optimized] + summaries)):
             self.optimized = Module.global_step.assign_add(
-                delta=1, use_locking=False, read_value=False
+                delta=1, use_locking=False, read_value=True
             )
 
     def learn(self, num_iterations, num_samples=1024, verbose=0):
-        fetches = self.optimized
+        fetches = (self.optimized, self.loss)
         if verbose > 0:
             verbose_fetches = (self.optimized, dict(self.losses))
         for iteration in range(num_iterations):
@@ -176,6 +176,6 @@ class ScenarioSynthesizer(Synthesizer):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
             other = pd.DataFrame.from_dict(other)
             synthesized = synthesized.append(other, ignore_index=True)
-        for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+       # for value in self.values:
+      #      synthesized = value.postprocess(data=synthesized)
         return synthesized

@@ -1,4 +1,4 @@
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 class Transformation(Module):
@@ -17,5 +17,6 @@ class Transformation(Module):
     def size(self):
         return self.output_size
 
-    def tf_transform(self, x, *args):
+    @tensorflow_name_scoped
+    def transform(self, x, *args):
         raise NotImplementedError

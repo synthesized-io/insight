@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class MeanFunctional(Functional):
@@ -22,7 +23,8 @@ class MeanFunctional(Functional):
         spec.update(mean=self.mean)
         return spec
 
-    def tf_loss(self, samples):
+    @tensorflow_name_scoped
+    def loss(self, samples):
         mean = tf.reduce_mean(input_tensor=samples, axis=0)
         loss = tf.squared_difference(x=mean, y=self.mean)
         return loss

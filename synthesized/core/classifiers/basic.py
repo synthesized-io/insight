@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .classifier import Classifier
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import transformation_modules
 from ..values import CategoricalValue, identify_value
@@ -78,26 +78,25 @@ class BasicClassifier(Classifier):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def tf_train_iteration(self, feed=None):
-        if feed is None:
-            feed = dict()
+    @tensorflow_name_scoped
+    def train_iteration(self, feed=None):
         xs = list()
         for value in self.input_values:
-            for label in value.trainable_labels():
-                x = value.input_tensor(feed=feed.get(label))
+            if value.input_size() > 0:
+                x = value.input_tensor(feed=feed)
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
         x = self.encoder.transform(x=x)
         x = self.output.transform(x=x)
-        loss = self.target_value.loss(x=x, feed=feed.get(self.target_value.name))
+        loss = self.target_value.loss(x=x, feed=feed)
         losses = tf.losses.get_regularization_losses(scope=None)
         losses.append(loss)
         loss = tf.add_n(inputs=losses, name=None)
         optimized = self.optimizer.optimize(loss=loss)
         return loss, optimized
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
 
         # learn
         self.loss, self.optimized = self.train_iteration()
@@ -115,9 +114,9 @@ class BasicClassifier(Classifier):
         )
         dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
         dataset = dataset.repeat(count=None)
-        features = {  # critically assumes max one trainable label
-            label: value.feature() for value in self.values for label in value.trainable_labels()
-        }
+        features = dict()
+        for value in self.values:
+            features.update(value.features())
         dataset = dataset.batch(batch_size=self.batch_size, drop_remainder=False)
         dataset = dataset.map(
             map_func=(lambda serialized: tf.parse_example(
@@ -146,7 +145,7 @@ class BasicClassifier(Classifier):
         # classify
         xs = list()
         for value in self.input_values:
-            for label in value.trainable_labels():
+            if value.input_size() > 0:
                 x = value.input_tensor()
                 xs.append(x)
         x = tf.concat(values=xs, axis=1, name=None)
@@ -170,7 +169,7 @@ class BasicClassifier(Classifier):
             num_data = len(data)
             data = {
                 label: data[label].get_values() for value in self.values
-                for label in value.trainable_labels()
+                for label in value.input_labels()
             }
             fetches = (self.loss, self.optimized)
             for iteration in range(num_iterations):
@@ -203,7 +202,7 @@ class BasicClassifier(Classifier):
         fetches = self.classified
         data = {
             label: data[label].get_values() for value in self.input_values
-            for label in value.trainable_labels()
+            for label in value.input_labels()
         }
         classified = list()
         for i in range(num_data // self.batch_size):

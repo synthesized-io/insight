@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from .value import Value
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 import numpy as np
 
 REMOVE_OUTLIERS_PCT = 0.5
@@ -81,13 +81,14 @@ class ContinuousValue(Value):
             )
         return features
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.float32, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
 
-    def tf_input_tensor(self, feed=None):
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
@@ -97,7 +98,8 @@ class ContinuousValue(Value):
         x = tf.expand_dims(input=x, axis=1)
         return x
 
-    def tf_output_tensors(self, x):
+    @tensorflow_name_scoped
+    def output_tensors(self, x):
         x = tf.squeeze(input=x, axis=1)
         if self.positive or self.nonnegative:
             x = tf.nn.softplus(features=x)
@@ -106,7 +108,8 @@ class ContinuousValue(Value):
                 x = tf.where(condition=(x >= 0.001), x=x, y=zeros)
         return {self.name: x}
 
-    def tf_loss(self, x, feed=None):
+    @tensorflow_name_scoped
+    def loss(self, x, feed=None):
         # if self.positive:                      ??????????????????????????????????????
         #     x = tf.nn.softplus(features=x)
         target = self.input_tensor(feed=feed)
@@ -124,7 +127,8 @@ class ContinuousValue(Value):
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         return loss
 
-    def tf_distribution_loss(self, samples):
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
         return 0.0
 
     @staticmethod
@@ -135,3 +139,26 @@ class ContinuousValue(Value):
         data = data[data[name] != float('inf')]
         data = data[data[name] != float('-inf')]
         return data[(data[name] > start) & (data[name] < end)]
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
+        mean, variance = tf.nn.moments(x=samples, axes=0)
+        mean_loss = tf.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.squared_difference(x=variance, y=1.0)
+
+        mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
+        difference = samples - mean
+        squared_difference = tf.square(x=difference)
+        variance = tf.reduce_mean(input_tensor=squared_difference, axis=0)
+        third_moment = tf.reduce_mean(input_tensor=(squared_difference * difference), axis=0)
+        fourth_moment = tf.reduce_mean(input_tensor=tf.square(x=squared_difference), axis=0)
+        skewness = third_moment / tf.pow(x=variance, y=1.5)
+        kurtosis = fourth_moment / tf.square(x=variance)
+        num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
+        # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
+        #     0.25 * tf.square(x=(kurtosis - 3.0)))
+        jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
+        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        loss = mean_loss + variance_loss + jarque_bera_loss
+
+        return loss

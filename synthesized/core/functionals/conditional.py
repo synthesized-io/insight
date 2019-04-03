@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class ConditionalFunctional(Functional):
@@ -43,7 +44,8 @@ class ConditionalFunctional(Functional):
         )
         return spec
 
-    def tf_loss(self, comparison_samples, *conditioned_samples):
+    @tensorflow_name_scoped
+    def loss(self, comparison_samples, *conditioned_samples):
         comparison = getattr(tf, self.comparison)
         comparison_mask = comparison(x=comparison_samples, y=self.reference)
 

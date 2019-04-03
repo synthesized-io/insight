@@ -1,5 +1,5 @@
 from codecs import open
-from os import path
+from os import path, listdir
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -19,10 +19,21 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     install_requires = f.read().split('\n')
 
-packages = find_packages(exclude=['tests*'])
+packages = find_packages(exclude=['tests*', 'web'])
 
-# TODO: compile all modules
-# ext_modules = [Extension(p + '.*', [p.replace('.', '/') + '/*.py'], include_dirs=['.']) for p in packages]
+
+def source_files(base_dir):
+    result = []
+    for f in listdir(base_dir):
+        p = path.join(base_dir, f)
+        if path.isdir(p):
+            result.extend(source_files(p))
+        elif p.endswith('.py') and not p.endswith('__init__.py'):
+            result.append(p)
+    return result
+
+
+ext_modules = [Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')]
 
 setup(
     name='synthesized',
@@ -35,19 +46,6 @@ setup(
     license='Proprietary',
     packages=packages,
     install_requires=install_requires,
-    ext_modules=cythonize(
-        [
-            Extension("synthesized.core.synthesizer", ["synthesized/core/synthesizer.py"]),
-            Extension("synthesized.core.basic_synthesizer", ["synthesized/core/basic_synthesizer.py"]),
-            Extension("synthesized.core.date_synthesizer", ["synthesized/core/date_synthesizer.py"]),
-            Extension("synthesized.core.id_synthesizer", ["synthesized/core/id_synthesizer.py"]),
-            Extension("synthesized.testing.linkage_attack", ["synthesized/testing/linkage_attack.py"]),
-            Extension("synthesized.testing.utility", ["synthesized/testing/utility.py"]),
-         ],
-        build_dir="build",
-    ),
+    ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
     cmdclass={'build_ext': build_ext}
 )
-
-# run this to delete original files
-# zip -d dist/synthesized-1.0.0-cp36-cp36m-macosx_10_11_x86_64.whl "synthesized/core/basic_synthesizer.py" "synthesized/core/date_synthesizer.py"  "synthesized/core/id_synthesizer.py" "synthesized/testing/linkage_attack.py"

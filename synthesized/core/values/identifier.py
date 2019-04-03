@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module
+from ..module import Module, tensorflow_name_scoped
 
 
 # TODO: num_identifiers multiplied by 3
@@ -10,15 +10,18 @@ from ..module import Module
 
 class IdentifierValue(Value):
 
-    def __init__(self, name, embedding_size, num_identifiers=None):
+    def __init__(self, name, capacity=None, embedding_size=None):
         super().__init__(name=name)
 
-        self.embedding_size = embedding_size
-        self.num_identifiers = num_identifiers
+        self.capacity = capacity
+        if embedding_size is None:
+            self.embedding_size = 2 * self.capacity
+        else:
+            self.embedding_size = embedding_size
 
     def specification(self):
         spec = super().specification()
-        spec.update(num_identifiers=self.num_identifiers, embedding_size=self.embedding_size)
+        spec.update(embedding_size=self.embedding_size)
         return spec
 
     def input_size(self):
@@ -27,20 +30,8 @@ class IdentifierValue(Value):
     def output_size(self):
         return 0
 
-    def placeholders(self):
-        raise NotImplementedError
-        yield self.placeholder
-
     def extract(self, data):
-        if self.num_identifiers is None:
-            self.num_identifiers = data[self.name].nunique() * 3
-        elif data[self.name].nunique() > self.num_identifiers:
-            raise NotImplementedError
-
-    def preprocess(self, data):
-        # normalization = {x: n for n, x in enumerate(data[self.name].unique())}
-        # data[self.name] = data[self.name].map(arg=normalization)
-        return data
+        self.num_identifiers = data[self.name].nunique() * 3
 
     def features(self, x=None):
         features = super().features(x=x)
@@ -52,33 +43,21 @@ class IdentifierValue(Value):
             )
         return features
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def module_initialize(self):
+        super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
-        # tf.TensorArray???
-        # self.identifiers = tf.get_variable(
-        #     name='identifiers', shape=(self.num_identifiers,), dtype=tf.int32,
-        #     initializer=util.initializers['zero_int'], regularizer=None, trainable=False,
-        #     collections=None, caching_device=None, partitioner=None, validate_shape=True,
-        #     use_resource=None, custom_getter=None
-        # )
+        initializer = util.get_initializer(initializer='normal')
         self.embeddings = tf.get_variable(
             name='embeddings', shape=(self.num_identifiers, self.embedding_size), dtype=tf.float32,
-            initializer=util.initializers['normal'], regularizer=None, trainable=False,
-            collections=None, caching_device=None, partitioner=None, validate_shape=True,
-            use_resource=None, custom_getter=None
+            initializer=initializer, regularizer=None, trainable=False, collections=None,
+            caching_device=None, partitioner=None, validate_shape=True, use_resource=None,
+            custom_getter=None
         )
 
-    def tf_input_tensor(self, feed=None):
-        # max_index = len(self.embeddings)???
-        # new_max_index = tf.reduce_max(input_tensor=self.placeholder, axis=1, keepdims=False)
-        # if max_index < new_max_index:
-        #     tf.random_normal(
-        #         shape=(new_max_index - max_index, self.embedding_size), mean=0.0, stddev=1.0,
-        #         dtype=tf.float32, seed=None
-        #     )
+    @tensorflow_name_scoped
+    def input_tensor(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
         x = tf.nn.embedding_lookup(
             params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,

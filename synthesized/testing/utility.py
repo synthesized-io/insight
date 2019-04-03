@@ -19,14 +19,13 @@ from sklearn import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics import mean_squared_error, accuracy_score, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
 
-from synthesized.core.values import ContinuousValue
 from synthesized.core.values import CategoricalValue
-
-
+from synthesized.core.values import ContinuousValue
+from synthesized.core.values import SamplingValue
 from .util import categorical_emd
 
 MAX_CATEGORIES = 50
@@ -46,16 +45,16 @@ def detect_display_types(synthesizer):
         if isinstance(value, ContinuousValue):
             result[value.name] = DisplayType.CONTINUOUS
         elif isinstance(value, CategoricalValue):
-            if value.similarity_based:
-                result[value.name] = DisplayType.CATEGORICAL_SIMILARITY
-            else:
-                result[value.name] = DisplayType.CATEGORICAL
+            result[value.name] = DisplayType.CATEGORICAL
     return result
 
 
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
         self.display_types = detect_display_types(synthesizer)
+        self.value_by_name = {}
+        for v in synthesizer.values:
+            self.value_by_name[v.name] = v
         self.df_orig = df_orig
         self.df_test = df_test
         self.df_synth = df_synth
@@ -99,16 +98,16 @@ class UtilityTesting:
             if dtype == DisplayType.CATEGORICAL:
                 ax = sns.countplot(x=col, hue='dataset', data=concatenated, palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
-            elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
-                # workaround for kde failing on datasets with only one value
-                if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
-                    kde = False
-                else:
-                    kde = True
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, hist=True, norm_hist=True,
-                             hist_kws={"color": COLOR_ORIG}, ax=ax)
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde, hist=True, norm_hist=True,
-                             hist_kws={"color": COLOR_SYNTH}, ax=ax)
+            # elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
+            #     # workaround for kde failing on datasets with only one value
+            #     if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
+            #         kde = False
+            #     else:
+            #         kde = True
+            #     sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, hist=True, norm_hist=True,
+            #                  hist_kws={"color": COLOR_ORIG}, ax=ax)
+            #     sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde, hist=True, norm_hist=True,
+            #                  hist_kws={"color": COLOR_SYNTH}, ax=ax)
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(self.df_test[col], percentiles)
@@ -132,9 +131,20 @@ class UtilityTesting:
         return self.df_synth
 
     def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
+        def skip_sampling(df):
+            for col in df.columns:
+                if isinstance(self.value_by_name[col], SamplingValue):
+                    df = df.drop(col, axis=1)
+            return df
+
         X, y = self.df_orig_encoded.drop(target, 1), self.df_orig_encoded[target]
         X_synth, y_synth = self.df_synth_encoded.drop(target, 1), self.df_synth_encoded[target]
         X_test, y_test = self.df_test_encoded.drop(target, 1), self.df_test_encoded[target]
+
+        X = skip_sampling(X)
+        X_synth = skip_sampling(X_synth)
+        X_test = skip_sampling(X_test)
+
         if self.display_types[target] == DisplayType.CATEGORICAL:
             clf = clone(classifier)
             clf.fit(X, y)
@@ -156,10 +166,10 @@ class UtilityTesting:
             clf.fit(X_synth, y_synth)
             y_pred_synth = clf.predict(X_test)
 
-            orig_score = np.sqrt(mean_squared_error(y_test, y_pred_orig))
-            synth_score = np.sqrt(mean_squared_error(y_test, y_pred_synth))
-            print('RMSE (orig):', orig_score)
-            print('RMSE (synth):', synth_score)
+            orig_score = r2_score(y_test, y_pred_orig)
+            synth_score = r2_score(y_test, y_pred_synth)
+            print('R2 (orig):', orig_score)
+            print('R2 (synth):', synth_score)
             return synth_score
 
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
