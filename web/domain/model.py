@@ -18,7 +18,10 @@ class User(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.Text, nullable=False, unique=True)
     password = db.Column(db.Text, nullable=False)
-    invites = db.relationship("UsedInvite", cascade="all, delete-orphan", lazy='select')
+    full_name = db.Column(db.Text)
+    phone_number = db.Column(db.Text)
+    job_title = db.Column(db.Text)
+    company = db.Column(db.Text)
 
     def __str__(self):
         return "<User {}>".format(self.id)

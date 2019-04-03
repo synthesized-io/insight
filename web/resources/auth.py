@@ -55,11 +55,22 @@ class UsersResource(Resource):
         parser.add_argument('invite_code', type=str, required=True)
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
+
+        parser.add_argument('full_name', type=str)
+        parser.add_argument('phone_number', type=str)
+        parser.add_argument('job_title', type=str)
+        parser.add_argument('company', type=str)
+
         args = parser.parse_args()
 
         invite_code = args['invite_code']
         username = args['username']
         password = args['password']
+
+        full_name = args['full_name']
+        phone_number = args['phone_number']
+        job_title = args['job_title']
+        company = args['company']
 
         current_app.logger.info('registering user {}'.format(username))
 
@@ -75,7 +86,12 @@ class UsersResource(Resource):
             current_app.logger.info('found existing user {}'.format(users[0]))
             abort(409, message='User with username={} already exists'.format(username))
 
-        user = User(username=username, password=self.bcrypt.generate_password_hash(password).hex())
+        user = User(username=username,
+                    password=self.bcrypt.generate_password_hash(password).hex(),
+                    full_name=full_name,
+                    phone_number=phone_number,
+                    job_title=job_title,
+                    company=company)
         self.user_repo.save(user)
         current_app.logger.info('created a user {}'.format(user))
 
