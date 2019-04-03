@@ -1,5 +1,8 @@
 import base64
 import zlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # 5 bytes-length crc-based hash
@@ -19,8 +22,12 @@ def bytes_to_base32_str(b):
 def check_invite_code(code: str, key: str):
     if len(code) != 16:
         return False
-    key_bytes = key.encode('utf-8')
-    msg_bytes = base64.b32decode(code[:8])
-    orig_sig = base64.b32decode(code[8:])
-    sig = hmacish(key_bytes, msg_bytes)
-    return orig_sig == sig
+    try:
+        key_bytes = key.encode('utf-8')
+        msg_bytes = base64.b32decode(code[:8])
+        orig_sig = base64.b32decode(code[8:])
+        sig = hmacish(key_bytes, msg_bytes)
+        return orig_sig == sig
+    except Exception as e:
+        logger.error(e)
+        return False
