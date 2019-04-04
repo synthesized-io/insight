@@ -27,12 +27,6 @@ else:
 app.json_encoder = JSONCompliantEncoder
 
 
-def send_top_level_file(filename):
-    folder = os.path.join(app.root_path, 'frontend/build')
-    cache_timeout = app.get_send_file_max_age(filename)
-    return send_from_directory(folder, filename, cache_timeout=cache_timeout)
-
-
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
