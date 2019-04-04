@@ -31,7 +31,7 @@ CLASSIFIERS = {
     'GradientBoostingClassifier': GradientBoostingClassifier
 }
 
-DEFAULT_MAX_SAMPLE_SIZE = 1000
+DEFAULT_MAX_SAMPLE_SIZE = 100
 
 
 class ReportResource(Resource, DatasetAccessMixin):
