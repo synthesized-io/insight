@@ -46,7 +46,6 @@ def manifest():
 
 @app.route('/precache-manifest.<string:version>.js')
 def precache_manifest(version):
-    print(version)
     return send_top_level_file('precache-manifest.{}.js'.format(version))
 
 
