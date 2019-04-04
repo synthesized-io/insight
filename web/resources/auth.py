@@ -15,16 +15,16 @@ class LoginResource(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('email', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
 
-        username = args['username']
+        email = args['email']
         password = args['password']
 
-        user = self.authenticator.authenticate(username, password)
+        user = self.authenticator.authenticate(email, password)
         if not user:
-            return {"message": "Bad username or password"}, 401
+            return {"message": "Bad email or password"}, 401
 
         ret = {
             'access_token': create_access_token(identity=user.id),
@@ -53,7 +53,7 @@ class UsersResource(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('invite_code', type=str, required=True)
-        parser.add_argument('username', type=str, required=True)
+        parser.add_argument('email', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
 
         parser.add_argument('first_name', type=str)
@@ -65,7 +65,7 @@ class UsersResource(Resource):
         args = parser.parse_args()
 
         invite_code = args['invite_code']
-        username = args['username']
+        email = args['email']
         password = args['password']
 
         first_name = args['first_name']
@@ -74,7 +74,7 @@ class UsersResource(Resource):
         job_title = args['job_title']
         company = args['company']
 
-        current_app.logger.info('registering user {}'.format(username))
+        current_app.logger.info('registering user {}'.format(email))
 
         used_invite = self.used_invite_repo.get(invite_code)
         if used_invite:
@@ -83,12 +83,12 @@ class UsersResource(Resource):
         if not check_invite_code(invite_code, current_app.config['INVITE_KEY']):
             abort(400, message='Invite code is invalid')
 
-        users = self.user_repo.find_by_props({'username': username})
+        users = self.user_repo.find_by_props({'email': email})
         if len(users) > 0:
             current_app.logger.info('found existing user {}'.format(users[0]))
-            abort(409, message='User with username={} already exists'.format(username))
+            abort(409, message='User with email={} already exists'.format(email))
 
-        user = User(username=username,
+        user = User(email=email,
                     password=self.bcrypt.generate_password_hash(password).hex(),
                     first_name=first_name,
                     last_name=last_name,

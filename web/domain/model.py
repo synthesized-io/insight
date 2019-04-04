@@ -16,7 +16,7 @@ class AuditMixin(object):
 
 class User(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.Text, nullable=False, unique=True)
+    email = db.Column(db.Text, nullable=False, unique=True)
     password = db.Column(db.Text, nullable=False)
     first_name = db.Column(db.Text)
     last_name = db.Column(db.Text)
