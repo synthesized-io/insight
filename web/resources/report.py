@@ -13,8 +13,9 @@ from sklearn.model_selection import train_test_split
 
 from .common import DatasetAccessMixin
 from ..application.report_item_ordering import ReportItemOrdering
+from ..domain import dataset_meta
 from ..domain.correlation import compute_correlation_similarity
-from ..domain.dataset_meta import DatasetMeta, DENSITY_PLOT_TYPE
+from ..domain.dataset_meta import DatasetMeta
 from ..domain.model import Report, ReportItem, ReportItemType, Dataset
 from ..domain.modelling import r2_regression_score, roc_auc_classification_score
 from ..domain.quality import quality_pct
@@ -65,7 +66,7 @@ class ReportResource(Resource, DatasetAccessMixin):
             if report_item.item_type == ReportItemType.CORRELATION:
                 columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == DENSITY_PLOT_TYPE:  # TODO: replace with type
+                    if column_meta.type_family == dataset_meta.CONTINUOUS_TYPE_FAMILY:
                         columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
@@ -81,9 +82,9 @@ class ReportResource(Resource, DatasetAccessMixin):
                 continuous_columns = []
                 categorical_columns = []
                 for column_meta in meta.columns:
-                    if column_meta.plot_type == DENSITY_PLOT_TYPE:  # TODO: replace with type
+                    if column_meta.type_family == dataset_meta.CONTINUOUS_TYPE_FAMILY:
                         continuous_columns.append(column_meta.name)
-                    else:
+                    elif column_meta.type_family == dataset_meta.CATEGORICAL_TYPE_FAMILY:
                         categorical_columns.append(column_meta.name)
                 item_views.append({
                     'id': report_item.id,
