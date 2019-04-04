@@ -76,12 +76,12 @@ class UsersResource(Resource):
 
         current_app.logger.info('registering user {}'.format(email))
 
+        if not check_invite_code(invite_code, email, current_app.config['INVITE_KEY']):
+            abort(400, message='Invalid invite code')
+
         used_invite = self.used_invite_repo.get(invite_code)
         if used_invite:
             abort(409, message='Invite code {} has already been used'.format(invite_code))
-
-        if not check_invite_code(invite_code, current_app.config['INVITE_KEY']):
-            abort(400, message='Invite code is invalid')
 
         users = self.user_repo.find_by_props({'email': email})
         if len(users) > 0:

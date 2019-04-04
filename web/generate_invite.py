@@ -1,32 +1,26 @@
 import base64
-import os
 import sys
 import zlib
 
 
-# 5 bytes-length crc-based hash
+# 4 bytes-length crc-based hash
 def h(x):
-    return (zlib.crc32(x) % 2**32).to_bytes(5, 'big')
+    return (zlib.crc32(x) % 2**32).to_bytes(4, 'little')
 
 
-# hmac-like message digest
-def hmacish(key, msg):
-    return h(key + h(key + msg))
-
-
-def bytes_to_base32_str(b):
-    return base64.b32encode(b).decode('utf-8')
+def digest(msg, key):
+    return h(msg + key)
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        sys.exit('usage: <key>')
+    if len(sys.argv) < 3:
+        sys.exit('usage: <key> <email>')
     key = sys.argv[1]
+    email = sys.argv[2]
 
     key_bytes = key.encode('utf-8')
-    msg_bytes = os.urandom(5)  # to have no padding in base32
+    msg_bytes = email.encode('utf-8')
 
-    sig = hmacish(key_bytes, msg_bytes)
+    d = digest(msg_bytes, key_bytes)
 
-    code = bytes_to_base32_str(msg_bytes) + bytes_to_base32_str(sig)
-    print(code)
+    print(base64.b16encode(d).decode('utf-8'))
