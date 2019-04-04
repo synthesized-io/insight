@@ -29,9 +29,30 @@ def send_top_level_file(filename):
     return send_from_directory(folder, filename, cache_timeout=cache_timeout)
 
 
+@app.route('/asset-manifest.json')
+def asset_manifest():
+    return send_top_level_file('asset-manifest.json')
+
+
 @app.route('/favicon.ico')
 def favicon():
     return send_top_level_file('favicon.ico')
+
+
+@app.route('/manifest.json')
+def manifest():
+    return send_top_level_file('manifest.json')
+
+
+@app.route('/precache-manifest.<string:version>.js')
+def precache_manifest(version):
+    print(version)
+    return send_top_level_file('precache-manifest.{}.js'.format(version))
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    return send_top_level_file('service-worker.js')
 
 
 @app.route('/', defaults={'path': ''})
