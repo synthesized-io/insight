@@ -56,7 +56,8 @@ class UsersResource(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
 
-        parser.add_argument('full_name', type=str)
+        parser.add_argument('first_name', type=str)
+        parser.add_argument('last_name', type=str)
         parser.add_argument('phone_number', type=str)
         parser.add_argument('job_title', type=str)
         parser.add_argument('company', type=str)
@@ -67,7 +68,8 @@ class UsersResource(Resource):
         username = args['username']
         password = args['password']
 
-        full_name = args['full_name']
+        first_name = args['first_name']
+        last_name = args['last_name']
         phone_number = args['phone_number']
         job_title = args['job_title']
         company = args['company']
@@ -88,7 +90,8 @@ class UsersResource(Resource):
 
         user = User(username=username,
                     password=self.bcrypt.generate_password_hash(password).hex(),
-                    full_name=full_name,
+                    first_name=first_name,
+                    last_name=last_name,
                     phone_number=phone_number,
                     job_title=job_title,
                     company=company)
