@@ -1,7 +1,7 @@
 from web.infastructure.flask_support import configure_logger
 configure_logger()
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, safe_join, send_file
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_restful import Api
@@ -15,7 +15,11 @@ from .application.synthesizer_manager import SynthesizerManager
 from .application.authenticator import Authenticator
 import os
 
-app = Flask(__name__, static_url_path='/static', static_folder='frontend/build/static')
+STATIC_DIR = 'frontend/build'
+INDEX_FILE = 'index.html'
+
+# static_folder=None disables static serving, we will use a custom one
+app = Flask(__name__, static_folder=None)
 if app.config['ENV'] == 'production':
     app.config.from_object(ProductionConfig)
 else:
@@ -29,35 +33,16 @@ def send_top_level_file(filename):
     return send_from_directory(folder, filename, cache_timeout=cache_timeout)
 
 
-@app.route('/asset-manifest.json')
-def asset_manifest():
-    return send_top_level_file('asset-manifest.json')
-
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_top_level_file('favicon.ico')
-
-
-@app.route('/manifest.json')
-def manifest():
-    return send_top_level_file('manifest.json')
-
-
-@app.route('/precache-manifest.<string:version>.js')
-def precache_manifest(version):
-    return send_top_level_file('precache-manifest.{}.js'.format(version))
-
-
-@app.route('/service-worker.js')
-def service_worker():
-    return send_top_level_file('service-worker.js')
-
-
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
-    return send_top_level_file('index.html')
+    filename = safe_join(app.root_path, STATIC_DIR, path)
+    if os.path.isfile(filename):
+        cache_timeout = app.get_send_file_max_age(path)
+        return send_file(filename, cache_timeout=cache_timeout)
+    else:
+        cache_timeout = app.get_send_file_max_age(INDEX_FILE)
+        return send_from_directory(STATIC_DIR, INDEX_FILE, cache_timeout=cache_timeout)
 
 
 CORS(app, supports_credentials=True)  # TODO: delete in final version
