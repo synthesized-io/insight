@@ -5,7 +5,7 @@ import zlib
 
 # 4 bytes-length crc-based hash
 def h(x):
-    return (zlib.crc32(x) % 2**32).to_bytes(4, 'little')
+    return (zlib.crc32(x) % 2**32).to_bytes(4, 'big')
 
 
 def digest(msg, key):
