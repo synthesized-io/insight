@@ -10,3 +10,8 @@ class Repository:
 
     def delete(self, entity):
         pass
+
+
+class Directory:
+    def list_items(self):
+        pass

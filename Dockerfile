@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y yarn
 
 WORKDIR /app
 COPY requirements.txt /app
-RUN pip3 install -r requirements.txt
+COPY requirements-web.txt /app
+RUN pip3 install -r requirements-web.txt
 RUN pip3 install gunicorn
 
 COPY synthesized /app/synthesized

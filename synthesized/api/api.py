@@ -20,9 +20,9 @@ class Synthesize(Resource):
         args = parse.parse_args()
         file = args['file']
         with file.stream as stream:
-            data = pd.read_csv(stream)
+            data = pd.read_csv(stream).dropna()
             print(data.head(5))
-            with BasicSynthesizer(data=data, exclude_encoding_loss=True) as synthesizer:
+            with BasicSynthesizer(data=data) as synthesizer:
                 synthesizer.learn(num_iterations=2000, data=data, verbose=200)
                 synthesized = synthesizer.synthesize(len(data))
                 out = StringIO()

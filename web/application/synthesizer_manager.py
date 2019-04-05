@@ -14,6 +14,10 @@ from ..domain.repository import Repository
 logger = logging.getLogger(__name__)
 
 
+MAX_ROWS_TO_ANALYZE = 10000
+MAX_ROWS_TO_LEARN = 100000
+
+
 class ModelStatus(Enum):
     NO_MODEL = 1
     TRAINING = 2
@@ -63,11 +67,14 @@ class SynthesizerManager:
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.dropna()
 
+        analyze_size = min(len(data), MAX_ROWS_TO_ANALYZE)
+        learn_size = min(len(data), MAX_ROWS_TO_LEARN)
+
         logger.info('start model training')
         try:
-            synthesizer = BasicSynthesizer(data=data)
+            synthesizer = BasicSynthesizer(data=data.sample(analyze_size))
             synthesizer.__enter__()
-            synthesizer.learn(data=data)
+            synthesizer.learn(data=data.sample(learn_size))
             logger.info('model has been trained')
             return synthesizer
         except Exception as e:
