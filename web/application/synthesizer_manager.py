@@ -1,15 +1,18 @@
+import gc
 import logging
 from collections import OrderedDict
 from enum import Enum
 from io import BytesIO
 from queue import Queue
 from threading import Lock, Thread
-import gc
 
 import pandas as pd
 
 from synthesized.core import BasicSynthesizer, Synthesizer
+from ..domain.dataset_meta import recompute_dataset_meta, DatasetMeta
+from ..domain.model import Dataset
 from ..domain.repository import Repository
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +29,16 @@ class ModelStatus(Enum):
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository, max_models):
-        self.cache = OrderedDict()
-        self.max_models = max_models
-        self.requests = set()
-        self.cache_lock = Lock()
-        self.requests_lock = Lock()
+    def __init__(self, dataset_repo: Repository, max_models, preview_size=1000):
         self.dataset_repo = dataset_repo
+        self.max_models = max_models
+        self.preview_size = preview_size
+        self.cache = OrderedDict()
+        self.cache_lock = Lock()
+        self.preview_cache = {}
+        self.preview_cache_lock = Lock()
+        self.requests = set()
+        self.requests_lock = Lock()
         self.request_queue = Queue()
         self.thread = Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -40,7 +46,24 @@ class SynthesizerManager:
     def _run(self):
         while True:
             dataset_id = self.request_queue.get()
-            synthesizer_or_error = self._train_model(dataset_id)
+            synthesizer_or_error = None
+            for i in self._train_model(dataset_id):
+                if not i:
+                    break
+                if isinstance(i, Synthesizer):
+                    try:
+                        dataset: Dataset = self.dataset_repo.get(dataset_id)
+                        if not dataset:
+                            break
+                        print('computing meta')
+                        old_meta = dataset.get_meta_as_object()
+                        data = i.synthesize(self.preview_size)
+                        meta = recompute_dataset_meta(data, old_meta)
+                        with self.preview_cache_lock:
+                            self.preview_cache[dataset_id] = meta
+                    except Exception as e:
+                        logger.error(e)
+                synthesizer_or_error = i
             if not synthesizer_or_error:
                 continue
             with self.cache_lock:
@@ -57,12 +80,15 @@ class SynthesizerManager:
                 self.cache[dataset_id] = synthesizer_or_error
             with self.requests_lock:
                 self.requests.remove(dataset_id)
+            with self.preview_cache_lock:
+                if dataset_id in self.preview_cache:
+                    del self.preview_cache[dataset_id]
 
     def _train_model(self, dataset_id):
         dataset = self.dataset_repo.get(dataset_id)
         if not dataset:
             logger.info('could not find dataset by id=' + dataset_id)
-            return
+            yield None
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.dropna()
@@ -74,20 +100,20 @@ class SynthesizerManager:
         try:
             synthesizer = BasicSynthesizer(data=data.sample(analyze_size))
             synthesizer.__enter__()
-            synthesizer.learn(data=data.sample(learn_size))
+            for _ in synthesizer.learn_async(data=data.sample(learn_size), yield_every=250):
+                yield synthesizer
             logger.info('model has been trained')
-            return synthesizer
         except Exception as e:
             logger.exception(e)
-            return e
+            yield e
 
-    def train_async(self, dataset_id):
+    def train_async(self, dataset_id) -> None:
         with self.requests_lock:
             if dataset_id not in self.requests:
                 self.requests.add(dataset_id)
                 self.request_queue.put(dataset_id)
 
-    def get_status(self, dataset_id):
+    def get_status(self, dataset_id) -> ModelStatus:
         with self.cache_lock:
             if dataset_id in self.cache:
                 if isinstance(self.cache[dataset_id], Exception):
@@ -99,7 +125,11 @@ class SynthesizerManager:
                 return ModelStatus.TRAINING
         return ModelStatus.NO_MODEL
 
-    def get_model(self, dataset_id):
+    def get_preview(self, dataset_id) -> DatasetMeta:
+        with self.preview_cache_lock:
+            return self.preview_cache.get(dataset_id, None)
+
+    def get_model(self, dataset_id) -> Optional[Synthesizer]:
         with self.cache_lock:
             synthesizer_or_error = self.cache.get(dataset_id, None)
             if isinstance(str, Exception):

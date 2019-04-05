@@ -298,6 +298,12 @@ class BasicSynthesizer(Synthesizer):
                 self.transformed[label] = x
 
     def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+        try:
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
+        except StopIteration:  # since yield_every is 0 we expect an empty generator
+            pass
+
+    def learn_async(self, num_iterations=2500, data=None, filenames=None, verbose=0, yield_every=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -321,6 +327,8 @@ class BasicSynthesizer(Synthesizer):
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
                     self.log_metrics(data, fetched, iteration)
+                if yield_every > 0 and iteration % yield_every + 1 == yield_every:
+                    yield
 
         else:
             if verbose > 0:

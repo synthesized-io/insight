@@ -46,6 +46,28 @@ class ModelResource(Resource, DatasetAccessMixin):
         return {'status': 'training'}, 202, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
 
+class SynthesisPreviewResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
+
+    def get(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
+        preview = self.synthesizer_manager.get_preview(dataset_id)
+        if not preview:
+            abort(404, message='No preview for dataset ' + str(dataset_id))
+
+        preview_str = simplejson.dumps(preview, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
+        preview_json = simplejson.loads(preview_str)
+
+        return jsonify({
+            'meta': preview_json
+        })
+
+
 class SynthesisResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
