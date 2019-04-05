@@ -122,13 +122,14 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
             bins = _bounded_bin_selector(column_cleaned, max_bins=DEFAULT_MAX_BINS)
             hist, edges = np.histogram(column_cleaned, bins=bins)
+            hist = _normalize_hist(hist, edges)
 
             kde = gaussian_kde(column_cleaned)
             bw = kde.scotts_factor() * np.std(column_cleaned)
             density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
             density = kde(density_support)
 
-            hist = list(map(int, hist))
+            hist = list(map(float, hist))
             edges = list(map(float, edges))
             density_support = list(map(float, density_support))
             density = list(map(float, density))
@@ -190,6 +191,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
+            hist = _normalize_hist(hist, edges)
 
             kde = gaussian_kde(column_cleaned)
             bw = kde.scotts_factor() * np.std(column_cleaned)
@@ -199,7 +201,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
             density = kde(density_support)
 
-            hist = list(map(int, hist))
+            hist = list(map(float, hist))
             edges = list(map(float, edges))
             density_support = list(map(float, density_support))
             density = list(map(float, density))
@@ -247,6 +249,13 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
         n_types=meta.n_types,
         columns=columns_meta,
     )
+
+
+def _normalize_hist(hist, edges):
+    hist = np.asanyarray(hist)
+    edges = np.asanyarray(edges)
+    area = sum(np.diff(edges) * hist)
+    return hist / float(area)
 
 
 def _bounded_bin_selector(a, max_bins):
