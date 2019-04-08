@@ -72,7 +72,7 @@ template_directory = JsonFileDirectory(os.path.join(app.root_path, 'project_temp
 project_templates = ProjectTemplates(template_directory, dataset_repo)
 
 from .resources.auth import LoginResource, RefreshResource, UsersResource
-from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource
+from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource, DatasetUpdateSettingsResource
 from .resources.synthesis import ModelResource, SynthesisResource, SynthesisPreviewResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
@@ -84,6 +84,7 @@ api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': us
 api.add_resource(DatasetsResource, '/datasets', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(DatasetResource, '/datasets/<dataset_id>', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo', resource_class_kwargs={'dataset_repo': dataset_repo})
+api.add_resource(DatasetUpdateSettingsResource, '/datasets/<dataset_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesis_repo': synthesis_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(SynthesisPreviewResource, '/datasets/<dataset_id>/synthesis-preview', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})

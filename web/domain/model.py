@@ -45,6 +45,7 @@ class Dataset(db.Model, AuditMixin):
     meta = db.Column(db.LargeBinary, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
+    settings = db.Column(db.LargeBinary)
 
     def get_meta_as_object(self) -> DatasetMeta:
         # Parse JSON into an object with attributes corresponding to dict keys.

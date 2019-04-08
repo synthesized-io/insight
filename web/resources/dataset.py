@@ -124,3 +124,24 @@ class DatasetUpdateInfoResource(Resource, DatasetAccessMixin):
         self.dataset_repo.save(dataset)
 
         return '', 204
+
+
+class DatasetUpdateSettingsResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+
+    def post(self, dataset_id):
+        dataset = self.get_dataset_authorized(dataset_id)
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('settings', type=dict, required=False)
+        args = parser.parse_args()
+
+        settings = args['settings']
+        dataset.settings = simplejson.dumps(settings).encode('utf-8')
+
+        self.dataset_repo.save(dataset)
+
+        return '', 204
