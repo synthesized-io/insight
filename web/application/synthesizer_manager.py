@@ -29,10 +29,11 @@ class ModelStatus(Enum):
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository, max_models, preview_size=1000):
+    def __init__(self, dataset_repo: Repository, max_models, preview_size=1000, yield_every=250):
         self.dataset_repo = dataset_repo
         self.max_models = max_models
         self.preview_size = preview_size
+        self.yield_every = yield_every
         self.cache = OrderedDict()
         self.cache_lock = Lock()
         self.preview_cache = {}
@@ -47,25 +48,20 @@ class SynthesizerManager:
         while True:
             dataset_id = self.request_queue.get()
             synthesizer_or_error = None
-            for i in self._train_model(dataset_id):
-                if not i:
-                    break
-                if isinstance(i, Synthesizer):
+            for train_result in self._train_model(dataset_id):
+                if isinstance(train_result, Synthesizer):
                     try:
                         dataset: Dataset = self.dataset_repo.get(dataset_id)
                         if not dataset:
                             break
-                        print('computing meta')
                         old_meta = dataset.get_meta_as_object()
-                        data = i.synthesize(self.preview_size)
+                        data = train_result.synthesize(self.preview_size)
                         meta = recompute_dataset_meta(data, old_meta)
                         with self.preview_cache_lock:
                             self.preview_cache[dataset_id] = meta
                     except Exception as e:
                         logger.error(e)
-                synthesizer_or_error = i
-            if not synthesizer_or_error:
-                continue
+                synthesizer_or_error = train_result
             with self.cache_lock:
                 if len(self.cache) == self.max_models:
                     logger.info("popping first item from cache")
@@ -87,8 +83,7 @@ class SynthesizerManager:
     def _train_model(self, dataset_id):
         dataset = self.dataset_repo.get(dataset_id)
         if not dataset:
-            logger.info('could not find dataset by id=' + dataset_id)
-            yield None
+            yield Exception('Could not find dataset by id=' + str(dataset_id))
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.dropna()
@@ -100,7 +95,7 @@ class SynthesizerManager:
         try:
             synthesizer = BasicSynthesizer(data=data.sample(analyze_size))
             synthesizer.__enter__()
-            for _ in synthesizer.learn_async(data=data.sample(learn_size), yield_every=250):
+            for _ in synthesizer.learn_async(data=data.sample(learn_size), yield_every=self.yield_every):
                 yield synthesizer
             logger.info('model has been trained')
         except Exception as e:
