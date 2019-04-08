@@ -44,9 +44,8 @@ class ReportResource(Resource, DatasetAccessMixin):
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
         meta: DatasetMeta = dataset.get_meta_as_object()
-        settings = dataset.get_settings_as_dict()
-        if settings:
-            disabled_columns = set(settings['disabled_columns'])
+        if dataset.settings:
+            disabled_columns = set(dataset.get_settings_as_dict()['disabled_columns'])
         else:
             disabled_columns = set()
 
