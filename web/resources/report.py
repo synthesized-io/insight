@@ -44,10 +44,7 @@ class ReportResource(Resource, DatasetAccessMixin):
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
         meta: DatasetMeta = dataset.get_meta_as_object()
-        if dataset.settings:
-            disabled_columns = set(dataset.get_settings_as_dict()['disabled_columns'])
-        else:
-            disabled_columns = set()
+        disabled_columns = dataset.get_settings_as_dict().get('disabled_columns', [])
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) > 0:

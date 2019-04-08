@@ -81,14 +81,11 @@ class SynthesizerManager:
                     del self.preview_cache[dataset_id]
 
     def _train_model(self, dataset_id):
-        dataset = self.dataset_repo.get(dataset_id)
+        dataset: Dataset = self.dataset_repo.get(dataset_id)
         if not dataset:
             yield Exception('Could not find dataset by id=' + str(dataset_id))
 
-        if dataset.settings:
-            disabled_columns = dataset.get_settings_as_dict()['disabled_columns']
-        else:
-            disabled_columns = []
+        disabled_columns = dataset.get_settings_as_dict().get('disabled_columns', [])
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.drop(disabled_columns, axis=1)
