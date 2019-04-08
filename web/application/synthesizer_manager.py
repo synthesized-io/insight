@@ -8,7 +8,6 @@ from threading import Lock, Thread
 from typing import Optional
 
 import pandas as pd
-import simplejson
 
 from synthesized.core import BasicSynthesizer, Synthesizer
 from ..domain.dataset_meta import recompute_dataset_meta, DatasetMeta
@@ -86,10 +85,10 @@ class SynthesizerManager:
         if not dataset:
             yield Exception('Could not find dataset by id=' + str(dataset_id))
 
-        disabled_columns = []
         if dataset.settings:
-            settings = simplejson.load(BytesIO(dataset.settings), encoding='utf-8')
-            disabled_columns = settings['disabled_columns']
+            disabled_columns = dataset.get_settings_as_dict()['disabled_columns']
+        else:
+            disabled_columns = []
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.drop(disabled_columns, axis=1)

@@ -23,7 +23,7 @@ then
 fi
 
 curl -f -i -XPOST -d 'title=title&description=description' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updateinfo
-curl -f -i -XPOST -d '{"settings": {"disabled_columns": ["effort"]}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updatesettings
+curl -f -i -XPOST -d '{"settings": {"disabled_columns": ["NumberRealEstateLoansOrLines"]}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updatesettings
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 
@@ -34,6 +34,7 @@ while true; do
     if [[ "$STATUS" != "training" ]]; then
         break
     fi
+    curl -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis-preview
     sleep 5
 done
 

@@ -38,7 +38,7 @@ class ColumnMeta(ABC):
 
 
 class ContinuousPlotData:
-    def __init__(self, edges: Iterable[float], hist: Iterable[int], density_support: Iterable[float], density: Iterable[float]):
+    def __init__(self, edges: Iterable[float], hist: Iterable[float], density_support: Iterable[float], density: Iterable[float]):
         self.edges = edges
         self.hist = hist
         self.density_support = density_support
@@ -187,6 +187,8 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
     data.to_csv(raw_data, index=False)
     columns_meta = []
     for column_meta in meta.columns:
+        if column_meta.name not in data:  # some columns might be disabled
+            continue
         if column_meta.plot_type == DENSITY_PLOT_TYPE:  # we want duck typing here
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]

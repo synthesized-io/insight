@@ -44,6 +44,11 @@ class ReportResource(Resource, DatasetAccessMixin):
     def get(self, dataset_id):
         dataset: Dataset = self.get_dataset_authorized(dataset_id)
         meta: DatasetMeta = dataset.get_meta_as_object()
+        settings = dataset.get_settings_as_dict()
+        if settings:
+            disabled_columns = set(settings['disabled_columns'])
+        else:
+            disabled_columns = set()
 
         reports = self.report_repo.find_by_props({'dataset_id': dataset_id})
         if len(reports) > 0:
@@ -66,6 +71,8 @@ class ReportResource(Resource, DatasetAccessMixin):
             if report_item.item_type == ReportItemType.CORRELATION:
                 columns = []
                 for column_meta in meta.columns:
+                    if column_meta.name in disabled_columns:
+                        continue
                     if column_meta.type_family == dataset_meta.CONTINUOUS_TYPE_FAMILY:
                         columns.append(column_meta.name)
                 item_views.append({
@@ -82,6 +89,8 @@ class ReportResource(Resource, DatasetAccessMixin):
                 continuous_columns = []
                 categorical_columns = []
                 for column_meta in meta.columns:
+                    if column_meta.name in disabled_columns:
+                        continue
                     if column_meta.type_family == dataset_meta.CONTINUOUS_TYPE_FAMILY:
                         continuous_columns.append(column_meta.name)
                     elif column_meta.type_family == dataset_meta.CATEGORICAL_TYPE_FAMILY:

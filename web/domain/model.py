@@ -54,6 +54,12 @@ class Dataset(db.Model, AuditMixin):
     def set_meta_from_object(self, meta: DatasetMeta):
         self.meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
 
+    def get_settings_as_dict(self) -> dict:
+        return simplejson.load(BytesIO(self.settings), encoding='utf-8')
+
+    def set_settings_from_dict(self, settings: dict):
+        self.settings = simplejson.dumps(settings).encode('utf-8')
+
     def __str__(self):
         return '<Dataset {}>'.format(self.id)
 
