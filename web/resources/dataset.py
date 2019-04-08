@@ -89,7 +89,8 @@ class DatasetResource(Resource, DatasetAccessMixin):
             'title': dataset.title,
             'description': dataset.description,
             'meta': simplejson.load(BytesIO(dataset.meta), encoding='utf-8'),
-            'sample': data[:sample_size].to_dict(orient='list')
+            'sample': data[:sample_size].to_dict(orient='list'),
+            'settings': dataset.get_settings_as_dict(),
         })
 
     def delete(self, dataset_id):
