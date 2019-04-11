@@ -1,15 +1,15 @@
-import names
+import faker
 import numpy as np
 import pandas as pd
 
-from .value import Value
 from .categorical import CategoricalValue
+from .value import Value
 from ..module import tensorflow_name_scoped
 
 
 class PersonValue(Value):
 
-    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None):
+    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=10000):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -19,8 +19,12 @@ class PersonValue(Value):
         self.lastname_label = lastname_label
         self.email_label = email_label
         # Assume the gender are always encoded like M or F or U(???)
-        self.gender_mapping = {'M': 'male', 'F': 'female', 'U': 'female'}
         self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
+
+        fkr = faker.Faker(locale='en_GB')
+        self.male_first_name_cache = [fkr.first_name_male() for _ in range(dict_cache_size)]
+        self.female_first_name_cache = [fkr.first_name_female() for _ in range(dict_cache_size)]
+        self.last_name_cache = [fkr.last_name() for _ in range(dict_cache_size)]
 
         if gender_label is None:
             self.gender = None
@@ -77,9 +81,17 @@ class PersonValue(Value):
         else:
             data = self.gender.postprocess(data=data)
             gender = data[self.gender_label]
-        title = gender.astype(dtype=str).apply(func=lambda g: self.title_mapping[g])
-        firstname = gender.astype(dtype=str).apply(func=lambda g: names.get_first_name(self.gender_mapping[g]))
-        lastname = pd.Series(data=(names.get_last_name() for _ in range(len(data))))
+
+        def get_first_name(g):
+            if g == 'M':
+                return np.random.choice(self.male_first_name_cache)
+            else:
+                return np.random.choice(self.female_first_name_cache)
+
+        title = gender.astype(dtype=str).apply(func=self.title_mapping.__getitem__)
+        firstname = gender.astype(dtype=str).apply(func=get_first_name)
+        lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(data)))
+
         if self.title_label is not None:
             data[self.title_label] = title
         if self.name_label is not None:
