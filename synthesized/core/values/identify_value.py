@@ -24,6 +24,7 @@ from .lognorm import LognormDistrValue
 from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm, lognorm
 
 REMOVE_OUTLIERS_PCT = 1.0
+MAX_FIT_SAMPLE = 10000
 MAX_FIT_DISTANCE = 1.0
 MIN_FIT_DISTANCE = 0.15
 CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat, lognorm]
@@ -119,7 +120,8 @@ def identify_value(module, name, dtype, data):
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
             min_distance = MAX_FIT_DISTANCE
-            column_cleaned = ContinuousValue.remove_outliers(clean, name, pct=REMOVE_OUTLIERS_PCT)[name]
+            subsample_size = min(len(clean), MAX_FIT_SAMPLE)
+            column_cleaned = ContinuousValue.remove_outliers(clean.sample(subsample_size), name, pct=REMOVE_OUTLIERS_PCT)[name]
             for distr in CONT_DISTRIBUTIONS:
                 params = distr.fit(column_cleaned)
                 transformed = norm.ppf(distr.cdf(column_cleaned, *params))
