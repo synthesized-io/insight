@@ -9,7 +9,7 @@ from ..module import tensorflow_name_scoped
 
 class PersonValue(Value):
 
-    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=1000):
+    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=10000):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -22,9 +22,9 @@ class PersonValue(Value):
         self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
 
         fkr = faker.Faker(locale='en_GB')
-        self.male_first_name_cache = np.array([fkr.first_name_male() for _ in range(dict_cache_size)])
-        self.female_first_name_cache = np.array([fkr.first_name_female() for _ in range(dict_cache_size)])
-        self.last_name_cache = np.array([fkr.last_name() for _ in range(dict_cache_size)])
+        self.male_first_name_cache = np.array({fkr.first_name_male() for _ in range(dict_cache_size)})
+        self.female_first_name_cache = np.array({fkr.first_name_female() for _ in range(dict_cache_size)})
+        self.last_name_cache = np.array({fkr.last_name() for _ in range(dict_cache_size)})
 
         if gender_label is None:
             self.gender = None
