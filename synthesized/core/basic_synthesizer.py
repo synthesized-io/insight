@@ -22,7 +22,7 @@ class BasicSynthesizer(Synthesizer):
         # hyperparameters
         capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
         # person
-        gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
+        title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
         # address
         postcode_label=None, street_label=None,
@@ -44,6 +44,7 @@ class BasicSynthesizer(Synthesizer):
 
         # person
         self.person_value = None
+        self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
         self.firstname_label = firstname_label
