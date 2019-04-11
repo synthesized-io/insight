@@ -90,10 +90,11 @@ class PersonValue(Value):
             data[self.lastname_label] = lastname
         if self.email_label is not None:
             # https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
-            domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
+            # we don't want clashes with real emails
+            # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
             data[self.email_label] = firstname.str.lower() \
                 .str.cat(others=lastname.str.lower(), sep='.') \
-                .str.cat(others=domain, sep='@')
+                .str.cat(others='example.com', sep='@')
         return data
 
     def features(self, x=None):
