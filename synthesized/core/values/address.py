@@ -139,7 +139,7 @@ class AddressValue(Value):
             if self.street_label:
                 data[mask][self.street_label] = self.streets[postcode_key]
             if self.city_label:
-                data[mask][self.city_label] = self.streets[postcode_key]
+                data[mask][self.city_label] = self.cities[postcode_key]
         data[self.postcode_label] = postcode
         return data
 
