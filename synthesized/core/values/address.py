@@ -106,7 +106,7 @@ class AddressValue(Value):
 
         # convert list to ndarray for better performance
         for key, postcode in self.postcodes.items():
-            self.postcodes = np.array(self.postcodes[key])
+            self.postcodes[key] = np.array(self.postcodes[key])
 
         if self.postcode is not None:
             postcode_data = pd.DataFrame({self.postcode_label: keys})
