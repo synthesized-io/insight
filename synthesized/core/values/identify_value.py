@@ -55,7 +55,7 @@ def identify_value(module, name, dtype, data):
         if module.address_value is None:
             value = module.add_module(
                 module=AddressValue, name='address', postcode_level=1,
-                postcode_label=module.postcode_label, street_label=module.street_label,
+                postcode_label=module.postcode_label, city_label=module.city_label, street_label=module.street_label,
                 capacity=module.capacity
             )
             module.address_value = value
