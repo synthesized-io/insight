@@ -9,7 +9,7 @@ from ..module import tensorflow_name_scoped
 
 class PersonValue(Value):
 
-    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=10000):
+    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=1000):
         super().__init__(name=name)
 
         self.title_label = title_label
