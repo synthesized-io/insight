@@ -1,29 +1,37 @@
-import names
+import faker
 import numpy as np
 import pandas as pd
 
-from .value import Value
 from .categorical import CategoricalValue
+from .value import Value
 from ..module import tensorflow_name_scoped
 
 
 class PersonValue(Value):
 
-    def __init__(self, name, gender_label=None, gender_embedding_size=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None):
+    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None, dict_cache_size=10000):
         super().__init__(name=name)
 
+        self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        # Assume the gender are always encoded like M or F or U(???)
+        self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
+
+        fkr = faker.Faker(locale='en_GB')
+        self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
+        self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
+        self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))
 
         if gender_label is None:
             self.gender = None
         else:
             self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, categories=['female', 'male'],
-                embedding_size=gender_embedding_size
+                module=CategoricalValue, name=gender_label,
+                capacity=capacity,
             )
 
     def input_size(self):
@@ -73,8 +81,19 @@ class PersonValue(Value):
         else:
             data = self.gender.postprocess(data=data)
             gender = data[self.gender_label]
-        firstname = gender.astype(dtype=str).apply(func=names.get_first_name)
-        lastname = pd.Series(data=(names.get_last_name() for _ in range(len(data))))
+
+        def get_first_name(g):
+            if g == 'M':
+                return np.random.choice(self.male_first_name_cache)
+            else:
+                return np.random.choice(self.female_first_name_cache)
+
+        title = gender.astype(dtype=str).apply(func=self.title_mapping.__getitem__)
+        firstname = gender.astype(dtype=str).apply(func=get_first_name)
+        lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(data)))
+
+        if self.title_label is not None:
+            data[self.title_label] = title
         if self.name_label is not None:
             data[self.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.firstname_label is not None:
@@ -83,10 +102,11 @@ class PersonValue(Value):
             data[self.lastname_label] = lastname
         if self.email_label is not None:
             # https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
-            domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
+            # we don't want clashes with real emails
+            # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
             data[self.email_label] = firstname.str.lower() \
-                .str.cat(others=lastname.str.lower(), sep='.') \
-                .str.cat(others=domain, sep='@')
+                .str.cat(others=lastname.str.lower(), sep='.')
+            data[self.email_label] += '@example.com'
         return data
 
     def features(self, x=None):

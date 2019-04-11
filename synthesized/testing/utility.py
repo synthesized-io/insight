@@ -133,7 +133,7 @@ class UtilityTesting:
     def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
         def skip_sampling(df):
             for col in df.columns:
-                if isinstance(self.value_by_name[col], SamplingValue):
+                if col not in self.value_by_name or isinstance(self.value_by_name[col], SamplingValue):
                     df = df.drop(col, axis=1)
             return df
 
