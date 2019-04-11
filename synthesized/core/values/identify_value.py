@@ -54,7 +54,7 @@ def identify_value(module, name, dtype, data):
     elif name in (getattr(module, 'postcode_label', None), getattr(module, 'city_label', None), getattr(module, 'street_label', None)):
         if module.address_value is None:
             value = module.add_module(
-                module=AddressValue, name='address', postcode_level=1,
+                module=AddressValue, name='address', postcode_level=0,
                 postcode_label=module.postcode_label, city_label=module.city_label, street_label=module.street_label,
                 capacity=module.capacity
             )

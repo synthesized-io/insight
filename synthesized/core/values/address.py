@@ -142,10 +142,10 @@ class AddressValue(Value):
         for postcode_key, postcode_values in self.postcodes.items():
             mask = (postcode == postcode_key)
             postcode[mask] += np.random.choice(a=postcode_values, size=mask.sum())
-            if self.street_label:
-                street[mask] = self.streets[postcode_key]
             if self.city_label:
                 city[mask] = self.cities[postcode_key]
+            if self.street_label:
+                street[mask] = self.streets[postcode_key]
         data[self.postcode_label] = postcode
         if self.city_label:
             data[self.city_label] = city.values
