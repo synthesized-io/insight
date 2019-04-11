@@ -148,9 +148,9 @@ class AddressValue(Value):
                 city[mask] = self.cities[postcode_key]
         data[self.postcode_label] = postcode
         if self.city_label:
-            data[self.city_label] = city
+            data[self.city_label] = city.values
         if self.street_label:
-            data[self.street_label] = street
+            data[self.street_label] = street.values
         return data
 
     def features(self, x=None):
