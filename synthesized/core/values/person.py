@@ -93,8 +93,8 @@ class PersonValue(Value):
             # we don't want clashes with real emails
             # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
             data[self.email_label] = firstname.str.lower() \
-                .str.cat(others=lastname.str.lower(), sep='.') \
-                .str.cat(others='example.com', sep='@')
+                .str.cat(others=lastname.str.lower(), sep='.')
+            data[self.email_label] += '@example.com'
         return data
 
     def features(self, x=None):
