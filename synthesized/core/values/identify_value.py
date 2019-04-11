@@ -43,7 +43,7 @@ def identify_value(module, name, dtype, data):
     if name in (getattr(module, 'title_label', None), getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
-                module=PersonValue, name='person', gender_label=module.gender_label,
+                module=PersonValue, name='person', title_label=module.title_label, gender_label=module.gender_label,
                 name_label=module.name_label, firstname_label=module.firstname_label,
                 lastname_label=module.lastname_label, email_label=module.email_label,
                 capacity=module.capacity,
