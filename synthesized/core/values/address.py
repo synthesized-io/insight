@@ -76,7 +76,7 @@ class AddressValue(Value):
             self.postcodes = {postcode: list() for postcode in self.postcodes}
             fixed = True
 
-        postcodes = []
+        keys = []
         for n, row in data.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
@@ -102,10 +102,14 @@ class AddressValue(Value):
             if self.city_label:
                 self.cities[postcode_key] = row[self.city_label]
 
-            postcodes.append(postcode_key)
+            keys.append(postcode_key)
+
+        # convert list to ndarray for better performance
+        for key, postcode in self.postcodes.items():
+            self.postcodes = np.array(self.postcodes[key])
 
         if self.postcode is not None:
-            postcode_data = pd.DataFrame({self.postcode_label: postcodes})
+            postcode_data = pd.DataFrame({self.postcode_label: keys})
             self.postcode.extract(data=postcode_data)
 
     def preprocess(self, data):
