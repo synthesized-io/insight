@@ -9,14 +9,17 @@ from ..module import tensorflow_name_scoped
 
 class PersonValue(Value):
 
-    def __init__(self, name, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None):
+    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None):
         super().__init__(name=name)
 
+        self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        self.gender_mapping = {'M': 'male', 'F': 'female'}
+        self.title_mapping = {'M': 'Mr', 'F': 'Mrs'}
 
         if gender_label is None:
             self.gender = None
@@ -73,8 +76,11 @@ class PersonValue(Value):
         else:
             data = self.gender.postprocess(data=data)
             gender = data[self.gender_label]
-        firstname = gender.astype(dtype=str).apply(func=names.get_first_name)
+        title = gender.astype(dtype=str).apply(func=lambda g: self.title_mapping[g])
+        firstname = gender.astype(dtype=str).apply(func=lambda g: names.get_first_name(self.gender_mapping[g]))
         lastname = pd.Series(data=(names.get_last_name() for _ in range(len(data))))
+        if self.title_label is not None:
+            data[self.title_label] = title
         if self.name_label is not None:
             data[self.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.firstname_label is not None:
