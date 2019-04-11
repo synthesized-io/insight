@@ -22,9 +22,9 @@ class PersonValue(Value):
         self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
 
         fkr = faker.Faker(locale='en_GB')
-        self.male_first_name_cache = np.asarray({fkr.first_name_male() for _ in range(dict_cache_size)})
-        self.female_first_name_cache = np.asarray({fkr.first_name_female() for _ in range(dict_cache_size)})
-        self.last_name_cache = np.asarray({fkr.last_name() for _ in range(dict_cache_size)})
+        self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
+        self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
+        self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))
 
         if gender_label is None:
             self.gender = None
