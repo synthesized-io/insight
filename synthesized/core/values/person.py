@@ -18,6 +18,7 @@ class PersonValue(Value):
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        # Assume the gender are always encoded like M or F
         self.gender_mapping = {'M': 'male', 'F': 'female'}
         self.title_mapping = {'M': 'Mr', 'F': 'Mrs'}
 
