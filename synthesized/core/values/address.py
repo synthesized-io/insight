@@ -136,9 +136,9 @@ class AddressValue(Value):
         city = None
         street = None
         if self.city_label:
-            city = data[self.city_label].astype(dtype='str')
+            city = pd.Series(data='').repeat(len(data))
         if self.street_label:
-            street = data[self.street_label].astype(dtype='str')
+            street = pd.Series(data='').repeat(len(data))
         for postcode_key, postcode_values in self.postcodes.items():
             mask = (postcode == postcode_key)
             postcode[mask] += np.random.choice(a=postcode_values, size=mask.sum())
