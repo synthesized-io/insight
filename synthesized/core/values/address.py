@@ -129,28 +129,28 @@ class AddressValue(Value):
         if self.postcodes is None or isinstance(self.postcodes, set):
             raise NotImplementedError
         if self.postcode is None:
-            postcode = np.random.choice(a=list(self.postcodes), size=len(data))
+            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(data)), name=self.postcode_label)
         else:
             data = self.postcode.postprocess(data=data)
             postcode = data[self.postcode_label].astype(dtype='str')
-        city = None
-        street = None
+
+        def expand_postcode(key):
+            return key + np.random.choice(self.postcodes[key])
+
+        def lookup_city(key):
+            return self.cities[key]
+
+        def lookup_street(key):
+            return self.streets[key]
+
+        data[self.postcode_label] = postcode.apply(expand_postcode)
+
         if self.city_label:
-            city = pd.Series(data='').repeat(len(data)).reset_index(drop=True)
+            data[self.city_label] = postcode.apply(lookup_city)
+
         if self.street_label:
-            street = pd.Series(data='').repeat(len(data)).reset_index(drop=True)
-        for postcode_key, postcode_values in self.postcodes.items():
-            mask = (postcode == postcode_key)
-            postcode[mask] += np.random.choice(a=postcode_values, size=mask.sum())
-            if self.city_label:
-                city[mask] = self.cities[postcode_key]
-            if self.street_label:
-                street[mask] = self.streets[postcode_key]
-        data[self.postcode_label] = postcode
-        if self.city_label:
-            data[self.city_label] = city.values
-        if self.street_label:
-            data[self.street_label] = street.values
+            data[self.street_label] = postcode.apply(lookup_street)
+
         return data
 
     def features(self, x=None):
