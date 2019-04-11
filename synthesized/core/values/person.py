@@ -22,7 +22,7 @@ class PersonValue(Value):
             self.gender = None
         else:
             self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, categories=['female', 'male'],
+                module=CategoricalValue, name=gender_label,
                 capacity=capacity,
             )
 
