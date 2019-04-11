@@ -9,7 +9,7 @@ from ..module import tensorflow_name_scoped
 
 class PersonValue(Value):
 
-    def __init__(self, name, gender_label=None, gender_embedding_size=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None):
+    def __init__(self, name, gender_label=None, name_label=None, firstname_label=None, lastname_label=None, email_label=None, capacity=None):
         super().__init__(name=name)
 
         self.gender_label = gender_label
@@ -23,7 +23,7 @@ class PersonValue(Value):
         else:
             self.gender = self.add_module(
                 module=CategoricalValue, name=gender_label, categories=['female', 'male'],
-                embedding_size=gender_embedding_size
+                capacity=capacity,
             )
 
     def input_size(self):

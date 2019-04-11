@@ -45,7 +45,8 @@ def identify_value(module, name, dtype, data):
             value = module.add_module(
                 module=PersonValue, name='person', gender_label=module.gender_label,
                 name_label=module.name_label, firstname_label=module.firstname_label,
-                lastname_label=module.lastname_label, email_label=module.email_label
+                lastname_label=module.lastname_label, email_label=module.email_label,
+                capacity=module.capacity,
             )
             module.person_value = value
         return value
