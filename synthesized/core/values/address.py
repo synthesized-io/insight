@@ -109,6 +109,7 @@ class AddressValue(Value):
             self.postcode.extract(data=postcode_data)
 
     def preprocess(self, data):
+        postcodes = []
         for n, row in data.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
@@ -120,7 +121,9 @@ class AddressValue(Value):
             elif self.postcode_level == 2:
                 index = postcode.index(' ') + 2
             postcode_key = postcode[:index]
-            data.loc[n, self.postcode_label] = postcode_key
+            postcodes.append(postcode_key)
+
+        data[self.postcode_label] = postcodes
 
         if self.postcode is not None:
             data = self.postcode.preprocess(data=data)
