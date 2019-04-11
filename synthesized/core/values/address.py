@@ -13,7 +13,7 @@ from ..module import tensorflow_name_scoped
 
 class AddressValue(Value):
 
-    postcode_regex = re.compile(r'^[A-Z]{1,2}[0-9]+[A-Z]? [0-9]+[A-Za-z]{2}$')
+    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? [0-9]+[A-Za-z]{2}$')
 
     def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, city_label=None, street_label=None, postcodes=None):
         super().__init__(name=name)
