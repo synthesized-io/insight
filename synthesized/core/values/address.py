@@ -133,14 +133,24 @@ class AddressValue(Value):
         else:
             data = self.postcode.postprocess(data=data)
             postcode = data[self.postcode_label].astype(dtype='str')
+        city = None
+        street = None
+        if self.city_label:
+            city = data[self.city_label].astype(dtype='str')
+        if self.street_label:
+            street = data[self.street_label].astype(dtype='str')
         for postcode_key, postcode_values in self.postcodes.items():
             mask = (postcode == postcode_key)
             postcode[mask] += np.random.choice(a=postcode_values, size=mask.sum())
             if self.street_label:
-                data[mask][self.street_label] = self.streets[postcode_key]
+                street[mask] = self.streets[postcode_key]
             if self.city_label:
-                data[mask][self.city_label] = self.cities[postcode_key]
+                city[mask] = self.cities[postcode_key]
         data[self.postcode_label] = postcode
+        if self.city_label:
+            data[self.city_label] = city
+        if self.street_label:
+            data[self.street_label] = street
         return data
 
     def features(self, x=None):
