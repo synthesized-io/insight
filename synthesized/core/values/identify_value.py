@@ -40,7 +40,7 @@ DIST_TO_VALUE_MAPPING = {
 def identify_value(module, name, dtype, data):
     value = None
 
-    if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
+    if name in (getattr(module, 'title_label', None), getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
                 module=PersonValue, name='person', gender_label=module.gender_label,
@@ -51,7 +51,7 @@ def identify_value(module, name, dtype, data):
             module.person_value = value
         return value
 
-    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'street_label', None)):
+    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'city_label', None), getattr(module, 'street_label', None)):
         if module.address_value is None:
             value = module.add_module(
                 module=AddressValue, name='address', postcode_level=1,
