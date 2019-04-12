@@ -89,7 +89,8 @@ class DatasetResource(Resource, DatasetAccessMixin):
             'title': dataset.title,
             'description': dataset.description,
             'meta': simplejson.load(BytesIO(dataset.meta), encoding='utf-8'),
-            'sample': data[:sample_size].to_dict(orient='list')
+            'sample': data[:sample_size].to_dict(orient='list'),
+            'settings': dataset.get_settings_as_dict(),
         })
 
     def delete(self, dataset_id):
@@ -120,6 +121,27 @@ class DatasetUpdateInfoResource(Resource, DatasetAccessMixin):
 
         dataset.title = args['title']
         dataset.description = args['description']
+
+        self.dataset_repo.save(dataset)
+
+        return '', 204
+
+
+class DatasetUpdateSettingsResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+
+    def post(self, dataset_id):
+        dataset = self.get_dataset_authorized(dataset_id)
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('settings', type=dict, required=False)
+        args = parser.parse_args()
+
+        settings = args['settings']
+        dataset.settings = simplejson.dumps(settings).encode('utf-8')
 
         self.dataset_repo.save(dataset)
 
