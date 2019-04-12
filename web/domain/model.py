@@ -45,6 +45,7 @@ class Dataset(db.Model, AuditMixin):
     meta = db.Column(db.LargeBinary, nullable=False)
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
+    settings = db.Column(db.LargeBinary)
 
     def get_meta_as_object(self) -> DatasetMeta:
         # Parse JSON into an object with attributes corresponding to dict keys.
@@ -52,6 +53,15 @@ class Dataset(db.Model, AuditMixin):
 
     def set_meta_from_object(self, meta: DatasetMeta):
         self.meta = simplejson.dumps(meta, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
+
+    def get_settings_as_dict(self) -> dict:
+        if self.settings:
+            return simplejson.load(BytesIO(self.settings), encoding='utf-8')
+        else:
+            return {}
+
+    def set_settings_from_dict(self, settings: dict):
+        self.settings = simplejson.dumps(settings).encode('utf-8')
 
     def __str__(self):
         return '<Dataset {}>'.format(self.id)

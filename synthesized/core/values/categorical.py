@@ -1,4 +1,5 @@
 from math import log
+import pandas as pd
 import tensorflow as tf
 
 from .value import Value
@@ -22,7 +23,7 @@ class CategoricalValue(Value):
         elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
-            self.categories = sorted(categories)
+            self.categories = list(pd.Series(categories).sort_values())
             self.num_categories = len(self.categories)
 
         self.probabilities = probabilities
@@ -74,12 +75,13 @@ class CategoricalValue(Value):
         yield self.placeholder
 
     def extract(self, data):
+        unique_values = list(pd.Series(data[self.name].unique()).sort_values())
         if self.categories is None:
-            self.categories = sorted(data[self.name].unique())
+            self.categories = unique_values
             self.num_categories = len(self.categories)
             if self.embedding_size is None:
                 self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
-        elif sorted(data[self.name].unique()) != self.categories:
+        elif unique_values != self.categories:
             raise NotImplementedError
 
     def encode(self, data):
@@ -176,6 +178,9 @@ class CategoricalValue(Value):
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
             x = tf.reduce_sum(input_tensor=(x * embeddings), axis=2, keepdims=False)
         x = x / self.temperature
+        # target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
+        # loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x)
+        # loss = tf.reduce_sum(input_tensor=(loss * weights), axis=0)
         loss = tf.losses.softmax_cross_entropy(
             onehot_labels=target, logits=x, weights=weights, label_smoothing=self.smoothing,
             scope=None, loss_collection=tf.GraphKeys.LOSSES

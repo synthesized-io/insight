@@ -8,8 +8,8 @@ import numpy as np
 
 class GumbelDistrValue(ContinuousValue):
 
-    def __init__(self, name, integer=None, params=None):
-        super().__init__(name=name, integer=integer)
+    def __init__(self, name, integer=None, to_numeric=False, params=None):
+        super().__init__(name=name, integer=integer, to_numeric=to_numeric)
         self.params = params
         self.location = params[0]
         self.scale = params[1]
@@ -34,14 +34,12 @@ class GumbelDistrValue(ContinuousValue):
     def preprocess(self, data):
         data = super().preprocess(data=data)
         data[self.name] = norm.ppf(gumbel_r.cdf(data[self.name], self.location, self.scale))
-        data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return data
 
     def postprocess(self, data):
         data[self.name] = gumbel_r.ppf(norm.cdf(data[self.name]), self.location, self.scale)
-        data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return super().postprocess(data=data)

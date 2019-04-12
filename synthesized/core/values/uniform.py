@@ -5,8 +5,8 @@ from scipy.stats import uniform
 
 class UniformDistrValue(ContinuousValue):
 
-    def __init__(self, name, integer=None, params=None):
-        super().__init__(name=name, integer=integer)
+    def __init__(self, name, integer=None, to_numeric=False, params=None):
+        super().__init__(name=name, integer=integer, to_numeric=to_numeric)
         self.params = params
         self.shape = params[0]
         self.location = params[1]

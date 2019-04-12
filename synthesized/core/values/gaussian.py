@@ -43,6 +43,3 @@ class GaussianValue(ContinuousValue):
     def distribution_loss(self, samples):
         samples = tf.squeeze(input=samples, axis=1)
         return super.distribution_loss(samples = samples)
-
-
-
