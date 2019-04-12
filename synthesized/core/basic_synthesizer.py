@@ -330,7 +330,7 @@ class BasicSynthesizer(Synthesizer):
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
                     self.log_metrics(data, fetched, iteration)
                 if yield_every > 0 and iteration % yield_every + 1 == yield_every:
-                    yield
+                    yield iteration
 
         else:
             if verbose > 0:

@@ -61,11 +61,9 @@ class SynthesisPreviewResource(Resource, DatasetAccessMixin):
             abort(404, message='No preview for dataset ' + str(dataset_id))
 
         preview_str = simplejson.dumps(preview, default=lambda x: x.__dict__, ignore_nan=True).encode('utf-8')
-        preview_json = simplejson.loads(preview_str)
+        preview_dict = simplejson.loads(preview_str)
 
-        return jsonify({
-            'meta': preview_json
-        })
+        return jsonify(preview_dict)
 
 
 class SynthesisResource(Resource, DatasetAccessMixin):
