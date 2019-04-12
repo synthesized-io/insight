@@ -42,6 +42,9 @@ class DateValue(ContinuousValue):
         return super().input_size() + self.hour.input_size() + self.dow.input_size() + \
             self.day.input_size() + self.month.input_size()
 
+    def output_size(self):
+        return super().output_size()
+
     def input_labels(self):
         yield from super().input_labels()
         yield from self.hour.input_labels()

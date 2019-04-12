@@ -28,7 +28,7 @@ class NanValue(Value):
 
     def __str__(self):
         string = super().__str__()
-        string += '{}-{}'.format(self.embedding_size, self.value)
+        string += '-' + str(self.value)
         return string
 
     def specification(self):
@@ -59,15 +59,23 @@ class NanValue(Value):
         self.value.extract(data=clean)
 
     def encode(self, data):
-        clean = data.dropna(subset=(self.value.name,))
-        encoded = self.value.encode(data=clean)
-        data = pd.merge(data, encoded, how='outer')
+        nan = data[self.value.name].isna()
+        data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
+        # clean = data.dropna(subset=(self.value.name,))
+        data = self.value.encode(data=data)
+        # data.loc[:, self.value.name] = data[self.value.name].astype(encoded[self.value.name].dtype)
+        # data = pd.merge(data.fillna(), encoded, how='outer')
+        data.loc[nan, self.value.name] = np.nan
         return data
 
     def postprocess(self, data):
-        clean = data.dropna(subset=(self.value.name,))
-        postprocessed = self.value.postprocess(data=clean)
-        data = pd.merge(data, postprocessed, how='outer')
+        # clean = data.dropna(subset=(self.value.name,))
+        # postprocessed = self.value.postprocess(data=clean)
+        # data = pd.merge(data, postprocessed, how='outer')
+        nan = data[self.value.name].isna()
+        data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
+        data = self.value.postprocess(data=data)
+        data.loc[nan, self.value.name] = np.nan
         return data
 
     def features(self, x=None):

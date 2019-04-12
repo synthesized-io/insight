@@ -42,6 +42,9 @@ class ContinuousValue(Value):
     def input_size(self):
         return 1
 
+    def output_size(self):
+        return 1
+
     def placeholders(self):
         yield self.placeholder
 
@@ -63,7 +66,7 @@ class ContinuousValue(Value):
 
     def encode(self, data):
         if self.to_numeric:
-            data[self.name] = pd.to_numeric(data[self.name], errors='coerce')
+            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         return data
 
@@ -121,7 +124,7 @@ class ContinuousValue(Value):
     def loss(self, x, feed=None, mask=None):
         # if self.positive:                      ??????????????????????????????????????
         #     x = tf.nn.softplus(features=x)
-        target = self.input_tensor(feed=feed)
+        target = self.input_tensor(feed=feed)[:, :1]  # first value since date adds more information
         # target = tf.Print(target, (x, target))
 
         # relative = tf.maximum(x=x, y=target) / (tf.minimum(x=x, y=target) + 1.0)
@@ -133,6 +136,7 @@ class ContinuousValue(Value):
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
             x = tf.boolean_mask(tensor=x, mask=mask)
+        # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.losses.mean_squared_error(
             labels=target, predictions=x, weights=1.0, scope=None,
             loss_collection=tf.GraphKeys.LOSSES
@@ -144,13 +148,12 @@ class ContinuousValue(Value):
         return 0.0
 
     @staticmethod
-    def remove_outliers(data, name, pct):
+    def remove_outliers(data, pct):
         percentiles = [pct / 2., 100 - pct / 2.]
-        start, end = np.percentile(data[name], percentiles)
-        data = data[data[name] != float('nan')]
-        data = data[data[name] != float('inf')]
-        data = data[data[name] != float('-inf')]
-        return data[(data[name] > start) & (data[name] < end)]
+        start, end = np.percentile(data, percentiles)
+        # data = data[data[name] != float('inf')]
+        # data = data[data[name] != float('-inf')]
+        return data[(data > start) & (data < end)]
 
     @tensorflow_name_scoped
     def distribution_loss(self, samples):
