@@ -16,11 +16,24 @@ class AuditMixin(object):
 
 class User(db.Model, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.Text, nullable=False, unique=True)
+    email = db.Column(db.Text, nullable=False, unique=True)
     password = db.Column(db.Text, nullable=False)
+    first_name = db.Column(db.Text)
+    last_name = db.Column(db.Text)
+    phone_number = db.Column(db.Text)
+    job_title = db.Column(db.Text)
+    company = db.Column(db.Text)
 
     def __str__(self):
         return "<User {}>".format(self.id)
+
+
+class UsedInvite(db.Model, AuditMixin):
+    code = db.Column(db.Text, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+
+    def __str__(self):
+        return "<UsedInvite {}>".format(self.code)
 
 
 class Dataset(db.Model, AuditMixin):
@@ -86,3 +99,15 @@ class ReportItem(db.Model, AuditMixin):
 
     def __str__(self):
         return '<ReportItem {}>'.format(self.id)
+
+
+# this is not stored in the db
+class ProjectTemplate:
+    def __init__(self, id: int, title: str, description: str, file: str):
+        self.id = id
+        self.title = title
+        self.description = description
+        self.file = file
+
+    def __str__(self):
+        return '<Report {}>'.format(self.id)

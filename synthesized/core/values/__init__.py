@@ -1,4 +1,5 @@
 from .address import AddressValue
+from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue

@@ -22,6 +22,7 @@ from .lognorm import LognormDistrValue
 from scipy.stats import kstest, gamma, gumbel_r, weibull_min, gilbrat, uniform, norm, lognorm
 
 REMOVE_OUTLIERS_PCT = 1.0
+MAX_FIT_SAMPLE = 10000
 MAX_FIT_DISTANCE = 1.0
 MIN_FIT_DISTANCE = 0.15
 CONT_DISTRIBUTIONS = [uniform, gamma, gumbel_r, weibull_min, gilbrat, lognorm]
@@ -38,21 +39,22 @@ DIST_TO_VALUE_MAPPING = {
 def identify_value(module, name, dtype, data):
     value = None
 
-    if name in (getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
+    if name in (getattr(module, 'title_label', None), getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
         if module.person_value is None:
             value = module.add_module(
-                module=PersonValue, name='person', gender_label=module.gender_label,
+                module=PersonValue, name='person', title_label=module.title_label, gender_label=module.gender_label,
                 name_label=module.name_label, firstname_label=module.firstname_label,
-                lastname_label=module.lastname_label, email_label=module.email_label
+                lastname_label=module.lastname_label, email_label=module.email_label,
+                capacity=module.capacity,
             )
             module.person_value = value
         return value
 
-    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'street_label', None)):
+    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'city_label', None), getattr(module, 'street_label', None)):
         if module.address_value is None:
             value = module.add_module(
-                module=AddressValue, name='address', postcode_level=1,
-                postcode_label=module.postcode_label, street_label=module.street_label,
+                module=AddressValue, name='address', postcode_level=0,
+                postcode_label=module.postcode_label, city_label=module.city_label, street_label=module.street_label,
                 capacity=module.capacity
             )
             module.address_value = value
@@ -129,7 +131,8 @@ def identify_value(module, name, dtype, data):
 
         elif dtype.kind == 'f' or dtype.kind == 'i':
             min_distance = MAX_FIT_DISTANCE
-            column_cleaned = ContinuousValue.remove_outliers(clean, name, pct=REMOVE_OUTLIERS_PCT)[name]
+            subsample_size = min(len(clean), MAX_FIT_SAMPLE)
+            column_cleaned = ContinuousValue.remove_outliers(clean.sample(subsample_size), name, pct=REMOVE_OUTLIERS_PCT)[name]
             for distr in CONT_DISTRIBUTIONS:
                 params = distr.fit(column_cleaned)
                 transformed = norm.ppf(distr.cdf(column_cleaned, *params))

@@ -8,7 +8,7 @@ from numpy.lib import histograms
 from scipy.stats import gaussian_kde
 
 from synthesized.core import BasicSynthesizer
-from synthesized.core.values import ContinuousValue
+from synthesized.core.values import AddressValue, PersonValue, ContinuousValue, CategoricalValue, IdentifierValue, SamplingValue, EnumerationValue, CompoundAddressValue, NanValue
 
 DENSITY_PLOT_TYPE = "density"
 HISTOGRAM_PLOT_TYPE = "histogram"
@@ -19,10 +19,20 @@ MAX_BINS = 20
 KDE_GRID_SIZE = 100
 KDE_CUT = 3
 
+ADDRESS_TYPE_FAMILY = "address"
+PERSON_TYPE_FAMILY = "person"
+CONTINUOUS_TYPE_FAMILY = "continuous"
+CATEGORICAL_TYPE_FAMILY = "categorical"
+IDENTIFIER_TYPE_FAMILY = "identifier"
+SAMPLING_TYPE_FAMILY = "sampling"
+ENUMERATION_TYPE_FAMILY = "enumeration"
+COMPOUND_ADDRESS_TYPE_FAMILY = "compound_address"
+
 
 class ColumnMeta(ABC):
-    def __init__(self, name: str, type: str, plot_type: str):
+    def __init__(self, name: str, type_family: str, type: str, plot_type: str):
         self.name = name
+        self.type_family = type_family
         self.type = type
         self.plot_type = plot_type
 
@@ -42,9 +52,9 @@ class CategoricalPlotData:
 
 
 class ContinuousMeta(ColumnMeta):
-    def __init__(self, name: str, type: str, mean: float, std: float, median: float, min: float, max: float,
+    def __init__(self, name: str, type_family: str, type: str, mean: float, std: float, median: float, min: float, max: float,
                  n_nulls: int, plot_data: ContinuousPlotData) -> None:
-        super().__init__(name, type, DENSITY_PLOT_TYPE)
+        super().__init__(name, type_family, type, DENSITY_PLOT_TYPE)
         self.mean = mean
         self.std = std
         self.median = median
@@ -55,9 +65,9 @@ class ContinuousMeta(ColumnMeta):
 
 
 class CategoricalMeta(ColumnMeta):
-    def __init__(self, name: str, type: str, n_unique: int, most_frequent: str, most_occurrences: int,
+    def __init__(self, name: str, type_family: str, type: str, n_unique: int, most_frequent: str, most_occurrences: int,
                  plot_data: CategoricalPlotData) -> None:
-        super().__init__(name, type, HISTOGRAM_PLOT_TYPE)
+        super().__init__(name, type_family, type, HISTOGRAM_PLOT_TYPE)
         self.n_unique = n_unique
         self.most_frequent = most_frequent
         self.most_occurrences = most_occurrences
@@ -83,25 +93,50 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
     columns_meta = []
     for value in synthesizer.values:
         value_types.add(str(value))
+
+        if isinstance(value, NanValue):
+            value = value.value
+
+        if isinstance(value, AddressValue):
+            type_family = ADDRESS_TYPE_FAMILY
+        elif isinstance(value, PersonValue):
+            type_family = PERSON_TYPE_FAMILY
+        elif isinstance(value, ContinuousValue):
+            type_family = CONTINUOUS_TYPE_FAMILY
+        elif isinstance(value, CategoricalValue):
+            type_family = CATEGORICAL_TYPE_FAMILY
+        elif isinstance(value, IdentifierValue):
+            type_family = IDENTIFIER_TYPE_FAMILY
+        elif isinstance(value, SamplingValue):
+            type_family = SAMPLING_TYPE_FAMILY
+        elif isinstance(value, EnumerationValue):
+            type_family = ENUMERATION_TYPE_FAMILY
+        elif isinstance(value, CompoundAddressValue):
+            type_family = COMPOUND_ADDRESS_TYPE_FAMILY
+        else:
+            raise ValueError('Unknown value type: ' + str(type(value)))
+
         if isinstance(value, ContinuousValue):
             q = [remove_outliers / 2., 1 - remove_outliers / 2.]
             start, end = np.quantile(data_wo_nans[value.name], q)
             column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
             bins = _bounded_bin_selector(column_cleaned, max_bins=DEFAULT_MAX_BINS)
             hist, edges = np.histogram(column_cleaned, bins=bins)
+            hist = _normalize_hist(hist, edges)
 
             kde = gaussian_kde(column_cleaned)
             bw = kde.scotts_factor() * np.std(column_cleaned)
             density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
             density = kde(density_support)
 
-            hist = list(map(int, hist))
+            hist = list(map(float, hist))
             edges = list(map(float, edges))
-            density_support = list(map(float, density))
+            density_support = list(map(float, density_support))
             density = list(map(float, density))
 
             columns_meta.append(ContinuousMeta(
                 name=value.name,
+                type_family=type_family,
                 type=str(value),
                 mean=float(data[value.name].mean()),
                 std=float(data[value.name].std()),
@@ -127,6 +162,7 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
 
             columns_meta.append(CategoricalMeta(
                 name=value.name,
+                type_family=type_family,
                 type=str(value),
                 n_unique=int(data[value.name].nunique()),
                 most_frequent=str(most_frequent),
@@ -155,6 +191,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
+            hist = _normalize_hist(hist, edges)
 
             kde = gaussian_kde(column_cleaned)
             bw = kde.scotts_factor() * np.std(column_cleaned)
@@ -164,13 +201,14 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
             density = kde(density_support)
 
-            hist = list(map(int, hist))
+            hist = list(map(float, hist))
             edges = list(map(float, edges))
             density_support = list(map(float, density_support))
             density = list(map(float, density))
 
             columns_meta.append(ContinuousMeta(
                 name=column_meta.name,
+                type_family=column_meta.type_family,
                 type=column_meta.type,
                 mean=float(data[column_meta.name].mean()),
                 std=float(data[column_meta.name].std()),
@@ -195,6 +233,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             hist = list(map(int, hist))
             columns_meta.append(CategoricalMeta(
                 name=column_meta.name,
+                type_family=column_meta.type_family,
                 type=column_meta.type,
                 n_unique=int(data[column_meta.name].nunique()),
                 most_frequent=str(most_frequent),
@@ -210,6 +249,13 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
         n_types=meta.n_types,
         columns=columns_meta,
     )
+
+
+def _normalize_hist(hist, edges):
+    hist = np.asanyarray(hist)
+    edges = np.asanyarray(edges)
+    area = sum(np.diff(edges) * hist)
+    return hist / float(area)
 
 
 def _bounded_bin_selector(a, max_bins):

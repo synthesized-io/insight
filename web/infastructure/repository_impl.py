@@ -1,5 +1,8 @@
+import json
 import uuid
-from ..domain.repository import Repository
+from collections import namedtuple
+
+from ..domain.repository import Repository, Directory
 
 
 class InMemoryRepository(Repository):
@@ -51,3 +54,13 @@ class SQLAlchemyRepository(Repository):
     def delete(self, entity):
         self.db.session.delete(entity)
         self.db.session.commit()
+
+
+class JsonFileDirectory(Directory):
+    def __init__(self, file_path, items_attribute):
+        with open(file_path, 'r') as f:
+            js = json.load(f)
+            self.items = list(map(lambda d: namedtuple('X', d.keys())(*d.values()), js[items_attribute]))
+
+    def list_items(self):
+        return self.items

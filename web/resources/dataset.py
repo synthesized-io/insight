@@ -69,7 +69,7 @@ class DatasetResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
 
     def __init__(self, **kwargs):
-        self.dataset_repo: Repository  = kwargs['dataset_repo']
+        self.dataset_repo: Repository = kwargs['dataset_repo']
 
     def get(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
