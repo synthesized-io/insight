@@ -17,10 +17,6 @@ from ..domain.repository import Repository
 logger = logging.getLogger(__name__)
 
 
-MAX_ROWS_TO_ANALYZE = 10000
-MAX_ROWS_TO_LEARN = 100000
-
-
 class ModelStatus(Enum):
     NO_MODEL = 1
     TRAINING = 2
@@ -36,12 +32,14 @@ class Preview:
 
 
 class SynthesizerManager:
-    def __init__(self, dataset_repo: Repository, max_models: int, preview_size=1000, yield_every=250, num_iterations=2500):
+    def __init__(self, dataset_repo: Repository, max_models: int, preview_size=1000, yield_every=250,
+                 num_iterations=2500, max_sample_size=100000):
         self.dataset_repo = dataset_repo
         self.max_models = max_models
         self.preview_size = preview_size
         self.yield_every = yield_every
         self.num_iterations = num_iterations
+        self.max_sample_size = max_sample_size
         self.cache = OrderedDict()
         self.cache_lock = Lock()
         self.preview_cache = {}
@@ -98,16 +96,15 @@ class SynthesizerManager:
 
         data = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         data = data.drop(disabled_columns, axis=1)
+        sample_size = min(len(data), self.max_sample_size)
+        data = data.sample(sample_size)
         data = data.dropna()
-
-        analyze_size = min(len(data), MAX_ROWS_TO_ANALYZE)
-        learn_size = min(len(data), MAX_ROWS_TO_LEARN)
 
         logger.info('start model training')
         try:
-            synthesizer = BasicSynthesizer(data=data.sample(analyze_size))
+            synthesizer = BasicSynthesizer(data=data)
             synthesizer.__enter__()
-            for iter in synthesizer.learn_async(num_iterations=self.num_iterations, data=data.sample(learn_size), yield_every=self.yield_every):
+            for iter in synthesizer.learn_async(num_iterations=self.num_iterations, data=data, yield_every=self.yield_every):
                 yield (iter, synthesizer)
             logger.info('model has been trained')
         except Exception as e:
