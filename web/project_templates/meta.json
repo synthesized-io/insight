@@ -42,5 +42,5 @@
       "title": "Sales pipeline",
       "description": "Sales win-loss prediction dataset.",
       "file": "templates/sales_pipeline.csv"
-    }
+    }]
 }
