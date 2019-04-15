@@ -124,10 +124,15 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
             hist, edges = np.histogram(column_cleaned, bins=bins)
             hist = _normalize_hist(hist, edges)
 
-            kde = gaussian_kde(column_cleaned)
-            bw = kde.scotts_factor() * np.std(column_cleaned)
-            density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
-            density = kde(density_support)
+            # workaround for singular matrix exception during kde computation
+            if len(np.unique(column_cleaned)) < 2:
+                density_support = []
+                density = []
+            else:
+                kde = gaussian_kde(column_cleaned)
+                bw = kde.scotts_factor() * np.std(column_cleaned)
+                density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
+                density = kde(density_support)
 
             hist = list(map(float, hist))
             edges = list(map(float, edges))
@@ -195,13 +200,17 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
             hist = _normalize_hist(hist, edges)
 
-            kde = gaussian_kde(column_cleaned)
-            bw = kde.scotts_factor() * np.std(column_cleaned)
-            if hasattr(column_meta.plot_data, 'density_support'):
-                density_support = column_meta.plot_data.density_support
+            if len(np.unique(column_cleaned)) < 2:
+                density_support = []
+                density = []
             else:
-                density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
-            density = kde(density_support)
+                kde = gaussian_kde(column_cleaned)
+                bw = kde.scotts_factor() * np.std(column_cleaned)
+                if hasattr(column_meta.plot_data, 'density_support'):
+                    density_support = column_meta.plot_data.density_support
+                else:
+                    density_support = _kde_support(column_cleaned, bw, gridsize=KDE_GRID_SIZE, cut=KDE_CUT)
+                density = kde(density_support)
 
             hist = list(map(float, hist))
             edges = list(map(float, edges))
