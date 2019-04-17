@@ -38,7 +38,8 @@ class ColumnMeta(ABC):
 
 
 class ContinuousPlotData:
-    def __init__(self, edges: Iterable[float], hist: Iterable[float], density_support: Iterable[float], density: Iterable[float]):
+    def __init__(self, edges: Iterable[float], hist: Iterable[float], density_support: Iterable[float],
+                 density: Iterable[float]):
         self.edges = edges
         self.hist = hist
         self.density_support = density_support
@@ -52,15 +53,15 @@ class CategoricalPlotData:
 
 
 class ContinuousMeta(ColumnMeta):
-    def __init__(self, name: str, type_family: str, type: str, mean: float, std: float, median: float, min: float, max: float,
-                 n_nulls: int, plot_data: ContinuousPlotData) -> None:
+    def __init__(self, name: str, type_family: str, type: str, mean: float, std: float, median: float, min: float,
+                 max: float, nulls_ratio: float, plot_data: ContinuousPlotData) -> None:
         super().__init__(name, type_family, type, DENSITY_PLOT_TYPE)
         self.mean = mean
         self.std = std
         self.median = median
         self.min = min
         self.max = max
-        self.n_nulls = n_nulls
+        self.nulls_ratio = nulls_ratio
         self.plot_data = plot_data
 
 
@@ -83,7 +84,7 @@ class DatasetMeta:
 
 
 # Compute dataset's meta from scratch
-def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIERS) -> DatasetMeta:
+def compute_dataset_meta(data: pd.DataFrame, remove_outliers: float=REMOVE_OUTLIERS) -> DatasetMeta:
     raw_data = StringIO()
     data.to_csv(raw_data, index=False)
     data_wo_nans = data.dropna()
@@ -148,7 +149,7 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: int=REMOVE_OUTLIER
                 median=float(data[value.name].median()),
                 min=float(data[value.name].min()),
                 max=float(data[value.name].max()),
-                n_nulls=int(data[value.name].isnull().sum()),
+                nulls_ratio=float(data[value.name].isnull().sum()) / len(data),
                 plot_data=ContinuousPlotData(
                     hist=hist,
                     edges=edges,
@@ -226,7 +227,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 median=float(data[column_meta.name].median()),
                 min=float(data[column_meta.name].min()),
                 max=float(data[column_meta.name].max()),
-                n_nulls=int(data[column_meta.name].isnull().sum()),
+                nulls_ratio=float(data[column_meta.name].isnull().sum()) / len(data),
                 plot_data=ContinuousPlotData(
                     hist=hist,
                     edges=edges,
