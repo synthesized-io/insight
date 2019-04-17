@@ -46,6 +46,8 @@ class SynthesizerManager:
         self.preview_cache_lock = Lock()
         self.requests = set()
         self.requests_lock = Lock()
+        self.stop_requests = set()
+        self.stop_requests_lock = Lock()
         self.request_queue = Queue()
         self.thread = Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -69,6 +71,11 @@ class SynthesizerManager:
                     except Exception as e:
                         logger.error(e)
                 synthesizer_or_error = train_result
+                with self.stop_requests_lock:
+                    if dataset_id in self.stop_requests:
+                        logger.info("stopping learning for " + str(dataset_id))
+                        self.stop_requests.remove(dataset_id)
+                        break
             with self.cache_lock:
                 if len(self.cache) == self.max_models:
                     logger.info("popping first item from cache")
@@ -140,3 +147,7 @@ class SynthesizerManager:
                 return None
             else:
                 return synthesizer_or_error
+
+    def stop_async(self, dataset_id) -> None:
+        with self.stop_requests_lock:
+            self.stop_requests.add(dataset_id)
