@@ -130,11 +130,6 @@ class BasicSynthesizer(Synthesizer):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def encode(self, data):
-        for value in self.values:
-            data = value.encode(data=data)
-        return data
-
     def preprocess(self, data):
         for value in self.values:
             data = value.preprocess(data=data)
