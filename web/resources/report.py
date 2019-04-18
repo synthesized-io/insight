@@ -216,12 +216,12 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         df_synth = df_synth.sample(sample_size)
 
         if report_item.item_type == ReportItemType.CORRELATION:
-            columns = settings['columns']
-            correlation_similarity = compute_correlation_similarity(df_orig, df_synth, columns)
+            columns = list(sorted(settings['columns']))
+            correlation_similarity = compute_correlation_similarity(df_orig[columns], df_synth[columns])
 
-            size = min(len(df_orig), len(df_synth), max_sample_size)
-            df_orig_sample = df_orig[columns].dropna().sample(size)
-            df_synth_sample = df_synth[columns].dropna().sample(size)
+            plot_sample_size = min(len(df_orig), len(df_synth), max_sample_size)
+            df_orig_sample = df_orig[columns].dropna().sample(plot_sample_size)
+            df_synth_sample = df_synth[columns].dropna().sample(plot_sample_size)
 
             results = {
                 'correlation_similarity': correlation_similarity.to_dict(),
