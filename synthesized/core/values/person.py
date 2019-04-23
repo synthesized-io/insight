@@ -93,20 +93,20 @@ class PersonValue(Value):
         lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(data)))
 
         if self.title_label is not None:
-            data[self.title_label] = title
+            data.loc[:, self.title_label] = title
         if self.name_label is not None:
-            data[self.name_label] = firstname.str.cat(others=lastname, sep=' ')
+            data.loc[:, self.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.firstname_label is not None:
-            data[self.firstname_label] = firstname
+            data.loc[:, self.firstname_label] = firstname
         if self.lastname_label is not None:
-            data[self.lastname_label] = lastname
+            data.loc[:, self.lastname_label] = lastname
         if self.email_label is not None:
             # https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
             # we don't want clashes with real emails
             # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
-            data[self.email_label] = firstname.str.lower() \
+            data.loc[:, self.email_label] = firstname.str.lower() \
                 .str.cat(others=lastname.str.lower(), sep='.')
-            data[self.email_label] += '@example.com'
+            data.loc[:, self.email_label] += '@example.com'
         return data
 
     def features(self, x=None):

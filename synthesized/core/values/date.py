@@ -8,10 +8,15 @@ from ..module import tensorflow_name_scoped
 
 class DateValue(ContinuousValue):
 
-    def __init__(self, name, capacity=None, embedding_size=None, start_date=None):
-        super().__init__(name=name, positive=True)
+    def __init__(self, name, capacity=None, embedding_size=None, start_date=None, min_date=None):
+        super().__init__(name=name)
 
+        assert start_date is None or min_date is None
         self.start_date = start_date
+        self.min_date = min_date
+
+        self.pd_types = ('M',)
+        self.pd_cast = (lambda x: pd.to_datetime(x))
 
         self.hour = self.add_module(
             module=CategoricalValue, name=(self.name + '-hour'), categories=24, capacity=capacity,
@@ -29,6 +34,11 @@ class DateValue(ContinuousValue):
             module=CategoricalValue, name=(self.name + '-month'), categories=12, capacity=capacity,
             embedding_size=embedding_size
         )
+
+    def __str__(self):
+        string = super().__str__()
+        string = 'date-' + string
+        return string
 
     def specification(self):
         spec = super().specification()
@@ -60,30 +70,52 @@ class DateValue(ContinuousValue):
         yield from self.month.placeholders()
 
     def extract(self, data):
-        data[self.name] = pd.to_datetime(data[self.name])
-        if self.start_date is None:
-            # self.start_date = data[self.name].astype(dtype='datetime64').min()
-            self.start_date = data[self.name].min()
-        # elif data[self.name].astype(dtype='datetime64').min() == self.start_date:
-        elif data[self.name].min() < self.start_date:
-            raise NotImplementedError
+        if data[self.name].dtype.kind != 'M':
+            data.loc[:, self.name] = pd.to_datetime(data[self.name])
 
-    def encode(self, data):
-        data[self.name] = data[self.name].astype(dtype='datetime64')
-        data = data.sort_values(by=self.name)
-        data[self.name + '-hour'] = data[self.name].dt.hour
-        data[self.name + '-dow'] = data[self.name].dt.weekday
-        data[self.name + '-day'] = data[self.name].dt.day - 1
-        data[self.name + '-month'] = data[self.name].dt.month - 1
-        previous_date = data[self.name].copy()
-        previous_date[0] = self.start_date
-        previous_date[1:] = previous_date[:-1]
-        data[self.name] = (data[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
-        return data
+        if data[self.name].is_monotonic:
+            if self.start_date is None:
+                self.start_date = data[self.name][0]
+                assert self.start_date == data[self.name].min()
+            elif data[self.name][0] < self.start_date:
+                raise NotImplementedError
+            previous_date = data[self.name].copy()
+            previous_date[0] = self.start_date
+            previous_date[1:] = previous_date[:-1]
+            data.loc[:, self.name] = (data[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+
+        else:
+            if self.min_date is None:
+                self.min_date = data[self.name].min()
+            elif data[self.name].min() != self.min_date:
+                raise NotImplementedError
+            data.loc[:, self.name] = (data[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+
+        super().extract(data=data)
+
+    def preprocess(self, data):
+        if data[self.name].dtype.kind != 'M':
+            data.loc[:, self.name] = pd.to_datetime(data[self.name])
+        data.loc[:, self.name + '-hour'] = data[self.name].dt.hour
+        data.loc[:, self.name + '-dow'] = data[self.name].dt.weekday
+        data.loc[:, self.name + '-day'] = data[self.name].dt.day - 1
+        data.loc[:, self.name + '-month'] = data[self.name].dt.month - 1
+        if self.start_date is not None:
+            previous_date = data[self.name].copy()
+            previous_date[0] = self.start_date
+            previous_date[1:] = previous_date[:-1]
+            data.loc[:, self.name] = (data[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+        else:
+            data.loc[:, self.name] = (data[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+        return super().preprocess(data=data)
 
     def postprocess(self, data):
-        data[self.name] = pd.to_timedelta(arg=data[self.name], unit='D').cumsum(axis=0)
-        data[self.name] += self.start_date
+        data = super().postprocess(data=data)
+        data.loc[:, self.name] = pd.to_timedelta(arg=data[self.name], unit='D')
+        if self.start_date is not None:
+            data.loc[:, self.name] = self.start_date + data[self.name].cumsum(axis=0)
+        else:
+            data.loc[:, self.name] += self.min_date
         return data
 
     def features(self, x=None):
@@ -104,5 +136,5 @@ class DateValue(ContinuousValue):
         x = tf.concat(values=(delta, hour, dow, day, month), axis=1)
         return x
 
-    # skip last and assume absolute value
+    # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):

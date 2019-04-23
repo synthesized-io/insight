@@ -31,7 +31,8 @@ CLASSIFIERS = {
     'GradientBoostingClassifier': GradientBoostingClassifier
 }
 
-DEFAULT_MAX_SAMPLE_SIZE = 100
+DEFAULT_MAX_PLOT_SAMPLE_SIZE = 100
+MAX_ANALYSIS_SAMPLE_SIZE = 10000
 
 
 class ReportResource(Resource, DatasetAccessMixin):
@@ -193,7 +194,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
 
         parser = reqparse.RequestParser()
         parser.add_argument('settings', type=dict, required=True)
-        parser.add_argument('max_sample_size', type=int, default=DEFAULT_MAX_SAMPLE_SIZE)
+        parser.add_argument('max_sample_size', type=int, default=DEFAULT_MAX_PLOT_SAMPLE_SIZE)
         args = parser.parse_args()
 
         settings = args['settings']
@@ -210,13 +211,17 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         df_orig = pd.read_csv(BytesIO(dataset.blob), encoding='utf-8')
         df_synth = pd.read_csv(BytesIO(synthesis.blob), encoding='utf-8')
 
-        if report_item.item_type == ReportItemType.CORRELATION:
-            columns = settings['columns']
-            correlation_similarity = compute_correlation_similarity(df_orig, df_synth, columns)
+        sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(df_orig), len(df_synth))
+        df_orig = df_orig.sample(sample_size)
+        df_synth = df_synth.sample(sample_size)
 
-            size = min(len(df_orig), len(df_synth), max_sample_size)
-            df_orig_sample = df_orig[columns].dropna().sample(size)
-            df_synth_sample = df_synth[columns].dropna().sample(size)
+        if report_item.item_type == ReportItemType.CORRELATION:
+            columns = list(sorted(settings['columns']))
+            correlation_similarity = compute_correlation_similarity(df_orig[columns], df_synth[columns])
+
+            plot_sample_size = min(len(df_orig), len(df_synth), max_sample_size)
+            df_orig_sample = df_orig[columns].dropna().sample(plot_sample_size)
+            df_synth_sample = df_synth[columns].dropna().sample(plot_sample_size)
 
             results = {
                 'correlation_similarity': correlation_similarity.to_dict(),

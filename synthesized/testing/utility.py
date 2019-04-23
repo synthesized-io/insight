@@ -59,9 +59,9 @@ class UtilityTesting:
         self.df_test = df_test
         self.df_synth = df_synth
 
-        self.df_orig_encoded = synthesizer.encode(data=df_orig.copy())
-        self.df_test_encoded = synthesizer.encode(data=df_test.copy())
-        self.df_synth_encoded = synthesizer.encode(data=df_synth.copy())
+        self.df_orig_encoded = synthesizer.preprocess(data=df_orig.copy())
+        self.df_test_encoded = synthesizer.preprocess(data=df_test.copy())
+        self.df_synth_encoded = synthesizer.preprocess(data=df_synth.copy())
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
