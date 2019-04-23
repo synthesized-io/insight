@@ -72,7 +72,7 @@ template_directory = JsonFileDirectory(os.path.join(app.root_path, 'project_temp
 project_templates = ProjectTemplates(template_directory, dataset_repo)
 
 from .resources.auth import LoginResource, RefreshResource, UsersResource
-from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource, DatasetUpdateSettingsResource
+from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateInfoResource, DatasetUpdateSettingsResource, DatasetExportResource
 from .resources.synthesis import ModelResource, SynthesisResource, SynthesisPreviewResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
@@ -89,6 +89,7 @@ api.add_resource(ModelResource, '/datasets/<dataset_id>/model', resource_class_k
 api.add_resource(SynthesisResource, '/datasets/<dataset_id>/synthesis', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesis_repo': synthesis_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(SynthesisPreviewResource, '/datasets/<dataset_id>/synthesis-preview', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})
 api.add_resource(ReportResource, '/datasets/<dataset_id>/report', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo})
+api.add_resource(DatasetExportResource, '/datasets/<dataset_id>/export', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesis_repo': synthesis_repo})
 api.add_resource(ReportItemsResource, '/datasets/<dataset_id>/report-items', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo})
 api.add_resource(ReportItemResource, '/datasets/<dataset_id>/report-items/<report_item_id>', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo})
 api.add_resource(ReportItemsUpdateSettingsResource, '/datasets/<dataset_id>/report-items/<report_item_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo, 'synthesis_repo': synthesis_repo})

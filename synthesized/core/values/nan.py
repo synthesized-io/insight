@@ -12,7 +12,6 @@ from ..module import Module, tensorflow_name_scoped
 class NanValue(Value):
 
     def __init__(self, name, value, capacity=None, embedding_size=None, weight_decay=0.0):
-        assert name.endswith('-nan')
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousValue)
@@ -55,14 +54,18 @@ class NanValue(Value):
         yield from self.value.placeholders()
 
     def extract(self, data):
-        clean = data.dropna(subset=(self.value.name,))
-        self.value.extract(data=clean)
+        if data[self.value.name].dtype.kind not in self.value.pd_types:
+            data.loc[:, self.value.name] = self.value.pd_cast(data[self.value.name])
+        cleaned = data.dropna(subset=(self.value.name,))
+        self.value.extract(data=cleaned)
 
-    def encode(self, data):
+    def preprocess(self, data):
+        if data[self.value.name].dtype.kind not in self.value.pd_types:
+            data.loc[:, self.value.name] = self.value.pd_cast(data[self.value.name])
         nan = data[self.value.name].isna()
         data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
         # clean = data.dropna(subset=(self.value.name,))
-        data = self.value.encode(data=data)
+        data = self.value.preprocess(data=data)
         # data.loc[:, self.value.name] = data[self.value.name].astype(encoded[self.value.name].dtype)
         # data = pd.merge(data.fillna(), encoded, how='outer')
         data.loc[nan, self.value.name] = np.nan

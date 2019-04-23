@@ -23,7 +23,10 @@ class CategoricalValue(Value):
         elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
-            self.categories = list(pd.Series(categories).sort_values())
+            try:
+                self.categories = list(pd.Series(categories).sort_values())
+            except TypeError:
+                self.categories = list(categories)
             self.num_categories = len(self.categories)
 
         self.probabilities = probabilities
@@ -75,7 +78,10 @@ class CategoricalValue(Value):
         yield self.placeholder
 
     def extract(self, data):
-        unique_values = list(pd.Series(data[self.name].unique()).sort_values())
+        try:
+            unique_values = list(pd.Series(data[self.name].unique()).sort_values())
+        except TypeError:
+            unique_values = list(data[self.name].unique())
         if self.categories is None:
             self.categories = unique_values
             self.num_categories = len(self.categories)
@@ -84,7 +90,7 @@ class CategoricalValue(Value):
         elif unique_values != self.categories:
             raise NotImplementedError
 
-    def encode(self, data):
+    def preprocess(self, data):
         if not isinstance(self.categories, int):
             data.loc[:, self.name] = data[self.name].map(arg=self.categories.index)
         data.loc[:, self.name] = data[self.name].astype(dtype='int64')

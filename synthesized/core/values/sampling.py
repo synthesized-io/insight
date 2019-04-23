@@ -45,7 +45,7 @@ class SamplingValue(Value):
 
     def postprocess(self, data):
         if self.smoothing == 0.0:
-            data[self.name] = np.random.choice(a=self.categories, size=len(data))
+            data.loc[:, self.name] = np.random.choice(a=self.categories, size=len(data))
         else:
-            data[self.name] = self.sample(p=np.random.uniform(size=len(data)))
+            data.loc[:, self.name] = self.sample(p=np.random.uniform(size=len(data)))
         return data

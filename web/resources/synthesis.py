@@ -45,6 +45,13 @@ class ModelResource(Resource, DatasetAccessMixin):
 
         return {'status': 'training'}, 202, {'Location': '/datasets/{}/model'.format(dataset_id)}
 
+    def delete(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
+        self.synthesizer_manager.stop_async(dataset_id)
+
+        return '', 204
+
 
 class SynthesisPreviewResource(Resource, DatasetAccessMixin):
     decorators = [jwt_required]
