@@ -52,7 +52,7 @@ class RnnVariationalEncoding(Encoding):
         self.lstm_decoder.build(input_shape=(None, self.encoding_size))
 
     @tensorflow_name_scoped
-    def encode(self, x, condition=(), encoding_plus_loss=False):
+    def encode(self, x, condition=(), encoding_loss=False):
         batch_size = tf.shape(input=x)[0]
         final_state = self.lstm_encoder.transform(x=x)
         final_state = tf.expand_dims(input=final_state, axis=0)
@@ -80,7 +80,7 @@ class RnnVariationalEncoding(Encoding):
         )
         x = final_outputs.sample_id[0]
 
-        if encoding_plus_loss:
+        if encoding_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
