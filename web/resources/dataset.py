@@ -1,10 +1,11 @@
 import os
+import re
+from datetime import datetime
 from io import StringIO, BytesIO
 
 import pandas as pd
 import simplejson
-from flask import current_app
-from flask import jsonify
+from flask import current_app, jsonify, send_file
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 from werkzeug.datastructures import FileStorage
@@ -146,3 +147,30 @@ class DatasetUpdateSettingsResource(Resource, DatasetAccessMixin):
         self.dataset_repo.save(dataset)
 
         return '', 204
+
+
+class DatasetExportResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.synthesis_repo: Repository = kwargs['synthesis_repo']
+
+    def get(self, dataset_id):
+        dataset = self.get_dataset_authorized(dataset_id)
+
+        syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
+        current_app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))
+
+        if len(syntheses) == 0:
+            abort(404, messsage="Couldn't find requested synthesis")
+
+        synthesis = syntheses[0]  # assumes the only one synthesis
+
+        filename = ''
+        if dataset.title:
+            filename += re.sub('[^0-9a-zA-Z]+', '_', dataset.title).lower() + '_'
+        filename += 'synthesized_'
+        filename += datetime.today().strftime('%Y%m%d')
+        filename += '.csv'
+        return send_file(BytesIO(synthesis.blob), mimetype='text/csv', as_attachment=True, attachment_filename=filename)

@@ -39,6 +39,7 @@ while true; do
 done
 
 curl -f -i -XPOST -d 'rows=10000' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
+curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/model
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis
 
