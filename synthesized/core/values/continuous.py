@@ -13,6 +13,7 @@ import numpy as np
 OUTLIERS_PERCENTILE = 0.01
 FITTING_SUBSAMPLE = 10000
 FITTING_INF_TOLERANCE = 0.01
+FITTING_THRESHOLD = 0.1
 DISTRIBUTIONS = dict(
     # beta=(beta, tfp.distributions.Beta),
     gamma=(gamma, tfp.distributions.Gamma),
@@ -42,7 +43,10 @@ class ContinuousValue(Value):
 
     def __str__(self):
         string = super().__str__()
-        string += '-' + self.distribution
+        if self.distribution is None:
+            string += '-raw'
+        else:
+            string += '-' + self.distribution
         if self.integer:
             string += '-integer'
         if self.positive:
@@ -129,6 +133,10 @@ class ContinuousValue(Value):
                 self.distribution = name
                 self.distribution_params = distribution_params
 
+        # if distance > FITTING_THRESHOLD:
+        #     self.distribution = None
+        #     self.distribution_params = None
+
     def preprocess(self, data):
         data = super().preprocess(data=data)
         # TODO: mb removal makes learning more stable (?), an investigation required
@@ -147,7 +155,7 @@ class ContinuousValue(Value):
             mean, stddev = self.distribution_params
             data.loc[:, self.name] = (data[self.name] - mean) / stddev
 
-        else:
+        elif self.distribution is not None:
             data.loc[:, self.name] = norm.ppf(
                 DISTRIBUTIONS[self.distribution][0].cdf(data[self.name], *self.distribution_params)
             )
@@ -169,7 +177,7 @@ class ContinuousValue(Value):
                     zeros = np.zeros_like(data[self.name])
                     data.loc[:, self.name] = np.where((data[self.name] >= 0.001), data[self.name], zeros)
 
-        else:
+        elif self.distribution is not None:
             data.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
                 norm.cdf(data[self.name]), *self.distribution_params
             )
