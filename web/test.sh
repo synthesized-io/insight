@@ -6,8 +6,8 @@ set -x
 BASE_URL=http://localhost:5000/api
 #BASE_URL=https://webui.synthesized.io/api
 
-curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user", "password": "123", "invite_code": "FEQPFZAPACEKZFWM"}' ${BASE_URL}/users
-TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"email": "user", "password": "123"}' ${BASE_URL}/login)
+curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user@synthesized.io", "password": "123", "invite_code": "C189533D"}' ${BASE_URL}/users
+TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"email": "user@synthesized.io", "password": "123"}' ${BASE_URL}/login)
 ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)
 REFRESH_TOKEN=$(echo ${TOKENS_JSON} | jq -r .refresh_token)
 AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
