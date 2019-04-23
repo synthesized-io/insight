@@ -5,8 +5,8 @@ from scipy.stats import gilbrat
 
 class GilbratDistrValue(ContinuousValue):
 
-    def __init__(self, name, integer=None, params=None):
-        super().__init__(name=name, integer=integer)
+    def __init__(self, name, integer=None, to_numeric=False, params=None):
+        super().__init__(name=name, integer=integer, to_numeric=to_numeric)
         self.params = params
         self.shape = params[0]
         self.location = params[1]
@@ -29,14 +29,12 @@ class GilbratDistrValue(ContinuousValue):
     def preprocess(self, data):
         data = super().preprocess(data=data)
         data[self.name] = norm.ppf(gilbrat.cdf(data[self.name], self.shape, self.location))
-        data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return data
 
     def postprocess(self, data):
         data[self.name] = gilbrat.ppf(norm.cdf(data[self.name]),  self.shape, self.location)
-        data = data.dropna()
         data = data[data[self.name] != float('inf')]
         data = data[data[self.name] != float('-inf')]
         return super().postprocess(data=data)

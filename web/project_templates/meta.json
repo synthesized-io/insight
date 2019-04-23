@@ -1,0 +1,46 @@
+{
+  "templates": [
+    {
+      "id": 1,
+      "title": "Credit scoring",
+      "description": "Credit scoring dataset from Kaggle",
+      "file": "templates/credit.csv"
+    },
+    {
+      "id": 2,
+      "title": "Churn prediction",
+      "description": "Churn prediction dataset from Kaggle.",
+      "file": "templates/churn_prediction.csv"
+    },
+    {
+      "id": 3,
+      "title": "Claim prediction",
+      "description": "Insurance claim prediction dataset from Kaggle.",
+      "file": "templates/claim_prediction.csv"
+    },
+    {
+      "id": 4,
+      "title": "Default on loan payment",
+      "description": "Default of credit card clients dataset from the UCI repository.",
+      "file": "templates/credit_card_default_prediction.csv"
+    },
+    {
+      "id": 5,
+      "title": "Fraud detection",
+      "description": "Bank transactions data from Kaggle based on aggregated data from a European retail bank.",
+      "file": "templates/fraud_detection.csv"
+    },
+    {
+      "id": 6,
+      "title": "Segmentation analysis",
+      "description": "Adult census income dataset from a census bureau database.",
+      "file": "templates/segmentation_analysis.csv"
+    }
+    ,
+    {
+      "id": 7,
+      "title": "Sales pipeline",
+      "description": "Sales win-loss prediction dataset.",
+      "file": "templates/sales_pipeline.csv"
+    }]
+}

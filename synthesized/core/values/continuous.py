@@ -1,3 +1,4 @@
+import pandas as pd
 import tensorflow as tf
 
 from .value import Value
@@ -9,7 +10,7 @@ REMOVE_OUTLIERS_PCT = 0.5
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, positive=None, nonnegative=None, integer=None):
+    def __init__(self, name, positive=None, nonnegative=None, integer=None, to_numeric=False):
         super().__init__(name=name)
         self.positive = positive
         self.nonnegative = nonnegative
@@ -18,6 +19,7 @@ class ContinuousValue(Value):
         elif self.nonnegative is not None:
             self.positive = False
         self.integer = integer
+        self.to_numeric = to_numeric
 
     def __str__(self):
         string = super().__str__()
@@ -31,16 +33,24 @@ class ContinuousValue(Value):
 
     def specification(self):
         spec = super().specification()
-        spec.update(positive=self.positive, nonnegative=self.nonnegative, integer=self.integer)
+        spec.update(
+            positive=self.positive, nonnegative=self.nonnegative, integer=self.integer,
+            to_numeric=self.to_numeric
+        )
         return spec
 
     def input_size(self):
+        return 1
+
+    def output_size(self):
         return 1
 
     def placeholders(self):
         yield self.placeholder
 
     def extract(self, data):
+        if self.to_numeric:
+            data[self.name] = pd.to_numeric(data[self.name], errors='coerce')
         if self.positive is None:
             self.positive = (data[self.name] > 0.0).all()
         elif self.positive and (data[self.name] <= 0.0).all():
@@ -55,6 +65,8 @@ class ContinuousValue(Value):
             raise NotImplementedError
 
     def encode(self, data):
+        if self.to_numeric:
+            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         return data
 
@@ -109,10 +121,10 @@ class ContinuousValue(Value):
         return {self.name: x}
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
+    def loss(self, x, feed=None, mask=None):
         # if self.positive:                      ??????????????????????????????????????
         #     x = tf.nn.softplus(features=x)
-        target = self.input_tensor(feed=feed)
+        target = self.input_tensor(feed=feed)[:, :1]  # first value since date adds more information
         # target = tf.Print(target, (x, target))
 
         # relative = tf.maximum(x=x, y=target) / (tf.minimum(x=x, y=target) + 1.0)
@@ -121,6 +133,10 @@ class ContinuousValue(Value):
         # relative = tf.squeeze(input=relative, axis=1)
         # loss = tf.reduce_mean(input_tensor=(relative - 1.0), axis=0, keepdims=False)
         # loss = tf.losses.add_loss(loss=loss, loss_collection=tf.GraphKeys.LOSSES)
+        if mask is not None:
+            target = tf.boolean_mask(tensor=target, mask=mask)
+            x = tf.boolean_mask(tensor=x, mask=mask)
+        # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.losses.mean_squared_error(
             labels=target, predictions=x, weights=1.0, scope=None,
             loss_collection=tf.GraphKeys.LOSSES
@@ -132,10 +148,32 @@ class ContinuousValue(Value):
         return 0.0
 
     @staticmethod
-    def remove_outliers(data, name, pct):
+    def remove_outliers(data, pct):
         percentiles = [pct / 2., 100 - pct / 2.]
-        start, end = np.percentile(data[name], percentiles)
-        data = data[data[name] != float('nan')]
-        data = data[data[name] != float('inf')]
-        data = data[data[name] != float('-inf')]
-        return data[(data[name] > start) & (data[name] < end)]
+        start, end = np.percentile(data, percentiles)
+        # data = data[data[name] != float('inf')]
+        # data = data[data[name] != float('-inf')]
+        return data[(data > start) & (data < end)]
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, samples):
+        mean, variance = tf.nn.moments(x=samples, axes=0)
+        mean_loss = tf.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.squared_difference(x=variance, y=1.0)
+
+        mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
+        difference = samples - mean
+        squared_difference = tf.square(x=difference)
+        variance = tf.reduce_mean(input_tensor=squared_difference, axis=0)
+        third_moment = tf.reduce_mean(input_tensor=(squared_difference * difference), axis=0)
+        fourth_moment = tf.reduce_mean(input_tensor=tf.square(x=squared_difference), axis=0)
+        skewness = third_moment / tf.pow(x=variance, y=1.5)
+        kurtosis = fourth_moment / tf.square(x=variance)
+        num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
+        # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
+        #     0.25 * tf.square(x=(kurtosis - 3.0)))
+        jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
+        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        loss = mean_loss + variance_loss + jarque_bera_loss
+
+        return loss

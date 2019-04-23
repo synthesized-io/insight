@@ -19,7 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     install_requires = f.read().split('\n')
 
-packages = find_packages(exclude=['tests*', 'web'])
+packages = find_packages(exclude=['tests*', 'web*'])
 
 
 def source_files(base_dir):

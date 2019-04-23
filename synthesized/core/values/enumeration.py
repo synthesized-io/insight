@@ -8,5 +8,5 @@ class EnumerationValue(Value):
         return data
 
     def postprocess(self, data):
-        data[self.name] = data.index + 1
+        data.loc[:, self.name] = data.index + 1
         return data

@@ -5,8 +5,8 @@ from scipy.stats import beta
 
 class BetaDistrValue(ContinuousValue):
 
-    def __init__(self, name, integer=None, params=None):
-        super().__init__(name=name, integer=integer)
+    def __init__(self, name, integer=None, to_numeric=False, params=None):
+        super().__init__(name=name, integer=integer, to_numeric=to_numeric)
         self.params = params
         self.location = params[0]
         self.scale = params[1]

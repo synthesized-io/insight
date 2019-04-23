@@ -24,10 +24,11 @@ class BasicSynthesizer(Synthesizer):
         capacity=128, depth=2, lstm_mode=0, learning_rate=3e-4, encoding_beta=1e-3,
         weight_decay=1e-5, batch_size=64,
         # person
-        gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
+        title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
         # address
-        postcode_label=None, street_label=None, address_label=None, postcode_regex=None,
+        postcode_label=None, city_label=None, street_label=None,
+        address_label=None, postcode_regex=None,
         # identifier
         identifier_label=None, condition_labels=()
     ):
@@ -47,6 +48,7 @@ class BasicSynthesizer(Synthesizer):
 
         # person
         self.person_value = None
+        self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
         self.firstname_label = firstname_label
@@ -55,6 +57,7 @@ class BasicSynthesizer(Synthesizer):
         # address
         self.address_value = None
         self.postcode_label = postcode_label
+        self.city_label = city_label
         self.street_label = street_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
@@ -181,7 +184,7 @@ class BasicSynthesizer(Synthesizer):
             if value.name in self.condition_labels:
                 condition.append(value.input_tensor(feed=feed))
         x, encoding, encoding_loss = self.encoding.encode(
-            x=x, condition=condition, encoding_plus_loss=True
+            x=x, condition=condition, encoding_loss=True
         )
         encoding_mean, encoding_variance = tf.nn.moments(
             x=encoding, axes=(0, 1), shift=None, keep_dims=False
@@ -231,6 +234,7 @@ class BasicSynthesizer(Synthesizer):
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
+        losses['loss'] = loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -337,6 +341,12 @@ class BasicSynthesizer(Synthesizer):
         ):
             raise NotImplementedError
 
+        try:
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
+        except StopIteration:  # since yield_every is 0 we expect an empty generator
+            pass
+
+    def learn_async(self, num_iterations=2500, data=None, filenames=None, verbose=0, yield_every=0):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -377,6 +387,8 @@ class BasicSynthesizer(Synthesizer):
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
                     self.log_metrics(data, fetched, iteration)
+                if yield_every > 0 and iteration % yield_every + 1 == yield_every:
+                    yield iteration
 
         else:
             if verbose > 0:
@@ -384,7 +396,7 @@ class BasicSynthesizer(Synthesizer):
             fetches = self.iterator.initializer
             feed_dict = dict(filenames=filenames)
             self.run(fetches=fetches, feed_dict=feed_dict)
-            fetches = self.optimized_fromfile
+            fetches = (self.optimized_fromfile, self.loss_fromfile)
             feed_dict = dict(num_iterations=num_iterations)
             self.run(fetches=fetches, feed_dict=feed_dict)
             # assert num_iterations % verbose == 0

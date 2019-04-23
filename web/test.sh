@@ -3,10 +3,11 @@
 set -e
 set -x
 
-BASE_URL=http://localhost:5000
-#BASE_URL=https://webui.synthesized.io
+BASE_URL=http://localhost:5000/api
+#BASE_URL=https://webui.synthesized.io/api
 
-TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"username": "denis", "password": "123"}' ${BASE_URL}/login)
+curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user", "password": "123", "invite_code": "FEQPFZAPACEKZFWM"}' ${BASE_URL}/users
+TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"email": "user", "password": "123"}' ${BASE_URL}/login)
 ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)
 REFRESH_TOKEN=$(echo ${TOKENS_JSON} | jq -r .refresh_token)
 AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
@@ -22,6 +23,7 @@ then
 fi
 
 curl -f -i -XPOST -d 'title=title&description=description' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updateinfo
+curl -f -i -XPOST -d '{"settings": {"disabled_columns": ["NumberRealEstateLoansOrLines"]}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updatesettings
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
 
@@ -32,6 +34,7 @@ while true; do
     if [[ "$STATUS" != "training" ]]; then
         break
     fi
+    curl -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/synthesis-preview
     sleep 5
 done
 
@@ -53,4 +56,9 @@ curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report
 
 curl -f -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/report-items/${MOD_ID}
 
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/templates
+
+TPL_DS_ID=$(curl -f -XPOST -H "$AUTH_HEADER" ${BASE_URL}/templates/1/dataset | jq -r .dataset_id)
+
 curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}
+curl -f -i -XDELETE -H "$AUTH_HEADER" ${BASE_URL}/datasets/${TPL_DS_ID}

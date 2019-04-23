@@ -1,6 +1,9 @@
 import argparse
 from datetime import datetime
+import os
+
 import pandas as pd
+
 from synthesized.core import BasicSynthesizer, SeriesSynthesizer
 
 
@@ -28,7 +31,14 @@ else:
 
 
 print('Load dataset...')
-data = pd.read_csv('data/{}.csv'.format(args.dataset))
+if os.path.isfile(args.dataset):
+    data = pd.read_csv(args.dataset)
+elif os.path.isfile(os.path.join('data', args.dataset)):
+    data = pd.read_csv(os.path.join('data', args.dataset))
+elif os.path.isfile(os.path.join('data', args.dataset + '.csv')):
+    data = pd.read_csv(os.path.join('data', args.dataset + '.csv'))
+else:
+    assert False
 tfrecords_filename = 'data/{}.tfrecords'.format(args.dataset)
 if args.drop is not None:
     data = data.drop(columns=args.drop.split(','))
@@ -64,6 +74,12 @@ else:
         condition_labels=args.condition_labels, **kwargs
     )
 print(repr(synthesizer))
+print()
+
+
+print('Value types...')
+for value in synthesizer.values:
+    print(value.name, value)
 print()
 
 

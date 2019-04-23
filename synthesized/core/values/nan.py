@@ -4,6 +4,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
+from .continuous import ContinuousValue
 from .. import util
 from ..module import Module, tensorflow_name_scoped
 
@@ -11,8 +12,10 @@ from ..module import Module, tensorflow_name_scoped
 class NanValue(Value):
 
     def __init__(self, name, value, capacity=None, embedding_size=None, weight_decay=0.0):
+        assert name.endswith('-nan')
         super().__init__(name=name)
 
+        assert isinstance(value, ContinuousValue)
         self.value = value
         self.weight_decay = weight_decay
 
@@ -25,7 +28,7 @@ class NanValue(Value):
 
     def __str__(self):
         string = super().__str__()
-        string += '{}-{}'.format(self.embedding_size, self.value)
+        string += '-' + str(self.value)
         return string
 
     def specification(self):
@@ -56,15 +59,23 @@ class NanValue(Value):
         self.value.extract(data=clean)
 
     def encode(self, data):
-        clean = data.dropna(subset=(self.value.name,))
-        encoded = self.value.encode(data=clean)
-        data = pd.merge(data, encoded, how='outer')
+        nan = data[self.value.name].isna()
+        data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
+        # clean = data.dropna(subset=(self.value.name,))
+        data = self.value.encode(data=data)
+        # data.loc[:, self.value.name] = data[self.value.name].astype(encoded[self.value.name].dtype)
+        # data = pd.merge(data.fillna(), encoded, how='outer')
+        data.loc[nan, self.value.name] = np.nan
         return data
 
     def postprocess(self, data):
-        clean = data.dropna(subset=(self.value.name,))
-        postprocessed = self.value.postprocess(data=clean)
-        data = pd.merge(data, postprocessed, how='outer')
+        # clean = data.dropna(subset=(self.value.name,))
+        # postprocessed = self.value.postprocess(data=clean)
+        # data = pd.merge(data, postprocessed, how='outer')
+        nan = data[self.value.name].isna()
+        data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
+        data = self.value.postprocess(data=data)
+        data.loc[nan, self.value.name] = np.nan
         return data
 
     def features(self, x=None):
@@ -85,34 +96,35 @@ class NanValue(Value):
     @tensorflow_name_scoped
     def input_tensor(self, feed=None):
         x = self.value.placeholder if feed is None else feed[self.value.name]
-        nan = tf.cast(x=tf.is_nan(x=x), dtype=tf.int64)
+        nan = tf.is_nan(x=x)
         embedding = tf.nn.embedding_lookup(
-            params=self.embeddings, ids=nan, partition_strategy='mod', validate_indices=True,
-            max_norm=None
+            params=self.embeddings, ids=tf.cast(x=nan, dtype=tf.int64), partition_strategy='mod',
+            validate_indices=True, max_norm=None
         )
         x = self.value.input_tensor(feed=feed)
-        x = tf.where(condition=nan, x=0.0, y=x)
-        x = tf.expand_dims(input=x, axis=1)
+        x = tf.where(condition=nan, x=tf.zeros_like(tensor=x), y=x)
+        # x = tf.expand_dims(input=x, axis=1)
         x = tf.concat(values=(embedding, x), axis=1)
         return x
 
     @tensorflow_name_scoped
     def output_tensors(self, x):
-        nan = tf.argmax(input=x[:, :2], axis=1)
+        nan = (tf.argmax(input=x[:, :2], axis=1) == 1)
         x = self.value.output_tensors(x=x[:, 2:])[self.value.name]
-        x = tf.where(condition=nan, x=np.nan, y=x)
-        return {self.name: x}
+        x = tf.where(condition=nan, x=(x * np.nan), y=x)
+        return {self.value.name: x}
 
     @tensorflow_name_scoped
     def loss(self, x, feed=None):
         target = self.value.placeholder if feed is None else feed[self.value.name]
-        target_nan = tf.cast(x=tf.is_nan(x=target), dtype=tf.int64)
-        target_nan = tf.one_hot(
-            indices=target_nan, depth=2, on_value=1.0, off_value=0.0, axis=1, dtype=tf.float32
+        target_nan = tf.is_nan(x=target)
+        target_embedding = tf.one_hot(
+            indices=tf.cast(x=target_nan, dtype=tf.int64), depth=2, on_value=1.0, off_value=0.0,
+            axis=1, dtype=tf.float32
         )
         loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=target_nan, logits=x[:, :2], weights=None, label_smoothing=None,
+            onehot_labels=target_embedding, logits=x[:, :2], weights=1.0, label_smoothing=0,
             scope=None, loss_collection=tf.GraphKeys.LOSSES
         )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
-        loss += tf.where(condition=target_nan, x=0.0, y=self.value.loss(x=x[:, 2:], feed=feed))
+        loss += self.value.loss(x=x[:, 2:], feed=feed, mask=tf.math.logical_not(x=target_nan))
         return loss

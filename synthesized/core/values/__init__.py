@@ -1,4 +1,5 @@
 from .address import AddressValue
+from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
@@ -8,7 +9,6 @@ from .identifier import IdentifierValue
 from .identify_value import identify_value
 from .nan import NanValue
 from .person import PersonValue
-from .powerlaw import PowerlawValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .beta import BetaDistrValue
@@ -28,7 +28,6 @@ value_modules = dict(
     gaussian=GaussianValue,
     identifier=IdentifierValue,
     person=PersonValue,
-    powerlaw=PowerlawValue,
     orobability=ProbabilityValue,
     beta=BetaDistrValue,
     gamma=GammaDistrValue,
