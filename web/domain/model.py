@@ -41,11 +41,11 @@ class Dataset(db.Model, AuditMixin):
     user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
     title = db.Column(db.Text)
     description = db.Column(db.Text)
-    blob = db.Column(db.LargeBinary, nullable=False)
-    meta = db.Column(db.LargeBinary, nullable=False)
+    blob = db.deferred(db.Column(db.LargeBinary, nullable=False))
+    meta = db.deferred(db.Column(db.LargeBinary, nullable=False))
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
-    settings = db.Column(db.LargeBinary)
+    settings = db.deferred(db.Column(db.LargeBinary))
     entitlements = db.relationship("Entitlement", cascade="all, delete-orphan", lazy='select')
 
     def get_meta_as_object(self) -> DatasetMeta:
