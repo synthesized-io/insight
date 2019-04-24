@@ -41,16 +41,16 @@ class ProbabilityValue(CategoricalValue):
         decimal_granularity = 1.0
         for n in range(4):
             if decimal_granularity == self.granularity:
-                data[self.name] = data[self.name].round(decimals=n)
+                data.loc[:, self.name] = data[self.name].round(decimals=n)
                 break
             decimal_granularity *= 0.1
         else:
-            data[self.name] = ((data[self.name] / self.granularity).round() * self.granularity) \
+            data.loc[:, self.name] = ((data[self.name] / self.granularity).round() * self.granularity) \
                 .clip(upper=1.0)
         return super().preprocess(data=data)
 
     def postprocess(self, data):
         data = super().postprocess(data=data)
         noise = np.random.random(len(data)) * self.granularity - 0.5 * self.granularity
-        data[self.name] = (data[self.name] + noise).clip(lower=0.0, upper=1.0)
+        data.loc[:, self.name] = (data[self.name] + noise).clip(lower=0.0, upper=1.0)
         return data
