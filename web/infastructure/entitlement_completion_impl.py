@@ -25,7 +25,7 @@ class SQLAlchemyEntitlementCompletion(EntitlementCompletion):
             .filter(Entitlement.creator_id == creator_id) \
             .filter(Entitlement.dataset_id == dataset_id)
         return self.db.session.query(User.email)\
-            .filter(User.email.like(pattern)) \
+            .filter(User.email.ilike(pattern)) \
             .filter(User.id.notin_(entitled_user_ids)) \
             .filter(User.id != creator_id) \
             .order_by(User.email).all()
