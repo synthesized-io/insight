@@ -23,6 +23,7 @@ then
     echo 'Could not upload dataset'
     exit 1
 fi
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets
 
 curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements/complete?q=user
 

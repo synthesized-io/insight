@@ -2,7 +2,7 @@ import os
 import re
 from datetime import datetime
 from io import StringIO, BytesIO
-from operator import attrgetter
+from operator import itemgetter
 from typing import Iterable
 
 import pandas as pd
@@ -49,7 +49,7 @@ class DatasetsResource(Resource):
             }
             for e in entitlements
         ])
-        datasets_json = sorted(datasets_json, key=attrgetter('dataset_id'))
+        datasets_json = sorted(datasets_json, key=itemgetter('dataset_id'))
         return jsonify({'datasets': datasets_json})
 
     def post(self):
