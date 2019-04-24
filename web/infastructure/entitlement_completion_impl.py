@@ -20,12 +20,12 @@ class SQLAlchemyEntitlementCompletion(EntitlementCompletion):
         * order alphabetically
         """
         pattern = '{}%'.format(q)
-        print(pattern)
-        entitled_user_ids = self.db.session.query(Entitlement.user_id)\
+        entitled_user_ids = self.db.session.query(Entitlement.user_id) \
             .filter(Entitlement.creator_id == creator_id) \
             .filter(Entitlement.dataset_id == dataset_id)
-        return self.db.session.query(User.email)\
-            .filter(User.email.ilike(pattern)) \
-            .filter(User.id.notin_(entitled_user_ids)) \
-            .filter(User.id != creator_id) \
-            .order_by(User.email).all()
+        return [email for email, in
+                self.db.session.query(User.email)
+                    .filter(User.email.ilike(pattern))
+                    .filter(User.id.notin_(entitled_user_ids))
+                    .filter(User.id != creator_id)
+                    .order_by(User.email).all()]
