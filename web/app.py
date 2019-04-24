@@ -62,6 +62,7 @@ authenticator = Authenticator(user_repo, bcrypt)
 
 # should be imported after `db` creation
 from .infastructure.report_item_ordering_imp import SQLAlchemyReportItemOrdering
+from .infastructure.entitlement_completion_impl import SQLAlchemyEntitlementCompletion
 from .application.project_templates import ProjectTemplates
 from .application.synthesizer_manager import SynthesizerManager
 
@@ -69,6 +70,7 @@ from .application.synthesizer_manager import SynthesizerManager
 synthesizer_manager = SynthesizerManager(dataset_repo=dataset_repo, max_models=15)
 
 report_item_ordering = SQLAlchemyReportItemOrdering(db)
+entitlement_completion = SQLAlchemyEntitlementCompletion(db)
 template_directory = JsonFileDirectory(os.path.join(app.root_path, 'project_templates/meta.json'), 'templates')
 project_templates = ProjectTemplates(template_directory, dataset_repo)
 
@@ -77,7 +79,7 @@ from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateI
 from .resources.synthesis import ModelResource, SynthesisResource, SynthesisPreviewResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
-from .resources.entitelement import EntitlementResource, EntitlementsResource
+from .resources.entitelement import EntitlementResource, EntitlementsResource, EntitlementCompletionResource
 
 api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
@@ -100,3 +102,4 @@ api.add_resource(ProjectTemplatesResource, '/templates', resource_class_kwargs={
 api.add_resource(DatasetFromTemplateResource, '/templates/<template_id>/dataset', resource_class_kwargs={'project_templates': project_templates})
 api.add_resource(EntitlementsResource, '/datasets/<dataset_id>/entitlements', resource_class_kwargs={'dataset_repo': dataset_repo, 'user_repo': user_repo, 'entitlement_repo': entitlement_repo})
 api.add_resource(EntitlementResource, '/datasets/<dataset_id>/entitlements/<entitlement_id>', resource_class_kwargs={'dataset_repo': dataset_repo, 'user_repo': user_repo, 'entitlement_repo': entitlement_repo})
+api.add_resource(EntitlementCompletionResource, '/datasets/<dataset_id>/entitlements/complete', resource_class_kwargs={'dataset_repo': dataset_repo, 'entitlement_completion': entitlement_completion})

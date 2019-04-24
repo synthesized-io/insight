@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse, abort
 
 from .common import DatasetAccessMixin
+from ..application.entitelement_completion import EntitlementCompletion
 from ..domain.model import Entitlement
 from ..domain.repository import Repository
 
@@ -75,7 +76,7 @@ class EntitlementResource(Resource, DatasetAccessMixin):
             abort(404, message='Could not find entitlement ' + str(entitlement_id))
 
         parser = reqparse.RequestParser()
-        parser.add_argument('access_type', type=str, choices=('FULL_ACCESS', 'RESULTS_ONLY'), required=False)
+        parser.add_argument('access_type', type=str, choices=('FULL_ACCESS', 'RESULTS_ONLY'), required=True)
         args = parser.parse_args()
 
         access_type = args['access_type']
@@ -94,3 +95,23 @@ class EntitlementResource(Resource, DatasetAccessMixin):
         self.entitlement_repo.delete(entitlement)
 
         return '', 204
+
+
+class EntitlementCompletionResource(Resource, DatasetAccessMixin):
+    decorators = [jwt_required]
+
+    def __init__(self, **kwargs):
+        self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_completion: EntitlementCompletion = kwargs['entitlement_completion']
+
+    def get(self, dataset_id):
+        self.get_dataset_authorized(dataset_id)
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('q', type=str, required=True)
+        args = parser.parse_args()
+
+        q = args['q']
+        completions = self.entitlement_completion.complete_email(creator_id=get_jwt_identity(), dataset_id=dataset_id, q=q)
+
+        return jsonify({'completions': completions})

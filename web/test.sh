@@ -24,6 +24,8 @@ then
     exit 1
 fi
 
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements/complete?q=user
+
 E_ID=$(curl -f -XPOST -d 'email=user2@synthesized.io&access_type=FULL_ACCESS' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements | jq -r .entitlement_id)
 if [[ -z ${E_ID} ]];
 then
