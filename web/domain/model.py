@@ -46,6 +46,7 @@ class Dataset(db.Model, AuditMixin):
     syntheses = db.relationship("Synthesis", cascade="all, delete-orphan", lazy='select')
     reports = db.relationship("Report", cascade="all, delete-orphan", lazy='select')
     settings = db.Column(db.LargeBinary)
+    entitlements = db.relationship("Entitlement", cascade="all, delete-orphan", lazy='select')
 
     def get_meta_as_object(self) -> DatasetMeta:
         # Parse JSON into an object with attributes corresponding to dict keys.
@@ -109,6 +110,25 @@ class ReportItem(db.Model, AuditMixin):
 
     def __str__(self):
         return '<ReportItem {}>'.format(self.id)
+
+
+class AccessType(Enum):
+    FULL_ACCESS = 1
+    RESULTS_ONLY = 2
+
+
+class Entitlement(db.Model, AuditMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    access_type = db.Column(db.Enum(AccessType), nullable=False)
+    creator = db.relationship(User, lazy="joined", innerjoin=True, foreign_keys=[creator_id])
+    dataset = db.relationship(Dataset, lazy="joined", innerjoin=True)
+    user = db.relationship(User, lazy="joined", innerjoin=True, foreign_keys=[user_id])
+
+    def __str__(self):
+        return '<Entitlement {}>'.format(self.id)
 
 
 # this is not stored in the db

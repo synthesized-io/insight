@@ -46,7 +46,7 @@ jwt = JWTManager(app)
 
 db = SQLAlchemy(app)
 # models use `db` object, therefore should be imported after `db` creation
-from web.domain.model import Dataset, Synthesis, User, Report, ReportItem, UsedInvite
+from web.domain.model import Dataset, Synthesis, User, Report, ReportItem, UsedInvite, Entitlement
 db.create_all()
 
 dataset_repo = SQLAlchemyRepository(db, Dataset)
@@ -55,6 +55,7 @@ synthesis_repo = SQLAlchemyRepository(db, Synthesis)
 user_repo = SQLAlchemyRepository(db, User)
 report_repo = SQLAlchemyRepository(db, Report)
 report_item_repo = SQLAlchemyRepository(db, ReportItem)
+entitlement_repo = SQLAlchemyRepository(db, Entitlement)
 
 
 authenticator = Authenticator(user_repo, bcrypt)
@@ -76,13 +77,14 @@ from .resources.dataset import DatasetsResource, DatasetResource, DatasetUpdateI
 from .resources.synthesis import ModelResource, SynthesisResource, SynthesisPreviewResource
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
+from .resources.entitelement import EntitlementResource, EntitlementsResource
 
 api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
 api.add_resource(RefreshResource, '/refresh')
 api.add_resource(UsersResource, '/users', resource_class_kwargs={'user_repo': user_repo, 'used_invite_repo': used_invite_repo, 'bcrypt': bcrypt})
-api.add_resource(DatasetsResource, '/datasets', resource_class_kwargs={'dataset_repo': dataset_repo})
-api.add_resource(DatasetResource, '/datasets/<dataset_id>', resource_class_kwargs={'dataset_repo': dataset_repo})
+api.add_resource(DatasetsResource, '/datasets', resource_class_kwargs={'dataset_repo': dataset_repo, 'entitlement_repo': entitlement_repo})
+api.add_resource(DatasetResource, '/datasets/<dataset_id>', resource_class_kwargs={'dataset_repo': dataset_repo, 'entitlement_repo': entitlement_repo})
 api.add_resource(DatasetUpdateInfoResource, '/datasets/<dataset_id>/updateinfo', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(DatasetUpdateSettingsResource, '/datasets/<dataset_id>/updatesettings', resource_class_kwargs={'dataset_repo': dataset_repo})
 api.add_resource(ModelResource, '/datasets/<dataset_id>/model', resource_class_kwargs={'dataset_repo': dataset_repo, 'synthesizer_manager': synthesizer_manager})
@@ -96,3 +98,5 @@ api.add_resource(ReportItemsUpdateSettingsResource, '/datasets/<dataset_id>/repo
 api.add_resource(ReportItemsMoveResource, '/datasets/<dataset_id>/report-items/<report_item_id>/move', resource_class_kwargs={'dataset_repo': dataset_repo, 'report_repo': report_repo, 'report_item_repo': report_item_repo, 'report_item_ordering': report_item_ordering})
 api.add_resource(ProjectTemplatesResource, '/templates', resource_class_kwargs={'template_directory': template_directory})
 api.add_resource(DatasetFromTemplateResource, '/templates/<template_id>/dataset', resource_class_kwargs={'project_templates': project_templates})
+api.add_resource(EntitlementsResource, '/datasets/<dataset_id>/entitlements', resource_class_kwargs={'dataset_repo': dataset_repo, 'user_repo': user_repo, 'entitlement_repo': entitlement_repo})
+api.add_resource(EntitlementResource, '/datasets/<dataset_id>/entitlements/<entitlement_id>', resource_class_kwargs={'dataset_repo': dataset_repo, 'user_repo': user_repo, 'entitlement_repo': entitlement_repo})
