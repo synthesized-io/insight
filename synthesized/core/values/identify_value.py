@@ -85,7 +85,7 @@ def identify_value(module, name, dtype, data):
         if num_unique <= 2.5 * log(num_data):
             value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
 
-    if dtype.kind == 'O':
+    if dtype.kind == 'O' and num_unique > sqrt(num_data):
         # numerical if values can be parsed
         numeric_data = pd.to_numeric(data[name], errors='coerce')
         if numeric_data.isna().sum() / len(numeric_data) < 0.25:
@@ -96,7 +96,7 @@ def identify_value(module, name, dtype, data):
 
     if value is None and dtype.kind in ('f', 'i') and num_unique > 1:
         is_nan = numeric_data.isna().any()
-        value = module.add_module(module=ContinuousValue, name=name, integer=(dtype.kind == 'i'))
+        value = module.add_module(module=ContinuousValue, name=name)
 
     if value is not None and is_nan:
         value = module.add_module(module=NanValue, name=name, value=value, capacity=module.capacity)

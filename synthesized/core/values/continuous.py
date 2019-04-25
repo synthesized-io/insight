@@ -27,19 +27,18 @@ DISTRIBUTIONS = dict(
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, distribution=None, distribution_params=None, integer=None):
+    def __init__(self, name, distribution=None, distribution_params=None, integer=None, positive=None, nonnegative=None):
         super().__init__(name=name)
 
         assert distribution is None or distribution == 'normal' or distribution in DISTRIBUTIONS
         self.distribution = distribution
         self.distribution_params = distribution_params
         self.integer = integer
-
-        self.positive = False
-        self.nonnegative = False
+        self.positive = positive
+        self.nonnegative = nonnegative
 
         self.pd_types = ('f', 'i')
-        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce'))
+        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
 
     def __str__(self):
         string = super().__str__()
@@ -51,7 +50,7 @@ class ContinuousValue(Value):
             string += '-integer'
         if self.positive:
             string += '-positive'
-        if self.nonnegative:
+        elif self.nonnegative:
             string += '-nonnegative'
         return string
 
@@ -74,7 +73,8 @@ class ContinuousValue(Value):
 
     def extract(self, data):
         if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
+            data.loc[:, self.name] = self.pd_cast(data[self.name])
+
         if self.integer is None:
             self.integer = (data[self.name].dtype.kind == 'i')
         elif self.integer and data[self.name].dtype.kind != 'i':
@@ -88,6 +88,7 @@ class ContinuousValue(Value):
             self.positive = (data[self.name] > 0.0).all()
         elif self.positive and (data[self.name] <= 0.0).all():
             raise NotImplementedError
+
         if self.nonnegative is None:
             self.nonnegative = (data[self.name] >= 0.0).all()
         elif self.nonnegative and (data[self.name] < 0.0).all():
@@ -97,25 +98,29 @@ class ContinuousValue(Value):
             assert self.distribution_params is not None
             return
 
+        # positive / nonnegative transformation
         full = data[self.name]
+        if self.positive or self.nonnegative:
+            if self.nonnegative and not self.positive:
+                full = np.maximum(full, 0.001)
+            # reversed_softplus = np.log(np.maximum((np.exp(full) - 1.0), 1e-6))
+            # full = np.where((full < 10.0), reversed_softplus, full)
+            full = np.log(np.sign(full) * (1.0 - np.exp(-np.abs(full)))) + np.maximum(full, 0.0)
+
+        # remove outliers
         percentile = [OUTLIERS_PERCENTILE * 50.0, 100.0 - OUTLIERS_PERCENTILE * 50.0]
         lower, upper = np.percentile(full, percentile)
         cleaned_outliers = full[(full >= lower) & (full <= upper)]
         assert len(cleaned_outliers) >= 2
-        subsample = cleaned_outliers.sample(min(len(cleaned_outliers), FITTING_SUBSAMPLE))
+        subsample = np.random.choice(cleaned_outliers, min(len(cleaned_outliers), FITTING_SUBSAMPLE))
 
-        transformed = subsample  # TODO: for all distributions?
-        if self.positive or self.nonnegative:
-            if self.nonnegative and not self.positive:
-                transformed = np.maximum(transformed, 0.001)
-            reversed_softplus = np.log(np.maximum((np.exp(transformed) - 1.0), y=1e-6))
-            transformed = np.where((transformed < 10.0), reversed_softplus, transformed)
-
+        # normal distribution
         self.distribution = 'normal'
-        self.distribution_params = mean, stddev = (transformed.mean(), transformed.std())
+        self.distribution_params = mean, stddev = (subsample.mean(), subsample.std())
         transformed = (data[self.name] - mean) / stddev
         min_distance, _ = kstest(transformed, 'norm')
 
+        # other distributions
         for name, (distribution, _) in DISTRIBUTIONS.items():
             distribution_params = distribution.fit(subsample)
             transformed = norm.ppf(distribution.cdf(subsample, *distribution_params))
@@ -143,15 +148,20 @@ class ContinuousValue(Value):
         # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
 
         if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
+            data.loc[:, self.name] = self.pd_cast(data[self.name])
+
+        data.loc[:, self.name] = data[self.name].astype(dtype='float32')
+        assert not data[self.name].isna().any()
+        assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
+
+        if self.positive or self.nonnegative:
+            if self.nonnegative and not self.positive:
+                data.loc[:, self.name] = np.maximum(data[self.name], 0.001)
+            # reversed_softplus = np.log(np.maximum((np.exp(data[self.name]) - 1.0), 1e-6))
+            # data.loc[:, self.name] = np.where((data[self.name] < 10.0), reversed_softplus, data[self.name])
+            data.loc[:, self.name] = np.log(np.sign(data[self.name]) * (1.0 - np.exp(-np.abs(data[self.name])))) + np.maximum(data[self.name], 0.0)
 
         if self.distribution == 'normal':
-            if self.positive or self.nonnegative:
-                if self.nonnegative and not self.positive:
-                    data.loc[:, self.name] = np.maximum(data[self.name], 0.001)
-                reversed_softplus = np.log(np.maximum((np.exp(data[self.name]) - 1.0), y=1e-6))
-                data.loc[:, self.name] = np.where((data[self.name] < 10.0), reversed_softplus, data[self.name])
-
             mean, stddev = self.distribution_params
             data.loc[:, self.name] = (data[self.name] - mean) / stddev
 
@@ -171,16 +181,17 @@ class ContinuousValue(Value):
             mean, stddev = self.distribution_params
             data.loc[:, self.name] = data[self.name] * stddev + mean
 
-            if self.positive or self.nonnegative:
-                data.loc[:, self.name] = np.log(np.exp(data[self.name]) + 1.0)
-                if self.nonnegative and not self.positive:
-                    zeros = np.zeros_like(data[self.name])
-                    data.loc[:, self.name] = np.where((data[self.name] >= 0.001), data[self.name], zeros)
-
         elif self.distribution is not None:
             data.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
                 norm.cdf(data[self.name]), *self.distribution_params
             )
+
+        if self.positive or self.nonnegative:
+            data.loc[:, self.name] = np.log(1 + np.exp(-np.abs(data[self.name]))) + np.maximum(data[self.name], 0.0)
+            # np.log(np.exp(data[self.name]) + 1.0)
+            if self.nonnegative and not self.positive:
+                zeros = np.zeros_like(data[self.name])
+                data.loc[:, self.name] = np.where((data[self.name] >= 0.001), data[self.name], zeros)
 
         assert not data[self.name].isna().any()
         assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
