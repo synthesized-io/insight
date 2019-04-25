@@ -16,7 +16,7 @@ from ..application.report_item_ordering import ReportItemOrdering
 from ..domain import dataset_meta
 from ..domain.correlation import compute_correlation_similarity
 from ..domain.dataset_meta import DatasetMeta
-from ..domain.model import Report, ReportItem, ReportItemType, Dataset
+from ..domain.model import Report, ReportItem, ReportItemType, Dataset, AccessType
 from ..domain.modelling import r2_regression_score, roc_auc_classification_score
 from ..domain.quality import quality_pct
 from ..domain.repository import Repository
@@ -41,9 +41,10 @@ class ReportResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.report_repo: Repository = kwargs['report_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        dataset: Dataset = self.get_dataset_authorized(dataset_id)
+        dataset, access_type = self.get_dataset_access_type(dataset_id)
         meta: DatasetMeta = dataset.get_meta_as_object()
         disabled_columns = dataset.get_settings_as_dict().get('disabled_columns', [])
 
@@ -72,6 +73,8 @@ class ReportResource(Resource, DatasetAccessMixin):
                         continue
                     if column_meta.type_family == dataset_meta.CONTINUOUS_TYPE_FAMILY:
                         columns.append(column_meta.name)
+                if access_type == AccessType.RESULTS_ONLY:
+                    del results['original_sample']
                 item_views.append({
                     'id': report_item.id,
                     'type': report_item.item_type.name,
@@ -119,6 +122,7 @@ class ReportItemsResource(Resource, DatasetAccessMixin):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id):
         self.get_dataset_authorized(dataset_id)
@@ -157,6 +161,7 @@ class ReportItemResource(Resource, DatasetAccessMixin):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def delete(self, dataset_id, report_item_id):
         self.get_dataset_authorized(dataset_id)
@@ -180,6 +185,7 @@ class ReportItemsUpdateSettingsResource(Resource, DatasetAccessMixin):
         self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id, report_item_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -283,6 +289,7 @@ class ReportItemsMoveResource(Resource, DatasetAccessMixin):
         self.report_repo: Repository = kwargs['report_repo']
         self.report_item_repo: Repository = kwargs['report_item_repo']
         self.report_item_ordering: ReportItemOrdering = kwargs['report_item_ordering']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id, report_item_id):
         self.get_dataset_authorized(dataset_id)

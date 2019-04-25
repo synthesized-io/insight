@@ -85,6 +85,7 @@ class DatasetResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -123,6 +124,7 @@ class DatasetUpdateInfoResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -147,6 +149,7 @@ class DatasetUpdateSettingsResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -169,9 +172,10 @@ class DatasetExportResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        dataset = self.get_dataset_authorized(dataset_id)
+        dataset, _ = self.get_dataset_access_type(dataset_id)
 
         syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         current_app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))

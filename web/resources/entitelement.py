@@ -17,9 +17,12 @@ class EntitlementsResource(Resource, DatasetAccessMixin):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.user_repo: Repository = kwargs['user_repo']
         self.entitlement_repo: Repository = kwargs['entitlement_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        self.get_dataset_authorized(dataset_id)
+        dataset = self.get_dataset_authorized(dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Only owner can edit entitlements')
         entitlements: Iterable[Entitlement] = self.entitlement_repo.find_by_props({'creator_id': get_jwt_identity(), 'dataset_id': dataset_id})
         return jsonify({
             'entitlements': [
@@ -33,7 +36,9 @@ class EntitlementsResource(Resource, DatasetAccessMixin):
         })
 
     def post(self, dataset_id):
-        self.get_dataset_authorized(dataset_id)
+        dataset = self.get_dataset_authorized(dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Only owner can edit entitlements')
 
         parser = reqparse.RequestParser()
         parser.add_argument('email', type=str, required=False)
@@ -67,9 +72,12 @@ class EntitlementResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.entitlement_repo: Repository = kwargs['entitlement_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def put(self, dataset_id, entitlement_id):
-        self.get_dataset_authorized(dataset_id)
+        dataset = self.get_dataset_authorized(dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Only owner can edit entitlements')
 
         entitlement = self.entitlement_repo.get(entitlement_id)
         if not entitlement:
@@ -86,7 +94,9 @@ class EntitlementResource(Resource, DatasetAccessMixin):
         return '', 204
 
     def delete(self, dataset_id, entitlement_id):
-        self.get_dataset_authorized(dataset_id)
+        dataset = self.get_dataset_authorized(dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Only owner can edit entitlements')
 
         entitlement = self.entitlement_repo.get(entitlement_id)
         if not entitlement:
@@ -103,9 +113,12 @@ class EntitlementCompletionResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.entitlement_completion: EntitlementCompletion = kwargs['entitlement_completion']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        self.get_dataset_authorized(dataset_id)
+        dataset = self.get_dataset_authorized(dataset_id)
+        if dataset.user_id != get_jwt_identity():
+            abort(403, message='Only owner can edit entitlements')
 
         parser = reqparse.RequestParser()
         parser.add_argument('q', type=str, required=True)

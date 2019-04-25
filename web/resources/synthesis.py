@@ -24,6 +24,7 @@ class ModelResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
         self.get_dataset_authorized(dataset_id)
@@ -59,6 +60,7 @@ class SynthesisPreviewResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
         self.get_dataset_authorized(dataset_id)
@@ -80,9 +82,10 @@ class SynthesisResource(Resource, DatasetAccessMixin):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
         self.synthesizer_manager: SynthesizerManager = kwargs['synthesizer_manager']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        self.get_dataset_authorized(dataset_id)
+        self.get_dataset_access_type(dataset_id)
 
         parser = reqparse.RequestParser()
         parser.add_argument('sample_size', type=int, default=SAMPLE_SIZE)
