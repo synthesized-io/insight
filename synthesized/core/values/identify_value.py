@@ -96,7 +96,7 @@ def identify_value(module, name, dtype, data):
 
     if value is None and dtype.kind in ('f', 'i') and num_unique > 1:
         is_nan = numeric_data.isna().any()
-        value = module.add_module(module=ContinuousValue, name=name, integer=(dtype.kind == 'i'))
+        value = module.add_module(module=ContinuousValue, name=name)
 
     if value is not None and is_nan:
         value = module.add_module(module=NanValue, name=name, value=value, capacity=module.capacity)

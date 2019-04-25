@@ -38,7 +38,7 @@ class ContinuousValue(Value):
         self.nonnegative = nonnegative
 
         self.pd_types = ('f', 'i')
-        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce'))
+        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
 
     def __str__(self):
         string = super().__str__()
@@ -73,7 +73,7 @@ class ContinuousValue(Value):
 
     def extract(self, data):
         if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
+            data.loc[:, self.name] = self.pd_cast(data[self.name])
 
         if self.integer is None:
             self.integer = (data[self.name].dtype.kind == 'i')
@@ -148,7 +148,7 @@ class ContinuousValue(Value):
         # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
 
         if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = pd.to_numeric(data[self.name], errors='coerce')
+            data.loc[:, self.name] = self.pd_cast(data[self.name])
 
         data.loc[:, self.name] = data[self.name].astype(dtype='float32')
         assert not data[self.name].isna().any()
