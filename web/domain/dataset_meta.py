@@ -118,6 +118,8 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: float=REMOVE_OUTLI
             raise ValueError('Unknown value type: ' + str(type(value)))
 
         if isinstance(value, ContinuousValue):
+            data[value.name] = pd.to_numeric(data[value.name], errors='coerce')
+            data_wo_nans = data.dropna()
             q = [remove_outliers / 2., 1 - remove_outliers / 2.]
             start, end = np.quantile(data_wo_nans[value.name], q)
             column_cleaned = data_wo_nans[(data_wo_nans[value.name] > start) & (data_wo_nans[value.name] < end)][value.name]
@@ -196,6 +198,8 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
         if column_meta.name not in data:  # some columns might be disabled
             continue
         if column_meta.plot_type == DENSITY_PLOT_TYPE:  # we want duck typing here
+            data[column_meta.name] = pd.to_numeric(data[column_meta.name], errors='coerce')
+            data_wo_nans = data.dropna()
             column_meta: ContinuousMeta = column_meta
             column_cleaned = data_wo_nans[column_meta.name]
             hist, edges = np.histogram(column_cleaned, bins=column_meta.plot_data.edges)
