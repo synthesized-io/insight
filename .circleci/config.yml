@@ -63,3 +63,7 @@ jobs:
       - store_artifacts:
           path: dist
           destination: dist
+
+      - run:
+          name: deploy web
+          command: eb deploy
