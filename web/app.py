@@ -4,9 +4,10 @@ configure_logger()
 from flask import Flask, send_from_directory, safe_join, send_file
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-from flask_restful import Api
+from flask_restful import Api as _Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from flask_jwt_extended.exceptions import JWTExtendedException
 
 from .config import ProductionConfig, DevelopmentConfig
 from .infastructure.flask_support import JSONCompliantEncoder
@@ -80,6 +81,20 @@ from .resources.synthesis import ModelResource, SynthesisResource, SynthesisPrev
 from .resources.report import ReportItemsResource, ReportResource, ReportItemsUpdateSettingsResource, ReportItemsMoveResource, ReportItemResource
 from .resources.templates import ProjectTemplatesResource, DatasetFromTemplateResource
 from .resources.entitelement import EntitlementResource, EntitlementsResource, EntitlementCompletionResource
+
+
+# Flask-RESTful overrides all user exception handlers.
+# But we want to keep flask_jwt_extended's handlers.
+class Api(_Api):
+    def error_router(self, original_handler, e):
+        """Based on flask_restful.Api.error_router"""
+        if self._has_fr_route() and not isinstance(e, JWTExtendedException):
+            try:
+                return self.handle_error(e)
+            except Exception:
+                pass  # Fall through to original handler
+        return original_handler(e)
+
 
 api = Api(app, prefix='/api')
 api.add_resource(LoginResource, '/login', resource_class_kwargs={'authenticator': authenticator})
