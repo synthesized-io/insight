@@ -37,7 +37,8 @@ class DateValue(ContinuousValue):
 
     def __str__(self):
         string = super().__str__()
-        string = 'date-' + string
+        if self.start_date is not None:
+            string += '-timedelta'
         return string
 
     def specification(self):
@@ -70,28 +71,29 @@ class DateValue(ContinuousValue):
         yield from self.month.placeholders()
 
     def extract(self, data):
-        if data[self.name].dtype.kind != 'M':
-            data.loc[:, self.name] = pd.to_datetime(data[self.name])
+        column = data[self.name]
 
-        if data[self.name].is_monotonic:
+        if column.dtype.kind != 'M':
+            column = pd.to_datetime(column)
+
+        if column.is_monotonic:
             if self.start_date is None:
-                self.start_date = data[self.name][0]
-                assert self.start_date == data[self.name].min()
-            elif data[self.name][0] < self.start_date:
+                self.start_date = column[0] - (column.values[1:] - column.values[:-1]).mean()
+            elif column[0] < self.start_date:
                 raise NotImplementedError
-            previous_date = data[self.name].copy()
-            previous_date[0] = self.start_date
+            previous_date = column.values.copy()
             previous_date[1:] = previous_date[:-1]
-            data.loc[:, self.name] = (data[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+            previous_date[0] = self.start_date
+            column = (column - previous_date).dt.total_seconds() / (24 * 60 * 60)
 
         else:
             if self.min_date is None:
-                self.min_date = data[self.name].min()
-            elif data[self.name].min() != self.min_date:
+                self.min_date = column.min()
+            elif column.min() != self.min_date:
                 raise NotImplementedError
-            data.loc[:, self.name] = (data[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+            column = (column - self.min_date).dt.total_seconds() / (24 * 60 * 60)
 
-        super().extract(data=data)
+        super().extract(data=pd.DataFrame.from_dict({self.name: column}))
 
     def preprocess(self, data):
         if data[self.name].dtype.kind != 'M':
@@ -100,7 +102,7 @@ class DateValue(ContinuousValue):
         data.loc[:, self.name + '-dow'] = data[self.name].dt.weekday
         data.loc[:, self.name + '-day'] = data[self.name].dt.day - 1
         data.loc[:, self.name + '-month'] = data[self.name].dt.month - 1
-        if self.start_date is not None:
+        if self.min_date is None:
             previous_date = data[self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]

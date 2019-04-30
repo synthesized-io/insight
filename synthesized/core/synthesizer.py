@@ -57,8 +57,3 @@ class Synthesizer(Module):
 
     def synthesize(self, *args, **kwargs):
         raise NotImplementedError
-
-    def fit(self, X, y=None, **fit_params):
-        assert y is None and not fit_params
-        self.learn(iteration=fit_params['iterations'], data=X)
-        return self

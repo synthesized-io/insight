@@ -4,6 +4,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
+# from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .. import util
 from ..module import Module, tensorflow_name_scoped
@@ -15,6 +16,7 @@ class NanValue(Value):
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousValue)
+        # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
         self.weight_decay = weight_decay
 
@@ -54,10 +56,11 @@ class NanValue(Value):
         yield from self.value.placeholders()
 
     def extract(self, data):
-        if data[self.value.name].dtype.kind not in self.value.pd_types:
-            data.loc[:, self.value.name] = self.value.pd_cast(data[self.value.name])
-        cleaned = data.dropna(subset=(self.value.name,))
-        self.value.extract(data=cleaned)
+        column = data[self.value.name]
+        if column.dtype.kind not in self.value.pd_types:
+            column = self.value.pd_cast(column)
+        clean = data[column.notna()]
+        self.value.extract(data=clean)
 
     def preprocess(self, data):
         if data[self.value.name].dtype.kind not in self.value.pd_types:
@@ -91,7 +94,7 @@ class NanValue(Value):
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.embeddings = tf.get_variable(
-            name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+            name='nan-embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True, collections=None, caching_device=None,
             partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
         )

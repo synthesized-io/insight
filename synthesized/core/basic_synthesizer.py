@@ -172,6 +172,9 @@ class BasicSynthesizer(Synthesizer):
                     and value.input_size() > 0:
                 x = value.input_tensor(feed=feed)
                 xs.append(x)
+        if len(xs) == 0:
+            loss = tf.constant(value=0.0)
+            return dict(loss=loss), loss, tf.no_op()
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         condition = list()
@@ -273,11 +276,12 @@ class BasicSynthesizer(Synthesizer):
         #     )), num_parallel_calls=None
         # )
         dataset = dataset.batch(batch_size=self.batch_size)  # drop_remainder=False
-        dataset = dataset.map(
-            map_func=(lambda serialized: tf.parse_example(
-                serialized=serialized, features=features, name=None, example_names=None
-            )), num_parallel_calls=None
-        )
+        if len(features) > 0:
+            dataset = dataset.map(
+                map_func=(lambda serialized: tf.parse_example(
+                    serialized=serialized, features=features, name=None, example_names=None
+                )), num_parallel_calls=None
+            )
         dataset = dataset.prefetch(buffer_size=1)
         self.iterator = dataset.make_initializable_iterator(shared_name=None)
 
@@ -440,16 +444,23 @@ class BasicSynthesizer(Synthesizer):
             label for value in self.values if value.name not in self.condition_labels
             for label in value.output_labels()
         ]
-        synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-        feed_dict['num_synthesize'] = 1024
-        for _ in range(n // 1024):
-            other = self.run(fetches=fetches, feed_dict=feed_dict)
-            other = pd.DataFrame.from_dict(other)[columns]
-            synthesized = synthesized.append(other, ignore_index=True)
+        if len(columns) == 0:
+            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((n,))))
+
+        else:
+            synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            feed_dict = {'num_synthesize': 1024}
+            for k in range(n // 1024):
+                other = self.run(fetches=fetches, feed_dict=feed_dict)
+                other = pd.DataFrame.from_dict(other)[columns]
+                synthesized = synthesized.append(other, ignore_index=True)
 
         for value in self.values:
             if value.name not in self.condition_labels:
                 synthesized = value.postprocess(data=synthesized)
+
+        if len(columns) == 0:
+            synthesized.pop('_sentinel')
 
         return synthesized
