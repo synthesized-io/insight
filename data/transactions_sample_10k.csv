@@ -1,4 +1,4 @@
-,trans_id,account_id,date,type,operation,amount,balance,k_symbol,bank,account,mean_income
+index,trans_id,account_id,date,type,operation,amount,balance,k_symbol,bank,account,mean_income
 0,695247,2378,1993-01-01,1,2,700.0,700.0,,,,[ 11271.53754941]
 1,695250,2378,1993-01-22,1,2,7268.0,7968.0,,,,[ 11271.53754941]
 2,695266,2378,1993-01-23,1,2,14440.0,22408.0,,,,[ 11271.53754941]

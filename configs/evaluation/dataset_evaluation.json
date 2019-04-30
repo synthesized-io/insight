@@ -8,7 +8,8 @@
       "num_passes": 1,
       "params": {
       },
-      "target": "SeriousDlqin2yrs"
+      "target": "SeriousDlqin2yrs",
+      "synthesizer_class": "BasicSynthesizer"
     },
     "sweden_motor_insurance": {
       "data": "data/insurance/sweden_motor_insurance/sweden_motor_insurance.csv",
@@ -17,7 +18,8 @@
       "num_passes": 1,
       "params": {
       },
-      "target": "Payment"
+      "target": "Payment",
+      "synthesizer_class": "BasicSynthesizer"
     },
     "arx": {
       "data": "data/arx_adult.csv",
@@ -26,7 +28,8 @@
       "num_passes": 1,
       "params": {
       },
-      "target": "salary-class"
+      "target": "salary-class",
+      "synthesizer_class": "BasicSynthesizer"
     },
     "uci_creditcard_default": {
       "data": "data/uci/creditcard_default.csv",
@@ -35,7 +38,21 @@
       "num_passes": 1,
       "params": {
       },
-      "target": "default payment next month"
-    }
+      "target": "default payment next month",
+      "synthesizer_class": "BasicSynthesizer"
+    },
+  "transactions": {
+    "data": "data/transactions_sample_10k.csv",
+    "ignore_columns": ["index", "trans_id", "operation", "balance", "k_symbol",
+                       "bank", "account", "mean_income"],
+    "num_iterations": 2500,
+    "num_passes": 1,
+    "params": {
+      "identifier_label": "account_id",
+      "lstm_mode": 2
+    },
+    "target": "amount",
+    "synthesizer_class": "SeriesSynthesizer"
+  }
   }
 }
