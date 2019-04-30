@@ -35,7 +35,7 @@ class GumbelVariationalEncoding(Encoding):
         return self.encoding_size * self.num_categories
 
     @tensorflow_name_scoped
-    def encode(self, x, encoding_loss=False):
+    def encode(self, x, encoding_plus_loss=False):
         assert x.shape[1].value == self.encoding_size
         logits = self.logits.transform(x=x)
         logits = tf.reshape(tensor=logits, shape=(-1, self.num_categories))
@@ -64,13 +64,14 @@ class GumbelVariationalEncoding(Encoding):
             #     ), dtype=tf.float32
             # )
             x = tf.stop_gradient(input=(hard - x)) + x
-        if encoding_loss:
+        if encoding_plus_loss:
             encoding_loss = probs * (log_probs - tf.log(x=(1.0 / self.num_categories)))
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             # elbo=tf.reduce_sum(p_x.log_prob(x),1) - KL
             encoding_loss *= self.beta
-            tf.losses.add_loss(loss=encoding_loss, loss_collection=tf.GraphKeys.LOSSES)
-        return x
+            return x, x, encoding_loss
+        else:
+            return x
 
     @tensorflow_name_scoped
     def sample(self, n):

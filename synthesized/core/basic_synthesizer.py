@@ -179,7 +179,7 @@ class BasicSynthesizer(Synthesizer):
             if value.name in self.condition_labels:
                 condition.append(value.input_tensor(feed=feed))
         x, encoding, encoding_loss = self.encoding.encode(
-            x=x, condition=condition, encoding_loss=True
+            x=x, condition=condition, encoding_plus_loss=True
         )
         encoding_mean, encoding_variance = tf.nn.moments(
             x=encoding, axes=(0, 1), shift=None, keep_dims=False

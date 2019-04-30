@@ -21,7 +21,7 @@ class Encoding(Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def encode(self, x, condition=(), encoding_loss=False):
+    def encode(self, x, condition=(), encoding_plus_loss=False):
         raise NotImplementedError
 
     @tensorflow_name_scoped

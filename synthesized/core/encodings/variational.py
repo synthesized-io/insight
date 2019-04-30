@@ -39,7 +39,7 @@ class VariationalEncoding(Encoding):
         return self.encoding_size
 
     @tensorflow_name_scoped
-    def encode(self, x, condition=(), encoding_loss=False):
+    def encode(self, x, condition=(), encoding_plus_loss=False):
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
         encoding = tf.random_normal(
@@ -50,7 +50,7 @@ class VariationalEncoding(Encoding):
         x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
         x = self.decoder.transform(x=x)
 
-        if encoding_loss:
+        if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)

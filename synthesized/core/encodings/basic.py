@@ -25,10 +25,10 @@ class BasicEncoding(Encoding):
         return self.encoding_size
 
     @tensorflow_name_scoped
-    def encode(self, x, encoding_loss=False):
+    def encode(self, x, encoding_plus_loss=False):
         x = self.embedding.transform(x=x)
-        if encoding_loss:
-            return x, tf.constant(value=0.0, dtype=tf.float32)
+        if encoding_plus_loss:
+            return x, x, tf.constant(value=0.0, dtype=tf.float32)
         else:
             return x
 

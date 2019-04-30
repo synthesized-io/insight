@@ -7,13 +7,13 @@ def _test_encoding(encoding):
     tf.reset_default_graph()
     encoding.initialize()
     encode_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
-    encode_output = encoding.encode(x=encode_input, encoding_loss=True)
+    encode_output = encoding.encode(x=encode_input, encoding_plus_loss=True)
     sample_input = tf.placeholder(dtype=tf.int64, shape=())
     sample_output = encoding.sample(n=sample_input)
     initialize = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(fetches=initialize)
-        encoded, loss = session.run(
+        encoded, _, loss = session.run(
             fetches=encode_output, feed_dict={encode_input: np.random.randn(4, 8)}
         )
         assert encoded.shape == (4, 6)
