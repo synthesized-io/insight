@@ -6,8 +6,10 @@ set -x
 BASE_URL=http://localhost:5000/api
 #BASE_URL=https://webui.synthesized.io/api
 
-curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user", "password": "123", "invite_code": "FEQPFZAPACEKZFWM"}' ${BASE_URL}/users
-TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"email": "user", "password": "123"}' ${BASE_URL}/login)
+curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user@synthesized.io", "password": "123", "invite_code": "C189533D"}' ${BASE_URL}/users
+curl -i -XPOST -H 'Content-Type: application/json' -d '{"email": "user2@synthesized.io", "password": "123", "invite_code": "8530B043"}' ${BASE_URL}/users
+
+TOKENS_JSON=$(curl -f -XPOST -H "Content-Type: application/json" -d '{"email": "user@synthesized.io", "password": "123"}' ${BASE_URL}/login)
 ACCESS_TOKEN=$(echo ${TOKENS_JSON} | jq -r .access_token)
 REFRESH_TOKEN=$(echo ${TOKENS_JSON} | jq -r .refresh_token)
 AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
@@ -21,6 +23,20 @@ then
     echo 'Could not upload dataset'
     exit 1
 fi
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements/complete?q=user
+
+E_ID=$(curl -f -XPOST -d 'email=user2@synthesized.io&access_type=FULL_ACCESS' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements | jq -r .entitlement_id)
+if [[ -z ${E_ID} ]];
+then
+    echo 'Could not create entitlement'
+    exit 1
+fi
+
+curl -f -i -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements
+curl -f -i -XPUT -d 'access_type=RESULTS_ONLY' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements/${E_ID}
+curl -f -i -XDELETE -d 'access_type=RESULTS_ONLY' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/entitlements/${E_ID}
 
 curl -f -i -XPOST -d 'title=title&description=description' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updateinfo
 curl -f -i -XPOST -d '{"settings": {"disabled_columns": ["NumberRealEstateLoansOrLines"]}}' -H 'Content-Type: application/json' -H "$AUTH_HEADER" ${BASE_URL}/datasets/${DS_ID}/updatesettings

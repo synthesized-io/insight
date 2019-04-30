@@ -6,7 +6,7 @@ def tensorflow_name_scoped(tf_function):
     @wraps(tf_function)
     def function(self, *args, **kwargs):
         name = "{}.{}".format(self.name, tf_function.__name__)
-        with tf.name_scope(name=name.replace(' ', '_').replace(':', '')):
+        with tf.name_scope(name=name.replace(' ', '_').replace(':', '').replace('%', '')):
             results = tf_function(self, *args, **kwargs)
         return results
     return function
@@ -48,7 +48,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.variable_scope(name_or_scope=self.name.replace(' ', '_').replace(':', '')):
+        with tf.variable_scope(name_or_scope=self.name.replace(' ', '_').replace(':', '').replace('%', '')):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()

@@ -2,6 +2,8 @@ import os
 import re
 from datetime import datetime
 from io import StringIO, BytesIO
+from operator import itemgetter
+from typing import Iterable
 
 import pandas as pd
 import simplejson
@@ -12,7 +14,7 @@ from werkzeug.datastructures import FileStorage
 
 from .common import DatasetAccessMixin
 from ..domain.dataset_meta import compute_dataset_meta
-from ..domain.model import Dataset
+from ..domain.model import Dataset, Entitlement
 from ..domain.repository import Repository
 
 SAMPLE_SIZE = 20
@@ -24,19 +26,31 @@ class DatasetsResource(Resource):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self):
-        datasets = self.dataset_repo.find_by_props({'user_id': get_jwt_identity()})
-        return jsonify({
-            'datasets': [
-                {
-                    'dataset_id': d.id,
-                    'title': d.title,
-                    'description': d.description
-                }
-                for d in datasets
-            ]
-        })
+        datasets: Iterable[Dataset] = self.dataset_repo.find_by_props({'user_id': get_jwt_identity()})
+        entitlements: Iterable[Entitlement] = self.entitlement_repo.find_by_props({'user_id': get_jwt_identity()})
+        datasets_json = []
+        datasets_json.extend([
+            {
+                'dataset_id': d.id,
+                'title': d.title,
+                'description': d.description
+            }
+            for d in datasets
+        ])
+        datasets_json.extend([
+            {
+                'dataset_id': e.dataset.id,
+                'title': e.dataset.title,
+                'description': e.dataset.description,
+                'shared_by': e.creator.email,
+            }
+            for e in entitlements
+        ])
+        datasets_json = sorted(datasets_json, key=itemgetter('dataset_id'))
+        return jsonify({'datasets': datasets_json})
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -71,6 +85,7 @@ class DatasetResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -109,6 +124,7 @@ class DatasetUpdateInfoResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -133,6 +149,7 @@ class DatasetUpdateSettingsResource(Resource, DatasetAccessMixin):
 
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def post(self, dataset_id):
         dataset = self.get_dataset_authorized(dataset_id)
@@ -155,9 +172,10 @@ class DatasetExportResource(Resource, DatasetAccessMixin):
     def __init__(self, **kwargs):
         self.dataset_repo: Repository = kwargs['dataset_repo']
         self.synthesis_repo: Repository = kwargs['synthesis_repo']
+        self.entitlement_repo: Repository = kwargs['entitlement_repo']
 
     def get(self, dataset_id):
-        dataset = self.get_dataset_authorized(dataset_id)
+        dataset, _ = self.get_dataset_access_type(dataset_id)
 
         syntheses = self.synthesis_repo.find_by_props({'dataset_id': dataset_id})
         current_app.logger.info('synthesis by dataset_id={} is {}'.format(dataset_id, syntheses))
