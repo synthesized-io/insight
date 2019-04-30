@@ -27,7 +27,10 @@ DISTRIBUTIONS = dict(
 
 class ContinuousValue(Value):
 
-    def __init__(self, name, distribution=None, distribution_params=None, integer=None, positive=None, nonnegative=None):
+    def __init__(
+        self, name, distribution=None, distribution_params=None, integer=None, positive=None,
+        nonnegative=None
+    ):
         super().__init__(name=name)
 
         assert distribution is None or distribution == 'normal' or distribution in DISTRIBUTIONS
@@ -48,9 +51,9 @@ class ContinuousValue(Value):
             string += '-' + self.distribution
         if self.integer:
             string += '-integer'
-        if self.positive:
+        if self.positive and self.distribution != 'dirac':
             string += '-positive'
-        elif self.nonnegative:
+        elif self.nonnegative and self.distribution != 'dirac':
             string += '-nonnegative'
         return string
 
@@ -72,52 +75,61 @@ class ContinuousValue(Value):
         yield self.placeholder
 
     def extract(self, data):
-        if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = self.pd_cast(data[self.name])
+        column = data[self.name]
+
+        if column.dtype.kind not in ('f', 'i'):
+            column = self.pd_cast(column)
 
         if self.integer is None:
-            self.integer = (data[self.name].dtype.kind == 'i')
-        elif self.integer and data[self.name].dtype.kind != 'i':
+            self.integer = (column.dtype.kind == 'i')
+        elif self.integer and column.dtype.kind != 'i':
             raise NotImplementedError
 
-        data.loc[:, self.name] = data[self.name].astype(dtype='float32')
-        assert not data[self.name].isna().any()
-        assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
+        column = column.astype(dtype='float32')
+        assert not column.isna().any()
+        assert (column != float('inf')).all() and (column != float('-inf')).all()
 
         if self.positive is None:
-            self.positive = (data[self.name] > 0.0).all()
-        elif self.positive and (data[self.name] <= 0.0).all():
+            self.positive = (column > 0.0).all()
+        elif self.positive and (column <= 0.0).all():
             raise NotImplementedError
 
         if self.nonnegative is None:
-            self.nonnegative = (data[self.name] >= 0.0).all()
-        elif self.nonnegative and (data[self.name] < 0.0).all():
+            self.nonnegative = (column >= 0.0).all()
+        elif self.nonnegative and (column < 0.0).all():
             raise NotImplementedError
 
         if self.distribution is not None:
             assert self.distribution_params is not None
             return
 
+        if column.nunique() == 1:
+            self.distribution = 'dirac'
+            self.distribution_params = (column[0],)
+            return
+
         # positive / nonnegative transformation
-        full = data[self.name]
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
-                full = np.maximum(full, 0.001)
-            # reversed_softplus = np.log(np.maximum((np.exp(full) - 1.0), 1e-6))
-            # full = np.where((full < 10.0), reversed_softplus, full)
-            full = np.log(np.sign(full) * (1.0 - np.exp(-np.abs(full)))) + np.maximum(full, 0.0)
+                column = np.maximum(column, 0.001)
+            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + \
+                np.maximum(column, 0.0)
 
         # remove outliers
         percentile = [OUTLIERS_PERCENTILE * 50.0, 100.0 - OUTLIERS_PERCENTILE * 50.0]
-        lower, upper = np.percentile(full, percentile)
-        cleaned_outliers = full[(full >= lower) & (full <= upper)]
-        assert len(cleaned_outliers) >= 2
-        subsample = np.random.choice(cleaned_outliers, min(len(cleaned_outliers), FITTING_SUBSAMPLE))
+        lower, upper = np.percentile(column, percentile)
+        clean = column[(column >= lower) & (column <= upper)]
+        assert len(clean) >= 2
+        subsample = np.random.choice(clean, min(len(column), FITTING_SUBSAMPLE))
 
         # normal distribution
         self.distribution = 'normal'
-        self.distribution_params = mean, stddev = (subsample.mean(), subsample.std())
-        transformed = (data[self.name] - mean) / stddev
+        mean = subsample.mean()
+        stddev = subsample.std()
+        if stddev == 0.0:
+            stddev = column.std()
+        self.distribution_params = (mean, stddev)
+        transformed = (subsample - mean) / stddev
         min_distance, _ = kstest(transformed, 'norm')
 
         # other distributions
@@ -125,7 +137,11 @@ class ContinuousValue(Value):
             distribution_params = distribution.fit(subsample)
             transformed = norm.ppf(distribution.cdf(subsample, *distribution_params))
 
-            assert not np.isnan(transformed).any()
+            is_nan = np.isnan(transformed)
+            if is_nan.any():
+                assert is_nan.all()
+                continue
+
             num_inf = (transformed == float('inf')).sum() + (transformed == float('-inf')).sum()
             if num_inf / len(transformed) > FITTING_INF_TOLERANCE:
                 # print('INF TOLERANCE:', name, num_inf / len(transformed))
@@ -136,7 +152,7 @@ class ContinuousValue(Value):
                 # print('extract fit:', name, num_inf / len(transformed))
                 min_distance = distance
                 self.distribution = name
-                self.distribution_params = distribution_params
+                self.distribution_params = tuple(distribution_params)
 
         # if distance > FITTING_THRESHOLD:
         #     self.distribution = None
@@ -154,12 +170,15 @@ class ContinuousValue(Value):
         assert not data[self.name].isna().any()
         assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
 
+        if self.distribution == 'dirac':
+            return data
+
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 data.loc[:, self.name] = np.maximum(data[self.name], 0.001)
-            # reversed_softplus = np.log(np.maximum((np.exp(data[self.name]) - 1.0), 1e-6))
-            # data.loc[:, self.name] = np.where((data[self.name] < 10.0), reversed_softplus, data[self.name])
-            data.loc[:, self.name] = np.log(np.sign(data[self.name]) * (1.0 - np.exp(-np.abs(data[self.name])))) + np.maximum(data[self.name], 0.0)
+            data.loc[:, self.name] = np.maximum(data[self.name], 0.0) + np.log(
+                np.sign(data[self.name]) * (1.0 - np.exp(-np.abs(data[self.name])))
+            )
 
         if self.distribution == 'normal':
             mean, stddev = self.distribution_params
@@ -177,21 +196,28 @@ class ContinuousValue(Value):
         return data
 
     def postprocess(self, data):
-        if self.distribution == 'normal':
-            mean, stddev = self.distribution_params
-            data.loc[:, self.name] = data[self.name] * stddev + mean
+        if self.distribution == 'dirac':
+            data.loc[:, self.name] = self.distribution_params[0]
 
-        elif self.distribution is not None:
-            data.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
-                norm.cdf(data[self.name]), *self.distribution_params
-            )
+        else:
+            if self.distribution == 'normal':
+                mean, stddev = self.distribution_params
+                data.loc[:, self.name] = data[self.name] * stddev + mean
 
-        if self.positive or self.nonnegative:
-            data.loc[:, self.name] = np.log(1 + np.exp(-np.abs(data[self.name]))) + np.maximum(data[self.name], 0.0)
-            # np.log(np.exp(data[self.name]) + 1.0)
-            if self.nonnegative and not self.positive:
-                zeros = np.zeros_like(data[self.name])
-                data.loc[:, self.name] = np.where((data[self.name] >= 0.001), data[self.name], zeros)
+            elif self.distribution is not None:
+                data.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                    norm.cdf(data[self.name]), *self.distribution_params
+                )
+
+            if self.positive or self.nonnegative:
+                data.loc[:, self.name] = np.log(1 + np.exp(-np.abs(data[self.name]))) + \
+                    np.maximum(data[self.name], 0.0)
+                # np.log(np.exp(data[self.name]) + 1.0)
+                if self.nonnegative and not self.positive:
+                    zeros = np.zeros_like(data[self.name])
+                    data.loc[:, self.name] = np.where(
+                        (data[self.name] >= 0.001), data[self.name], zeros
+                    )
 
         assert not data[self.name].isna().any()
         assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
@@ -232,6 +258,9 @@ class ContinuousValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, x, feed=None, mask=None):
+        if self.distribution == 'dirac':
+            return 0.0
+
         target = self.input_tensor(feed=feed)[:, :1]  # first value since date adds more information
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
