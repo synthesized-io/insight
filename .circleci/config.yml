@@ -64,10 +64,10 @@ jobs:
           path: dist
           destination: dist
 
-      - run:
-          name: install eb
-          command: sudo pip install awsebcli
-
-      - run:
-          name: deploy web
-          command: eb deploy
+#      - run:
+#          name: install eb
+#          command: sudo pip install awsebcli
+#
+#      - run:
+#          name: deploy web
+#          command: eb deploy
