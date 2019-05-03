@@ -2,6 +2,7 @@ from random import randrange
 
 import numpy as np
 import pandas as pd
+from scipy.stats import ks_2samp
 
 from .basic_synthesizer import BasicSynthesizer
 
@@ -79,6 +80,24 @@ class SeriesSynthesizer(BasicSynthesizer):
             #     feed_dict = dict(num_iterations=verbose)
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
+
+    def log_metrics(self, data, fetched, iteration):
+        print('\niteration: {}'.format(iteration + 1))
+        print('loss: total={loss:1.2e} ({losses})'.format(
+            iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
+                '{name}={loss}'.format(name=name, loss=fetched[name])
+                for name in self.losses
+            )
+        ))
+        self.loss_history.append({name: fetched[name] for name in self.losses})
+
+        synthesized = self.synthesize(num_series=100, series_length=100)
+        synthesized = self.preprocess(data=synthesized)
+        dist_by_col = [(col, ks_2samp(data[col], synthesized[col].get_values())[0]) for col in data.keys() if col != self.identifier_label]
+        avg_dist = np.mean([dist for (col, dist) in dist_by_col])
+        dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
+        print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
+        self.ks_distance_history.append(dict(dist_by_col))
 
     def synthesize(self, num_series=None, series_length=None, series_lengths=None, condition=None):
         # Either num_series and series_length, or series_lenghts, or ???

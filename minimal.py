@@ -89,7 +89,7 @@ with synthesizer:
     if args.tfrecords:
         synthesizer.learn(num_iterations=args.num_iterations, filenames=(tfrecords_filename,))
     else:
-        synthesizer.learn(num_iterations=args.num_iterations, data=data.copy())
+        synthesizer.learn(num_iterations=args.num_iterations, data=data.copy(), verbose=(args.num_iterations // 2))
     condition = {
         key: arg for key, arg in data.head(1).to_dict(orient='list').items()
         if key in args.condition_labels
