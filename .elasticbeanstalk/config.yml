@@ -1,6 +1,6 @@
 branch-defaults:
   web-ui:
-    environment: synthesized-webui
+    environment: synthesized-webui-dev
     group_suffix: null
   master:
     environment: synthesized-webui
