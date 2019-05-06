@@ -43,7 +43,7 @@
                 continue;
             }
             code_int = crc32(emails[i] + key);
-            code = code_int.toString(16).toUpperCase();
+            code = code_int.toString(16).padStart(8, '0').toUpperCase();
             document.getElementById("invites").value += emails[i] + ":\t" + code + "\n";
         }
     }
