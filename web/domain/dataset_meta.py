@@ -1,3 +1,4 @@
+import operator
 from abc import ABC
 from io import StringIO
 from typing import Iterable
@@ -6,9 +7,10 @@ import numpy as np
 import pandas as pd
 from numpy.lib import histograms
 from scipy.stats import gaussian_kde
-import operator
+
 from synthesized.core import BasicSynthesizer
-from synthesized.core.values import AddressValue, PersonValue, ContinuousValue, CategoricalValue, IdentifierValue, SamplingValue, EnumerationValue, CompoundAddressValue, NanValue
+from synthesized.core.values import AddressValue, PersonValue, ContinuousValue, CategoricalValue, IdentifierValue, \
+    SamplingValue, EnumerationValue, CompoundAddressValue, NanValue
 
 DENSITY_PLOT_TYPE = "density"
 HISTOGRAM_PLOT_TYPE = "histogram"
