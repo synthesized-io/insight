@@ -20,11 +20,6 @@ jobs:
       SYNTHESIZED_KEY: EE6B-6720-67A2-32F3-3139-2DF3-5D2D-B5F3
 
     steps:
-
-      - add_ssh_keys:
-          fingerprints:
-            - "35:44:e7:96:84:ab:df:7f:ce:f7:7d:fa:61:7f:3a:db"
-
       - checkout
 
       - run:
