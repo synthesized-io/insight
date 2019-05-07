@@ -108,7 +108,7 @@ class SynthesisResource(Resource, DatasetAccessMixin):
         return jsonify({
             'meta': simplejson.load(BytesIO(synthesis.meta), encoding='utf-8'),
             'sample': data[:sample_size].to_dict(orient='list'),
-            'size': synthesis.size
+            'total_size': synthesis.size
         })
 
     def post(self, dataset_id):
