@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from numpy.lib import histograms
 from scipy.stats import gaussian_kde
-
+import operator
 from synthesized.core import BasicSynthesizer
 from synthesized.core.values import AddressValue, PersonValue, ContinuousValue, CategoricalValue, IdentifierValue, SamplingValue, EnumerationValue, CompoundAddressValue, NanValue
 
@@ -47,9 +47,10 @@ class ContinuousPlotData:
 
 
 class CategoricalPlotData:
-    def __init__(self, bins: Iterable[str], hist: Iterable[int]):
+    def __init__(self, bins: Iterable[str], hist: Iterable[int], truncated: bool):
         self.bins = bins
         self.hist = hist
+        self.truncated = truncated
 
 
 class ContinuousMeta(ColumnMeta):
@@ -161,8 +162,11 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: float=REMOVE_OUTLI
             ))
         else:
             most_frequent = data[value.name].value_counts().idxmax()
-            bins = sorted(data[value.name].dropna().unique())[:MAX_BINS]
             counts = data[value.name].value_counts().to_dict()
+            bins = list(map(operator.itemgetter(0), sorted(counts.items(), key=operator.itemgetter(1), reverse=True)))
+            bins_length = len(bins)
+            bins = bins[:MAX_BINS]
+            truncated = bins_length < MAX_BINS
             hist = [counts[x] for x in bins]
 
             hist = list(map(int, hist))
@@ -177,7 +181,8 @@ def compute_dataset_meta(data: pd.DataFrame, remove_outliers: float=REMOVE_OUTLI
                 most_occurrences=int(len(data[data[value.name] == most_frequent])),
                 plot_data=CategoricalPlotData(
                     hist=hist,
-                    bins=bins
+                    bins=bins,
+                    truncated=truncated
                 )
             ))
     return DatasetMeta(
@@ -243,6 +248,7 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
             column_meta: CategoricalMeta = column_meta
             most_frequent = data[column_meta.name].value_counts().idxmax()
             bins = column_meta.plot_data.bins
+            truncated = column_meta.plot_data.truncated
             counts = data[column_meta.name].value_counts().to_dict()
             counts = {str(k): v for k, v in counts.items()}  # bins in original meta are always strings
             hist = [counts.get(x, 0) for x in bins]
@@ -256,7 +262,8 @@ def recompute_dataset_meta(data: pd.DataFrame, meta: DatasetMeta) -> DatasetMeta
                 most_occurrences=int(len(data[data[column_meta.name] == most_frequent])),
                 plot_data=CategoricalPlotData(
                     hist=hist,
-                    bins=bins
+                    bins=bins,
+                    truncated=truncated
                 )
             ))
     return DatasetMeta(
