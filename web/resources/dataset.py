@@ -106,6 +106,7 @@ class DatasetResource(Resource, DatasetAccessMixin):
             'description': dataset.description,
             'meta': simplejson.load(BytesIO(dataset.meta), encoding='utf-8'),
             'sample': data[:sample_size].to_dict(orient='list'),
+            'total_size': len(data),
             'settings': dataset.get_settings_as_dict(),
         })
 
