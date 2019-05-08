@@ -14,7 +14,7 @@ class SeriesSynthesizer(BasicSynthesizer):
         # spec.update()
         return spec
 
-    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False):
         if self.lstm_mode == 0 or (
             self.identifier_label is None and len(self.condition_labels) == 0
         ):
@@ -36,8 +36,9 @@ class SeriesSynthesizer(BasicSynthesizer):
 
             fetches = self.optimized
             if verbose > 0:
-                verbose_fetches = dict(self.losses)
-                verbose_fetches['loss'] = self.loss
+                verbose_fetches = dict(losses=self.losses, loss=self.loss)
+                if print_data:
+                    verbose_fetches['synthesized'] = self.synthesized_train
 
             for iteration in range(num_iterations):
                 group = randrange(len(num_data))
@@ -64,7 +65,7 @@ class SeriesSynthesizer(BasicSynthesizer):
 
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                    self.log_metrics(data, fetched, iteration)
+                    self.print_learn_stats(data, batch, fetched, iteration)
 
         else:
             if verbose > 0:
@@ -81,15 +82,15 @@ class SeriesSynthesizer(BasicSynthesizer):
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
-    def log_metrics(self, data, fetched, iteration):
+    def print_learn_stats(self, data, batch, fetched, iteration):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-                '{name}={loss}'.format(name=name, loss=fetched[name])
-                for name in self.losses
+                '{name}={loss}'.format(name=name, loss=loss)
+                for name, loss in fetched['losses'].items()
             )
         ))
-        self.loss_history.append({name: fetched[name] for name in self.losses})
+        self.loss_history.append(fetched['losses'])
 
         synthesized = self.synthesize(num_series=100, series_length=100)
         synthesized = self.preprocess(data=synthesized)
@@ -98,6 +99,12 @@ class SeriesSynthesizer(BasicSynthesizer):
         dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
         self.ks_distance_history.append(dict(dist_by_col))
+
+        if 'synthesized' in fetched:
+            print('original')
+            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(10))
+            print('synthesized')
+            print(pd.DataFrame.from_dict(fetched['synthesized']).head(10))
 
     def synthesize(self, num_series=None, series_length=None, series_lengths=None, condition=None):
         # Either num_series and series_length, or series_lenghts, or ???

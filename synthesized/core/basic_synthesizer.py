@@ -214,6 +214,13 @@ class BasicSynthesizer(Synthesizer):
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
+        synthesized = OrderedDict()
+        # if self.identifier_value is not None:
+        #     synthesized[self.identifier_label] = identifier
+        for value, x in zip(self.values, xs):
+            x = value.output_tensors(x=x)
+            for label, x in x.items():
+                synthesized[label] = x
         losses = OrderedDict()
         if not self.exclude_encoding_loss:
             losses['encoding'] = encoding_loss
@@ -232,7 +239,6 @@ class BasicSynthesizer(Synthesizer):
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
-        losses['loss'] = loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -243,13 +249,13 @@ class BasicSynthesizer(Synthesizer):
             ))
         with tf.control_dependencies(control_inputs=([optimized] + summaries)):
             optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
-        return losses, loss, optimized
+        return losses, loss, optimized, synthesized
 
     def module_initialize(self):
         super().module_initialize()
 
         # learn
-        self.losses, self.loss, self.optimized = self.train_iteration()
+        self.losses, self.loss, self.optimized, self.synthesized_train = self.train_iteration()
 
         # learn from file
         num_iterations = tf.placeholder(dtype=tf.int64, shape=(), name='num-iterations')
@@ -285,21 +291,22 @@ class BasicSynthesizer(Synthesizer):
         dataset = dataset.prefetch(buffer_size=1)
         self.iterator = dataset.make_initializable_iterator(shared_name=None)
 
-        def cond(iteration, losses, loss):
+        def cond(iteration, losses, loss, synthesized):
             return iteration < num_iterations
 
-        def body(iteration, losses, loss):
-            losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+        def body(iteration, losses, loss, synthesized):
+            losses, loss, optimized, synthesized = self.train_iteration(feed=self.iterator.get_next())
             with tf.control_dependencies(control_inputs=(optimized, loss)):
                 iteration += 1
-            return iteration, losses, loss
+            return iteration, losses, loss, synthesized
 
-        losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
+        losses, loss, optimized, synthesized = self.train_iteration(feed=self.iterator.get_next())
         with tf.control_dependencies(control_inputs=(optimized,)):
             iteration = tf.constant(value=1, dtype=tf.int64, shape=(), verify_shape=False)
-            self.optimized_fromfile, self.losses_fromfile, self.loss_fromfile = tf.while_loop(
-                cond=cond, body=body, loop_vars=(iteration, losses, loss)
-            )
+            self.optimized_fromfile, self.losses_fromfile, self.loss_fromfile, \
+                self.synthesized_fromfile = tf.while_loop(
+                    cond=cond, body=body, loop_vars=(iteration, losses, loss, synthesized)
+                )
 
         # synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
@@ -326,7 +333,7 @@ class BasicSynthesizer(Synthesizer):
         x = self.decoder.transform(x=x)
         x = self.output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
-        self.synthesized = dict()
+        self.synthesized = OrderedDict()
         if self.identifier_value is not None:
             self.synthesized[self.identifier_label] = identifier
         for value, x in zip(self.values, xs):
@@ -334,18 +341,20 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False):
         if self.lstm_mode != 0 and (
             self.identifier_label is not None or len(self.condition_labels) > 0
         ):
             raise NotImplementedError
 
         try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, print_data=print_data, yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
             pass
 
-    def learn_async(self, num_iterations=2500, data=None, filenames=None, verbose=0, yield_every=0):
+    def learn_async(
+        self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False, yield_every=0
+    ):
         if (data is None) is (filenames is None):
             raise NotImplementedError
 
@@ -360,8 +369,9 @@ class BasicSynthesizer(Synthesizer):
 
             fetches = self.optimized
             if verbose > 0:
-                verbose_fetches = dict(self.losses)
-                verbose_fetches['loss'] = self.loss
+                verbose_fetches = dict(losses=self.losses, loss=self.loss)
+                if print_data:
+                    verbose_fetches['synthesized'] = self.synthesized_train
 
             for iteration in range(num_iterations):
                 if self.lstm_mode != 0:
@@ -385,7 +395,7 @@ class BasicSynthesizer(Synthesizer):
 
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                    self.log_metrics(data, fetched, iteration)
+                    self.print_learn_stats(data, batch, fetched, iteration)
                 if yield_every > 0 and iteration % yield_every + 1 == yield_every:
                     yield iteration
 
@@ -404,15 +414,15 @@ class BasicSynthesizer(Synthesizer):
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
-    def log_metrics(self, data, fetched, iteration):
+    def print_learn_stats(self, data, batch, fetched, iteration):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-                '{name}={loss}'.format(name=name, loss=fetched[name])
-                for name in self.losses
+                '{name}={loss}'.format(name=name, loss=loss)
+                for name, loss in fetched['losses'].items()
             )
         ))
-        self.loss_history.append({name: fetched[name] for name in self.losses})
+        self.loss_history.append(fetched['losses'])
 
         synthesized = self.synthesize(10000)
         synthesized = self.preprocess(data=synthesized)
@@ -421,6 +431,12 @@ class BasicSynthesizer(Synthesizer):
         dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
         self.ks_distance_history.append(dict(dist_by_col))
+
+        if 'synthesized' in fetched:
+            print('original')
+            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(10))
+            print('synthesized')
+            print(pd.DataFrame.from_dict(fetched['synthesized']).head(10))
 
     def get_loss_history(self):
         return pd.DataFrame.from_records(self.loss_history)
