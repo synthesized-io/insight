@@ -1,4 +1,6 @@
 from math import isnan, log
+from typing import Any, Dict, Iterable
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -11,10 +13,10 @@ from ..module import Module, tensorflow_name_scoped
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
-        pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
-        smoothing=0.1, moving_average=True, similarity_regularization=0.1,
-        entropy_regularization=0.1
+        self, name: str, categories=None, probabilities=None, capacity: int=None, embedding_size: int=None,
+        pandas_category: bool=False, similarity_based: bool=False, weight_decay: float=0.0, temperature: float=1.0,
+        smoothing: float=0.1, moving_average: bool=True, similarity_regularization: float=0.1,
+        entropy_regularization: float=0.1
     ):
         super().__init__(name=name)
 
@@ -55,14 +57,14 @@ class CategoricalValue(Value):
         # self.pd_types = ()
         # self.pd_cast = (lambda x: x)
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = super().__str__()
         string += '{}-{}'.format(self.num_categories, self.embedding_size)
         if self.similarity_based:
             string += '-similarity'
         return string
 
-    def specification(self):
+    def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
@@ -74,19 +76,19 @@ class CategoricalValue(Value):
         )
         return spec
 
-    def input_size(self):
+    def input_size(self) -> int:
         return self.embedding_size
 
-    def output_size(self):
+    def output_size(self) -> int:
         if self.similarity_based:
             return self.embedding_size
         else:
             return self.num_categories
 
-    def placeholders(self):
+    def placeholders(self) -> Iterable[tf.Tensor]:
         yield self.placeholder
 
-    def extract(self, data):
+    def extract(self, data: pd.DataFrame) -> None:
         unique_values = list(data[self.name].unique())
         for n, x in enumerate(unique_values):
             if isinstance(x, float) and isnan(x):
@@ -102,14 +104,14 @@ class CategoricalValue(Value):
         elif unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
 
-    def preprocess(self, data):
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             fn = (lambda x: 0 if isinstance(x, float) and isnan(x) and self.nans_valid else self.categories.index(x))
             data.loc[:, self.name] = data[self.name].map(arg=fn)
         data.loc[:, self.name] = data[self.name].astype(dtype='int64')
         return data
 
-    def postprocess(self, data):
+    def postprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             data.loc[:, self.name] = data[self.name].map(arg=self.categories.__getitem__)
         if self.pandas_category:
@@ -126,7 +128,7 @@ class CategoricalValue(Value):
             )
         return features
 
-    def module_initialize(self):
+    def module_initialize(self) -> None:
         super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
@@ -147,7 +149,7 @@ class CategoricalValue(Value):
             self.moving_average = None
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
+    def input_tensor(self, feed: Dict[str, tf.Tensor]=None) -> tf.Tensor:
         # tensor = tf.one_hot(
         #     indices=self.placeholder, depth=self.num_categories, on_value=1.0, off_value=0.0,
         #     axis=1, dtype=tf.float32
@@ -160,7 +162,7 @@ class CategoricalValue(Value):
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, x):
+    def output_tensors(self, x: tf.Tensor) -> Dict[str, tf.Tensor]:
         if self.similarity_based:
             x = tf.expand_dims(input=x, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
@@ -169,7 +171,7 @@ class CategoricalValue(Value):
         return {self.name: x}
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
+    def loss(self, x: tf.Tensor, feed: Dict[str, tf.Tensor]=None) -> tf.Tensor:
         target = self.placeholder if feed is None else feed[self.name]
         if self.moving_average is not None:
             frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
@@ -223,7 +225,7 @@ class CategoricalValue(Value):
         return loss
 
     @tensorflow_name_scoped
-    def distribution_loss(self, samples):
+    def distribution_loss(self, samples: tf.Tensor) -> tf.Tensor:
         if self.probabilities is None:
             return tf.constant(value=0.0, dtype=tf.float32)
 

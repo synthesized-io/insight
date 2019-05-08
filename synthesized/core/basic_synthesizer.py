@@ -103,11 +103,13 @@ class BasicSynthesizer(Synthesizer):
 
         if self.lstm_mode == 2:
             encoding_type = 'rnn_' + self.encoding_type
+            encoding_size = self.capacity  # * 2
         else:
             encoding_type = self.encoding_type
+            encoding_size = self.capacity
         self.encoding = self.add_module(
             module=encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.capacity,
+            input_size=self.encoder.size(), encoding_size=encoding_size,
             condition_size=condition_size, beta=self.encoding_beta
         )
 
@@ -158,13 +160,13 @@ class BasicSynthesizer(Synthesizer):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def preprocess(self, data):
+    def preprocess(self, data: pd.DataFrame):
         for value in self.values:
             data = value.preprocess(data=data)
         return data
 
     @tensorflow_name_scoped
-    def train_iteration(self, feed=None):
+    def train_iteration(self, feed: dict=None):
         summaries = list()
         xs = list()
         for value in self.values:
@@ -353,7 +355,7 @@ class BasicSynthesizer(Synthesizer):
             pass
 
     def learn_async(
-        self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False, yield_every=0
+        self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=0, yield_every=0
     ):
         if (data is None) is (filenames is None):
             raise NotImplementedError
@@ -370,7 +372,7 @@ class BasicSynthesizer(Synthesizer):
             fetches = self.optimized
             if verbose > 0:
                 verbose_fetches = dict(losses=self.losses, loss=self.loss)
-                if print_data:
+                if print_data > 0:
                     verbose_fetches['synthesized'] = self.synthesized_train
 
             for iteration in range(num_iterations):
@@ -395,7 +397,7 @@ class BasicSynthesizer(Synthesizer):
 
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                    self.print_learn_stats(data, batch, fetched, iteration)
+                    self.print_learn_stats(data, batch, fetched, iteration, print_data)
                 if yield_every > 0 and iteration % yield_every + 1 == yield_every:
                     yield iteration
 
@@ -414,7 +416,7 @@ class BasicSynthesizer(Synthesizer):
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
-    def print_learn_stats(self, data, batch, fetched, iteration):
+    def print_learn_stats(self, data, batch, fetched, iteration, print_data):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
@@ -432,11 +434,11 @@ class BasicSynthesizer(Synthesizer):
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
         self.ks_distance_history.append(dict(dist_by_col))
 
-        if 'synthesized' in fetched:
-            print('original')
-            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(10))
-            print('synthesized')
-            print(pd.DataFrame.from_dict(fetched['synthesized']).head(10))
+        if print_data > 0:
+            print('original data:')
+            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(print_data))
+            print('synthesized data:')
+            print(pd.DataFrame.from_dict(fetched['synthesized']).head(print_data))
 
     def get_loss_history(self):
         return pd.DataFrame.from_records(self.loss_history)

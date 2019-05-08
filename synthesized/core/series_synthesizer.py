@@ -14,10 +14,8 @@ class SeriesSynthesizer(BasicSynthesizer):
         # spec.update()
         return spec
 
-    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False):
-        if self.lstm_mode == 0 or (
-            self.identifier_label is None and len(self.condition_labels) == 0
-        ):
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=0):
+        if self.lstm_mode == 0:
             raise NotImplementedError
 
         if (data is None) is (filenames is None):
@@ -26,18 +24,25 @@ class SeriesSynthesizer(BasicSynthesizer):
         if filenames is None:
             data = self.preprocess(data=data.copy())
 
-            groups = [group[1] for group in data.groupby(by=self.identifier_label)]
-            num_data = [len(group) for group in groups]
-            for n, group in enumerate(groups):
-                groups[n] = {
-                    label: group[label].get_values() for value in self.values
+            if self.identifier_label is None:
+                num_data = [len(data)]
+                groups = [{
+                    label: data[label].get_values() for value in self.values
                     for label in value.input_labels()
-                }
+                }]
+            else:
+                groups = [group[1] for group in data.groupby(by=self.identifier_label)]
+                num_data = [len(group) for group in groups]
+                for n, group in enumerate(groups):
+                    groups[n] = {
+                        label: group[label].get_values() for value in self.values
+                        for label in value.input_labels()
+                    }
 
             fetches = self.optimized
             if verbose > 0:
                 verbose_fetches = dict(losses=self.losses, loss=self.loss)
-                if print_data:
+                if print_data > 0:
                     verbose_fetches['synthesized'] = self.synthesized_train
 
             for iteration in range(num_iterations):
@@ -65,7 +70,7 @@ class SeriesSynthesizer(BasicSynthesizer):
 
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                    self.print_learn_stats(data, batch, fetched, iteration)
+                    self.print_learn_stats(data, batch, fetched, iteration, print_data)
 
         else:
             if verbose > 0:
@@ -82,7 +87,7 @@ class SeriesSynthesizer(BasicSynthesizer):
             #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
             #     self.log_metrics(data, fetched, iteration)
 
-    def print_learn_stats(self, data, batch, fetched, iteration):
+    def print_learn_stats(self, data, batch, fetched, iteration, print_data):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
@@ -100,17 +105,15 @@ class SeriesSynthesizer(BasicSynthesizer):
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
         self.ks_distance_history.append(dict(dist_by_col))
 
-        if 'synthesized' in fetched:
-            print('original')
-            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(10))
-            print('synthesized')
-            print(pd.DataFrame.from_dict(fetched['synthesized']).head(10))
+        if print_data > 0:
+            print('original data:')
+            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(print_data))
+            print('synthesized data:')
+            print(pd.DataFrame.from_dict(fetched['synthesized']).head(print_data))
 
     def synthesize(self, num_series=None, series_length=None, series_lengths=None, condition=None):
         # Either num_series and series_length, or series_lenghts, or ???
-        if self.lstm_mode == 0 or (
-            self.identifier_label is None and len(self.condition_labels) == 0
-        ):
+        if self.lstm_mode == 0:
             raise NotImplementedError
 
         fetches = self.synthesized

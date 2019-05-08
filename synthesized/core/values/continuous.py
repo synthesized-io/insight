@@ -1,4 +1,5 @@
 from math import log
+from typing import Any, Dict, Iterable, Tuple
 
 import pandas as pd
 from scipy.stats import beta, gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
@@ -28,8 +29,8 @@ DISTRIBUTIONS = dict(
 class ContinuousValue(Value):
 
     def __init__(
-        self, name, distribution=None, distribution_params=None, integer=None, positive=None,
-        nonnegative=None
+        self, name: str, distribution: str=None, distribution_params: Tuple[Any]=None, integer: bool=None, positive: bool=None,
+        nonnegative: bool=None
     ):
         super().__init__(name=name)
 
@@ -43,7 +44,7 @@ class ContinuousValue(Value):
         self.pd_types = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = super().__str__()
         if self.distribution is None:
             string += '-raw'
@@ -57,7 +58,7 @@ class ContinuousValue(Value):
             string += '-nonnegative'
         return string
 
-    def specification(self):
+    def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
             distribution=self.distribution, distribution_params=self.distribution_params,
@@ -65,16 +66,16 @@ class ContinuousValue(Value):
         )
         return spec
 
-    def input_size(self):
+    def input_size(self) -> int:
         return 1
 
-    def output_size(self):
+    def output_size(self) -> int:
         return 1
 
-    def placeholders(self):
+    def placeholders(self) -> Iterable[tf.Tensor]:
         yield self.placeholder
 
-    def extract(self, data):
+    def extract(self, data: pd.DataFrame) -> None:
         column = data[self.name]
 
         if column.dtype.kind not in ('f', 'i'):
@@ -158,7 +159,7 @@ class ContinuousValue(Value):
         #     self.distribution = None
         #     self.distribution_params = None
 
-    def preprocess(self, data):
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         data = super().preprocess(data=data)
         # TODO: mb removal makes learning more stable (?), an investigation required
         # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
@@ -195,7 +196,7 @@ class ContinuousValue(Value):
 
         return data
 
-    def postprocess(self, data):
+    def postprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         if self.distribution == 'dirac':
             data.loc[:, self.name] = self.distribution_params[0]
 
@@ -239,25 +240,25 @@ class ContinuousValue(Value):
             )
         return features
 
-    def module_initialize(self):
+    def module_initialize(self) -> None:
         super().module_initialize()
         self.placeholder = tf.placeholder(dtype=tf.float32, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
+    def input_tensor(self, feed: Dict[str, tf.Tensor]=None) -> tf.Tensor:
         x = self.placeholder if feed is None else feed[self.name]
         x = tf.expand_dims(input=x, axis=1)
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, x):
+    def output_tensors(self, x: tf.Tensor) -> Dict[str, tf.Tensor]:
         x = tf.squeeze(input=x, axis=1)
         return {self.name: x}
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None, mask=None):
+    def loss(self, x: tf.Tensor, feed: Dict[str, tf.Tensor]=None, mask: tf.Tensor=None) -> tf.Tensor:
         if self.distribution == 'dirac':
             return tf.constant(value=0.0, dtype=tf.float32)
 
@@ -273,7 +274,7 @@ class ContinuousValue(Value):
         return loss
 
     @tensorflow_name_scoped
-    def distribution_loss(self, samples):
+    def distribution_loss(self, samples: tf.Tensor) -> tf.Tensor:
         samples = tf.squeeze(input=samples, axis=1)
 
         if self.distribution == 'gamma':
