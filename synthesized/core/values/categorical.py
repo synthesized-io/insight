@@ -225,7 +225,7 @@ class CategoricalValue(Value):
     @tensorflow_name_scoped
     def distribution_loss(self, samples):
         if self.probabilities is None:
-            return 0.0
+            return tf.constant(value=0.0, dtype=tf.float32)
 
         # assert not self.moving_average
         if self.similarity_based:  # is that right?

@@ -259,7 +259,7 @@ class ContinuousValue(Value):
     @tensorflow_name_scoped
     def loss(self, x, feed=None, mask=None):
         if self.distribution == 'dirac':
-            return 0.0
+            return tf.constant(value=0.0, dtype=tf.float32)
 
         target = self.input_tensor(feed=feed)[:, :1]  # first value since date adds more information
         if mask is not None:
