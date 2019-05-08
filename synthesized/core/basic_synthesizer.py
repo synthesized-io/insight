@@ -143,6 +143,9 @@ class BasicSynthesizer(Synthesizer):
             if value.name != self.identifier_label and value.input_size() > 0:
                 x = value.input_tensor(feed=feed)
                 xs.append(x)
+        if len(xs) == 0:
+            loss = tf.constant(value=0.0)
+            return dict(loss=loss), loss, tf.no_op()
         x = tf.concat(values=xs, axis=1)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
@@ -228,11 +231,12 @@ class BasicSynthesizer(Synthesizer):
         #     )), num_parallel_calls=None
         # )
         dataset = dataset.batch(batch_size=self.batch_size)  # drop_remainder=False
-        dataset = dataset.map(
-            map_func=(lambda serialized: tf.parse_example(
-                serialized=serialized, features=features, name=None, example_names=None
-            )), num_parallel_calls=None
-        )
+        if len(features) > 0:
+            dataset = dataset.map(
+                map_func=(lambda serialized: tf.parse_example(
+                    serialized=serialized, features=features, name=None, example_names=None
+                )), num_parallel_calls=None
+            )
         dataset = dataset.prefetch(buffer_size=1)
         self.iterator = dataset.make_initializable_iterator(shared_name=None)
 
@@ -270,29 +274,6 @@ class BasicSynthesizer(Synthesizer):
             xs = value.output_tensors(x=x)
             for label, x in xs.items():
                 self.synthesized[label] = x
-
-        # transform
-        xs = list()
-        for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
-                x = value.input_tensor()
-                xs.append(x)
-        x = tf.concat(values=xs, axis=1)
-        x = self.encoder.transform(x=x)
-        x = self.encoding.encode(x=x)
-        if self.modulation is not None:
-            condition = self.identifier_value.input_tensor()
-            x = self.modulation.transform(x=x, condition=condition)
-        x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
-        xs = tf.split(
-            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
-        )
-        self.transformed = dict()
-        for value, x in zip(self.values, xs):
-            xs = value.output_tensors(x=x)
-            for label, x in xs.items():
-                self.transformed[label] = x
 
     def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
         try:
@@ -371,26 +352,17 @@ class BasicSynthesizer(Synthesizer):
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
         columns = [label for value in self.values for label in value.output_labels()]
-        synthesized = pd.DataFrame.from_dict(synthesized)[columns]
-        feed_dict = {'num_synthesize': 1024}
-        for k in range(n // 1024):
-            other = self.run(fetches=fetches, feed_dict=feed_dict)
-            other = pd.DataFrame.from_dict(other)[columns]
-            synthesized = synthesized.append(other, ignore_index=True)
+        if len(columns) == 0:
+            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((n,))))
+        else:
+            synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            feed_dict = {'num_synthesize': 1024}
+            for k in range(n // 1024):
+                other = self.run(fetches=fetches, feed_dict=feed_dict)
+                other = pd.DataFrame.from_dict(other)[columns]
+                synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
+        if len(columns) == 0:
+            synthesized.pop('_sentinel')
         return synthesized
-
-    def transform(self, X, **transform_params):
-        assert not transform_params
-        data = self.preprocess(data=X.copy())
-        fetches = self.transformed
-        feed_dict = {
-            label: data[label].get_values() for value in self.values
-            for label in value.input_labels()
-        }
-        transformed = self.run(fetches=fetches, feed_dict=feed_dict)
-        transformed = pd.DataFrame.from_dict(transformed)
-        for value in self.values:
-            transformed = value.postprocess(data=transformed)
-        return transformed

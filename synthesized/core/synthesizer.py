@@ -2,8 +2,6 @@ import base64
 import os
 from datetime import datetime
 
-from sklearn.base import TransformerMixin
-
 from .module import Module
 
 
@@ -46,7 +44,7 @@ if not _check_license():
     raise Exception('Failed to load license key')
 
 
-class Synthesizer(Module, TransformerMixin):
+class Synthesizer(Module):
 
     def __init__(self, name, summarizer=False):
         super().__init__(name=name, summarizer=summarizer)
@@ -59,11 +57,3 @@ class Synthesizer(Module, TransformerMixin):
 
     def synthesize(self, n):
         raise NotImplementedError
-
-    def transform(self, X, **transform_params):
-        raise NotImplementedError
-
-    def fit(self, X, y=None, **fit_params):
-        assert y is None and not fit_params
-        self.learn(iteration=fit_params['iterations'], data=X)
-        return self

@@ -1,4 +1,5 @@
-from math import log
+from math import isnan, log
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -17,23 +18,28 @@ class CategoricalValue(Value):
     ):
         super().__init__(name=name)
 
+        self.nans_valid = False
         if categories is None:
             self.categories = None
             self.num_categories = None
         elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
-            try:
-                self.categories = list(pd.Series(categories).sort_values())
-            except TypeError:
-                self.categories = list(categories)
+            unique_values = list(pd.Series(categories).unique())
+            for n, x in enumerate(unique_values):
+                if isinstance(x, float) and isnan(x):
+                    unique_values.insert(0, unique_values.pop(n))
+                    self.nans_valid = True
+                else:
+                    assert not isinstance(x, float) or not isnan(x)
+            self.categories = unique_values
             self.num_categories = len(self.categories)
 
         self.probabilities = probabilities
 
         self.capacity = capacity
         if embedding_size is None and self.num_categories is not None:
-            self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
+            self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
         else:
             self.embedding_size = embedding_size
 
@@ -45,6 +51,9 @@ class CategoricalValue(Value):
         self.moving_average = moving_average
         self.similarity_regularization = similarity_regularization
         self.entropy_regularization = entropy_regularization
+
+        # self.pd_types = ()
+        # self.pd_cast = (lambda x: x)
 
     def __str__(self):
         string = super().__str__()
@@ -78,21 +87,25 @@ class CategoricalValue(Value):
         yield self.placeholder
 
     def extract(self, data):
-        try:
-            unique_values = list(pd.Series(data[self.name].unique()).sort_values())
-        except TypeError:
-            unique_values = list(data[self.name].unique())
+        unique_values = list(data[self.name].unique())
+        for n, x in enumerate(unique_values):
+            if isinstance(x, float) and isnan(x):
+                unique_values.insert(0, unique_values.pop(n))
+                self.nans_valid = True
+            else:
+                assert not isinstance(x, float) or not isnan(x)
         if self.categories is None:
             self.categories = unique_values
             self.num_categories = len(self.categories)
             if self.embedding_size is None:
-                self.embedding_size = int(log(self.num_categories) * self.capacity / 2.0)
-        elif unique_values != self.categories:
+                self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
+        elif unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
 
     def preprocess(self, data):
         if not isinstance(self.categories, int):
-            data.loc[:, self.name] = data[self.name].map(arg=self.categories.index)
+            fn = (lambda x: 0 if isinstance(x, float) and isnan(x) and self.nans_valid else self.categories.index(x))
+            data.loc[:, self.name] = data[self.name].map(arg=fn)
         data.loc[:, self.name] = data[self.name].astype(dtype='int64')
         return data
 

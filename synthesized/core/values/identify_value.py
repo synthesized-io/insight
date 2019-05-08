@@ -14,13 +14,22 @@ from .person import PersonValue
 from .sampling import SamplingValue
 
 
+CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
+PARSING_NAN_FRACTION_THRESHOLD = 0.25
+
+
 def identify_value(module, name, dtype, data):
     value = None
-    is_nan = False
-    num_data = len(data)
-    num_unique = data[name].nunique()
 
-    if name in (getattr(module, 'title_label', None), getattr(module, 'gender_label', None), getattr(module, 'name_label', None), getattr(module, 'firstname_label', None), getattr(module, 'lastname_label', None), getattr(module, 'email_label', None)):
+    # ========== Pre-configured values ==========
+
+    # Person value
+    if name == getattr(module, 'title_label', None) or \
+            name == getattr(module, 'gender_label', None) or \
+            name == getattr(module, 'name_label', None) or \
+            name == getattr(module, 'firstname_label', None) or \
+            name == getattr(module, 'lastname_label', None) or \
+            name == getattr(module, 'email_label', None):
         if module.person_value is None:
             value = module.add_module(
                 module=PersonValue, name='person', title_label=module.title_label, gender_label=module.gender_label,
@@ -29,9 +38,11 @@ def identify_value(module, name, dtype, data):
                 capacity=module.capacity,
             )
             module.person_value = value
-        return value
 
-    elif name in (getattr(module, 'postcode_label', None), getattr(module, 'city_label', None), getattr(module, 'street_label', None)):
+    # Address value
+    elif name == getattr(module, 'postcode_label', None) or \
+            name == getattr(module, 'city_label', None) or \
+            name == getattr(module, 'street_label', None):
         if module.address_value is None:
             value = module.add_module(
                 module=AddressValue, name='address', postcode_level=0,
@@ -39,8 +50,8 @@ def identify_value(module, name, dtype, data):
                 capacity=module.capacity
             )
             module.address_value = value
-        return value
 
+    # Compound address value
     elif name == getattr(module, 'address_label', None):
         value = module.add_module(
             module=CompoundAddressValue, name='address', postcode_level=1,
@@ -49,73 +60,103 @@ def identify_value(module, name, dtype, data):
             capacity=module.capacity
         )
         module.address_value = value
-        return value
 
+    # Identifier value
     elif name == getattr(module, 'identifier_label', None):
         value = module.add_module(module=IdentifierValue, name=name, capacity=module.capacity)
         module.identifier_value = value
+
+    # Return pre-configured value
+    if value is not None:
         return value
 
-    elif dtype.kind == 'M' and num_unique > 2.5 * log(num_data):  # 'm' timedelta
+    # ========== Non-numeric values ==========
+
+    num_data = len(data)
+    num_unique = data[name].nunique()
+    is_nan = False
+
+    # Categorical value if small number of distinct values
+    if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
+        # is_nan = data[name].isna().any()
+        value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
+
+    # Date value
+    elif dtype.kind == 'M':  # 'm' timedelta
+        is_nan = data[name].isna().any()
         value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
 
-    elif dtype.kind == 'b' and num_unique > 2.5 * log(num_data):
+    # Boolean value
+    elif dtype.kind == 'b':
+        # is_nan = data[name].isna().any()
         value = module.add_module(
             module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
         )
 
-    elif dtype.kind == 'O' and num_unique > 2.5 * log(num_data):
-        if hasattr(dtype, 'categories'):
-            # categorical if dtype has categories
-            value = module.add_module(
-                module=CategoricalValue, name=name, categories=dtype.categories,
-                capacity=module.capacity, pandas_category=True
-            )
+    # Categorical value if object type has attribute 'categories'
+    elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
+        # is_nan = data[name].isna().any()
+        value = module.add_module(
+            module=CategoricalValue, name=name, categories=dtype.categories,
+            capacity=module.capacity, pandas_category=True
+        )
 
-        else:
-            try:
-                # datetime if values can be parsed
-                is_nan = pd.to_datetime(data[name]).isna().any()
+    # Date value if object type can be parsed
+    elif dtype.kind == 'O':
+        try:
+            date_data = pd.to_datetime(data[name])
+            num_nan = date_data.isna().sum()
+            if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+                assert date_data.dtype.kind == 'M'
                 value = module.add_module(module=DateValue, name=name, capacity=module.capacity)
-            except ValueError:
-                pass
+                is_nan = num_nan > 0
+        except ValueError:
+            pass
 
-    if value is None and num_unique > 1:
-        # categorical if small number of distinct values
-        if num_unique <= 2.5 * log(num_data):
-            value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
+    # Similarity-based categorical value if not too many distinct values
+    elif num_unique <= sqrt(num_data):
+        value = module.add_module(
+            module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
+        )
 
-    if dtype.kind == 'O' and num_unique > sqrt(num_data):
-        # numerical if values can be parsed
-        numeric_data = pd.to_numeric(data[name], errors='coerce')
-        if numeric_data.isna().sum() / len(numeric_data) < 0.25:
-            dtype = numeric_data.dtype
-            assert dtype.kind in ('f', 'i')
-    elif dtype.kind in ('f', 'i'):
-        numeric_data = data[name]
-
-    if value is None and dtype.kind in ('f', 'i') and num_unique > 1:
-        is_nan = numeric_data.isna().any()
-        value = module.add_module(module=ContinuousValue, name=name)
-
-    if value is not None and is_nan:
-        value = module.add_module(module=NanValue, name=name, value=value, capacity=module.capacity)
-
-    if value is None:
-        if num_unique <= sqrt(num_data) and num_unique > 1:
-            # categorical similarity if not too many distinct values
+    # Return non-numeric value and handle NaNs if necessary
+    if value is not None:
+        if is_nan:
             value = module.add_module(
-                module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
+                module=NanValue, name=name, value=value, capacity=module.capacity
             )
+        return value
 
-        elif dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic:
-            # enumeration if it looks like an index
-            value = module.add_module(module=EnumerationValue, name=name)
+    # ========== Numeric value ==========
 
-        else:
-            # otherwise sample values
-            value = module.add_module(module=SamplingValue, name=name)
-            # print(name, dtype, num_data, num_unique)
-            # raise NotImplementedError
+    # Try parsing if object type
+    if dtype.kind == 'O':
+        numeric_data = pd.to_numeric(data[name], errors='coerce')
+        num_nan = numeric_data.isna().sum()
+        if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+            assert numeric_data.dtype.kind in ('f', 'i')
+            dtype = numeric_data.dtype
+            is_nan = num_nan > 0
+    elif dtype.kind in ('f', 'i'):
+        is_nan = data[name].isna().any()
+
+    # Return numeric value and handle NaNs if necessary
+    if dtype.kind in ('f', 'i'):
+        value = module.add_module(module=ContinuousValue, name=name)
+        if is_nan:
+            value = module.add_module(
+                module=NanValue, name=name, value=value, capacity=module.capacity
+            )
+        return value
+
+    # ========== Fallback values ==========
+
+    # Enumeration value if strictly increasing
+    if dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic_increasing:
+        value = module.add_module(module=EnumerationValue, name=name)
+
+    # Sampling value otherwise
+    else:
+        value = module.add_module(module=SamplingValue, name=name)
 
     return value

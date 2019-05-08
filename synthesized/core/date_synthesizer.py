@@ -249,16 +249,3 @@ class DateSynthesizer(Synthesizer):
             synthesized.append(x)
         synthesized = pd.concat(objs=synthesized)
         return synthesized
-
-    def transform(self, X, **transform_params):
-        assert not transform_params
-        for value in self.values:
-            X = value.preprocess(data=X)
-        feed_dict = {value.placeholder: X[value.name].get_values() for value in self.get_values()}
-        transformed = self.session.run(
-            fetches=self.transformed, feed_dict=feed_dict, options=None, run_metadata=None
-        )
-        transformed = pd.DataFrame.from_dict(transformed)
-        for value in self.values:
-            transformed = value.postprocess(data=transformed)
-        return transformed
