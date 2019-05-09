@@ -3,6 +3,10 @@ Synthesized
 
 [![CircleCI](https://circleci.com/gh/synthesized-io/synthesized.svg?style=svg&circle-token=a798b03cdec6651b6604af9121cd5ad12a9c691d)](https://circleci.com/gh/synthesized-io/synthesized)
 
+[Contributing](https://github.com/synthesized-io/synthesized/blob/master/CONTRIBUTING.md)
+--------------
+Please follow the link to read about contributing guidlines.
+
 Overview
 --------
 
@@ -16,8 +20,8 @@ Clone the repo:
     $ git clone git@github.com:synthesized-io/synthesized.git
     $ python setup.py install
     
-Contributing
-------------
+Project setup
+-------------
 
 ### Create a virtualenv
 
