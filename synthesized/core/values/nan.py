@@ -12,13 +12,15 @@ from .. import util
 
 class NanValue(Value):
 
-    def __init__(self, name, value, capacity=None, embedding_size=None, weight_decay=0.0):
+    def __init__(
+        self, name, value, produce_nans=False, capacity=None, embedding_size=None, weight_decay=0.0
+    ):
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousValue)
         # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
-        self.weight_decay = weight_decay
+        self.produce_nans = produce_nans
 
         self.capacity = capacity
         if embedding_size is None:
@@ -35,8 +37,8 @@ class NanValue(Value):
     def specification(self):
         spec = super().specification()
         spec.update(
-            value=self.value.specification(), embedding_size=self.embedding_size,
-            weight_decay=self.weight_decay
+            value=self.value.specification(), produce_nans=self.produce_nans,
+            embedding_size=self.embedding_size, weight_decay=self.weight_decay
         )
         return spec
 
@@ -79,9 +81,11 @@ class NanValue(Value):
         # postprocessed = self.value.postprocess(data=clean)
         # data = pd.merge(data, postprocessed, how='outer')
         nan = data[self.value.name].isna()
-        data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
+        if nan.any():
+            data.loc[:, self.value.name] = data[self.value.name].fillna(method='bfill').fillna(method='ffill')
         data = self.value.postprocess(data=data)
-        data.loc[nan, self.value.name] = np.nan
+        if nan.any():
+            data.loc[nan, self.value.name] = np.nan
         return data
 
     def features(self, x=None):
@@ -117,7 +121,8 @@ class NanValue(Value):
     def output_tensors(self, x):
         nan = (tf.argmax(input=x[:, :2], axis=1) == 1)
         x = self.value.output_tensors(x=x[:, 2:])[self.value.name]
-        x = tf.where(condition=nan, x=(x * np.nan), y=x)
+        if self.produce_nans:
+            x = tf.where(condition=nan, x=(x * np.nan), y=x)
         return {self.value.name: x}
 
     @tensorflow_name_scoped
