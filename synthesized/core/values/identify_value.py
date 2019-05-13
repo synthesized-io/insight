@@ -93,6 +93,10 @@ def identify_value(module, name, dtype, data):
             module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
         )
 
+    # Continuous value if integer (reduced variability makes similarity-categorical fallback more likely)
+    elif dtype.kind == 'i':
+        value = module.add_module(module=ContinuousValue, name=name, integer=True)
+
     # Categorical value if object type has attribute 'categories'
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
         # is_nan = data[name].isna().any()
