@@ -119,7 +119,7 @@ class NanValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, x):
-        nan = (tf.argmax(input=x[:, :2], axis=1) == 1)
+        nan = (tf.math.equal(x=tf.argmax(input=x[:, :2], axis=1), y=1))
         x = self.value.output_tensors(x=x[:, 2:])[self.value.name]
         if self.produce_nans:
             x = tf.where(condition=nan, x=(x * np.nan), y=x)
