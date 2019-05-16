@@ -172,6 +172,34 @@ class UtilityTesting:
             print('R2 (synth):', synth_score)
             return synth_score
 
+
+    def autocorrelation_diff_plot_seaborn(self, max_lag = 100):
+        # for synthetic data at the moment, TODO for real data
+        # how do we detect time column?
+        def autocorrelation(h, data, mean, n, c0):
+            return ((data[:n - h] - mean) *
+                    (data[h:] - mean)).sum() / float(n) / c0
+
+        n_orig, n_synth = len(self.df_test), len(self.df_synth)
+        original_data, synthetic_data = np.asarray(self.df_test), np.asarray(self.df_synth)
+
+        mean_orig, mean_synth = np.mean(original_data), np.mean(synthetic_data)
+        c0_orig = np.sum((original_data - mean_orig) ** 2) / float(n_orig)
+        c0_synth = np.sum((synthetic_data - mean_synth) ** 2) / float(n_synth)
+
+        n = min(n_orig, n_synth, max_lag)
+        x = np.arange(n) + 1
+
+        y_orig = [autocorrelation(loc, original_data[:n], mean_orig, n, c0_orig) for loc in x]
+        y_synth = [autocorrelation(loc, synthetic_data, mean_synth, n_synth, c0_synth) for loc in x]
+
+        sns.set(style="whitegrid")
+
+        data = pd.DataFrame({"Original": y_orig, "Synthetic": y_synth})
+        sns.lineplot(data=data, palette=[COLOR_SYNTH, COLOR_ORIG], linewidth=2.5)
+        return mean_squared_error(y_orig, y_synth)
+
+
     def estimate_utility(self, classifier=LogisticRegression(), regressor=LinearRegression()):
         dtypes = dict(self.display_types)
         df_orig = self.df_orig.copy()
