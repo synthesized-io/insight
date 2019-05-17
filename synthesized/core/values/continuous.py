@@ -82,7 +82,7 @@ class ContinuousValue(Value):
             column = self.pd_cast(column)
 
         if self.integer is None:
-            self.integer = (column.dtype.kind == 'i')
+            self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
         elif self.integer and column.dtype.kind != 'i':
             raise NotImplementedError
 
