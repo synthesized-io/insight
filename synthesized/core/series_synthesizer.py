@@ -129,12 +129,12 @@ class SeriesSynthesizer(BasicSynthesizer):
                 label for value in self.values if value.name not in self.condition_labels
                 for label in value.output_labels()
             ]
-            if self.identifier_label not in columns:
+            if self.identifier is not None and self.identifier_label not in columns:
                 columns.insert(0, self.identifier_label)
             synthesized = None
             for i in range(num_series):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
-                if self.identifier_label not in other:
+                if self.identifier is not None and self.identifier_label not in columns:
                     other[self.identifier_label] = [i for _ in range(series_length)]
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
@@ -148,13 +148,13 @@ class SeriesSynthesizer(BasicSynthesizer):
                 label for value in self.values if value.name not in self.condition_labels
                 for label in value.output_labels()
             ]
-            if self.identifier_label not in columns:
+            if self.identifier is not None and self.identifier_label not in columns:
                 columns.insert(0, self.identifier_label)
             synthesized = None
             for i, series_length in enumerate(series_lengths):
                 feed_dict['num_synthesize'] = series_length
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
-                if self.identifier_label not in other:
+                if self.identifier is not None and self.identifier_label not in columns:
                     other[self.identifier_label] = [i for _ in range(series_length)]
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
