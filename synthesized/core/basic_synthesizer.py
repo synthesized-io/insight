@@ -16,11 +16,15 @@ from .values import identify_value
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data, exclude_encoding_loss=False, summarizer=False,
-        # architecture
-        network='resnet', encoding='variational',
-        # hyperparameters
-        capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
+        self, data, summarizer=False,
+        # encoder/decoder
+        network_type='resnet', capacity=128, depth=2, layer_type='dense', batchnorm=True,
+        activation='relu', weight_decay=1e-5,
+        # encoding
+        encoding_type='variational', encoding_size=128, encoding_kwargs=dict(),
+        # optimizer
+        algorithm='adam', learning_rate=3e-4, decay_steps=None, decay_rate=None,
+        clip_gradients=None, batch_size=64,
         # person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -32,14 +36,7 @@ class BasicSynthesizer(Synthesizer):
     ):
         super().__init__(name='synthesizer', summarizer=summarizer)
 
-        self.exclude_encoding_loss = exclude_encoding_loss
-
-        self.network_type = network
-        self.encoding_type = encoding
         self.capacity = capacity
-        self.depth = depth
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
         self.batch_size = batch_size
 
         # person
@@ -83,14 +80,15 @@ class BasicSynthesizer(Synthesizer):
                     output_size += value.output_size()
 
         self.encoder = self.add_module(
-            module=self.network_type, modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)],
-            weight_decay=self.weight_decay
+            module=network_type, modules=transformation_modules, name='encoder',
+            input_size=input_size, layer_sizes=[capacity for _ in range(depth)],
+            layer_type=layer_type, batchnorm=batchnorm, activation=activation,
+            weight_decay=weight_decay  # TODO: depths missing
         )
 
         self.encoding = self.add_module(
-            module=self.encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.capacity, beta=encoding_beta
+            module=encoding_type, modules=encoding_modules, name='encoding',
+            input_size=self.encoder.size(), encoding_size=encoding_size, **encoding_kwargs
         )
 
         if self.identifier_value is None:
@@ -98,13 +96,14 @@ class BasicSynthesizer(Synthesizer):
         else:
             self.modulation = self.add_module(
                 module='modulation', modules=transformation_modules, name='modulation',
-                input_size=self.capacity, condition_size=self.identifier_value.embedding_size
+                input_size=capacity, condition_size=self.identifier_value.embedding_size
             )
 
         self.decoder = self.add_module(
-            module=self.network_type, modules=transformation_modules, name='decoder',
-            input_size=self.encoding.size(),
-            layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
+            module=network_type, modules=transformation_modules, name='decoder',
+            input_size=self.encoding.size(), layer_sizes=[capacity for _ in range(depth)],
+            layer_type=layer_type, batchnorm=batchnorm, activation=activation,
+            weight_decay=weight_decay  # TODO: depths missing
         )
 
         self.output = self.add_module(
@@ -114,15 +113,15 @@ class BasicSynthesizer(Synthesizer):
         )
 
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
-            clip_gradients=1.0
+            module=Optimizer, name='optimizer', algorithm=algorithm, learning_rate=learning_rate,
+            decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
         )
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            network=self.network_type, encoding=self.encoding_type, capacity=self.capacity,
-            depth=self.depth, learning_rate=self.learning_rate, weight_decay=self.weight_decay,
+            encoder=self.encoder.specification(), decoder=self.decoder.specification(),
+            encoding=self.encoding.specification(), optimizer=self.optimizer.specification(),
             batch_size=self.batch_size
         )
         return spec
@@ -170,8 +169,7 @@ class BasicSynthesizer(Synthesizer):
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
         losses = OrderedDict()
-        if not self.exclude_encoding_loss:
-            losses['encoding'] = encoding_loss
+        losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
             loss = value.loss(x=x, feed=feed)
             if loss is not None:

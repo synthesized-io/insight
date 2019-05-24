@@ -13,40 +13,37 @@ class ResidualTransformation(Transformation):
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
-        self.layer_type = layer_type
-        self.depth = depth
         self.batchnorm = batchnorm
         self.activation = activation
-        self.weight_decay = weight_decay
-        self.kwargs = kwargs
 
         from . import transformation_modules
         self.layers = list()
+        for n in range(depth - 1):
+            self.layers.append(self.add_module(
+                module=layer_type, modules=transformation_modules, name=('layer' + str(n)),
+                input_size=input_size, output_size=input_size, batchnorm=batchnorm,
+                activation=activation, weight_decay=weight_decay, **kwargs
+            ))
+        self.layers.append(self.add_module(
+            module=layer_type, modules=transformation_modules, name=('layer' + str(depth - 1)),
+            input_size=input_size, output_size=output_size, batchnorm=False, activation='none',
+            weight_decay=weight_decay, **kwargs
+        ))
+
         if input_size != output_size:
             self.identity_transformation = self.add_module(
-                module=self.layer_type, modules=transformation_modules, name='idtransform',
+                module=layer_type, modules=transformation_modules, name='idtransform',
                 input_size=input_size, output_size=output_size, batchnorm=False, activation='none',
-                weight_decay=self.weight_decay, **self.kwargs
+                weight_decay=weight_decay, **kwargs
             )
         else:
             self.identity_transformation = None
-        for n in range(self.depth - 1):
-            self.layers.append(self.add_module(
-                module=self.layer_type, modules=transformation_modules, name=('layer' + str(n)),
-                input_size=input_size, output_size=input_size, batchnorm=self.batchnorm,
-                activation=self.activation, weight_decay=self.weight_decay, **self.kwargs
-            ))
-        self.layers.append(self.add_module(
-            module=self.layer_type, modules=transformation_modules,
-            name=('layer' + str(self.depth - 1)), input_size=input_size, output_size=output_size,
-            batchnorm=False, activation='none', weight_decay=self.weight_decay, **self.kwargs
-        ))
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            layer_type=self.layer_type, num_layers=self.layers, batchnorm=self.batchnorm,
-            activation=self.activation, weight_decay=self.weight_decay, kwargs=self.kwargs
+            layers=self.layers, identity_transformation=self.identity_transformation,
+            batchnorm=self.batchnorm, activation=self.activation
         )
         return spec
 
@@ -58,13 +55,11 @@ class ResidualTransformation(Transformation):
             initializer = util.get_initializer(initializer='zeros')
             self.offset = tf.get_variable(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True,
             )
             self.scale = tf.get_variable(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True,
             )
 
     @tensorflow_name_scoped

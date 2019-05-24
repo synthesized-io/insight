@@ -7,7 +7,7 @@ from ..module import tensorflow_name_scoped
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=None):
+    def __init__(self, name, input_size, encoding_size, beta=1.0):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 
@@ -32,23 +32,18 @@ class VariationalEncoding(Encoding):
     def encode(self, x, encoding_loss=False):
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
-        x = tf.random_normal(
-            shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
-        )
+        x = tf.random_normal(shape=tf.shape(input=mean))
         x = mean + stddev * x
         if encoding_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
-            if self.beta is not None:
-                encoding_loss *= self.beta
+            encoding_loss = self.beta * encoding_loss
             return x, encoding_loss
         else:
             return x
 
     @tensorflow_name_scoped
     def sample(self, n):
-        x = tf.random_normal(
-            shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
-        )
+        x = tf.random_normal(shape=(n, self.encoding_size))
         return x
