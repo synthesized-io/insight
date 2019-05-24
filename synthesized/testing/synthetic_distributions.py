@@ -16,6 +16,27 @@ from synthesized.testing.evaluation import Evaluation
 from synthesized.core.values import CategoricalValue, ContinuousValue
 
 
+def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a one-dimensional gaussian distribution with params N(mean, std)."""
+    x = mean + std*np.random.randn(size=size)
+    return pd.DataFrame({"x": x})
+
+
+def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
+    return pd.DataFrame({"x": np.random.binomial(n=size, p=probability)})
+
+
+def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a categorical distribution with
+     `len(probabilities)` categories and probability `probabilities[i]`
+     for class `i`.
+     """
+    categories = list(map(str, range(len(probabilities))))
+    x = np.random.choice(a=categories, size=size, p=probabilities)
+    return pd.DataFrame({"x": x})
+
+
 def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
