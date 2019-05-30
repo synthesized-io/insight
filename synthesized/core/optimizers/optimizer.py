@@ -61,13 +61,6 @@ class Optimizer(Module):
                 for grad, var in grads_and_vars if grad is not None
             ]
 
-        if gradient_norms:
-            gradient_norms = dict()
-            for grad, var in grads_and_vars:
-                gradient_norms[var.name] = tf.norm(
-                    tensor=grad, ord='euclidean', axis=None, keepdims=None
-                )
-
         if self.clip_gradients is not None:
             for n in range(len(grads_and_vars)):
                 grad, var = grads_and_vars[n]
@@ -75,6 +68,13 @@ class Optimizer(Module):
                     t=grad, clip_value_min=-self.clip_gradients, clip_value_max=self.clip_gradients
                 )
                 grads_and_vars[n] = (clipped_grad, var)
+
+        if gradient_norms:
+            gradient_norms = dict()
+            for grad, var in grads_and_vars:
+                gradient_norms[var.name[:var.name.index(':')]] = tf.norm(
+                    tensor=grad, ord='euclidean', axis=None, keepdims=None
+                )
 
         optimized = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
         # , global_step=Module.global_step  (incremented in synthesizer?!)

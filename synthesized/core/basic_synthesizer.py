@@ -23,8 +23,9 @@ class BasicSynthesizer(Synthesizer):
         # encoding
         encoding_type='variational', encoding_size=128, encoding_kwargs=dict(),
         # optimizer
-        algorithm='adam', learning_rate=3e-4, decay_steps=None, decay_rate=None,
-        clip_gradients=None, batch_size=64,
+        optimizer='adam', learning_rate=3e-4, decay_steps=None, decay_rate=None,
+        clip_gradients=None,
+        batch_size=64,
         # person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -113,7 +114,7 @@ class BasicSynthesizer(Synthesizer):
         )
 
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm=algorithm, learning_rate=learning_rate,
+            module=Optimizer, name='optimizer', algorithm=optimizer, learning_rate=learning_rate,
             decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
         )
 
