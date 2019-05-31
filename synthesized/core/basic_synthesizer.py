@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -275,7 +276,7 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations: int=2500, data: pd.DataFrame=None, filenames: List[str]=None, verbose: int=0) -> None:
         try:
             next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
@@ -347,7 +348,7 @@ class BasicSynthesizer(Synthesizer):
     def get_ks_distance_history(self):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
-    def synthesize(self, n):
+    def synthesize(self, n: int) -> pd.DataFrame:
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)

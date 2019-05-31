@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import List
 
 import pandas as pd
 import tensorflow as tf
@@ -140,11 +141,11 @@ class ScenarioSynthesizer(Synthesizer):
                 delta=1, use_locking=False, read_value=True
             )
 
-    def learn(self, num_iterations, num_samples=1024, verbose=0):
+    def learn(self, iterations: int, data: pd.DataFrame=None, filenames: List[str]=None, verbose=0, num_samples=1024) -> None:
         fetches = (self.optimized, self.loss)
         if verbose > 0:
             verbose_fetches = (self.optimized, dict(self.losses))
-        for iteration in range(num_iterations):
+        for iteration in range(iterations):
             feed_dict = {'num_synthesize': num_samples}
             if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
                     iteration % verbose + 1 == verbose):
@@ -166,7 +167,7 @@ class ScenarioSynthesizer(Synthesizer):
     def get_loss_history(self):
         return pd.DataFrame.from_records(self.loss_history)
 
-    def synthesize(self, n):
+    def synthesize(self, n: int) -> pd.DataFrame:
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
