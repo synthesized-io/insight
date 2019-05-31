@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -195,12 +197,13 @@ class DateSynthesizer(Synthesizer):
         for value, x in zip(self.values, xs):
             self.transformed[value.name] = value.output_tensor(x=x)
 
-    def learn(self, data=None, filenames=None, verbose=0):
+    def learn(self, iterations: int=0, data: pd.DataFrame=None, filenames: List[str]=None, verbose: int=0):
         if (data is None) == (filenames is None):
             raise NotImplementedError
 
         # TODO: increment global step
         if filenames is None:
+            assert data is not None
             data = [d[1] for d in data.groupby(by='account_id')]
             for n in range(len(data)):
                 for value in self.values:
@@ -236,7 +239,7 @@ class DateSynthesizer(Synthesizer):
                         print(i % verbose + 100)
                         losses += loss / 100.0
 
-    def synthesize(self, n):
+    def synthesize(self, n: int) -> pd.DataFrame:
         synthesized = list()
         for num in n:
             feed_dict = {self.num_synthesize: num}
