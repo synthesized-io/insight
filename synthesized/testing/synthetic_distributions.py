@@ -7,11 +7,10 @@ import seaborn as sns
 from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Type
 from matplotlib.pyplot import Axes
 
 from synthesized.core import BasicSynthesizer
-from synthesized.core.values import Value
 from synthesized.testing.evaluation import Evaluation
 from synthesized.core.values import CategoricalValue, ContinuousValue
 
@@ -72,7 +71,7 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     return df
 
 
-def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Value]) -> None:
+def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> None:
     if len(value_types) == 1:
         if value_types['x'] is CategoricalValue:
             return sns.distplot(data, ax=ax, kde=False)
