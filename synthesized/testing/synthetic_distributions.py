@@ -7,6 +7,7 @@ import seaborn as sns
 from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
+from numpy.random import exponential, normal
 from typing import Tuple, Dict
 from matplotlib.pyplot import Axes
 
@@ -43,6 +44,33 @@ def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, 
     cov = [[x_std, 0], [0, y_std]]
     x, y = np.random.multivariate_normal(mean, cov, size).T
     df = pd.DataFrame({'x': x, 'y': y})
+    return df
+
+
+def create_two_1d_gaussians(mean1: float, std1: float, size1: int, mean2: float, std2: float, size2: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df = pd.concat([df1, df2])
+    return df
+
+
+def create_exp_gaussian_mixture(mean1: float, std1: float, size1: int, scale: float, size2: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": exponential(scale=scale, size=size2)})
+    df = pd.concat([df1, df2])
+    return df
+
+
+def create_three_1d_gaussians(mean1: float, std1: float, size1: int,
+                              mean2: float, std2: float, size2: int,
+                              mean3: float, std3: float, size3: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df3 = pd.DataFrame({"x": normal(loc=mean3, scale=std3, size=size3)})
+    df = pd.concat([df1, df2, df3])
     return df
 
 
