@@ -1,6 +1,5 @@
 from math import log
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from .value import Value
@@ -13,7 +12,7 @@ from .. import util
 class NanValue(Value):
 
     def __init__(
-        self, name, value, produce_nans=False, capacity=None, embedding_size=None, weight_decay=0.0
+            self, name, value, produce_nans=False, capacity=None, embedding_size=None, weight_decay=0.0
     ):
         super().__init__(name=name)
 

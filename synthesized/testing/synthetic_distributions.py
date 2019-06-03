@@ -24,18 +24,19 @@ def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, 
     return df
 
 
-def create_gauss_line(x_range: Tuple[float, float], intercept: float, slope: float, y_std: float, size: int) -> pd.DataFrame:
+def create_gauss_line(x_range: Tuple[float, float], intercept: float, slope: float, y_std: float,
+                      size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) cloud of points around a line `y=x*slope + intercept`
      with standard deviation y_std along y axis and confined to [x_range[0], x_range[1]] along x axis"""
     x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
-    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
+    y = intercept + x * slope + np.random.normal(loc=0, scale=y_std, size=size)
     df = pd.DataFrame({'x': x, 'y': y})
     return df
 
 
 def create_power_law_distribution(shape: float, scale: float, size: int):
     """Creates a one-dimensional (axis: x) power-low distribution with pdf `shape * x**(shape-1)`"""
-    return pd.DataFrame({'x': scale*powerlaw.rvs(shape, size=size)})
+    return pd.DataFrame({'x': scale * powerlaw.rvs(shape, size=size)})
 
 
 def create_bernoulli_distribution(ratio: float, size: int) -> pd.DataFrame:
@@ -65,7 +66,7 @@ def create_unifom_categorical(n_classes: int, size: int) -> pd.DataFrame:
 
 def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) distribution where each class has 2 times less elements than previous one"""
-    sample = [j for i in range(n_classes) for j in [i]*2**(n_classes-i-1)]
+    sample = [j for i in range(n_classes) for j in [i] * 2 ** (n_classes - i - 1)]
     df = pd.DataFrame({'x': sample})
     df = df.sample(size, replace=True)
     return df
@@ -82,13 +83,13 @@ def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> No
         if value_types['x'] is CategoricalValue:
             sns.violinplot(x="x", y="y", data=data, ax=ax)
         else:
-            #sns.jointplot(x="x", y="y", data=data, kind="kde", ax=ax)
+            # sns.jointplot(x="x", y="y", data=data, kind="kde", ax=ax)
             ax.hist2d(data['x'], data['y'], bins=100)
     else:
         assert False
 
 
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int=None) -> None:
+def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int = None) -> None:
     if num_iterations is None:
         num_iterations = evaluation.config['num_iterations']
     start = time.time()

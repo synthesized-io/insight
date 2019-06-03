@@ -30,7 +30,7 @@ jobs:
           - v1-dependencies-
 
       - run:
-          name: install dependencies
+          name: Install dependencies
           command: |
             python3 -m venv venv
             . venv/bin/activate
@@ -42,7 +42,13 @@ jobs:
           key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
 
       - run:
-          name: type checking
+          name: Check codestyle
+          command: |
+            . venv/bin/activate
+            python -m flake8 --max-line-length=120 synthesized
+
+      - run:
+          name: Check types
           command: |
             . venv/bin/activate
             python -m mypy --ignore-missing-import synthesized
@@ -53,14 +59,14 @@ jobs:
       # https://pytest.org
       # https://nose.readthedocs.io
       - run:
-          name: run tests
+          name: Run tests
           command: |
             . venv/bin/activate
             python -m pytest
           no_output_timeout: 20m
 
       - run:
-          name: package
+          name: Package
           command: |
             . venv/bin/activate
             python setup.py bdist_wheel

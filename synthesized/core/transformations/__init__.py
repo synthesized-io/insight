@@ -12,3 +12,5 @@ transformation_modules = dict(
     residual=ResidualTransformation,
     resnet=ResnetTransformation
 )
+
+__all__ = ['Transformation', 'transformation_modules']

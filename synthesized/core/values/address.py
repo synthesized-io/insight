@@ -12,10 +12,10 @@ from ..module import tensorflow_name_scoped
 
 
 class AddressValue(Value):
-
     postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? [0-9]+[A-Za-z]{2}$')
 
-    def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, city_label=None, street_label=None, postcodes=None):
+    def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, city_label=None, street_label=None,
+                 postcodes=None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -137,7 +137,8 @@ class AddressValue(Value):
         if self.postcodes is None or isinstance(self.postcodes, set):
             raise NotImplementedError
         if self.postcode is None:
-            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(data)), name=self.postcode_label)
+            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(data)),
+                                 name=self.postcode_label)
         else:
             data = self.postcode.postprocess(data=data)
             postcode = data[self.postcode_label].astype(dtype='str')

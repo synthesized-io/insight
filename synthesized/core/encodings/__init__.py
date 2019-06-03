@@ -8,3 +8,5 @@ encoding_modules = dict(
     variational=VariationalEncoding,
     gumbel=GumbelVariationalEncoding
 )
+
+__all__ = ['Encoding', 'encoding_modules']

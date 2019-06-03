@@ -13,7 +13,6 @@ from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
 
-
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 

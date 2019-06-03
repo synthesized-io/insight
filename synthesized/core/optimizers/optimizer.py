@@ -6,8 +6,8 @@ from ..module import Module, tensorflow_name_scoped
 class Optimizer(Module):
 
     def __init__(
-        self, name, algorithm='adam', learning_rate=3e-4, decay_steps=1000, decay_rate=0.9,
-        clip_gradients=None
+            self, name, algorithm='adam', learning_rate=3e-4, decay_steps=1000, decay_rate=0.9,
+            clip_gradients=None
     ):
         super().__init__(name=name)
         self.algorithm = algorithm

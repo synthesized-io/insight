@@ -1,5 +1,6 @@
 pytest
 Cython
 mypy
+flake8
 
 -r requirements.txt

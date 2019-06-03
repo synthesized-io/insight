@@ -6,9 +6,9 @@ from .categorical import CategoricalValue
 class ProbabilityValue(CategoricalValue):
 
     def __init__(
-        self, name, embedding_size, granularity=0.01, similarity_based=False, temperature=1.0,
-        smoothing=0.1, moving_average=True, similarity_regularization=0.01,
-        entropy_regularization=0.01
+            self, name, embedding_size, granularity=0.01, similarity_based=False, temperature=1.0,
+            smoothing=0.1, moving_average=True, similarity_regularization=0.01,
+            entropy_regularization=0.01
     ):
         if granularity > 0.5 or granularity < 0.001:
             raise NotImplementedError
