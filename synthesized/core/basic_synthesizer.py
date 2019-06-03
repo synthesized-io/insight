@@ -83,10 +83,15 @@ class BasicSynthesizer(Synthesizer):
                     input_size += value.input_size()
                     output_size += value.output_size()
 
+        self.linear_input = self.add_module(
+            module='dense', modules=transformation_modules, name='linear-input',
+            input_size=input_size, output_size=self.capacity, batchnorm=False, activation='none'
+        )
+
         self.encoder = self.add_module(
             module=self.network_type, modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=[self.capacity for _ in range(self.depth)],
-            weight_decay=self.weight_decay
+            input_size=self.linear_input.size(),
+            layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
         )
 
         self.encoding = self.add_module(
@@ -108,8 +113,8 @@ class BasicSynthesizer(Synthesizer):
             layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
         )
 
-        self.output = self.add_module(
-            module='dense', modules=transformation_modules, name='output',
+        self.linear_output = self.add_module(
+            module='dense', modules=transformation_modules, name='linear-output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
             activation='none'
         )
@@ -148,6 +153,7 @@ class BasicSynthesizer(Synthesizer):
             loss = tf.constant(value=0.0)
             return dict(loss=loss), loss, tf.no_op()
         x = tf.concat(values=xs, axis=1)
+        x = self.linear_input.transform(x=x)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
         summaries.append(tf.contrib.summary.scalar(
@@ -166,7 +172,7 @@ class BasicSynthesizer(Synthesizer):
             condition = self.identifier_value.input_tensor()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
+        x = self.linear_output.transform(x=x)
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
@@ -266,7 +272,7 @@ class BasicSynthesizer(Synthesizer):
             identifier, condition = self.identifier_value.random_value(n=num_synthesize)
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
+        x = self.linear_output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
         if self.identifier_value is not None:
