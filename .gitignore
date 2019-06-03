@@ -51,3 +51,5 @@ logs/
 !.elasticbeanstalk/config.yml
 
 .mypy_cache/
+.coverage*
+coverage.txt
