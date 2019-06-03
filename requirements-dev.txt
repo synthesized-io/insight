@@ -1,4 +1,5 @@
 pytest
 Cython
+mypy
 
 -r requirements.txt
