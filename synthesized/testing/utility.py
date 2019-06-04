@@ -96,7 +96,8 @@ class UtilityTesting:
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
-                ax = sns.countplot(x=col, hue='dataset', data=concatenated, palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+                ax = sns.countplot(x=col, hue='dataset', data=concatenated,
+                                   palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
             # elif dtype == DisplayType.CATEGORICAL_SIMILARITY:
             #     # workaround for kde failing on datasets with only one value
@@ -118,7 +119,8 @@ class UtilityTesting:
                     kde = True
                 sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={"color": COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde, kde_kws={'clip': (start, end)},
+                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde,
+                             kde_kws={'clip': (start, end)},
                              hist_kws={"color": COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
 
@@ -355,7 +357,7 @@ class UtilityTesting:
             return df
 
     def debug_column(self, col):
-        start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  #TODO parametrize
+        start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  # TODO parametrize
         plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
         plt.legend()
 

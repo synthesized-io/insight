@@ -55,7 +55,7 @@ class Synthesizer(Module):
     def get_values(self):
         raise NotImplementedError
 
-    def learn(self, iterations: int, data: pd.DataFrame=None, filenames: List[str]=None, verbose: int=0) -> None:
+    def learn(self, iterations: int, data: pd.DataFrame = None, filenames: List[str] = None, verbose: int = 0) -> None:
         raise NotImplementedError
 
     def synthesize(self, n: int) -> pd.DataFrame:

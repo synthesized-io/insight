@@ -8,8 +8,8 @@ from ..module import tensorflow_name_scoped
 class GumbelVariationalEncoding(Encoding):
 
     def __init__(
-        self, name, input_size, encoding_size, num_categories=32, temperature=1.0, hard=False,
-        beta=5.0
+            self, name, input_size, encoding_size, num_categories=32, temperature=1.0, hard=False,
+            beta=5.0
     ):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.num_categories = num_categories

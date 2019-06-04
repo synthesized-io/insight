@@ -15,11 +15,11 @@ from .values import value_modules
 class ScenarioSynthesizer(Synthesizer):
 
     def __init__(
-        self, values, functionals, summarizer=False,
-        # architecture
-        network='resnet',
-        # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5
+            self, values, functionals, summarizer=False,
+            # architecture
+            network='resnet',
+            # hyperparameters
+            capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5
     ):
         super().__init__(name='scenario-synthesizer', summarizer=summarizer)
 
@@ -141,14 +141,15 @@ class ScenarioSynthesizer(Synthesizer):
                 delta=1, use_locking=False, read_value=True
             )
 
-    def learn(self, iterations: int, data: pd.DataFrame=None, filenames: List[str]=None, verbose=0, num_samples=1024) -> None:
+    def learn(self, iterations: int, data: pd.DataFrame = None, filenames: List[str] = None, verbose=0,
+              num_samples=1024) -> None:
         fetches = (self.optimized, self.loss)
         if verbose > 0:
             verbose_fetches = (self.optimized, dict(self.losses))
         for iteration in range(iterations):
             feed_dict = {'num_synthesize': num_samples}
             if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                    iteration % verbose + 1 == verbose):
+                                iteration % verbose + 1 == verbose):
                 _, fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
                 self.log_metrics(fetched, iteration)
             else:
@@ -177,6 +178,6 @@ class ScenarioSynthesizer(Synthesizer):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
             other = pd.DataFrame.from_dict(other)
             synthesized = synthesized.append(other, ignore_index=True)
-       # for value in self.values:
-      #      synthesized = value.postprocess(data=synthesized)
+        # for value in self.values:
+        #      synthesized = value.postprocess(data=synthesized)
         return synthesized

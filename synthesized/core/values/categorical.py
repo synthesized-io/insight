@@ -1,5 +1,4 @@
 from math import isnan, log
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -11,10 +10,10 @@ from ..module import Module, tensorflow_name_scoped
 class CategoricalValue(Value):
 
     def __init__(
-        self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
-        pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
-        smoothing=0.1, moving_average=True, similarity_regularization=0.1,
-        entropy_regularization=0.1
+            self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
+            pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
+            smoothing=0.1, moving_average=True, similarity_regularization=0.1,
+            entropy_regularization=0.1
     ):
         super().__init__(name=name)
 

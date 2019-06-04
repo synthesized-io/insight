@@ -12,3 +12,5 @@ functional_modules = dict(
     mean=MeanFunctional,
     stddev=StandardDeviationFunctional
 )
+
+__all__ = ['Functional', 'functional_modules']

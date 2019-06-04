@@ -12,11 +12,11 @@ from ..values import CategoricalValue, identify_value
 class BasicClassifier(Classifier):
 
     def __init__(
-        self, data, target_label=None, summarizer=False,
-        # architecture
-        network='resnet',
-        # hyperparameters
-        capacity=64, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64
+            self, data, target_label=None, summarizer=False,
+            # architecture
+            network='resnet',
+            # hyperparameters
+            capacity=64, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64
     ):
         super().__init__(name='classifier', summarizer=summarizer)
 

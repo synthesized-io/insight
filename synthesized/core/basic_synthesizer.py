@@ -17,19 +17,19 @@ from .values import identify_value
 class BasicSynthesizer(Synthesizer):
 
     def __init__(
-        self, data, exclude_encoding_loss=False, summarizer=False,
-        # architecture
-        network='resnet', encoding='variational',
-        # hyperparameters
-        capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
-        # person
-        title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
-        email_label=None,
-        # address
-        postcode_label=None, city_label=None, street_label=None,
-        address_label=None, postcode_regex=None,
-        # identifier
-        identifier_label=None
+            self, data, exclude_encoding_loss=False, summarizer=False,
+            # architecture
+            network='resnet', encoding='variational',
+            # hyperparameters
+            capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
+            # person
+            title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
+            email_label=None,
+            # address
+            postcode_label=None, city_label=None, street_label=None,
+            address_label=None, postcode_regex=None,
+            # identifier
+            identifier_label=None
     ):
         super().__init__(name='synthesizer', summarizer=summarizer)
 
@@ -225,7 +225,8 @@ class BasicSynthesizer(Synthesizer):
             # num_parallel_reads=None
         )
         # dataset = dataset.cache(filename='')
-        # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
+        # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use
+        # for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
         dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
         dataset = dataset.repeat(count=None)
         features = dict()
@@ -282,9 +283,11 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(self, num_iterations: int=2500, data: pd.DataFrame=None, filenames: List[str]=None, verbose: int=0) -> None:
+    def learn(self, num_iterations: int = 2500, data: pd.DataFrame = None, filenames: List[str] = None,
+              verbose: int = 0) -> None:
         try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose,
+                                  yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
             pass
 
@@ -307,7 +310,7 @@ class BasicSynthesizer(Synthesizer):
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 self.run(fetches=fetches, feed_dict=feed_dict)
                 if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                        iteration % verbose + 1 == verbose):
+                                    iteration % verbose + 1 == verbose):
                     batch = np.random.randint(num_data, size=1024)
                     feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                     fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
