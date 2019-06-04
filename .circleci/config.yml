@@ -56,7 +56,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            python -m pytest
+            python -m pytest --cov=synthesized  --cov-report=term-missing | tee coverage.txt
           no_output_timeout: 20m
 
       - run:
@@ -69,3 +69,7 @@ jobs:
       - store_artifacts:
           path: dist
           destination: dist
+
+      - store_artifacts:
+          path: coverage.txt
+          destination: coverage.txt
