@@ -21,6 +21,16 @@ PARSING_NAN_FRACTION_THRESHOLD = 0.25
 def identify_value(module, name, dtype, data):
     value = None
 
+    categorical_kwargs = dict()
+    if hasattr(module, 'smoothing'):
+        categorical_kwargs['smoothing'] = module.smoothing
+    if hasattr(module, 'moving_average'):
+        categorical_kwargs['moving_average'] = module.moving_average
+    if hasattr(module, 'similarity_regularization'):
+        categorical_kwargs['similarity_regularization'] = module.similarity_regularization
+    if hasattr(module, 'entropy_regularization'):
+        categorical_kwargs['entropy_regularization'] = module.entropy_regularization
+
     # ========== Pre-configured values ==========
 
     # Person value
@@ -79,7 +89,9 @@ def identify_value(module, name, dtype, data):
     # Categorical value if small number of distinct values
     if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
         # is_nan = data[name].isna().any()
-        value = module.add_module(module=CategoricalValue, name=name, capacity=module.capacity)
+        value = module.add_module(
+            module=CategoricalValue, name=name, capacity=module.capacity, **categorical_kwargs
+        )
 
     # Date value
     elif dtype.kind == 'M':  # 'm' timedelta
@@ -90,7 +102,8 @@ def identify_value(module, name, dtype, data):
     elif dtype.kind == 'b':
         # is_nan = data[name].isna().any()
         value = module.add_module(
-            module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity
+            module=CategoricalValue, name=name, categories=[False, True], capacity=module.capacity,
+            **categorical_kwargs
         )
 
     # Continuous value if integer (reduced variability makes similarity-categorical fallback more likely)
@@ -102,7 +115,7 @@ def identify_value(module, name, dtype, data):
         # is_nan = data[name].isna().any()
         value = module.add_module(
             module=CategoricalValue, name=name, categories=dtype.categories,
-            capacity=module.capacity, pandas_category=True
+            capacity=module.capacity, pandas_category=True, **categorical_kwargs
         )
 
     # Date value if object type can be parsed
@@ -120,7 +133,8 @@ def identify_value(module, name, dtype, data):
     # Similarity-based categorical value if not too many distinct values
     elif num_unique <= sqrt(num_data):
         value = module.add_module(
-            module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True
+            module=CategoricalValue, name=name, capacity=module.capacity, similarity_based=True,
+            **categorical_kwargs
         )
 
     # Return non-numeric value and handle NaNs if necessary

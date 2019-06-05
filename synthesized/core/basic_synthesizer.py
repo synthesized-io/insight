@@ -26,6 +26,9 @@ class BasicSynthesizer(Synthesizer):
         optimizer='adam', learning_rate=3e-4, decay_steps=None, decay_rate=None,
         clip_gradients=None,
         batch_size=64,
+        # categorical
+        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
+        entropy_regularization=0.1,
         # person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -39,6 +42,11 @@ class BasicSynthesizer(Synthesizer):
 
         self.capacity = capacity
         self.batch_size = batch_size
+
+        self.smoothing = smoothing
+        self.moving_average = moving_average
+        self.similarity_regularization = similarity_regularization
+        self.entropy_regularization = entropy_regularization
 
         # person
         self.person_value = None

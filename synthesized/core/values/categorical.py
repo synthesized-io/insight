@@ -14,7 +14,7 @@ class CategoricalValue(Value):
         self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
         pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
         smoothing=0.0, moving_average=True, similarity_regularization=0.0,
-        entropy_regularization=0.07
+        entropy_regularization=0.1
     ):
         super().__init__(name=name)
 
