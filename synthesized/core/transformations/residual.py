@@ -8,8 +8,8 @@ from .. import util
 class ResidualTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, output_size, depth=2, layer_type='dense', batchnorm=True,
-        activation='relu', weight_decay=0.0, **kwargs
+            self, name, input_size, output_size, depth=2, layer_type='dense', batchnorm=True,
+            activation='relu', weight_decay=0.0, **kwargs
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 

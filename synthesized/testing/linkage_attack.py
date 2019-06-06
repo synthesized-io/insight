@@ -28,8 +28,8 @@ class LinkageAttackTesting:
 
     def identify_attacks(self, t_closeness=T_CLOSENESS_DEFAULT, k_distance=K_DISTANCE_DEFAULT):
         """
-        Returns a dict of attacks with keys, values that correspond to the background knowledge of an attacker and lead to
-        sensitive attribute disclosure
+        Returns a dict of attacks with keys, values that correspond to the background knowledge of an attacker
+        and lead to sensitive attribute disclosure
 
         """
         return identify_attacks(self.df_orig, self.df_synth, self.schema, t_closeness, k_distance)
@@ -153,10 +153,11 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=
         else:
             emd_function = partial(emd_samples, bins='rice')  # doane can be better
         while emd_function(arr_eq_orig, arr_eq_synth_enlarged) < k_distance \
-                and emd_function(arr_eq_synth_enlarged, arr_synth) > t_closeness\
+                and emd_function(arr_eq_synth_enlarged, arr_synth) > t_closeness \
                 and emd_function(arr_eq_orig, arr_orig) > t_closeness:
             enlarged_knowledge = enlarge_boundaries(df_synth, enlarged_knowledge, schema)
-            arr_eq_synth_enlarged = get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
+            arr_eq_synth_enlarged = \
+                get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
         arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
         while emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
                 and emd_function(arr_eq_synth, arr_synth) > t_closeness \
@@ -178,7 +179,8 @@ def get_df_subset(df, knowledge, schema):
             else:
                 ind = ind | (df[k] == v["value"])
         else:
-            ind = ind | (df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT) & (df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT)
+            ind = ind | (df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT) & (
+                    df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT)
     df = df[ind]
     return df
 

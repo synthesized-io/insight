@@ -1,4 +1,7 @@
 pytest
+pytest-cov
 Cython
+mypy
+flake8
 
 -r requirements.txt

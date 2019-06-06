@@ -9,11 +9,11 @@ def tensorflow_name_scoped(tf_function):
         with tf.name_scope(name=name.replace(' ', '_').replace(':', '').replace('%', '')):
             results = tf_function(self, *args, **kwargs)
         return results
+
     return function
 
 
 class Module(object):
-
     placeholders = None
     global_step = None
 

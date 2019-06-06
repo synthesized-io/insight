@@ -1,5 +1,4 @@
 from math import isnan, log
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 

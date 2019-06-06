@@ -49,3 +49,7 @@ logs/
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 !.elasticbeanstalk/config.yml
+
+.mypy_cache/
+.coverage*
+coverage.txt

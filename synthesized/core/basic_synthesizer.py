@@ -93,6 +93,11 @@ class BasicSynthesizer(Synthesizer):
                     input_size += value.input_size()
                     output_size += value.output_size()
 
+        self.linear_input = self.add_module(
+            module='dense', modules=transformation_modules, name='linear-input',
+            input_size=input_size, output_size=self.capacity, batchnorm=False, activation='none'
+        )
+
         self.encoder = self.add_module(
             module=network_type, modules=transformation_modules, name='encoder',
             input_size=input_size, layer_sizes=[capacity for _ in range(depth)],
@@ -120,8 +125,8 @@ class BasicSynthesizer(Synthesizer):
             weight_decay=weight_decay  # TODO: depths missing
         )
 
-        self.output = self.add_module(
-            module='dense', modules=transformation_modules, name='output',
+        self.linear_output = self.add_module(
+            module='dense', modules=transformation_modules, name='linear-output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
             activation='none'
         )
@@ -160,6 +165,7 @@ class BasicSynthesizer(Synthesizer):
             loss = tf.constant(value=0.0)
             return dict(loss=loss), loss, tf.no_op()
         x = tf.concat(values=xs, axis=1)
+        x = self.linear_input.transform(x=x)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
         summaries.append(tf.contrib.summary.scalar(
@@ -178,7 +184,7 @@ class BasicSynthesizer(Synthesizer):
             condition = self.identifier_value.input_tensor()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
+        x = self.linear_output.transform(x=x)
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
@@ -218,56 +224,6 @@ class BasicSynthesizer(Synthesizer):
         # learn
         self.losses, self.loss, self.optimized = self.train_iteration()
 
-        # learn from file
-        num_iterations = tf.placeholder(dtype=tf.int64, shape=(), name='num-iterations')
-        assert 'num_iterations' not in Module.placeholders
-        Module.placeholders['num_iterations'] = num_iterations
-        filenames = tf.placeholder(dtype=tf.string, shape=(None,), name='filenames')
-        assert 'filenames' not in Module.placeholders
-        Module.placeholders['filenames'] = filenames
-        dataset = tf.data.TFRecordDataset(
-            filenames=filenames, compression_type='GZIP', buffer_size=100000
-            # num_parallel_reads=None
-        )
-        # dataset = dataset.cache(filename='')
-        # filename: A tf.string scalar tf.Tensor, representing the name of a directory on the filesystem to use for caching tensors in this Dataset. If a filename is not provided, the dataset will be cached in memory.
-        dataset = dataset.shuffle(buffer_size=100000, seed=None, reshuffle_each_iteration=True)
-        dataset = dataset.repeat(count=None)
-        features = dict()
-        for value in self.values:
-            features.update(value.features())
-        # better performance after batch
-        # dataset = dataset.map(
-        #     map_func=(lambda serialized: tf.parse_single_example(
-        #         serialized=serialized, features=features, name=None, example_names=None
-        #     )), num_parallel_calls=None
-        # )
-        dataset = dataset.batch(batch_size=self.batch_size)  # drop_remainder=False
-        if len(features) > 0:
-            dataset = dataset.map(
-                map_func=(lambda serialized: tf.parse_example(
-                    serialized=serialized, features=features, name=None, example_names=None
-                )), num_parallel_calls=None
-            )
-        dataset = dataset.prefetch(buffer_size=1)
-        self.iterator = dataset.make_initializable_iterator(shared_name=None)
-
-        def cond(iteration, losses, loss):
-            return iteration < num_iterations
-
-        def body(iteration, losses, loss):
-            losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
-            with tf.control_dependencies(control_inputs=(optimized, loss)):
-                iteration += 1
-            return iteration, losses, loss
-
-        losses, loss, optimized = self.train_iteration(feed=self.iterator.get_next())
-        with tf.control_dependencies(control_inputs=(optimized,)):
-            iteration = tf.constant(value=1, dtype=tf.int64, shape=(), verify_shape=False)
-            self.optimized_fromfile, self.losses_fromfile, self.loss_fromfile = tf.while_loop(
-                cond=cond, body=body, loop_vars=(iteration, losses, loss)
-            )
-
         # synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         assert 'num_synthesize' not in Module.placeholders
@@ -277,7 +233,7 @@ class BasicSynthesizer(Synthesizer):
             identifier, condition = self.identifier_value.random_value(n=num_synthesize)
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
+        x = self.linear_output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
         self.synthesized = dict()
         if self.identifier_value is not None:
@@ -287,53 +243,37 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0):
+    def learn(self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0) -> None:
         try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, yield_every=0))
+            next(self.learn_async(num_iterations=num_iterations, data=data, verbose=verbose,
+                                  yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
             pass
 
-    def learn_async(self, num_iterations=2500, data=None, filenames=None, verbose=0, yield_every=0):
-        if (data is None) is (filenames is None):
-            raise NotImplementedError
+    def learn_async(self, num_iterations=2500, data=None, verbose=0, yield_every=0):
+        assert data is not None
 
-        if filenames is None:
-            data = self.preprocess(data=data.copy())
-            num_data = len(data)
-            data = {
-                label: data[label].get_values() for value in self.values
-                for label in value.input_labels()
-            }
-            fetches = (self.optimized,)
-            if verbose > 0:
-                verbose_fetches = self.losses
-            for iteration in range(num_iterations):
-                batch = np.random.randint(num_data, size=self.batch_size)
+        data = self.preprocess(data=data.copy())
+        num_data = len(data)
+        data = {
+            label: data[label].get_values() for value in self.values
+            for label in value.input_labels()
+        }
+        fetches = (self.optimized, self.loss)
+        if verbose > 0:
+            verbose_fetches = self.losses
+        for iteration in range(num_iterations):
+            batch = np.random.randint(num_data, size=self.batch_size)
+            feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+            self.run(fetches=fetches, feed_dict=feed_dict)
+            if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
+                                iteration % verbose + 1 == verbose):
+                batch = np.random.randint(num_data, size=1024)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                self.run(fetches=fetches, feed_dict=feed_dict)
-                if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                        iteration % verbose + 1 == verbose):
-                    batch = np.random.randint(num_data, size=1024)
-                    feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                    fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                    self.log_metrics(data, fetched, iteration)
-                if yield_every > 0 and iteration % yield_every + 1 == yield_every:
-                    yield iteration
-
-        else:
-            if verbose > 0:
-                raise NotImplementedError
-            fetches = self.iterator.initializer
-            feed_dict = dict(filenames=filenames)
-            self.run(fetches=fetches, feed_dict=feed_dict)
-            fetches = (self.optimized_fromfile, self.loss_fromfile)
-            feed_dict = dict(num_iterations=num_iterations)
-            self.run(fetches=fetches, feed_dict=feed_dict)
-            # assert num_iterations % verbose == 0
-            # for iteration in range(num_iterations // verbose):
-            #     feed_dict = dict(num_iterations=verbose)
-            #     fetched = self.run(fetches=fetches, feed_dict=feed_dict)
-            #     self.log_metrics(data, fetched, iteration)
+                fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
+                self.log_metrics(data, fetched, iteration)
+            if yield_every > 0 and iteration % yield_every + 1 == yield_every:
+                yield iteration
 
     def log_metrics(self, data, fetched, iteration):
         print('\niteration: {}'.format(iteration + 1))
@@ -359,7 +299,7 @@ class BasicSynthesizer(Synthesizer):
     def get_ks_distance_history(self):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
-    def synthesize(self, n):
+    def synthesize(self, n: int) -> pd.DataFrame:
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)

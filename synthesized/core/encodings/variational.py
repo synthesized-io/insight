@@ -36,7 +36,7 @@ class VariationalEncoding(Encoding):
         x = mean + stddev * x
         if encoding_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
-                - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+                            - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             encoding_loss = self.beta * encoding_loss
             return x, encoding_loss

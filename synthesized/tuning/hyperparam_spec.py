@@ -19,8 +19,8 @@ class HyperparamSpec(object):
 
             elif spec['type'] == 'discrete':
                 assert len(spec['domain']) > 0 and spec['domain'] == sorted(spec['domain'])
-                assert spec.get('transformations') is None or \
-                    all(parameter in spec['transformations'] for parameter in spec['domain'])
+                assert spec.get('transformations') is None or all(
+                    parameter in spec['transformations'] for parameter in spec['domain'])
 
             else:
                 assert False, 'invalid type ' + spec['type']

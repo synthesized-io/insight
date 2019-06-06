@@ -1,14 +1,13 @@
 from math import log
 
 import pandas as pd
-from scipy.stats import beta, gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
+from scipy.stats import gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
 import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .value import Value
 from ..module import Module, tensorflow_name_scoped
 import numpy as np
-
 
 OUTLIERS_PERCENTILE = 0.01
 FITTING_SUBSAMPLE = 10000
@@ -114,8 +113,7 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 column = np.maximum(column, 0.001)
-            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + \
-                np.maximum(column, 0.0)
+            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
 
         # remove outliers
         percentile = [OUTLIERS_PERCENTILE * 50.0, 100.0 - OUTLIERS_PERCENTILE * 50.0]
@@ -213,7 +211,7 @@ class ContinuousValue(Value):
 
             if self.positive or self.nonnegative:
                 data.loc[:, self.name] = np.log(1 + np.exp(-np.abs(data[self.name]))) + \
-                    np.maximum(data[self.name], 0.0)
+                                         np.maximum(data[self.name], 0.0)
                 # np.log(np.exp(data[self.name]) + 1.0)
                 if self.nonnegative and not self.positive:
                     zeros = np.zeros_like(data[self.name])
@@ -330,7 +328,7 @@ class ContinuousValue(Value):
         fourth_moment = tf.reduce_mean(input_tensor=tf.square(x=squared_difference), axis=0)
         skewness = third_moment / tf.pow(x=variance, y=1.5)
         kurtosis = fourth_moment / tf.square(x=variance)
-        num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
+        # num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
         # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
         #     0.25 * tf.square(x=(kurtosis - 3.0)))
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))

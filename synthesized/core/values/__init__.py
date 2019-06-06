@@ -1,6 +1,6 @@
 from .address import AddressValue
-from .compound_address import CompoundAddressValue
 from .categorical import CategoricalValue
+from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
@@ -11,7 +11,6 @@ from .person import PersonValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .value import Value
-
 
 value_modules = dict(
     address=AddressValue,
@@ -24,3 +23,7 @@ value_modules = dict(
     probability=ProbabilityValue,
     sampling=SamplingValue
 )
+
+__all__ = ['Value', 'value_modules', 'identify_value', 'AddressValue', 'CategoricalValue', 'CompoundAddressValue',
+           'ContinuousValue', 'DateValue', 'EnumerationValue', 'IdentifierValue', 'NanValue', 'PersonValue',
+           'ProbabilityValue', 'SamplingValue']
