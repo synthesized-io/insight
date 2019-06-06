@@ -7,6 +7,7 @@ from synthesized.core import BasicSynthesizer
 
 
 @pytest.mark.integration
+@pytest.mark.skip
 def test_datasets_quick():
     passed = True
     failed = list()
