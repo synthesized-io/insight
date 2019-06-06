@@ -22,6 +22,8 @@ def identify_value(module, name, dtype, data):
     value = None
 
     categorical_kwargs = dict()
+    if hasattr(module, 'categorical_weight'):
+        categorical_kwargs['weight'] = module.categorical_weight
     if hasattr(module, 'smoothing'):
         categorical_kwargs['smoothing'] = module.smoothing
     if hasattr(module, 'moving_average'):
@@ -30,6 +32,10 @@ def identify_value(module, name, dtype, data):
         categorical_kwargs['similarity_regularization'] = module.similarity_regularization
     if hasattr(module, 'entropy_regularization'):
         categorical_kwargs['entropy_regularization'] = module.entropy_regularization
+
+    continuous_kwargs = dict()
+    if hasattr(module, 'continuous_weight'):
+        continuous_kwargs['weight'] = module.continuous_weight
 
     # ========== Pre-configured values ==========
 
@@ -108,7 +114,9 @@ def identify_value(module, name, dtype, data):
 
     # Continuous value if integer (reduced variability makes similarity-categorical fallback more likely)
     elif dtype.kind == 'i':
-        value = module.add_module(module=ContinuousValue, name=name, integer=True)
+        value = module.add_module(
+            module=ContinuousValue, name=name, integer=True, **continuous_kwargs
+        )
 
     # Categorical value if object type has attribute 'categories'
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
@@ -160,7 +168,7 @@ def identify_value(module, name, dtype, data):
 
     # Return numeric value and handle NaNs if necessary
     if dtype.kind in ('f', 'i'):
-        value = module.add_module(module=ContinuousValue, name=name)
+        value = module.add_module(module=ContinuousValue, name=name, **continuous_kwargs)
         if is_nan:
             value = module.add_module(
                 module=NanValue, name=name, value=value, capacity=module.capacity

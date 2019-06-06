@@ -18,14 +18,16 @@ class BasicSynthesizer(Synthesizer):
     def __init__(
         self, data, summarizer=False,
         # encoder/decoder
-        network_type='resnet', capacity=128, depth=2, layer_type='dense', batchnorm=True,
+        network_type='mlp', capacity=512, depth=2, layer_type='dense', batchnorm=True,
         activation='relu', weight_decay=1e-5,
         # encoding
-        encoding_type='variational', encoding_size=128, encoding_kwargs=dict(),
+        encoding_type='variational', encoding_size=512, encoding_kwargs=dict(beta=0.0005),
         # optimizer
-        optimizer='adam', learning_rate=3e-4, decay_steps=None, decay_rate=None,
-        clip_gradients=None,
-        batch_size=64,
+        optimizer='adam', learning_rate=1e-4, decay_steps=200, decay_rate=0.5,
+        clip_gradients=1.0,
+        batch_size=128,
+        # losses
+        categorical_weight=1.0, continuous_weight=1.0,
         # categorical
         smoothing=0.0, moving_average=True, similarity_regularization=0.0,
         entropy_regularization=0.1,
@@ -42,6 +44,9 @@ class BasicSynthesizer(Synthesizer):
 
         self.capacity = capacity
         self.batch_size = batch_size
+
+        self.categorical_weight = categorical_weight
+        self.continuous_weight = continuous_weight
 
         self.smoothing = smoothing
         self.moving_average = moving_average
@@ -299,7 +304,7 @@ class BasicSynthesizer(Synthesizer):
                 label: data[label].get_values() for value in self.values
                 for label in value.input_labels()
             }
-            fetches = (self.optimized, self.loss)
+            fetches = (self.optimized,)
             if verbose > 0:
                 verbose_fetches = self.losses
             for iteration in range(num_iterations):

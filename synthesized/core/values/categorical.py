@@ -12,8 +12,8 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name, categories=None, probabilities=None, capacity=None, embedding_size=None,
-        pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
-        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
+        pandas_category=False, similarity_based=False, weight_decay=0.0, weight=1.0,
+        temperature=1.0, smoothing=0.0, moving_average=True, similarity_regularization=0.0,
         entropy_regularization=0.1
     ):
         super().__init__(name=name)
@@ -46,6 +46,7 @@ class CategoricalValue(Value):
         self.pandas_category = pandas_category
         self.similarity_based = similarity_based
         self.weight_decay = weight_decay
+        self.weight = weight
         self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
@@ -67,7 +68,7 @@ class CategoricalValue(Value):
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based, weight_decay=self.weight_decay,
-            temperature=self.temperature, smoothing=self.smoothing,
+            weight=self.weight, temperature=self.temperature, smoothing=self.smoothing,
             moving_average=self.moving_average,
             similarity_regularization=self.similarity_regularization,
             entropy_regularization=self.entropy_regularization
@@ -220,7 +221,7 @@ class CategoricalValue(Value):
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
             loss = loss + entropy_loss
-        return loss
+        return loss * self.weight
 
     @tensorflow_name_scoped
     def distribution_loss(self, samples):
