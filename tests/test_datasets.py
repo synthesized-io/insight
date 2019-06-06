@@ -18,7 +18,7 @@ def test_datasets_quick():
 
             try:
                 data = pd.read_csv(os.path.join(root, filename))
-                with BasicSynthesizer(data=data, capacity=8, depth=2, batch_size=8) as synthesizer:
+                with BasicSynthesizer(data=data, capacity=8, depth=1, batch_size=8) as synthesizer:
                     synthesizer.learn(num_iterations=10, data=data)
                     synthesized = synthesizer.synthesize(n=10000)
                     assert len(synthesized) == 10000
@@ -27,4 +27,4 @@ def test_datasets_quick():
                 passed = False
                 failed.append((os.path.join(root, filename), exc))
 
-    assert passed, '\n' + '\n\n'.join('{}\n{}'.format(filename, exc) for filename, exc in failed)
+    assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'

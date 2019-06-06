@@ -68,8 +68,8 @@ dataset1 = dataset1[dataset1.date.notnull()]
 dataset2 = dataset2.reset_index(drop = True)
 dataset1 = dataset1.reset_index(drop = True)
 
-dataset1.to_csv("demo_original_dataset.csv", sep='\t')
-dataset2.to_csv("demo_synthetic_dataset_perfect.csv", sep='\t')
+dataset1.to_csv("demo_original_dataset.tsv", sep='\t')
+dataset2.to_csv("demo_synthetic_dataset_perfect.tsv", sep='\t')
 
 print(dataset1.head(10))
 print(dataset2.head(10))
