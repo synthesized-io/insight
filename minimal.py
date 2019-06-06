@@ -88,7 +88,8 @@ with synthesizer:
     else:
         synthesizer.learn(num_iterations=args.num_iterations, data=data.copy())
     print(datetime.now().strftime('%H:%M:%S'), 'Finished learning...', flush=True)
-    synthesized = synthesizer.synthesize(n=100)
+    synthesized = synthesizer.synthesize(n=10000)
+    assert len(synthesized) == 10000
 print()
 
 print(datetime.now().strftime('%H:%M:%S'), 'Synthesized data...', flush=True)
