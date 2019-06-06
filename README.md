@@ -37,27 +37,32 @@ Note: if you cannot install venv without root check that virtualenv executable i
 
 3. Create a virtual environment:
 
-        virtualenv -p python3 venv
-        
-4. Active it:
+        make venv
 
-        source venv/bin/activate
-        
-5. Install deps:
-
-        pip install -r requriements-dev.txt
-
-6. If running on mac OS X, set matplotlib backend:        
+4. If running on mac OS X, set matplotlib backend:        
         
         mkdir -p ~/.matplotlib
         echo 'backend: TkAgg' > ~/.matplotlib/matplotlibrc
 
-7. Run Tests:
+5. Run Linter (flake8 and mypy)
 
-        python -m pytest
+        make lint
 
-Note: `pytest` command may run a system version. Call via module forces to run venv version
+6. Run Tests (both unit and integration):
 
+        make test
+        
+7. Run Unit Tests
+
+        make unit-test
+        
+6. Build a binary wheel package
+
+        make build
+
+7. Run lint, test and build a package
+
+        make
 Example
 -------
 
