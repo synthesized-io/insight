@@ -144,4 +144,5 @@ class Module(object):
         if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
+        tf.reset_default_graph()
         Module.placeholders = None
