@@ -53,6 +53,7 @@ Note: if you cannot install venv without root check that virtualenv executable i
         make test
         
 7. Run Unit Tests
+
         make unit-test
         
 6. Build a binary wheel package
