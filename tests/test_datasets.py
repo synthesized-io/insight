@@ -24,6 +24,7 @@ def test_datasets_quick():
                     assert len(synthesized) == 10000
 
             except Exception as exc:
+                passed = False
                 failed.append((os.path.join(root, filename), exc))
 
     assert passed, '\n' + '\n\n'.join('{}\n{}'.format(filename, exc) for filename, exc in failed)
