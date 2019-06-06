@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from typing import List
 
 import pandas as pd
 import tensorflow as tf
@@ -141,8 +140,7 @@ class ScenarioSynthesizer(Synthesizer):
                 delta=1, use_locking=False, read_value=True
             )
 
-    def learn(self, iterations: int, data: pd.DataFrame = None, filenames: List[str] = None, verbose=0,
-              num_samples=1024) -> None:
+    def learn(self, iterations: int, data: pd.DataFrame = None, verbose=0, num_samples=1024) -> None:
         fetches = (self.optimized, self.loss)
         if verbose > 0:
             verbose_fetches = (self.optimized, dict(self.losses))

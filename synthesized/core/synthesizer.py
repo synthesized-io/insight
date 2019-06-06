@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 
 import pandas as pd
-from typing import List
 
 from .module import Module
 
@@ -55,7 +54,7 @@ class Synthesizer(Module):
     def get_values(self):
         raise NotImplementedError
 
-    def learn(self, iterations: int, data: pd.DataFrame = None, filenames: List[str] = None, verbose: int = 0) -> None:
+    def learn(self, iterations: int, data: pd.DataFrame = None, verbose: int = 0) -> None:
         raise NotImplementedError
 
     def synthesize(self, n: int) -> pd.DataFrame:
