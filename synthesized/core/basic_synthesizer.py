@@ -100,7 +100,7 @@ class BasicSynthesizer(Synthesizer):
 
         self.encoder = self.add_module(
             module=network_type, modules=transformation_modules, name='encoder',
-            input_size=input_size, layer_sizes=[capacity for _ in range(depth)],
+            input_size=self.linear_input.size(), layer_sizes=[capacity for _ in range(depth)],
             layer_type=layer_type, batchnorm=batchnorm, activation=activation,
             weight_decay=weight_decay  # TODO: depths missing
         )
