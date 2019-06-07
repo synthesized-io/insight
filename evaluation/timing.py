@@ -2,6 +2,7 @@ import tqdm
 import argh
 import itertools
 from synthesized.testing.synthetic_distributions import *
+from synthesized.core.util import ProfilerArgs
 
 
 def create_multidimensional_gaussian(dimensions: int, size: int) -> pd.DataFrame:
@@ -77,8 +78,24 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
                                                       args_list=args, num_iterations=num_iterations)
     categories_scaling_times.to_csv("{}/categories-scaling-times.csv".format(out_dir))
 
-    # do profiling
-    pass
+    # profiling
+    # -- continuous
+    filepath = "{}/profiler_continuous_dimensions_{}_size_{}.json".format(out_dir, default_dimensions, default_size)
+    profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
+    data = create_multidimensional_gaussian(dimensions=default_dimensions, size=default_size)
+    with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+        synthesizer.learn(data=data, num_iterations=num_iterations)
+
+    # -- categorical
+    filepath = "{}/profiler_categorical_dimensions_{}_size_{}_categories_{}.json".format(out_dir,
+                                                                                         default_dimensions,
+                                                                                         default_size,
+                                                                                         default_categories)
+    profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
+    data = create_multidimensional_categorical(dimensions=default_dimensions, categories=default_categories,
+                                               size=default_size)
+    with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+        synthesizer.learn(data=data, num_iterations=num_iterations)
 
 
 if __name__ == "__main__":
