@@ -1,18 +1,18 @@
 import json
 import tensorflow as tf
 from tensorflow.python.client import timeline
-from recordclass import RecordClass
 from collections import namedtuple
 
 
 ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 
 
-class Profiler(RecordClass):
-    filepath: str = ""
-    period: int = 1
-    step: int = 0
-    traces: list = []
+class Profiler:
+    def __init__(self, filepath: str = "", period: int = 1, step: int = 0, traces: list = list()):
+        self.filepath: str = filepath
+        self.period: int = period
+        self.step: int = step
+        self.traces: list = traces
 
     def is_trace_step(self):
         return self.step % self.period == 0
