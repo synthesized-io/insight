@@ -9,10 +9,10 @@ ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 
 class Profiler:
     def __init__(self, filepath: str = "", period: int = 1, step: int = 0, traces: list = list()):
-        self.filepath: str = filepath
-        self.period: int = period
-        self.step: int = step
-        self.traces: list = traces
+        self.filepath = filepath
+        self.period = period
+        self.step = step
+        self.traces = traces
 
     def is_trace_step(self):
         return self.step % self.period == 0
