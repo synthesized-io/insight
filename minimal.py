@@ -17,7 +17,7 @@ parser.add_argument('--drop-nans', action='store_true', help="drop nans")
 parser.add_argument('-i', '--identifier-label', default=None, help="identifier label")
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument(
-    '-y', '--hyperparameters', default='capacity=32', help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=8,batch_size=8', help="list of hyperparameters (comma, equal)"
 )
 parser.add_argument('-b', '--tensorboard', action='store_true', help="TensorBoard summaries")
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
