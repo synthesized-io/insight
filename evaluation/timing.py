@@ -3,6 +3,7 @@ import argh
 import itertools
 from synthesized.testing.synthetic_distributions import *
 from synthesized.core.util import ProfilerArgs
+from memory_profiler import memory_usage
 
 
 def create_multidimensional_gaussian(dimensions: int, size: int) -> pd.DataFrame:
@@ -41,13 +42,18 @@ def generate_argument_combinations(arg_dict):
     return args_list
 
 
-def run_timing_experiments(data_constructor, args_list, num_iterations):
-    times = []
+def run_profiling_experiments(data_constructor, args_list, num_iterations, profile_memory=False):
+    results = []
     for kwargs in tqdm.tqdm(args_list):
         data = data_constructor(**kwargs)
-        res_dict = time_synthesis(data=data, num_iterations=num_iterations)
-        times.append({**kwargs, **res_dict})
-    return pd.DataFrame(times)
+        if profile_memory:
+            memory = memory_usage((time_synthesis, (), {"data": data, "num_iterations": num_iterations}))
+            max_memory = max(memory)
+            results.append({**kwargs, "memory": max_memory})
+        else:
+            res_dict = time_synthesis(data=data, num_iterations=num_iterations)
+            results.append({**kwargs, **res_dict})
+    return pd.DataFrame(results)
 
 
 @argh.arg("--dimensions", nargs="+", type=int)
@@ -59,28 +65,59 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
     arg_dict = {"dimensions": kwargs["dimensions"], "size": [default_size]}
 
     # -- continuous
-    if "continuous_dim" in kwargs["jobs"]:
+    if "continuous_dim_time" in kwargs["jobs"]:
         args = generate_argument_combinations(arg_dict=arg_dict)
-        continuous_times = run_timing_experiments(data_constructor=create_multidimensional_gaussian,
-                                                  args_list=args, num_iterations=num_iterations)
-        continuous_times.to_csv("{}/continuous-times.csv".format(out_dir), index=False)
+        continuous_times = run_profiling_experiments(data_constructor=create_multidimensional_gaussian,
+                                                     args_list=args, num_iterations=num_iterations)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        continuous_times.to_csv("{}/continuous-times-dim-{}.csv".format(out_dir, dims), index=False)
+
+    if "continuous_dim_memory" in kwargs["jobs"]:
+        args = generate_argument_combinations(arg_dict=arg_dict)
+        continuous_times = run_profiling_experiments(data_constructor=create_multidimensional_gaussian,
+                                                     args_list=args, num_iterations=num_iterations,
+                                                     profile_memory=True)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        continuous_times.to_csv("{}/continuous-memory-dim-{}.csv".format(out_dir, dims), index=False)
 
     # -- categorical
-    if "categorical_dim" in kwargs["jobs"]:
+    if "categorical_dim_time" in kwargs["jobs"]:
         arg_dict["categories"] = [default_categories]
         args = generate_argument_combinations(arg_dict=arg_dict)
-        categorical_times = run_timing_experiments(data_constructor=create_multidimensional_categorical,
-                                                   args_list=args, num_iterations=num_iterations)
-        categorical_times.to_csv("{}/categorical-times.csv".format(out_dir), index=False)
+        categorical_times = run_profiling_experiments(data_constructor=create_multidimensional_categorical,
+                                                      args_list=args, num_iterations=num_iterations)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        categorical_times.to_csv("{}/categorical-times-dim-{}.csv".format(out_dir, dims), index=False)
+
+    if "categorical_dim_memory" in kwargs["jobs"]:
+        arg_dict["categories"] = [default_categories]
+        args = generate_argument_combinations(arg_dict=arg_dict)
+        categorical_times = run_profiling_experiments(data_constructor=create_multidimensional_categorical,
+                                                      args_list=args, num_iterations=num_iterations,
+                                                      profile_memory=True)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        categorical_times.to_csv("{}/categorical-memory-dim-{}.csv".format(out_dir, dims), index=False)
+
 
     # test categories scaling
-    if "categorical_scale" in kwargs["jobs"]:
+    if "categorical_scale_time" in kwargs["jobs"]:
         cat_arg_dict = {"dimensions": [default_dimensions], "size": [default_size],
                         "categories": kwargs["categories"]}
         args = generate_argument_combinations(arg_dict=cat_arg_dict)
-        categories_scaling_times = run_timing_experiments(data_constructor=create_multidimensional_categorical,
-                                                          args_list=args, num_iterations=num_iterations)
-        categories_scaling_times.to_csv("{}/categories-scaling-times.csv".format(out_dir), index=False)
+        categories_scaling_times = run_profiling_experiments(data_constructor=create_multidimensional_categorical,
+                                                             args_list=args, num_iterations=num_iterations)
+        cats = "_".join(kwargs["categories"])
+        categories_scaling_times.to_csv("{}/categories-scaling-times-cats-{}.csv".format(out_dir, cats), index=False)
+
+    if "categorical_scale_memory" in kwargs["jobs"]:
+        cat_arg_dict = {"dimensions": [default_dimensions], "size": [default_size],
+                        "categories": kwargs["categories"]}
+        args = generate_argument_combinations(arg_dict=cat_arg_dict)
+        categories_scaling_times = run_profiling_experiments(data_constructor=create_multidimensional_categorical,
+                                                             args_list=args, num_iterations=num_iterations,
+                                                             profile_memory=True)
+        cats = "_".join(kwargs["categories"])
+        categories_scaling_times.to_csv("{}/categories-scaling-memory-cats-{}.csv".format(out_dir, cats), index=False)
 
     # profiling
     # -- continuous
