@@ -6,20 +6,30 @@ from synthesized.core.util import ProfilerArgs
 from memory_profiler import memory_usage
 
 
-def create_multidimensional_gaussian(dimensions: int, size: int) -> pd.DataFrame:
+def create_multidimensional_gaussian(dimensions: int, size: int, prefix: str = "x") -> pd.DataFrame:
     """Draw `size` samples from a `dimensions`-dimensional standard gaussian. """
     z = np.random.randn(size, dimensions)
-    columns = ["x_{}".format(i) for i in range(dimensions)]
+    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
     df = pd.DataFrame(z, columns=columns)
     return df
 
 
-def create_multidimensional_categorical(dimensions: int, categories: int, size: int) -> pd.DataFrame:
-    """Draw `size` samples from a `dimensions`-dimensional standard gaussian.  """
-    z = np.random.choice(list(range(categories)), dimensions*size).reshape(size, dimensions)
-    columns = ["x_{}".format(i) for i in range(dimensions)]
+def create_multidimensional_categorical(dimensions: int, categories: int, size: int, prefix: str = "x") -> pd.DataFrame:
+    """Draw `size` samples of`dimensions` uniform, independent categorical random variables.  """
+    z = np.random.choice(list(map(str, range(categories))), dimensions*size).reshape(size, dimensions)
+    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
     df = pd.DataFrame(z, columns=columns)
     return df
+
+
+def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, categories: int, size: int) \
+        -> pd.DataFrame:
+    """Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and
+       `categorical_dim` uniform, independent categorical random variables. """
+    continuous = create_multidimensional_gaussian(dimensions=continuous_dim, size=size, prefix="x")
+    categorical = create_multidimensional_categorical(dimensions=categorical_dim, categories=categories,
+                                                      size=size, prefix="y")
+    return pd.concat([continuous, categorical], axis=1)
 
 
 def time_synthesis(data: pd.DataFrame, num_iterations: int) -> Dict[str, float]:
@@ -98,6 +108,27 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         dims = "_".join(map(str, arg_dict["dimensions"]))
         categorical_times.to_csv("{}/categorical-memory-dim-{}.csv".format(out_dir, dims), index=False)
 
+    # -- mixed
+    if "mixed_dim_time" in kwargs["jobs"]:
+        dims = [int(dim/2) for dim in kwargs["dimensions"]]
+        arg_dict = {"continuous_dim": dims, "categorical_dim": dims,
+                    "categories": [default_categories], "size": [default_size]}
+        args = generate_argument_combinations(arg_dict=arg_dict)
+        mixed_times = run_profiling_experiments(data_constructor=create_multidimensional_mixed,
+                                                args_list=args, num_iterations=num_iterations)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        mixed_times.to_csv("{}/mixed-times-dim-{}.csv".format(out_dir, dims), index=False)
+
+    if "mixed_dim_time" in kwargs["jobs"]:
+        dims = [int(dim/2) for dim in kwargs["dimensions"]]
+        arg_dict = {"continuous_dim": dims, "categorical_dim": dims,
+                    "categories": [default_categories], "size": [default_size]}
+        args = generate_argument_combinations(arg_dict=arg_dict)
+        mixed_times = run_profiling_experiments(data_constructor=create_multidimensional_mixed,
+                                                args_list=args, num_iterations=num_iterations,
+                                                profile_memory=True)
+        dims = "_".join(map(str, arg_dict["dimensions"]))
+        mixed_times.to_csv("{}/mixed-memory-dim-{}.csv".format(out_dir, dims), index=False)
 
     # test categories scaling
     if "categorical_scale_time" in kwargs["jobs"]:
@@ -137,6 +168,19 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
         data = create_multidimensional_categorical(dimensions=default_dimensions, categories=default_categories,
                                                    size=default_size)
+        with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+            synthesizer.learn(data=data, num_iterations=num_iterations)
+
+    # -- mixed
+    if "mixed_profile" in kwargs["jobs"]:
+        filepath = "{}/profiler_mixed_dimensions_{}_size_{}_categories_{}.json".format(out_dir,
+                                                                                       default_dimensions,
+                                                                                       default_size,
+                                                                                       default_categories)
+        profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
+        default_mixed_dim = int(default_dimensions/2)
+        data = create_multidimensional_mixed(continuous_dim=default_mixed_dim, categorical_dim=default_mixed_dim,
+                                             categories=default_categories, size=default_size)
         with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
 
