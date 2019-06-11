@@ -14,7 +14,7 @@ from matplotlib.pyplot import Axes
 from synthesized.core import BasicSynthesizer
 from synthesized.testing.evaluation import Evaluation
 from synthesized.core.values import CategoricalValue, ContinuousValue
-
+from numpy.random import binomial
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -82,6 +82,17 @@ def create_three_1d_gaussians(mean1: float, std1: float, size1: int,
     df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
     df3 = pd.DataFrame({"x": normal(loc=mean3, scale=std3, size=size3)})
     df = pd.concat([df1, df2, df3])
+    return df
+
+
+def create_two_gaussian_mixtures(mean1: float, std1: float, mean2: float, std2: float, size: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions (a proper one)"""
+    size1 = binomial(n=size, p=0.5)
+    size2 = size - size1
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df = pd.concat([df1, df2])
+    df = df.sample(frac=1)
     return df
 
 
