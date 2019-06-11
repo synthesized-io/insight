@@ -16,6 +16,7 @@ from synthesized.testing.evaluation import Evaluation
 from synthesized.core.values import CategoricalValue, ContinuousValue
 from numpy.random import binomial
 
+
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     for name, column in df1.items():
