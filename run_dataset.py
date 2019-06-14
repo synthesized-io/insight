@@ -63,15 +63,13 @@ print()
 print('Initialize synthesizer...')
 if args.hyperparameters is None:
     synthesizer = BasicSynthesizer(
-        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
-        identifier_label=args.identifier_label
+        data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label
     )
 else:
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',')]
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
     synthesizer = BasicSynthesizer(
-        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
-        identifier_label=args.identifier_label, **kwargs
+        data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label, **kwargs
     )
 print(repr(synthesizer))
 print()

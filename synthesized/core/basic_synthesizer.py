@@ -14,6 +14,10 @@ from .values import identify_value
 
 
 class BasicSynthesizer(Synthesizer):
+    """
+    Synthesizer which can learn to produce basic tabular data with independent rows, that is, no
+    temporal or otherwise conditional relation between the rows.
+    """
 
     def __init__(
         self, data, summarizer=False,
@@ -40,8 +44,57 @@ class BasicSynthesizer(Synthesizer):
         # identifier
         identifier_label=None
     ):
+        """
+        Initializes a new basic synthesizer instance.
+
+        Args:
+            data: Data sample which is representative of the target data to generate. Usually, it
+                is fine to just use the training data here. Generally, it should exhibit all
+                relevant characteristics, so for instance all values a discrete-value column can
+                take.
+            summarizer: Whether to log TensorBoard summaries (in sub-directory
+                "summaries_synthesizer").
+            network_type: Network type: "mlp" or "resnet".
+            capacity: Architecture capacity.
+            depth: Architecture depth.
+            layer_type: Layer type.
+            batchnorm: Whether to use batch normalization.
+            activation: Activation function.
+            weight_decay: Weight decay.
+            encoding_type: Encoding type: "basic", "variational" or "gumbel".
+            encoding_size: Encoding size.
+            encoding_kwargs: Additional arguments to the encoding (beta: encoding loss coefficient).
+            optimizer: Optimizer.
+            learning_rate: Learning rate.
+            decay_steps: Learning rate decay steps.
+            decay_rate: Learning rate decay rate.
+            clip_gradients: Gradient norm clipping.
+            batch_size: Batch size.
+            categorical_weight: Coefficient for categorical value losses.
+            continuous_weight: Coefficient for continuous value losses.
+            smoothing: Smoothing for categorical value distributions.
+            moving_average: Whether to use moving average scaling for categorical values.
+            similarity_regularization: Similarity regularization coefficient for categorical values.
+            entropy_regularization: Entropy regularization coefficient for categorical values.
+            title_label: Person title column.
+            gender_label: Person gender column.
+            name_label: Person combined first and last name column.
+            firstname_label: Person first name column.
+            lastname_label: Person last name column.
+            email_label: Person e-mail address column.
+            postcode_label: Address postcode column.
+            city_label: Address city column.
+            street_label: Address street column.
+            address_label: Address combined column.
+            postcode_regex: Address postcode regular expression.
+            identifier_label: Identifier column.
+        """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
+        self.exclude_encoding_loss = False
+
+        self.network_type = network
+        self.encoding_type = encoding
         self.capacity = capacity
         self.batch_size = batch_size
 
@@ -243,7 +296,18 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0) -> None:
+    def learn(
+            self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0
+    ) -> None:
+        """
+        Trains the generative model on the given data. Repeated calls continue training the model,
+        possibly on different data.
+
+        Args:
+            num_iterations: The number of training steps (not epochs).
+            data: The training data.
+            verbose: The frequency, i.e. number of steps, of logging additional information.
+        """
         try:
             next(self.learn_async(num_iterations=num_iterations, data=data, verbose=verbose,
                                   yield_every=0))
@@ -266,8 +330,7 @@ class BasicSynthesizer(Synthesizer):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {label: value_data[batch] for label, value_data in data.items()}
             self.run(fetches=fetches, feed_dict=feed_dict)
-            if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                                iteration % verbose + 1 == verbose):
+            if verbose > 0 and (iteration == 0 or iteration % verbose + 1 == verbose):
                 batch = np.random.randint(num_data, size=1024)
                 feed_dict = {label: value_data[batch] for label, value_data in data.items()}
                 fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
@@ -300,6 +363,15 @@ class BasicSynthesizer(Synthesizer):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
     def synthesize(self, n: int) -> pd.DataFrame:
+        """
+        Generates the given number of new data rows.
+
+        Args:
+            n: The number of rows to generate.
+
+        Returns:
+            The generated data.
+        """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
