@@ -195,15 +195,15 @@ class CategoricalValue(Value):
         if self.similarity_based:  # is that right?
             x = tf.expand_dims(input=x, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            x = tf.reduce_sum(input_tensor=(x * embeddings), axis=2, keepdims=False)
+            x = tf.reduce_mean(input_tensor=(x * embeddings), axis=2, keepdims=False)
         x = x / self.temperature
-        # target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
-        # loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x)
-        # loss = tf.reduce_sum(input_tensor=(loss * weights), axis=0)
-        loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=target, logits=x, weights=weights, label_smoothing=self.smoothing,
-            scope=None, loss_collection=tf.GraphKeys.LOSSES
-        )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
+        target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x, axis=-1)
+        loss = tf.losses.compute_weighted_loss(losses=loss, weights=weights)
+        # loss = tf.losses.softmax_cross_entropy(
+        #     onehot_labels=target, logits=x, weights=weights, label_smoothing=self.smoothing,
+        #     scope=None, loss_collection=tf.GraphKeys.LOSSES
+        # )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
         if self.similarity_regularization > 0.0:
             similarity_loss = tf.matmul(
                 a=self.embeddings, b=self.embeddings, transpose_a=False, transpose_b=True,

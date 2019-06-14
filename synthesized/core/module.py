@@ -88,7 +88,6 @@ class Module(object):
     #     self.summaries[name] = summary
 
     def __enter__(self):
-        print('hi')
         Module.placeholders = dict()
         self.graph = tf.Graph()
         Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
