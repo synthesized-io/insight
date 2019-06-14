@@ -116,7 +116,7 @@ def tf_score(synthesizer, synthesized):
 def pessimistic_score(hyperparams, n_runs, scorer_fn):
     def _score():
         history = [None for _ in range(args.tolerance)]
-        with BasicSynthesizer(data=data, exclude_encoding_loss=True, **hyperparams) as synthesizer:
+        with BasicSynthesizer(data=data, **hyperparams) as synthesizer:
             print(datetime.now().strftime('%H:%M:%S'), 'training...', flush=True)
             for _ in range(args.max_iterations // args.iterations):
                 synthesizer.learn(num_iterations=args.iterations, data=original.copy())

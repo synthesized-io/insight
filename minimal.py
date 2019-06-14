@@ -59,16 +59,14 @@ print(datetime.now().strftime('%H:%M:%S'), 'Initialize synthesizer...', flush=Tr
 synthesizer_cls = BasicSynthesizer
 if args.hyperparameters is None:
     synthesizer = synthesizer_cls(
-        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
-        identifier_label=args.identifier_label
+        data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label
     )
 else:
     assert all('=' in kv or kv == '' for kv in args.hyperparameters.split(','))
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',') if kv != '']
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
     synthesizer = synthesizer_cls(
-        data=data, exclude_encoding_loss=True, summarizer=args.tensorboard,
-        identifier_label=args.identifier_label, **kwargs
+        data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label, **kwargs
     )
 print(repr(synthesizer))
 print()
