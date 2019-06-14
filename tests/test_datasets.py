@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import pytest
+from scipy.stats import ks_2samp
 
 from synthesized.core import BasicSynthesizer
 
@@ -18,14 +19,39 @@ def test_datasets_quick():
                 continue
 
             try:
-                data = pd.read_csv(os.path.join(root, filename))
-                with BasicSynthesizer(data=data, capacity=8, depth=1, batch_size=8) as synthesizer:
-                    synthesizer.learn(num_iterations=10, data=data)
-                    synthesized = synthesizer.synthesize(n=10000)
-                    assert len(synthesized) == 10000
+                df_original = pd.read_csv(os.path.join(root, filename))
+                with BasicSynthesizer(data=df_original, capacity=8, depth=1, batch_size=8) as synthesizer:
+                    synthesizer.learn(num_iterations=10, data=df_original)
+                    df_synthesized = synthesizer.synthesize(n=10000)
+                    assert len(df_synthesized) == 10000
 
             except Exception as exc:
                 passed = False
                 failed.append((os.path.join(root, filename), exc))
 
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
+
+
+def test_credit_dataset_quick():
+    df_original = pd.read_csv('data/credit.csv')
+    with BasicSynthesizer(data=df_original, capacity=8, depth=1, batch_size=8) as synthesizer:
+        synthesizer.learn(num_iterations=10, data=df_original)
+        df_synthesized = synthesizer.synthesize(n=10000)
+        assert len(df_synthesized) == 10000
+
+
+@pytest.mark.integration
+def test_credit_dataset():
+    df_original = pd.read_csv('data/credit.csv')
+    with BasicSynthesizer(data=df_original) as synthesizer:
+        synthesizer.learn(num_iterations=5000, data=df_original)
+        df_synthesized = synthesizer.synthesize(n=len(df_original))
+        assert len(df_synthesized) == len(df_original)
+
+    distances = [
+        (name, ks_2samp(df_original[name], df_synthesized[name])[0])
+        for name in df_original.keys()
+    ]
+    assert all(distance < 0.33 for _, distance in distances), 'Failed: ' + ', '.join(
+        '{}={:.3f}'.format(name, distance) for name, distance in distances if distance >= 0.33
+    )
