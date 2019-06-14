@@ -19,7 +19,7 @@ parser.add_argument('-n', '--num-iterations', type=int, default=100, help="train
 parser.add_argument(
     '-y', '--hyperparameters', default='capacity=8,batch_size=8', help="list of hyperparameters (comma, equal)"
 )
-parser.add_argument('-b', '--tensorboard', action='store_true', help="TensorBoard summaries")
+parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
 args = parser.parse_args()
 

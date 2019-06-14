@@ -92,8 +92,6 @@ class BasicSynthesizer(Synthesizer):
 
         self.exclude_encoding_loss = False
 
-        self.network_type = network
-        self.encoding_type = encoding
         self.capacity = capacity
         self.batch_size = batch_size
 
@@ -147,7 +145,7 @@ class BasicSynthesizer(Synthesizer):
 
         self.linear_input = self.add_module(
             module='dense', modules=transformation_modules, name='linear-input',
-            input_size=input_size, output_size=self.capacity, batchnorm=False, activation='none'
+            input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
         self.encoder = self.add_module(
@@ -221,7 +219,7 @@ class BasicSynthesizer(Synthesizer):
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
         summaries.append(tf.contrib.summary.scalar(
-            name='encoding-loss', tensor=encoding_loss, family=None, step=None
+            name='loss-encoding', tensor=encoding_loss, family=None, step=None
         ))
         encoding_mean, encoding_variance = tf.nn.moments(
             x=x, axes=(0, 1), shift=None, keep_dims=False
@@ -247,13 +245,13 @@ class BasicSynthesizer(Synthesizer):
             if loss is not None:
                 losses[value.name] = loss
                 summaries.append(tf.contrib.summary.scalar(
-                    name=(value.name + '-loss'), tensor=loss, family=None, step=None
+                    name=('loss-' + value.name), tensor=loss, family=None, step=None
                 ))
         reg_losses = tf.losses.get_regularization_losses(scope=None)
         if len(reg_losses) > 0:
             regularization_loss = tf.add_n(inputs=reg_losses)
             summaries.append(tf.contrib.summary.scalar(
-                name='regularization-loss', tensor=regularization_loss, family=None, step=None
+                name=('loss-regularization'), tensor=regularization_loss, family=None, step=None
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
@@ -262,9 +260,21 @@ class BasicSynthesizer(Synthesizer):
             name='loss', tensor=loss, family=None, step=None
         ))
         optimized, gradient_norms = self.optimizer.optimize(loss=loss, gradient_norms=True)
-        for name, gradient_norm in gradient_norms.items():
+        summaries.append(tf.contrib.summary.scalar(
+            name=('gradient-norm'), tensor=gradient_norms['all']
+        ))
+        # for name, gradient_norm in gradient_norms.items():
+        #     summaries.append(tf.contrib.summary.scalar(
+        #         name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
+        #     ))
+        for variable in tf.trainable_variables():
+            assert variable.name.endswith(':0')
+            mean, variance = tf.nn.moments(x=variable, axes=tuple(range(len(variable.shape))))
             summaries.append(tf.contrib.summary.scalar(
-                name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
+                name=(variable.name[:-2] + '-mean'), tensor=mean
+            ))
+            summaries.append(tf.contrib.summary.scalar(
+                name=(variable.name[:-2] + '-variance'), tensor=variance
             ))
         with tf.control_dependencies(control_inputs=([optimized] + summaries)):
             optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)

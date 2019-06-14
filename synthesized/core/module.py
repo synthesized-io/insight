@@ -1,5 +1,8 @@
-import tensorflow as tf
 from functools import wraps
+import os
+import time
+
+import tensorflow as tf
 
 
 def tensorflow_name_scoped(tf_function):
@@ -94,6 +97,12 @@ class Module(object):
         with self.graph.as_default():
 
             if self.summarizer is not None:
+                directories = sorted(os.listdir(self.summarizer))
+                if len(directories) > 6:
+                    for subdir in directories[:-6]:
+                        subdir = os.path.join(self.summarizer, subdir)
+                        os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
+                        os.rmdir(subdir)
                 with tf.name_scope(name='summarizer'):
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=os.path.join(self.summarizer, time.strftime("%Y%m%d-%H%M%S")),
