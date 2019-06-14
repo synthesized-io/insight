@@ -37,31 +37,33 @@ class BasicSynthesizer(Synthesizer):
         """
         Initializes a new basic synthesizer instance.
 
-        :param data: Data sample which is representative of the target data to generate. Usually, it
-        is fine to just use the training data here. Generally, it should exhibit all relevant
-        characteristics, so for instance all values a discrete-value column can take.
-        :param summarizer: Whether to log TensorBoard summaries (in sub-directory
-        "summaries_synthesizer").
-        :param network: Network type: "mlp" or "resnet".
-        :param encoding: Encoding type: "basic", "variational" or "gumbel".
-        :param capacity: Architecture capacity.
-        :param depth: Architecture depth.
-        :param learning_rate: Learning rate.
-        :param weight_decay: Weight decay.
-        :param batch_size: Batch size.
-        :param encoding_beta: Encoding loss coefficient.
-        :param title_label: Person title column.
-        :param gender_label: Person gender column.
-        :param name_label: Person combined first and last name column.
-        :param firstname_label: Person first name column.
-        :param lastname_label: Person last name column.
-        :param email_label: Person e-mail address column.
-        :param postcode_label: Address postcode column.
-        :param city_label: Address city column.
-        :param street_label: Address street column.
-        :param address_label: Address combined column.
-        :param postcode_regex: Address postcode regular expression.
-        :param identifier_label: Identifier column.
+        Args:
+            data: Data sample which is representative of the target data to generate. Usually, it
+                is fine to just use the training data here. Generally, it should exhibit all
+                relevant characteristics, so for instance all values a discrete-value column can
+                take.
+            summarizer: Whether to log TensorBoard summaries (in sub-directory
+                "summaries_synthesizer").
+            network: Network type: "mlp" or "resnet".
+            encoding: Encoding type: "basic", "variational" or "gumbel".
+            capacity: Architecture capacity.
+            depth: Architecture depth.
+            learning_rate: Learning rate.
+            weight_decay: Weight decay.
+            batch_size: Batch size.
+            encoding_beta: Encoding loss coefficient.
+            title_label: Person title column.
+            gender_label: Person gender column.
+            name_label: Person combined first and last name column.
+            firstname_label: Person first name column.
+            lastname_label: Person last name column.
+            email_label: Person e-mail address column.
+            postcode_label: Address postcode column.
+            city_label: Address city column.
+            street_label: Address street column.
+            address_label: Address combined column.
+            postcode_regex: Address postcode regular expression.
+            identifier_label: Identifier column.
         """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
@@ -271,9 +273,10 @@ class BasicSynthesizer(Synthesizer):
         Trains the generative model on the given data. Repeated calls continue training the model,
         possibly on different data.
 
-        :param num_iterations: The number of training steps (not epochs).
-        :param data: The training data.
-        :param verbose: The frequency, i.e. number of steps, of logging additional information.
+        Args:
+            num_iterations: The number of training steps (not epochs).
+            data: The training data.
+            verbose: The frequency, i.e. number of steps, of logging additional information.
         """
         try:
             next(self.learn_async(num_iterations=num_iterations, data=data, verbose=verbose,
@@ -333,8 +336,11 @@ class BasicSynthesizer(Synthesizer):
         """
         Generates the given number of new data rows.
 
-        :param n: The number of rows to generate.
-        :return: The generated data.
+        Args:
+            n: The number of rows to generate.
+
+        Returns:
+            The generated data.
         """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
