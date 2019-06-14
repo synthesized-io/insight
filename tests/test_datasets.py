@@ -33,7 +33,7 @@ def test_datasets_quick():
 
 
 def test_credit_dataset_quick():
-    df_original = pd.read_csv('data/credit.csv')
+    df_original = pd.read_csv('data/unittest.csv')
     with BasicSynthesizer(data=df_original, capacity=8, depth=1, batch_size=8) as synthesizer:
         synthesizer.learn(num_iterations=10, data=df_original)
         df_synthesized = synthesizer.synthesize(n=10000)
@@ -42,7 +42,7 @@ def test_credit_dataset_quick():
 
 @pytest.mark.integration
 def test_credit_dataset():
-    df_original = pd.read_csv('data/credit.csv')
+    df_original = pd.read_csv('data/unittest.csv')
     with BasicSynthesizer(data=df_original) as synthesizer:
         synthesizer.learn(num_iterations=5000, data=df_original)
         df_synthesized = synthesizer.synthesize(n=len(df_original))
