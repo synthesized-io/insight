@@ -48,7 +48,7 @@ if not _check_license():
 
 class Synthesizer(Module):
 
-    def __init__(self, name, summarizer=False):
+    def __init__(self, name, summarizer=None):
         super().__init__(name=name, summarizer=summarizer)
 
     def get_values(self):

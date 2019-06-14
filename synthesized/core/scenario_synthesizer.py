@@ -14,7 +14,7 @@ from .values import value_modules
 class ScenarioSynthesizer(Synthesizer):
 
     def __init__(
-            self, values, functionals, summarizer=False,
+            self, values, functionals, summarizer=None,
             # architecture
             network='resnet',
             # hyperparameters

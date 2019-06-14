@@ -20,7 +20,7 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, data, summarizer=False,
+        self, data, summarizer=None,
         # encoder/decoder
         network_type='mlp', capacity=512, depth=2, layer_type='dense', batchnorm=True,
         activation='relu', weight_decay=1e-5,
@@ -52,8 +52,7 @@ class BasicSynthesizer(Synthesizer):
                 is fine to just use the training data here. Generally, it should exhibit all
                 relevant characteristics, so for instance all values a discrete-value column can
                 take.
-            summarizer: Whether to log TensorBoard summaries (in sub-directory
-                "summaries_synthesizer").
+            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
             network_type: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
             depth: Architecture depth.

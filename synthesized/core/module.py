@@ -17,7 +17,7 @@ class Module(object):
     placeholders = None
     global_step = None
 
-    def __init__(self, name, summarizer=False):
+    def __init__(self, name, summarizer=None):
         self.name = name
         self.summarizer = summarizer
 
@@ -93,11 +93,11 @@ class Module(object):
         Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
         with self.graph.as_default():
 
-            if self.summarizer:
-                with tf.name_scope(name='summarizer', default_name=None, values=None):
+            if self.summarizer is not None:
+                with tf.name_scope(name='summarizer'):
                     self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=('summaries_' + self.name), max_queue=None, flush_millis=10000,
-                        filename_suffix=None
+                        logdir=os.path.join(self.summarizer, time.strftime("%Y%m%d-%H%M%S")),
+                        max_queue=None, flush_millis=10000, filename_suffix=None
                     )
 
                 # tf.contrib.summary.record_summaries_every_n_global_steps(n=100, global_step=None)
@@ -119,7 +119,6 @@ class Module(object):
                         )
 
             else:
-                self.summarizer = None
                 self.initialize()
                 initialization = tf.global_variables_initializer()
 
