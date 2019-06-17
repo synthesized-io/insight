@@ -1,3 +1,5 @@
+"""This module implements BasicSynthesizer."""
+
 from collections import OrderedDict
 
 import numpy as np
@@ -14,7 +16,8 @@ from .values import identify_value
 
 
 class BasicSynthesizer(Synthesizer):
-    """
+    """The main Synthesizer implementation.
+
     Synthesizer which can learn to produce basic tabular data with independent rows, that is, no
     temporal or otherwise conditional relation between the rows.
     """
@@ -34,8 +37,7 @@ class BasicSynthesizer(Synthesizer):
             # identifier
             identifier_label=None
     ):
-        """
-        Initializes a new basic synthesizer instance.
+        """Initialize a new basic synthesizer instance.
 
         Args:
             data: Data sample which is representative of the target data to generate. Usually, it
@@ -269,9 +271,9 @@ class BasicSynthesizer(Synthesizer):
     def learn(
             self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0
     ) -> None:
-        """
-        Trains the generative model on the given data. Repeated calls continue training the model,
-        possibly on different data.
+        """Train the generative model on the given data.
+
+        Repeated calls continue training the model, possibly on different data.
 
         Args:
             num_iterations: The number of training steps (not epochs).
@@ -333,14 +335,14 @@ class BasicSynthesizer(Synthesizer):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
     def synthesize(self, n: int) -> pd.DataFrame:
-        """
-        Generates the given number of new data rows.
+        """Generate the given number of new data rows.
 
         Args:
             n: The number of rows to generate.
 
         Returns:
             The generated data.
+
         """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': n % 1024}
