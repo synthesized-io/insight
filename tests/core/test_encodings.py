@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from synthesized.core.encodings import BasicEncoding, VariationalEncoding
+from synthesized.common.encodings import BasicEncoding, VariationalEncoding
 
 
 def _test_encoding(encoding):

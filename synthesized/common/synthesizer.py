@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from .module import Module
+from synthesized.common.module import Module
 
 
 def _check_license():

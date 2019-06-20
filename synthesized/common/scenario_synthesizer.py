@@ -6,7 +6,7 @@ import tensorflow as tf
 from .functionals import functional_modules
 from .module import Module
 from .optimizers import Optimizer
-from .synthesizer import Synthesizer
+from synthesized.common.synthesizer import Synthesizer
 from .transformations import transformation_modules
 from .values import value_modules
 

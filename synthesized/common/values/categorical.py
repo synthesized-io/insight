@@ -184,6 +184,7 @@ class CategoricalValue(Value):
                     max_norm=None
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
+                weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
         else:
             weights = 1.0
@@ -196,13 +197,9 @@ class CategoricalValue(Value):
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
             x = tf.reduce_sum(input_tensor=(x * embeddings), axis=2, keepdims=False)
         x = x / self.temperature
-        # target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
-        # loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x)
-        # loss = tf.reduce_sum(input_tensor=(loss * weights), axis=0)
-        loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=target, logits=x, weights=weights, label_smoothing=self.smoothing,
-            scope=None, loss_collection=tf.GraphKeys.LOSSES
-        )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
+        target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x, axis=1)
+        loss = tf.reduce_mean(input_tensor=(loss * weights), axis=0)
         if self.similarity_regularization > 0.0:
             similarity_loss = tf.matmul(
                 a=self.embeddings, b=self.embeddings, transpose_a=False, transpose_b=True,
@@ -216,7 +213,7 @@ class CategoricalValue(Value):
             probs = tf.nn.softmax(logits=x, axis=-1)
             logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
-            entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
+            entropy_loss = tf.reduce_mean(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
             loss = loss + entropy_loss
         return loss

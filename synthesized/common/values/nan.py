@@ -132,9 +132,9 @@ class NanValue(Value):
             indices=tf.cast(x=target_nan, dtype=tf.int64), depth=2, on_value=1.0, off_value=0.0,
             axis=1, dtype=tf.float32
         )
-        loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=target_embedding, logits=x[:, :2], weights=1.0, label_smoothing=0,
-            scope=None, loss_collection=tf.GraphKeys.LOSSES
-        )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+            labels=target_embedding, logits=x[:, :2], axis=1
+        )
+        loss = tf.reduce_mean(input_tensor=loss, axis=0)
         loss += self.value.loss(x=x[:, 2:], feed=feed, mask=tf.math.logical_not(x=target_nan))
         return loss

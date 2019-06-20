@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized.core import BasicSynthesizer
+from synthesized.common import BasicSynthesizer
 
 
 @pytest.mark.integration

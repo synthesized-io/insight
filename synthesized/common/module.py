@@ -2,6 +2,14 @@ import tensorflow as tf
 from functools import wraps
 
 
+module_registry = dict()
+
+
+def register(name, module):
+    assert name not in module_registry
+    module_registry[name] = module
+
+
 def tensorflow_name_scoped(tf_function):
     @wraps(tf_function)
     def function(self, *args, **kwargs):
@@ -54,6 +62,8 @@ class Module(object):
             self.module_initialize()
 
     def add_module(self, module, modules=None, **kwargs):
+        if modules is None:
+            modules = module_registry
         if isinstance(module, dict):
             for key, value in module.items():
                 if kwargs.get(key, value) != value:

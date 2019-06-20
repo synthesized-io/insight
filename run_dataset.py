@@ -6,8 +6,8 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.model_selection import train_test_split
-from synthesized.core import BasicSynthesizer
-from synthesized.core.classifiers import BasicClassifier
+from synthesized.common import BasicSynthesizer
+from synthesized.common.classifiers import BasicClassifier
 
 
 print()

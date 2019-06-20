@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from synthesized.core import Module
-from synthesized.core.values import CategoricalValue, ContinuousValue
+from synthesized.common import Module
+from synthesized.common.values import CategoricalValue, ContinuousValue
 
 
 def _test_value(value, x, y=None):

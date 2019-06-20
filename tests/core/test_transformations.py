@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from synthesized.core.transformations import DenseTransformation, MlpTransformation, \
+from synthesized.common.transformations import DenseTransformation, MlpTransformation, \
     ResidualTransformation, ResnetTransformation
 
 

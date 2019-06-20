@@ -23,9 +23,9 @@ from sklearn.metrics import mean_squared_error, accuracy_score, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from sklearn.preprocessing import StandardScaler
 
-from synthesized.core.values import CategoricalValue
-from synthesized.core.values import ContinuousValue
-from synthesized.core.values import SamplingValue
+from synthesized.common.values import CategoricalValue
+from synthesized.common.values import ContinuousValue
+from synthesized.common.values import SamplingValue
 from .util import categorical_emd
 
 MAX_CATEGORIES = 50

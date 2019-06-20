@@ -5,7 +5,7 @@ import werkzeug
 from flask import Flask, Response
 from flask_restful import Resource, Api, reqparse
 
-from synthesized.core import BasicSynthesizer
+from synthesized.common import BasicSynthesizer
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024

@@ -264,10 +264,8 @@ class ContinuousValue(Value):
             target = tf.boolean_mask(tensor=target, mask=mask)
             x = tf.boolean_mask(tensor=x, mask=mask)
         # loss = tf.nn.l2_loss(t=(target - x))
-        loss = tf.losses.mean_squared_error(
-            labels=target, predictions=x, weights=1.0, scope=None,
-            loss_collection=tf.GraphKeys.LOSSES
-        )  # reduction=Reduction.SUM_BY_NONZERO_WEIGHTS
+        loss = tf.squeeze(input=tf.math.squared_difference(x=x, y=target), axis=1)
+        loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 
     @tensorflow_name_scoped

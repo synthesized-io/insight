@@ -10,9 +10,9 @@ from scipy.stats import powerlaw
 from typing import Tuple, Dict, Type
 from matplotlib.pyplot import Axes
 
-from synthesized.core import BasicSynthesizer
+from synthesized.common import BasicSynthesizer
 from synthesized.testing.evaluation import Evaluation
-from synthesized.core.values import CategoricalValue, ContinuousValue
+from synthesized.common.values import CategoricalValue, ContinuousValue
 
 
 def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:

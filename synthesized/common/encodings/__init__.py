@@ -3,6 +3,7 @@ from .encoding import Encoding
 from .gumbel import GumbelVariationalEncoding
 from .variational import VariationalEncoding
 
+
 encoding_modules = dict(
     basic=BasicEncoding,
     variational=VariationalEncoding,

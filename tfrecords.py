@@ -1,7 +1,7 @@
 import sys
 import pandas as pd
 import tensorflow as tf
-from synthesized.core import BasicSynthesizer
+from synthesized.common import BasicSynthesizer
 
 
 path = 'data/' + sys.argv[1]

@@ -45,7 +45,7 @@ try:
     print('synthesizing data...')
 
     start = time.time()
-    from synthesized.core import BasicSynthesizer
+    from synthesized.common import BasicSynthesizer
     with BasicSynthesizer(data=data) as synthesizer:
         for i in range(passes):
             if args.records:

@@ -4,13 +4,13 @@ import os
 
 import pandas as pd
 
-from synthesized.core import BasicSynthesizer
+from synthesized.common import BasicSynthesizer
 
 
 print()
 print(datetime.now().strftime('%H:%M:%S'), 'Parse arguments...', flush=True)
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--dataset', type=str, help="dataset name")
+parser.add_argument('-d', '--dataset', type=str, default='unittest', help="dataset name")
 parser.add_argument('-t', '--target', default=-1, help="target column")
 parser.add_argument('--drop', type=str, default=None, help="values to drop")
 parser.add_argument('--drop-nans', action='store_true', help="drop nans")

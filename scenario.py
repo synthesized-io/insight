@@ -1,7 +1,7 @@
 import argparse
 from datetime import datetime
 import json
-from synthesized.core import ScenarioSynthesizer
+from synthesized.common import ScenarioSynthesizer
 
 
 print()
