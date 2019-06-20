@@ -24,7 +24,7 @@ parser.add_argument(
 parser.add_argument(
     '-y', '--hyperparameters', default=None, help="list of hyperparameters (comma, equal)"
 )
-parser.add_argument('-b', '--tensorboard', action='store_true', help="TensorBoard summaries")
+parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
 args = parser.parse_args()
 if args.evaluation == 0:

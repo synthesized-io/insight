@@ -45,35 +45,25 @@ class Optimizer(Module):
 
     @tensorflow_name_scoped
     def optimize(self, loss, gradient_norms=False):
-        with tf.control_dependencies(control_inputs=(loss,)):
-            # gradients = tf.gradients(ys=loss, xs=variables)
-            grads_and_vars = self.optimizer.compute_gradients(loss=loss)
+        variables = tf.get_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES)
 
-        # grads = tf.concat(
-        #     values=[tf.reshape(tensor=grad, shape=(-1,)) for grad, _ in grads_and_vars], axis=0
-        # )
-        # grad_mean, grad_variance = tf.nn.moments(x=grads, axes=(0,))
+        with tf.control_dependencies(control_inputs=(loss,)):
+            gradients = tf.gradients(ys=loss, xs=variables)
 
         assertions = [
             tf.debugging.assert_equal(x=tf.reduce_any(input_tensor=tf.math.is_nan(x=grad)), y=False)
-            for grad, _ in grads_and_vars
+            for grad in gradients
         ]
 
         with tf.control_dependencies(control_inputs=assertions):
-            grads_and_vars = [
-                (tf.where(condition=tf.math.is_nan(x=grad), x=tf.zeros_like(tensor=grad), y=grad), var)
-                for grad, var in grads_and_vars if grad is not None
-            ]
-
-        if self.clip_gradients is not None:
-            grads, vars = zip(*grads_and_vars)
-            grads = list(grads)
-            grads, grad_norm = tf.clip_by_global_norm(t_list=grads, clip_norm=self.clip_gradients)
-            grads_and_vars = list(zip(grads, vars))
+            if self.clip_gradients is not None:
+                gradients, grad_norm = tf.clip_by_global_norm(
+                    t_list=gradients, clip_norm=self.clip_gradients
+                )
 
         if gradient_norms:
             gradient_norms = dict()
-            for grad, var in grads_and_vars:
+            for grad, var in zip(gradients, variables):
                 gradient_norms[var.name[:var.name.index(':')]] = tf.norm(
                     tensor=grad, ord='euclidean'
                 )
@@ -85,4 +75,4 @@ class Optimizer(Module):
                 ))
 
         with tf.control_dependencies(control_inputs=grads):
-            return self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
+            return  self.optimizer.apply_gradients(grads_and_vars=list(zip(gradients, variables)))

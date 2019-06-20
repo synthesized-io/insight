@@ -1,3 +1,5 @@
+from math import log
+
 import tensorflow as tf
 
 from .transformation import Transformation
@@ -30,7 +32,7 @@ class DenseTransformation(Transformation):
         super().module_initialize()
 
         shape = (self.input_size, self.output_size)
-        initializer = util.get_initializer(initializer='normal')
+        initializer = util.get_initializer(initializer='orthogonal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.weight = tf.get_variable(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
@@ -79,7 +81,8 @@ class DenseTransformation(Transformation):
         elif self.activation == 'relu':
             x = tf.nn.relu(features=x)
         elif self.activation == 'softplus':
-            x = tf.nn.softplus(features=x)
+            # division so that 0.0 is mapped to 1.0, as expected for instance when used for stddev
+            x = tf.nn.softplus(features=x) / log(2.0)
         elif self.activation == 'tanh':
             x = tf.tanh(x=x)
         else:

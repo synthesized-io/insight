@@ -48,8 +48,7 @@ class BasicSynthesizer(Synthesizer):
                 is fine to just use the training data here. Generally, it should exhibit all
                 relevant characteristics, so for instance all values a discrete-value column can
                 take.
-            summarizer: Whether to log TensorBoard summaries (in sub-directory
-                "summaries_synthesizer").
+            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
             distribution: Distribution type: "normal".
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
