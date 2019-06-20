@@ -10,6 +10,22 @@ PARSING_NAN_FRACTION_THRESHOLD = 0.25
 def identify_value(module, name, dtype, data):
     value = None
 
+    categorical_kwargs = dict()
+    if hasattr(module, 'categorical_weight'):
+        categorical_kwargs['weight'] = module.categorical_weight
+    if hasattr(module, 'smoothing'):
+        categorical_kwargs['smoothing'] = module.smoothing
+    if hasattr(module, 'moving_average'):
+        categorical_kwargs['moving_average'] = module.moving_average
+    if hasattr(module, 'similarity_regularization'):
+        categorical_kwargs['similarity_regularization'] = module.similarity_regularization
+    if hasattr(module, 'entropy_regularization'):
+        categorical_kwargs['entropy_regularization'] = module.entropy_regularization
+
+    continuous_kwargs = dict()
+    if hasattr(module, 'continuous_weight'):
+        continuous_kwargs['weight'] = module.continuous_weight
+
     # ========== Pre-configured values ==========
 
     # Person value
@@ -68,7 +84,9 @@ def identify_value(module, name, dtype, data):
     # Categorical value if small number of distinct values
     if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
         # is_nan = data[name].isna().any()
-        value = module.add_module(module='categorical', name=name, capacity=module.capacity)
+        value = module.add_module(
+            module='categorical', name=name, capacity=module.capacity, **categorical_kwargs
+        )
 
     # Date value
     elif dtype.kind == 'M':  # 'm' timedelta
@@ -79,19 +97,20 @@ def identify_value(module, name, dtype, data):
     elif dtype.kind == 'b':
         # is_nan = data[name].isna().any()
         value = module.add_module(
-            module='categorical', name=name, categories=[False, True], capacity=module.capacity
+            module='categorical', name=name, categories=[False, True], capacity=module.capacity,
+            **categorical_kwargs
         )
 
     # Continuous value if integer (reduced variability makes similarity-categorical fallback more likely)
     elif dtype.kind == 'i':
-        value = module.add_module(module='continuous', name=name, integer=True)
+        value = module.add_module(module='continuous', name=name, integer=True, **continuous_kwargs)
 
     # Categorical value if object type has attribute 'categories'
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
         # is_nan = data[name].isna().any()
         value = module.add_module(
             module='categorical', name=name, categories=dtype.categories,
-            capacity=module.capacity, pandas_category=True
+            capacity=module.capacity, pandas_category=True, **categorical_kwargs
         )
 
     # Date value if object type can be parsed
@@ -110,6 +129,7 @@ def identify_value(module, name, dtype, data):
     elif num_unique <= sqrt(num_data):
         value = module.add_module(
             module='categorical', name=name, capacity=module.capacity, similarity_based=True
+            **categorical_kwargs
         )
 
     # Return non-numeric value and handle NaNs if necessary
@@ -135,7 +155,7 @@ def identify_value(module, name, dtype, data):
 
     # Return numeric value and handle NaNs if necessary
     if dtype.kind in ('f', 'i'):
-        value = module.add_module(module='continuous', name=name)
+        value = module.add_module(module='continuous', name=name, **continuous_kwargs)
         if is_nan:
             value = module.add_module(
                 module='nan', name=name, value=value, capacity=module.capacity

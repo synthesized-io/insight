@@ -13,7 +13,9 @@ class VAE(Generative):
 
     def __init__(
         self, name: str, values: List[Value], distribution: str, latent_size : int, network: str,
-        capacity: int, depth: int, beta: float, weight_decay: float, learning_rate: float
+        capacity: int, depth: int, batchnorm: bool, activation: str, optimizer: str,
+        learning_rate: float, decay_steps: int, decay_rate: float, clip_gradients: float,
+        beta: float, weight_decay: float
     ):
         super().__init__(name=name, values=values)
 
@@ -29,7 +31,8 @@ class VAE(Generative):
 
         # Encoder: parametrized distribution
         parametrization = dict(
-            module=network, layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
+            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
+            activation=activation, weight_decay=weight_decay
         )
         self.encoder = self.add_module(
             module='distribution', name='encoder', input_size=input_size, output_size=latent_size,
@@ -38,7 +41,8 @@ class VAE(Generative):
 
         # Decoder: parametrized distribution
         parametrization = dict(
-            module=network, layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
+            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
+            activation=activation, weight_decay=weight_decay
         )
         self.decoder = self.add_module(
             module='distribution', name='decoder', input_size=self.encoder.size(),
@@ -47,8 +51,8 @@ class VAE(Generative):
 
         # Optimizer
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', algorithm='adam', learning_rate=learning_rate,
-            clip_gradients=1.0
+            module='optimizer', name='optimizer', algorithm=optimizer, learning_rate=learning_rate,
+            decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
         )
 
     def specification(self) -> dict:
@@ -110,7 +114,7 @@ class VAE(Generative):
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
 
         with tf.control_dependencies(control_inputs=summaries):
-            optimized, gradient_norms = self.optimizer.optimize(loss=loss, gradient_norms=True)
+            optimized = self.optimizer.optimize(loss=loss, gradient_norms=True)
 
         return losses, optimized
 

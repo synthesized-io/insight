@@ -23,19 +23,29 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-            self, data, summarizer=False,
-            # architecture
-            network='resnet', encoding='variational',
-            # hyperparameters
-            capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
-            # person
-            title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
-            email_label=None,
-            # address
-            postcode_label=None, city_label=None, street_label=None,
-            address_label=None, postcode_regex=None,
-            # identifier
-            identifier_label=None
+        self, data, summarizer=False,
+        # encoder/decoder
+        network_type='mlp', capacity=512, depth=2, layer_type='dense', batchnorm=True,
+        activation='relu', weight_decay=1e-5,
+        # encoding
+        encoding_type='variational', encoding_size=512, encoding_kwargs=dict(beta=0.0005),
+        # optimizer
+        optimizer='adam', learning_rate=1e-4, decay_steps=200, decay_rate=0.5,
+        clip_gradients=1.0,
+        batch_size=128,
+        # losses
+        categorical_weight=1.0, continuous_weight=1.0,
+        # categorical
+        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
+        entropy_regularization=0.1,
+        # person
+        title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
+        email_label=None,
+        # address
+        postcode_label=None, city_label=None, street_label=None,
+        address_label=None, postcode_regex=None,
+        # identifier
+        identifier_label=None
     ):
         """Initialize a new basic synthesizer instance.
 
@@ -46,14 +56,28 @@ class BasicSynthesizer(Synthesizer):
                 take.
             summarizer: Whether to log TensorBoard summaries (in sub-directory
                 "summaries_synthesizer").
-            network: Network type: "mlp" or "resnet".
-            encoding: Encoding type: "basic", "variational" or "gumbel".
+            network_type: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
             depth: Architecture depth.
-            learning_rate: Learning rate.
+            layer_type: Layer type.
+            batchnorm: Whether to use batch normalization.
+            activation: Activation function.
             weight_decay: Weight decay.
+            encoding_type: Encoding type: "basic", "variational" or "gumbel".
+            encoding_size: Encoding size.
+            encoding_kwargs: Additional arguments to the encoding (beta: encoding loss coefficient).
+            optimizer: Optimizer.
+            learning_rate: Learning rate.
+            decay_steps: Learning rate decay steps.
+            decay_rate: Learning rate decay rate.
+            clip_gradients: Gradient norm clipping.
             batch_size: Batch size.
-            encoding_beta: Encoding loss coefficient.
+            categorical_weight: Coefficient for categorical value losses.
+            continuous_weight: Coefficient for continuous value losses.
+            smoothing: Smoothing for categorical value distributions.
+            moving_average: Whether to use moving average scaling for categorical values.
+            similarity_regularization: Similarity regularization coefficient for categorical values.
+            entropy_regularization: Entropy regularization coefficient for categorical values.
             title_label: Person title column.
             gender_label: Person gender column.
             name_label: Person combined first and last name column.
@@ -74,10 +98,15 @@ class BasicSynthesizer(Synthesizer):
         self.network_type = network
         self.encoding_type = encoding
         self.capacity = capacity
-        self.depth = depth
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
         self.batch_size = batch_size
+
+        self.categorical_weight = categorical_weight
+        self.continuous_weight = continuous_weight
+
+        self.smoothing = smoothing
+        self.moving_average = moving_average
+        self.similarity_regularization = similarity_regularization
+        self.entropy_regularization = entropy_regularization
 
         # person
         self.person_value = None
@@ -125,14 +154,15 @@ class BasicSynthesizer(Synthesizer):
         )
 
         self.encoder = self.add_module(
-            module=self.network_type, modules=transformation_modules, name='encoder',
-            input_size=self.linear_input.size(),
-            layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
+            module=network_type, modules=transformation_modules, name='encoder',
+            input_size=self.linear_input.size(), layer_sizes=[capacity for _ in range(depth)],
+            layer_type=layer_type, batchnorm=batchnorm, activation=activation,
+            weight_decay=weight_decay  # TODO: depths missing
         )
 
         self.encoding = self.add_module(
-            module=self.encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.capacity, beta=encoding_beta
+            module=encoding_type, modules=encoding_modules, name='encoding',
+            input_size=self.encoder.size(), encoding_size=encoding_size, **encoding_kwargs
         )
 
         if self.identifier_value is None:
@@ -140,13 +170,14 @@ class BasicSynthesizer(Synthesizer):
         else:
             self.modulation = self.add_module(
                 module='modulation', modules=transformation_modules, name='modulation',
-                input_size=self.capacity, condition_size=self.identifier_value.embedding_size
+                input_size=capacity, condition_size=self.identifier_value.embedding_size
             )
 
         self.decoder = self.add_module(
-            module=self.network_type, modules=transformation_modules, name='decoder',
-            input_size=self.encoding.size(),
-            layer_sizes=[self.capacity for _ in range(self.depth)], weight_decay=self.weight_decay
+            module=network_type, modules=transformation_modules, name='decoder',
+            input_size=self.encoding.size(), layer_sizes=[capacity for _ in range(depth)],
+            layer_type=layer_type, batchnorm=batchnorm, activation=activation,
+            weight_decay=weight_decay  # TODO: depths missing
         )
 
         self.linear_output = self.add_module(
@@ -156,15 +187,15 @@ class BasicSynthesizer(Synthesizer):
         )
 
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
-            clip_gradients=1.0
+            module=Optimizer, name='optimizer', algorithm=optimizer, learning_rate=learning_rate,
+            decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
         )
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            network=self.network_type, encoding=self.encoding_type, capacity=self.capacity,
-            depth=self.depth, learning_rate=self.learning_rate, weight_decay=self.weight_decay,
+            encoder=self.encoder.specification(), decoder=self.decoder.specification(),
+            encoding=self.encoding.specification(), optimizer=self.optimizer.specification(),
             batch_size=self.batch_size
         )
         return spec
@@ -213,8 +244,7 @@ class BasicSynthesizer(Synthesizer):
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
         losses = OrderedDict()
-        if not self.exclude_encoding_loss:
-            losses['encoding'] = encoding_loss
+        losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
             loss = value.loss(x=x, feed=feed)
             if loss is not None:

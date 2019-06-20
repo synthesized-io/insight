@@ -9,40 +9,35 @@ class ResidualTransformation(Transformation):
 
     def __init__(
         self, name, input_size, output_size, depth=1, batchnorm=True, activation='relu',
-        weight_decay=0.0, **kwargs
+        weight_decay=0.0
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
-        self.depth = depth
-        self.batchnorm = batchnorm
-        self.activation = activation
-        self.weight_decay = weight_decay
-        self.kwargs = kwargs
-
         self.layers = list()
+        for n in range(depth - 1):
+            self.layers.append(self.add_module(
+                module='dense', name=('layer' + str(n)), input_size=input_size,
+                output_size=input_size, batchnorm=batchnorm, activation=activation,
+                weight_decay=weight_decay
+            ))
+        self.layers.append(self.add_module(
+            module='linear', name=('layer' + str(depth - 1)), input_size=input_size,
+            output_size=output_size, weight_decay=weight_decay
+        ))
+
         if input_size != output_size:
             self.identity_transformation = self.add_module(
                 module='linear', name='idtransform', input_size=input_size, output_size=output_size,
-                weight_decay=self.weight_decay, **self.kwargs
+                weight_decay=weight_decay,
             )
         else:
             self.identity_transformation = None
-        for n in range(self.depth - 1):
-            self.layers.append(self.add_module(
-                module='dense', name=('layer' + str(n)), input_size=input_size,
-                output_size=input_size, batchnorm=self.batchnorm, activation=self.activation,
-                weight_decay=self.weight_decay, **self.kwargs
-            ))
-        self.layers.append(self.add_module(
-            module='linear', name=('layer' + str(self.depth - 1)), input_size=input_size,
-            output_size=output_size, weight_decay=self.weight_decay, **self.kwargs
-        ))
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            num_layers=self.layers, batchnorm=self.batchnorm,
-            activation=self.activation, weight_decay=self.weight_decay, kwargs=self.kwargs
+            layers=[layer.specification() for layer in self.layers],
+            identity_transformation=self.identity_transformation.specification()
         )
         return spec
 
@@ -54,13 +49,11 @@ class ResidualTransformation(Transformation):
             initializer = util.get_initializer(initializer='zeros')
             self.offset = tf.get_variable(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True,
             )
             self.scale = tf.get_variable(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True,
             )
 
     @tensorflow_name_scoped

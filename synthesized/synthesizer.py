@@ -51,7 +51,7 @@ class Synthesizer(Module):
 
     @staticmethod
     def logging(iteration, fetched):
-        print('\niteration: {}'.format(iteration + 1))
+        print('\niteration: {}'.format(iteration))
         print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
 
     def learn(

@@ -1,22 +1,39 @@
 import numpy as np
 import tensorflow as tf
 
-from synthesized.common.transformations import DenseTransformation, MlpTransformation, \
-    ResidualTransformation, ResnetTransformation
+from synthesized.common.transformations.dense import DenseTransformation
+from synthesized.common.transformations.mlp import MlpTransformation
+from synthesized.common.transformations.modulation import ModulationTransformation
+from synthesized.common.transformations.residual import ResidualTransformation
+from synthesized.common.transformations.resnet import ResnetTransformation
 
 
-def _test_transformation(transformation):
+def _test_transformation(transformation, modulation=False):
+    assert isinstance(transformation.specification(), dict)
     tf.reset_default_graph()
     transformation.initialize()
-    transform_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
-    transform_output = transformation.transform(x=transform_input)
+    if modulation:
+        transform_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
+        condition_input = tf.placeholder(dtype=tf.float32, shape=(None, 6))
+        transform_output = transformation.transform(x=transform_input, condition=condition_input)
+    else:
+        transform_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
+        transform_output = transformation.transform(x=transform_input)
     initialize = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(fetches=initialize)
-        transformed = session.run(
-            fetches=transform_output, feed_dict={transform_input: np.random.randn(4, 8)}
-        )
-        assert transformed.shape == (4, 6)
+        if modulation:
+            transformed = session.run(
+                fetches=transform_output, feed_dict={
+                    transform_input: np.random.randn(4, 8), condition_input: np.random.randn(4, 6)
+                }
+            )
+            assert transformed.shape == (4, 8)
+        else:
+            transformed = session.run(
+                fetches=transform_output, feed_dict={transform_input: np.random.randn(4, 8)}
+            )
+            assert transformed.shape == (4, 6)
 
 
 def test_dense():
@@ -29,9 +46,15 @@ def test_dense():
 
 def test_mlp():
     transformation = MlpTransformation(
-        name='mlp', input_size=8, layer_sizes=(10, 6), weight_decay=0.1
+        name='mlp', input_size=8, layer_sizes=(10, 6), layer_type='dense', batchnorm=True,
+        activation='relu', weight_decay=0.1
     )
     _test_transformation(transformation=transformation)
+
+
+def test_modulation():
+    transformation = ModulationTransformation(name='modulation', input_size=8, condition_size=6)
+    _test_transformation(transformation=transformation, modulation=True)
 
 
 def test_residual():
@@ -44,6 +67,7 @@ def test_residual():
 
 def test_resnet():
     transformation = ResnetTransformation(
-        name='resnet', input_size=8, layer_sizes=(10, 6), weight_decay=0.1, depths=3
+        name='resnet', input_size=8, layer_sizes=(10, 6), depths=2, layer_type='dense',
+        batchnorm=True, activation='relu', weight_decay=0.1
     )
     _test_transformation(transformation=transformation)

@@ -34,9 +34,9 @@ def _test_value(value, x, y=None):
 
 def test_categorical():
     value = CategoricalValue(
-        name='categorical', categories=list(range(8)), capacity=64, embedding_size=None,
-        pandas_category=False, similarity_based=False, weight_decay=0.0, temperature=1.0,
-        smoothing=0.1, moving_average=True, similarity_regularization=0.1,
+        name='categorical', categories=list(range(8)), probabilities=None, capacity=64,
+        embedding_size=None, pandas_category=False, similarity_based=False, weight_decay=0.0,
+        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
         entropy_regularization=0.1
     )
     _test_value(
@@ -47,14 +47,20 @@ def test_categorical():
 
 def test_categorical_similarity():
     value = CategoricalValue(
-        name='categorical', categories=list(range(8)), capacity=64, embedding_size=None,
-        pandas_category=False, similarity_based=True, weight_decay=0.0, temperature=1.0,
-        smoothing=0.1, moving_average=True, similarity_regularization=0.1,
+        name='categorical', categories=list(range(8)), probabilities=None, capacity=64,
+        embedding_size=None, pandas_category=False, similarity_based=True, weight_decay=0.0,
+        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
         entropy_regularization=0.1
+
+
+
     )
     _test_value(value=value, x=np.random.randint(low=0, high=8, size=(4,)))
 
 
 def test_continuous():
-    value = ContinuousValue(name='continuous', integer=None)
+    value = ContinuousValue(
+        name='continuous', distribution=None, distribution_params=None, integer=None, positive=None,
+        nonnegative=None
+    )
     _test_value(value=value, x=np.random.randn(4,))

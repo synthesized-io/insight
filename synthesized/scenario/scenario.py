@@ -159,9 +159,9 @@ class ScenarioSynthesizer(Synthesizer):
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
-        for iteration in range(num_iterations):
+        for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (
-                iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
+                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
                 if callback(iteration, fetched) is True:

@@ -34,8 +34,7 @@ class DenseTransformation(Transformation):
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.weight = tf.get_variable(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
-            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+            regularizer=regularizer, trainable=True
         )
 
         shape = (self.output_size,)
@@ -43,8 +42,7 @@ class DenseTransformation(Transformation):
         if self.bias:
             self.bias = tf.get_variable(
                 name='bias', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=regularizer, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                regularizer=regularizer, trainable=True
             )
         else:
             self.bias = None
@@ -52,13 +50,11 @@ class DenseTransformation(Transformation):
         if self.batchnorm:
             self.offset = tf.get_variable(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True
             )
             self.scale = tf.get_variable(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=None, trainable=True, collections=None, caching_device=None,
-                partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+                trainable=True
             )
 
     @tensorflow_name_scoped

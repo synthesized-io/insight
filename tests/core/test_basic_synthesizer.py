@@ -7,7 +7,6 @@ from synthesized.common import BasicSynthesizer
 
 
 @pytest.mark.integration
-@pytest.mark.skip
 def test_continuous_variable_generation():
     r = np.random.normal(loc=5000, scale=1000, size=1000)
     data = pd.DataFrame({'r': r})

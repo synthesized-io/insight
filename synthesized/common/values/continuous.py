@@ -27,8 +27,8 @@ DISTRIBUTIONS = dict(
 class ContinuousValue(Value):
 
     def __init__(
-            self, name, distribution=None, distribution_params=None, integer=None, positive=None,
-            nonnegative=None
+        self, name, distribution=None, distribution_params=None, integer=None, positive=None,
+        nonnegative=None, weight=1.0
     ):
         super().__init__(name=name)
 
@@ -38,6 +38,7 @@ class ContinuousValue(Value):
         self.integer = integer
         self.positive = positive
         self.nonnegative = nonnegative
+        self.weight = weight
 
         self.pd_types = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
@@ -60,7 +61,8 @@ class ContinuousValue(Value):
         spec = super().specification()
         spec.update(
             distribution=self.distribution, distribution_params=self.distribution_params,
-            integer=self.integer, positive=self.positive, nonnegative=self.nonnegative
+            integer=self.integer, positive=self.positive, nonnegative=self.nonnegative,
+            weight=self.weight
         )
         return spec
 
@@ -128,7 +130,7 @@ class ContinuousValue(Value):
             stddev = column.std()
         self.distribution_params = (mean, stddev)
         transformed = (subsample - mean) / stddev
-        min_distance, _ = kstest(transformed, 'norm')
+        min_distance, p = kstest(transformed, 'norm', N=10000)
 
         # other distributions
         for name, (distribution, _) in DISTRIBUTIONS.items():
@@ -145,7 +147,7 @@ class ContinuousValue(Value):
                 # print('INF TOLERANCE:', name, num_inf / len(transformed))
                 continue
 
-            distance, _ = kstest(transformed, 'norm')
+            distance, p = kstest(transformed, 'norm', N=10000)
             if distance < min_distance:
                 # print('extract fit:', name, num_inf / len(transformed))
                 min_distance = distance
@@ -266,7 +268,7 @@ class ContinuousValue(Value):
         # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.squeeze(input=tf.math.squared_difference(x=x, y=target), axis=1)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
-        return loss
+        return loss * self.weight
 
     @tensorflow_name_scoped
     def distribution_loss(self, samples):

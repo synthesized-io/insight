@@ -18,10 +18,20 @@ class BasicSynthesizer(Synthesizer):
 
     def __init__(
         self, data, summarizer=False,
-        # VAE hyperparameters
-        distribution: str = 'normal', latent_size: int = 128, network: str = 'mlp',
-        capacity: int = 128, depth: int = 2, beta: float = 1e-3, weight_decay: float = 0.0,
-        learning_rate: float = 3e-4, batch_size: int = 64,
+        # VAE distribution
+        distribution: str = 'normal', latent_size: int = 512,
+        # Network
+        network: str = 'mlp', capacity: int = 512, depth: int = 2, batchnorm: bool = True,
+        activation: str = 'relu',
+        # Optimizer
+        optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
+        decay_rate: float = 0.5, clip_gradients: float = 1.0, batch_size: int = 128,
+        # Losses
+        categorical_weight = 1.0, continuous_weight = 1.0, beta: float = 5e-4,
+        weight_decay: float = 0.0,
+        # Categorical
+        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
+        entropy_regularization=0.1,
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -45,10 +55,22 @@ class BasicSynthesizer(Synthesizer):
             network: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
             depth: Architecture depth.
+            batchnorm: Whether to use batch normalization.
+            activation: Activation function.
+            optimizer: Optimizer.
+            learning_rate: Learning rate.
+            decay_steps: Learning rate decay steps.
+            decay_rate: Learning rate decay rate.
+            clip_gradients: Gradient norm clipping.
+            batch_size: Batch size.
+            categorical_weight: Coefficient for categorical value losses.
+            continuous_weight: Coefficient for continuous value losses.
             beta: VAE KL-loss beta.
             weight_decay: Weight decay.
-            learning_rate: Learning rate.
-            batch_size: Batch size.
+            smoothing: Smoothing for categorical value distributions.
+            moving_average: Whether to use moving average scaling for categorical values.
+            similarity_regularization: Similarity regularization coefficient for categorical values.
+            entropy_regularization: Entropy regularization coefficient for categorical values.
             title_label: Person title column.
             gender_label: Person gender column.
             name_label: Person combined first and last name column.
@@ -64,8 +86,16 @@ class BasicSynthesizer(Synthesizer):
         """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
-        self.capacity = capacity
         self.batch_size = batch_size
+
+        # For identify_value (should not be necessary)
+        self.capacity = capacity
+        self.categorical_weight = categorical_weight
+        self.continuous_weight = continuous_weight
+        self.smoothing = smoothing
+        self.moving_average = moving_average
+        self.similarity_regularization = similarity_regularization
+        self.entropy_regularization = entropy_regularization
 
         # Person
         self.person_value = None
@@ -102,8 +132,10 @@ class BasicSynthesizer(Synthesizer):
         # VAE
         self.vae = self.add_module(
             module='vae', name='vae', values=vae_values, distribution=distribution,
-            latent_size=latent_size, network=network, capacity=capacity, depth=depth, beta=beta,
-            weight_decay=weight_decay, learning_rate=learning_rate
+            latent_size=latent_size, network=network, capacity=capacity, depth=depth,
+            batchnorm=batchnorm, activation=activation, optimizer=optimizer,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            clip_gradients=clip_gradients, beta=beta, weight_decay=weight_decay
         )
 
     def specification(self):
@@ -159,11 +191,11 @@ class BasicSynthesizer(Synthesizer):
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
-        for iteration in range(num_iterations):
+        for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {label: value_data[batch] for label, value_data in data.items()}
             if callback is not None and callback_freq > 0 and (
-                iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
+                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
                 if callback(iteration, fetched) is True:
