@@ -11,7 +11,6 @@ from .encodings import encoding_modules
 from .module import Module, tensorflow_name_scoped
 from .optimizers import Optimizer
 from synthesized.synthesizer import Synthesizer
-# from .transformations import transformation_modules
 from .values import identify_value
 
 
@@ -146,12 +145,12 @@ class BasicSynthesizer(Synthesizer):
                     output_size += value.output_size()
 
         self.linear_input = self.add_module(
-            module='dense', modules=transformation_modules, name='linear-input',
+            module='dense', name='linear-input',
             input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
         self.encoder = self.add_module(
-            module=network_type, modules=transformation_modules, name='encoder',
+            module=network_type, name='encoder',
             input_size=self.linear_input.size(), layer_sizes=[capacity for _ in range(depth)],
             layer_type=layer_type, batchnorm=batchnorm, activation=activation,
             weight_decay=weight_decay  # TODO: depths missing
@@ -166,19 +165,19 @@ class BasicSynthesizer(Synthesizer):
             self.modulation = None
         else:
             self.modulation = self.add_module(
-                module='modulation', modules=transformation_modules, name='modulation',
+                module='modulation', name='modulation',
                 input_size=capacity, condition_size=self.identifier_value.embedding_size
             )
 
         self.decoder = self.add_module(
-            module=network_type, modules=transformation_modules, name='decoder',
+            module=network_type, name='decoder',
             input_size=self.encoding.size(), layer_sizes=[capacity for _ in range(depth)],
             layer_type=layer_type, batchnorm=batchnorm, activation=activation,
             weight_decay=weight_decay  # TODO: depths missing
         )
 
         self.linear_output = self.add_module(
-            module='dense', modules=transformation_modules, name='linear-output',
+            module='dense', name='linear-output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
             activation='none'
         )

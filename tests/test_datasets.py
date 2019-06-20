@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized.common import BasicSynthesizer
+from synthesized.basic import BasicSynthesizer
 
 
 @pytest.mark.integration
@@ -20,7 +20,9 @@ def test_datasets_quick():
 
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
-                with BasicSynthesizer(data=df_original, capacity=8, depth=1, batch_size=8) as synthesizer:
+                with BasicSynthesizer(
+                    data=df_original, capacity=8, depth=1, batch_size=8
+                ) as synthesizer:
                     synthesizer.learn(num_iterations=10, data=df_original)
                     df_synthesized = synthesizer.synthesize(n=10000)
                     assert len(df_synthesized) == 10000

@@ -128,7 +128,7 @@ def identify_value(module, name, dtype, data):
     # Similarity-based categorical value if not too many distinct values
     elif num_unique <= sqrt(num_data):
         value = module.add_module(
-            module='categorical', name=name, capacity=module.capacity, similarity_based=True
+            module='categorical', name=name, capacity=module.capacity, similarity_based=True,
             **categorical_kwargs
         )
 

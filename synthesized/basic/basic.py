@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_value, Module, tensorflow_name_scoped
+from ..common import identify_value, Module
 from ..synthesizer import Synthesizer
 
 
@@ -17,7 +17,7 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, data, summarizer=False,
+        self, data: pd.DataFrame, summarizer: bool = False,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -27,7 +27,7 @@ class BasicSynthesizer(Synthesizer):
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
         decay_rate: float = 0.5, clip_gradients: float = 1.0, batch_size: int = 128,
         # Losses
-        categorical_weight = 1.0, continuous_weight = 1.0, beta: float = 5e-4,
+        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 5e-4,
         weight_decay: float = 0.0,
         # Categorical
         smoothing=0.0, moving_average=True, similarity_regularization=0.0,

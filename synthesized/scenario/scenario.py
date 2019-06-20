@@ -6,18 +6,18 @@ import tensorflow as tf
 
 from .functionals import functional_modules
 from .optimizers import Optimizer
-from ..common import identify_value, Module, tensorflow_name_scoped
+from ..common import Module
 from ..synthesizer import Synthesizer
 
 
 class ScenarioSynthesizer(Synthesizer):
 
     def __init__(
-            self, values, functionals, summarizer=None,
-            # architecture
-            network='resnet',
-            # hyperparameters
-            capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5
+        self, values, functionals, summarizer=None,
+        # architecture
+        network='resnet',
+        # hyperparameters
+        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5
     ):
         super().__init__(name='scenario-synthesizer', summarizer=summarizer)
 
@@ -34,7 +34,7 @@ class ScenarioSynthesizer(Synthesizer):
         self.value_output_sizes = list()
         output_size = 0
         for name, value in values.items():
-            value = self.add_module(module=value, modules=value_modules, name=name)
+            value = self.add_module(module=value, name=name)
             self.values.append(value)
             self.value_output_sizes.append(value.output_size())
             output_size += value.output_size()
@@ -200,5 +200,5 @@ class ScenarioSynthesizer(Synthesizer):
             other = pd.DataFrame.from_dict(other)
             synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
-             synthesized = value.postprocess(data=synthesized)
+            synthesized = value.postprocess(data=synthesized)
         return synthesized

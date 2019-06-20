@@ -62,17 +62,16 @@ class Optimizer(Module):
                 )
 
         if gradient_norms:
-            gradient_norms = dict()
+            summaries = list()
             for grad, var in zip(gradients, variables):
-                gradient_norms[var.name[:var.name.index(':')]] = tf.norm(
-                    tensor=grad, ord='euclidean'
-                )
-            if self.clip_gradients is not None:
-                gradient_norms['all'] = grad_norm
-            for name, gradient_norm in gradient_norms.items():
-                grads.append(tf.contrib.summary.scalar(
-                    name=(name + '-gradient-norm'), tensor=gradient_norm
+                summaries.append(tf.contrib.summary.scalar(
+                    name=(var.name[:var.name.index(':')] + '-gradient-norm'),
+                    tensor=tf.norm(tensor=grad, ord='euclidean')
                 ))
+            if self.clip_gradients is not None:
+                summaries.append(
+                    tf.contrib.summary.scalar(name=('all-gradient-norm'), tensor=grad_norm)
+                )
 
-        with tf.control_dependencies(control_inputs=grads):
-            return  self.optimizer.apply_gradients(grads_and_vars=list(zip(gradients, variables)))
+        with tf.control_dependencies(control_inputs=summaries):
+            return self.optimizer.apply_gradients(grads_and_vars=list(zip(gradients, variables)))

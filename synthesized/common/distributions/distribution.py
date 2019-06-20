@@ -14,8 +14,8 @@ tf_distributions = dict(
 class Distribution(Transformation):
 
     def __init__(
-        self, name : str, input_size : int, output_size : int, distribution : str,
-        parametrization : dict = None
+        self, name: str, input_size: int, output_size: int, distribution: str,
+        parametrization: dict = None
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
@@ -46,7 +46,7 @@ class Distribution(Transformation):
             assert False
 
     @tensorflow_name_scoped
-    def transform(self, x : tf.Tensor) -> tfd.Distribution:
+    def transform(self, x: tf.Tensor) -> tfd.Distribution:
         if self.parametrization is not None:
             x = self.parametrization.transform(x=x)
 

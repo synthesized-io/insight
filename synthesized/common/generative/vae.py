@@ -12,7 +12,7 @@ from ..values import Value
 class VAE(Generative):
 
     def __init__(
-        self, name: str, values: List[Value], distribution: str, latent_size : int, network: str,
+        self, name: str, values: List[Value], distribution: str, latent_size: int, network: str,
         capacity: int, depth: int, batchnorm: bool, activation: str, optimizer: str,
         learning_rate: float, decay_steps: int, decay_rate: float, clip_gradients: float,
         beta: float, weight_decay: float
@@ -71,7 +71,7 @@ class VAE(Generative):
         )
 
     @tensorflow_name_scoped
-    def learn(self, xs : Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Operation]:
+    def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Operation]:
         if len(xs) == 0:
             return tf.no_op()
 
@@ -119,7 +119,7 @@ class VAE(Generative):
         return losses, optimized
 
     @tensorflow_name_scoped
-    def synthesize(self, n : tf.Tensor) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: tf.Tensor) -> Dict[str, tf.Tensor]:
         z = self.prior.sample(sample_shape=(n,))
 
         p = self.decoder.transform(x=z)

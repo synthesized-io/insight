@@ -46,7 +46,6 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     """Draws `size` samples from a one-dimensional gaussian distribution with params N(mean, std)."""
     x = np.random.normal(loc=mean, scale=std, size=size)
     return pd.DataFrame({'x': x})
->>>>>>> f3a76cb55486558a7974ec0d5998a0e6aeb0e05d
 
 
 def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:

@@ -1,5 +1,3 @@
-from math import sqrt
-
 import tensorflow as tf
 
 
