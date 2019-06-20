@@ -18,17 +18,17 @@ class BasicSynthesizer(Synthesizer):
 
     def __init__(
         self, data, summarizer=False,
-        # architecture
-        network='resnet', encoding='variational',
-        # hyperparameters
-        capacity=128, depth=2, learning_rate=3e-4, weight_decay=1e-5, batch_size=64, encoding_beta=0.001,
-        # person
+        # VAE hyperparameters
+        distribution: str = 'normal', latent_size: int = 128, network: str = 'mlp',
+        capacity: int = 128, depth: int = 2, beta: float = 1e-3, weight_decay: float = 0.0,
+        learning_rate: float = 3e-4, batch_size: int = 64,
+        # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
-        # address
+        # Address
         postcode_label=None, city_label=None, street_label=None,
         address_label=None, postcode_regex=None,
-        # identifier
+        # Identifier
         identifier_label=None
     ):
         """Initialize a new basic synthesizer instance.
@@ -40,14 +40,15 @@ class BasicSynthesizer(Synthesizer):
                 take.
             summarizer: Whether to log TensorBoard summaries (in sub-directory
                 "summaries_synthesizer").
+            distribution: Distribution type: "normal".
+            latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
-            encoding: Encoding type: "basic", "variational" or "gumbel".
             capacity: Architecture capacity.
             depth: Architecture depth.
-            learning_rate: Learning rate.
+            beta: VAE KL-loss beta.
             weight_decay: Weight decay.
+            learning_rate: Learning rate.
             batch_size: Batch size.
-            encoding_beta: Encoding loss coefficient.
             title_label: Person title column.
             gender_label: Person gender column.
             name_label: Person combined first and last name column.
@@ -63,17 +64,10 @@ class BasicSynthesizer(Synthesizer):
         """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
-        self.exclude_encoding_loss = False
-
-        self.network_type = network
-        self.encoding_type = encoding
         self.capacity = capacity
-        self.depth = depth
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
         self.batch_size = batch_size
 
-        # person
+        # Person
         self.person_value = None
         self.title_label = title_label
         self.gender_label = gender_label
@@ -81,48 +75,41 @@ class BasicSynthesizer(Synthesizer):
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
-        # address
+        # Address
         self.address_value = None
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
-        # identifier
+        # Identifier
         self.identifier_value = None
         self.identifier_label = identifier_label
-        # date
+        # Date
         self.date_value = None
 
-        # history
-        self.loss_history = list()
-        self.ks_distance_history = list()
-
+        # Values
         self.values = list()
-        self.value_output_sizes = list()
-        input_size = 0
-        output_size = 0
-
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = identify_value(module=self, name=name, dtype=dtype, data=data)
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
-                if name != self.identifier_label:
-                    self.value_output_sizes.append(value.output_size())
-                    input_size += value.input_size()
-                    output_size += value.output_size()
-                    if value.input_size() > 0:
-                        vae_values.append(value)
+                if name != self.identifier_label and value.input_size() > 0:
+                    vae_values.append(value)
 
-        self.vae = self.add_module(module='vae', name='vae', values=vae_values)
+        # VAE
+        self.vae = self.add_module(
+            module='vae', name='vae', values=vae_values, distribution=distribution,
+            latent_size=latent_size, network=network, capacity=capacity, depth=depth, beta=beta,
+            weight_decay=weight_decay, learning_rate=learning_rate
+        )
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            network=self.network_type, encoding=self.encoding_type, capacity=self.capacity,
-            depth=self.depth, learning_rate=self.learning_rate, weight_decay=self.weight_decay,
+            values=[value.specification() for value in self.values], vae=self.vae.specification(),
             batch_size=self.batch_size
         )
         return spec
@@ -146,8 +133,8 @@ class BasicSynthesizer(Synthesizer):
         self.synthesized = self.vae.synthesize(n=num_synthesize)
 
     def learn(
-        self, num_iterations: int, data: pd.DataFrame, callback: Callable[[int, dict], None] = None,
-        callback_freq: int = 100, **kwargs
+        self, num_iterations: int, data: pd.DataFrame,
+        callback: Callable[[int, dict], None] = Synthesizer.logging, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -175,7 +162,7 @@ class BasicSynthesizer(Synthesizer):
         for iteration in range(num_iterations):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-            if callback is not None and (
+            if callback is not None and callback_freq > 0 and (
                 iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)

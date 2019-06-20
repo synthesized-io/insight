@@ -12,15 +12,10 @@ from ..values import Value
 class VAE(Generative):
 
     def __init__(
-        self, name : str, values : List[Value], network : str = 'mlp',
-        distribution : str = 'normal', capacity : int = 128, depth : int = 2,
-        latent_size : int = None, beta : float = 0.001, weight_decay : float = 1e-5,
-        learning_rate : float = 3e-4
+        self, name: str, values: List[Value], distribution: str, latent_size : int, network: str,
+        capacity: int, depth: int, beta: float, weight_decay: float, learning_rate: float
     ):
         super().__init__(name=name, values=values)
-
-        if latent_size is None:
-            latent_size = capacity
 
         self.latent_size = latent_size
         self.beta = beta
@@ -60,8 +55,7 @@ class VAE(Generative):
         spec = super().specification()
         spec.update(
             beta=self.beta, encoder=self.encoder.specification(),
-            decoder=self.decoder.specification(), output=self.output.specification(),
-            optimizer=self.optimizer.specification()
+            decoder=self.decoder.specification(), optimizer=self.optimizer.specification()
         )
         return spec
 

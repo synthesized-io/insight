@@ -140,8 +140,8 @@ class ScenarioSynthesizer(Synthesizer):
             )
 
     def learn(
-        self, num_iterations: int, num_samples=1024, callback: Callable[[int, dict], None] = None,
-        callback_freq: int = 100
+        self, num_iterations: int, num_samples=1024,
+        callback: Callable[[int, dict], None] = Synthesizer.logging, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -160,7 +160,7 @@ class ScenarioSynthesizer(Synthesizer):
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(num_iterations):
-            if callback is not None and (
+            if callback is not None and callback_freq > 0 and (
                 iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
@@ -179,8 +179,6 @@ class ScenarioSynthesizer(Synthesizer):
     #     ))
     #     self.loss_history.append({name: fetched[name] for name in self.losses})
     #
-    # def get_loss_history(self):
-    #     return pd.DataFrame.from_records(self.loss_history)
 
     def synthesize(self, num_rows: int) -> pd.DataFrame:
         """Generate the given number of new data rows.

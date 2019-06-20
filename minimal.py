@@ -70,7 +70,7 @@ print()
 print(datetime.now().strftime('%H:%M:%S'), 'Synthesis...', flush=True)
 with synthesizer:
     print(datetime.now().strftime('%H:%M:%S'), 'Start learning...', flush=True)
-    synthesizer.learn(num_iterations=args.num_iterations, data=data)
+    synthesizer.learn(num_iterations=args.num_iterations, data=data, callback_freq=20)
     print(datetime.now().strftime('%H:%M:%S'), 'Finished learning...', flush=True)
     synthesized = synthesizer.synthesize(num_rows=10000)
     assert len(synthesized) == 10000

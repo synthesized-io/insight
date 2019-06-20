@@ -49,9 +49,14 @@ if not _check_license():
 
 class Synthesizer(Module):
 
+    @staticmethod
+    def logging(iteration, fetched):
+        print('\niteration: {}'.format(iteration + 1))
+        print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
+
     def learn(
-        self, num_iterations: int, callback: Callable[[int, dict], None] = None,
-        callback_freq: int = 100, **kwargs
+        self, num_iterations: int, callback: Callable[[int, dict], None] = logging,
+        callback_freq: int = 0, **kwargs
     ) -> None:
         """Train the generative model for the given iterations.
 
