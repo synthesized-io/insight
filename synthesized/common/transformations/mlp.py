@@ -1,4 +1,3 @@
-from .dense import DenseTransformation
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
 
@@ -15,7 +14,7 @@ class MlpTransformation(Transformation):
         previous_size = self.input_size
         for n, layer_size in enumerate(self.layer_sizes):
             layer = self.add_module(
-                module=DenseTransformation, name=('layer' + str(n)), input_size=previous_size,
+                module='dense', name=('layer' + str(n)), input_size=previous_size,
                 output_size=layer_size, weight_decay=weight_decay
             )
             self.layers.append(layer)

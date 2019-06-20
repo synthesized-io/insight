@@ -8,44 +8,40 @@ from .. import util
 class ResidualTransformation(Transformation):
 
     def __init__(
-            self, name, input_size, output_size, depth=2, layer_type='dense', batchnorm=True,
-            activation='relu', weight_decay=0.0, **kwargs
+        self, name, input_size, output_size, depth=1, batchnorm=True, activation='relu',
+        weight_decay=0.0, **kwargs
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
-        self.layer_type = layer_type
         self.depth = depth
         self.batchnorm = batchnorm
         self.activation = activation
         self.weight_decay = weight_decay
         self.kwargs = kwargs
 
-        from . import transformation_modules
         self.layers = list()
         if input_size != output_size:
             self.identity_transformation = self.add_module(
-                module=self.layer_type, modules=transformation_modules, name='idtransform',
-                input_size=input_size, output_size=output_size, batchnorm=False, activation='none',
+                module='linear', name='idtransform', input_size=input_size, output_size=output_size,
                 weight_decay=self.weight_decay, **self.kwargs
             )
         else:
             self.identity_transformation = None
         for n in range(self.depth - 1):
             self.layers.append(self.add_module(
-                module=self.layer_type, modules=transformation_modules, name=('layer' + str(n)),
-                input_size=input_size, output_size=input_size, batchnorm=self.batchnorm,
-                activation=self.activation, weight_decay=self.weight_decay, **self.kwargs
+                module='dense', name=('layer' + str(n)), input_size=input_size,
+                output_size=input_size, batchnorm=self.batchnorm, activation=self.activation,
+                weight_decay=self.weight_decay, **self.kwargs
             ))
         self.layers.append(self.add_module(
-            module=self.layer_type, modules=transformation_modules,
-            name=('layer' + str(self.depth - 1)), input_size=input_size, output_size=output_size,
-            batchnorm=False, activation='none', weight_decay=self.weight_decay, **self.kwargs
+            module='linear', name=('layer' + str(self.depth - 1)), input_size=input_size,
+            output_size=output_size, weight_decay=self.weight_decay, **self.kwargs
         ))
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            layer_type=self.layer_type, num_layers=self.layers, batchnorm=self.batchnorm,
+            num_layers=self.layers, batchnorm=self.batchnorm,
             activation=self.activation, weight_decay=self.weight_decay, kwargs=self.kwargs
         )
         return spec

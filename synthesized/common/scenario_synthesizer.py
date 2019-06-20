@@ -7,8 +7,6 @@ from .functionals import functional_modules
 from .module import Module
 from .optimizers import Optimizer
 from synthesized.common.synthesizer import Synthesizer
-from .transformations import transformation_modules
-from .values import value_modules
 
 
 class ScenarioSynthesizer(Synthesizer):
@@ -41,13 +39,13 @@ class ScenarioSynthesizer(Synthesizer):
             output_size += value.output_size()
 
         self.decoder = self.add_module(
-            module=self.network_type, modules=transformation_modules, name='decoder',
+            module=self.network_type, name='decoder',
             input_size=self.capacity, layer_sizes=[self.capacity for _ in range(self.depth)],
             weight_decay=self.weight_decay
         )
 
         self.output = self.add_module(
-            module='dense', modules=transformation_modules, name='output',
+            module='dense', name='output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
             activation='none'
         )

@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
 from ..module import tensorflow_name_scoped
-from ..transformations import Transformation, transformation_modules
+from ..transformations import Transformation
 
 
 tf_distributions = dict(
@@ -26,25 +26,22 @@ class Distribution(Transformation):
         if parametrization is None:
             self.parametrization = None
         else:
+            print(parametrization)
             self.parametrization = self.add_module(
-                modules=transformation_modules, name='parametrization', input_size=input_size,
-                **parametrization
+                name='parametrization', input_size=input_size, **parametrization
             )
             input_size = self.parametrization.size()
 
         if self.distribution == 'deterministic':
             self.loc = self.add_module(
-                module='linear', modules=transformation_modules, name='loc', input_size=input_size,
-                output_size=output_size
+                module='linear', name='loc', input_size=input_size, output_size=output_size
             )
         elif self.distribution == 'normal':
             self.loc = self.add_module(
-                module='linear', modules=transformation_modules, name='loc', input_size=input_size,
-                output_size=output_size
+                module='linear', name='loc', input_size=input_size, output_size=output_size
             )
             self.scale = self.add_module(
-                module='linear', modules=transformation_modules, name='scale', input_size=input_size,
-                output_size=output_size
+                module='linear', name='scale', input_size=input_size, output_size=output_size
             )
         else:
             assert False

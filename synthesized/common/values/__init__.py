@@ -11,19 +11,20 @@ from .person import PersonValue
 from .probability import ProbabilityValue
 from .sampling import SamplingValue
 from .value import Value
+from ..module import register
 
-value_modules = dict(
-    address=AddressValue,
-    categorical=CategoricalValue,
-    continuous=ContinuousValue,
-    date=DateValue,
-    enumeration=EnumerationValue,
-    identifier=IdentifierValue,
-    person=PersonValue,
-    probability=ProbabilityValue,
-    sampling=SamplingValue
-)
 
-__all__ = ['Value', 'value_modules', 'identify_value', 'AddressValue', 'CategoricalValue', 'CompoundAddressValue',
-           'ContinuousValue', 'DateValue', 'EnumerationValue', 'IdentifierValue', 'NanValue', 'PersonValue',
-           'ProbabilityValue', 'SamplingValue']
+register(name='address', module=AddressValue)
+register(name='categorical', module=CategoricalValue)
+register(name='compound_address', module=CompoundAddressValue)
+register(name='continuous', module=ContinuousValue)
+register(name='date', module=DateValue)
+register(name='enumeration', module=EnumerationValue)
+register(name='identifier', module=IdentifierValue)
+register(name='nan', module=NanValue)
+register(name='person', module=PersonValue)
+register(name='probability', module=ProbabilityValue)
+register(name='sampling', module=SamplingValue)
+
+
+__all__ = ['Value', 'identify_value']

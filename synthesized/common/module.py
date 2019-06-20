@@ -61,20 +61,18 @@ class Module(object):
                 submodule.initialize()
             self.module_initialize()
 
-    def add_module(self, module, modules=None, **kwargs):
-        if modules is None:
-            modules = module_registry
+    def add_module(self, module, **kwargs):
         if isinstance(module, dict):
             for key, value in module.items():
                 if kwargs.get(key, value) != value:
                     raise ValueError
                 kwargs[key] = value
             module = kwargs.pop('module')
-            return self.add_module(module=module, modules=modules, **kwargs)
+            return self.add_module(module=module, **kwargs)
         elif isinstance(module, str):
-            assert modules is not None and module in modules, module
-            module = modules[module]
-            return self.add_module(module=module, modules=None, **kwargs)
+            assert module in module_registry, module
+            module = module_registry[module]
+            return self.add_module(module=module, **kwargs)
         elif issubclass(module, Module):
             module = module(**kwargs)
             self.submodules.append(module)

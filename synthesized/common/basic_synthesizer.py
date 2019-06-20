@@ -7,11 +7,8 @@ import pandas as pd
 import tensorflow as tf
 from scipy.stats import ks_2samp
 
-from .encodings import encoding_modules
 from .module import Module, tensorflow_name_scoped
-from .optimizers import Optimizer
 from synthesized.common.synthesizer import Synthesizer
-from .transformations import transformation_modules
 from .values import identify_value
 
 
@@ -109,6 +106,7 @@ class BasicSynthesizer(Synthesizer):
         input_size = 0
         output_size = 0
 
+        vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
             if value is not None:
@@ -118,11 +116,10 @@ class BasicSynthesizer(Synthesizer):
                     self.value_output_sizes.append(value.output_size())
                     input_size += value.input_size()
                     output_size += value.output_size()
+                    if value.input_size() > 0:
+                        vae_values.append(value)
 
-        self.vae = self.add_module(module='vae', name='vae', values=[
-            value for value in self.values
-            if value.name != self.identifier_label and value.input_size() > 0
-])
+        self.vae = self.add_module(module='vae', name='vae', values=vae_values)
 
     def specification(self):
         spec = super().specification()

@@ -6,7 +6,6 @@ from tensorflow_probability import distributions as tfd
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
-from ..transformations import transformation_modules
 from ..values import Value
 
 
