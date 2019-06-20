@@ -1,12 +1,12 @@
-from .basic_synthesizer import BasicSynthesizer
-from .module import Module
-from .scenario_synthesizer import ScenarioSynthesizer
-from synthesized.common.synthesizer import Synthesizer
-import synthesized.common.distributions
-import synthesized.common.generative
-import synthesized.common.optimizers
-import synthesized.common.transformations
-import synthesized.common.values
+from .module import Module, tensorflow_name_scoped
+from .distributions import Distribution
+from .generative import Generative
+from .optimizers import Optimizer
+from .transformations import Transformation
+from .values import identify_value, Value
 
 
-__all__ = ['BasicSynthesizer', 'Module', 'ScenarioSynthesizer', 'Synthesizer']
+__all__ = [
+    'Distribution', 'Generative', 'identify_value', 'Module', 'Optimizer', 'Transformation',
+    'tensorflow_name_scoped', 'Value'
+]

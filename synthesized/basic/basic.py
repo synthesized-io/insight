@@ -1,15 +1,12 @@
 """This module implements BasicSynthesizer."""
-
-from collections import OrderedDict
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from scipy.stats import ks_2samp
 
-from .module import Module, tensorflow_name_scoped
-from synthesized.common.synthesizer import Synthesizer
-from .values import identify_value
+from ..common import identify_value, Module, tensorflow_name_scoped
+from ..synthesizer import Synthesizer
 
 
 class BasicSynthesizer(Synthesizer):
@@ -108,7 +105,7 @@ class BasicSynthesizer(Synthesizer):
 
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = self.get_value(name=name, dtype=dtype, data=data)
+            value = identify_value(module=self, name=name, dtype=dtype, data=data)
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
@@ -130,32 +127,17 @@ class BasicSynthesizer(Synthesizer):
         )
         return spec
 
-    def get_value(self, name, dtype, data):
-        return identify_value(module=self, name=name, dtype=dtype, data=data)
-
-    def preprocess(self, data):
-        for value in self.values:
-            data = value.preprocess(data=data)
-        return data
-
-    @tensorflow_name_scoped
-    def train_iteration(self, feed=None):
-        xs = dict()
-        for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
-                x = value.input_tensor(feed=feed)
-                xs[value.name] = x
-
-        loss, optimized = self.vae.learn(xs=xs)
-        with tf.control_dependencies(control_inputs=[optimized]):
-            optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
-        return loss, optimized
-
     def module_initialize(self):
         super().module_initialize()
 
         # learn
-        self.loss, self.optimized = self.train_iteration()
+        xs = dict()
+        for value in self.values:
+            if value.name != self.identifier_label and value.input_size() > 0:
+                xs[value.name] = value.input_tensor()
+        self.losses, optimized = self.vae.learn(xs=xs)
+        with tf.control_dependencies(control_inputs=[optimized]):
+            self.optimized = Module.global_step.assign_add(delta=1)
 
         # synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
@@ -164,67 +146,64 @@ class BasicSynthesizer(Synthesizer):
         self.synthesized = self.vae.synthesize(n=num_synthesize)
 
     def learn(
-            self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0
+        self, num_iterations: int, data: pd.DataFrame, callback: Callable[[int, dict], None] = None,
+        callback_freq: int = 100, **kwargs
     ) -> None:
-        """Train the generative model on the given data.
+        """Train the generative model for the given iterations.
 
         Repeated calls continue training the model, possibly on different data.
 
         Args:
-            num_iterations: The number of training steps (not epochs).
+            num_iterations: The number of training iterations (not epochs).
             data: The training data.
-            verbose: The frequency, i.e. number of steps, of logging additional information.
+            callback: A callback function, e.g. for logging purposes. Aborts training if the return
+                value is True.
+            callback_freq: Callback frequency.
+
         """
-        try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, verbose=verbose,
-                                  yield_every=0))
-        except StopIteration:  # since yield_every is 0 we expect an empty generator
-            pass
-
-    def learn_async(self, num_iterations=2500, data=None, verbose=0, yield_every=0):
-        assert data is not None
-
-        data = self.preprocess(data=data.copy())
+        data = data.copy()
+        for value in self.values:
+            data = value.preprocess(data=data)
         num_data = len(data)
         data = {
             label: data[label].get_values() for value in self.values
             for label in value.input_labels()
         }
-        fetches = (self.optimized, self.loss)
-        if verbose > 0:
-            verbose_fetches = self.losses
+        fetches = self.optimized
+        callback_fetches = (self.optimized, self.losses)
+
         for iteration in range(num_iterations):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-            self.run(fetches=fetches, feed_dict=feed_dict)
-            if verbose > 0 and (iteration == 0 or iteration % verbose + 1 == verbose):
-                batch = np.random.randint(num_data, size=1024)
-                feed_dict = {label: value_data[batch] for label, value_data in data.items()}
-                fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                self.log_metrics(data, fetched, iteration)
-            if yield_every > 0 and iteration % yield_every + 1 == yield_every:
-                yield iteration
+            if callback is not None and (
+                iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
+            ):
+                _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
+                if callback(iteration, fetched) is True:
+                    return
+            else:
+                self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, n: int) -> pd.DataFrame:
+    def synthesize(self, num_rows: int) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
-            n: The number of rows to generate.
+            num_rows: The number of rows to generate.
 
         Returns:
             The generated data.
 
         """
         fetches = self.synthesized
-        feed_dict = {'num_synthesize': n % 1024}
-        synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
+        feed_dict = {'num_synthesize': num_rows % 1024}
         columns = [label for value in self.values for label in value.output_labels()]
         if len(columns) == 0:
-            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((n,))))
+            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
         else:
+            synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             feed_dict = {'num_synthesize': 1024}
-            for k in range(n // 1024):
+            for k in range(num_rows // 1024):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 other = pd.DataFrame.from_dict(other)[columns]
                 synthesized = synthesized.append(other, ignore_index=True)

@@ -1,12 +1,13 @@
 from collections import OrderedDict
+from typing import Callable
 
 import pandas as pd
 import tensorflow as tf
 
 from .functionals import functional_modules
-from .module import Module
 from .optimizers import Optimizer
-from synthesized.common.synthesizer import Synthesizer
+from ..common import identify_value, Module, tensorflow_name_scoped
+from ..synthesizer import Synthesizer
 
 
 class ScenarioSynthesizer(Synthesizer):
@@ -138,42 +139,68 @@ class ScenarioSynthesizer(Synthesizer):
                 delta=1, use_locking=False, read_value=True
             )
 
-    def learn(self, iterations: int, data: pd.DataFrame = None, verbose=0, num_samples=1024) -> None:
-        fetches = (self.optimized, self.loss)
-        if verbose > 0:
-            verbose_fetches = (self.optimized, dict(self.losses))
-        for iteration in range(iterations):
-            feed_dict = {'num_synthesize': num_samples}
-            if verbose > 0 and (iteration == 0 or iteration + 1 == verbose // 2 or
-                                iteration % verbose + 1 == verbose):
-                _, fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
-                self.log_metrics(fetched, iteration)
+    def learn(
+        self, num_iterations: int, num_samples=1024, callback: Callable[[int, dict], None] = None,
+        callback_freq: int = 100
+    ) -> None:
+        """Train the generative model for the given iterations.
+
+        Repeated calls continue training the model, possibly on different data.
+
+        Args:
+            num_iterations: The number of training iterations (not epochs).
+            num_samples: The number of samples for which the loss is computed.
+            callback: A callback function, e.g. for logging purposes. Aborts training if the return
+                value is True.
+            callback_freq: Callback frequency.
+
+        """
+        feed_dict = {'num_synthesize': num_samples}
+        fetches = self.optimized
+        callback_fetches = (self.optimized, self.losses)
+
+        for iteration in range(num_iterations):
+            if callback is not None and (
+                iteration == 0 or iteration == num_iterations - 1 or iteration % callback_freq == 0
+            ):
+                _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
+                if callback(iteration, fetched) is True:
+                    return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def log_metrics(self, fetched, iteration):
-        print('\niteration: {}'.format(iteration + 1))
-        print('loss: total={loss:1.2e} ({losses})'.format(
-            iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-                '{name}={loss}'.format(name=name, loss=fetched[name])
-                for name in self.losses
-            )
-        ))
-        self.loss_history.append({name: fetched[name] for name in self.losses})
+    # def log_metrics(self, fetched, iteration):
+    #     print('\niteration: {}'.format(iteration + 1))
+    #     print('loss: total={loss:1.2e} ({losses})'.format(
+    #         iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
+    #             '{name}={loss}'.format(name=name, loss=fetched[name])
+    #             for name in self.losses
+    #         )
+    #     ))
+    #     self.loss_history.append({name: fetched[name] for name in self.losses})
+    #
+    # def get_loss_history(self):
+    #     return pd.DataFrame.from_records(self.loss_history)
 
-    def get_loss_history(self):
-        return pd.DataFrame.from_records(self.loss_history)
+    def synthesize(self, num_rows: int) -> pd.DataFrame:
+        """Generate the given number of new data rows.
 
-    def synthesize(self, n: int) -> pd.DataFrame:
+        Args:
+            num_rows: The number of rows to generate.
+
+        Returns:
+            The generated data.
+
+        """
         fetches = self.synthesized
-        feed_dict = {'num_synthesize': n % 1024}
+        feed_dict = {'num_synthesize': num_rows % 1024}
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
         synthesized = pd.DataFrame.from_dict(synthesized)
         feed_dict = {'num_synthesize': 1024}
-        for k in range(n // 1024):
+        for k in range(num_rows // 1024):
             other = self.run(fetches=fetches, feed_dict=feed_dict)
             other = pd.DataFrame.from_dict(other)
             synthesized = synthesized.append(other, ignore_index=True)
-        # for value in self.values:
-        #      synthesized = value.postprocess(data=synthesized)
+        for value in self.values:
+             synthesized = value.postprocess(data=synthesized)
         return synthesized

@@ -118,7 +118,7 @@ class VAE(Generative):
         with tf.control_dependencies(control_inputs=summaries):
             optimized, gradient_norms = self.optimizer.optimize(loss=loss, gradient_norms=True)
 
-        return total_loss, optimized
+        return losses, optimized
 
     @tensorflow_name_scoped
     def synthesize(self, n : tf.Tensor) -> Dict[str, tf.Tensor]:

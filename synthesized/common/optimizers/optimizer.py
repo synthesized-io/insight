@@ -43,10 +43,8 @@ class Optimizer(Module):
 
     @tensorflow_name_scoped
     def optimize(self, loss, gradient_norms=False):
-        grads_and_vars = self.optimizer.compute_gradients(
-            loss=loss, var_list=None, aggregation_method=None, colocate_gradients_with_ops=False,
-            grad_loss=None  # gate_gradients=GATE_OP
-        )
+        with tf.control_dependencies(control_inputs=(loss,)):
+            grads_and_vars = self.optimizer.compute_gradients(loss=loss)
         grads_and_vars = [
             (tf.where(condition=tf.math.is_nan(x=grad), x=tf.zeros_like(tensor=grad), y=grad), var)
             for grad, var in grads_and_vars if grad is not None

@@ -10,7 +10,7 @@ from scipy.stats import ks_2samp
 from .encodings import encoding_modules
 from .module import Module, tensorflow_name_scoped
 from .optimizers import Optimizer
-from synthesized.common.synthesizer import Synthesizer
+from synthesized.synthesizer import Synthesizer
 # from .transformations import transformation_modules
 from .values import identify_value
 

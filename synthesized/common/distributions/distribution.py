@@ -26,7 +26,6 @@ class Distribution(Transformation):
         if parametrization is None:
             self.parametrization = None
         else:
-            print(parametrization)
             self.parametrization = self.add_module(
                 name='parametrization', input_size=input_size, **parametrization
             )

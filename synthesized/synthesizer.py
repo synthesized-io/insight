@@ -1,6 +1,7 @@
 import base64
-import os
 from datetime import datetime
+import os
+from typing import Callable
 
 import pandas as pd
 
@@ -48,14 +49,31 @@ if not _check_license():
 
 class Synthesizer(Module):
 
-    def __init__(self, name, summarizer=False):
-        super().__init__(name=name, summarizer=summarizer)
+    def learn(
+        self, num_iterations: int, callback: Callable[[int, dict], None] = None,
+        callback_freq: int = 100, **kwargs
+    ) -> None:
+        """Train the generative model for the given iterations.
 
-    def get_values(self):
+        Repeated calls continue training the model, possibly on different data.
+
+        Args:
+            num_iterations: The number of training iterations (not epochs).
+            callback: A callback function, e.g. for logging purposes. Aborts training if the return
+                value is True.
+            callback_freq: Callback frequency.
+
+        """
         raise NotImplementedError
 
-    def learn(self, iterations: int, data: pd.DataFrame = None, verbose: int = 0) -> None:
-        raise NotImplementedError
+    def synthesize(self, num_rows: int, **kwargs) -> pd.DataFrame:
+        """Generate the given number of new data rows.
 
-    def synthesize(self, n: int) -> pd.DataFrame:
+        Args:
+            num_rows: The number of rows to generate.
+
+        Returns:
+            The generated data.
+
+        """
         raise NotImplementedError
