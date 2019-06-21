@@ -131,6 +131,9 @@ class CategoricalValue(Value):
         self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
         assert self.name not in Module.placeholders
         Module.placeholders[self.name] = self.placeholder
+        if self.probabilities is not None and not self.similarity_based:
+            # "hack": scenario synthesizer, embeddings not used
+            return
         shape = (self.num_categories, self.embedding_size)
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)

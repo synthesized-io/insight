@@ -3,7 +3,7 @@ from math import log
 import pandas as pd
 from scipy.stats import gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
 import tensorflow as tf
-import tensorflow_probability as tfp
+from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import Module, tensorflow_name_scoped
@@ -14,12 +14,12 @@ FITTING_SUBSAMPLE = 10000
 FITTING_INF_TOLERANCE = 0.01
 FITTING_THRESHOLD = 0.1
 DISTRIBUTIONS = dict(
-    # beta=(beta, tfp.distributions.Beta),
-    gamma=(gamma, tfp.distributions.Gamma),
+    # beta=(beta, tfd.Beta),
+    gamma=(gamma, tfd.Gamma),
     gilbrat=(gilbrat, None),
-    gumbel=(gumbel_r, tfp.distributions.Gumbel),
-    log_normal=(lognorm, tfp.distributions.LogNormal),
-    uniform=(uniform, tfp.distributions.Uniform),
+    gumbel=(gumbel_r, tfd.Gumbel),
+    log_normal=(lognorm, tfd.LogNormal),
+    uniform=(uniform, tfd.Uniform),
     weibull=(weibull_min, None)
 )
 
@@ -274,7 +274,17 @@ class ContinuousValue(Value):
     def distribution_loss(self, samples):
         samples = tf.squeeze(input=samples, axis=1)
 
-        if self.distribution == 'gamma':
+        if self.distribution is None:
+            return tf.constant(value=0.0, dtype=tf.float32)
+        elif self.distribution == 'normal':
+            location, scale = self.distribution_params
+            distribution = tfd.Normal(loc=location, scale=scale)
+            samples = tf.where(
+                condition=(samples < location), x=(samples + 2 * location), y=samples
+            )
+            samples = (samples - location) / scale
+            samples = distribution.cdf(value=samples) / scale
+        elif self.distribution == 'gamma':
             shape, location, scale = self.distribution_params
             distribution = DISTRIBUTIONS[self.distribution][1](concentration=shape, rate=1.0)
             samples = tf.where(
@@ -309,7 +319,7 @@ class ContinuousValue(Value):
             assert False
 
         samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
-        normal_distribution = tfp.distributions.Normal(loc=0.0, scale=1.0)
+        normal_distribution = tfd.Normal(loc=0.0, scale=1.0)
         samples = normal_distribution.quantile(value=samples)
         samples = tf.boolean_mask(tensor=samples, mask=tf.is_finite(x=samples))
         samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))

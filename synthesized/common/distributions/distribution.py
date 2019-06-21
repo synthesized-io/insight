@@ -99,3 +99,29 @@ class Distribution(Module):
         p = tf_distributions[self.distribution](validate_args=True, allow_nan_stats=False, **kwargs)
 
         return p
+
+    def prior(self) -> tfd.Distribution:
+        return Distribution.get_prior(distribution=self.distribution, size=self.output_size)
+
+    @staticmethod
+    def get_prior(distribution, size) -> tfd.Distribution:
+        if distribution not in tf_distributions:
+            raise NotImplementedError
+
+        # Distribution arguments
+        if distribution == 'deterministic':
+            # Deterministic distribution
+            loc = tf.zeros(shape=(size,))
+            kwargs = dict(loc=loc)
+        elif distribution == 'normal':
+            # Normal distribution
+            loc = tf.zeros(shape=(size,))
+            scale = tf.ones(shape=(size,))
+            kwargs = dict(loc=loc, scale=scale)
+        else:
+            raise NotImplementedError
+
+        # TensorFlow distribution
+        p = tf_distributions[distribution](**kwargs)
+
+        return p

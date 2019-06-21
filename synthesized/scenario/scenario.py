@@ -1,145 +1,153 @@
 from collections import OrderedDict
-from typing import Callable
+from typing import Callable, List
 
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Module
+from ..common import Distribution, Functional, Module, Value
 from ..synthesizer import Synthesizer
 
 
 class ScenarioSynthesizer(Synthesizer):
 
     def __init__(
-        self, values, functionals, summarizer=None,
-        # architecture
-        network='resnet',
-        # hyperparameters
-        capacity=64, depth=4, learning_rate=3e-4, weight_decay=1e-5
+        self, values: List[Value], functionals: List[Functional], summarizer: bool = None,
+        # Prior distribution
+        distribution: str = 'normal', latent_size: int = 512,
+        # Network
+        network: str = 'mlp', capacity: int = 512, depth: int = 2, batchnorm: bool = True,
+        activation: str = 'relu',
+        # Optimizer
+        optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
+        decay_rate: float = 0.5, clip_gradients: float = 1.0,
+        # Losses
+        weight_decay: float = 0.0
     ):
         super().__init__(name='scenario-synthesizer', summarizer=summarizer)
 
-        self.network_type = network
-        self.capacity = capacity
-        self.depth = depth
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
-
-        # history
-        self.loss_history = list()
-
+        # Values
         self.values = list()
-        self.value_output_sizes = list()
         output_size = 0
         for name, value in values.items():
             value = self.add_module(module=value, name=name)
             self.values.append(value)
-            self.value_output_sizes.append(value.output_size())
             output_size += value.output_size()
 
+        # Prior distribution p'(z)
+        self.distribution = distribution
+        self.latent_size = latent_size
+
+        # Decoder: parametrized distribution p(y|z)
+        parametrization = dict(
+            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
+            activation=activation, weight_decay=weight_decay
+        )
         self.decoder = self.add_module(
-            module=self.network_type, name='decoder',
-            input_size=self.capacity, layer_sizes=[self.capacity for _ in range(self.depth)],
-            weight_decay=self.weight_decay
+            module='distribution', name='decoder', input_size=latent_size,
+            output_size=output_size, distribution='deterministic', parametrization=parametrization
         )
 
-        self.output = self.add_module(
-            module='dense', name='output',
-            input_size=self.decoder.size(), output_size=output_size, batchnorm=False,
-            activation='none'
-        )
-
+        # Functionals
         self.functionals = list()
         for functional in functionals:
-            functional = self.add_module(module=functional, modules=functional_modules)
+            functional = self.add_module(module=functional)
             self.functionals.append(functional)
 
+        # Optimizer
         self.optimizer = self.add_module(
-            module=Optimizer, name='optimizer', algorithm='adam', learning_rate=self.learning_rate,
-            clip_gradients=1.0
+            module='optimizer', name='optimizer', optimizer=optimizer, learning_rate=learning_rate,
+            decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
         )
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            network=self.network_type, capacity=self.capacity, depth=self.depth,
-            learning_rate=self.learning_rate, weight_decay=self.weight_decay
+            values=[value.specification() for value in self.values],
+            decoder=self.decoder.specification(),
+            functionals=[functional.specification() for functional in self.functionals]
         )
         return spec
-
-    def customized_transform(self, x):
-        return x
 
     def module_initialize(self):
         super().module_initialize()
 
-        # number of rows to synthesize
+        self.losses = OrderedDict()
+        self.synthesized = OrderedDict()
+        summaries = list()
+
+        # Number of rows to synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
 
-        # learn
-        summaries = list()
-        x = tf.random_normal(
-            shape=(num_synthesize, self.capacity), mean=0.0, stddev=1.0, dtype=tf.float32,
-            seed=None
+        # Prior p'(z)
+        prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
+
+        # Sample z ~ q(z|x)
+        z = prior.sample(sample_shape=(num_synthesize,))
+
+        # Decoder p(y|z)
+        p = self.decoder.parametrize(x=z)
+
+        # Sample y ~ p(y|z)
+        y = p.sample()
+
+        # Split output tensors per value
+        ys = tf.split(
+            value=y, num_or_size_splits=[value.output_size() for value in self.values], axis=1
         )
-        x = self.customized_transform(x=x)
-        x = self.decoder.transform(x=x)
-        x = self.output.transform(x=x)
-        xs = tf.split(
-            value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
-        )
-        self.synthesized = OrderedDict()
-        self.losses = OrderedDict()
-        for value, x in zip(self.values, xs):
-            loss = value.distribution_loss(samples=x)
-            assert value.name not in self.losses
+
+        # Outputs per value
+        for value, y in zip(self.values, ys):
+
+            # Distribution loss
+            loss = value.distribution_loss(samples=y)
             if loss is not None:
-                self.losses[value.name] = loss
-                summaries.append(tf.contrib.summary.scalar(
-                    name=(value.name + '-loss'), tensor=loss, family=None, step=None
-                ))
-            xs = value.output_tensors(x=x)
-            for label, x in xs.items():
-                self.synthesized[label] = x
+                self.losses[value.name + '-loss'] = loss
+
+            # Output tensor
+            for label, y in value.output_tensors(x=y).items():
+                self.synthesized[label] = y
+
+        # Functionals
         for functional in self.functionals:
+
+            # Outputs required for functional
             if functional.required_outputs() == '*':
                 samples_args = list(self.synthesized.values())
             else:
                 samples_args = [self.synthesized[label] for label in functional.required_outputs()]
-            loss = functional.loss(*samples_args)
-            assert functional.name not in self.losses
-            self.losses[functional.name] = loss
-            summaries.append(tf.contrib.summary.scalar(
-                name=(functional.name + '-loss'), tensor=loss, family=None, step=None
-            ))
-        reg_losses = tf.losses.get_regularization_losses(scope=None)
+
+            # Functional loss
+            self.losses[functional.name + '-loss'] = functional.loss(*samples_args)
+
+        # Regularization loss
+        reg_losses = tf.losses.get_regularization_losses()
         if len(reg_losses) > 0:
-            regularization_loss = tf.add_n(inputs=reg_losses)
-            summaries.append(tf.contrib.summary.scalar(
-                name='regularization-loss', tensor=regularization_loss, family=None, step=None
-            ))
-            self.losses['regularization'] = regularization_loss
-        self.loss = tf.add_n(inputs=list(self.losses.values()))
-        assert 'loss' not in self.losses
-        self.losses['loss'] = self.loss
-        summaries.append(tf.contrib.summary.scalar(
-            name='loss', tensor=loss, family=None, step=None
-        ))
-        optimized, gradient_norms = self.optimizer.optimize(loss=self.loss, gradient_norms=True)
-        for name, gradient_norm in gradient_norms.items():
-            summaries.append(tf.contrib.summary.scalar(
-                name=(name + '-gradient-norm'), tensor=gradient_norm, family=None, step=None
-            ))
-        with tf.control_dependencies(control_inputs=([optimized] + summaries)):
-            self.optimized = Module.global_step.assign_add(
-                delta=1, use_locking=False, read_value=True
+            self.losses['regularization-loss'] = tf.add_n(inputs=reg_losses)
+
+        # Total loss
+        total_loss = tf.add_n(inputs=list(self.losses.values()))
+        self.losses['total-loss'] = total_loss
+
+        # Loss summaries
+        for name, loss in self.losses.items():
+            summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
+
+        # Make sure summary operations are executed
+        with tf.control_dependencies(control_inputs=summaries):
+
+            # Optimization step
+            optimized = self.optimizer.optimize(
+                loss=loss, summarize_gradient_norms=(self.summarizer is not None)
             )
+
+        with tf.control_dependencies(control_inputs=[optimized]):
+            self.optimized = Module.global_step.assign_add(delta=1)
 
     def learn(
         self, num_iterations: int, num_samples=1024,
-        callback: Callable[[Synthesizer, int, dict], None] = Synthesizer.logging,
+        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
@@ -155,9 +163,9 @@ class ScenarioSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
-        feed_dict = {'num_synthesize': num_samples}
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
+        feed_dict = {'num_synthesize': num_samples}
 
         for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (
@@ -168,17 +176,6 @@ class ScenarioSynthesizer(Synthesizer):
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
-
-    # def log_metrics(self, fetched, iteration):
-    #     print('\niteration: {}'.format(iteration + 1))
-    #     print('loss: total={loss:1.2e} ({losses})'.format(
-    #         iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-    #             '{name}={loss}'.format(name=name, loss=fetched[name])
-    #             for name in self.losses
-    #         )
-    #     ))
-    #     self.loss_history.append({name: fetched[name] for name in self.losses})
-    #
 
     def synthesize(self, num_rows: int) -> pd.DataFrame:
         """Generate the given number of new data rows.
@@ -192,13 +189,19 @@ class ScenarioSynthesizer(Synthesizer):
         """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': num_rows % 1024}
-        synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-        synthesized = pd.DataFrame.from_dict(synthesized)
-        feed_dict = {'num_synthesize': 1024}
-        for k in range(num_rows // 1024):
-            other = self.run(fetches=fetches, feed_dict=feed_dict)
-            other = pd.DataFrame.from_dict(other)
-            synthesized = synthesized.append(other, ignore_index=True)
+        columns = [label for value in self.values for label in value.output_labels()]
+        if len(columns) == 0:
+            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+        else:
+            synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
+            synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            feed_dict = {'num_synthesize': 1024}
+            for k in range(num_rows // 1024):
+                other = self.run(fetches=fetches, feed_dict=feed_dict)
+                other = pd.DataFrame.from_dict(other)[columns]
+                synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
+        if len(columns) == 0:
+            synthesized.pop('_sentinel')
         return synthesized

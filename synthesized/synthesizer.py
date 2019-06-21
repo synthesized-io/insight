@@ -53,9 +53,10 @@ class Synthesizer(Module):
     def logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
         print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
+        return False
 
     def learn(
-        self, num_iterations: int, callback: Callable[[object, int, dict], None] = logging,
+        self, num_iterations: int, callback: Callable[[object, int, dict], bool] = logging,
         callback_freq: int = 0, **kwargs
     ) -> None:
         """Train the generative model for the given iterations.

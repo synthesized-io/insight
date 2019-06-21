@@ -79,14 +79,6 @@ class VAE(Generative):
         )
         return spec
 
-    def module_initialize(self) -> None:
-        super().module_initialize()
-
-        # Prior distribution p'(z)
-        self.prior = tfd.Normal(
-            loc=tf.zeros(shape=(self.latent_size,)), scale=tf.ones(shape=(self.latent_size,))
-        )
-
     @tensorflow_name_scoped
     def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
         """Training step for the generative model.
@@ -112,8 +104,11 @@ class VAE(Generative):
         if q.reparameterization_type is not tfd.FULLY_REPARAMETERIZED:
             raise NotImplementedError
 
+        # Prior p'(z)
+        prior = self.encoder.prior()
+
         # KL-divergence loss
-        kldiv = tfd.kl_divergence(distribution_a=q, distribution_b=self.prior, allow_nan_stats=False)
+        kldiv = tfd.kl_divergence(distribution_a=q, distribution_b=prior, allow_nan_stats=False)
         kldiv = tf.reduce_sum(input_tensor=kldiv, axis=1)
         kldiv = tf.reduce_mean(input_tensor=kldiv, axis=0)
         losses['kl-loss'] = self.beta * kldiv
@@ -171,8 +166,11 @@ class VAE(Generative):
             An output tensor per value.
 
         """
+        # Prior p'(z)
+        prior = self.encoder.prior()
+
         # Sample z ~ p'(z)
-        z = self.prior.sample(sample_shape=(n,))
+        z = prior.sample(sample_shape=(n,))
 
         # Decoder p(y|z)
         p = self.decoder.parametrize(x=z)

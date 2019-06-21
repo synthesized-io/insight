@@ -8,8 +8,8 @@ from ..module import tensorflow_name_scoped
 class ConditionalFunctional(Functional):
 
     def __init__(
-            self, comparison, reference, true_functional, false_functional=None, comparison_value=None,
-            conditioned_values=None, values=None, name=None
+        self, comparison, reference, true_functional, false_functional=None, comparison_value=None,
+        conditioned_values=None, values=None, name=None
     ):
         if values is None:
             assert comparison_value is not None
@@ -25,13 +25,8 @@ class ConditionalFunctional(Functional):
         self.comparison_value = comparison_value
         self.comparison = comparison
         self.reference = reference
-        from . import functional_modules
-        self.true_functional = self.add_module(
-            module=true_functional, modules=functional_modules, values=conditioned_values
-        )
-        self.false_functional = self.add_module(
-            module=false_functional, modules=functional_modules, values=conditioned_values
-        )
+        self.true_functional = self.add_module(module=true_functional, values=conditioned_values)
+        self.false_functional = self.add_module(module=false_functional, values=conditioned_values)
 
     def specification(self):
         spec = super().specification()

@@ -165,7 +165,7 @@ class BasicSynthesizer(Synthesizer):
 
     def learn(
         self, num_iterations: int, data: pd.DataFrame,
-        callback: Callable[[Synthesizer, int, dict], None] = Synthesizer.logging,
+        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.

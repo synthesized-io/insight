@@ -10,13 +10,12 @@ print()
 print(datetime.now().strftime('%H:%M:%S'), 'Parse arguments...', flush=True)
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '-s', '--scenario', type=str, default='configs/scenarios/example.json', help="scenario"
+    '-s', '--scenario', type=str, default='scenarios/example.json', help="scenario"
 )
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument('-m', '--num-samples', type=int, default=1024, help="training samples")
 parser.add_argument(
-    '-y', '--hyperparameters', default='capacity=8,batch_size=8',
-    help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=8', help="list of hyperparameters (comma, equal)"
 )
 parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 args = parser.parse_args()
@@ -26,10 +25,10 @@ print()
 print(datetime.now().strftime('%H:%M:%S'), 'Load scenario...', flush=True)
 if os.path.isfile(args.scenario):
     filename = args.scenario
-elif os.path.isfile(os.path.join('configs', 'scenarios', args.scenario)):
-    filename = os.path.join('configs', 'scenarios', args.scenario)
-elif os.path.isfile(os.path.join('configs', 'scenarios', args.scenario + '.json')):
-    filename = os.path.join('configs', 'scenarios', args.scenario + '.json')
+elif os.path.isfile(os.path.join('scenarios', args.scenario)):
+    filename = os.path.join('scenarios', args.scenario)
+elif os.path.isfile(os.path.join('scenarios', args.scenario + '.json')):
+    filename = os.path.join('scenarios', args.scenario + '.json')
 else:
     assert False
 with open(filename, 'r') as filehandle:
@@ -38,7 +37,6 @@ assert len(scenario) == 2 and 'functionals' in scenario and 'values' in scenario
 
 
 print(datetime.now().strftime('%H:%M:%S'), 'Initialize synthesizer...', flush=True)
-synthesizer_cls = ScenarioSynthesizer
 if args.hyperparameters is None:
     synthesizer = ScenarioSynthesizer(
         values=scenario['values'], functionals=scenario['functionals'], summarizer=args.tensorboard
