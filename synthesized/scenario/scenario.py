@@ -4,8 +4,6 @@ from typing import Callable
 import pandas as pd
 import tensorflow as tf
 
-from .functionals import functional_modules
-from .optimizers import Optimizer
 from ..common import Module
 from ..synthesizer import Synthesizer
 
@@ -141,7 +139,8 @@ class ScenarioSynthesizer(Synthesizer):
 
     def learn(
         self, num_iterations: int, num_samples=1024,
-        callback: Callable[[int, dict], None] = Synthesizer.logging, callback_freq: int = 0
+        callback: Callable[[Synthesizer, int, dict], None] = Synthesizer.logging,
+        callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -150,8 +149,9 @@ class ScenarioSynthesizer(Synthesizer):
         Args:
             num_iterations: The number of training iterations (not epochs).
             num_samples: The number of samples for which the loss is computed.
-            callback: A callback function, e.g. for logging purposes. Aborts training if the return
-                value is True.
+            callback: A callback function, e.g. for logging purposes. Takes the synthesizer
+                instance, the iteration number, and a dictionary of values (usually the losses) as
+                arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
 
         """
@@ -164,7 +164,7 @@ class ScenarioSynthesizer(Synthesizer):
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
-                if callback(iteration, fetched) is True:
+                if callback(self, iteration, fetched) is True:
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)

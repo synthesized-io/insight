@@ -10,26 +10,28 @@ from synthesized.basic import BasicSynthesizer
 print()
 print(datetime.now().strftime('%H:%M:%S'), 'Parse arguments...', flush=True)
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--dataset', type=str, default='unittest', help="dataset name")
+parser.add_argument('-d', '--dataset', type=str, default='unittest', help="dataset")
 parser.add_argument('-i', '--identifier-label', default=None, help="identifier label")
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument(
-    '-y', '--hyperparameters', default='capacity=8,batch_size=8', help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=8,batch_size=8',
+    help="list of hyperparameters (comma, equal)"
 )
-
 parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 args = parser.parse_args()
+print()
 
 
 print(datetime.now().strftime('%H:%M:%S'), 'Load dataset...', flush=True)
 if os.path.isfile(args.dataset):
-    data = pd.read_csv(args.dataset)
+    filename = args.dataset
 elif os.path.isfile(os.path.join('data', args.dataset)):
-    data = pd.read_csv(os.path.join('data', args.dataset))
+    filename = os.path.join('data', args.dataset)
 elif os.path.isfile(os.path.join('data', args.dataset + '.csv')):
-    data = pd.read_csv(os.path.join('data', args.dataset + '.csv'))
+    filename = os.path.join('data', args.dataset + '.csv')
 else:
     assert False
+data = pd.read_csv(filename)
 print()
 
 
@@ -46,16 +48,15 @@ print()
 
 
 print(datetime.now().strftime('%H:%M:%S'), 'Initialize synthesizer...', flush=True)
-synthesizer_cls = BasicSynthesizer
 if args.hyperparameters is None:
-    synthesizer = synthesizer_cls(
+    synthesizer = BasicSynthesizer(
         data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label
     )
 else:
     assert all('=' in kv or kv == '' for kv in args.hyperparameters.split(','))
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',') if kv != '']
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
-    synthesizer = synthesizer_cls(
+    synthesizer = BasicSynthesizer(
         data=data, summarizer=args.tensorboard, identifier_label=args.identifier_label, **kwargs
     )
 print(repr(synthesizer))
@@ -76,6 +77,7 @@ with synthesizer:
     synthesized = synthesizer.synthesize(num_rows=10000)
     assert len(synthesized) == 10000
 print()
+
 
 print(datetime.now().strftime('%H:%M:%S'), 'Synthesized data...', flush=True)
 print(synthesized.head(5))

@@ -1,36 +1,48 @@
 import argparse
 from datetime import datetime
 import json
-from synthesized.common import ScenarioSynthesizer
+import os
+
+from synthesized.scenario import ScenarioSynthesizer
 
 
 print()
-print('Parse arguments...')
+print(datetime.now().strftime('%H:%M:%S'), 'Parse arguments...', flush=True)
 parser = argparse.ArgumentParser()
-parser.add_argument('-i', '--iterations', type=int, help="training iterations")
-parser.add_argument('-n', '--num-samples', type=int, default=1024, help="training samples")
-parser.add_argument('-e', '--evaluation', type=int, default=0, help="evaluation frequency")
 parser.add_argument(
-    '-s', '--scenario', type=str, default='configs/scenarios/example.json', help="training samples"
+    '-s', '--scenario', type=str, default='configs/scenarios/example.json', help="scenario"
 )
+parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
+parser.add_argument('-m', '--num-samples', type=int, default=1024, help="training samples")
 parser.add_argument(
-    '-y', '--hyperparameters', default=None, help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=8,batch_size=8',
+    help="list of hyperparameters (comma, equal)"
 )
-parser.add_argument('-b', '--tensorboard', action='store_true', help="TensorBoard summaries")
+parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 args = parser.parse_args()
-if args.evaluation == 0:
-    args.evaluation = args.iterations
+print()
 
 
-print('Initialize synthesizer...')
-with open(args.scenario, 'r') as filehandle:
+print(datetime.now().strftime('%H:%M:%S'), 'Load scenario...', flush=True)
+if os.path.isfile(args.scenario):
+    filename = args.scenario
+elif os.path.isfile(os.path.join('configs', 'scenarios', args.scenario)):
+    filename = os.path.join('configs', 'scenarios', args.scenario)
+elif os.path.isfile(os.path.join('configs', 'scenarios', args.scenario + '.json')):
+    filename = os.path.join('configs', 'scenarios', args.scenario + '.json')
+else:
+    assert False
+with open(filename, 'r') as filehandle:
     scenario = json.load(fp=filehandle)
 assert len(scenario) == 2 and 'functionals' in scenario and 'values' in scenario
+
+
+print(datetime.now().strftime('%H:%M:%S'), 'Initialize synthesizer...', flush=True)
+synthesizer_cls = ScenarioSynthesizer
 if args.hyperparameters is None:
     synthesizer = ScenarioSynthesizer(
         values=scenario['values'], functionals=scenario['functionals'], summarizer=args.tensorboard
     )
-
 else:
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',')]
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
@@ -42,25 +54,30 @@ print(repr(synthesizer))
 print()
 
 
-print('Synthesis...')
-with synthesizer:
-    print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    for i in range(args.iterations // args.evaluation):
-        synthesizer.learn(num_iterations=args.evaluation, num_samples=args.num_samples)
-        # print(datetime.now().strftime('%H:%M:%S'), flush=True)
-        # synthesized = synthesizer.synthesize(n=100000)
-        # evaluation?
-        print(datetime.now().strftime('%H:%M:%S'), i * args.evaluation, flush=True)
-        print('Distances...')
-        synthesized = synthesizer.synthesize(n=10000)
-        for functional in synthesizer.functionals:
-            if functional.required_outputs() == '*':
-                samples_args = synthesized
-            else:
-                samples_args = [synthesized[label] for label in functional.required_outputs()]
-            print(functional.name, functional.check_distance(*samples_args), flush=True)
-        print()
+print(datetime.now().strftime('%H:%M:%S'), 'Value types...', flush=True)
+for value in synthesizer.values:
+    print(value.name, value)
+print()
 
-print('Synthetic data...')
-print(synthesized.head(20))
+
+print(datetime.now().strftime('%H:%M:%S'), 'Synthesis...', flush=True)
+with synthesizer:
+    print(datetime.now().strftime('%H:%M:%S'), 'Start learning...', flush=True)
+    synthesizer.learn(
+        num_iterations=args.num_iterations, num_samples=args.num_samples, callback_freq=20
+    )
+    print(datetime.now().strftime('%H:%M:%S'), 'Finished learning...', flush=True)
+    synthesized = synthesizer.synthesize(num_rows=10000)
+    assert len(synthesized) == 10000
+    for functional in synthesizer.functionals:
+        if functional.required_outputs() == '*':
+            samples_args = synthesized
+        else:
+            samples_args = [synthesized[label] for label in functional.required_outputs()]
+        print(functional.name, functional.check_distance(*samples_args), flush=True)
+print()
+
+
+print(datetime.now().strftime('%H:%M:%S'), 'Synthesized data...', flush=True)
+print(synthesized.head(5))
 print()

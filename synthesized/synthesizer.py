@@ -50,12 +50,12 @@ if not _check_license():
 class Synthesizer(Module):
 
     @staticmethod
-    def logging(iteration, fetched):
+    def logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
         print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
 
     def learn(
-        self, num_iterations: int, callback: Callable[[int, dict], None] = logging,
+        self, num_iterations: int, callback: Callable[[object, int, dict], None] = logging,
         callback_freq: int = 0, **kwargs
     ) -> None:
         """Train the generative model for the given iterations.
@@ -64,8 +64,9 @@ class Synthesizer(Module):
 
         Args:
             num_iterations: The number of training iterations (not epochs).
-            callback: A callback function, e.g. for logging purposes. Aborts training if the return
-                value is True.
+            callback: A callback function, e.g. for logging purposes. Takes the synthesizer
+                instance, the iteration number, and a dictionary of values (usually the losses) as
+                arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
 
         """
