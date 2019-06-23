@@ -1,4 +1,4 @@
-"""This module implements BasicSynthesizer."""
+"""This module implements the BasicSynthesizer class."""
 from typing import Callable
 
 import numpy as np
@@ -10,14 +10,14 @@ from ..synthesizer import Synthesizer
 
 
 class BasicSynthesizer(Synthesizer):
-    """The main Synthesizer implementation.
+    """The main synthesizer implementation.
 
-    Synthesizer which can learn to produce basic tabular data with independent rows, that is, no
-    temporal or otherwise conditional relation between the rows.
+    Synthesizer which can learn from data to produce basic tabular data with independent rows, that
+    is, no temporal or otherwise conditional relation between the rows.
     """
 
     def __init__(
-        self, data: pd.DataFrame, summarizer: bool = False,
+        self, data: pd.DataFrame, summarizer: bool = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -32,6 +32,8 @@ class BasicSynthesizer(Synthesizer):
         # Categorical
         smoothing=0.0, moving_average=True, similarity_regularization=0.0,
         entropy_regularization=0.1,
+        # Conditions
+        condition_labels=(),
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -41,7 +43,7 @@ class BasicSynthesizer(Synthesizer):
         # Identifier
         identifier_label=None
     ):
-        """Initialize a new basic synthesizer instance.
+        """Initialize a new BasicSynthesizer instance.
 
         Args:
             data: Data sample which is representative of the target data to generate. Usually, it
@@ -89,6 +91,7 @@ class BasicSynthesizer(Synthesizer):
 
         # For identify_value (should not be necessary)
         self.capacity = capacity
+        self.weight_decay = weight_decay
         self.categorical_weight = categorical_weight
         self.continuous_weight = continuous_weight
         self.smoothing = smoothing
@@ -96,6 +99,8 @@ class BasicSynthesizer(Synthesizer):
         self.similarity_regularization = similarity_regularization
         self.entropy_regularization = entropy_regularization
 
+        # Conditions
+        self.condition_labels = list(condition_labels)
         # Person
         self.person_value = None
         self.title_label = title_label
@@ -120,19 +125,23 @@ class BasicSynthesizer(Synthesizer):
         # Values
         self.values = list()
         vae_values = list()
+        condition_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = identify_value(module=self, name=name, dtype=dtype, data=data)
-            if value is not None:
-                value.extract(data=data)
-                self.values.append(value)
-                if name != self.identifier_label and value.input_size() > 0:
-                    vae_values.append(value)
+            assert value is not None
+            value.extract(data=data)
+            self.values.append(value)
+            if name in self.condition_labels:
+                assert name != self.identifier_label and value.input_size() > 0
+                condition_values.append(value)
+            elif name != self.identifier_label and value.input_size() > 0:
+                vae_values.append(value)
 
         # VAE
         self.vae = self.add_module(
-            module='vae', name='vae', values=vae_values, distribution=distribution,
-            latent_size=latent_size, network=network, capacity=capacity, depth=depth,
-            batchnorm=batchnorm, activation=activation, optimizer=optimizer,
+            module='vae', name='vae', values=vae_values, conditions=condition_values,
+            distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
+            depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             clip_gradients=clip_gradients, beta=beta, weight_decay=weight_decay
         )
@@ -140,6 +149,7 @@ class BasicSynthesizer(Synthesizer):
     def specification(self):
         spec = super().specification()
         spec.update(
+            condition_labels=self.condition_labels,
             values=[value.specification() for value in self.values], vae=self.vae.specification(),
             batch_size=self.batch_size
         )
@@ -161,7 +171,11 @@ class BasicSynthesizer(Synthesizer):
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
-        self.synthesized = self.vae.synthesize(n=num_synthesize)
+        cs = dict()
+        for value in self.values:
+            if value.name in self.condition_labels:
+                cs[value.name] = value.input_tensor()
+        self.synthesized = self.vae.synthesize(n=num_synthesize, cs=cs)
 
     def learn(
         self, num_iterations: int, data: pd.DataFrame,
@@ -204,31 +218,63 @@ class BasicSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int) -> pd.DataFrame:
+    def synthesize(self, num_rows: int, conditions: dict = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
+            conditions: The condition values for the generated rows.
 
         Returns:
             The generated data.
 
         """
-        fetches = self.synthesized
-        feed_dict = {'num_synthesize': num_rows % 1024}
+        if conditions is not None:
+            conditions = pd.DataFrame.from_dict(
+                {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
+            )
+            for value in self.values:
+                if value.name in self.condition_labels:
+                    conditions = value.preprocess(data=conditions)
         columns = [label for value in self.values for label in value.output_labels()]
         if len(columns) == 0:
             synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+
         else:
+            fetches = self.synthesized
+            feed_dict = {'num_synthesize': num_rows % 1024}
+            if conditions is not None:
+                for name in self.condition_labels:
+                    condition = conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (num_rows % 1024,))
+                    elif condition.shape == (num_rows,):
+                        feed_dict[name] = condition[-num_rows % 1024:]
+                    else:
+                        raise NotImplementedError
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+
             feed_dict = {'num_synthesize': 1024}
+            if conditions is not None:
+                for name in self.condition_labels:
+                    condition = conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (1024,))
             for k in range(num_rows // 1024):
+                if conditions is not None:
+                    for name in self.condition_labels:
+                        condition = conditions[name].values
+                        if condition.shape == (num_rows,):
+                            feed_dict[name] = condition[k * 1024: (k + 1) * 1024]
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 other = pd.DataFrame.from_dict(other)[columns]
                 synthesized = synthesized.append(other, ignore_index=True)
+
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
+
         if len(columns) == 0:
             synthesized.pop('_sentinel')
+
         return synthesized

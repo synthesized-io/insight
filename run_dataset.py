@@ -14,9 +14,10 @@ print()
 print('Parse arguments...')
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', type=str, help="dataset name")
-parser.add_argument('-l', '--identifier-label', default=None, help="identifier label")
-parser.add_argument('-i', '--iterations', type=int, help="training iterations")
 parser.add_argument('-t', '--target', default=-1, help="target column")
+parser.add_argument('-i', '--identifier-label', default=None, help="identifier label")
+parser.add_argument('-l', '--lstm-mode', type=int, default=0, help="lstm mode")
+parser.add_argument('-n', '--num-iterations', type=int, help="training iterations")
 parser.add_argument('-e', '--evaluation', type=int, default=0, help="evaluation frequency")
 parser.add_argument(
     '-c', '--classifier-iterations', type=int, default=1000, help="classifier training iterations"
@@ -28,7 +29,7 @@ parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorB
 parser.add_argument('--tfrecords', action='store_true', help="from TensorFlow records")
 args = parser.parse_args()
 if args.evaluation == 0:
-    args.evaluation = args.iterations
+    args.evaluation = args.num_iterations
 
 
 print('Load dataset...')
@@ -122,7 +123,7 @@ print()
 print('Synthesis...')
 with synthesizer:
     print(datetime.now().strftime('%H:%M:%S'), flush=True)
-    for i in range(args.iterations // args.evaluation):
+    for i in range(args.num_iterations // args.evaluation):
         if args.tfrecords:
             synthesizer.learn(num_iterations=args.evaluation, filenames=(tfrecords_filename,))
         else:

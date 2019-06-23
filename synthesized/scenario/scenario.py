@@ -1,6 +1,8 @@
+"""This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
 from typing import Callable, List
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -9,6 +11,11 @@ from ..synthesizer import Synthesizer
 
 
 class ScenarioSynthesizer(Synthesizer):
+    """The scenario synthesizer implementation.
+
+    Synthesizer which can learn from a scenario description to produce basic tabular data with
+    independent rows, that is, no temporal or otherwise conditional relation between the rows.
+    """
 
     def __init__(
         self, values: List[Value], functionals: List[Functional], summarizer: bool = None,
@@ -21,15 +28,65 @@ class ScenarioSynthesizer(Synthesizer):
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
         decay_rate: float = 0.5, clip_gradients: float = 1.0,
         # Losses
-        weight_decay: float = 0.0
+        categorical_weight: float = 1.0, continuous_weight: float = 1.0, weight_decay: float = 0.0
     ):
-        super().__init__(name='scenario-synthesizer', summarizer=summarizer)
+        """Initialize a new ScenarioSynthesizer instance.
+
+        Args:
+            values: A list of value descriptions of the target data to generate.
+            functionals: A list of functional descriptions of the target data to generate.
+            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            distribution: Distribution type: "normal".
+            latent_size: Latent size.
+            network: Network type: "mlp" or "resnet".
+            capacity: Architecture capacity.
+            depth: Architecture depth.
+            batchnorm: Whether to use batch normalization.
+            activation: Activation function.
+            optimizer: Optimizer.
+            learning_rate: Learning rate.
+            decay_steps: Learning rate decay steps.
+            decay_rate: Learning rate decay rate.
+            clip_gradients: Gradient norm clipping.
+            categorical_weight: Coefficient for categorical value losses.
+            continuous_weight: Coefficient for continuous value losses.
+            weight_decay: Weight decay.
+        """
+        super().__init__(name='synthesizer', summarizer=summarizer)
+
+        categorical_kwargs = dict()
+        continuous_kwargs = dict()
+        nan_kwargs = dict()
+        categorical_kwargs['capacity'] = capacity
+        nan_kwargs['capacity'] = capacity
+        categorical_kwargs['weight_decay'] = weight_decay
+        nan_kwargs['weight_decay'] = weight_decay
+        categorical_kwargs['weight'] = categorical_weight
+        nan_kwargs['weight'] = categorical_weight
+        continuous_kwargs['weight'] = continuous_weight
+        categorical_kwargs['smoothing'] = 0.0
+        categorical_kwargs['moving_average'] = False
+        categorical_kwargs['similarity_regularization'] = 0.0
+        categorical_kwargs['entropy_regularization'] = 0.0
 
         # Values
         self.values = list()
         output_size = 0
         for name, value in values.items():
-            value = self.add_module(module=value, name=name)
+            if isinstance(value, dict):
+                if value['module'] == 'categorical':
+                    kwargs = categorical_kwargs
+                elif value['module'] == 'continuous':
+                    kwargs = continuous_kwargs
+                elif value['module'] == 'nan':
+                    kwargs = nan_kwargs
+            elif value == 'categorical':
+                kwargs = categorical_kwargs
+            elif value == 'continuous':
+                kwargs = continuous_kwargs
+            elif value == 'nan':
+                kwargs = nan_kwargs
+            value = self.add_module(module=value, name=name, **kwargs)
             self.values.append(value)
             output_size += value.output_size()
 
@@ -187,21 +244,26 @@ class ScenarioSynthesizer(Synthesizer):
             The generated data.
 
         """
-        fetches = self.synthesized
-        feed_dict = {'num_synthesize': num_rows % 1024}
         columns = [label for value in self.values for label in value.output_labels()]
         if len(columns) == 0:
             synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+
         else:
+            fetches = self.synthesized
+            feed_dict = {'num_synthesize': num_rows % 1024}
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+
             feed_dict = {'num_synthesize': 1024}
             for k in range(num_rows // 1024):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 other = pd.DataFrame.from_dict(other)[columns]
                 synthesized = synthesized.append(other, ignore_index=True)
+
         for value in self.values:
             synthesized = value.postprocess(data=synthesized)
+
         if len(columns) == 0:
             synthesized.pop('_sentinel')
+
         return synthesized

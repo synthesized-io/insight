@@ -13,14 +13,15 @@ class VAE(Generative):
     """Variational auto-encoder.
 
     The VAE consists of an NN-parametrized input-conditioned encoder distribution q(z|x), a latent
-    prior distribution p'(z), and an NN-parametrized latent-conditioned decoder distribution p(y|z).
-    The optimized loss consists of the reconstruction loss per value, the KL loss, and the
-    regularization loss. The input and output are concatenated / split tensors per value. The
-    encoder and decoder network use the same hyperparameters.
+    prior distribution p'(z), optional additional input conditions c, and an NN-parametrized
+    latent-conditioned decoder distribution p(y|z,c). The optimized loss consists of the
+    reconstruction loss per value, the KL loss, and the regularization loss. The input and output
+    are concatenated / split tensors per value. The encoder and decoder network use the same
+    hyperparameters.
     """
 
     def __init__(
-        self, name: str, values: List[Value],
+        self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
         distribution: str, latent_size: int,
         # Encoder and decoder network
@@ -33,7 +34,7 @@ class VAE(Generative):
         # Weight decay
         weight_decay: float
     ):
-        super().__init__(name=name, values=values)
+        super().__init__(name=name, values=values, conditions=conditions)
 
         self.latent_size = latent_size
         self.beta = beta
@@ -45,6 +46,11 @@ class VAE(Generative):
             input_size += value.input_size()
             output_size += value.output_size()
 
+        # Total condition size
+        condition_size = 0
+        for value in self.conditions:
+            condition_size += value.input_size()
+
         # Encoder: parametrized distribution q(z|x)
         parametrization = dict(
             module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
@@ -55,14 +61,15 @@ class VAE(Generative):
             distribution=distribution, parametrization=parametrization
         )
 
-        # Decoder: parametrized distribution p(y|z)
+        # Decoder: parametrized distribution p(y|z,c)
         parametrization = dict(
             module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
             activation=activation, weight_decay=weight_decay
         )
         self.decoder = self.add_module(
-            module='distribution', name='decoder', input_size=self.encoder.size(),
-            output_size=output_size, distribution='deterministic', parametrization=parametrization
+            module='distribution', name='decoder',
+            input_size=(self.encoder.size() + condition_size), output_size=output_size,
+            distribution='deterministic', parametrization=parametrization
         )
 
         # Optimizer
@@ -84,10 +91,10 @@ class VAE(Generative):
         """Training step for the generative model.
 
         Args:
-            xs: An input tensor per value.
+            xs: Input tensor per value.
 
         Returns:
-            A dictionary of loss tensors, and the optimization operation.
+            Dictionary of loss tensors, and optimization operation.
 
         """
         if len(xs) == 0:
@@ -117,10 +124,17 @@ class VAE(Generative):
         # Sample z ~ q(z|x)
         z = q.sample()
 
-        # Decoder p(y|z)
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[xs[value.name] for value in self.conditions], axis=1)
+
+            # Concatenate z,c
+            z = tf.concat(values=(z, c), axis=1)
+
+        # Decoder p(y|z,c)
         p = self.decoder.parametrize(x=z)
 
-        # Sample y ~ p(y|z)
+        # Sample y ~ p(y|z,c)
         y = p.sample()
 
         # Split output tensors per value
@@ -156,14 +170,15 @@ class VAE(Generative):
         return losses, optimized
 
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         """Generate the given number of instances.
 
         Args:
-            n: The number of instances to generate.
+            n: Number of instances to generate.
+            cs: Condition tensor per value.
 
         Returns:
-            An output tensor per value.
+            Output tensor per value.
 
         """
         # Prior p'(z)
@@ -172,10 +187,17 @@ class VAE(Generative):
         # Sample z ~ p'(z)
         z = prior.sample(sample_shape=(n,))
 
-        # Decoder p(y|z)
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[cs[value.name] for value in self.conditions], axis=1)
+
+            # Concatenate z,c
+            z = tf.concat(values=(z, c), axis=1)
+
+        # Decoder p(y|z,c)
         p = self.decoder.parametrize(x=z)
 
-        # Sample y ~ p(y|z)
+        # Sample y ~ p(y|z,c)
         y = p.sample()
 
         # Split output tensors per value
@@ -189,5 +211,7 @@ class VAE(Generative):
             ys = value.output_tensors(x=y)
             for label, y in ys.items():
                 synthesized[label] = y
+        for value in self.conditions:
+            synthesized[value.name] = value.placeholder
 
         return synthesized

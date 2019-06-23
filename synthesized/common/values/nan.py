@@ -3,30 +3,31 @@ import numpy as np
 import tensorflow as tf
 
 from .value import Value
-# from .categorical import CategoricalValue
 from .continuous import ContinuousValue
-from ..module import tensorflow_name_scoped
 from .. import util
+from ..module import tensorflow_name_scoped
 
 
 class NanValue(Value):
 
     def __init__(
-            self, name, value, produce_nans=False, capacity=None, embedding_size=None, weight_decay=0.0
+        self, name: str, value: Value, capacity: int, weight_decay: float, weight: float,
+        embedding_size: int = None, produce_nans: bool = False
     ):
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousValue)
         # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
-        self.produce_nans = produce_nans
 
         self.capacity = capacity
         if embedding_size is None:
-            self.embedding_size = int(log(2) * self.capacity / 2.0)
-        else:
-            self.embedding_size = embedding_size
+            embedding_size = int(log(2) * self.capacity / 2.0)
+        self.embedding_size = embedding_size
         self.weight_decay = weight_decay
+        self.weight = weight
+
+        self.produce_nans = produce_nans
 
     def __str__(self):
         string = super().__str__()
@@ -135,6 +136,6 @@ class NanValue(Value):
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(
             labels=target_embedding, logits=x[:, :2], axis=1
         )
-        loss = tf.reduce_mean(input_tensor=loss, axis=0)
+        loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
         loss += self.value.loss(x=x[:, 2:], feed=feed, mask=tf.math.logical_not(x=target_nan))
         return loss

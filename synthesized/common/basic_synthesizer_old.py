@@ -1,6 +1,7 @@
 """This module implements BasicSynthesizer."""
 
 from collections import OrderedDict
+from random import randrange
 
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ class BasicSynthesizer(Synthesizer):
         postcode_label=None, city_label=None, street_label=None,
         address_label=None, postcode_regex=None,
         # identifier
-        identifier_label=None
+        identifier_label=None, condition_labels=()
     ):
         """Initialize a new basic synthesizer instance.
 
@@ -94,6 +95,11 @@ class BasicSynthesizer(Synthesizer):
         self.exclude_encoding_loss = False
 
         self.capacity = capacity
+        self.depth = depth
+        self.lstm_mode = lstm_mode
+        self.learning_rate = learning_rate
+        self.encoding_beta = encoding_beta
+        self.weight_decay = weight_decay
         self.batch_size = batch_size
 
         self.categorical_weight = categorical_weight
@@ -122,6 +128,7 @@ class BasicSynthesizer(Synthesizer):
         # identifier
         self.identifier_value = None
         self.identifier_label = identifier_label
+        self.condition_labels = tuple(condition_labels)
         # date
         self.date_value = None
 
@@ -133,16 +140,24 @@ class BasicSynthesizer(Synthesizer):
         self.value_output_sizes = list()
         input_size = 0
         output_size = 0
+        condition_size = 0
 
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
             value = self.get_value(name=name, dtype=dtype, data=data)
-            if value is not None:
+            if name == self.identifier_label:
                 value.extract(data=data)
                 self.values.append(value)
-                if name != self.identifier_label:
-                    self.value_output_sizes.append(value.output_size())
-                    input_size += value.input_size()
-                    output_size += value.output_size()
+                self.value_output_sizes.append(value.output_size())
+            elif name in self.condition_labels:
+                value.extract(data=data)
+                self.values.append(value)
+                condition_size += value.input_size()
+            elif value is not None:
+                value.extract(data=data)
+                self.values.append(value)
+                self.value_output_sizes.append(value.output_size())
+                input_size += value.input_size()
+                output_size += value.output_size()
 
         self.linear_input = self.add_module(
             module='dense', name='linear-input',
@@ -156,18 +171,35 @@ class BasicSynthesizer(Synthesizer):
             weight_decay=weight_decay  # TODO: depths missing
         )
 
+        if self.lstm_mode == 2:
+            encoding_type = 'rnn_' + self.encoding_type
+            encoding_size = self.capacity  # * 2
+        else:
+            encoding_type = self.encoding_type
+            encoding_size = self.capacity
         self.encoding = self.add_module(
             module=encoding_type, modules=encoding_modules, name='encoding',
-            input_size=self.encoder.size(), encoding_size=encoding_size, **encoding_kwargs
+            input_size=self.encoder.size(), encoding_size=encoding_size,
+            condition_size=condition_size, **encoding_kwargs
         )
 
-        if self.identifier_value is None:
+        if self.lstm_mode == 2 or self.identifier_label is None:
             self.modulation = None
         else:
             self.modulation = self.add_module(
                 module='modulation', name='modulation',
                 input_size=capacity, condition_size=self.identifier_value.embedding_size
             )
+
+        if self.lstm_mode == 1:
+            self.lstm = self.add_module(
+                module='lstm', modules=transformation_modules, name='lstm',
+                input_size=self.encoding.size(), output_size=self.capacity
+            )
+            input_size = self.lstm.size()
+        else:
+            self.lstm = None
+            input_size = self.encoding.size()
 
         self.decoder = self.add_module(
             module=network_type, name='decoder',
@@ -199,17 +231,18 @@ class BasicSynthesizer(Synthesizer):
     def get_value(self, name, dtype, data):
         return identify_value(module=self, name=name, dtype=dtype, data=data)
 
-    def preprocess(self, data):
+    def preprocess(self, data: pd.DataFrame):
         for value in self.values:
             data = value.preprocess(data=data)
         return data
 
     @tensorflow_name_scoped
-    def train_iteration(self, feed=None):
+    def train_iteration(self, feed: dict=None):
         summaries = list()
         xs = list()
         for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
+            if value.name != self.identifier_label and value.name not in self.condition_labels \
+                    and value.input_size() > 0:
                 x = value.input_tensor(feed=feed)
                 xs.append(x)
         if len(xs) == 0:
@@ -218,12 +251,18 @@ class BasicSynthesizer(Synthesizer):
         x = tf.concat(values=xs, axis=1)
         x = self.linear_input.transform(x=x)
         x = self.encoder.transform(x=x)
-        x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
+        condition = list()
+        for value in self.values:
+            if value.name in self.condition_labels:
+                condition.append(value.input_tensor(feed=feed))
+        x, encoding, encoding_loss = self.encoding.encode(
+            x=x, condition=condition, encoding_plus_loss=True
+        )
         summaries.append(tf.contrib.summary.scalar(
             name='loss-encoding', tensor=encoding_loss, family=None, step=None
         ))
         encoding_mean, encoding_variance = tf.nn.moments(
-            x=x, axes=(0, 1), shift=None, keep_dims=False
+            x=encoding, axes=(0, 1), shift=None, keep_dims=False
         )
         summaries.append(tf.contrib.summary.scalar(
             name='encoding-mean', tensor=encoding_mean, family=None, step=None
@@ -231,7 +270,20 @@ class BasicSynthesizer(Synthesizer):
         summaries.append(tf.contrib.summary.scalar(
             name='encoding-variance', tensor=encoding_variance, family=None, step=None
         ))
-        if self.modulation is not None:
+        summaries.append(tf.contrib.summary.scalar(
+            name='encoding-loss', tensor=encoding_loss, family=None, step=None
+        ))
+        if self.lstm_mode == 2 and self.identifier_label is not None:
+            update = self.identifier_value.input_tensor()
+            with tf.control_dependencies(control_inputs=(update,)):
+                x = x + 0.0  # trivial operation to enforce dependency
+        elif self.lstm_mode == 1:
+            if self.identifier_label is None:
+                x = self.lstm.transform(x=x)
+            else:
+                state = self.identifier_value.input_tensor()
+                x = self.lstm.transform(x=x, state=state[0])
+        elif self.lstm_mode == 0 and self.identifier_label is not None:
             condition = self.identifier_value.input_tensor()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
@@ -239,6 +291,13 @@ class BasicSynthesizer(Synthesizer):
         xs = tf.split(
             value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None
         )
+        synthesized = OrderedDict()
+        # if self.identifier_value is not None:
+        #     synthesized[self.identifier_label] = identifier
+        for value, x in zip(self.values, xs):
+            x = value.output_tensors(x=x)
+            for label, x in x.items():
+                synthesized[label] = x
         losses = OrderedDict()
         losses['encoding'] = encoding_loss
         for value, x in zip(self.values, xs):
@@ -256,7 +315,6 @@ class BasicSynthesizer(Synthesizer):
             ))
             losses['regularization'] = regularization_loss
         loss = tf.add_n(inputs=list(losses.values()))
-        losses['loss'] = loss
         summaries.append(tf.contrib.summary.scalar(
             name='loss', tensor=loss, family=None, step=None
         ))
@@ -279,26 +337,40 @@ class BasicSynthesizer(Synthesizer):
             ))
         with tf.control_dependencies(control_inputs=([optimized] + summaries)):
             optimized = Module.global_step.assign_add(delta=1, use_locking=False, read_value=False)
-        return losses, loss, optimized
+        return losses, loss, optimized, synthesized
 
     def module_initialize(self):
         super().module_initialize()
 
         # learn
-        self.losses, self.loss, self.optimized = self.train_iteration()
+        self.losses, self.loss, self.optimized, self.synthesized_train = self.train_iteration()
 
         # synthesize
         num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         assert 'num_synthesize' not in Module.placeholders
         Module.placeholders['num_synthesize'] = num_synthesize
-        x = self.encoding.sample(n=num_synthesize)
-        if self.modulation is not None:
+        condition = list()
+        for value in self.values:
+            if value.name in self.condition_labels:
+                condition.append(value.input_tensor())
+        x = self.encoding.sample(n=num_synthesize, condition=condition)
+        if self.lstm_mode == 2 and self.identifier_label is not None:
+            identifier = self.identifier_value.next_identifier()
+            identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
+        elif self.lstm_mode == 1:
+            if self.identifier_label is None:
+                x = self.lstm.transform(x=x)
+            else:
+                identifier, state = self.identifier_value.next_identifier_embedding()
+                identifier = tf.tile(input=identifier, multiples=(num_synthesize,))
+                x = self.lstm.transform(x=x, state=state)
+        elif self.lstm_mode == 0 and self.identifier_label is not None:
             identifier, condition = self.identifier_value.random_value(n=num_synthesize)
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.linear_output.transform(x=x)
         xs = tf.split(value=x, num_or_size_splits=self.value_output_sizes, axis=1, num=None, name=None)
-        self.synthesized = dict()
+        self.synthesized = OrderedDict()
         if self.identifier_value is not None:
             self.synthesized[self.identifier_label] = identifier
         for value, x in zip(self.values, xs):
@@ -306,39 +378,72 @@ class BasicSynthesizer(Synthesizer):
             for label, x in xs.items():
                 self.synthesized[label] = x
 
-    def learn(
-            self, num_iterations: int = 2500, data: pd.DataFrame = None, verbose: int = 0
-    ) -> None:
-        """Train the generative model on the given data.
+    def learn(self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=False):
+        if self.lstm_mode != 0 and (
+            self.identifier_label is not None or len(self.condition_labels) > 0
+        ):
+            raise NotImplementedError
 
-        Repeated calls continue training the model, possibly on different data.
-
-        Args:
-            num_iterations: The number of training steps (not epochs).
-            data: The training data.
-            verbose: The frequency, i.e. number of steps, of logging additional information.
-        """
         try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, verbose=verbose,
-                                  yield_every=0))
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, print_data=print_data, yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
             pass
 
-    def learn_async(self, num_iterations=2500, data=None, verbose=0, yield_every=0):
-        assert data is not None
+    def learn_async(
+        self, num_iterations=2500, data=None, filenames=None, verbose=0, print_data=0, yield_every=0
+    ):
+        if (data is None) is (filenames is None):
+            raise NotImplementedError
 
-        data = self.preprocess(data=data.copy())
-        num_data = len(data)
-        data = {
-            label: data[label].get_values() for value in self.values
-            for label in value.input_labels()
-        }
-        fetches = (self.optimized, self.loss)
-        if verbose > 0:
-            verbose_fetches = self.losses
-        for iteration in range(num_iterations):
-            batch = np.random.randint(num_data, size=self.batch_size)
-            feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+        if filenames is None:
+            data = self.preprocess(data=data.copy())
+
+            num_data = len(data)
+            data = {
+                label: data[label].get_values() for value in self.values
+                for label in value.input_labels()
+            }
+
+            fetches = self.optimized
+            if verbose > 0:
+                verbose_fetches = dict(losses=self.losses, loss=self.loss)
+                if print_data > 0:
+                    verbose_fetches['synthesized'] = self.synthesized_train
+
+            for iteration in range(num_iterations):
+                if self.lstm_mode != 0:
+                    start = randrange(max(num_data - self.batch_size, 1))
+                    batch = np.arange(start, max(start + self.batch_size, num_data))
+                else:
+                    batch = np.random.randint(num_data, size=self.batch_size)
+
+                feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+                self.run(fetches=fetches, feed_dict=feed_dict)
+
+                if verbose > 0 and (
+                    iteration == 0 or iteration + 1 == verbose // 2 or
+                    iteration % verbose + 1 == verbose
+                ):
+                    if self.lstm_mode != 0:
+                        start = randrange(max(num_data - 1024, 1))
+                        batch = np.arange(start, max(start + 1024, num_data))
+                    else:
+                        batch = np.random.randint(num_data, size=1024)
+
+                    feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+                    fetched = self.run(fetches=verbose_fetches, feed_dict=feed_dict)
+                    self.print_learn_stats(data, batch, fetched, iteration, print_data)
+                if yield_every > 0 and iteration % yield_every + 1 == yield_every:
+                    yield iteration
+
+        else:
+            if verbose > 0:
+                raise NotImplementedError
+            fetches = self.iterator.initializer
+            feed_dict = dict(filenames=filenames)
+            self.run(fetches=fetches, feed_dict=feed_dict)
+            fetches = (self.optimized_fromfile, self.loss_fromfile)
+            feed_dict = dict(num_iterations=num_iterations)
             self.run(fetches=fetches, feed_dict=feed_dict)
             if verbose > 0 and (iteration == 0 or iteration % verbose + 1 == verbose):
                 batch = np.random.randint(num_data, size=1024)
@@ -348,15 +453,15 @@ class BasicSynthesizer(Synthesizer):
             if yield_every > 0 and iteration % yield_every + 1 == yield_every:
                 yield iteration
 
-    def log_metrics(self, data, fetched, iteration):
+    def print_learn_stats(self, data, batch, fetched, iteration, print_data):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
-                '{name}={loss}'.format(name=name, loss=fetched[name])
-                for name in self.losses
+                '{name}={loss}'.format(name=name, loss=loss)
+                for name, loss in fetched['losses'].items()
             )
         ))
-        self.loss_history.append({name: fetched[name] for name in self.losses})
+        self.loss_history.append(fetched['losses'])
 
         synthesized = self.synthesize(10000)
         synthesized = self.preprocess(data=synthesized)
@@ -366,28 +471,38 @@ class BasicSynthesizer(Synthesizer):
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
         self.ks_distance_history.append(dict(dist_by_col))
 
+        if print_data > 0:
+            print('original data:')
+            print(pd.DataFrame.from_dict({key: value[batch] for key, value in data.items()}).head(print_data))
+            print('synthesized data:')
+            print(pd.DataFrame.from_dict(fetched['synthesized']).head(print_data))
+
     def get_loss_history(self):
         return pd.DataFrame.from_records(self.loss_history)
 
     def get_ks_distance_history(self):
         return pd.DataFrame.from_records(self.ks_distance_history)
 
-    def synthesize(self, n: int) -> pd.DataFrame:
-        """Generate the given number of new data rows.
+    def synthesize(self, n, condition=None):
+        if self.lstm_mode != 0 and (
+            self.identifier_label is not None or len(self.condition_labels) > 0
+        ):
+            raise NotImplementedError
 
-        Args:
-            n: The number of rows to generate.
-
-        Returns:
-            The generated data.
-
-        """
         fetches = self.synthesized
+
         feed_dict = {'num_synthesize': n % 1024}
+        if condition is not None:
+            feed_dict.update(condition)
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-        columns = [label for value in self.values for label in value.output_labels()]
+        columns = [
+            label for value in self.values if value.name not in self.condition_labels
+            for label in value.output_labels()
+        ]
+
         if len(columns) == 0:
             synthesized = pd.DataFrame(dict(_sentinel=np.zeros((n,))))
+
         else:
             synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             feed_dict = {'num_synthesize': 1024}
@@ -395,8 +510,12 @@ class BasicSynthesizer(Synthesizer):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 other = pd.DataFrame.from_dict(other)[columns]
                 synthesized = synthesized.append(other, ignore_index=True)
+
         for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+            if value.name not in self.condition_labels:
+                synthesized = value.postprocess(data=synthesized)
+
         if len(columns) == 0:
             synthesized.pop('_sentinel')
+
         return synthesized

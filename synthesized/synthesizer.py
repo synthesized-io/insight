@@ -1,3 +1,4 @@
+"""This module implements the Synthesizer base class."""
 import base64
 from datetime import datetime
 import os

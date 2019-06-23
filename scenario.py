@@ -10,7 +10,7 @@ print()
 print(datetime.now().strftime('%H:%M:%S'), 'Parse arguments...', flush=True)
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '-s', '--scenario', type=str, default='scenarios/example.json', help="scenario"
+    '-s', '--scenario', type=str, default='scenarios/unittest.json', help="scenario"
 )
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument('-m', '--num-samples', type=int, default=1024, help="training samples")

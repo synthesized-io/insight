@@ -4,6 +4,8 @@ import tensorflow as tf
 def get_initializer(initializer):
     if initializer == 'normal':
         return tf.random_normal_initializer(mean=0.0, stddev=1e-2)
+    elif initializer == 'normal-large':
+        return tf.random_normal_initializer(mean=0.0, stddev=1.0)
     elif initializer == 'orthogonal':
         return tf.orthogonal_initializer(gain=1.0)
     elif initializer == 'ones':

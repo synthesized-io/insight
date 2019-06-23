@@ -11,20 +11,19 @@ def identify_value(module, name, dtype, data):
     value = None
 
     categorical_kwargs = dict()
-    if hasattr(module, 'categorical_weight'):
-        categorical_kwargs['weight'] = module.categorical_weight
-    if hasattr(module, 'smoothing'):
-        categorical_kwargs['smoothing'] = module.smoothing
-    if hasattr(module, 'moving_average'):
-        categorical_kwargs['moving_average'] = module.moving_average
-    if hasattr(module, 'similarity_regularization'):
-        categorical_kwargs['similarity_regularization'] = module.similarity_regularization
-    if hasattr(module, 'entropy_regularization'):
-        categorical_kwargs['entropy_regularization'] = module.entropy_regularization
-
     continuous_kwargs = dict()
-    if hasattr(module, 'continuous_weight'):
-        continuous_kwargs['weight'] = module.continuous_weight
+    nan_kwargs = dict()
+    categorical_kwargs['capacity'] = module.capacity
+    nan_kwargs['capacity'] = module.capacity
+    categorical_kwargs['weight_decay'] = module.weight_decay
+    nan_kwargs['weight_decay'] = module.weight_decay
+    categorical_kwargs['weight'] = module.categorical_weight
+    nan_kwargs['weight'] = module.categorical_weight
+    continuous_kwargs['weight'] = module.continuous_weight
+    categorical_kwargs['smoothing'] = module.smoothing
+    categorical_kwargs['moving_average'] = module.moving_average
+    categorical_kwargs['similarity_regularization'] = module.similarity_regularization
+    categorical_kwargs['entropy_regularization'] = module.entropy_regularization
 
     # ========== Pre-configured values ==========
 
@@ -37,10 +36,11 @@ def identify_value(module, name, dtype, data):
             name == getattr(module, 'email_label', None):
         if module.person_value is None:
             value = module.add_module(
-                module='person', name='person', title_label=module.title_label, gender_label=module.gender_label,
+                module='person', name='person', title_label=module.title_label,
+                gender_label=module.gender_label,
                 name_label=module.name_label, firstname_label=module.firstname_label,
                 lastname_label=module.lastname_label, email_label=module.email_label,
-                capacity=module.capacity,
+                capacity=module.capacity, weight_decay=module.weight_decay
             )
             module.person_value = value
 
@@ -51,8 +51,9 @@ def identify_value(module, name, dtype, data):
         if module.address_value is None:
             value = module.add_module(
                 module='address', name='address', postcode_level=0,
-                postcode_label=module.postcode_label, city_label=module.city_label, street_label=module.street_label,
-                capacity=module.capacity
+                postcode_label=module.postcode_label, city_label=module.city_label,
+                street_label=module.street_label,
+                capacity=module.capacity, weight_decay=module.weight_decay
             )
             module.address_value = value
 
@@ -60,15 +61,17 @@ def identify_value(module, name, dtype, data):
     elif name == getattr(module, 'address_label', None):
         value = module.add_module(
             module='compound_address', name='address', postcode_level=1,
-            address_label=module.address_label,
-            postcode_regex=module.postcode_regex,
-            capacity=module.capacity
+            address_label=module.address_label, postcode_regex=module.postcode_regex,
+            capacity=module.capacity, weight_decay=module.weight_decay
         )
         module.address_value = value
 
     # Identifier value
     elif name == getattr(module, 'identifier_label', None):
-        value = module.add_module(module='identifier', name=name, capacity=module.capacity)
+        value = module.add_module(
+            module='identifier', name=name, capacity=module.capacity,
+            weight_decay=module.weight_decay
+        )
         module.identifier_value = value
 
     # Return pre-configured value
@@ -84,24 +87,23 @@ def identify_value(module, name, dtype, data):
     # Categorical value if small number of distinct values
     if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
         # is_nan = data[name].isna().any()
-        value = module.add_module(
-            module='categorical', name=name, capacity=module.capacity, **categorical_kwargs
-        )
+        value = module.add_module(module='categorical', name=name, **categorical_kwargs)
 
     # Date value
     elif dtype.kind == 'M':  # 'm' timedelta
         is_nan = data[name].isna().any()
-        value = module.add_module(module='date', name=name, capacity=module.capacity)
+        value = module.add_module(
+            module='date', name=name, capacity=module.capacity, weight_decay=module.weight_decay
+        )
 
     # Boolean value
     elif dtype.kind == 'b':
         # is_nan = data[name].isna().any()
         value = module.add_module(
-            module='categorical', name=name, categories=[False, True], capacity=module.capacity,
-            **categorical_kwargs
+            module='categorical', name=name, categories=[False, True], **categorical_kwargs
         )
 
-    # Continuous value if integer (reduced variability makes similarity-categorical fallback more likely)
+    # Continuous value if integer (reduced variability makes similarity-categorical more likely)
     elif dtype.kind == 'i':
         value = module.add_module(module='continuous', name=name, integer=True, **continuous_kwargs)
 
@@ -109,8 +111,8 @@ def identify_value(module, name, dtype, data):
     elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
         # is_nan = data[name].isna().any()
         value = module.add_module(
-            module='categorical', name=name, categories=dtype.categories,
-            capacity=module.capacity, pandas_category=True, **categorical_kwargs
+            module='categorical', name=name, pandas_category=True, categories=dtype.categories,
+            **categorical_kwargs
         )
 
     # Date value if object type can be parsed
@@ -120,7 +122,10 @@ def identify_value(module, name, dtype, data):
             num_nan = date_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert date_data.dtype.kind == 'M'
-                value = module.add_module(module='date', name=name, capacity=module.capacity)
+                value = module.add_module(
+                    module='date', name=name, capacity=module.capacity,
+                    weight_decay=module.weight_decay
+                )
                 is_nan = num_nan > 0
         except ValueError:
             pass
@@ -128,16 +133,13 @@ def identify_value(module, name, dtype, data):
     # Similarity-based categorical value if not too many distinct values
     elif num_unique <= sqrt(num_data):
         value = module.add_module(
-            module='categorical', name=name, capacity=module.capacity, similarity_based=True,
-            **categorical_kwargs
+            module='categorical', name=name, similarity_based=True, **categorical_kwargs
         )
 
     # Return non-numeric value and handle NaNs if necessary
     if value is not None:
         if is_nan:
-            value = module.add_module(
-                module='nan', name=name, value=value, capacity=module.capacity
-            )
+            value = module.add_module(module='nan', name=name, value=value, **nan_kwargs)
         return value
 
     # ========== Numeric value ==========
@@ -157,9 +159,7 @@ def identify_value(module, name, dtype, data):
     if dtype.kind in ('f', 'i'):
         value = module.add_module(module='continuous', name=name, **continuous_kwargs)
         if is_nan:
-            value = module.add_module(
-                module='nan', name=name, value=value, capacity=module.capacity
-            )
+            value = module.add_module(module='nan', name=name, value=value, **nan_kwargs)
         return value
 
     # ========== Fallback values ==========
