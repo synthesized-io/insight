@@ -93,9 +93,7 @@ def identify_value(module, name, dtype, data):
     # Date value
     elif dtype.kind == 'M':  # 'm' timedelta
         is_nan = data[name].isna().any()
-        value = module.add_module(
-            module='date', name=name, capacity=module.capacity, weight_decay=module.weight_decay
-        )
+        value = module.add_module(module='date', name=name, capacity=module.capacity)
 
     # Boolean value
     elif dtype.kind == 'b':
@@ -123,10 +121,7 @@ def identify_value(module, name, dtype, data):
             num_nan = date_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert date_data.dtype.kind == 'M'
-                value = module.add_module(
-                    module='date', name=name, capacity=module.capacity,
-                    weight_decay=module.weight_decay
-                )
+                value = module.add_module(module='date', name=name, capacity=module.capacity)
                 is_nan = num_nan > 0
         except ValueError:
             pass
