@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from synthesized.basic import BasicSynthesizer
+from synthesized import BasicSynthesizer
 
 
 print()

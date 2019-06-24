@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import os
 
-from synthesized.scenario import ScenarioSynthesizer
+from synthesized import ScenarioSynthesizer
 
 
 print()
