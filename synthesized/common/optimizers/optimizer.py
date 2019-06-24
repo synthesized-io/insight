@@ -18,6 +18,7 @@ class Optimizer(Module):
         optimizer: str,
         # Learning rate
         learning_rate: float, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: bool = False,
         # Gradient clipping by global norm
         clip_gradients: float = None
     ):
@@ -32,6 +33,7 @@ class Optimizer(Module):
         self.learning_rate = learning_rate
         self.decay_steps = decay_steps
         self.decay_rate = decay_rate
+        self.initial_boost = initial_boost
 
         # Gradient clipping
         self.clip_gradients = clip_gradients
@@ -41,7 +43,7 @@ class Optimizer(Module):
         spec.update(
             optimizer=self.optimizer, learning_rate=self.learning_rate,
             decay_steps=self.decay_steps, decay_rate=self.decay_rate,
-            clip_gradients=self.clip_gradients
+            initial_boost=self.initial_boost, clip_gradients=self.clip_gradients
         )
         return spec
 
@@ -54,6 +56,7 @@ class Optimizer(Module):
             if self.decay_rate is not None:
                 raise NotImplementedError
             learning_rate = self.learning_rate
+
         else:
             # Exponentially decaying learning rate
             if self.decay_rate is None:
@@ -61,6 +64,12 @@ class Optimizer(Module):
             learning_rate = tf.train.exponential_decay(
                 learning_rate=self.learning_rate, global_step=Module.global_step,
                 decay_steps=self.decay_steps, decay_rate=self.decay_rate, staircase=False
+            )
+
+        if self.initial_boost:
+            learning_rate = tf.where(
+                condition=tf.math.less(x=self.global_step, y=10),
+                x=(5.0 * learning_rate), y=learning_rate
             )
 
         # TensorFlow optimizer

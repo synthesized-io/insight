@@ -1,5 +1,5 @@
 """This module implements the BasicSynthesizer class."""
-from typing import Callable
+from typing import Callable, List
 
 import numpy as np
 import pandas as pd
@@ -17,26 +17,27 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, data: pd.DataFrame, summarizer: bool = None,
+        self, data: pd.DataFrame, summarizer: str = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
-        network: str = 'mlp', capacity: int = 512, depth: int = 2, batchnorm: bool = True,
+        network: str = 'mlp', capacity: int = 256, depth: int = 2, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
-        decay_rate: float = 0.5, clip_gradients: float = 1.0, batch_size: int = 128,
+        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = 500,
+        decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
+        batch_size: int = 128,
         # Losses
-        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 5e-4,
+        categorical_weight: float = 1.0, continuous_weight: float = 0.1, beta: float = 5e-4,
         weight_decay: float = 0.0,
         # Categorical
-        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
-        entropy_regularization=0.1,
+        temperature: float = 1.0, smoothing: float = 0.0, moving_average: bool = True,
+        similarity_regularization: float = 0.0, entropy_regularization: float = 0.0,
         # Conditions
-        condition_labels=(),
+        condition_labels: List[str] = (),
         # Person
-        title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
-        email_label=None,
+        title_label=None, gender_label=None, name_label=None, firstname_label=None,
+        lastname_label=None, email_label=None,
         # Address
         postcode_label=None, city_label=None, street_label=None,
         address_label=None, postcode_regex=None,
@@ -62,12 +63,14 @@ class BasicSynthesizer(Synthesizer):
             learning_rate: Learning rate.
             decay_steps: Learning rate decay steps.
             decay_rate: Learning rate decay rate.
+            initial_boost: Learning rate boost for initial steps.
             clip_gradients: Gradient norm clipping.
             batch_size: Batch size.
             categorical_weight: Coefficient for categorical value losses.
             continuous_weight: Coefficient for continuous value losses.
             beta: VAE KL-loss beta.
             weight_decay: Weight decay.
+            temperature: Temperature for categorical value distributions.
             smoothing: Smoothing for categorical value distributions.
             moving_average: Whether to use moving average scaling for categorical values.
             similarity_regularization: Similarity regularization coefficient for categorical values.
@@ -94,6 +97,7 @@ class BasicSynthesizer(Synthesizer):
         self.weight_decay = weight_decay
         self.categorical_weight = categorical_weight
         self.continuous_weight = continuous_weight
+        self.temperature = temperature
         self.smoothing = smoothing
         self.moving_average = moving_average
         self.similarity_regularization = similarity_regularization
@@ -142,8 +146,9 @@ class BasicSynthesizer(Synthesizer):
             module='vae', name='vae', values=vae_values, conditions=condition_values,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
-            clip_gradients=clip_gradients, beta=beta, weight_decay=weight_decay
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,\
+            initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
+            weight_decay=weight_decay
         )
 
     def specification(self):

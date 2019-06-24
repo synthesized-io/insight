@@ -12,10 +12,11 @@ from ..module import Module, tensorflow_name_scoped
 class CategoricalValue(Value):
 
     def __init__(
-        self, name: str, capacity: int, weight_decay: float, weight: float, smoothing: float,
-        moving_average: bool, similarity_regularization: float, entropy_regularization: float,
+        self, name: str, capacity: int, weight_decay: float, weight: float, temperature: float,
+        smoothing: float, moving_average: bool, similarity_regularization: float,
+        entropy_regularization: float,
         # Optional
-        similarity_based: bool = False, temperature: float = 1.0, pandas_category: bool = False,
+        similarity_based: bool = False, pandas_category: bool = False,
         # Scenario
         categories=None, probabilities=None, embedding_size: int = None
     ):

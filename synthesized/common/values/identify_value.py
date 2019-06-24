@@ -20,6 +20,7 @@ def identify_value(module, name, dtype, data):
     categorical_kwargs['weight'] = module.categorical_weight
     nan_kwargs['weight'] = module.categorical_weight
     continuous_kwargs['weight'] = module.continuous_weight
+    categorical_kwargs['temperature'] = module.temperature
     categorical_kwargs['smoothing'] = module.smoothing
     categorical_kwargs['moving_average'] = module.moving_average
     categorical_kwargs['similarity_regularization'] = module.similarity_regularization

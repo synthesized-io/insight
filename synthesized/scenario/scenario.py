@@ -18,7 +18,7 @@ class ScenarioSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, values: List[Value], functionals: List[Functional], summarizer: bool = None,
+        self, values: List[Value], functionals: List[Functional], summarizer: str = None,
         # Prior distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -26,7 +26,7 @@ class ScenarioSynthesizer(Synthesizer):
         activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
-        decay_rate: float = 0.5, clip_gradients: float = 1.0,
+        decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, weight_decay: float = 0.0
     ):
@@ -47,6 +47,7 @@ class ScenarioSynthesizer(Synthesizer):
             learning_rate: Learning rate.
             decay_steps: Learning rate decay steps.
             decay_rate: Learning rate decay rate.
+            initial_boost: Learning rate boost for initial steps.
             clip_gradients: Gradient norm clipping.
             categorical_weight: Coefficient for categorical value losses.
             continuous_weight: Coefficient for continuous value losses.
@@ -64,6 +65,7 @@ class ScenarioSynthesizer(Synthesizer):
         categorical_kwargs['weight'] = categorical_weight
         nan_kwargs['weight'] = categorical_weight
         continuous_kwargs['weight'] = continuous_weight
+        categorical_kwargs['temperature'] = 1.0
         categorical_kwargs['smoothing'] = 0.0
         categorical_kwargs['moving_average'] = False
         categorical_kwargs['similarity_regularization'] = 0.0
@@ -113,7 +115,8 @@ class ScenarioSynthesizer(Synthesizer):
         # Optimizer
         self.optimizer = self.add_module(
             module='optimizer', name='optimizer', optimizer=optimizer, learning_rate=learning_rate,
-            decay_steps=decay_steps, decay_rate=decay_rate, clip_gradients=clip_gradients
+            decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
+            clip_gradients=clip_gradients
         )
 
     def specification(self):

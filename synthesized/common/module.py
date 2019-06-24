@@ -27,10 +27,11 @@ def tensorflow_name_scoped(tf_function):
 class Module(object):
     placeholders = None
     global_step = None
+    summarizer = None
 
     def __init__(self, name, summarizer=None):
         self.name = name
-        self.summarizer = summarizer
+        self._summarizer = summarizer
 
         self.submodules = list()
         self.placeholders = None
@@ -102,30 +103,32 @@ class Module(object):
         Module.placeholders = dict()
         self.graph = tf.Graph()
         Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
+        Module.summarizer = self._summarizer
+
         with self.graph.as_default():
 
-            if self.summarizer is not None:
-                directories = sorted(os.listdir(self.summarizer))
+            if Module.summarizer is not None:
+                directories = sorted(os.listdir(Module.summarizer))
                 if len(directories) > 6:
                     for subdir in directories[:-6]:
-                        subdir = os.path.join(self.summarizer, subdir)
+                        subdir = os.path.join(Module.summarizer, subdir)
                         os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
                         os.rmdir(subdir)
                 with tf.name_scope(name='summarizer'):
-                    self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=os.path.join(self.summarizer, time.strftime("%Y%m%d-%H%M%S")),
+                    Module.summarizer = tf.contrib.summary.create_file_writer(
+                        logdir=os.path.join(Module.summarizer, time.strftime("%Y%m%d-%H%M%S")),
                         max_queue=None, flush_millis=10000, filename_suffix=None
                     )
 
                 # tf.contrib.summary.record_summaries_every_n_global_steps(n=100, global_step=None)
-                with self.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
+                with Module.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
                     self.initialize()
 
                     with tf.name_scope(name='initialization', default_name=None, values=None):
                         summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
                         assert len(summarizer_init) == 1
                         initialization = (tf.global_variables_initializer(), summarizer_init[0])
-                        self.summarizer_close = self.summarizer.close()
+                        self.summarizer_close = Module.summarizer.close()
                         graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
                         graph_str = tf.constant(
                             value=graph_def.SerializeToString(), dtype=tf.string, shape=(),
@@ -145,7 +148,7 @@ class Module(object):
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
-        if self.summarizer is not None:
+        if Module.summarizer is not None:
             self.run(fetches=graph_summary)
         return self
 
@@ -157,7 +160,7 @@ class Module(object):
         )
 
     def __exit__(self, type, value, traceback):
-        if self.summarizer is not None:
+        if Module.summarizer is not None:
             self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
         tf.reset_default_graph()
