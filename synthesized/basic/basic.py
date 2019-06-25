@@ -167,6 +167,13 @@ class BasicSynthesizer(Synthesizer):
         )
         return spec
 
+    def preprocess(self, df):
+        # TODO: temporary for evaluation notebook!
+        df = df.copy()
+        for value in (self.values + self.conditions):
+            df = value.preprocess(df=df)
+        return df
+
     def module_initialize(self):
         super().module_initialize()
 
