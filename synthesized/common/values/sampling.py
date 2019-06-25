@@ -1,11 +1,12 @@
 import numpy as np
+import pandas as pd
 
 from .value import Value
 
 
 class SamplingValue(Value):
 
-    def __init__(self, name, uniform=False, smoothing=None):
+    def __init__(self, name: str, uniform: bool = False, smoothing: float = None):
         super().__init__(name=name)
 
         if uniform:
@@ -17,18 +18,20 @@ class SamplingValue(Value):
         else:
             self.smoothing = smoothing
 
-    def specification(self):
+    def specification(self) -> dict:
         spec = super().specification()
         spec.update(smoothing=self.smoothing)
         return spec
 
-    def extract(self, data):
-        self.categories = data[self.name].value_counts(normalize=True, sort=True, dropna=False)
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+        self.categories = df[self.name].value_counts(normalize=True, sort=True, dropna=False)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
 
-    def postprocess(self, data):
-        data.loc[:, self.name] = np.random.choice(
-            a=self.categories.index, size=len(data), p=self.categories.values
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
+        df.loc[:, self.name] = np.random.choice(
+            a=self.categories.index, size=len(df), p=self.categories.values
         )
-        return data
+        return df

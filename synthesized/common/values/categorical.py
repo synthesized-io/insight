@@ -133,13 +133,10 @@ class CategoricalValue(Value):
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.embeddings = tf.get_variable(
             name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
-            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+            regularizer=regularizer, trainable=True
         )
         if self.moving_average:
-            self.moving_average = tf.train.ExponentialMovingAverage(
-                decay=0.9, num_updates=None, zero_debias=False
-            )
+            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
         else:
             self.moving_average = None
 
@@ -201,10 +198,7 @@ class CategoricalValue(Value):
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
         if self.similarity_regularization > 0.0:
-            similarity_loss = tf.matmul(
-                a=self.embeddings, b=self.embeddings, transpose_a=False, transpose_b=True,
-                adjoint_a=False, adjoint_b=False, a_is_sparse=False, b_is_sparse=False
-            )
+            similarity_loss = tf.matmul(a=self.embeddings, b=self.embeddings, transpose_b=True)
             similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=1)
             similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=0)
             similarity_loss = self.similarity_regularization * similarity_loss

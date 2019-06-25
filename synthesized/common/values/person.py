@@ -1,6 +1,9 @@
+from typing import List
+
 import faker
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from .categorical import CategoricalValue
 from .value import Value
@@ -31,57 +34,51 @@ class PersonValue(Value):
             self.gender = None
         else:
             self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label,
-                capacity=capacity,
+                module=CategoricalValue, name=gender_label, capacity=capacity
             )
 
-    def input_tensor_size(self):
+    def learned_input_columns(self) -> List[str]:
         if self.gender is None:
-            return 0
+            return super().learned_input_columns()
         else:
-            return self.gender.input_tensor_size()
+            return self.gender.learned_input_columns()
 
-    def output_tensor_size(self):
+    def learned_output_columns(self) -> List[str]:
         if self.gender is None:
-            return 0
+            return super().learned_output_columns()
         else:
-            return self.gender.output_tensor_size()
+            return self.gender.learned_output_columns()
 
-    def input_tensor_labels(self):
-        if self.gender is not None:
-            yield from self.gender.input_tensor_labels()
-        # if self.name_label is not None:
-        #     yield self.name_label
-        # if self.firstname_label is not None:
-        #     yield self.firstname_label
-        # if self.lastname_label is not None:
-        #     yield self.lastname_label
-        # if self.email_label is not None:
-        #     yield self.email_label
-
-    def output_tensor_labels(self):
-        if self.gender is not None:
-            yield from self.gender.output_tensor_labels()
-
-    def placeholders(self):
-        if self.gender is not None:
-            yield from self.gender.placeholders()
-
-    def extract(self, data):
-        if self.gender is not None:
-            self.gender.extract(data=data)
-
-    def preprocess(self, data):
-        if self.gender is not None:
-            data = self.gender.preprocess(data=data)
-        return data
-
-    def postprocess(self, data):
+    def learned_input_size(self) -> int:
         if self.gender is None:
-            gender = np.random.choice(a=['female', 'male'], size=len(data))
+            return super().learned_input_size()
         else:
-            data = self.gender.postprocess(data=data)
-            gender = data[self.gender_label]
+            return self.gender.learned_input_size()
+
+    def learned_output_size(self) -> int:
+        if self.gender is None:
+            return super().learned_output_size()
+        else:
+            return self.gender.learned_output_size()
+
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+        if self.gender is not None:
+            self.gender.extract(df=df)
+
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.gender is not None:
+            df = self.gender.preprocess(df=df)
+        return super().preprocess(df=df)
+
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
+
+        if self.gender is None:
+            gender = np.random.choice(a=['female', 'male'], size=len(df))
+        else:
+            df = self.gender.postprocess(data=df)
+            gender = df[self.gender_label]
 
         def get_first_name(g):
             if g == 'M':
@@ -91,48 +88,56 @@ class PersonValue(Value):
 
         title = gender.astype(dtype=str).apply(func=self.title_mapping.__getitem__)
         firstname = gender.astype(dtype=str).apply(func=get_first_name)
-        lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(data)))
+        lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(df)))
 
         if self.title_label is not None:
-            data.loc[:, self.title_label] = title
+            df.loc[:, self.title_label] = title
         if self.name_label is not None:
-            data.loc[:, self.name_label] = firstname.str.cat(others=lastname, sep=' ')
+            df.loc[:, self.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.firstname_label is not None:
-            data.loc[:, self.firstname_label] = firstname
+            df.loc[:, self.firstname_label] = firstname
         if self.lastname_label is not None:
-            data.loc[:, self.lastname_label] = lastname
+            df.loc[:, self.lastname_label] = lastname
         if self.email_label is not None:
             # https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
             # we don't want clashes with real emails
             # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
-            data.loc[:, self.email_label] = firstname.str.lower() \
+            df.loc[:, self.email_label] = firstname.str.lower() \
                 .str.cat(others=lastname.str.lower(), sep='.')
-            data.loc[:, self.email_label] += '@example.com'
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        if self.gender is not None:
-            features.update(self.gender.features(x=x))
-        return features
+            df.loc[:, self.email_label] += '@example.com'
+        return df
 
     @tensorflow_name_scoped
-    def input_tensors(self, feed=None):
+    def input_tensors(self) -> List[tf.Tensor]:
         if self.gender is None:
-            return super().input_tensors(feed=feed)
+            return super().input_tensors()
         else:
-            return self.gender.input_tensors(feed=feed)
+            return self.gender.input_tensors()
 
     @tensorflow_name_scoped
-    def output_tensors(self, x):
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         if self.gender is None:
-            return super().output_tensors(x=x)
+            return super().unify_inputs(xs=xs)
         else:
-            return self.gender.output_tensors(x=x)
+            return self.gender.unify_inputs(xs=xs)
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         if self.gender is None:
-            return super().loss(x=x, feed=feed)
+            return super().output_tensors(y=y)
         else:
-            return self.gender.loss(x=x, feed=feed)
+            return self.gender.output_tensors(y=y)
+
+    @tensorflow_name_scoped
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        if self.gender is None:
+            return super().loss(y=y, xs=xs)
+        else:
+            return self.gender.loss(y=y, xs=xs)
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        if self.gender is None:
+            return super().distribution_loss(ys=ys)
+        else:
+            return self.gender.distribution_loss(ys=ys)

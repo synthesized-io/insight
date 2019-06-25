@@ -1,6 +1,9 @@
+import re
+from typing import List
+
 import numpy as np
 import pandas as pd
-import re
+import tensorflow as tf
 
 from .value import Value
 from .categorical import CategoricalValue
@@ -42,33 +45,33 @@ class AddressValue(Value):
                 capacity=capacity
             )
 
-    def input_tensor_size(self):
+    def learned_input_columns(self) -> List[str]:
         if self.postcode is None:
-            return 0
+            return super().learned_input_columns()
         else:
-            return self.postcode.input_tensor_size()
+            return self.postcode.learned_input_columns()
 
-    def output_tensor_size(self):
+    def learned_output_columns(self) -> List[str]:
         if self.postcode is None:
-            return 0
+            return super().learned_output_columns()
         else:
-            return self.postcode.output_tensor_size()
+            return self.postcode.learned_output_columns()
 
-    def input_tensor_labels(self):
-        if self.postcode is not None:
-            yield from self.postcode.input_tensor_labels()
-        # if self.street_label is not None:
-        #     yield self.street_label
+    def learned_input_size(self) -> int:
+        if self.postcode is None:
+            return super().learned_input_size()
+        else:
+            return self.postcode.learned_input_size()
 
-    def output_tensor_labels(self):
-        if self.postcode is not None:
-            yield from self.postcode.output_tensor_labels()
+    def learned_output_size(self) -> int:
+        if self.postcode is None:
+            return super().learned_output_size()
+        else:
+            return self.postcode.learned_output_size()
 
-    def placeholders(self):
-        if self.postcode is not None:
-            yield from self.postcode.placeholders()
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
 
-    def extract(self, data):
         if self.postcodes is None:
             self.postcodes = dict()
             fixed = False
@@ -77,7 +80,7 @@ class AddressValue(Value):
             fixed = True
 
         keys = []
-        for n, row in data.iterrows():
+        for n, row in df.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
                 raise ValueError(postcode)
@@ -112,9 +115,9 @@ class AddressValue(Value):
             postcode_data = pd.DataFrame({self.postcode_label: keys})
             self.postcode.extract(data=postcode_data)
 
-    def preprocess(self, data):
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         postcodes = []
-        for n, row in data.iterrows():
+        for n, row in df.iterrows():
             postcode = row[self.postcode_label]
             if not self.__class__.postcode_regex.match(postcode):
                 raise ValueError(postcode)
@@ -127,21 +130,24 @@ class AddressValue(Value):
             postcode_key = postcode[:index]
             postcodes.append(postcode_key)
 
-        data[self.postcode_label] = postcodes
+        df[self.postcode_label] = postcodes
 
         if self.postcode is not None:
-            data = self.postcode.preprocess(data=data)
-        return data
+            df = self.postcode.preprocess(df=df)
 
-    def postprocess(self, data):
+        return super().preprocess(df=df)
+
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
+
         if self.postcodes is None or isinstance(self.postcodes, set):
             raise NotImplementedError
         if self.postcode is None:
-            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(data)),
+            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(df)),
                                  name=self.postcode_label)
         else:
-            data = self.postcode.postprocess(data=data)
-            postcode = data[self.postcode_label].astype(dtype='str')
+            df = self.postcode.postprocess(data=df)
+            postcode = df[self.postcode_label].astype(dtype='str')
 
         def expand_postcode(key):
             return key + np.random.choice(self.postcodes[key])
@@ -152,39 +158,47 @@ class AddressValue(Value):
         def lookup_street(key):
             return self.streets[key]
 
-        data[self.postcode_label] = postcode.apply(expand_postcode)
+        df[self.postcode_label] = postcode.apply(expand_postcode)
 
         if self.city_label:
-            data[self.city_label] = postcode.apply(lookup_city)
+            df[self.city_label] = postcode.apply(lookup_city)
 
         if self.street_label:
-            data[self.street_label] = postcode.apply(lookup_street)
+            df[self.street_label] = postcode.apply(lookup_street)
 
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        if self.postcode is not None:
-            features.update(self.postcode.features(x=x))
-        return features
+        return df
 
     @tensorflow_name_scoped
-    def input_tensors(self, feed=None):
+    def input_tensors(self) -> List[tf.Tensor]:
         if self.postcode is None:
-            return super().input_tensors(feed=feed)
+            return super().input_tensors()
         else:
-            return self.postcode.input_tensors(feed=feed)
+            return self.postcode.input_tensors()
 
     @tensorflow_name_scoped
-    def output_tensors(self, x):
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         if self.postcode is None:
-            return super().output_tensors(x=x)
+            return super().unify_inputs(xs=xs)
         else:
-            return self.postcode.output_tensors(x=x)
+            return self.postcode.unify_inputs(xs=xs)
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         if self.postcode is None:
-            return super().loss(x=x, feed=feed)
+            return super().output_tensors(y=y)
         else:
-            return self.postcode.loss(x=x, feed=feed)
+            return self.postcode.output_tensors(y=y)
+
+    @tensorflow_name_scoped
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        if self.postcode is None:
+            return super().loss(y=y, xs=xs)
+        else:
+            return self.postcode.loss(y=y, xs=xs)
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        if self.postcode is None:
+            return super().distribution_loss(ys=ys)
+        else:
+            return self.postcode.distribution_loss(ys=ys)

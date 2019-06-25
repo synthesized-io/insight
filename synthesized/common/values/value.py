@@ -51,7 +51,7 @@ class Value(Module):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
-        raise NotImplementedError
+        return list()
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -59,12 +59,12 @@ class Value(Module):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        raise NotImplementedError
+        return list()
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
-        raise NotImplementedError
+        return tf.constant(value=0.0, dtype=tf.float32)
 
     @tensorflow_name_scoped
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
-        raise NotImplementedError
+        return tf.constant(value=0.0, dtype=tf.float32)

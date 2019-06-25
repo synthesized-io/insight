@@ -2,12 +2,15 @@ from math import log, sqrt
 
 import pandas as pd
 
+from .value import Value
+from ...synthesizer import Synthesizer
+
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
-def identify_value(module, df, name):
+def identify_value(module: Synthesizer, df: pd.Series, name: str) -> Value:
     value = None
 
     categorical_kwargs = dict()
@@ -110,14 +113,14 @@ def identify_value(module, df, name):
     elif df.dtype.kind == 'O' and hasattr(df.dtype, 'categories'):
         # is_nan = df.isna().any()
         value = module.add_module(
-            module='categorical', name=name, pandas_category=True, categories=dtype.categories,
+            module='categorical', name=name, pandas_category=True, categories=df.dtype.categories,
             **categorical_kwargs
         )
 
     # Date value if object type can be parsed
     elif df.dtype.kind == 'O':
         try:
-            date_data = pd.to_datetime(data[name])
+            date_data = pd.to_datetime(df[name])
             num_nan = date_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert date_data.dtype.kind == 'M'
@@ -146,13 +149,13 @@ def identify_value(module, df, name):
         num_nan = numeric_data.isna().sum()
         if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
             assert numeric_data.dtype.kind in ('f', 'i')
-            dtype = numeric_data.dtype
             is_nan = num_nan > 0
     elif df.dtype.kind in ('f', 'i'):
+        numeric_data = df
         is_nan = df.isna().any()
 
     # Return numeric value and handle NaNs if necessary
-    if df.dtype.kind in ('f', 'i'):
+    if numeric_data.dtype.kind in ('f', 'i'):
         value = module.add_module(module='continuous', name=name, **continuous_kwargs)
         if is_nan:
             value = module.add_module(module='nan', name=name, value=value, **nan_kwargs)
