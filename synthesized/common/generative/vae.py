@@ -43,13 +43,15 @@ class VAE(Generative):
         input_size = 0
         output_size = 0
         for value in self.values:
-            input_size += value.input_size()
-            output_size += value.output_size()
+            input_size += value.learned_input_size()
+            output_size += value.learned_output_size()
 
         # Total condition size
         condition_size = 0
         for value in self.conditions:
-            condition_size += value.input_size()
+            assert value.learned_input_size() > 0
+            assert value.learned_input_columns() == value.learned_output_columns()
+            condition_size += value.learned_input_size()
 
         # Encoder: parametrized distribution q(z|x)
         parametrization = dict(
@@ -92,7 +94,7 @@ class VAE(Generative):
         """Training step for the generative model.
 
         Args:
-            xs: Input tensor per value.
+            xs: Input tensor per column.
 
         Returns:
             Dictionary of loss tensors, and optimization operation.
@@ -105,7 +107,10 @@ class VAE(Generative):
         summaries = list()
 
         # Concatenate input tensors per value
-        x = tf.concat(values=[xs[value.name] for value in self.values], axis=1)
+        x = tf.concat(values=[
+            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+            for value in self.values
+        ], axis=1)
 
         # Encoder q(z|x)
         q = self.encoder.parametrize(x=x)
@@ -127,7 +132,10 @@ class VAE(Generative):
 
         if len(self.conditions) > 0:
             # Condition c
-            c = tf.concat(values=[xs[value.name] for value in self.conditions], axis=1)
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
 
             # Concatenate z,c
             z = tf.concat(values=(z, c), axis=1)
@@ -140,12 +148,15 @@ class VAE(Generative):
 
         # Split output tensors per value
         ys = tf.split(
-            value=y, num_or_size_splits=[value.output_size() for value in self.values], axis=1
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
         )
 
         # Reconstruction loss per value
         for value, y in zip(self.values, ys):
-            losses[value.name + '-loss'] = value.loss(x=y)
+            losses[value.name + '-loss'] = value.loss(
+                y=y, xs=[xs[name] for name in value.learned_output_columns()]
+            )
 
         # Regularization loss
         reg_losses = tf.losses.get_regularization_losses()
@@ -159,7 +170,10 @@ class VAE(Generative):
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
-            summaries.append(tf.contrib.summary.scalar(name=name + '-ratio', tensor=(loss / losses['kl-loss'])))
+            if name != 'total-loss' and name != 'kl-loss':
+                summaries.append(tf.contrib.summary.scalar(
+                    name=name + '-ratio', tensor=(loss / losses['kl-loss'])
+                ))
 
         if Module.summarizer is None:
             summaries = list()
@@ -180,10 +194,10 @@ class VAE(Generative):
 
         Args:
             n: Number of instances to generate.
-            cs: Condition tensor per value.
+            cs: Condition tensor per column.
 
         Returns:
-            Output tensor per value.
+            Output tensor per column.
 
         """
         # Prior p'(z)
@@ -194,7 +208,10 @@ class VAE(Generative):
 
         if len(self.conditions) > 0:
             # Condition c
-            c = tf.concat(values=[cs[value.name] for value in self.conditions], axis=1)
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
 
             # Concatenate z,c
             z = tf.concat(values=(z, c), axis=1)
@@ -207,16 +224,17 @@ class VAE(Generative):
 
         # Split output tensors per value
         ys = tf.split(
-            value=y, num_or_size_splits=[value.output_size() for value in self.values], axis=1
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
         )
 
         # Output tensors per value
         synthesized = OrderedDict()
         for value, y in zip(self.values, ys):
-            ys = value.output_tensors(x=y)
-            for label, y in ys.items():
-                synthesized[label] = y
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+
         for value in self.conditions:
-            synthesized[value.name] = value.placeholder
+            for name in value.learned_output_columns():
+                synthesized[name] = cs[name]
 
         return synthesized

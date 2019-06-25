@@ -1,5 +1,5 @@
 from math import log
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 from scipy.stats import gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
@@ -71,17 +71,15 @@ class ContinuousValue(Value):
         )
         return spec
 
-    def input_size(self) -> int:
+    def learned_input_size(self) -> int:
         return 1
 
-    def output_size(self) -> int:
+    def learned_output_size(self) -> int:
         return 1
 
-    def placeholders(self) -> Iterable[tf.Tensor]:
-        yield self.placeholder
-
-    def extract(self, data: pd.DataFrame) -> None:
-        column = data[self.name]
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+        column = df[self.name]
 
         if column.dtype.kind not in ('f', 'i'):
             column = self.pd_cast(column)
@@ -163,134 +161,124 @@ class ContinuousValue(Value):
         #     self.distribution = None
         #     self.distribution_params = None
 
-    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
-        data = super().preprocess(data=data)
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required
-        # data = ContinuousValue.remove_outliers(data, self.name, REMOVE_OUTLIERS_PCT)
+        # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
 
-        if data[self.name].dtype.kind not in ('f', 'i'):
-            data.loc[:, self.name] = self.pd_cast(data[self.name])
+        if df[self.name].dtype.kind not in ('f', 'i'):
+            df.loc[:, self.name] = self.pd_cast(df[self.name])
 
-        data.loc[:, self.name] = data[self.name].astype(dtype='float32')
-        assert not data[self.name].isna().any()
-        assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
+        df.loc[:, self.name] = df[self.name].astype(dtype='float32')
+        assert not df[self.name].isna().any()
+        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.distribution == 'dirac':
-            return data
+            return df
 
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
-                data.loc[:, self.name] = np.maximum(data[self.name], 0.001)
-            data.loc[:, self.name] = np.maximum(data[self.name], 0.0) + np.log(
-                np.sign(data[self.name]) * (1.0 - np.exp(-np.abs(data[self.name])))
+                df.loc[:, self.name] = np.maximum(df[self.name], 0.001)
+            df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
+                np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
             )
 
         if self.distribution == 'normal':
             mean, stddev = self.distribution_params
-            data.loc[:, self.name] = (data[self.name] - mean) / stddev
+            df.loc[:, self.name] = (df[self.name] - mean) / stddev
 
         elif self.distribution is not None:
-            data.loc[:, self.name] = norm.ppf(
-                DISTRIBUTIONS[self.distribution][0].cdf(data[self.name], *self.distribution_params)
+            df.loc[:, self.name] = norm.ppf(
+                DISTRIBUTIONS[self.distribution][0].cdf(df[self.name], *self.distribution_params)
             )
-            data = data[(data[self.name] != float('inf')) & (data[self.name] != float('-inf'))]
+            df = df[(df[self.name] != float('inf')) & (df[self.name] != float('-inf'))]
 
-        assert not data[self.name].isna().any()
-        assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
+        assert not df[self.name].isna().any()
+        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
-        return data
+        return super().preprocess(df=df)
 
-    def postprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
         if self.distribution == 'dirac':
-            data.loc[:, self.name] = self.distribution_params[0]
+            df.loc[:, self.name] = self.distribution_params[0]
 
         else:
             if self.distribution == 'normal':
                 mean, stddev = self.distribution_params
-                data.loc[:, self.name] = data[self.name] * stddev + mean
+                df.loc[:, self.name] = df[self.name] * stddev + mean
 
             elif self.distribution is not None:
-                data.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
-                    norm.cdf(data[self.name]), *self.distribution_params
+                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                    norm.cdf(df[self.name]), *self.distribution_params
                 )
 
             if self.positive or self.nonnegative:
-                data.loc[:, self.name] = np.log(1 + np.exp(-np.abs(data[self.name]))) + \
-                                         np.maximum(data[self.name], 0.0)
-                # np.log(np.exp(data[self.name]) + 1.0)
+                df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
+                                         np.maximum(df[self.name], 0.0)
                 if self.nonnegative and not self.positive:
-                    zeros = np.zeros_like(data[self.name])
-                    data.loc[:, self.name] = np.where(
-                        (data[self.name] >= 0.001), data[self.name], zeros
+                    zeros = np.zeros_like(df[self.name])
+                    df.loc[:, self.name] = np.where(
+                        (df[self.name] >= 0.001), df[self.name], zeros
                     )
 
-        assert not data[self.name].isna().any()
-        assert (data[self.name] != float('inf')).all() and (data[self.name] != float('-inf')).all()
+        assert not df[self.name].isna().any()
+        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.integer:
-            data.loc[:, self.name] = data[self.name].astype(dtype='int32')
+            df.loc[:, self.name] = df[self.name].astype(dtype='int32')
 
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        if x is None:
-            features[self.name] = tf.FixedLenFeature(
-                shape=(), dtype=tf.float32, default_value=None
-            )
-        else:
-            features[self.name] = tf.train.Feature(
-                float_list=tf.train.FloatList(value=(x[self.name],))
-            )
-        return features
+        return df
 
     def module_initialize(self) -> None:
         super().module_initialize()
-        self.placeholder = tf.placeholder(dtype=tf.float32, shape=(None,), name='input')
-        assert self.name not in Module.placeholders
-        Module.placeholders[self.name] = self.placeholder
+
+        # Input placeholder for value
+        self.add_placeholder(name=self.name, dtype=tf.float32, shape=(None,))
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        x = self.placeholder if feed is None else feed[self.name]
-        x = tf.expand_dims(input=x, axis=1)
-        return x
+    def input_tensors(self) -> List[tf.Tensor]:
+        return [Module.placeholders[self.name]]
 
     @tensorflow_name_scoped
-    def output_tensors(self, x: tf.Tensor) -> Dict[str, tf.Tensor]:
-        x = tf.squeeze(input=x, axis=1)
-        return {self.name: x}
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        assert len(xs) == 1
+        return tf.expand_dims(input=xs[0], axis=1)
 
     @tensorflow_name_scoped
-    def loss(
-        self, x: tf.Tensor, feed: Dict[str, tf.Tensor] = None, mask: tf.Tensor = None
-    ) -> tf.Tensor:
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+        y = tf.squeeze(input=y, axis=1)
+        return [y]
+
+    @tensorflow_name_scoped
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         if self.distribution == 'dirac':
             return tf.constant(value=0.0, dtype=tf.float32)
 
-        target = self.input_tensor(feed=feed)[:, :1]  # first value since date adds more information
+        assert len(xs) == 1
+        target = xs[0]
+        target = tf.expand_dims(input=target, axis=1)
+        # target = self.input_tensors(xs=xs)[:, :1]  # first value since date adds more information
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
-            x = tf.boolean_mask(tensor=x, mask=mask)
+            y = tf.boolean_mask(tensor=y, mask=mask)
         # loss = tf.nn.l2_loss(t=(target - x))
-        loss = tf.squeeze(input=tf.math.squared_difference(x=x, y=target), axis=1)
+        loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 
     @tensorflow_name_scoped
-    def distribution_loss(self, samples: tf.Tensor) -> tf.Tensor:
-        samples = tf.squeeze(input=samples, axis=1)
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        assert len(ys) == 1
 
         if self.distribution is None:
             return tf.constant(value=0.0, dtype=tf.float32)
-        elif self.distribution == 'normal':
-            location, scale = self.distribution_params
-            distribution = tfd.Normal(loc=location, scale=scale)
-            samples = tf.where(
-                condition=(samples < location), x=(samples + 2 * location), y=samples
-            )
-            samples = (samples - location) / scale
-            samples = distribution.cdf(value=samples) / scale
+
+        samples = ys[0]
+
+        if self.distribution == 'normal':
+            loc, scale = self.distribution_params
+            distribution = tfd.Normal(loc=loc, scale=scale)
+            samples = distribution.cdf(value=samples)
         elif self.distribution == 'gamma':
             shape, location, scale = self.distribution_params
             distribution = DISTRIBUTIONS[self.distribution][1](concentration=shape, rate=1.0)

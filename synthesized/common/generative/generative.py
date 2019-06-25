@@ -20,7 +20,7 @@ class Generative(Module):
         """Training step for the generative model.
 
         Args:
-            xs: Input tensor per value.
+            xs: Input tensor per column.
 
         Returns:
             Dictionary of loss tensors, and optimization operation.
@@ -34,10 +34,10 @@ class Generative(Module):
 
         Args:
             n: Number of instances to generate.
-            cs: Condition tensor per value.
+            cs: Condition tensor per column.
 
         Returns:
-            Output tensor per value.
+            Output tensor per column.
 
         """
         raise NotImplementedError

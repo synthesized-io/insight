@@ -42,27 +42,27 @@ class AddressValue(Value):
                 capacity=capacity
             )
 
-    def input_size(self):
+    def input_tensor_size(self):
         if self.postcode is None:
             return 0
         else:
-            return self.postcode.input_size()
+            return self.postcode.input_tensor_size()
 
-    def output_size(self):
+    def output_tensor_size(self):
         if self.postcode is None:
             return 0
         else:
-            return self.postcode.output_size()
+            return self.postcode.output_tensor_size()
 
-    def input_labels(self):
+    def input_tensor_labels(self):
         if self.postcode is not None:
-            yield from self.postcode.input_labels()
+            yield from self.postcode.input_tensor_labels()
         # if self.street_label is not None:
         #     yield self.street_label
 
-    def output_labels(self):
+    def output_tensor_labels(self):
         if self.postcode is not None:
-            yield from self.postcode.output_labels()
+            yield from self.postcode.output_tensor_labels()
 
     def placeholders(self):
         if self.postcode is not None:
@@ -169,11 +169,11 @@ class AddressValue(Value):
         return features
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
+    def input_tensors(self, feed=None):
         if self.postcode is None:
-            return super().input_tensor(feed=feed)
+            return super().input_tensors(feed=feed)
         else:
-            return self.postcode.input_tensor(feed=feed)
+            return self.postcode.input_tensors(feed=feed)
 
     @tensorflow_name_scoped
     def output_tensors(self, x):

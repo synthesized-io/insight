@@ -13,6 +13,10 @@ def register(name, module):
     module_registry[name] = module
 
 
+def make_tf_compatible(string):
+    return string.replace(' ', '_').replace(':', '').replace('%', '')
+
+
 def tensorflow_name_scoped(tf_function):
     @wraps(tf_function)
     def function(self, *args, **kwargs):
@@ -34,7 +38,6 @@ class Module(object):
         self._summarizer = summarizer
 
         self.submodules = list()
-        self.placeholders = None
         self.initialized = False
 
     def specification(self):
@@ -60,7 +63,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.variable_scope(name_or_scope=self.name.replace(' ', '_').replace(':', '').replace('%', '')):
+        with tf.variable_scope(name_or_scope=make_tf_compatible(string=self.name)):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()
@@ -84,20 +87,13 @@ class Module(object):
         else:
             raise NotImplementedError
 
-    # def add_summary(self, name, tensor):
-    #     # name = '{}-{}'.format(self.name, name)
-    #     shape = tuple(tensor.get_shape().as_list())
-    #     if shape == () or shape == (-1):
-    #         summary = tf.contrib.summary.scalar(name=name, tensor=tensor, family=None, step=None)
+    def add_placeholder(self, name, dtype, shape):
+        if name in Module.placeholders:
+            raise NotImplementedError
 
-    #     elif shape == (1,) or shape == (-1, 1):
-    #         tensor = tf.squeeze(input=tensor, axis=-1)
-    #         summary = tf.contrib.summary.scalar(name=name, tensor=tensor, family=None, step=None)
-
-    #     else:
-    #         summary = tf.contrib.summary.histogram(name=name, tensor=tensor, family=None, step=None)
-
-    #     self.summaries[name] = summary
+        Module.placeholders[name] = tf.placeholder(
+            dtype=dtype, shape=shape, name=make_tf_compatible(string=name)
+        )
 
     def __enter__(self):
         Module.placeholders = dict()
@@ -143,8 +139,6 @@ class Module(object):
                 initialization = tf.global_variables_initializer()
 
         self.graph.finalize()
-        self.placeholders = Module.placeholders
-        Module.placeholders = None
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
@@ -154,10 +148,8 @@ class Module(object):
 
     def run(self, fetches, feed_dict=None):
         if feed_dict is not None:
-            feed_dict = {self.placeholders[name]: value for name, value in feed_dict.items()}
-        return self.session.run(
-            fetches=fetches, feed_dict=feed_dict, options=None, run_metadata=None
-        )
+            feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+        return self.session.run(fetches=fetches, feed_dict=feed_dict)
 
     def __exit__(self, type, value, traceback):
         if Module.summarizer is not None:

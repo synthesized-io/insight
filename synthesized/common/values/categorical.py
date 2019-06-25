@@ -1,5 +1,5 @@
 from math import isnan, log
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, List
 
 import pandas as pd
 import tensorflow as tf
@@ -78,20 +78,18 @@ class CategoricalValue(Value):
         )
         return spec
 
-    def input_size(self) -> int:
+    def learned_input_size(self) -> int:
         return self.embedding_size
 
-    def output_size(self) -> int:
+    def learned_output_size(self) -> int:
         if self.similarity_based:
             return self.embedding_size
         else:
             return self.num_categories
 
-    def placeholders(self) -> Iterable[tf.Tensor]:
-        yield self.placeholder
-
-    def extract(self, data: pd.DataFrame) -> None:
-        unique_values = list(data[self.name].unique())
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+        unique_values = list(df[self.name].unique())
         for n, x in enumerate(unique_values):
             if isinstance(x, float) and isnan(x):
                 unique_values.insert(0, unique_values.pop(n))
@@ -106,35 +104,27 @@ class CategoricalValue(Value):
         elif unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
 
-    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             fn = (lambda x: 0 if isinstance(x, float) and isnan(x) and self.nans_valid else self.categories.index(x))
-            data.loc[:, self.name] = data[self.name].map(arg=fn)
-        data.loc[:, self.name] = data[self.name].astype(dtype='int64')
-        return data
+            df.loc[:, self.name] = df[self.name].map(arg=fn)
+        df.loc[:, self.name] = df[self.name].astype(dtype='int64')
+        return super().preprocess(df=df)
 
-    def postprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
         if not isinstance(self.categories, int):
-            data.loc[:, self.name] = data[self.name].map(arg=self.categories.__getitem__)
+            df.loc[:, self.name] = df[self.name].map(arg=self.categories.__getitem__)
         if self.pandas_category:
-            data.loc[:, self.name] = data[self.name].astype(dtype='category')
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        if x is None:
-            features[self.name] = tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
-        else:
-            features[self.name] = tf.train.Feature(
-                int64_list=tf.train.Int64List(value=(x[self.name],))
-            )
-        return features
+            df.loc[:, self.name] = df[self.name].astype(dtype='category')
+        return df
 
     def module_initialize(self) -> None:
         super().module_initialize()
-        self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
-        assert self.name not in Module.placeholders
-        Module.placeholders[self.name] = self.placeholder
+
+        # Input placeholder for value
+        self.add_placeholder(name=self.name, dtype=tf.int64, shape=(None,))
+
         if self.probabilities is not None and not self.similarity_based:
             # "hack": scenario synthesizer, embeddings not used
             return
@@ -154,30 +144,32 @@ class CategoricalValue(Value):
             self.moving_average = None
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        # tensor = tf.one_hot(
-        #     indices=self.placeholder, depth=self.num_categories, on_value=1.0, off_value=0.0,
-        #     axis=1, dtype=tf.float32
-        # )
-        x = self.placeholder if feed is None else feed[self.name]
-        x = tf.nn.embedding_lookup(
-            params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
-            max_norm=None
-        )
-        return x
+    def input_tensors(self) -> List[tf.Tensor]:
+        return [Module.placeholders[self.name]]
 
     @tensorflow_name_scoped
-    def output_tensors(self, x: tf.Tensor) -> Dict[str, tf.Tensor]:
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        assert len(xs) == 1
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
+
+    @tensorflow_name_scoped
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         if self.similarity_based:
-            x = tf.expand_dims(input=x, axis=1)
+            # Similarities as logits
+            y = tf.expand_dims(input=y, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            x = tf.reduce_sum(input_tensor=(x * embeddings), axis=2, keepdims=False)
-        x = tf.argmax(input=x, axis=1)
-        return {self.name: x}
+            y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
+
+        # Choose argmax class
+        y = tf.argmax(input=y, axis=1)
+
+        return [y]
 
     @tensorflow_name_scoped
-    def loss(self, x: tf.Tensor, feed: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        target = self.placeholder if feed is None else feed[self.name]
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        assert len(xs) == 1
+        target = xs[0]
+
         if self.moving_average is not None:
             frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
@@ -201,12 +193,12 @@ class CategoricalValue(Value):
             dtype=tf.float32
         )
         if self.similarity_based:  # is that right?
-            x = tf.expand_dims(input=x, axis=1)
+            y = tf.expand_dims(input=y, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            x = tf.reduce_mean(input_tensor=(x * embeddings), axis=2, keepdims=False)
-        x = x / self.temperature
+            y = tf.reduce_mean(input_tensor=(y * embeddings), axis=2, keepdims=False)
+        y = y / self.temperature
         target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=x, axis=1)
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
         if self.similarity_regularization > 0.0:
             similarity_loss = tf.matmul(
@@ -218,7 +210,7 @@ class CategoricalValue(Value):
             similarity_loss = self.similarity_regularization * similarity_loss
             loss = loss + similarity_loss
         if self.entropy_regularization > 0.0:
-            probs = tf.nn.softmax(logits=x, axis=-1)
+            probs = tf.nn.softmax(logits=y, axis=-1)
             logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
             entropy_loss = tf.reduce_mean(input_tensor=entropy_loss, axis=0)
@@ -227,18 +219,17 @@ class CategoricalValue(Value):
         return loss
 
     @tensorflow_name_scoped
-    def distribution_loss(self, samples: tf.Tensor) -> tf.Tensor:
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        assert len(ys) == 1
+
         if self.probabilities is None:
             return tf.constant(value=0.0, dtype=tf.float32)
 
-        # assert not self.moving_average
-        if self.similarity_based:  # is that right?
-            samples = tf.expand_dims(input=samples, axis=1)
-            embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            samples = tf.reduce_sum(input_tensor=(samples * embeddings), axis=2, keepdims=False)
-        samples = tf.math.argmax(input=samples, axis=1, output_type=tf.int32)
+        samples = ys[0]
         num_samples = tf.shape(input=samples)[0]
-        samples = tf.concat(values=(tf.range(start=0, limit=self.num_categories), samples), axis=0)
+        samples = tf.concat(
+            values=(tf.range(start=0, limit=self.num_categories, dtype=tf.int64), samples), axis=0
+        )
         _, _, counts = tf.unique_with_counts(x=samples)
         counts = counts - 1
         probs = tf.cast(x=counts, dtype=tf.float32) / tf.cast(x=num_samples, dtype=tf.float32)

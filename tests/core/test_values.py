@@ -10,12 +10,12 @@ def _test_value(value, x, y=None):
     Module.placeholders = dict()
     value.initialize()
     feed_dict = {value.placeholder: x}
-    input_tensor_output = value.input_tensor()
+    input_tensor_output = value.input_tensors()
     if y is None:
         output_tensors_output = value.output_tensors(x=input_tensor_output)
         loss_output = value.loss(x=input_tensor_output)
     else:
-        output_input = tf.placeholder(dtype=tf.float32, shape=(None, value.output_size()))
+        output_input = tf.placeholder(dtype=tf.float32, shape=(None, value.output_tensor_size()))
         feed_dict[output_input] = y
         output_tensors_output = value.output_tensors(x=output_input)
         loss_output = value.loss(x=output_input)
@@ -23,7 +23,7 @@ def _test_value(value, x, y=None):
     with tf.Session() as session:
         session.run(fetches=initialize)
         input_tensor = session.run(fetches=input_tensor_output, feed_dict=feed_dict)
-        assert input_tensor.shape == (4, value.input_size())
+        assert input_tensor.shape == (4, value.input_tensor_size())
         output_tensors = session.run(fetches=output_tensors_output, feed_dict=feed_dict)
         assert len(output_tensors) == 1
         output_tensor = next(iter(output_tensors.values()))
@@ -41,7 +41,7 @@ def test_categorical():
     )
     _test_value(
         value=value, x=np.random.randint(low=0, high=8, size=(4,)),
-        y=np.random.randn(4, value.output_size())
+        y=np.random.randn(4, value.output_tensor_size())
     )
 
 

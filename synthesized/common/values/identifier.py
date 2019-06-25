@@ -40,10 +40,10 @@ class IdentifierValue(Value):
         spec.update(identifiers=self.identifiers, embedding_size=self.embedding_size)
         return spec
 
-    def input_size(self):
+    def input_tensor_size(self):
         return self.embedding_size
 
-    def output_size(self):
+    def output_tensor_size(self):
         return 0
 
     def extract(self, data):
@@ -87,7 +87,7 @@ class IdentifierValue(Value):
         )
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
+    def input_tensors(self, feed=None):
         x = self.placeholder if feed is None else feed[self.name]
         assignment = self.current_identifier.assign(
             value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))

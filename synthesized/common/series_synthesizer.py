@@ -28,7 +28,7 @@ class SeriesSynthesizer(BasicSynthesizer):
                 num_data = [len(data)]
                 groups = [{
                     label: data[label].get_values() for value in self.values
-                    for label in value.input_labels()
+                    for label in value.input_tensor_labels()
                 }]
             else:
                 groups = [group[1] for group in data.groupby(by=self.identifier_label)]
@@ -36,7 +36,7 @@ class SeriesSynthesizer(BasicSynthesizer):
                 for n, group in enumerate(groups):
                     groups[n] = {
                         label: group[label].get_values() for value in self.values
-                        for label in value.input_labels()
+                        for label in value.input_tensor_labels()
                     }
 
             fetches = self.optimized
@@ -127,7 +127,7 @@ class SeriesSynthesizer(BasicSynthesizer):
             feed_dict['num_synthesize'] = series_length
             columns = [
                 label for value in self.values if value.name not in self.condition_labels
-                for label in value.output_labels()
+                for label in value.output_tensor_labels()
             ]
             if self.identifier is not None and self.identifier_label not in columns:
                 columns.insert(0, self.identifier_label)
@@ -146,7 +146,7 @@ class SeriesSynthesizer(BasicSynthesizer):
             assert series_length is None
             columns = [
                 label for value in self.values if value.name not in self.condition_labels
-                for label in value.output_labels()
+                for label in value.output_tensor_labels()
             ]
             if self.identifier is not None and self.identifier_label not in columns:
                 columns.insert(0, self.identifier_label)

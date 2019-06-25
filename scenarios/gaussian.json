@@ -1,6 +1,10 @@
 {
     "values": {
-        "value": {"module": "gaussian", "mean": 0.0, "stddev": 1.0}
+        "value": {
+            "module": "continuous",
+            "distribution": "gaussian",
+            "distribution_params": [0.0, 1.0],
+        }
     },
     "functionals": []
 }

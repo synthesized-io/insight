@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import List
 
 import pandas as pd
 import tensorflow as tf
@@ -14,48 +14,57 @@ class Value(Module):
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()
 
-    def input_size(self) -> int:
+    def columns(self) -> List[str]:
+        return [self.name]
+
+    def learned_input_columns(self) -> List[str]:
+        if self.learned_input_size() == 0:
+            return list()
+        else:
+            return [self.name]
+
+    def learned_output_columns(self) -> List[str]:
+        if self.learned_output_size() == 0:
+            return list()
+        else:
+            return [self.name]
+
+    def learned_input_size(self) -> int:
         return 0
 
-    def output_size(self) -> int:
+    def learned_output_size(self) -> int:
         return 0
 
-    def input_labels(self) -> Iterable[str]:
-        if self.input_size() > 0:
-            yield self.name
+    def extract(self, df: pd.DataFrame) -> None:
+        # begin
+        assert all(name in df.columns for name in self.columns())
 
-    def output_labels(self) -> Iterable[str]:
-        if self.output_size() > 0:
-            yield self.name
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        # end
+        assert all(name in df.columns for name in self.learned_input_columns())
+        return df
 
-    def placeholders(self) -> Iterable[tf.Tensor]:
-        return
-        yield
-
-    def extract(self, data: pd.DataFrame) -> None:
-        pass
-
-    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
-        return data
-
-    def postprocess(self, data: pd.DataFrame) -> pd.DataFrame:
-        return data
-
-    def features(self, x=None):
-        return dict()
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        # begin
+        assert all(name in df.columns for name in self.learned_output_columns())
+        return df
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        return None
+    def input_tensors(self) -> List[tf.Tensor]:
+        raise NotImplementedError
 
     @tensorflow_name_scoped
-    def output_tensors(self, x: tf.Tensor) -> Dict[str, tf.Tensor]:
-        return dict()
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        raise NotImplementedError
 
     @tensorflow_name_scoped
-    def loss(self, x: tf.Tensor, feed: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        return None
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+        raise NotImplementedError
 
     @tensorflow_name_scoped
-    def distribution_loss(self, samples: tf.Tensor) -> tf.Tensor:
-        return None
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        raise NotImplementedError
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        raise NotImplementedError

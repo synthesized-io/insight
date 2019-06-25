@@ -35,21 +35,21 @@ class PersonValue(Value):
                 capacity=capacity,
             )
 
-    def input_size(self):
+    def input_tensor_size(self):
         if self.gender is None:
             return 0
         else:
-            return self.gender.input_size()
+            return self.gender.input_tensor_size()
 
-    def output_size(self):
+    def output_tensor_size(self):
         if self.gender is None:
             return 0
         else:
-            return self.gender.output_size()
+            return self.gender.output_tensor_size()
 
-    def input_labels(self):
+    def input_tensor_labels(self):
         if self.gender is not None:
-            yield from self.gender.input_labels()
+            yield from self.gender.input_tensor_labels()
         # if self.name_label is not None:
         #     yield self.name_label
         # if self.firstname_label is not None:
@@ -59,9 +59,9 @@ class PersonValue(Value):
         # if self.email_label is not None:
         #     yield self.email_label
 
-    def output_labels(self):
+    def output_tensor_labels(self):
         if self.gender is not None:
-            yield from self.gender.output_labels()
+            yield from self.gender.output_tensor_labels()
 
     def placeholders(self):
         if self.gender is not None:
@@ -117,11 +117,11 @@ class PersonValue(Value):
         return features
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
+    def input_tensors(self, feed=None):
         if self.gender is None:
-            return super().input_tensor(feed=feed)
+            return super().input_tensors(feed=feed)
         else:
-            return self.gender.input_tensor(feed=feed)
+            return self.gender.input_tensors(feed=feed)
 
     @tensorflow_name_scoped
     def output_tensors(self, x):

@@ -15,7 +15,7 @@ parser.add_argument(
 parser.add_argument('-n', '--num-iterations', type=int, default=100, help="training iterations")
 parser.add_argument('-m', '--num-samples', type=int, default=1024, help="training samples")
 parser.add_argument(
-    '-y', '--hyperparameters', default='capacity=8', help="list of hyperparameters (comma, equal)"
+    '-y', '--hyperparameters', default='capacity=8,depth=1', help="list of hyperparameters (comma, equal)"
 )
 parser.add_argument('-b', '--tensorboard', type=str, default=None, help="TensorBoard summaries")
 args = parser.parse_args()
@@ -65,17 +65,17 @@ with synthesizer:
         num_iterations=args.num_iterations, num_samples=args.num_samples, callback_freq=20
     )
     print(datetime.now().strftime('%H:%M:%S'), 'Finished learning...', flush=True)
-    synthesized = synthesizer.synthesize(num_rows=10000)
-    assert len(synthesized) == 10000
+    df_synthesized = synthesizer.synthesize(num_rows=10000)
+    assert len(df_synthesized) == 10000
     for functional in synthesizer.functionals:
         if functional.required_outputs() == '*':
-            samples_args = synthesized
+            samples_args = df_synthesized
         else:
-            samples_args = [synthesized[label] for label in functional.required_outputs()]
+            samples_args = [df_synthesized[label] for label in functional.required_outputs()]
         print(functional.name, functional.check_distance(*samples_args), flush=True)
 print()
 
 
 print(datetime.now().strftime('%H:%M:%S'), 'Synthesized data...', flush=True)
-print(synthesized.head(5))
+print(df_synthesized.head(5))
 print()

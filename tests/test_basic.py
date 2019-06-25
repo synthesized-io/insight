@@ -1,10 +1,10 @@
 import os
+import pytest
 
 import pandas as pd
-import pytest
 from scipy.stats import ks_2samp
 
-from synthesized.basic import BasicSynthesizer
+from synthesized import BasicSynthesizer
 
 
 @pytest.mark.integration
@@ -21,9 +21,9 @@ def test_datasets_quick():
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
                 with BasicSynthesizer(
-                    data=df_original, capacity=8, depth=1, batch_size=8
+                    df=df_original, capacity=8, depth=1, batch_size=8
                 ) as synthesizer:
-                    synthesizer.learn(num_iterations=10, data=df_original)
+                    synthesizer.learn(num_iterations=10, df_train=df_original)
                     df_synthesized = synthesizer.synthesize(num_rows=10000)
                     assert len(df_synthesized) == 10000
 
@@ -34,22 +34,22 @@ def test_datasets_quick():
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
 
 
-def test_credit_dataset_quick():
+def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
     with BasicSynthesizer(
-        data=df_original, capacity=8, depth=1, batch_size=8, condition_labels=('SeriousDlqin2yrs',)
+        df=df_original, capacity=8, depth=1, batch_size=8, condition_columns=['SeriousDlqin2yrs']
     ) as synthesizer:
-        synthesizer.learn(num_iterations=10, data=df_original)
+        synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})
         assert len(df_synthesized) == 10000
         assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
 
 
 @pytest.mark.integration
-def test_credit_dataset():
+def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv')
-    with BasicSynthesizer(data=df_original) as synthesizer:
-        synthesizer.learn(num_iterations=5000, data=df_original)
+    with BasicSynthesizer(df=df_original) as synthesizer:
+        synthesizer.learn(num_iterations=5000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
         assert len(df_synthesized) == len(df_original)
 

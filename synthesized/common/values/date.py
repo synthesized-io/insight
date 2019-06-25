@@ -1,3 +1,5 @@
+from typing import List
+
 import pandas as pd
 import tensorflow as tf
 
@@ -49,29 +51,24 @@ class DateValue(ContinuousValue):
         )
         return spec
 
-    def input_size(self):
-        return super().input_size() + self.hour.input_size() + self.dow.input_size() + \
-               self.day.input_size() + self.month.input_size()
+    def learned_input_columns(self):
+        columns = super().learned_input_columns()
+        columns.extend(self.hour.learned_input_columns())
+        columns.extend(self.dow.learned_input_columns())
+        columns.extend(self.day.learned_input_columns())
+        columns.extend(self.month.learned_input_columns())
+        return columns
 
-    def output_size(self):
-        return super().output_size()
+    def learned_input_size(self):
+        return super().learned_input_size() + self.hour.learned_input_size() + \
+            self.dow.learned_input_size() + self.day.learned_input_size() + \
+            self.month.learned_input_size()
 
-    def input_labels(self):
-        yield from super().input_labels()
-        yield from self.hour.input_labels()
-        yield from self.dow.input_labels()
-        yield from self.day.input_labels()
-        yield from self.month.input_labels()
+    def learned_output_size(self):
+        return super().learned_output_size()
 
-    def placeholders(self):
-        yield from super().placeholders()
-        yield from self.hour.placeholders()
-        yield from self.dow.placeholders()
-        yield from self.day.placeholders()
-        yield from self.month.placeholders()
-
-    def extract(self, data):
-        column = data[self.name]
+    def extract(self, df):
+        column = df[self.name]
 
         if column.dtype.kind != 'M':
             column = pd.to_datetime(column)
@@ -93,50 +90,51 @@ class DateValue(ContinuousValue):
                 raise NotImplementedError
             column = (column - self.min_date).dt.total_seconds() / (24 * 60 * 60)
 
-        super().extract(data=pd.DataFrame.from_dict({self.name: column}))
+        super().extract(df=pd.DataFrame.from_dict({self.name: column}))
 
-    def preprocess(self, data):
-        if data[self.name].dtype.kind != 'M':
-            data.loc[:, self.name] = pd.to_datetime(data[self.name])
-        data.loc[:, self.name + '-hour'] = data[self.name].dt.hour
-        data.loc[:, self.name + '-dow'] = data[self.name].dt.weekday
-        data.loc[:, self.name + '-day'] = data[self.name].dt.day - 1
-        data.loc[:, self.name + '-month'] = data[self.name].dt.month - 1
+    def preprocess(self, df):
+        if df[self.name].dtype.kind != 'M':
+            df.loc[:, self.name] = pd.to_datetime(df[self.name])
+        df.loc[:, self.name + '-hour'] = df[self.name].dt.hour
+        df.loc[:, self.name + '-dow'] = df[self.name].dt.weekday
+        df.loc[:, self.name + '-day'] = df[self.name].dt.day - 1
+        df.loc[:, self.name + '-month'] = df[self.name].dt.month - 1
         if self.min_date is None:
-            previous_date = data[self.name].copy()
+            previous_date = df[self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]
-            data.loc[:, self.name] = (data[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+            df.loc[:, self.name] = (df[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
         else:
-            data.loc[:, self.name] = (data[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
-        return super().preprocess(data=data)
+            df.loc[:, self.name] = (df[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+        return super().preprocess(df=df)
 
-    def postprocess(self, data):
-        data = super().postprocess(data=data)
-        data.loc[:, self.name] = pd.to_timedelta(arg=data[self.name], unit='D')
+    def postprocess(self, df):
+        df = super().postprocess(df=df)
+        df.loc[:, self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
         if self.start_date is not None:
-            data.loc[:, self.name] = self.start_date + data[self.name].cumsum(axis=0)
+            df.loc[:, self.name] = self.start_date + df[self.name].cumsum(axis=0)
         else:
-            data.loc[:, self.name] += self.min_date
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        features.update(self.hour.features(x=x))
-        features.update(self.dow.features(x=x))
-        features.update(self.day.features(x=x))
-        features.update(self.month.features(x=x))
-        return features
+            df.loc[:, self.name] += self.min_date
+        return df
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
-        delta = super().input_tensor(feed=feed)
-        hour = self.hour.input_tensor(feed=feed)
-        dow = self.dow.input_tensor(feed=feed)
-        day = self.day.input_tensor(feed=feed)
-        month = self.month.input_tensor(feed=feed)
-        x = tf.concat(values=(delta, hour, dow, day, month), axis=1)
-        return x
+    def input_tensors(self) -> List[tf.Tensor]:
+        xs = super().input_tensors()
+        xs.extend(self.hour.input_tensors())
+        xs.extend(self.dow.input_tensors())
+        xs.extend(self.day.input_tensors())
+        xs.extend(self.month.input_tensors())
+        return xs
+
+    @tensorflow_name_scoped
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        assert len(xs) == 5
+        xs[0] = super().unify_inputs(xs=xs[0: 1])
+        xs[1] = self.hour.unify_inputs(xs=xs[1: 2])
+        xs[2] = self.dow.unify_inputs(xs=xs[2: 3])
+        xs[3] = self.day.unify_inputs(xs=xs[3: 4])
+        xs[4] = self.month.unify_inputs(xs=xs[4: 5])
+        return tf.concat(values=xs, axis=1)
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):

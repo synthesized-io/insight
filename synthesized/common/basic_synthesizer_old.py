@@ -147,17 +147,17 @@ class BasicSynthesizer(Synthesizer):
             if name == self.identifier_label:
                 value.extract(data=data)
                 self.values.append(value)
-                self.value_output_sizes.append(value.output_size())
+                self.value_output_sizes.append(value.output_tensor_size())
             elif name in self.condition_labels:
                 value.extract(data=data)
                 self.values.append(value)
-                condition_size += value.input_size()
+                condition_size += value.input_tensor_size()
             elif value is not None:
                 value.extract(data=data)
                 self.values.append(value)
-                self.value_output_sizes.append(value.output_size())
-                input_size += value.input_size()
-                output_size += value.output_size()
+                self.value_output_sizes.append(value.output_tensor_size())
+                input_size += value.input_tensor_size()
+                output_size += value.output_tensor_size()
 
         self.linear_input = self.add_module(
             module='dense', name='linear-input',
@@ -242,8 +242,8 @@ class BasicSynthesizer(Synthesizer):
         xs = list()
         for value in self.values:
             if value.name != self.identifier_label and value.name not in self.condition_labels \
-                    and value.input_size() > 0:
-                x = value.input_tensor(feed=feed)
+                    and value.input_tensor_size() > 0:
+                x = value.input_tensors(feed=feed)
                 xs.append(x)
         if len(xs) == 0:
             loss = tf.constant(value=0.0)
@@ -254,7 +254,7 @@ class BasicSynthesizer(Synthesizer):
         condition = list()
         for value in self.values:
             if value.name in self.condition_labels:
-                condition.append(value.input_tensor(feed=feed))
+                condition.append(value.input_tensors(feed=feed))
         x, encoding, encoding_loss = self.encoding.encode(
             x=x, condition=condition, encoding_plus_loss=True
         )
@@ -274,17 +274,17 @@ class BasicSynthesizer(Synthesizer):
             name='encoding-loss', tensor=encoding_loss, family=None, step=None
         ))
         if self.lstm_mode == 2 and self.identifier_label is not None:
-            update = self.identifier_value.input_tensor()
+            update = self.identifier_value.input_tensors()
             with tf.control_dependencies(control_inputs=(update,)):
                 x = x + 0.0  # trivial operation to enforce dependency
         elif self.lstm_mode == 1:
             if self.identifier_label is None:
                 x = self.lstm.transform(x=x)
             else:
-                state = self.identifier_value.input_tensor()
+                state = self.identifier_value.input_tensors()
                 x = self.lstm.transform(x=x, state=state[0])
         elif self.lstm_mode == 0 and self.identifier_label is not None:
-            condition = self.identifier_value.input_tensor()
+            condition = self.identifier_value.input_tensors()
             x = self.modulation.transform(x=x, condition=condition)
         x = self.decoder.transform(x=x)
         x = self.linear_output.transform(x=x)
@@ -352,7 +352,7 @@ class BasicSynthesizer(Synthesizer):
         condition = list()
         for value in self.values:
             if value.name in self.condition_labels:
-                condition.append(value.input_tensor())
+                condition.append(value.input_tensors())
         x = self.encoding.sample(n=num_synthesize, condition=condition)
         if self.lstm_mode == 2 and self.identifier_label is not None:
             identifier = self.identifier_value.next_identifier()
@@ -401,7 +401,7 @@ class BasicSynthesizer(Synthesizer):
             num_data = len(data)
             data = {
                 label: data[label].get_values() for value in self.values
-                for label in value.input_labels()
+                for label in value.input_tensor_labels()
             }
 
             fetches = self.optimized
@@ -497,7 +497,7 @@ class BasicSynthesizer(Synthesizer):
         synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
         columns = [
             label for value in self.values if value.name not in self.condition_labels
-            for label in value.output_labels()
+            for label in value.output_tensor_labels()
         ]
 
         if len(columns) == 0:

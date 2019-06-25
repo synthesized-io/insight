@@ -1,11 +1,12 @@
 """This module implements the BasicSynthesizer class."""
-from typing import Callable, List
+from collections import OrderedDict
+from typing import Callable, List, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_value, Module
+from ..common import identify_rules, identify_value, Module
 from ..synthesizer import Synthesizer
 
 
@@ -17,7 +18,7 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, data: pd.DataFrame, summarizer: str = None,
+        self, df: pd.DataFrame, summarizer: str = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -34,7 +35,7 @@ class BasicSynthesizer(Synthesizer):
         temperature: float = 1.0, smoothing: float = 0.0, moving_average: bool = True,
         similarity_regularization: float = 0.0, entropy_regularization: float = 0.0,
         # Conditions
-        condition_labels: List[str] = (),
+        condition_columns: List[str] = (),
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None,
         lastname_label=None, email_label=None,
@@ -47,10 +48,9 @@ class BasicSynthesizer(Synthesizer):
         """Initialize a new BasicSynthesizer instance.
 
         Args:
-            data: Data sample which is representative of the target data to generate. Usually, it
-                is fine to just use the training data here. Generally, it should exhibit all
-                relevant characteristics, so for instance all values a discrete-value column can
-                take.
+            df: Data sample which is representative of the target data to generate. Usually, it is
+                fine to just use the training data here. Generally, it should exhibit all relevant
+                characteristics, so for instance all values a discrete-value column can take.
             summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
             distribution: Distribution type: "normal".
             latent_size: Latent size.
@@ -75,6 +75,7 @@ class BasicSynthesizer(Synthesizer):
             moving_average: Whether to use moving average scaling for categorical values.
             similarity_regularization: Similarity regularization coefficient for categorical values.
             entropy_regularization: Entropy regularization coefficient for categorical values.
+            condition_columns: ???.
             title_label: Person title column.
             gender_label: Person gender column.
             name_label: Person combined first and last name column.
@@ -103,8 +104,10 @@ class BasicSynthesizer(Synthesizer):
         self.similarity_regularization = similarity_regularization
         self.entropy_regularization = entropy_regularization
 
+        # Overall columns
+        self.columns = list(df.columns)
         # Conditions
-        self.condition_labels = list(condition_labels)
+        self.condition_columns = list(condition_columns)
         # Person
         self.person_value = None
         self.title_label = title_label
@@ -128,25 +131,29 @@ class BasicSynthesizer(Synthesizer):
 
         # Values
         self.values = list()
-        vae_values = list()
-        condition_values = list()
-        for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = identify_value(module=self, name=name, dtype=dtype, data=data)
-            assert value is not None
-            value.extract(data=data)
-            self.values.append(value)
-            if name in self.condition_labels:
-                assert name != self.identifier_label and value.input_size() > 0
-                condition_values.append(value)
-            elif name != self.identifier_label and value.input_size() > 0:
-                vae_values.append(value)
+        self.conditions = list()
+        for name in df.columns:
+            value = identify_value(module=self, df=df[name], name=name)
+            assert len(value.columns()) == 1 and value.columns()[0] == name
+            if name in self.condition_columns:
+                self.conditions.append(value)
+            else:
+                self.values.append(value)
+
+        # Identify deterministic rules
+        self.values = identify_rules(values=self.values, df=df)
+
+        # Automatic extraction of specification parameters
+        df = df.copy()
+        for value in (self.values + self.conditions):
+            value.extract(df=df)
 
         # VAE
         self.vae = self.add_module(
-            module='vae', name='vae', values=vae_values, conditions=condition_values,
+            module='vae', name='vae', values=self.values, conditions=self.conditions,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,\
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay
         )
@@ -154,36 +161,44 @@ class BasicSynthesizer(Synthesizer):
     def specification(self):
         spec = super().specification()
         spec.update(
-            condition_labels=self.condition_labels,
-            values=[value.specification() for value in self.values], vae=self.vae.specification(),
-            batch_size=self.batch_size
+            values=[value.specification() for value in self.values],
+            conditions=[value.specification() for value in self.conditions],
+            vae=self.vae.specification(), batch_size=self.batch_size
         )
         return spec
 
     def module_initialize(self):
         super().module_initialize()
 
-        # learn
-        xs = dict()
-        for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
-                xs[value.name] = value.input_tensor()
-        self.losses, optimized = self.vae.learn(xs=xs)
-        with tf.control_dependencies(control_inputs=[optimized]):
+        # API function learn
+
+        # Input values
+        xs = OrderedDict()
+        for value in (self.values + self.conditions):
+            xs.update(zip(value.learned_input_columns(), value.input_tensors()))
+
+        # VAE learn
+        self.losses, self.optimized = self.vae.learn(xs=xs)
+
+        # Increment global step
+        with tf.control_dependencies(control_inputs=[self.optimized]):
             self.optimized = Module.global_step.assign_add(delta=1)
 
-        # synthesize
-        num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
-        assert 'num_synthesize' not in Module.placeholders
-        Module.placeholders['num_synthesize'] = num_synthesize
-        cs = dict()
-        for value in self.values:
-            if value.name in self.condition_labels:
-                cs[value.name] = value.input_tensor()
-        self.synthesized = self.vae.synthesize(n=num_synthesize, cs=cs)
+        # API function synthesize
+
+        # Input argument placeholder for num_rows
+        self.add_placeholder(name='num_rows', dtype=tf.int64, shape=())
+
+        # Input condition values
+        cs = OrderedDict()
+        for value in self.conditions:
+            cs.update(zip(value.learned_input_columns(), value.input_tensors()))
+
+        # VAE synthesize
+        self.synthesized = self.vae.synthesize(n=Module.placeholders['num_rows'], cs=cs)
 
     def learn(
-        self, num_iterations: int, data: pd.DataFrame,
+        self, num_iterations: int, df_train: pd.DataFrame,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -193,27 +208,28 @@ class BasicSynthesizer(Synthesizer):
 
         Args:
             num_iterations: The number of training iterations (not epochs).
-            data: The training data.
+            df_train: The training data.
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
                 instance, the iteration number, and a dictionary of values (usually the losses) as
                 arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
 
         """
-        data = data.copy()
-        for value in self.values:
-            data = value.preprocess(data=data)
-        num_data = len(data)
+        df_train = df_train.copy()
+        for value in (self.values + self.conditions):
+            df_train = value.preprocess(df=df_train)
+
+        num_data = len(df_train)
         data = {
-            label: data[label].get_values() for value in self.values
-            for label in value.input_labels()
+            name: df_train[name].get_values() for value in (self.values + self.conditions)
+            for name in value.learned_input_columns()
         }
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
-            feed_dict = {label: value_data[batch] for label, value_data in data.items()}
+            feed_dict = {name: value_data[batch] for name, value_data in data.items()}
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
@@ -223,7 +239,9 @@ class BasicSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int, conditions: dict = None) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
+    ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
@@ -235,22 +253,29 @@ class BasicSynthesizer(Synthesizer):
 
         """
         if conditions is not None:
-            conditions = pd.DataFrame.from_dict(
-                {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
-            )
-            for value in self.values:
-                if value.name in self.condition_labels:
-                    conditions = value.preprocess(data=conditions)
-        columns = [label for value in self.values for label in value.output_labels()]
+            if isinstance(conditions, dict):
+                df_conditions = pd.DataFrame.from_dict(
+                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
+                )
+            else:
+                df_conditions = conditions.copy()
+
+        for value in self.conditions:
+            df_conditions = value.preprocess(df=df_conditions)
+
+        columns = [
+            name for value in (self.values + self.conditions)
+            for name in value.learned_output_columns()
+        ]
         if len(columns) == 0:
-            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+            df_synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
 
         else:
             fetches = self.synthesized
-            feed_dict = {'num_synthesize': num_rows % 1024}
-            if conditions is not None:
-                for name in self.condition_labels:
-                    condition = conditions[name].values
+            feed_dict = dict(num_rows=(num_rows % 1024))
+            for value in self.conditions:
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
                     if condition.shape == (1,):
                         feed_dict[name] = np.tile(condition, (num_rows % 1024,))
                     elif condition.shape == (num_rows,):
@@ -258,28 +283,32 @@ class BasicSynthesizer(Synthesizer):
                     else:
                         raise NotImplementedError
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-            synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = {'num_synthesize': 1024}
-            if conditions is not None:
-                for name in self.condition_labels:
-                    condition = conditions[name].values
+            feed_dict = dict(num_rows=1024)
+            for value in self.conditions:
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
                     if condition.shape == (1,):
                         feed_dict[name] = np.tile(condition, (1024,))
             for k in range(num_rows // 1024):
-                if conditions is not None:
-                    for name in self.condition_labels:
-                        condition = conditions[name].values
+                for value in self.conditions:
+                    for name in value.learned_input_columns():
+                        condition = df_conditions[name].values
                         if condition.shape == (num_rows,):
                             feed_dict[name] = condition[k * 1024: (k + 1) * 1024]
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
-                other = pd.DataFrame.from_dict(other)[columns]
-                synthesized = synthesized.append(other, ignore_index=True)
+                df_synthesized = df_synthesized.append(
+                    pd.DataFrame.from_dict(other)[columns], ignore_index=True
+                )
 
-        for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+        for value in (self.values + self.conditions):
+            df_synthesized = value.postprocess(df=df_synthesized)
 
         if len(columns) == 0:
-            synthesized.pop('_sentinel')
+            df_synthesized.pop('_sentinel')
 
-        return synthesized
+        assert len(df_synthesized.columns) == len(self.columns)
+        df_synthesized = df_synthesized[self.columns]
+
+        return df_synthesized

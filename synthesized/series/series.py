@@ -124,7 +124,7 @@ class SeriesSynthesizer(Synthesizer):
             if value is not None:
                 value.extract(data=data)
                 self.values.append(value)
-                if name != self.identifier_label and value.input_size() > 0:
+                if name != self.identifier_label and value.input_tensor_size() > 0:
                     vae_values.append(value)
 
         # VAE
@@ -150,8 +150,8 @@ class SeriesSynthesizer(Synthesizer):
         # learn
         xs = dict()
         for value in self.values:
-            if value.name != self.identifier_label and value.input_size() > 0:
-                xs[value.name] = value.input_tensor()
+            if value.name != self.identifier_label and value.input_tensor_size() > 0:
+                xs[value.name] = value.input_tensors()
         self.losses, optimized = self.vae.learn(xs=xs)
         with tf.control_dependencies(control_inputs=[optimized]):
             self.optimized = Module.global_step.assign_add(delta=1)
@@ -186,7 +186,7 @@ class SeriesSynthesizer(Synthesizer):
         num_data = len(data)
         data = {
             label: data[label].get_values() for value in self.values
-            for label in value.input_labels()
+            for label in value.input_tensor_labels()
         }
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
@@ -215,7 +215,7 @@ class SeriesSynthesizer(Synthesizer):
         """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': num_rows % 1024}
-        columns = [label for value in self.values for label in value.output_labels()]
+        columns = [label for value in self.values for label in value.output_tensor_labels()]
         if len(columns) == 0:
             synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
         else:

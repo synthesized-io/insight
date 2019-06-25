@@ -90,7 +90,7 @@ class ScenarioSynthesizer(Synthesizer):
                 kwargs = nan_kwargs
             value = self.add_module(module=value, name=name, **kwargs)
             self.values.append(value)
-            output_size += value.output_size()
+            output_size += value.learned_output_size()
 
         # Prior distribution p'(z)
         self.distribution = distribution
@@ -131,20 +131,16 @@ class ScenarioSynthesizer(Synthesizer):
     def module_initialize(self):
         super().module_initialize()
 
-        self.losses = OrderedDict()
-        self.synthesized = OrderedDict()
         summaries = list()
 
         # Number of rows to synthesize
-        num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
-        assert 'num_synthesize' not in Module.placeholders
-        Module.placeholders['num_synthesize'] = num_synthesize
+        self.add_placeholder(name='num_rows', dtype=tf.int64, shape=())
 
         # Prior p'(z)
         prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
 
         # Sample z ~ q(z|x)
-        z = prior.sample(sample_shape=(num_synthesize,))
+        z = prior.sample(sample_shape=(Module.placeholders['num_rows'],))
 
         # Decoder p(y|z)
         p = self.decoder.parametrize(x=z)
@@ -154,20 +150,22 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Split output tensors per value
         ys = tf.split(
-            value=y, num_or_size_splits=[value.output_size() for value in self.values], axis=1
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
         )
 
         # Outputs per value
+        self.losses = OrderedDict()
+        self.synthesized = OrderedDict()
         for value, y in zip(self.values, ys):
 
-            # Distribution loss
-            loss = value.distribution_loss(samples=y)
-            if loss is not None:
-                self.losses[value.name + '-loss'] = loss
-
             # Output tensor
-            for label, y in value.output_tensors(x=y).items():
-                self.synthesized[label] = y
+            ys = value.output_tensors(y=y)
+            self.synthesized.update(zip(value.learned_output_columns(), ys))
+
+            # Distribution loss
+            loss = value.distribution_loss(ys=ys)
+            self.losses[value.name + '-loss'] = loss
 
         # Functionals
         for functional in self.functionals:
@@ -225,7 +223,7 @@ class ScenarioSynthesizer(Synthesizer):
         """
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
-        feed_dict = {'num_synthesize': num_samples}
+        feed_dict = dict(num_rows=num_samples)
 
         for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (
@@ -247,26 +245,27 @@ class ScenarioSynthesizer(Synthesizer):
             The generated data.
 
         """
-        columns = [label for value in self.values for label in value.output_labels()]
+        columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
-            synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+            df_synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
 
         else:
             fetches = self.synthesized
-            feed_dict = {'num_synthesize': num_rows % 1024}
+            feed_dict = dict(num_rows=(num_rows % 1024))
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
-            synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = {'num_synthesize': 1024}
+            feed_dict = dict(num_rows=1024)
             for k in range(num_rows // 1024):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
-                other = pd.DataFrame.from_dict(other)[columns]
-                synthesized = synthesized.append(other, ignore_index=True)
+                df_synthesized = df_synthesized.append(
+                    pd.DataFrame.from_dict(other)[columns], ignore_index=True
+                )
 
         for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+            df_synthesized = value.postprocess(df=df_synthesized)
 
         if len(columns) == 0:
-            synthesized.pop('_sentinel')
+            df_synthesized.pop('_sentinel')
 
-        return synthesized
+        return df_synthesized

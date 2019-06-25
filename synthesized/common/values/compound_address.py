@@ -27,17 +27,17 @@ class CompoundAddressValue(Value):
         )
         self.faker = Faker(locale='en_GB')
 
-    def input_size(self):
-        return self.postcode.input_size()
+    def input_tensor_size(self):
+        return self.postcode.input_tensor_size()
 
-    def output_size(self):
-        return self.postcode.output_size()
+    def output_tensor_size(self):
+        return self.postcode.output_tensor_size()
 
-    def input_labels(self):
-        yield from self.postcode.input_labels()
+    def input_tensor_labels(self):
+        yield from self.postcode.input_tensor_labels()
 
-    def output_labels(self):
-        yield from self.postcode.output_labels()
+    def output_tensor_labels(self):
+        yield from self.postcode.output_tensor_labels()
 
     def placeholders(self):
         yield from self.postcode.placeholders()
@@ -119,8 +119,8 @@ class CompoundAddressValue(Value):
         return self.postcode.feature(x=x)
 
     @tensorflow_name_scoped
-    def input_tensor(self, feed=None):
-        return self.postcode.input_tensor(feed=feed)
+    def input_tensors(self, feed=None):
+        return self.postcode.input_tensors(feed=feed)
 
     @tensorflow_name_scoped
     def output_tensors(self, x):

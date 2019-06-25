@@ -7,7 +7,7 @@ CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
-def identify_value(module, name, dtype, data):
+def identify_value(module, df, name):
     value = None
 
     categorical_kwargs = dict()
@@ -81,41 +81,41 @@ def identify_value(module, name, dtype, data):
 
     # ========== Non-numeric values ==========
 
-    num_data = len(data)
-    num_unique = data[name].nunique()
+    num_data = len(df)
+    num_unique = df.nunique()
     is_nan = False
 
     # Categorical value if small number of distinct values
     if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
-        # is_nan = data[name].isna().any()
+        # is_nan = df.isna().any()
         value = module.add_module(module='categorical', name=name, **categorical_kwargs)
 
     # Date value
-    elif dtype.kind == 'M':  # 'm' timedelta
-        is_nan = data[name].isna().any()
+    elif df.dtype.kind == 'M':  # 'm' timedelta
+        is_nan = df.isna().any()
         value = module.add_module(module='date', name=name, capacity=module.capacity)
 
     # Boolean value
-    elif dtype.kind == 'b':
-        # is_nan = data[name].isna().any()
+    elif df.dtype.kind == 'b':
+        # is_nan = df.isna().any()
         value = module.add_module(
             module='categorical', name=name, categories=[False, True], **categorical_kwargs
         )
 
     # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-    elif dtype.kind == 'i':
+    elif df.dtype.kind == 'i':
         value = module.add_module(module='continuous', name=name, integer=True, **continuous_kwargs)
 
     # Categorical value if object type has attribute 'categories'
-    elif dtype.kind == 'O' and hasattr(dtype, 'categories'):
-        # is_nan = data[name].isna().any()
+    elif df.dtype.kind == 'O' and hasattr(df.dtype, 'categories'):
+        # is_nan = df.isna().any()
         value = module.add_module(
             module='categorical', name=name, pandas_category=True, categories=dtype.categories,
             **categorical_kwargs
         )
 
     # Date value if object type can be parsed
-    elif dtype.kind == 'O':
+    elif df.dtype.kind == 'O':
         try:
             date_data = pd.to_datetime(data[name])
             num_nan = date_data.isna().sum()
@@ -141,18 +141,18 @@ def identify_value(module, name, dtype, data):
     # ========== Numeric value ==========
 
     # Try parsing if object type
-    if dtype.kind == 'O':
-        numeric_data = pd.to_numeric(data[name], errors='coerce')
+    if df.dtype.kind == 'O':
+        numeric_data = pd.to_numeric(df, errors='coerce')
         num_nan = numeric_data.isna().sum()
         if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
             assert numeric_data.dtype.kind in ('f', 'i')
             dtype = numeric_data.dtype
             is_nan = num_nan > 0
-    elif dtype.kind in ('f', 'i'):
-        is_nan = data[name].isna().any()
+    elif df.dtype.kind in ('f', 'i'):
+        is_nan = df.isna().any()
 
     # Return numeric value and handle NaNs if necessary
-    if dtype.kind in ('f', 'i'):
+    if df.dtype.kind in ('f', 'i'):
         value = module.add_module(module='continuous', name=name, **continuous_kwargs)
         if is_nan:
             value = module.add_module(module='nan', name=name, value=value, **nan_kwargs)
@@ -161,7 +161,7 @@ def identify_value(module, name, dtype, data):
     # ========== Fallback values ==========
 
     # Enumeration value if strictly increasing
-    if dtype.kind != 'f' and num_unique == num_data and data[name].is_monotonic_increasing:
+    if df.dtype.kind != 'f' and num_unique == num_data and df.is_monotonic_increasing:
         value = module.add_module(module='enumeration', name=name)
 
     # Sampling value otherwise
