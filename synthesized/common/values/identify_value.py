@@ -96,7 +96,9 @@ def identify_value(module: Synthesizer, df: pd.Series, name: str) -> Value:
     # Date value
     elif df.dtype.kind == 'M':  # 'm' timedelta
         is_nan = df.isna().any()
-        value = module.add_module(module='date', name=name, capacity=module.capacity)
+        value = module.add_module(
+            module='date', name=name, categorical_kwargs=categorical_kwargs, **continuous_kwargs
+        )
 
     # Boolean value
     elif df.dtype.kind == 'b':
@@ -124,7 +126,10 @@ def identify_value(module: Synthesizer, df: pd.Series, name: str) -> Value:
             num_nan = date_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert date_data.dtype.kind == 'M'
-                value = module.add_module(module='date', name=name, capacity=module.capacity)
+                value = module.add_module(
+                    module='date', name=name, categorical_kwargs=categorical_kwargs,
+                    **continuous_kwargs
+                )
                 is_nan = num_nan > 0
         except ValueError:
             pass

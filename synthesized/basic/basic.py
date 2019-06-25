@@ -22,17 +22,17 @@ class BasicSynthesizer(Synthesizer):
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
-        network: str = 'mlp', capacity: int = 256, depth: int = 2, batchnorm: bool = True,
+        network: str = 'mlp', capacity: int = 256, depth: int = 4, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = 500,
+        optimizer: str = 'adam', learning_rate: float = 1e-3, decay_steps: int = 300,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
         batch_size: int = 128,
         # Losses
-        categorical_weight: float = 1.0, continuous_weight: float = 0.1, beta: float = 5e-4,
+        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.04,
         weight_decay: float = 0.0,
         # Categorical
-        temperature: float = 1.0, smoothing: float = 0.0, moving_average: bool = True,
+        temperature: float = 0.7, smoothing: float = 0.0, moving_average: bool = False,
         similarity_regularization: float = 0.0, entropy_regularization: float = 0.0,
         # Conditions
         condition_columns: List[str] = (),

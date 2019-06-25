@@ -10,8 +10,10 @@ from ..module import tensorflow_name_scoped
 
 class DateValue(ContinuousValue):
 
-    def __init__(self, name, capacity=None, embedding_size=None, start_date=None, min_date=None):
-        super().__init__(name=name)
+    def __init__(
+        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None
+    ):
+        super().__init__(name=name, weight=weight)
 
         assert start_date is None or min_date is None
         self.start_date = start_date
@@ -21,20 +23,16 @@ class DateValue(ContinuousValue):
         self.pd_cast = (lambda x: pd.to_datetime(x))
 
         self.hour = self.add_module(
-            module=CategoricalValue, name=(self.name + '-hour'), categories=24, capacity=capacity,
-            embedding_size=embedding_size
+            module=CategoricalValue, name=(self.name + '-hour'), categories=24, **categorical_kwargs
         )
         self.dow = self.add_module(
-            module=CategoricalValue, name=(self.name + '-dow'), categories=7, capacity=capacity,
-            embedding_size=embedding_size
+            module=CategoricalValue, name=(self.name + '-dow'), categories=7, **categorical_kwargs
         )
         self.day = self.add_module(
-            module=CategoricalValue, name=(self.name + '-day'), categories=31, capacity=capacity,
-            embedding_size=embedding_size
+            module=CategoricalValue, name=(self.name + '-day'), categories=31, **categorical_kwargs
         )
         self.month = self.add_module(
-            module=CategoricalValue, name=(self.name + '-month'), categories=12, capacity=capacity,
-            embedding_size=embedding_size
+            module=CategoricalValue, name=(self.name + '-month'), categories=12, **categorical_kwargs
         )
 
     def __str__(self):

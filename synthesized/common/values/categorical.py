@@ -196,6 +196,7 @@ class CategoricalValue(Value):
         y = y / self.temperature
         target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
+        # loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
         if self.similarity_regularization > 0.0:
             similarity_loss = tf.matmul(a=self.embeddings, b=self.embeddings, transpose_b=True)
