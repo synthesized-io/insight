@@ -140,13 +140,14 @@ class BasicSynthesizer(Synthesizer):
             else:
                 self.values.append(value)
 
-        # Identify deterministic rules
-        self.values = identify_rules(values=self.values, df=df)
-
         # Automatic extraction of specification parameters
         df = df.copy()
         for value in (self.values + self.conditions):
             value.extract(df=df)
+
+        # Identify deterministic rules
+        #  import ipdb; ipdb.set_trace()
+        self.values = identify_rules(values=self.values, df=df)
 
         # VAE
         self.vae = self.add_module(
