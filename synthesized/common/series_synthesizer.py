@@ -99,7 +99,8 @@ class SeriesSynthesizer(BasicSynthesizer):
 
         synthesized = self.synthesize(num_series=100, series_length=100)
         synthesized = self.preprocess(data=synthesized)
-        dist_by_col = [(col, ks_2samp(data[col], synthesized[col].get_values())[0]) for col in data.keys() if col != self.identifier_label]
+        dist_by_col = [(col, ks_2samp(data[col], synthesized[col].get_values())[0])
+                       for col in data.keys() if col != self.identifier_label]
         avg_dist = np.mean([dist for (col, dist) in dist_by_col])
         dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
         print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))

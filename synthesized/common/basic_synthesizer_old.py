@@ -237,7 +237,7 @@ class BasicSynthesizer(Synthesizer):
         return data
 
     @tensorflow_name_scoped
-    def train_iteration(self, feed: dict=None):
+    def train_iteration(self, feed: dict = None):
         summaries = list()
         xs = list()
         for value in self.values:
@@ -385,7 +385,8 @@ class BasicSynthesizer(Synthesizer):
             raise NotImplementedError
 
         try:
-            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose, print_data=print_data, yield_every=0))
+            next(self.learn_async(num_iterations=num_iterations, data=data, filenames=filenames, verbose=verbose,
+                                  print_data=print_data, yield_every=0))
         except StopIteration:  # since yield_every is 0 we expect an empty generator
             pass
 
