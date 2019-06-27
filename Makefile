@@ -13,10 +13,10 @@ build: $(SRC)
 	touch build
 
 test:  venv
-	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing | tee coverage.txt
+	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing
 
 unit-test: venv
-	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing | tee coverage.txt
+	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing
 
 lint: venv
 	$(PYTHON) -m flake8 --max-line-length=120 synthesized
