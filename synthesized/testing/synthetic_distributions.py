@@ -167,12 +167,12 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
     if num_iterations is None:
         num_iterations = evaluation.config['num_iterations']
     start = time.time()
-    with BasicSynthesizer(data=data, **evaluation.config['params']) as synthesizer:
+    with BasicSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
         value_types = {value.name: type(value) for value in synthesizer.values}
-        synthesizer.learn(data=data, num_iterations=num_iterations)
+        synthesizer.learn(df_train=data, num_iterations=num_iterations)
         print()
         print('took', time.time() - start, 's')
         synthesized = synthesizer.synthesize(n=len(data))

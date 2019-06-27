@@ -1,11 +1,12 @@
 """This module implements the SeriesSynthesizer class."""
-from typing import Callable
+from typing import Callable, List, cast, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_value, Module
+from ..basic import BasicSynthesizer
+from ..common import identify_value, Module, Value
 from ..synthesizer import Synthesizer
 
 
@@ -117,14 +118,14 @@ class SeriesSynthesizer(Synthesizer):
         self.date_value = None
 
         # Values
-        self.values = list()
+        self.values: List[Value] = list()
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = identify_value(module=self, name=name, dtype=dtype, data=data)
+            value = identify_value(module=cast(BasicSynthesizer, self), name=name, df=data[name])
             if value is not None:
-                value.extract(data=data)
+                value.extract(df=data)
                 self.values.append(value)
-                if name != self.identifier_label and value.input_tensor_size() > 0:
+                if name != self.identifier_label and value.learned_input_size() > 0:
                     vae_values.append(value)
 
         # VAE
@@ -182,11 +183,11 @@ class SeriesSynthesizer(Synthesizer):
         """
         data = data.copy()
         for value in self.values:
-            data = value.preprocess(data=data)
+            data = value.preprocess(df=data)
         num_data = len(data)
         data = {
             label: data[label].get_values() for value in self.values
-            for label in value.input_tensor_labels()
+            for label in value.learned_input_columns()
         }
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
@@ -203,7 +204,7 @@ class SeriesSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int) -> pd.DataFrame:
+    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
@@ -215,7 +216,7 @@ class SeriesSynthesizer(Synthesizer):
         """
         fetches = self.synthesized
         feed_dict = {'num_synthesize': num_rows % 1024}
-        columns = [label for value in self.values for label in value.output_tensor_labels()]
+        columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
             synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
         else:
@@ -227,7 +228,7 @@ class SeriesSynthesizer(Synthesizer):
                 other = pd.DataFrame.from_dict(other)[columns]
                 synthesized = synthesized.append(other, ignore_index=True)
         for value in self.values:
-            synthesized = value.postprocess(data=synthesized)
+            synthesized = value.postprocess(df=synthesized)
         if len(columns) == 0:
             synthesized.pop('_sentinel')
         return synthesized

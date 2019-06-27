@@ -103,7 +103,7 @@ class VAE(Generative):
         if len(xs) == 0:
             return dict(), tf.no_op()
 
-        losses = OrderedDict()
+        losses: Dict[str, tf.Tensor] = OrderedDict()
         summaries = list()
 
         # Concatenate input tensors per value
@@ -229,7 +229,7 @@ class VAE(Generative):
         )
 
         # Output tensors per value
-        synthesized = OrderedDict()
+        synthesized: Dict[str, tf.Tensor] = OrderedDict()
         for value, y in zip(self.values, ys):
             synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
 

@@ -2,7 +2,7 @@
 import base64
 from datetime import datetime
 import os
-from typing import Callable
+from typing import Callable, Union
 
 import pandas as pd
 
@@ -57,8 +57,8 @@ class Synthesizer(Module):
         return False
 
     def learn(
-        self, num_iterations: int, callback: Callable[[object, int, dict], bool] = logging,
-        callback_freq: int = 0, **kwargs
+        self, num_iterations: int, df_train: pd.DataFrame, callback: Callable[[object, int, dict], bool] = logging,
+        callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -74,7 +74,7 @@ class Synthesizer(Module):
         """
         raise NotImplementedError
 
-    def synthesize(self, num_rows: int, **kwargs) -> pd.DataFrame:
+    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:

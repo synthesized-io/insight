@@ -1,3 +1,4 @@
+from typing import Dict, Callable
 from typing import List
 
 import pandas as pd
@@ -14,7 +15,7 @@ class RuleValue(Value):
 
         self.values = values
 
-        self.functions = dict()
+        self.functions: Dict[str, Callable] = dict()
         if function == 'pick-first':
             assert all(len(value.columns()) == 1 for value in self.values)
             self.num_learned = 2
@@ -74,7 +75,7 @@ class RuleValue(Value):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
-        xs = list()
+        xs: List[tf.Tensor] = list()
         for value in self.values:
             xs.extend(value.input_tensors())
         return xs
@@ -93,7 +94,7 @@ class RuleValue(Value):
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
-        ys = list()
+        ys: List[tf.Tensor] = list()
         for value, y in zip(self.values[:self.num_learned], y):
             ys.extend(value.output_tensors(y=y))
         return ys

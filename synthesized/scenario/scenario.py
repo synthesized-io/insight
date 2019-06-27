@@ -1,6 +1,6 @@
 """This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List
+from typing import Callable, List, Dict, Any, Union
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ class ScenarioSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, values: List[Value], functionals: List[Functional], summarizer: str = None,
+        self, values: Dict[str, Any], functionals: List[Functional], summarizer: str = None,
         # Prior distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -55,9 +55,9 @@ class ScenarioSynthesizer(Synthesizer):
         """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
-        categorical_kwargs = dict()
-        continuous_kwargs = dict()
-        nan_kwargs = dict()
+        categorical_kwargs: Dict[str, Any] = dict()
+        continuous_kwargs: Dict[str, Any] = dict()
+        nan_kwargs: Dict[str, Any] = dict()
         categorical_kwargs['capacity'] = capacity
         nan_kwargs['capacity'] = capacity
         categorical_kwargs['weight_decay'] = weight_decay
@@ -72,7 +72,7 @@ class ScenarioSynthesizer(Synthesizer):
         categorical_kwargs['entropy_regularization'] = 0.0
 
         # Values
-        self.values = list()
+        self.values: List[Value] = list()
         output_size = 0
         for name, value in values.items():
             if isinstance(value, dict):
@@ -107,7 +107,7 @@ class ScenarioSynthesizer(Synthesizer):
         )
 
         # Functionals
-        self.functionals = list()
+        self.functionals: List[Module] = list()
         for functional in functionals:
             functional = self.add_module(module=functional)
             self.functionals.append(functional)
@@ -235,7 +235,7 @@ class ScenarioSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int) -> pd.DataFrame:
+    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:

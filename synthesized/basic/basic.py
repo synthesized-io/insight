@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_rules, identify_value, Module
+from ..common import identify_rules, identify_value, Module, Value
 from ..synthesizer import Synthesizer
 
 
@@ -35,7 +35,7 @@ class BasicSynthesizer(Synthesizer):
         temperature: float = 0.7, smoothing: float = 0.0, moving_average: bool = False,
         similarity_regularization: float = 0.0, entropy_regularization: float = 0.0,
         # Conditions
-        condition_columns: List[str] = (),
+        condition_columns: List[str] = [],
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None,
         lastname_label=None, email_label=None,
@@ -130,8 +130,8 @@ class BasicSynthesizer(Synthesizer):
         self.date_value = None
 
         # Values
-        self.values = list()
-        self.conditions = list()
+        self.values: List[Value] = list()
+        self.conditions: List[Value] = list()
         for name in df.columns:
             value = identify_value(module=self, df=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name

@@ -1,5 +1,5 @@
 from math import isnan, log
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union, Optional
 
 import pandas as pd
 import tensorflow as tf
@@ -13,15 +13,15 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name: str, capacity: int, weight_decay: float, weight: float, temperature: float,
-        smoothing: float, moving_average: bool, similarity_regularization: float,
+        smoothing: float, moving_average: tf.train.ExponentialMovingAverage, similarity_regularization: float,
         entropy_regularization: float,
         # Optional
         similarity_based: bool = False, pandas_category: bool = False,
         # Scenario
-        categories=None, probabilities=None, embedding_size: int = None
+        categories: Union[int, list] = None, probabilities=None, embedding_size: int = None
     ):
         super().__init__(name=name)
-
+        self.categories: Optional[Union[int, list]] = None
         self.nans_valid = False
         if categories is None:
             self.categories = None
@@ -48,7 +48,7 @@ class CategoricalValue(Value):
         self.weight = weight
 
         self.smoothing = smoothing
-        self.moving_average = moving_average
+        self.moving_average: Optional[tf.train.ExponentialMovingAverage] = moving_average
         self.similarity_regularization = similarity_regularization
         self.entropy_regularization = entropy_regularization
 
@@ -79,12 +79,15 @@ class CategoricalValue(Value):
         return spec
 
     def learned_input_size(self) -> int:
+        assert self.embedding_size is not None
         return self.embedding_size
 
     def learned_output_size(self) -> int:
         if self.similarity_based:
+            assert self.embedding_size is not None
             return self.embedding_size
         else:
+            assert self.num_categories is not None
             return self.num_categories
 
     def extract(self, df: pd.DataFrame) -> None:
@@ -101,11 +104,13 @@ class CategoricalValue(Value):
             self.num_categories = len(self.categories)
             if self.embedding_size is None:
                 self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
-        elif unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
+        elif isinstance(self.categories, list) \
+                and unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
+            assert isinstance(self.categories, list)
             fn = (lambda x: 0 if isinstance(x, float) and isnan(x) and self.nans_valid else self.categories.index(x))
             df.loc[:, self.name] = df[self.name].map(arg=fn)
         df.loc[:, self.name] = df[self.name].astype(dtype='int64')
@@ -114,6 +119,7 @@ class CategoricalValue(Value):
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if not isinstance(self.categories, int):
+            assert isinstance(self.categories, list)
             df.loc[:, self.name] = df[self.name].map(arg=self.categories.__getitem__)
         if self.pandas_category:
             df.loc[:, self.name] = df[self.name].astype(dtype='category')
@@ -142,6 +148,7 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
+        assert Module.placeholders is not None
         return [Module.placeholders[self.name]]
 
     @tensorflow_name_scoped
@@ -168,6 +175,7 @@ class CategoricalValue(Value):
         target = xs[0]
 
         if self.moving_average is not None:
+            assert self.num_categories is not None
             frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
             frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
@@ -194,6 +202,7 @@ class CategoricalValue(Value):
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
             y = tf.reduce_mean(input_tensor=(y * embeddings), axis=2, keepdims=False)
         y = y / self.temperature
+        assert self.num_categories is not None
         target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
         # loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)

@@ -31,7 +31,7 @@ class ContinuousValue(Value):
         self, name: str, weight: float,
         # Scenario
         integer: bool = None, positive: bool = None, nonnegative: bool = None,
-        distribution: str = None, distribution_params: Tuple[Any] = None
+        distribution: str = None, distribution_params: Tuple[Any, ...] = None
     ):
         super().__init__(name=name)
 
@@ -45,7 +45,7 @@ class ContinuousValue(Value):
         self.distribution = distribution
         self.distribution_params = distribution_params
 
-        self.pd_types = ('f', 'i')
+        self.pd_types: Tuple[str, ...] = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
 
     def __str__(self) -> str:
@@ -183,6 +183,7 @@ class ContinuousValue(Value):
             )
 
         if self.distribution == 'normal':
+            assert self.distribution_params is not None
             mean, stddev = self.distribution_params
             df.loc[:, self.name] = (df[self.name] - mean) / stddev
 
@@ -200,10 +201,12 @@ class ContinuousValue(Value):
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.distribution == 'dirac':
+            assert self.distribution_params is not None
             df.loc[:, self.name] = self.distribution_params[0]
 
         else:
             if self.distribution == 'normal':
+                assert self.distribution_params is not None
                 mean, stddev = self.distribution_params
                 df.loc[:, self.name] = df[self.name] * stddev + mean
 
@@ -237,6 +240,7 @@ class ContinuousValue(Value):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
+        assert Module.placeholders is not None
         return [Module.placeholders[self.name]]
 
     @tensorflow_name_scoped
@@ -276,35 +280,48 @@ class ContinuousValue(Value):
         samples = ys[0]
 
         if self.distribution == 'normal':
+            assert self.distribution_params is not None
             loc, scale = self.distribution_params
             distribution = tfd.Normal(loc=loc, scale=scale)
             samples = distribution.cdf(value=samples)
         elif self.distribution == 'gamma':
+            assert self.distribution_params is not None
             shape, location, scale = self.distribution_params
-            distribution = DISTRIBUTIONS[self.distribution][1](concentration=shape, rate=1.0)
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(concentration=shape, rate=1.0)
             samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = (samples - location) / scale
             samples = distribution.cdf(value=samples) / scale
         elif self.distribution == 'gumbel':
+            assert self.distribution_params is not None
             location, scale = self.distribution_params
-            distribution = DISTRIBUTIONS[self.distribution][1](location=location, scale=scale)
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(location=location, scale=scale)
             samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = distribution.cdf(value=samples)
         elif self.distribution == 'log_normal':
+            assert self.distribution_params is not None
             shape, location, scale = self.distribution_params
-            distribution = DISTRIBUTIONS[self.distribution][1](loc=log(scale), scale=scale)
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(loc=log(scale), scale=scale)
             samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = samples - location
             samples = distribution.cdf(value=samples)
         elif self.distribution == 'weibull':
+            assert self.distribution_params is not None
             shape, location, scale = self.distribution_params
-            distribution = DISTRIBUTIONS['gamma'][1](concentration=shape, rate=1.0)
+            distribution_class = DISTRIBUTIONS['gamma'][1]
+            assert distribution_class is not None
+            distribution = distribution_class(concentration=shape, rate=1.0)
             samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )

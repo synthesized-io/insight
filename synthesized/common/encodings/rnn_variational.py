@@ -1,7 +1,6 @@
 import tensorflow as tf
 from .encoding import Encoding
 from ..module import tensorflow_name_scoped
-from ..transformations import transformation_modules
 
 
 class RnnVariationalEncoding(Encoding):
@@ -14,26 +13,26 @@ class RnnVariationalEncoding(Encoding):
         self.beta = beta
 
         self.lstm_encoder = self.add_module(
-            module='lstm', modules=transformation_modules, name='lstm', input_size=self.input_size,
+            module='lstm', name='lstm', input_size=self.input_size,
             output_size=self.encoding_size, return_state=True
         )
         self.mean = self.add_module(
-            module='dense', modules=transformation_modules, name='mean',
+            module='dense', name='mean',
             input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='none'
         )
         self.stddev = self.add_module(
-            module='dense', modules=transformation_modules, name='stddev',
+            module='dense', name='stddev',
             input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='softplus'
         )
         self.initial_input = self.add_module(
-            module='dense', modules=transformation_modules, name='initial-input',
+            module='dense', name='initial-input',
             input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
             batchnorm=False, activation='none'
         )
         self.initial_state = self.add_module(
-            module='dense', modules=transformation_modules, name='initial-state',
+            module='dense', name='initial-state',
             input_size=(self.encoding_size + self.condition_size),
             output_size=(2 * self.encoding_size), batchnorm=False, activation='none'
         )

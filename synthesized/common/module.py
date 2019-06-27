@@ -1,31 +1,9 @@
-from functools import wraps
 import os
 import time
+from functools import wraps
+from typing import Dict
 
 import tensorflow as tf
-
-
-module_registry = dict()
-
-
-def register(name, module):
-    assert name not in module_registry
-    module_registry[name] = module
-
-
-def make_tf_compatible(string):
-    return string.replace(' ', '_').replace(':', '').replace('%', '')
-
-
-def tensorflow_name_scoped(tf_function):
-    @wraps(tf_function)
-    def function(self, *args, **kwargs):
-        name = "{}.{}".format(self.name, tf_function.__name__)
-        with tf.name_scope(name=name.replace(' ', '_').replace(':', '').replace('%', '')):
-            results = tf_function(self, *args, **kwargs)
-        return results
-
-    return function
 
 
 class Module(object):
@@ -157,3 +135,26 @@ class Module(object):
         self.session.__exit__(type, value, traceback)
         tf.reset_default_graph()
         Module.placeholders = None
+
+
+module_registry: Dict[str, Module] = dict()
+
+
+def register(name, module):
+    assert name not in module_registry
+    module_registry[name] = module
+
+
+def make_tf_compatible(string):
+    return string.replace(' ', '_').replace(':', '').replace('%', '')
+
+
+def tensorflow_name_scoped(tf_function):
+    @wraps(tf_function)
+    def function(self, *args, **kwargs):
+        name = "{}.{}".format(self.name, tf_function.__name__)
+        with tf.name_scope(name=name.replace(' ', '_').replace(':', '').replace('%', '')):
+            results = tf_function(self, *args, **kwargs)
+        return results
+
+    return function

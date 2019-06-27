@@ -3,19 +3,20 @@ from math import log, sqrt
 import pandas as pd
 
 from .value import Value
-from ...synthesizer import Synthesizer
+from ...basic import BasicSynthesizer
+from typing import Dict, Any
 
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
-def identify_value(module: Synthesizer, df: pd.Series, name: str) -> Value:
+def identify_value(module: BasicSynthesizer, df: pd.Series, name: str) -> Value:
     value = None
 
-    categorical_kwargs = dict()
-    continuous_kwargs = dict()
-    nan_kwargs = dict()
+    categorical_kwargs: Dict[str, Any] = dict()
+    continuous_kwargs: Dict[str, Any] = dict()
+    nan_kwargs: Dict[str, Any] = dict()
     categorical_kwargs['capacity'] = module.capacity
     nan_kwargs['capacity'] = module.capacity
     categorical_kwargs['weight_decay'] = module.weight_decay
