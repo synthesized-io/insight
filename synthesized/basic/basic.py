@@ -44,8 +44,8 @@ class BasicSynthesizer(Synthesizer):
         address_label=None, postcode_regex=None,
         # Identifier
         identifier_label=None,
-        # Check for rules
-        find_rules=False
+        # Rules to look for
+        find_rules=[]
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -90,7 +90,8 @@ class BasicSynthesizer(Synthesizer):
             address_label: Address combined column.
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
-            find_rules: Whether or not to check for rules
+            find_rules: List of rules to check for 'all' finds all rules. See
+                synthesized.common.values.PairwiseRuleFactory for more examples.
         """
         super().__init__(name='synthesizer', summarizer=summarizer)
 
@@ -150,8 +151,8 @@ class BasicSynthesizer(Synthesizer):
             value.extract(df=df)
 
         # Identify deterministic rules
-        if self.find_rules:
-            self.values = identify_rules(values=self.values, df=df)
+        #  import ipdb; ipdb.set_trace()
+        self.values = identify_rules(values=self.values, df=df, tests=find_rules)
 
         # VAE
         self.vae = self.add_module(
