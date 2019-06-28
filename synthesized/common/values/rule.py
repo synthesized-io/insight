@@ -24,7 +24,6 @@ class RuleValue(Value):
             assert len(fkwargs['threshs']) + 1 == len(fkwargs['categories'])
             self.num_learned = 1
 
-            @profile
             def piecewise(x):
                 y = pd.DataFrame(self.fkwargs['categories'][0], index=x.index, columns=[0])
                 y.loc[x.iloc[:, 0] < self.fkwargs['threshs'][0], 0] = self.fkwargs['categories'][0]
