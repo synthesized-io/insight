@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional, Dict
 
 import pandas as pd
 import tensorflow as tf
+from math import inf
 
 from .value import Value
 from ..module import tensorflow_name_scoped
@@ -9,16 +10,29 @@ from ..module import tensorflow_name_scoped
 
 class RuleValue(Value):
 
-    def __init__(self, name: str, values: List[Value], function: str):
+    def __init__(self, name: str, values: List[Value], function: str, fkwargs: Optional[Dict] = None):
         super().__init__(name=name)
 
         self.values = values
 
         self.functions = dict()
-        if function == 'pick-first':
+        self.fkwargs = fkwargs
+        # This example fucntion uses two variables to generate a third. In
+        # particular, it sets the third equal to the first
+        if function == 'flag_1':
             assert all(len(value.columns()) == 1 for value in self.values)
-            self.num_learned = 2
-            self.functions[self.values[2].columns()[0]] = lambda x, y: x
+            assert len(fkwargs['threshs']) + 1 == len(fkwargs['categories'])
+            self.num_learned = 1
+
+            @profile
+            def piecewise(x):
+                y = pd.DataFrame(self.fkwargs['categories'][0], index=x.index, columns=[0])
+                y.loc[x.iloc[:, 0] < self.fkwargs['threshs'][0], 0] = self.fkwargs['categories'][0]
+                regions = list(self.fkwargs['threshs']) + [inf]
+                for i, (t1, t2) in enumerate(zip(regions[:-1], regions[1:])):
+                    y.loc[(x.iloc[:, 0] >= t1) & (x.iloc[:, 0] < t2), 0] = self.fkwargs['categories'][i+1]
+                return y
+            self.functions[self.values[1].columns()[0]] = piecewise
         else:
             raise NotImplementedError
 
@@ -66,7 +80,8 @@ class RuleValue(Value):
             columns.extend(value.columns())
         for value in self.values[self.num_learned:]:
             for name in value.columns():
-                df.loc[:, name] = df.apply(lambda row: self.functions[name](*row[columns]), axis=1)
+                #  df.loc[:, name] = df.apply(lambda row: self.functions[name](*row[columns]), axis=1)
+                df.loc[:, name] = self.functions[name](df[columns])[0]
         return df
 
     def module_initialize(self) -> None:
