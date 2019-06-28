@@ -1,14 +1,14 @@
 import os
 import time
 from functools import wraps
-from typing import Dict
+from typing import Dict, Optional
 
 import tensorflow as tf
 
 
 class Module(object):
-    placeholders = None
-    global_step = None
+    placeholders: Optional[Dict[str, tf.Tensor]] = None
+    global_step: Optional[tf.Tensor] = None
     summarizer = None
 
     def __init__(self, name, summarizer=None):
