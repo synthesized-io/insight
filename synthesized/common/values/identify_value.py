@@ -3,7 +3,6 @@ from math import log, sqrt
 import pandas as pd
 
 from .value import Value
-from ...basic import BasicSynthesizer
 from typing import Dict, Any
 
 
@@ -11,7 +10,7 @@ CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
-def identify_value(module: BasicSynthesizer, df: pd.Series, name: str) -> Value:
+def identify_value(module: Any, df: pd.Series, name: str) -> Value:
     value = None
 
     categorical_kwargs: Dict[str, Any] = dict()
