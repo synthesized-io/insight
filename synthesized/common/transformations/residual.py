@@ -13,6 +13,9 @@ class ResidualTransformation(Transformation):
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
+        self.batchnorm = batchnorm
+        self.activation = activation
+
         self.layers = list()
         for n in range(depth - 1):
             self.layers.append(self.add_module(
