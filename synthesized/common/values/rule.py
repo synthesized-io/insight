@@ -1,25 +1,47 @@
-from typing import Dict, Callable
-from typing import List
+from typing import Dict, Callable, Optional, List
 
 import pandas as pd
 import tensorflow as tf
+from math import inf
 
 from .value import Value
 from ..module import tensorflow_name_scoped
+from .continuous import ContinuousValue
+from .categorical import CategoricalValue
 
 
 class RuleValue(Value):
 
-    def __init__(self, name: str, values: List[Value], function: str):
+    def __init__(self, name: str, values: List[Value], function: str, fkwargs: Optional[Dict] = None):
         super().__init__(name=name)
 
         self.values = values
-
         self.functions: Dict[str, Callable] = dict()
-        if function == 'pick-first':
+        self.fkwargs = fkwargs
+        if function == 'flag_1':
             assert all(len(value.columns()) == 1 for value in self.values)
-            self.num_learned = 2
-            self.functions[self.values[2].columns()[0]] = lambda x, y: x
+            assert len(fkwargs['threshs']) + 1 == len(fkwargs['categories'])
+            self.num_learned = 1
+
+            def piecewise(x):
+                y = pd.Series(self.fkwargs['categories'][0], index=x.index)
+                y.loc[x.iloc[:, 0] < self.fkwargs['threshs'][0]] = self.fkwargs['categories'][0]
+                regions = list(self.fkwargs['threshs']) + [inf]
+                for i, (t1, t2) in enumerate(zip(regions[:-1], regions[1:])):
+                    y.loc[(x.iloc[:, 0] >= t1) & (x.iloc[:, 0] < t2)] = self.fkwargs['categories'][i+1]
+                return y
+            self.functions[self.values[1].columns()[0]] = piecewise
+        elif function == 'pulse_1':
+            assert all(len(value.columns()) == 1 for value in self.values)
+            assert len(fkwargs['threshs']) == len(fkwargs['categories']) == 2
+            self.num_learned = 1
+
+            def pulse(x):
+                y = pd.Series(self.fkwargs['categories'][0], index=x.index)
+                y.loc[(x.iloc[:, 0] > self.fkwargs['threshs']['lower']) &
+                      (x.iloc[:, 0] < self.fkwargs['threshs']['upper'])] = self.fkwargs['categories'][1]
+                return y
+            self.functions[self.values[1].columns()[0]] = pulse
         else:
             raise NotImplementedError
 
@@ -67,7 +89,8 @@ class RuleValue(Value):
             columns.extend(value.columns())
         for value in self.values[self.num_learned:]:
             for name in value.columns():
-                df.loc[:, name] = df.apply(lambda row: self.functions[name](*row[columns]), axis=1)
+                #  df.loc[:, name] = df.apply(lambda row: self.functions[name](*row[columns]), axis=1)
+                df.loc[:, name] = self.functions[name](df[columns])
         return df
 
     def module_initialize(self) -> None:

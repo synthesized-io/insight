@@ -33,7 +33,9 @@
     },
     "uci_creditcard_default": {
       "data": "data/uci/creditcard_default.csv",
-      "ignore_columns": ["ID"],
+      "ignore_columns": [
+        "ID"
+      ],
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
