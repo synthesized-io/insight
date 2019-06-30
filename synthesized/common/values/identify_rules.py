@@ -192,8 +192,8 @@ def identify_rules(df: pd.DataFrame, values: List[Value], tests: Union[str, List
     # Find pairwise relationships
     M = len(values)
     new_values = []
-    base_vars = [False,] * M
-    derived_vars = [False,] * M
+    base_vars = [False, ] * M
+    derived_vars = [False, ] * M
     for i in range(M):
         if derived_vars[i] or base_vars[i]:
             continue

@@ -6,8 +6,6 @@ from math import inf
 
 from .value import Value
 from ..module import tensorflow_name_scoped
-from .continuous import ContinuousValue
-from .categorical import CategoricalValue
 
 
 class RuleValue(Value):
