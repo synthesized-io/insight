@@ -22,14 +22,14 @@ class BasicSynthesizer(Synthesizer):
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
-        network: str = 'mlp', capacity: int = 256, depth: int = 2, batchnorm: bool = True,
+        network: str = 'mlp', capacity: int = 128, depth: int = 4, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 2e-3, decay_steps: int = 300,
+        optimizer: str = 'adam', learning_rate: float = 0.002, decay_steps: int = 300,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
         batch_size: int = 128,
         # Losses
-        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.007,
+        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.002,
         weight_decay: float = 0.0,
         # Categorical
         temperature: float = 0.7, smoothing: float = 0.0, moving_average: bool = False,
