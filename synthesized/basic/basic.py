@@ -27,7 +27,7 @@ class BasicSynthesizer(Synthesizer):
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 2e-3, decay_steps: int = 300,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
-        batch_size: int = 64,
+        batch_size: int = 128,
         # Losses
         categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.04,
         weight_decay: float = 0.0,
