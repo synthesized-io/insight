@@ -34,6 +34,7 @@ def test_piecewise_detection():
 
 
 @pytest.mark.integration
+@pytest.mark.skip
 def test_piecewise_generation():
     # Create flags
     df = pd.DataFrame(np.random.randn(10**5, 20))
@@ -75,6 +76,7 @@ def test_pulse_detection():
 
 
 @pytest.mark.integration
+@pytest.mark.skip
 def test_pulse_generation():
     df = pd.DataFrame(np.random.randn(10**5, 20))
     df.loc[:, 15] = (df.loc[:, 0] > 0.0) & (df.loc[:, 0] < 1.0)
@@ -99,6 +101,7 @@ def test_pulse_generation():
 @pytest.mark.parametrize('rule', PairwiseRuleFactory.continuous_categorical_tests +
                          PairwiseRuleFactory.continuous_categorical_tests +
                          PairwiseRuleFactory.categorical_categorical_tests)
+@pytest.mark.skip
 def test_times(rule):
     # The slowest possible case is when no rules are satisfied as then we search through all rules.
     df = pd.DataFrame(np.random.randn(10**6, 100))
