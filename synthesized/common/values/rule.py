@@ -18,6 +18,8 @@ class RuleValue(Value):
         self.fkwargs = fkwargs
         if function == 'flag_1':
             assert all(len(value.columns()) == 1 for value in self.values)
+            # TODO: seems we always assume fkwargs to be not None, why it's Option then?
+            assert fkwargs is not None
             assert len(fkwargs['threshs']) + 1 == len(fkwargs['categories'])
             self.num_learned = 1
 
@@ -31,6 +33,8 @@ class RuleValue(Value):
             self.functions[self.values[1].columns()[0]] = piecewise
         elif function == 'pulse_1':
             assert all(len(value.columns()) == 1 for value in self.values)
+            # TODO: seems we always assume fkwargs to be not None, why it's Option then?
+            assert fkwargs is not None
             assert len(fkwargs['threshs']) == len(fkwargs['categories']) == 2
             self.num_learned = 1
 

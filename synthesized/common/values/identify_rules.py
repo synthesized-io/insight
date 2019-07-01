@@ -1,4 +1,4 @@
-from typing import List, Union, Optional
+from typing import List, Union, Optional, cast
 
 import pandas as pd
 
@@ -66,9 +66,11 @@ class PairwiseRuleFactory(object):
             else:
                 tests = _intersection(tests, PairwiseRuleFactory.continuous_categorical_tests)
         else:
-            return
+            return None
 
         # Do time consuming tasks here to save repeating in each test
+        # TODO: what if y.categories is int?
+        assert isinstance(y.categories, list)
         sets = [df.loc[df[y.columns()[0]] == v, x.columns()[0]] for v in y.categories]
         maxes = [s.max() for s in sets]
         mins = [s.min() for s in sets]
@@ -85,9 +87,11 @@ class PairwiseRuleFactory(object):
         """ Splits the data into sets for each category. If each set is non-overlapping, then we have a
         piecewise constant relationship or 'flag' variable.
         """
+        # TODO: what if y.categories is int?
+        assert isinstance(y.categories, list)
         categories = [v for v in y.categories]
         if len(categories) > MAX_CATEGORIES_FOR_THRESH:
-            return
+            return None
 
         # Sort the set by their maximum value
         idx = _argsort(maxes)
@@ -97,7 +101,7 @@ class PairwiseRuleFactory(object):
 
         for i in range(len(idx)-1):
             if maxes[i] >= mins[i + 1]:
-                return
+                return None
 
         # Make the threshold the midway between the two boundaries
         threshs = [(lower_max + upper_min)/2 for lower_max, upper_min in zip(maxes[:-1], mins[1:])]
@@ -111,9 +115,11 @@ class PairwiseRuleFactory(object):
         """ Checks if a categorical variable with 2 options splits the continuous variable into two regions, one
         completely inside the other and with no overlap. E.g. 'working age' vs 'age' would satisfy this.
         """
+        # TODO: what if y.categories is int?
+        assert isinstance(y.categories, list)
         categories = [v for v in y.categories]
         if len(categories) > 2:
-            return
+            return None
 
         # Make set1 the outer set or return
         if maxes[0] > maxes[1] and mins[0] < mins[1]:
@@ -124,7 +130,7 @@ class PairwiseRuleFactory(object):
             sets = sets[::-1]
             categories = categories[::-1]
         else:
-            return
+            return None
 
         # If all the mass of set1 is completely outside set2, then we have a pulse
         Nlower = (sets[0] < mins[1]).sum()
@@ -133,6 +139,8 @@ class PairwiseRuleFactory(object):
             threshs = dict(lower=mins[1], upper=maxes[1])
             return RuleValue(name=str(x.name) + '_' + str(y.name), values=[x, y], function='pulse_1',
                              fkwargs=dict(threshs=threshs, categories=categories))
+        else:
+            return None
 
     @staticmethod
     def continuous_continuous(df: pd.DataFrame, x: ContinuousValue, y: ContinuousValue,
@@ -145,11 +153,12 @@ class PairwiseRuleFactory(object):
             else:
                 tests = _intersection(tests, PairwiseRuleFactory.continuous_continuous_tests)
         else:
-            return
+            return None
 
         rule = None
         if 'find_line' in tests and rule is None:
-            rule = PairwiseRuleFactory.find_piecewise(x, y)
+            # TODO: `cast` was added to pass mypy, however this call seems to be wrong
+            rule = PairwiseRuleFactory.find_piecewise(x, cast(CategoricalValue, y), [], [])
 
         return rule
 
@@ -158,10 +167,10 @@ class PairwiseRuleFactory(object):
         """ Checks if two continuous variables are linear functions of each other. Does this by finding
         gradient and intercept for a subset. If found, tests on all the data.
         """
-        return
+        return None
 
     @staticmethod
-    def categorical_categorical(df: pd.DataFrame, x: ContinuousValue, y: ContinuousValue,
+    def categorical_categorical(df: pd.DataFrame, x: CategoricalValue, y: CategoricalValue,
                                 tests: Union[str, List[str]]) -> Optional[RuleValue]:
         if tests == 'all' or tests == 'categorical_categorical':
             tests = PairwiseRuleFactory.categorical_categorical_tests
@@ -171,7 +180,7 @@ class PairwiseRuleFactory(object):
             else:
                 tests = _intersection(tests, PairwiseRuleFactory.categorical_categorical_tests)
         else:
-            return
+            return None
 
         rule = None
         if 'find_permute' in tests and rule is None:
@@ -182,7 +191,7 @@ class PairwiseRuleFactory(object):
     @staticmethod
     def find_permute(x: CategoricalValue, y: CategoricalValue) -> Optional[RuleValue]:
         """ Checks if two categorical values are permutations of one another. """
-        return
+        return None
 
 
 def identify_rules(df: pd.DataFrame, values: List[Value], tests: Union[str, List[str]]) -> List[Value]:
