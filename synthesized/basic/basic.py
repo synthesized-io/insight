@@ -25,11 +25,11 @@ class BasicSynthesizer(Synthesizer):
         network: str = 'mlp', capacity: int = 128, depth: int = 4, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 0.003, decay_steps: int = 300,
+        optimizer: str = 'adam', learning_rate: float = 0.006, decay_steps: int = 300,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
         batch_size: int = 128,
         # Losses
-        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.003,
+        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.01,
         weight_decay: float = 0.0,
         # Categorical
         temperature: float = 0.7, smoothing: float = 0.0, moving_average: bool = False,
