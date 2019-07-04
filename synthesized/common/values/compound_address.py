@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
 import re
+from typing import List
 
 from faker import Faker
+import tensorflow as tf
 
 from .value import Value
 from .categorical import CategoricalValue
@@ -27,30 +29,29 @@ class CompoundAddressValue(Value):
         )
         self.faker = Faker(locale='en_GB')
 
-    def input_tensor_size(self):
-        return self.postcode.input_tensor_size()
+    def learned_input_columns(self) -> List[str]:
+        return self.postcode.learned_input_columns()
 
-    def output_tensor_size(self):
-        return self.postcode.output_tensor_size()
+    def learned_output_columns(self) -> List[str]:
+        return self.postcode.learned_output_columns()
 
-    def input_tensor_labels(self):
-        yield from self.postcode.input_tensor_labels()
+    def learned_input_size(self) -> int:
+        return self.postcode.learned_input_size()
 
-    def output_tensor_labels(self):
-        yield from self.postcode.output_tensor_labels()
+    def learned_output_size(self) -> int:
+        return self.postcode.learned_output_size()
 
-    def placeholders(self):
-        yield from self.postcode.placeholders()
+    def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
 
-    def extract(self, data):
         self.postcodes = {}
 
-        postcode_data = pd.DataFrame({self.address_label: data[self.address_label]})
-        for n, row in data.iterrows():
+        postcode_df = pd.DataFrame({self.address_label: df[self.address_label]})
+        for n, row in df.iterrows():
             postcode = row[self.address_label]
             m = re.match(self.postcode_regex, postcode)
             if not m:
-                postcode_data.loc[n, self.address_label] = None
+                postcode_df.loc[n, self.address_label] = None
                 continue
             postcode = m.group(1)
             if self.postcode_level == 0:  # 1-2 letters
@@ -67,18 +68,17 @@ class CompoundAddressValue(Value):
                 self.postcodes[postcode_key] = list()
             self.postcodes[postcode_key].append(postcode_value)
 
-            postcode_data.loc[n, self.address_label] = postcode_key
+            postcode_df.loc[n, self.address_label] = postcode_key
 
-        postcode_data.dropna(inplace=True)
-        if self.postcode is not None:
-            self.postcode.extract(data=postcode_data)
+        postcode_df.dropna(inplace=True)
+        self.postcode.extract(df=postcode_df)
 
-    def preprocess(self, data):
-        for n, row in data.iterrows():
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        for n, row in df.iterrows():
             postcode = row[self.address_label]
             m = re.match(self.postcode_regex, postcode)
             if not m:
-                data.loc[n, self.address_label] = None
+                df.loc[n, self.address_label] = None
                 continue
             postcode = m.group(1)
             if self.postcode_level == 0:  # 1-2 letters
@@ -90,18 +90,20 @@ class CompoundAddressValue(Value):
             else:
                 raise ValueError(self.postcode_level)
             postcode_key = postcode[:index]
-            data.loc[n, self.address_label] = postcode_key
+            df.loc[n, self.address_label] = postcode_key
 
-        data.dropna(inplace=True)
-        if self.postcode is not None:
-            data = self.postcode.preprocess(data=data)
-        return data
+        df.dropna(inplace=True)
+        df = self.postcode.preprocess(df=df)
 
-    def postprocess(self, data):
+        return super().preprocess(df=df)
+
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().postprocess(df=df)
+
         if self.postcodes is None or isinstance(self.postcodes, set):
             raise NotImplementedError
-        data = self.postcode.postprocess(data=data)
-        postcode = data[self.address_label].astype(dtype='str')
+        df = self.postcode.postprocess(df=df)
+        postcode = df[self.address_label].astype(dtype='str')
         for postcode_key, postcode_values in self.postcodes.items():
             mask = (postcode == postcode_key)
             postcode[mask] += np.random.choice(a=postcode_values, size=mask.sum())
@@ -112,20 +114,25 @@ class CompoundAddressValue(Value):
             address_parts.append(p)
             return ', '.join(address_parts)
 
-        data[self.address_label] = postcode.apply(expand_address)
-        return data
-
-    def feature(self, x=None):
-        return self.postcode.feature(x=x)
+        df[self.address_label] = postcode.apply(expand_address)
+        return df
 
     @tensorflow_name_scoped
-    def input_tensors(self, feed=None):
-        return self.postcode.input_tensors(feed=feed)
+    def input_tensors(self) -> List[tf.Tensor]:
+        return self.postcode.input_tensors()
 
     @tensorflow_name_scoped
-    def output_tensors(self, x):
-        return self.postcode.output_tensors(x=x)
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        return self.postcode.unify_inputs(xs=xs)
 
     @tensorflow_name_scoped
-    def loss(self, x, feed=None):
-        return self.postcode.loss(x=x, feed=feed)
+    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+        return self.postcode.output_tensors(y=y)
+
+    @tensorflow_name_scoped
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        return self.postcode.loss(y=y, xs=xs)
+
+    @tensorflow_name_scoped
+    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+        return self.postcode.distribution_loss(ys=ys)
