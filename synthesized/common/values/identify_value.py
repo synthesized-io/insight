@@ -122,7 +122,7 @@ def identify_value(module: Any, df: pd.Series, name: str) -> Value:
     # Date value if object type can be parsed
     elif df.dtype.kind == 'O':
         try:
-            date_data = pd.to_datetime(df[name])
+            date_data = pd.to_datetime(df)
             num_nan = date_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert date_data.dtype.kind == 'M'
