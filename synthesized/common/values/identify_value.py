@@ -155,10 +155,12 @@ def identify_value(module: Any, df: pd.Series, name: str) -> Value:
         if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
             assert numeric_data.dtype.kind in ('f', 'i')
             is_nan = num_nan > 0
+        else:
+            numeric_data = df
+            is_nan = df.isna().any()
     elif df.dtype.kind in ('f', 'i'):
         numeric_data = df
         is_nan = df.isna().any()
-
     # Return numeric value and handle NaNs if necessary
     if numeric_data.dtype.kind in ('f', 'i'):
         value = module.add_module(module='continuous', name=name, **continuous_kwargs)

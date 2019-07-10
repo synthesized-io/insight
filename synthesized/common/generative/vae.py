@@ -109,7 +109,7 @@ class VAE(Generative):
         # Concatenate input tensors per value
         x = tf.concat(values=[
             value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-            for value in self.values
+            for value in self.values if value.learned_input_size() > 0
         ], axis=1)
 
         # Encoder q(z|x)

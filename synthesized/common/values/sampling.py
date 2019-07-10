@@ -39,3 +39,9 @@ class SamplingValue(Value):
             a=self.categories.index, size=len(df), p=self.categories.values
         )
         return df
+
+    def learned_input_size(self) -> int:
+        return 0
+
+    def learned_output_size(self) -> int:
+        return 0
