@@ -200,7 +200,7 @@ class CategoricalValue(Value):
         if self.similarity_based:  # is that right?
             y = tf.expand_dims(input=y, axis=1)
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            y = tf.reduce_mean(input_tensor=(y * embeddings), axis=2, keepdims=False)
+            y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
         y = y / self.temperature
         assert self.num_categories is not None
         target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
@@ -217,7 +217,7 @@ class CategoricalValue(Value):
             probs = tf.nn.softmax(logits=y, axis=-1)
             logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
-            entropy_loss = tf.reduce_mean(input_tensor=entropy_loss, axis=0)
+            entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization
             loss = loss + entropy_loss
         return loss
