@@ -32,7 +32,7 @@ class DenseTransformation(Transformation):
         super().module_initialize()
 
         shape = (self.input_size, self.output_size)
-        initializer = util.get_initializer(initializer='orthogonal')
+        initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.weight = tf.get_variable(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
