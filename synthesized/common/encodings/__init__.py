@@ -1,15 +1,10 @@
-from .basic import BasicEncoding
 from .encoding import Encoding
-from .gumbel import GumbelVariationalEncoding
 from .rnn_variational import RnnVariationalEncoding
 from .variational import VariationalEncoding
+from ..module import register
 
 
-encoding_modules = dict(
-    basic=BasicEncoding,
-    gumbel=GumbelVariationalEncoding,
-    rnn_variational=RnnVariationalEncoding,
-    variational=VariationalEncoding
-)
+register(name='rnn_variational', module=RnnVariationalEncoding)
+register(name='variational', module=VariationalEncoding)
 
-__all__ = ['Encoding', 'encoding_modules']
+__all__ = ['Encoding']

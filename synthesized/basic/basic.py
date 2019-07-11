@@ -156,7 +156,7 @@ class BasicSynthesizer(Synthesizer):
 
         # VAE
         self.vae = self.add_module(
-            module='vae', name='vae', values=self.values, conditions=self.conditions,
+            module='vae_master', name='vae', values=self.values, conditions=self.conditions,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
