@@ -133,6 +133,8 @@ class VAEMaster(Generative):
             axis=1
         )
 
+        losses['encoding'] = encoding_loss
+
         # Reconstruction loss per value
         for value, y in zip(self.values, ys):
             losses[value.name + '-loss'] = value.loss(
