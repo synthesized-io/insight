@@ -5,7 +5,7 @@ from ..module import tensorflow_name_scoped
 class ResnetTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, layer_sizes, depths=1, batchnorm=True, activation='relu',
+        self, name, input_size, layer_sizes, depths=2, batchnorm=True, activation='relu',
         weight_decay=0.0
     ):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
