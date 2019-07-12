@@ -127,7 +127,7 @@ class VAEMaster(Generative):
             # Condition c
             c = tf.concat(values=[
                 value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
+                for value in self.conditions if value.learned_input_size() > 0
             ], axis=1)
 
             # Concatenate z,c
