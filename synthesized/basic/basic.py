@@ -20,20 +20,20 @@ class BasicSynthesizer(Synthesizer):
     def __init__(
         self, df: pd.DataFrame, summarizer: str = None,
         # VAE distribution
-        distribution: str = 'normal', latent_size: int = 512,
+        distribution: str = 'normal', latent_size: int = 128,
         # Network
-        network: str = 'mlp', capacity: int = 128, depth: int = 4, batchnorm: bool = True,
+        network: str = 'resnet', capacity: int = 128, depth: int = 2, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 0.006, decay_steps: int = 300,
-        decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
-        batch_size: int = 128,
+        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = 1000,
+        decay_rate: float = 0.9, initial_boost: bool = False, clip_gradients: float = 1.0,
+        batch_size: int = 64,
         # Losses
-        categorical_weight: float = 5.0, continuous_weight: float = 1.0, beta: float = 0.01,
-        weight_decay: float = 0.0,
+        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.001,
+        weight_decay: float = 1e-5,
         # Categorical
-        temperature: float = 0.7, smoothing: float = 0.0, moving_average: bool = False,
-        similarity_regularization: float = 0.0, entropy_regularization: float = 0.0,
+        temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
+        similarity_regularization: float = 0.1, entropy_regularization: float = 0.1,
         # Conditions
         condition_columns: List[str] = [],
         # Person
