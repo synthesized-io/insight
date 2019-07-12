@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ class ContinuousValue(Value):
         self.integer = integer
         self.positive = positive
         self.nonnegative = nonnegative
-        self.distribution = None
-        self.distribution_params = None
+        self.distribution: Optional[str] = None
+        self.distribution_params: Optional[Tuple[Any, ...]] = None
         self.transformer = QuantileTransformer(n_quantiles=transformer_n_quantiles, output_distribution='normal')
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
