@@ -123,15 +123,15 @@ class VAEMaster(Generative):
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
 
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                for value in self.conditions if value.learned_input_size() > 0
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
+        # if len(self.conditions) > 0:
+        #     # Condition c
+        #     c = tf.concat(values=[
+        #         value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+        #         for value in self.conditions
+        #     ], axis=1)
+        #
+        #     # Concatenate z,c
+        #     x = tf.concat(values=(x, c), axis=1)
 
         x = self.decoder.transform(x=x)
         y = self.linear_output.transform(x=x)
