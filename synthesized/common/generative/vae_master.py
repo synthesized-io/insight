@@ -164,6 +164,10 @@ class VAEMaster(Generative):
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
+            if name != 'total-loss' and name != 'encoding':
+                summaries.append(tf.contrib.summary.scalar(
+                    name=name + '-ratio', tensor=(loss / losses['encoding'])
+                ))
 
         if Module.summarizer is None:
             summaries = list()
