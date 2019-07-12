@@ -7,12 +7,45 @@ import seaborn as sns
 from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
-from typing import Tuple, Dict, Type
+from numpy.random import exponential, normal
+from typing import Dict, Tuple, Type
 from matplotlib.pyplot import Axes
 
-from synthesized.core import BasicSynthesizer
+from synthesized.basic import BasicSynthesizer
 from synthesized.testing.evaluation import Evaluation
-from synthesized.core.values import CategoricalValue, ContinuousValue
+from synthesized.common.values import CategoricalValue, ContinuousValue
+from numpy.random import binomial
+
+
+def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    for name, column in df1.items():
+        df.loc[:, name + '1'] = column
+    for name, column in df2.items():
+        df.loc[:, name + '2'] = column
+    return df
+
+
+def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
+    x = np.random.random_sample(size=size) < probability
+    return pd.DataFrame({'x': x})
+
+
+def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a categorical distribution with
+     `len(probabilities)` categories and probability `probabilities[i]`
+     for class `i`.
+     """
+    categories = list(range(len(probabilities)))
+    x = np.random.choice(a=categories, size=size, p=probabilities)
+    return pd.DataFrame({'x': x})
+
+
+def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
+    """Draws `size` samples from a one-dimensional gaussian distribution with params N(mean, std)."""
+    x = np.random.normal(loc=mean, scale=std, size=size)
+    return pd.DataFrame({'x': x})
 
 
 def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
@@ -24,8 +57,49 @@ def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, 
     return df
 
 
-def create_gauss_line(x_range: Tuple[float, float], intercept: float, slope: float, y_std: float,
-                      size: int) -> pd.DataFrame:
+def create_two_1d_gaussians(
+    mean1: float, std1: float, size1: int, mean2: float, std2: float, size2: int
+) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df = pd.concat([df1, df2])
+    return df
+
+
+def create_exp_gaussian_mixture(mean1: float, std1: float, size1: int, scale: float, size2: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": exponential(scale=scale, size=size2)})
+    df = pd.concat([df1, df2])
+    return df
+
+
+def create_three_1d_gaussians(mean1: float, std1: float, size1: int,
+                              mean2: float, std2: float, size2: int,
+                              mean3: float, std3: float, size3: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions"""
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df3 = pd.DataFrame({"x": normal(loc=mean3, scale=std3, size=size3)})
+    df = pd.concat([df1, df2, df3])
+    return df
+
+
+def create_two_gaussian_mixtures(mean1: float, std1: float, mean2: float, std2: float, size: int) -> pd.DataFrame:
+    """Creates a mixture of 1-dimensional distributions (a proper one)"""
+    size1 = binomial(n=size, p=0.5)
+    size2 = size - size1
+    df1 = pd.DataFrame({"x": normal(loc=mean1, scale=std1, size=size1)})
+    df2 = pd.DataFrame({"x": normal(loc=mean2, scale=std2, size=size2)})
+    df = pd.concat([df1, df2])
+    df = df.sample(frac=1)
+    return df
+
+
+def create_gauss_line(
+    x_range: Tuple[float, float], intercept: float, slope: float, y_std: float, size: int
+) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) cloud of points around a line `y=x*slope + intercept`
      with standard deviation y_std along y axis and confined to [x_range[0], x_range[1]] along x axis"""
     x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
@@ -93,12 +167,12 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
     if num_iterations is None:
         num_iterations = evaluation.config['num_iterations']
     start = time.time()
-    with BasicSynthesizer(data=data, **evaluation.config['params']) as synthesizer:
+    with BasicSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
         value_types = {value.name: type(value) for value in synthesizer.values}
-        synthesizer.learn(data=data, num_iterations=num_iterations)
+        synthesizer.learn(df_train=data, num_iterations=num_iterations)
         print()
         print('took', time.time() - start, 's')
         synthesized = synthesizer.synthesize(n=len(data))

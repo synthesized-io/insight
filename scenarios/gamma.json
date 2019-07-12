@@ -1,0 +1,10 @@
+{
+    "values": {
+        "value": {
+            "module": "continuous",
+            "distribution": "gamma",
+            "distribution_params": [1, 2, 3]
+        }
+    },
+    "functionals": []
+}
