@@ -96,7 +96,14 @@ class ContinuousValue(Value):
             self.distribution_params = (column[0],)
             return
 
-        self.transformer.fit(df[self.name].values.reshape(-1, 1))
+        column = column.values
+        # positive / nonnegative transformation
+        if self.positive or self.nonnegative:
+            if self.nonnegative and not self.positive:
+                column = np.maximum(column, 0.001)
+            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
+
+        self.transformer.fit(column.reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required
