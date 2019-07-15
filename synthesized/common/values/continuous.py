@@ -16,7 +16,7 @@ class ContinuousValue(Value):
         self, name: str, weight: float,
         # Scenario
         integer: bool = None, positive: bool = None, nonnegative: bool = None,
-        transformer_n_quantiles=1000
+        transformer_n_quantiles: int = 1000, transformer_noise: bool = 1e-7
     ):
         super().__init__(name=name)
 
@@ -25,6 +25,7 @@ class ContinuousValue(Value):
         self.integer = integer
         self.positive = positive
         self.nonnegative = nonnegative
+        self.transformer_noise = transformer_noise
         self.distribution: Optional[str] = None
         self.distribution_params: Optional[Tuple[Any, ...]] = None
         self.transformer = QuantileTransformer(n_quantiles=transformer_n_quantiles, output_distribution='normal')
@@ -101,7 +102,10 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 column = np.maximum(column, 0.001)
-            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
+            #column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
+
+        if self.transformer_noise:
+            column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
         self.transformer.fit(column.reshape(-1, 1))
 
@@ -122,11 +126,15 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 df.loc[:, self.name] = np.maximum(df[self.name], 0.001)
-            df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
-                np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
-            )
+            # df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
+            #     np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
+            # )
 
-        df.loc[:, self.name] = self.transformer.transform(df[self.name].values.reshape(-1, 1))
+        column = df[self.name].values
+        if self.transformer_noise:
+            column += np.random.normal(scale=self.transformer_noise, size=len(column))
+
+        df.loc[:, self.name] = self.transformer.transform(column.reshape(-1, 1))
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
@@ -141,8 +149,8 @@ class ContinuousValue(Value):
         else:
             df.loc[:, self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
             if self.positive or self.nonnegative:
-                df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
-                                       np.maximum(df[self.name], 0.0)
+                # df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
+                #                        np.maximum(df[self.name], 0.0)
                 if self.nonnegative and not self.positive:
                     zeros = np.zeros_like(df[self.name])
                     df.loc[:, self.name] = np.where(
