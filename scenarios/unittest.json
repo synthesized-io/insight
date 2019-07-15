@@ -2,7 +2,7 @@
     "values": {
         "value1": "continuous",
         "value2": {
-            "module": "continuous", "distribution": "normal", "distribution_params": [-1.0, 0.6]
+            "module": "continuous"
         },
         "value3": "continuous",
         "value4": {
