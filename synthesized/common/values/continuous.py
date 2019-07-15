@@ -244,6 +244,57 @@ class ContinuousValue(Value):
 
         samples = ys[0]
 
+        if self.distribution == 'normal':
+            assert self.distribution_params is not None
+            loc, scale = self.distribution_params
+            distribution = tfd.Normal(loc=loc, scale=scale)
+            samples = distribution.cdf(value=samples)
+        elif self.distribution == 'gamma':
+            assert self.distribution_params is not None
+            shape, location, scale = self.distribution_params
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(concentration=shape, rate=1.0)
+            samples = tf.where(
+                condition=(samples < location), x=(samples + 2 * location), y=samples
+            )
+            samples = (samples - location) / scale
+            samples = distribution.cdf(value=samples) / scale
+        elif self.distribution == 'gumbel':
+            assert self.distribution_params is not None
+            location, scale = self.distribution_params
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(location=location, scale=scale)
+            samples = tf.where(
+                condition=(samples < location), x=(samples + 2 * location), y=samples
+            )
+            samples = distribution.cdf(value=samples)
+        elif self.distribution == 'log_normal':
+            assert self.distribution_params is not None
+            shape, location, scale = self.distribution_params
+            distribution_class = DISTRIBUTIONS[self.distribution][1]
+            assert distribution_class is not None
+            distribution = distribution_class(loc=log(scale), scale=scale)
+            samples = tf.where(
+                condition=(samples < location), x=(samples + 2 * location), y=samples
+            )
+            samples = samples - location
+            samples = distribution.cdf(value=samples)
+        elif self.distribution == 'weibull':
+            assert self.distribution_params is not None
+            shape, location, scale = self.distribution_params
+            distribution_class = DISTRIBUTIONS['gamma'][1]
+            assert distribution_class is not None
+            distribution = distribution_class(concentration=shape, rate=1.0)
+            samples = tf.where(
+                condition=(samples < location), x=(samples + 2 * location), y=samples
+            )
+            samples = (samples - location) / scale
+            samples = distribution.cdf(value=samples) / scale
+        else:
+            assert False
+
         samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
         normal_distribution = tfd.Normal(loc=0.0, scale=1.0)
         samples = normal_distribution.quantile(value=samples)
