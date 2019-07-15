@@ -28,7 +28,7 @@ class ContinuousValue(Value):
         # Scenario
         integer: bool = None, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
-        transformer_n_quantiles: int = 1000, transformer_noise: bool = 1e-7
+        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
 
@@ -44,7 +44,7 @@ class ContinuousValue(Value):
 
         # transformer is fitted in `extract`
         self.transformer_n_quantiles = transformer_n_quantiles
-        self.transformer_noise: Optional[bool] = transformer_noise
+        self.transformer_noise = transformer_noise
         self.transformer: Optional[QuantileTransformer] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
@@ -113,7 +113,7 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 column = np.maximum(column, 0.001)
-            #column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
+            # column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
 
         if self.transformer_noise:
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
