@@ -16,7 +16,7 @@ class ContinuousValue(Value):
         self, name: str, weight: float,
         # Scenario
         integer: bool = None, positive: bool = None, nonnegative: bool = None,
-        transformer_n_quantiles: int = 10000, transformer_noise: bool = 1e-7
+        transformer_n_quantiles: int = 1000, transformer_noise: bool = 1e-7
     ):
         super().__init__(name=name)
 
