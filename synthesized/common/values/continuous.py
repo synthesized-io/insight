@@ -1,19 +1,16 @@
 from math import log
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
+import numpy as np
 import pandas as pd
-from scipy.stats import gamma, gilbrat, gumbel_r, kstest, lognorm, norm, uniform, weibull_min
 import tensorflow as tf
+from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, norm, uniform, weibull_min
+from sklearn.preprocessing import QuantileTransformer
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import Module, tensorflow_name_scoped
-import numpy as np
 
-OUTLIERS_PERCENTILE = 0.01
-FITTING_SUBSAMPLE = 10000
-FITTING_INF_TOLERANCE = 0.01
-FITTING_THRESHOLD = 0.1
 DISTRIBUTIONS = dict(
     # beta=(beta, tfd.Beta),
     gamma=(gamma, tfd.Gamma),
@@ -31,7 +28,8 @@ class ContinuousValue(Value):
         self, name: str, weight: float,
         # Scenario
         integer: bool = None, positive: bool = None, nonnegative: bool = None,
-        distribution: str = None, distribution_params: Tuple[Any, ...] = None
+        distribution: str = None, distribution_params: Tuple[Any, ...] = None,
+        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
 
@@ -44,6 +42,11 @@ class ContinuousValue(Value):
         assert distribution is None or distribution == 'normal' or distribution in DISTRIBUTIONS
         self.distribution = distribution
         self.distribution_params = distribution_params
+
+        # transformer is fitted in `extract`
+        self.transformer_n_quantiles = transformer_n_quantiles
+        self.transformer_noise = transformer_noise
+        self.transformer: Optional[QuantileTransformer] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
@@ -81,6 +84,9 @@ class ContinuousValue(Value):
         super().extract(df=df)
         column = df[self.name]
 
+        # we allow extraction only if distribution hasn't been set
+        assert self.distribution is None
+
         if column.dtype.kind not in ('f', 'i'):
             column = self.pd_cast(column)
 
@@ -103,63 +109,18 @@ class ContinuousValue(Value):
         elif self.nonnegative and (column < 0.0).all():
             raise NotImplementedError
 
-        if self.distribution is not None:
-            assert self.distribution_params is not None
-            return
-
-        if column.nunique() == 1:
-            self.distribution = 'dirac'
-            self.distribution_params = (column[0],)
-            return
-
+        column = column.values
         # positive / nonnegative transformation
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 column = np.maximum(column, 0.001)
-            column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
+            # column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
 
-        # remove outliers
-        percentile = [OUTLIERS_PERCENTILE * 50.0, 100.0 - OUTLIERS_PERCENTILE * 50.0]
-        lower, upper = np.percentile(column, percentile)
-        clean = column[(column >= lower) & (column <= upper)]
-        assert len(clean) >= 2
-        subsample = np.random.choice(clean, min(len(column), FITTING_SUBSAMPLE))
+        if self.transformer_noise:
+            column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
-        # normal distribution
-        self.distribution = 'normal'
-        mean = subsample.mean()
-        stddev = subsample.std()
-        if stddev == 0.0:
-            stddev = column.std()
-        self.distribution_params = (mean, stddev)
-        transformed = (subsample - mean) / stddev
-        min_distance, p = kstest(transformed, 'norm', N=10000)
-
-        # other distributions
-        for name, (distribution, _) in DISTRIBUTIONS.items():
-            distribution_params = distribution.fit(subsample)
-            transformed = norm.ppf(distribution.cdf(subsample, *distribution_params))
-
-            is_nan = np.isnan(transformed)
-            if is_nan.any():
-                assert is_nan.all()
-                continue
-
-            num_inf = (transformed == float('inf')).sum() + (transformed == float('-inf')).sum()
-            if num_inf / len(transformed) > FITTING_INF_TOLERANCE:
-                # print('INF TOLERANCE:', name, num_inf / len(transformed))
-                continue
-
-            distance, p = kstest(transformed, 'norm', N=10000)
-            if distance < min_distance:
-                # print('extract fit:', name, num_inf / len(transformed))
-                min_distance = distance
-                self.distribution = name
-                self.distribution_params = tuple(distribution_params)
-
-        # if distance > FITTING_THRESHOLD:
-        #     self.distribution = None
-        #     self.distribution_params = None
+        self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles, output_distribution='normal')
+        self.transformer.fit(column.reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required
@@ -178,9 +139,9 @@ class ContinuousValue(Value):
         if self.positive or self.nonnegative:
             if self.nonnegative and not self.positive:
                 df.loc[:, self.name] = np.maximum(df[self.name], 0.001)
-            df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
-                np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
-            )
+            # df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
+            #     np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
+            # )
 
         if self.distribution == 'normal':
             assert self.distribution_params is not None
@@ -192,6 +153,11 @@ class ContinuousValue(Value):
                 DISTRIBUTIONS[self.distribution][0].cdf(df[self.name], *self.distribution_params)
             )
             df = df[(df[self.name] != float('inf')) & (df[self.name] != float('-inf'))]
+        elif self.transformer:
+            column = df[self.name].values
+            if self.transformer_noise:
+                column += np.random.normal(scale=self.transformer_noise, size=len(column))
+            df.loc[:, self.name] = self.transformer.transform(column.reshape(-1, 1))
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
@@ -203,21 +169,21 @@ class ContinuousValue(Value):
         if self.distribution == 'dirac':
             assert self.distribution_params is not None
             df.loc[:, self.name] = self.distribution_params[0]
-
         else:
             if self.distribution == 'normal':
                 assert self.distribution_params is not None
                 mean, stddev = self.distribution_params
                 df.loc[:, self.name] = df[self.name] * stddev + mean
-
             elif self.distribution is not None:
                 df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
                     norm.cdf(df[self.name]), *self.distribution_params
                 )
+            elif self.transformer:
+                df.loc[:, self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
 
             if self.positive or self.nonnegative:
-                df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
-                                         np.maximum(df[self.name], 0.0)
+                # df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
+                #                        np.maximum(df[self.name], 0.0)
                 if self.nonnegative and not self.positive:
                     zeros = np.zeros_like(df[self.name])
                     df.loc[:, self.name] = np.where(

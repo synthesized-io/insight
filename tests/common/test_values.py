@@ -59,7 +59,7 @@ def test_categorical_similarity():
 
 def test_continuous():
     value = ContinuousValue(
-        name='continuous', weight=1.0, distribution=None, distribution_params=None, integer=None,
+        name='continuous', weight=1.0, integer=None,
         positive=None, nonnegative=None
     )
     _test_value(value=value, x=np.random.randn(4,))
