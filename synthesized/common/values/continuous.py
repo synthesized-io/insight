@@ -140,6 +140,14 @@ class ContinuousValue(Value):
             df.loc[:, self.name] = self.distribution_params[0]
         else:
             df.loc[:, self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
+            if self.positive or self.nonnegative:
+                df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
+                                       np.maximum(df[self.name], 0.0)
+                if self.nonnegative and not self.positive:
+                    zeros = np.zeros_like(df[self.name])
+                    df.loc[:, self.name] = np.where(
+                        (df[self.name] >= 0.001), df[self.name], zeros
+                    )
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
