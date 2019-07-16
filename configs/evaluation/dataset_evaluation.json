@@ -60,7 +60,7 @@
       "num_passes": 1,
       "params": {
       },
-      "target": "Opportunity Result",
+      "target": "income",
       "synthesizer_class": "BasicSynthesizer"
     }
   }
