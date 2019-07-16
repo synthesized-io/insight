@@ -42,26 +42,26 @@
       },
       "target": "default payment next month",
       "synthesizer_class": "BasicSynthesizer"
+    },
+    "sales_pipeline": {
+      "data": "data/templates/sales_pipeline.csv",
+      "ignore_columns": [],
+      "num_iterations": 2500,
+      "num_passes": 1,
+      "params": {
+      },
+      "target": "Opportunity Result",
+      "synthesizer_class": "BasicSynthesizer"
+    },
+    "segmentation_analysis": {
+      "data": "data/templates/segmentation_analysis.csv",
+      "ignore_columns": [],
+      "num_iterations": 2500,
+      "num_passes": 1,
+      "params": {
+      },
+      "target": "Opportunity Result",
+      "synthesizer_class": "BasicSynthesizer"
     }
-  },
-  "sales_pipeline": {
-    "data": "data/templates/sales_pipeline.csv",
-    "ignore_columns": [],
-    "num_iterations": 2500,
-    "num_passes": 1,
-    "params": {
-    },
-    "target": "Opportunity Result",
-    "synthesizer_class": "BasicSynthesizer"
-  },
-  "segmentation_analysis": {
-    "data": "data/templates/segmentation_analysis.csv",
-    "ignore_columns": [],
-    "num_iterations": 2500,
-    "num_passes": 1,
-    "params": {
-    },
-    "target": "Opportunity Result",
-    "synthesizer_class": "BasicSynthesizer"
   }
 }
