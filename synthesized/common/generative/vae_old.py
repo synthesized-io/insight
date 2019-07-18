@@ -8,7 +8,7 @@ from ..module import Module, tensorflow_name_scoped
 from ..values import Value
 
 
-class VAEMaster(Generative):
+class VAEOld(Generative):
     """Variational auto-encoder.
 
     The VAE consists of an NN-parametrized input-conditioned encoder distribution q(z|x), a latent

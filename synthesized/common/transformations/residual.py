@@ -40,7 +40,8 @@ class ResidualTransformation(Transformation):
         spec = super().specification()
         spec.update(
             layers=[layer.specification() for layer in self.layers],
-            identity_transformation=(self.identity_transformation.specification() if self.identity_transformation else None)
+            identity_transformation=(self.identity_transformation.specification()
+                                     if self.identity_transformation else None)
         )
         return spec
 
