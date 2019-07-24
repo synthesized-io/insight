@@ -109,9 +109,22 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def corr_distance(self) -> float:
-        """Compute max abs difference between original and synthetic correlations."""
-        return (self.df_test.corr() - self.df_synth.corr()).abs().values.max()
+    def show_corr_distances(self, figsize=(2, 10)) -> None:
+        """Plot a barplot with correlation diffs between original anf synthetic columns."""
+        distances = (self.df_test.corr() - self.df_synth.corr()).abs()
+        result = []
+        for i in range(distances.shape[0]):
+            for j in range(distances.shape[1]):
+                if i <= j:
+                    row_name = distances.index[i]
+                    col_name = distances.iloc[:, j].name
+                    result.append({'column': '{}/{}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+        df = pd.DataFrame.from_records(result)
+        print('Average distance:', df['distance'].mean())
+        print('Max distance:', df['distance'].max())
+        plt.figure(figsize=figsize)
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
 
     def show_distributions(self,
                            remove_outliers: float = 0.0,
@@ -153,8 +166,7 @@ class UtilityTesting:
                 regressor: BaseEstimator = GradientBoostingRegressor()) -> float:
         """Compute utility.
 
-        Utility is a ratio of a score of estimator trained on synthetic data to
-        a score of estimator trained on original data.
+        Utility is a score of estimator trained on synthetic data.
 
         Args:
             target: Response variable
@@ -243,5 +255,6 @@ class UtilityTesting:
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
+        print('Max distance:', df['distance'].max())
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
