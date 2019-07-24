@@ -72,7 +72,7 @@ class VAEOld(Generative):
 
         self.decoder = self.add_module(
             module=network, name='decoder',
-            input_size=self.linear_input.size(),
+            input_size=(self.encoder.size() + condition_size),
             layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
         )
 
@@ -123,15 +123,15 @@ class VAEOld(Generative):
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
 
-        # if len(self.conditions) > 0:
-        #     # Condition c
-        #     c = tf.concat(values=[
-        #         value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-        #         for value in self.conditions
-        #     ], axis=1)
-        #
-        #     # Concatenate z,c
-        #     x = tf.concat(values=(x, c), axis=1)
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
+
+            # Concatenate z,c
+            x = tf.concat(values=(x, c), axis=1)
 
         x = self.decoder.transform(x=x)
         y = self.linear_output.transform(x=x)
@@ -196,6 +196,17 @@ class VAEOld(Generative):
         """
 
         x = self.encoding.sample(n=n)
+
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
+
+            # Concatenate z,c
+            x = tf.concat(values=(x, c), axis=1)
+
         x = self.decoder.transform(x=x)
         y = self.linear_output.transform(x=x)
 
