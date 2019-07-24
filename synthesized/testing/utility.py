@@ -3,43 +3,60 @@
 # Produced by: Synthesized Ltd
 #
 # The testing environment
+"""This module contains tools for utility testing."""
 
 from __future__ import division, print_function, absolute_import
 
-import math
 from enum import Enum
+from typing import Tuple, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from pyemd.emd import emd_samples
-from scipy.stats import ks_2samp, pearsonr
+from scipy.stats import ks_2samp
 from sklearn import clone
+from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 
+from synthesized.basic import BasicSynthesizer
 from synthesized.common.values import CategoricalValue
 from synthesized.common.values import ContinuousValue
 from synthesized.common.values import SamplingValue
-from .util import categorical_emd
+from synthesized.common.values import Value
 
-MAX_CATEGORIES = 50
 COLOR_ORIG = "#00AB26"
 COLOR_SYNTH = "#2794F3"
 
 
 class DisplayType(Enum):
+    """Used to display columns differently based on their type."""
+
     CATEGORICAL = 1
     CATEGORICAL_SIMILARITY = 2
     CONTINUOUS = 3
 
 
 class UtilityTesting:
-    def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        self.display_types = UtilityTesting._detect_display_types(synthesizer)
-        self.value_by_name = {}
+    """A universal set of utilities that let you to compare quality of original vs synthetic data."""
+
+    def __init__(self,
+                 synthesizer: BasicSynthesizer,
+                 df_orig: pd.DataFrame,
+                 df_test: pd.DataFrame,
+                 df_synth: pd.DataFrame):
+        """Create an instance of UtilityTesting.
+
+        Args:
+            synthesizer:
+            df_orig: A DataFrame with original data that was used for training
+            df_test: A DataFrame with hold-out original data
+            df_synth: A DataFrame with synthetic data
+        """
+        self.display_types: Dict[str, DisplayType] = UtilityTesting._detect_display_types(synthesizer)
+        self.value_by_name: Dict[str, Value] = {}
         for v in synthesizer.values:
             self.value_by_name[v.name] = v
         self.df_orig = df_orig
@@ -60,7 +77,12 @@ class UtilityTesting:
                 result[value.name] = DisplayType.CATEGORICAL
         return result
 
-    def show_corr_matrices(self, figsize=(15, 11)):
+    def show_corr_matrices(self, figsize: Tuple[float, float] = (15, 11)) -> None:
+        """Plot two correlations matrices: one for the original data and one for the synthetic one.
+
+        Args:
+            figsize: width, height in inches.
+        """
         def show_corr_matrix(df, title=None, ax=None):
             sns.set(style="white")
 
@@ -84,10 +106,41 @@ class UtilityTesting:
         # Set up the matplotlib figure
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
-        show_corr_matrix(self.df_orig, title='Original', ax=ax1)
+        show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_distributions(self, remove_outliers=0.0, figsize=(14, 50), cols=2):
+    def show_corr_distances(self, figsize: Tuple[float, float] = (2, 10)) -> None:
+        """Plot a barplot with correlation diffs between original anf synthetic columns.
+
+        Args:
+            figsize: width, height in inches.
+        """
+        distances = (self.df_test.corr() - self.df_synth.corr()).abs()
+        result = []
+        for i in range(distances.shape[0]):
+            for j in range(distances.shape[1]):
+                if i <= j:
+                    row_name = distances.index[i]
+                    col_name = distances.iloc[:, j].name
+                    result.append({'column': '{}/{}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+        df = pd.DataFrame.from_records(result)
+        print('Average distance:', df['distance'].mean())
+        print('Max distance:', df['distance'].max())
+        plt.figure(figsize=figsize)
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
+
+    def show_distributions(self,
+                           remove_outliers: float = 0.0,
+                           figsize: Tuple[float, float] = (14, 50),
+                           cols: int = 2) -> None:
+        """Plot comparison plots of all variables in the original and synthetic datasets.
+
+        Args:
+            remove_outliers: Percent of outliers to remove.
+            figsize: width, height in inches.
+            cols: Number of columns in the plot grid.
+        """
         concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
@@ -111,15 +164,21 @@ class UtilityTesting:
                              hist_kws={"color": COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
 
-    def improve_column(self, column, clf):
-        X_columns = list(set(self.df_orig.columns.values) - {column})
-        X = self.df_orig[X_columns]
-        y = self.df_orig[column]
-        clf.fit(X, y)
-        self.df_synth[column] = clf.predict(self.df_synth[X_columns])
-        return self.df_synth
+    def utility(self,
+                target: str,
+                classifier: BaseEstimator = GradientBoostingClassifier(),
+                regressor: BaseEstimator = GradientBoostingRegressor()) -> float:
+        """Compute utility.
 
-    def utility(self, target, classifier=GradientBoostingClassifier(), regressor=GradientBoostingRegressor()):
+        Utility is a score of estimator trained on synthetic data.
+
+        Args:
+            target: Response variable
+            classifier: If target a categorical then this estimator will be used.
+            regressor: If target a numerical then this estimator will be used.
+
+        Returns: Utility score.
+        """
         def skip_sampling(df):
             for col in df.columns:
                 if col not in self.value_by_name or isinstance(self.value_by_name[col], SamplingValue):
@@ -161,7 +220,12 @@ class UtilityTesting:
             print('R2 (synth):', synth_score)
             return synth_score
 
-    def autocorrelation_diff_plot_seaborn(self, max_lag=100):
+    def autocorrelation_diff_plot_seaborn(self, max_lag: int = 100) -> None:
+        """Plot autocorrelation.
+
+        Args:
+            max_lag: A max lag
+        """
         # for synthetic data at the moment, TODO for real data
         # how do we detect time column?
         def autocorrelation(h, data, mean, n, c0):
@@ -187,96 +251,14 @@ class UtilityTesting:
         sns.lineplot(data=data, palette=[COLOR_SYNTH, COLOR_ORIG], linewidth=2.5)
         return mean_squared_error(y_orig, y_synth)
 
-    @staticmethod
-    def _bin_edges(a):
-        _, edges = np.histogram(a, bins=10)
-        return edges
-
-    @staticmethod
-    def _to_categorical(a, edges):
-        return np.digitize(a, edges)
-
-    def compare_marginal_distributions(self, target_column, conditional_column, bins=4):
-        if self.df_orig[conditional_column].dtype == 'O':
-            return self._compare_marginal_distributions_categorical(target_column, conditional_column)
-        else:
-            return self._compare_marginal_distributions_continuous(target_column, conditional_column, bins)
-
-    def _compare_marginal_distributions_categorical(self, target_column, conditional_column):
-        target_emd = '{} EMD'.format(target_column)
-        result = []
-        for val in np.unique(self.df_orig[conditional_column]):
-            df_orig_target = self.df_orig[self.df_orig[conditional_column] == val][target_column]
-            df_synth_target = self.df_synth[self.df_synth[conditional_column] == val][target_column]
-            if len(df_orig_target) == 0 or len(df_synth_target) == 0:
-                emd = float('inf')
-            else:
-                if self.df_orig[target_column].dtype.kind == 'O':
-                    emd = categorical_emd(df_orig_target, df_synth_target)
-                else:
-                    emd = emd_samples(df_orig_target, df_synth_target)
-            result.append({
-                conditional_column: val,
-                target_emd: emd
-            })
-        return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
-
-    def _compare_marginal_distributions_continuous(self, target_column, conditional_column, bins):
-        _, edges = np.histogram(self.df_orig[conditional_column], bins=bins)
-        target_emd = '{} EMD'.format(target_column)
-        result = []
-        for i in range(0, len(edges) - 1):
-            df_orig_target = self.df_orig[
-                (self.df_orig[conditional_column] >= edges[i]) & (self.df_orig[conditional_column] < edges[i + 1])][
-                target_column]
-            df_synth_target = self.df_synth[
-                (self.df_synth[conditional_column] >= edges[i]) & (self.df_synth[conditional_column] < edges[i + 1])][
-                target_column]
-            if len(df_orig_target) == 0 or len(df_synth_target) == 0:
-                emd = float('inf')
-            else:
-                if self.df_orig[target_column].dtype.kind == 'O':
-                    emd = categorical_emd(df_orig_target, df_synth_target)
-                else:
-                    emd = emd_samples(df_orig_target, df_synth_target)
-            result.append({
-                conditional_column: '[{}, {})'.format(edges[i], edges[i + 1]),
-                target_emd: emd
-            })
-        return pd.DataFrame.from_records(result, columns=[conditional_column, target_emd])
-
     def show_distribution_distances(self):
+        """Plot a barplot with KS-distances between original anf synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
             distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
+        print('Max distance:', df['distance'].max())
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
-
-    def show_correlation_diffs(self, threshold=0.0, report=False):
-        result = []
-        cols = list(self.df_orig.columns.values)
-        cols = list(filter(lambda col: self.df_orig.dtypes[col].kind != 'O', cols))
-        for i in range(len(cols)):
-            for j in range(len(cols)):
-                if i < j:
-                    corr1 = pearsonr(self.df_orig[cols[i]], self.df_orig[cols[j]])[0]
-                    corr2 = pearsonr(self.df_synth[cols[i]], self.df_synth[cols[j]])[0]
-                    if math.isnan(corr1) or math.isnan(corr2):
-                        continue
-                    result.append({'pair': cols[i] + ' / ' + cols[j], 'diff': corr2 - corr1})
-        df = pd.DataFrame.from_records(result)
-        print('Average diff:', df['diff'].mean())
-        df = df[np.abs(df['diff']) > threshold]
-        df = df.sort_values(by='diff', ascending=False)
-        corrs = [i["diff"] for i in result]
-        sns.distplot(corrs, color=COLOR_ORIG, label='Correlations Difference', kde=False, hist=True)
-        if report:
-            return df
-
-    def debug_column(self, col):
-        start, end = np.percentile(self.df_orig[col], [2.5, 97.5])  # TODO parametrize
-        plt.hist([self.df_orig[col], self.df_synth[col]], label=['orig', 'synth'], range=(start, end))
-        plt.legend()
