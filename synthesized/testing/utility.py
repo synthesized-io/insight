@@ -55,7 +55,12 @@ class UtilityTesting:
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
-        self.display_types: Dict[str, DisplayType] = UtilityTesting._detect_display_types(synthesizer)
+        self.display_types: Dict[str, DisplayType] = {}
+        for value in synthesizer.values:
+            if isinstance(value, ContinuousValue):
+                self.display_types[value.name] = DisplayType.CONTINUOUS
+            elif isinstance(value, CategoricalValue):
+                self.display_types[value.name] = DisplayType.CATEGORICAL
         self.value_by_name: Dict[str, Value] = {}
         for v in synthesizer.values:
             self.value_by_name[v.name] = v
@@ -66,16 +71,6 @@ class UtilityTesting:
         self.df_orig_encoded = synthesizer.preprocess(df=df_orig)
         self.df_test_encoded = synthesizer.preprocess(df=df_test)
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
-
-    @staticmethod
-    def _detect_display_types(synthesizer):
-        result = {}
-        for value in synthesizer.values:
-            if isinstance(value, ContinuousValue):
-                result[value.name] = DisplayType.CONTINUOUS
-            elif isinstance(value, CategoricalValue):
-                result[value.name] = DisplayType.CATEGORICAL
-        return result
 
     def show_corr_matrices(self, figsize: Tuple[float, float] = (15, 11)) -> None:
         """Plot two correlations matrices: one for the original data and one for the synthetic one.
