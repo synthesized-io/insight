@@ -16,12 +16,9 @@ import seaborn as sns
 from pyemd.emd import emd_samples
 from scipy.stats import ks_2samp, pearsonr
 from sklearn import clone
-from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import mean_squared_error, accuracy_score, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
-from sklearn.preprocessing import StandardScaler
 
 from synthesized.common.values import CategoricalValue
 from synthesized.common.values import ContinuousValue
