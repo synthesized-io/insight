@@ -39,19 +39,9 @@ class DisplayType(Enum):
     CONTINUOUS = 3
 
 
-def detect_display_types(synthesizer):
-    result = {}
-    for value in synthesizer.values:
-        if isinstance(value, ContinuousValue):
-            result[value.name] = DisplayType.CONTINUOUS
-        elif isinstance(value, CategoricalValue):
-            result[value.name] = DisplayType.CATEGORICAL
-    return result
-
-
 class UtilityTesting:
     def __init__(self, synthesizer, df_orig, df_test, df_synth):
-        self.display_types = detect_display_types(synthesizer)
+        self.display_types = UtilityTesting._detect_display_types(synthesizer)
         self.value_by_name = {}
         for v in synthesizer.values:
             self.value_by_name[v.name] = v
@@ -62,6 +52,16 @@ class UtilityTesting:
         self.df_orig_encoded = synthesizer.preprocess(df=df_orig)
         self.df_test_encoded = synthesizer.preprocess(df=df_test)
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
+
+    @staticmethod
+    def _detect_display_types(synthesizer):
+        result = {}
+        for value in synthesizer.values:
+            if isinstance(value, ContinuousValue):
+                result[value.name] = DisplayType.CONTINUOUS
+            elif isinstance(value, CategoricalValue):
+                result[value.name] = DisplayType.CATEGORICAL
+        return result
 
     def show_corr_matrices(self, figsize=(15, 11)):
         def show_corr_matrix(df, title=None, ax=None):
