@@ -50,7 +50,7 @@ class UtilityTesting:
         """Create an instance of UtilityTesting.
 
         Args:
-            synthesizer:
+            synthesizer: A synthesizer instance.
             df_orig: A DataFrame with original data that was used for training
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
@@ -252,7 +252,7 @@ class UtilityTesting:
         return mean_squared_error(y_orig, y_synth)
 
     def show_distribution_distances(self):
-        """Plot a barplot with KS-distances between original anf synthetic columns."""
+        """Plot a barplot with KS-distances between original and synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
             distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
