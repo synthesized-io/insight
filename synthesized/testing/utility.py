@@ -109,8 +109,12 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize=(2, 10)) -> None:
-        """Plot a barplot with correlation diffs between original anf synthetic columns."""
+    def show_corr_distances(self, figsize: Tuple[float, float] = (2, 10)) -> None:
+        """Plot a barplot with correlation diffs between original anf synthetic columns.
+
+        Args:
+            figsize: width, height in inches.
+        """
         distances = (self.df_test.corr() - self.df_synth.corr()).abs()
         result = []
         for i in range(distances.shape[0]):
@@ -220,7 +224,7 @@ class UtilityTesting:
         """Plot autocorrelation.
 
         Args:
-            max_lag: A max lax
+            max_lag: A max lag
         """
         # for synthetic data at the moment, TODO for real data
         # how do we detect time column?
