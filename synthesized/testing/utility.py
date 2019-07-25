@@ -104,7 +104,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize: Tuple[float, float] = (2, 10)) -> None:
+    def show_corr_distances(self, figsize: Tuple[float, float] = (4, 10)) -> None:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -117,7 +117,7 @@ class UtilityTesting:
                 if i < j:
                     row_name = distances.index[i]
                     col_name = distances.iloc[:, j].name
-                    result.append({'column': '{}/{}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+                    result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
         print('Max distance:', df['distance'].max())
