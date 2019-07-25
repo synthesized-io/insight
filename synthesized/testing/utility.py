@@ -114,7 +114,7 @@ class UtilityTesting:
         result = []
         for i in range(distances.shape[0]):
             for j in range(distances.shape[1]):
-                if i <= j:
+                if i < j:
                     row_name = distances.index[i]
                     col_name = distances.iloc[:, j].name
                     result.append({'column': '{}/{}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
