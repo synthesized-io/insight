@@ -12,7 +12,7 @@ class Module(object):
     global_step: Optional[tf.Tensor] = None
     summarizer = None
 
-    def __init__(self, name, summarizer=False, profiler_args=None):
+    def __init__(self, name, summarizer=None, profiler_args=None):
         self.name = name
         self._summarizer = summarizer
         if profiler_args is not None:
