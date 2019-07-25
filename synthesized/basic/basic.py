@@ -8,6 +8,7 @@ import tensorflow as tf
 
 from ..common import identify_rules, identify_value, Module, Value
 from ..synthesizer import Synthesizer
+from ..common.util import ProfilerArgs
 
 
 class BasicSynthesizer(Synthesizer):
@@ -18,7 +19,7 @@ class BasicSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, df: pd.DataFrame, summarizer: str = None,
+        self, df: pd.DataFrame, summarizer: str = None, profiler_args: ProfilerArgs = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -93,7 +94,7 @@ class BasicSynthesizer(Synthesizer):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        super().__init__(name='synthesizer', summarizer=summarizer)
+        super().__init__(name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
 
         self.batch_size = batch_size
 
