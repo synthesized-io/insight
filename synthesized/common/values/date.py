@@ -73,7 +73,7 @@ class DateValue(ContinuousValue):
 
         if column.is_monotonic:
             if self.start_date is None:
-                self.start_date = column[0] - (column.values[1:] - column.values[:-1]).mean()
+                self.start_date = column.values[0] - (column.values[1:] - column.values[:-1]).mean()
             elif column[0] < self.start_date:
                 raise NotImplementedError
             previous_date = column.values.copy()
