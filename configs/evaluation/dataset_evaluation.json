@@ -64,7 +64,7 @@
       "synthesizer_class": "BasicSynthesizer"
     },
     "vitor": {
-      "data": "data/templates/vitor.csv",
+      "data": "data/vitor.csv",
       "ignore_columns": ["Unnamed: 0"],
       "num_iterations": 2500,
       "num_passes": 1,
