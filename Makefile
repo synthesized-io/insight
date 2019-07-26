@@ -5,7 +5,7 @@ VENV_NAME ?= venv
 VENV_ACTIVATE = $(VENV_NAME)/bin/activate
 PYTHON = $(VENV_NAME)/bin/python3
 
-all: lint test build
+all: lint unit-test
 
 build: $(SRC)
 	$(PYTHON) setup.py bdist_wheel
