@@ -34,7 +34,7 @@ def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, cat
 
 def time_synthesis(data: pd.DataFrame, num_iterations: int) -> Dict[str, float]:
     t0 = time.time()
-    with BasicSynthesizer(data=data) as synthesizer:
+    with HighDimSynthesizer(data=data) as synthesizer:
         synthesizer.learn(data=data, num_iterations=num_iterations)
         t1 = time.time()
         synthesized = synthesizer.synthesize(n=len(data))
@@ -156,7 +156,7 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         filepath = "{}/profiler_continuous_dimensions_{}_size_{}.json".format(out_dir, default_dimensions, default_size)
         profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
         data = create_multidimensional_gaussian(dimensions=default_dimensions, size=default_size)
-        with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+        with HighDimSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
 
     # -- categorical
@@ -168,7 +168,7 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
         data = create_multidimensional_categorical(dimensions=default_dimensions, categories=default_categories,
                                                    size=default_size)
-        with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+        with HighDimSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
 
     # -- mixed
@@ -181,7 +181,7 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         default_mixed_dim = int(default_dimensions/2)
         data = create_multidimensional_mixed(continuous_dim=default_mixed_dim, categorical_dim=default_mixed_dim,
                                              categories=default_categories, size=default_size)
-        with BasicSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
+        with HighDimSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
 
 

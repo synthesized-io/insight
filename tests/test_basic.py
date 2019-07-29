@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 from scipy.stats import ks_2samp
 
-from synthesized import BasicSynthesizer
+from synthesized import HighDimSynthesizer
 
 
 @pytest.mark.integration
@@ -20,7 +20,7 @@ def test_datasets_quick():
 
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
-                with BasicSynthesizer(
+                with HighDimSynthesizer(
                     df=df_original, capacity=8, depth=1, batch_size=8
                 ) as synthesizer:
                     synthesizer.learn(num_iterations=10, df_train=df_original)
@@ -36,7 +36,7 @@ def test_datasets_quick():
 
 def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
-    with BasicSynthesizer(
+    with HighDimSynthesizer(
         df=df_original, capacity=8, depth=1, batch_size=8, condition_columns=['SeriousDlqin2yrs']
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
@@ -48,7 +48,7 @@ def test_unittest_dataset_quick():
 @pytest.mark.integration
 def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv')
-    with BasicSynthesizer(df=df_original) as synthesizer:
+    with HighDimSynthesizer(df=df_original) as synthesizer:
         synthesizer.learn(num_iterations=5000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
         assert len(df_synthesized) == len(df_original)

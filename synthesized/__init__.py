@@ -1,9 +1,9 @@
-from .basic import BasicSynthesizer
+from .highdim import HighDimSynthesizer
 from .scenario import ScenarioSynthesizer
 from .series import SeriesSynthesizer
 from .synthesizer import Synthesizer
 from .version import __version__
 
 __all__ = [
-    '__version__', 'BasicSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Synthesizer'
+    '__version__', 'HighDimSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Synthesizer'
 ]

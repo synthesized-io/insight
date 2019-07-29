@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from synthesized.basic import BasicSynthesizer
+from synthesized.highdim import HighDimSynthesizer
 from synthesized.common.values.identify_value import identify_value
 from synthesized.common.values.identify_rules import identify_rules
 
@@ -14,7 +14,7 @@ BASEDIR = os.path.dirname(__file__)
 def main():
     df = pd.read_csv(os.path.join(BASEDIR, 'data', 'credit_retired.csv'))
     train, test = train_test_split(df, test_size=0.2, random_state=0)
-    with BasicSynthesizer(df=train, find_rules='all') as synthesizer:
+    with HighDimSynthesizer(df=train, find_rules='all') as synthesizer:
         synthesizer.learn(df_train=train, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=len(test))
 
@@ -29,7 +29,7 @@ def stress_test():
     df.iloc[:, 99] = (df.iloc[:,98] > 0)
     df.columns = [str(x) for x in df.columns]
 
-    dummy = BasicSynthesizer(df=pd.DataFrame(np.random.randn(5,5)))
+    dummy = HighDimSynthesizer(df=pd.DataFrame(np.random.randn(5, 5)))
 
     # Make the list of values
     start1 = time.time()
