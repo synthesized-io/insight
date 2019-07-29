@@ -11,7 +11,7 @@ from ..synthesizer import Synthesizer
 from ..common.util import ProfilerArgs
 
 
-class BasicSynthesizer(Synthesizer):
+class HighDimSynthesizer(Synthesizer):
     """The main synthesizer implementation.
 
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that

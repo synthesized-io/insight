@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..basic import BasicSynthesizer
+from ..highdim import HighDimSynthesizer
 from ..common import identify_value, Module, Value
 from ..synthesizer import Synthesizer
 
@@ -121,7 +121,7 @@ class SeriesSynthesizer(Synthesizer):
         self.values: List[Value] = list()
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = identify_value(module=cast(BasicSynthesizer, self), name=name, df=data[name])
+            value = identify_value(module=cast(HighDimSynthesizer, self), name=name, df=data[name])
             if value is not None:
                 value.extract(df=data)
                 self.values.append(value)

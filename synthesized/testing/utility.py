@@ -21,7 +21,7 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 
-from synthesized.basic import BasicSynthesizer
+from synthesized.highdim import HighDimSynthesizer
 from synthesized.common.values import CategoricalValue
 from synthesized.common.values import ContinuousValue
 from synthesized.common.values import DateValue
@@ -44,7 +44,7 @@ class UtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
     def __init__(self,
-                 synthesizer: BasicSynthesizer,
+                 synthesizer: HighDimSynthesizer,
                  df_orig: pd.DataFrame,
                  df_test: pd.DataFrame,
                  df_synth: pd.DataFrame):

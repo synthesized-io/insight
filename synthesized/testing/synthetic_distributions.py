@@ -11,7 +11,7 @@ from numpy.random import exponential, normal
 from typing import Dict, Tuple, Type
 from matplotlib.pyplot import Axes
 
-from synthesized.basic import BasicSynthesizer
+from synthesized.highdim import HighDimSynthesizer
 from synthesized.testing.evaluation import Evaluation
 from synthesized.common.values import CategoricalValue, ContinuousValue
 from numpy.random import binomial
@@ -167,7 +167,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
     if num_iterations is None:
         num_iterations = evaluation.config['num_iterations']
     start = time.time()
-    with BasicSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
+    with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
