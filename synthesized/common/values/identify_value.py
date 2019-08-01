@@ -22,6 +22,7 @@ def identify_value(module: Any, df: pd.Series, name: str) -> Value:
     nan_kwargs['weight_decay'] = module.weight_decay
     categorical_kwargs['weight'] = module.categorical_weight
     nan_kwargs['weight'] = module.categorical_weight
+    nan_kwargs['produce_nans'] = True if name in module.produce_nans_for else False
     continuous_kwargs['weight'] = module.continuous_weight
     categorical_kwargs['temperature'] = module.temperature
     categorical_kwargs['smoothing'] = module.smoothing

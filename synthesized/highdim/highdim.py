@@ -1,6 +1,6 @@
 """This module implements the BasicSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Dict, Any, Iterable
 
 import numpy as np
 import pandas as pd
@@ -9,6 +9,14 @@ import tensorflow as tf
 from ..common import identify_rules, identify_value, Module, Value
 from ..synthesizer import Synthesizer
 from ..common.util import ProfilerArgs
+import enum
+
+
+class TypeOverride(enum.Enum):
+    ID = 'ID'
+    DATE = 'DATE'
+    CATEGORICAL = 'CATEGORICAL'
+    CONTINUOUS = 'CONTINUOUS'
 
 
 class HighDimSynthesizer(Synthesizer):
@@ -20,6 +28,8 @@ class HighDimSynthesizer(Synthesizer):
 
     def __init__(
         self, df: pd.DataFrame, summarizer: str = None, profiler_args: ProfilerArgs = None,
+        type_overrides: Dict[str, TypeOverride] = None,
+        produce_nans_for: Iterable[str] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -36,7 +46,7 @@ class HighDimSynthesizer(Synthesizer):
         temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
         similarity_regularization: float = 0.1, entropy_regularization: float = 0.1,
         # Conditions
-        condition_columns: List[str] = [],
+        condition_columns: List[str] = None,
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None,
         lastname_label=None, email_label=None,
@@ -46,7 +56,7 @@ class HighDimSynthesizer(Synthesizer):
         # Identifier
         identifier_label=None,
         # Rules to look for
-        find_rules=[]
+        find_rules: Union[str, List[str]] = None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -55,6 +65,8 @@ class HighDimSynthesizer(Synthesizer):
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
             summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            profiler_args: A ProfilerArgs object.
+            type_overrides: A dict of type overrides per column.
             distribution: Distribution type: "normal".
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
@@ -96,6 +108,26 @@ class HighDimSynthesizer(Synthesizer):
         """
         super().__init__(name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
 
+        if type_overrides:
+            self.type_overrides = type_overrides
+        else:
+            self.type_overrides = dict()
+
+        if produce_nans_for:
+            self.produce_nans_for = set(produce_nans_for)
+        else:
+            self.produce_nans_for = {}
+
+        if condition_columns:
+            self.condition_columns = condition_columns
+        else:
+            self.condition_columns = []
+
+        if find_rules:
+            self.find_rules = find_rules
+        else:
+            self.find_rules = []
+
         self.batch_size = batch_size
 
         # For identify_value (should not be necessary)
@@ -111,8 +143,6 @@ class HighDimSynthesizer(Synthesizer):
 
         # Overall columns
         self.columns = list(df.columns)
-        # Conditions
-        self.condition_columns = list(condition_columns)
         # Person
         self.person_value = None
         self.title_label = title_label
@@ -133,13 +163,55 @@ class HighDimSynthesizer(Synthesizer):
         self.identifier_label = identifier_label
         # Date
         self.date_value = None
-        self.find_rules = find_rules
 
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
         for name in df.columns:
-            value = identify_value(module=self, df=df[name], name=name)
+            if name in self.type_overrides:
+                forced_type = self.type_overrides[name]
+
+                categorical_kwargs: Dict[str, Any] = dict()
+                categorical_kwargs['capacity'] = self.capacity
+                categorical_kwargs['weight_decay'] = self.weight_decay
+                categorical_kwargs['weight'] = self.categorical_weight
+                categorical_kwargs['temperature'] = self.temperature
+                categorical_kwargs['smoothing'] = self.smoothing
+                categorical_kwargs['moving_average'] = self.moving_average
+                categorical_kwargs['similarity_regularization'] = self.similarity_regularization
+                categorical_kwargs['entropy_regularization'] = self.entropy_regularization
+
+                continuous_kwargs: Dict[str, Any] = dict()
+                continuous_kwargs['weight'] = self.continuous_weight
+
+                if forced_type == TypeOverride.ID:
+                    value = self.add_module(
+                        module='identifier', name=name, capacity=self.capacity
+                    )
+                    self.identifier_value = value
+                elif forced_type == TypeOverride.CATEGORICAL:
+                    value = self.add_module(module='categorical', name=name, **categorical_kwargs)
+                elif forced_type == TypeOverride.CONTINUOUS:
+                    value = self.add_module(module='continuous', name=name, **continuous_kwargs)
+                elif forced_type == TypeOverride.DATE:
+                    value = self.add_module(
+                        module='date', name=name, categorical_kwargs=categorical_kwargs,
+                        **continuous_kwargs
+                    )
+                else:
+                    assert False
+
+                is_nan = df[name].isna().any()
+                if is_nan:
+                    nan_kwargs: Dict[str, Any] = dict()
+                    nan_kwargs['capacity'] = self.capacity
+                    nan_kwargs['weight_decay'] = self.weight_decay
+                    nan_kwargs['weight'] = self.categorical_weight
+                    if name in self.produce_nans_for:
+                        nan_kwargs['produce_nans'] = True
+                    value = self.add_module(module='nan', name=name, value=value, **nan_kwargs)
+            else:
+                value = identify_value(module=self, df=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name
             if name in self.condition_columns:
                 self.conditions.append(value)

@@ -88,17 +88,17 @@ print()
 
 
 def neg_ks_distance_score(synthesizer, synthesized):
-    synthesized = synthesizer.preprocess(data=synthesized)
+    synthesized = synthesizer.preprocess(df=synthesized)
     data_ = synthesizer.preprocess(data.copy())
     return -np.mean([ks_2samp(data_[col], synthesized[col])[0] for col in synthesized.columns])
 
 
 def sklearn_score(synthesizer, synthesized):
-    train = synthesizer.preprocess(data=synthesized)
+    train = synthesizer.preprocess(df=synthesized)
     estimator = GradientBoostingClassifier()
     try:
         estimator.fit(X=train.drop(labels=target, axis=1), y=train[target])
-        test = synthesizer.preprocess(data=heldout.copy())
+        test = synthesizer.preprocess(df=heldout.copy())
         return roc_auc_scorer(
             clf=estimator, X=test.drop(labels=target, axis=1), y=test[target]
         )
