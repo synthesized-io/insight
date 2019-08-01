@@ -70,6 +70,13 @@ class ValueFactory(Module):
             capacity=self.module.capacity, weight_decay=self.module.weight_decay
         )
 
+    def create_compound_address(self) -> Value:
+        return self.add_module(
+            module='compound_address', name='address', postcode_level=1,
+            address_label=self.module.address_label, postcode_regex=self.module.postcode_regex,
+            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+        )
+
     def create_address(self) -> Value:
         return self.add_module(
             module='address', name='address', postcode_level=0,
@@ -110,11 +117,7 @@ class ValueFactory(Module):
 
         # Compound address value
         elif name == getattr(self.module, 'address_label', None):
-            value = self.module.add_module(
-                module='compound_address', name='address', postcode_level=1,
-                address_label=self.module.address_label, postcode_regex=self.module.postcode_regex,
-                capacity=self.module.capacity, weight_decay=self.module.weight_decay
-            )
+            value = self.create_compound_address()
             self.module.address_value = value
 
         # Identifier value
