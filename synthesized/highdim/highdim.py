@@ -1,12 +1,12 @@
 """This module implements the BasicSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Any, Iterable
+from typing import Callable, List, Union, Dict, Set, Iterable
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_rules, identify_value, Module, Value
+from ..common import identify_rules, Module, Value, ValueFactory
 from ..synthesizer import Synthesizer
 from ..common.util import ProfilerArgs
 import enum
@@ -19,7 +19,7 @@ class TypeOverride(enum.Enum):
     CONTINUOUS = 'CONTINUOUS'
 
 
-class HighDimSynthesizer(Synthesizer):
+class HighDimSynthesizer(Synthesizer,  ValueFactory):
     """The main synthesizer implementation.
 
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
@@ -106,17 +106,16 @@ class HighDimSynthesizer(Synthesizer):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        super().__init__(name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
-
+        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
         if type_overrides:
             self.type_overrides = type_overrides
         else:
             self.type_overrides = dict()
 
         if produce_nans_for:
-            self.produce_nans_for = set(produce_nans_for)
+            self.produce_nans_for: Set[str] = set(produce_nans_for)
         else:
-            self.produce_nans_for = {}
+            self.produce_nans_for = set()
 
         if condition_columns:
             self.condition_columns = condition_columns
@@ -124,7 +123,7 @@ class HighDimSynthesizer(Synthesizer):
             self.condition_columns = []
 
         if find_rules:
-            self.find_rules = find_rules
+            self.find_rules: Union[str, List[str]] = find_rules
         else:
             self.find_rules = []
 
@@ -167,51 +166,28 @@ class HighDimSynthesizer(Synthesizer):
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+
+        ValueFactory.__init__(self)
+
         for name in df.columns:
             if name in self.type_overrides:
                 forced_type = self.type_overrides[name]
-
-                categorical_kwargs: Dict[str, Any] = dict()
-                categorical_kwargs['capacity'] = self.capacity
-                categorical_kwargs['weight_decay'] = self.weight_decay
-                categorical_kwargs['weight'] = self.categorical_weight
-                categorical_kwargs['temperature'] = self.temperature
-                categorical_kwargs['smoothing'] = self.smoothing
-                categorical_kwargs['moving_average'] = self.moving_average
-                categorical_kwargs['similarity_regularization'] = self.similarity_regularization
-                categorical_kwargs['entropy_regularization'] = self.entropy_regularization
-
-                continuous_kwargs: Dict[str, Any] = dict()
-                continuous_kwargs['weight'] = self.continuous_weight
-
                 if forced_type == TypeOverride.ID:
-                    value = self.add_module(
-                        module='identifier', name=name, capacity=self.capacity
-                    )
+                    value = self.create_identifier(name)
                     self.identifier_value = value
                 elif forced_type == TypeOverride.CATEGORICAL:
-                    value = self.add_module(module='categorical', name=name, **categorical_kwargs)
+                    value = self.create_categorical(name)
                 elif forced_type == TypeOverride.CONTINUOUS:
-                    value = self.add_module(module='continuous', name=name, **continuous_kwargs)
+                    value = self.create_continuous(name)
                 elif forced_type == TypeOverride.DATE:
-                    value = self.add_module(
-                        module='date', name=name, categorical_kwargs=categorical_kwargs,
-                        **continuous_kwargs
-                    )
+                    value = self.create_date(name)
                 else:
                     assert False
-
                 is_nan = df[name].isna().any()
                 if is_nan:
-                    nan_kwargs: Dict[str, Any] = dict()
-                    nan_kwargs['capacity'] = self.capacity
-                    nan_kwargs['weight_decay'] = self.weight_decay
-                    nan_kwargs['weight'] = self.categorical_weight
-                    if name in self.produce_nans_for:
-                        nan_kwargs['produce_nans'] = True
-                    value = self.add_module(module='nan', name=name, value=value, **nan_kwargs)
+                    value = self.create_nan(name, value)
             else:
-                value = identify_value(module=self, df=df[name], name=name)
+                value = self.identify_value(df=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name
             if name in self.condition_columns:
                 self.conditions.append(value)
@@ -225,7 +201,7 @@ class HighDimSynthesizer(Synthesizer):
 
         # Identify deterministic rules
         #  import ipdb; ipdb.set_trace()
-        self.values = identify_rules(values=self.values, df=df, tests=find_rules)
+        self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
 
         # VAE
         self.vae = self.add_module(
