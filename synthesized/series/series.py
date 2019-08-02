@@ -122,7 +122,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
 
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = self.identify_value(name=name, df=data[name])
+            value = self.identify_value(name=name, col=data[name])
             if value is not None:
                 value.extract(df=data)
                 self.values.append(value)

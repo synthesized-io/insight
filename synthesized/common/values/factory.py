@@ -1,8 +1,20 @@
+"""Utilities that help you create Value objects."""
+
 from math import log, sqrt
 from typing import Dict, Any, cast
 
 import pandas as pd
 
+from .address import AddressValue
+from .categorical import CategoricalValue
+from .compound_address import CompoundAddressValue
+from .continuous import ContinuousValue
+from .date import DateValue
+from .enumeration import EnumerationValue
+from .identifier import IdentifierValue
+from .nan import NanValue
+from .person import PersonValue
+from .sampling import SamplingValue
 from .value import Module
 from .value import Value
 
@@ -11,7 +23,10 @@ PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
 class ValueFactory(Module):
+    """A Mix-In that you extend to be able to create various values."""
+
     def __init__(self):
+        """Init ValueFactory."""
         # type hack to allow dynamic access to properties
         self.module = cast(Any, self)
 
@@ -35,33 +50,39 @@ class ValueFactory(Module):
         self.continuous_kwargs = continuous_kwargs
         self.nan_kwargs = nan_kwargs
 
-    def create_identifier(self, name: str) -> Value:
+    def create_identifier(self, name: str) -> IdentifierValue:
+        """Create IdentifierValue."""
         return self.add_module(
             module='identifier', name=name, capacity=self.module.capacity
         )
 
-    def create_categorical(self, name: str, **kwargs) -> Value:
+    def create_categorical(self, name: str, **kwargs) -> CategoricalValue:
+        """Create CategoricalValue."""
         categorical_kwargs = dict(self.categorical_kwargs)
         categorical_kwargs.update(kwargs)
         return self.add_module(module='categorical', name=name, **categorical_kwargs)
 
-    def create_continuous(self, name: str, **kwargs) -> Value:
+    def create_continuous(self, name: str, **kwargs) -> ContinuousValue:
+        """Create ContinuousValue."""
         continuous_kwargs = dict(self.continuous_kwargs)
         continuous_kwargs.update(kwargs)
         return self.add_module(module='continuous', name=name, **continuous_kwargs)
 
-    def create_date(self, name: str) -> Value:
+    def create_date(self, name: str) -> DateValue:
+        """Create DateValue."""
         return self.add_module(
             module='date', name=name, categorical_kwargs=self.categorical_kwargs,
             **self.continuous_kwargs
         )
 
-    def create_nan(self, name: str, value: Value) -> Value:
+    def create_nan(self, name: str, value: Value) -> NanValue:
+        """Create NanValue."""
         nan_kwargs = dict(self.nan_kwargs)
         nan_kwargs['produce_nans'] = True if name in self.module.produce_nans_for else False
         return self.add_module(module='nan', name=name, value=value, **nan_kwargs)
 
-    def create_person(self) -> Value:
+    def create_person(self) -> PersonValue:
+        """Create PersonValue."""
         return self.add_module(
             module='person', name='person', title_label=self.module.title_label,
             gender_label=self.module.gender_label,
@@ -70,14 +91,16 @@ class ValueFactory(Module):
             capacity=self.module.capacity, weight_decay=self.module.weight_decay
         )
 
-    def create_compound_address(self) -> Value:
+    def create_compound_address(self) -> CompoundAddressValue:
+        """Create CompoundAddressValue."""
         return self.add_module(
             module='compound_address', name='address', postcode_level=1,
             address_label=self.module.address_label, postcode_regex=self.module.postcode_regex,
             capacity=self.module.capacity, weight_decay=self.module.weight_decay
         )
 
-    def create_address(self) -> Value:
+    def create_address(self) -> AddressValue:
+        """Create AddressValue."""
         return self.add_module(
             module='address', name='address', postcode_level=0,
             postcode_label=self.module.postcode_label, city_label=self.module.city_label,
@@ -85,13 +108,24 @@ class ValueFactory(Module):
             capacity=self.module.capacity, weight_decay=self.module.weight_decay
         )
 
-    def create_enumeration(self, name: str) -> Value:
+    def create_enumeration(self, name: str) -> EnumerationValue:
+        """Create EnumerationValue."""
         return self.add_module(module='enumeration', name=name)
 
-    def create_sampling(self, name: str) -> Value:
+    def create_sampling(self, name: str) -> SamplingValue:
+        """Create SamplingValue."""
         return self.module.add_module(module='sampling', name=name)
 
-    def identify_value(self, df: pd.Series, name: str) -> Value:
+    def identify_value(self, col: pd.Series, name: str) -> Value:
+        """Autodetect the type of a column and assign a name.
+
+        Args:
+            col: A column from DataFrame.
+            name: A name to give to the value.
+
+        Returns: Detected value.
+
+        """
         value = None
 
         # ========== Pre-configured values ==========
@@ -131,8 +165,8 @@ class ValueFactory(Module):
 
         # ========== Non-numeric values ==========
 
-        num_data = len(df)
-        num_unique = df.nunique()
+        num_data = len(col)
+        num_unique = col.nunique()
         is_nan = False
 
         # Categorical value if small number of distinct values
@@ -141,28 +175,28 @@ class ValueFactory(Module):
             value = self.create_categorical(name)
 
         # Date value
-        elif df.dtype.kind == 'M':  # 'm' timedelta
-            is_nan = df.isna().any()
+        elif col.dtype.kind == 'M':  # 'm' timedelta
+            is_nan = col.isna().any()
             value = self.create_date(name)
 
         # Boolean value
-        elif df.dtype.kind == 'b':
+        elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
             value = self.create_categorical(name, categories=[False, True])
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-        elif df.dtype.kind == 'i':
+        elif col.dtype.kind == 'i':
             value = self.create_continuous(name, integer=True)
 
         # Categorical value if object type has attribute 'categories'
-        elif df.dtype.kind == 'O' and hasattr(df.dtype, 'categories'):
+        elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
-            value = self.create_categorical(name, pandas_category=True, categories=df.dtype.categories)
+            value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
 
         # Date value if object type can be parsed
-        elif df.dtype.kind == 'O':
+        elif col.dtype.kind == 'O':
             try:
-                date_data = pd.to_datetime(df)
+                date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
                 if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                     assert date_data.dtype.kind == 'M'
@@ -184,18 +218,18 @@ class ValueFactory(Module):
         # ========== Numeric value ==========
 
         # Try parsing if object type
-        if df.dtype.kind == 'O':
-            numeric_data = pd.to_numeric(df, errors='coerce')
+        if col.dtype.kind == 'O':
+            numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert numeric_data.dtype.kind in ('f', 'i')
                 is_nan = num_nan > 0
             else:
-                numeric_data = df
-                is_nan = df.isna().any()
-        elif df.dtype.kind in ('f', 'i'):
-            numeric_data = df
-            is_nan = df.isna().any()
+                numeric_data = col
+                is_nan = col.isna().any()
+        elif col.dtype.kind in ('f', 'i'):
+            numeric_data = col
+            is_nan = col.isna().any()
         # Return numeric value and handle NaNs if necessary
         if numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
@@ -206,7 +240,7 @@ class ValueFactory(Module):
         # ========== Fallback values ==========
 
         # Enumeration value if strictly increasing
-        if df.dtype.kind != 'f' and num_unique == num_data and df.is_monotonic_increasing:
+        if col.dtype.kind != 'f' and num_unique == num_data and col.is_monotonic_increasing:
             value = self.create_enumeration(name)
 
         # Sampling value otherwise

@@ -167,6 +167,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
 
+        # pleas note that `ValueFactory` uses some fields defined above
         ValueFactory.__init__(self)
 
         for name in df.columns:
@@ -187,7 +188,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 if is_nan:
                     value = self.create_nan(name, value)
             else:
-                value = self.identify_value(df=df[name], name=name)
+                value = self.identify_value(col=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name
             if name in self.condition_columns:
                 self.conditions.append(value)

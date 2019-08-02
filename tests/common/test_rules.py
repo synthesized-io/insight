@@ -115,7 +115,7 @@ def test_times(rule):
     # Make the list of values
     values = list()
     for name in df.columns:
-        value = dummy.identify_value(df=df[name], name=name)
+        value = dummy.identify_value(col=df[name], name=name)
         assert len(value.columns()) == 1 and value.columns()[0] == name
         values.append(value)
 
