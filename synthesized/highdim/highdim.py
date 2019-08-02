@@ -172,21 +172,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         for name in df.columns:
             if name in self.type_overrides:
-                forced_type = self.type_overrides[name]
-                if forced_type == TypeOverride.ID:
-                    value: Value = self.create_identifier(name)
-                    self.identifier_value = value
-                elif forced_type == TypeOverride.CATEGORICAL:
-                    value = self.create_categorical(name)
-                elif forced_type == TypeOverride.CONTINUOUS:
-                    value = self.create_continuous(name)
-                elif forced_type == TypeOverride.DATE:
-                    value = self.create_date(name)
-                else:
-                    assert False
-                is_nan = df[name].isna().any()
-                if is_nan:
-                    value = self.create_nan(name, value)
+                value = self._apply_type_overrides(df, name)
             else:
                 value = self.identify_value(col=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name
@@ -213,6 +199,25 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay
         )
+
+    def _apply_type_overrides(self, df, name) -> Value:
+        assert name in self.type_overrides
+        forced_type = self.type_overrides[name]
+        if forced_type == TypeOverride.ID:
+            value: Value = self.create_identifier(name)
+            self.identifier_value = value
+        elif forced_type == TypeOverride.CATEGORICAL:
+            value = self.create_categorical(name)
+        elif forced_type == TypeOverride.CONTINUOUS:
+            value = self.create_continuous(name)
+        elif forced_type == TypeOverride.DATE:
+            value = self.create_date(name)
+        else:
+            assert False
+        is_nan = df[name].isna().any()
+        if is_nan:
+            value = self.create_nan(name, value)
+        return value
 
     def specification(self):
         spec = super().specification()
