@@ -1,7 +1,7 @@
 """Utilities that help you create Value objects."""
 
 from math import log, sqrt
-from typing import Dict, Any, cast
+from typing import Dict, Any, Optional, cast
 
 import pandas as pd
 
@@ -126,7 +126,8 @@ class ValueFactory(Module):
         Returns: Detected value.
 
         """
-        value: Value
+        value: Optional[Value] = None
+
         # ========== Pre-configured values ==========
 
         # Person value
