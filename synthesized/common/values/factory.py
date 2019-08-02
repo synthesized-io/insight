@@ -126,6 +126,7 @@ class ValueFactory(Module):
         Returns: Detected value.
 
         """
+        value: Value
         # ========== Pre-configured values ==========
 
         # Person value
@@ -136,7 +137,7 @@ class ValueFactory(Module):
                 name == getattr(self.module, 'lastname_label', None) or \
                 name == getattr(self.module, 'email_label', None):
             if self.module.person_value is None:
-                value: Value = self.create_person()
+                value = self.create_person()
                 self.module.person_value = value
 
         # Address value
