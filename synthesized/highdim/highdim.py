@@ -174,7 +174,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             if name in self.type_overrides:
                 forced_type = self.type_overrides[name]
                 if forced_type == TypeOverride.ID:
-                    value = self.create_identifier(name)
+                    value: Value = self.create_identifier(name)
                     self.identifier_value = value
                 elif forced_type == TypeOverride.CATEGORICAL:
                     value = self.create_categorical(name)
