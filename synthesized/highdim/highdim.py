@@ -1,6 +1,6 @@
 """This module implements the BasicSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Set, Iterable
+from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 
 import numpy as np
 import pandas as pd
@@ -48,13 +48,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Conditions
         condition_columns: List[str] = None,
         # Person
-        title_label=None, gender_label=None, name_label=None, firstname_label=None,
-        lastname_label=None, email_label=None,
+        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
+        lastname_label: str = None, email_label: str = None,
         # Address
-        postcode_label=None, city_label=None, street_label=None,
-        address_label=None, postcode_regex=None,
+        postcode_label: str = None, city_label: str = None, street_label: str = None,
+        address_label: str = None, postcode_regex: str = None,
         # Identifier
-        identifier_label=None,
+        identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None
     ):
@@ -143,7 +143,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Overall columns
         self.columns = list(df.columns)
         # Person
-        self.person_value = None
+        self.person_value: Optional[Value] = None
         self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
@@ -151,17 +151,17 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.lastname_label = lastname_label
         self.email_label = email_label
         # Address
-        self.address_value = None
+        self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
-        self.identifier_value = None
+        self.identifier_value: Optional[Value] = None
         self.identifier_label = identifier_label
         # Date
-        self.date_value = None
+        self.date_value: Optional[Value] = None
 
         # Values
         self.values: List[Value] = list()
