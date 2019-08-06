@@ -3,7 +3,6 @@ import pandas as pd
 from synthesized.highdim import HighDimSynthesizer
 from synthesized.common.values.identify_rules import PairwiseRuleFactory
 from synthesized.common.values.rule import RuleValue
-from synthesized.common.values.identify_value import identify_value
 from synthesized.common.values.identify_rules import identify_rules
 import os
 import pytest
@@ -116,7 +115,7 @@ def test_times(rule):
     # Make the list of values
     values = list()
     for name in df.columns:
-        value = identify_value(module=dummy, df=df[name], name=name)
+        value = dummy.identify_value(col=df[name], name=name)
         assert len(value.columns()) == 1 and value.columns()[0] == name
         values.append(value)
 

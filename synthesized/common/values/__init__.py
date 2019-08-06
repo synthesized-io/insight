@@ -6,7 +6,6 @@ from .date import DateValue
 from .enumeration import EnumerationValue
 from .identifier import IdentifierValue
 from .identify_rules import identify_rules
-from .identify_value import identify_value
 from .nan import NanValue
 from .person import PersonValue
 from .probability import ProbabilityValue
@@ -14,6 +13,7 @@ from .rule import RuleValue
 from .sampling import SamplingValue
 from .value import Value
 from ..module import register
+from .factory import ValueFactory
 
 
 register(name='address', module=AddressValue)
@@ -30,4 +30,4 @@ register(name='rule', module=RuleValue)
 register(name='sampling', module=SamplingValue)
 
 
-__all__ = ['Value', 'identify_rules', 'identify_value']
+__all__ = ['Value', 'ValueFactory', 'identify_rules']

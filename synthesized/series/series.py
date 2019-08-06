@@ -1,16 +1,15 @@
 """This module implements the SeriesSynthesizer class."""
-from typing import Callable, List, cast, Union
+from typing import Callable, List, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..highdim import HighDimSynthesizer
-from ..common import identify_value, Module, Value
+from ..common import Module, Value, ValueFactory
 from ..synthesizer import Synthesizer
 
 
-class SeriesSynthesizer(Synthesizer):
+class SeriesSynthesizer(Synthesizer, ValueFactory):
     """The series synthesizer implementation.
 
     Synthesizer which can learn from data to produce time-series tabular data.
@@ -83,8 +82,7 @@ class SeriesSynthesizer(Synthesizer):
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
         """
-        super().__init__(name='synthesizer', summarizer=summarizer)
-
+        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer)
         self.batch_size = batch_size
 
         # For identify_value (should not be necessary)
@@ -119,9 +117,12 @@ class SeriesSynthesizer(Synthesizer):
 
         # Values
         self.values: List[Value] = list()
+
+        ValueFactory.__init__(self)
+
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
-            value = identify_value(module=cast(HighDimSynthesizer, self), name=name, df=data[name])
+            value = self.identify_value(name=name, col=data[name])
             if value is not None:
                 value.extract(df=data)
                 self.values.append(value)

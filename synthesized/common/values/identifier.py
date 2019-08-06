@@ -1,15 +1,17 @@
+from typing import List
+
 import tensorflow as tf
 
 from .value import Value
 from .. import util
 from ..module import Module, tensorflow_name_scoped
+import pandas as pd
 
 
 # TODO: num_identifiers multiplied by 3
 
 
 class IdentifierValue(Value):
-
     def __init__(
         self, name, identifiers=None, capacity=None, embedding_size=None
     ):
@@ -30,6 +32,10 @@ class IdentifierValue(Value):
         else:
             self.embedding_size = embedding_size
 
+        self.embeddings = None
+        self.placeholder = None
+        self.current_identifier = None
+
     def __str__(self):
         string = super().__str__()
         string += '{}-{}'.format(self.num_identifiers, self.embedding_size)
@@ -40,34 +46,24 @@ class IdentifierValue(Value):
         spec.update(identifiers=self.identifiers, embedding_size=self.embedding_size)
         return spec
 
-    def input_tensor_size(self):
+    def learned_input_size(self):
         return self.embedding_size
 
-    def output_tensor_size(self):
+    def learned_output_size(self):
         return 0
 
-    def extract(self, data):
+    def extract(self, df):
         if self.identifiers is None:
-            self.identifiers = sorted(data[self.name].unique())
+            self.identifiers = sorted(df[self.name].unique())
             self.num_identifiers = len(self.identifiers)
-        elif sorted(data[self.name].unique()) != self.identifiers:
+        elif sorted(df[self.name].unique()) != self.identifiers:
             raise NotImplementedError
 
-    def encode(self, data):
+    def preprocess(self, df: pd.DataFrame):
         if not isinstance(self.identifiers, int):
-            data.loc[:, self.name] = data[self.name].map(arg=self.identifiers.index)
-        data.loc[:, self.name] = data[self.name].astype(dtype='int64')
-        return data
-
-    def features(self, x=None):
-        features = super().features(x=x)
-        if x is None:
-            features[self.name] = tf.FixedLenFeature(shape=(), dtype=tf.int64, default_value=None)
-        else:
-            features[self.name] = tf.train.Feature(
-                int64_list=tf.train.Int64List(value=(x[self.name],))
-            )
-        return features
+            df.loc[:, self.name] = df[self.name].map(arg=self.identifiers.index)
+        df.loc[:, self.name] = df[self.name].astype(dtype='int64')
+        return super().preprocess(df)
 
     def module_initialize(self):
         super().module_initialize()
@@ -87,7 +83,7 @@ class IdentifierValue(Value):
         )
 
     @tensorflow_name_scoped
-    def input_tensors(self, feed=None):
+    def input_tensors(self, feed=None) -> List[tf.Tensor]:
         x = self.placeholder if feed is None else feed[self.name]
         assignment = self.current_identifier.assign(
             value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))
@@ -97,7 +93,11 @@ class IdentifierValue(Value):
                 params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
                 max_norm=None
             )
-        return x
+        return [x]
+
+    @tensorflow_name_scoped
+    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+        return xs[0]
 
     @tensorflow_name_scoped
     def next_identifier(self):

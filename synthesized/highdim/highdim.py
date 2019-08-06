@@ -1,17 +1,25 @@
 """This module implements the BasicSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_rules, identify_value, Module, Value
+from ..common import identify_rules, Module, Value, ValueFactory
 from ..synthesizer import Synthesizer
 from ..common.util import ProfilerArgs
+import enum
 
 
-class HighDimSynthesizer(Synthesizer):
+class TypeOverride(enum.Enum):
+    ID = 'ID'
+    DATE = 'DATE'
+    CATEGORICAL = 'CATEGORICAL'
+    CONTINUOUS = 'CONTINUOUS'
+
+
+class HighDimSynthesizer(Synthesizer,  ValueFactory):
     """The main synthesizer implementation.
 
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
@@ -20,6 +28,8 @@ class HighDimSynthesizer(Synthesizer):
 
     def __init__(
         self, df: pd.DataFrame, summarizer: str = None, profiler_args: ProfilerArgs = None,
+        type_overrides: Dict[str, TypeOverride] = None,
+        produce_nans_for: Iterable[str] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -36,17 +46,17 @@ class HighDimSynthesizer(Synthesizer):
         temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
         similarity_regularization: float = 0.1, entropy_regularization: float = 0.1,
         # Conditions
-        condition_columns: List[str] = [],
+        condition_columns: List[str] = None,
         # Person
-        title_label=None, gender_label=None, name_label=None, firstname_label=None,
-        lastname_label=None, email_label=None,
+        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
+        lastname_label: str = None, email_label: str = None,
         # Address
-        postcode_label=None, city_label=None, street_label=None,
-        address_label=None, postcode_regex=None,
+        postcode_label: str = None, city_label: str = None, street_label: str = None,
+        address_label: str = None, postcode_regex: str = None,
         # Identifier
-        identifier_label=None,
+        identifier_label: str = None,
         # Rules to look for
-        find_rules=[]
+        find_rules: Union[str, List[str]] = None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -55,6 +65,8 @@ class HighDimSynthesizer(Synthesizer):
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
             summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            profiler_args: A ProfilerArgs object.
+            type_overrides: A dict of type overrides per column.
             distribution: Distribution type: "normal".
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
@@ -94,7 +106,26 @@ class HighDimSynthesizer(Synthesizer):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        super().__init__(name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
+        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
+        if type_overrides is None:
+            self.type_overrides: Dict[str, TypeOverride] = dict()
+        else:
+            self.type_overrides = type_overrides
+
+        if produce_nans_for is None:
+            self.produce_nans_for: Set[str] = set()
+        else:
+            self.produce_nans_for = set(produce_nans_for)
+
+        if condition_columns is None:
+            self.condition_columns: List[str] = []
+        else:
+            self.condition_columns = condition_columns
+
+        if find_rules is None:
+            self.find_rules: Union[str, List[str]] = []
+        else:
+            self.find_rules = find_rules
 
         self.batch_size = batch_size
 
@@ -111,10 +142,8 @@ class HighDimSynthesizer(Synthesizer):
 
         # Overall columns
         self.columns = list(df.columns)
-        # Conditions
-        self.condition_columns = list(condition_columns)
         # Person
-        self.person_value = None
+        self.person_value: Optional[Value] = None
         self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
@@ -122,24 +151,30 @@ class HighDimSynthesizer(Synthesizer):
         self.lastname_label = lastname_label
         self.email_label = email_label
         # Address
-        self.address_value = None
+        self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
-        self.identifier_value = None
+        self.identifier_value: Optional[Value] = None
         self.identifier_label = identifier_label
         # Date
-        self.date_value = None
-        self.find_rules = find_rules
+        self.date_value: Optional[Value] = None
 
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+
+        # pleas note that `ValueFactory` uses some fields defined above
+        ValueFactory.__init__(self)
+
         for name in df.columns:
-            value = identify_value(module=self, df=df[name], name=name)
+            if name in self.type_overrides:
+                value = self._apply_type_overrides(df, name)
+            else:
+                value = self.identify_value(col=df[name], name=name)
             assert len(value.columns()) == 1 and value.columns()[0] == name
             if name in self.condition_columns:
                 self.conditions.append(value)
@@ -153,7 +188,7 @@ class HighDimSynthesizer(Synthesizer):
 
         # Identify deterministic rules
         #  import ipdb; ipdb.set_trace()
-        self.values = identify_rules(values=self.values, df=df, tests=find_rules)
+        self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
 
         # VAE
         self.vae = self.add_module(
@@ -164,6 +199,25 @@ class HighDimSynthesizer(Synthesizer):
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay
         )
+
+    def _apply_type_overrides(self, df, name) -> Value:
+        assert name in self.type_overrides
+        forced_type = self.type_overrides[name]
+        if forced_type == TypeOverride.ID:
+            value: Value = self.create_identifier(name)
+            self.identifier_value = value
+        elif forced_type == TypeOverride.CATEGORICAL:
+            value = self.create_categorical(name)
+        elif forced_type == TypeOverride.CONTINUOUS:
+            value = self.create_continuous(name)
+        elif forced_type == TypeOverride.DATE:
+            value = self.create_date(name)
+        else:
+            assert False
+        is_nan = df[name].isna().any()
+        if is_nan:
+            value = self.create_nan(name, value)
+        return value
 
     def specification(self):
         spec = super().specification()
