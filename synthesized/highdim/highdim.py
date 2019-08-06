@@ -107,22 +107,22 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
-        if type_overrides:
+        if type_overrides is not None:
             self.type_overrides = type_overrides
         else:
             self.type_overrides = dict()
 
-        if produce_nans_for:
+        if produce_nans_for is not None:
             self.produce_nans_for: Set[str] = set(produce_nans_for)
         else:
             self.produce_nans_for = set()
 
-        if condition_columns:
+        if condition_columns is not None:
             self.condition_columns = condition_columns
         else:
             self.condition_columns = []
 
-        if find_rules:
+        if find_rules is not None:
             self.find_rules: Union[str, List[str]] = find_rules
         else:
             self.find_rules = []
