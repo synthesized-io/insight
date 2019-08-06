@@ -20,6 +20,7 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
+from statsmodels.formula.api import ols, mnlogit
 
 from synthesized.basic import BasicSynthesizer
 from synthesized.common.values import CategoricalValue
@@ -124,6 +125,75 @@ class UtilityTesting:
         plt.figure(figsize=figsize)
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
+
+    @staticmethod
+    def filter_column_data_types(data_frame):
+        categorical, continuous = [], []
+        for name, dtype in data_frame.dtypes.items():
+            if dtype.kind == "f":
+                continuous.append(name)
+            elif dtype.kind == "O":
+                categorical.append(name)
+        return categorical, continuous
+
+    def show_anova(self, figsize: Tuple[float, float] = (2, 10)):
+        categorical, continuous = self.filter_column_data_types(data_frame=self.df_synth)
+        source = pd.DataFrame({"source": len(self.df_test)*["orig"] + len(self.df_synth)*["synth"]})
+        df = pd.concat([pd.concat([self.df_test, self.df_synth]), source], axis=1)
+        orig_anovas = np.zeros(len(categorical), len(continuous))
+        synth_anovas = np.zeros(len(categorical), len(continuous))
+        for i_cat,  cat_name in enumerate(categorical):
+            for i_cont, cont_name in enumerate(continuous):
+                orig = ols(f"{cont_name} ~ C({cat_name})", data=df[df["source"] == "orig"])
+                orig_anovas[i_cat,  i_cont] = orig
+
+                synth = ols(f"{cont_name} ~ C({cat_name})", data=df[df["source"] == "test"])
+                synth_anovas[i_cat,  i_cont] = synth
+
+        orig_anovas = pd.DataFrame(orig_anovas, index=categorical,  columns=categorical)
+        synth_anovas = pd.DataFrame(synth_anovas, index=categorical,  columns=categorical)
+
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+        # Draw the heatmap with the mask and correct aspect ratio
+        _ = sns.heatmap(orig_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                         square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
+
+        _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                         square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
+
+    def show_normalised_mutual_info(self, figsize: Tuple[float, float] = (2, 10)):
+        categorical, _ = self.filter_column_data_types(data_frame=self.df_synth)
+        source = pd.DataFrame({"source": len(self.df_test) * ["orig"] + len(self.df_synth) * ["synth"]})
+        df = pd.concat([pd.concat([self.df_test, self.df_synth]), source], axis=1)
+        orig_anovas = np.zeros(len(categorical), len(categorical))
+        synth_anovas = np.zeros(len(categorical), len(categorical))
+        for i_cat in range(len(categorical)):
+            i_cat_name = categorical[i_cat]
+            for j_cat in range(i_cat + 1):
+                j_cat_name = categorical[j_cat]
+                orig = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df["source"] == "orig"])
+                orig_anovas[i_cat, j_cat] = orig
+
+                synth = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df["source"] == "test"])
+                synth_anovas[i_cat, j_cat] = synth
+
+        orig_anovas = pd.DataFrame(orig_anovas, index=categorical, columns=categorical)
+        synth_anovas = pd.DataFrame(synth_anovas, index=categorical, columns=categorical)
+
+        mask = np.zeros_like(orig_anovas, dtype=np.bool)
+        mask[np.triu_indices_from(mask)] = True
+
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+        # Draw the heatmap with the mask and correct aspect ratio
+        _ = sns.heatmap(orig_anovas, mask=mask,  cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
+
+        _ = sns.heatmap(synth_anovas, mask=mask,  cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
 
     def show_distributions(self,
                            remove_outliers: float = 0.0,
