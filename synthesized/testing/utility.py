@@ -159,10 +159,10 @@ class UtilityTesting:
 
         # Draw the heatmap with the mask and correct aspect ratio
         _ = sns.heatmap(orig_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                         square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
+                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
 
         _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                         square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
+                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
 
     def show_categorical_rsquared(self, figsize: Tuple[float, float] = (10, 10)):
         categorical, _ = self.filter_column_data_types(data_frame=self.df_synth)
