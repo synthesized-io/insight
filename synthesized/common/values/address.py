@@ -113,7 +113,7 @@ class AddressValue(Value):
 
         if self.postcode is not None:
             postcode_data = pd.DataFrame({self.postcode_label: keys})
-            self.postcode.extract(data=postcode_data)
+            self.postcode.extract(df=postcode_data)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         postcodes = []

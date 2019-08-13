@@ -21,6 +21,7 @@ class DateValue(ContinuousValue):
 
         self.pd_types = ('M',)
         self.pd_cast = (lambda x: pd.to_datetime(x))
+        self.original_dtype = None
 
         self.hour = self.add_module(
             module=CategoricalValue, name=(self.name + '-hour'), categories=24, **categorical_kwargs
@@ -68,12 +69,13 @@ class DateValue(ContinuousValue):
     def extract(self, df):
         column = df[self.name]
 
+        self.original_dtype = type(df[self.name].iloc[0])
         if column.dtype.kind != 'M':
             column = pd.to_datetime(column)
 
         if column.is_monotonic:
             if self.start_date is None:
-                self.start_date = column[0] - (column.values[1:] - column.values[:-1]).mean()
+                self.start_date = column.values[0] - (column.values[1:] - column.values[:-1]).mean()
             elif column[0] < self.start_date:
                 raise NotImplementedError
             previous_date = column.values.copy()
@@ -113,6 +115,7 @@ class DateValue(ContinuousValue):
             df.loc[:, self.name] = self.start_date + df[self.name].cumsum(axis=0)
         else:
             df.loc[:, self.name] += self.min_date
+        df[self.name] = df[self.name].astype(self.original_dtype)
         return df
 
     @tensorflow_name_scoped

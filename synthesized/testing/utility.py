@@ -22,9 +22,10 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from statsmodels.formula.api import ols, mnlogit
 
-from synthesized.basic import BasicSynthesizer
+from synthesized.highdim import HighDimSynthesizer
 from synthesized.common.values import CategoricalValue
 from synthesized.common.values import ContinuousValue
+from synthesized.common.values import DateValue
 from synthesized.common.values import SamplingValue
 from synthesized.common.values import Value
 
@@ -44,7 +45,7 @@ class UtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
     def __init__(self,
-                 synthesizer: BasicSynthesizer,
+                 synthesizer: HighDimSynthesizer,
                  df_orig: pd.DataFrame,
                  df_test: pd.DataFrame,
                  df_synth: pd.DataFrame):
@@ -56,22 +57,27 @@ class UtilityTesting:
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
+        self.df_orig = df_orig.copy()
+        self.df_test = df_test.copy()
+        self.df_synth = df_synth.copy()
+
+        self.df_orig_encoded = synthesizer.preprocess(df=df_orig)
+        self.df_test_encoded = synthesizer.preprocess(df=df_test)
+        self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
+
         self.display_types: Dict[str, DisplayType] = {}
         for value in synthesizer.values:
-            if isinstance(value, ContinuousValue):
+            if isinstance(value, DateValue):
+                self.df_orig[value.name] = pd.to_datetime(self.df_orig[value.name])
+                self.df_test[value.name] = pd.to_datetime(self.df_test[value.name])
+                self.df_synth[value.name] = pd.to_datetime(self.df_synth[value.name])
+            elif isinstance(value, ContinuousValue):
                 self.display_types[value.name] = DisplayType.CONTINUOUS
             elif isinstance(value, CategoricalValue):
                 self.display_types[value.name] = DisplayType.CATEGORICAL
         self.value_by_name: Dict[str, Value] = {}
         for v in synthesizer.values:
             self.value_by_name[v.name] = v
-        self.df_orig = df_orig
-        self.df_test = df_test
-        self.df_synth = df_synth
-
-        self.df_orig_encoded = synthesizer.preprocess(df=df_orig)
-        self.df_test_encoded = synthesizer.preprocess(df=df_test)
-        self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
 
     def show_corr_matrices(self, figsize: Tuple[float, float] = (15, 11)) -> None:
         """Plot two correlations matrices: one for the original data and one for the synthetic one.
@@ -105,7 +111,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize: Tuple[float, float] = (2, 10)) -> None:
+    def show_corr_distances(self, figsize: Tuple[float, float] = (4, 10)) -> None:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -118,7 +124,9 @@ class UtilityTesting:
                 if i < j:
                     row_name = distances.index[i]
                     col_name = distances.iloc[:, j].name
-                    result.append({'column': '{}/{}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+                    result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+        if not result:
+            return
         df = pd.DataFrame.from_records(result)
         print('Average distance:', df['distance'].mean())
         print('Max distance:', df['distance'].max())

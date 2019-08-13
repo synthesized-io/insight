@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from synthesized import BasicSynthesizer
+from synthesized import HighDimSynthesizer
 
 
 print()
@@ -49,14 +49,14 @@ print()
 
 print(datetime.now().strftime('%H:%M:%S'), 'Initialize synthesizer...', flush=True)
 if args.hyperparameters is None:
-    synthesizer = BasicSynthesizer(
+    synthesizer = HighDimSynthesizer(
         df=df_original, summarizer=args.tensorboard, identifier_label=args.identifier_label
     )
 else:
     assert all('=' in kv or kv == '' for kv in args.hyperparameters.split(','))
     kwargs = [kv.split('=') for kv in args.hyperparameters.split(',') if kv != '']
     kwargs = {key: float(value) if '.' in value else int(value) for key, value in kwargs}
-    synthesizer = BasicSynthesizer(
+    synthesizer = HighDimSynthesizer(
         df=df_original, summarizer=args.tensorboard, identifier_label=args.identifier_label,
         **kwargs
     )

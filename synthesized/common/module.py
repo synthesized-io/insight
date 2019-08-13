@@ -2,6 +2,7 @@ import os
 import time
 from functools import wraps
 from typing import Dict, Optional
+from .util import Profiler
 
 import tensorflow as tf
 
@@ -11,9 +12,12 @@ class Module(object):
     global_step: Optional[tf.Tensor] = None
     summarizer = None
 
-    def __init__(self, name, summarizer=None):
+    def __init__(self, name, summarizer=None, profiler_args=None):
         self.name = name
         self._summarizer = summarizer
+        if profiler_args is not None:
+            self.profiler_args = profiler_args
+            self.profiler = None
 
         self.submodules = list()
         self.initialized = False
@@ -80,6 +84,8 @@ class Module(object):
         Module.summarizer = self._summarizer
 
         with self.graph.as_default():
+            if hasattr(self, "profiler_args"):
+                self.profiler = Profiler(filepath=self.profiler_args.filepath, period=self.profiler_args.period)
 
             if Module.summarizer is not None:
                 directories = sorted(os.listdir(Module.summarizer))
@@ -127,13 +133,28 @@ class Module(object):
     def run(self, fetches, feed_dict=None):
         if feed_dict is not None:
             feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
-        return self.session.run(fetches=fetches, feed_dict=feed_dict)
+        options, run_metadata = None, None
+        if hasattr(self, "profiler"):
+            if self.profiler.is_trace_step():
+                options, run_metadata = self.profiler.get_options_and_metadata()
+
+        result = self.session.run(
+                fetches=fetches, feed_dict=feed_dict, options=options, run_metadata=run_metadata
+            )
+
+        if hasattr(self, "profiler"):
+            if self.profiler.is_trace_step():
+                self.profiler.read_trace(run_metadata)
+            self.profiler.increment()
+        return result
 
     def __exit__(self, type, value, traceback):
         if Module.summarizer is not None:
             self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
         tf.reset_default_graph()
+        if hasattr(self, "profiler"):
+            self.profiler.write_traces()
         Module.placeholders = None
 
 

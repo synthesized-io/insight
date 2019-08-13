@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from synthesized.basic import BasicSynthesizer
+from synthesized.highdim import HighDimSynthesizer
 from synthesized.common.values.identify_rules import PairwiseRuleFactory
 from synthesized.common.values.rule import RuleValue
-from synthesized.common.values.identify_value import identify_value
 from synthesized.common.values.identify_rules import identify_rules
 import os
 import pytest
@@ -27,7 +26,7 @@ def test_piecewise_detection():
     df.loc[:, 18] = 1 * (df.loc[:, 3] > 1) - 1 * (df.loc[:,3] < -1)
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
-    synth = BasicSynthesizer(df=df, find_rules=['find_piecewise'])
+    synth = HighDimSynthesizer(df=df, find_rules=['find_piecewise'])
     assert len(synth.values) == 15
     for i in range(5):
         assert isinstance(synth.values[i], RuleValue)
@@ -45,7 +44,7 @@ def test_piecewise_generation():
     df.loc[:, 18] = 1 * (df.loc[:, 3] > 1) - 1 * (df.loc[:,3] < -1)
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
-    with BasicSynthesizer(df=df, find_rules=['find_piecewise']) as synthesizer:
+    with HighDimSynthesizer(df=df, find_rules=['find_piecewise']) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -69,7 +68,7 @@ def test_pulse_detection():
     df.loc[(df.loc[:, 3] > -0.5) & (df.loc[:, 3] < 0), 18] = 7
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
-    synth = BasicSynthesizer(df=df, find_rules=['find_pulse'])
+    synth = HighDimSynthesizer(df=df, find_rules=['find_pulse'])
     assert len(synth.values) == 16
     for i in range(4):
         assert isinstance(synth.values[i], RuleValue)
@@ -87,7 +86,7 @@ def test_pulse_generation():
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
 
-    with BasicSynthesizer(df=df, find_rules=['find_pulse']) as synthesizer:
+    with HighDimSynthesizer(df=df, find_rules=['find_pulse']) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -111,12 +110,12 @@ def test_times(rule):
     df.loc[:, 99] = (df.loc[:,98] > 0)
     df.columns = [str(x) for x in df.columns]
 
-    dummy = BasicSynthesizer(df=pd.DataFrame(np.random.randn(5,5)))
+    dummy = HighDimSynthesizer(df=pd.DataFrame(np.random.randn(5, 5)))
 
     # Make the list of values
     values = list()
     for name in df.columns:
-        value = identify_value(module=dummy, df=df[name], name=name)
+        value = dummy.identify_value(col=df[name], name=name)
         assert len(value.columns()) == 1 and value.columns()[0] == name
         values.append(value)
 
