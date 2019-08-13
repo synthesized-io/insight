@@ -10,3 +10,4 @@ pyemd==0.5.1
 flask==1.0.3
 flask_restful==0.3.7
 faker==1.0.7
+statsmodels==0.10.0rc2
