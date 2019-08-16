@@ -9,4 +9,4 @@ seaborn==0.9.0
 pyemd==0.5.1
 flask_restful==0.3.7
 faker==2.0.0
-statsmodels==0.10.0rc2
+statsmodels==0.10.1
