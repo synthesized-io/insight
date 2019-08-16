@@ -134,13 +134,12 @@ class UtilityTesting:
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
 
-    @staticmethod
-    def _filter_column_data_types(data_frame):
+    def _filter_column_data_types(self):
         categorical, continuous = [], []
-        for name, dtype in data_frame.dtypes.items():
-            if dtype.kind == 'f':
+        for name, dtype in self.display_types.items():
+            if dtype == DisplayType.CONTINUOUS:
                 continuous.append(name)
-            elif dtype.kind == 'O':
+            elif dtype == DisplayType.CATEGORICAL:
                 categorical.append(name)
         return categorical, continuous
 
@@ -154,7 +153,7 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
-        categorical, continuous = self._filter_column_data_types(data_frame=self.df_synth)
+        categorical, continuous = self._filter_column_data_types()
         df = pd.concat([self.df_test.assign(source='orig'), self.df_synth.assign(source='synth')]).reset_index()
         orig_anovas = np.zeros((len(categorical), len(continuous)))
         synth_anovas = np.zeros((len(categorical), len(continuous)))
@@ -189,7 +188,7 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
-        categorical, _ = self._filter_column_data_types(data_frame=self.df_synth)
+        categorical, _ = self._filter_column_data_types()
         source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
         orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
         df = pd.concat([orig_synth, source], axis=1)
