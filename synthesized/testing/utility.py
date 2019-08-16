@@ -155,12 +155,10 @@ class UtilityTesting:
             figsize: width, height in inches.
         """
         categorical, continuous = self._filter_column_data_types(data_frame=self.df_synth)
-        source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
-        orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
-        df = pd.concat([orig_synth, source], axis=1)
+        df = pd.concat([self.df_test.assign(source='orig'), self.df_synth.assign(source='synth')]).reset_index()
         orig_anovas = np.zeros((len(categorical), len(continuous)))
         synth_anovas = np.zeros((len(categorical), len(continuous)))
-        for i_cat,  cat_name in enumerate(categorical):
+        for i_cat, cat_name in enumerate(categorical):
             for i_cont, cont_name in enumerate(continuous):
                 df_orig = df[df['source'] == 'orig']
                 orig = ols(f"{cont_name} ~ C({cat_name})", data=df_orig).fit()
@@ -168,7 +166,7 @@ class UtilityTesting:
 
                 df_synth = df[df['source'] == 'synth']
                 synth = ols(f"{cont_name} ~ C({cat_name})", data=df_synth).fit()
-                synth_anovas[i_cat,  i_cont] = synth.rsquared
+                synth_anovas[i_cat, i_cont] = synth.rsquared
         orig_anovas = pd.DataFrame(orig_anovas, index=categorical,  columns=continuous)
         synth_anovas = pd.DataFrame(synth_anovas, index=categorical,  columns=continuous)
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
