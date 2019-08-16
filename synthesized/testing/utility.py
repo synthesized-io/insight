@@ -29,8 +29,8 @@ from synthesized.common.values import DateValue
 from synthesized.common.values import SamplingValue
 from synthesized.common.values import Value
 
-COLOR_ORIG = "#00AB26"
-COLOR_SYNTH = "#2794F3"
+COLOR_ORIG = '#00AB26'
+COLOR_SYNTH = '#2794F3'
 
 
 class DisplayType(Enum):
@@ -86,7 +86,7 @@ class UtilityTesting:
             figsize: width, height in inches.
         """
         def show_corr_matrix(df, title=None, ax=None):
-            sns.set(style="white")
+            sns.set(style='white')
 
             # Compute the correlation matrix
             corr = df.corr()
@@ -100,7 +100,7 @@ class UtilityTesting:
 
             # Draw the heatmap with the mask and correct aspect ratio
             hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                             square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
+                             square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax)
 
             if title is not None:
                 hm.set_title(title)
@@ -135,12 +135,12 @@ class UtilityTesting:
         g.set_xlim(0.0, 1.0)
 
     @staticmethod
-    def filter_column_data_types(data_frame):
+    def _filter_column_data_types(data_frame):
         categorical, continuous = [], []
         for name, dtype in data_frame.dtypes.items():
-            if dtype.kind == "f":
+            if dtype.kind == 'f':
                 continuous.append(name)
-            elif dtype.kind == "O":
+            elif dtype.kind == 'O':
                 categorical.append(name)
         return categorical, continuous
 
@@ -162,11 +162,11 @@ class UtilityTesting:
         synth_anovas = np.zeros((len(categorical), len(continuous)))
         for i_cat,  cat_name in enumerate(categorical):
             for i_cont, cont_name in enumerate(continuous):
-                df_orig = df[df["source"] == "orig"]
+                df_orig = df[df['source'] == 'orig']
                 orig = ols(f"{cont_name} ~ C({cat_name})", data=df_orig).fit()
                 orig_anovas[i_cat,  i_cont] = orig.rsquared
 
-                df_synth = df[df["source"] == "synth"]
+                df_synth = df[df['source'] == 'synth']
                 synth = ols(f"{cont_name} ~ C({cat_name})", data=df_synth).fit()
                 synth_anovas[i_cat,  i_cont] = synth.rsquared
         orig_anovas = pd.DataFrame(orig_anovas, index=categorical,  columns=continuous)
@@ -176,10 +176,10 @@ class UtilityTesting:
 
         # Draw the heatmap with the mask and correct aspect ratio
         _ = sns.heatmap(orig_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
+                        square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax1)
 
         _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
+                        square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax2)
 
     def show_categorical_rsquared(self, figsize: Tuple[float, float] = (10, 10)):
         """
@@ -203,10 +203,10 @@ class UtilityTesting:
             synth_anovas[i_cat, i_cat] = 1.0
             for j_cat in range(i_cat):
                 j_cat_name = categorical[j_cat]
-                orig = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df["source"] == "orig"]).fit(method="cg")
+                orig = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df['source'] == 'orig']).fit(method='cg')
                 orig_anovas[i_cat, j_cat] = orig.prsquared
 
-                synth = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df["source"] == "synth"]).fit(method="cg")
+                synth = mnlogit(f"{i_cat_name} ~ C({j_cat_name})", data=df[df['source'] == 'synth']).fit(method='cg')
                 synth_anovas[i_cat, j_cat] = synth.prsquared
 
         orig_anovas = pd.DataFrame(orig_anovas, index=categorical, columns=categorical)
@@ -220,10 +220,10 @@ class UtilityTesting:
 
         # Draw the heatmap with the mask and correct aspect ratio
         _ = sns.heatmap(orig_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax1)
+                        square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax1)
 
         _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
+                        square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax2)
 
     def show_distributions(self,
                            remove_outliers: float = 0.0,
@@ -253,10 +253,10 @@ class UtilityTesting:
                 else:
                     kde = True
                 sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
-                             hist_kws={"color": COLOR_ORIG, 'range': [start, end]}, ax=ax)
+                             hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde,
                              kde_kws={'clip': (start, end)},
-                             hist_kws={"color": COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+                             hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
 
     def utility(self,
@@ -297,8 +297,8 @@ class UtilityTesting:
             clf.fit(X_synth, y_synth)
             synth_score = roc_auc_scorer(clf, X_test, y_test)
 
-            print('ROC AUC (orig):', orig_score)
-            print('ROC AUC (synth):', synth_score)
+            print("ROC AUC (orig):", orig_score)
+            print("ROC AUC (synth):", synth_score)
             return synth_score
         else:
             clf = clone(regressor)
@@ -311,8 +311,8 @@ class UtilityTesting:
 
             orig_score = r2_score(y_test, y_pred_orig)
             synth_score = r2_score(y_test, y_pred_synth)
-            print('R2 (orig):', orig_score)
-            print('R2 (synth):', synth_score)
+            print("R2 (orig):", orig_score)
+            print("R2 (synth):", synth_score)
             return synth_score
 
     def autocorrelation_diff_plot_seaborn(self, max_lag: int = 100) -> None:
@@ -340,9 +340,9 @@ class UtilityTesting:
         y_orig = [autocorrelation(loc, original_data[:n], mean_orig, n, c0_orig) for loc in x]
         y_synth = [autocorrelation(loc, synthetic_data, mean_synth, n_synth, c0_synth) for loc in x]
 
-        sns.set(style="whitegrid")
+        sns.set(style='whitegrid')
 
-        data = pd.DataFrame({"Original": y_orig, "Synthetic": y_synth})
+        data = pd.DataFrame({'Original': y_orig, 'Synthetic': y_synth})
         sns.lineplot(data=data, palette=[COLOR_SYNTH, COLOR_ORIG], linewidth=2.5)
         return mean_squared_error(y_orig, y_synth)
 
@@ -353,7 +353,7 @@ class UtilityTesting:
             distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
-        print('Average distance:', df['distance'].mean())
-        print('Max distance:', df['distance'].max())
+        print("Average distance:", df['distance'].mean())
+        print("Max distance:", df['distance'].max())
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
