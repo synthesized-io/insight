@@ -145,8 +145,17 @@ class UtilityTesting:
         return categorical, continuous
 
     def show_anova(self, figsize: Tuple[float, float] = (10, 10)):
-        categorical, continuous = self.filter_column_data_types(data_frame=self.df_synth)
-        source = pd.DataFrame({"source": len(self.df_test)*["orig"] + len(self.df_synth)*["synth"]}).reset_index()
+        """
+        Plot a heatmap with ANOVA R^2 between all pairs of categorical columns
+        for original and another synthetic datasets.
+
+        The R^2 is to be interpreted as a measure of association between two columns.
+
+        Args:
+            figsize: width, height in inches.
+        """
+        categorical, continuous = self._filter_column_data_types(data_frame=self.df_synth)
+        source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
         orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
         df = pd.concat([orig_synth, source], axis=1)
         orig_anovas = np.zeros((len(categorical), len(continuous)))
@@ -173,8 +182,17 @@ class UtilityTesting:
                         square=True, linewidths=.5, cbar_kws={"shrink": .5}, ax=ax2)
 
     def show_categorical_rsquared(self, figsize: Tuple[float, float] = (10, 10)):
-        categorical, _ = self.filter_column_data_types(data_frame=self.df_synth)
-        source = pd.DataFrame({"source": len(self.df_test)*["orig"] + len(self.df_synth)*["synth"]}).reset_index()
+        """
+        Plot a heatmap with multinomial regression R^2 between all pairs of categorical columns
+        for original and another synthetic datasets.
+
+        The R^2 is to be interpreted as a measure of association between two columns.
+
+        Args:
+            figsize: width, height in inches.
+        """
+        categorical, _ = self._filter_column_data_types(data_frame=self.df_synth)
+        source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
         orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
         df = pd.concat([orig_synth, source], axis=1)
         orig_anovas = np.zeros((len(categorical), len(categorical)))
