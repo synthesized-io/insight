@@ -19,8 +19,8 @@ unit-test: venv
 	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing
 
 lint: venv
-	$(PYTHON) -m flake8 --max-line-length=120 synthesized
 	$(PYTHON) -m mypy --ignore-missing-import synthesized
+	$(PYTHON) -m flake8 --max-line-length=120 synthesized
 
 venv: $(VENV_ACTIVATE)
 
