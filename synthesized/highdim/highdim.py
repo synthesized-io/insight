@@ -17,6 +17,7 @@ class TypeOverride(enum.Enum):
     DATE = 'DATE'
     CATEGORICAL = 'CATEGORICAL'
     CONTINUOUS = 'CONTINUOUS'
+    ENUMERATION = 'ENUMERATION'
 
 
 class HighDimSynthesizer(Synthesizer,  ValueFactory):
@@ -212,6 +213,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             value = self.create_continuous(name)
         elif forced_type == TypeOverride.DATE:
             value = self.create_date(name)
+        elif forced_type == TypeOverride.ENUMERATION:
+            value = self.create_enumeration(name)
         else:
             assert False
         is_nan = df[name].isna().any()
