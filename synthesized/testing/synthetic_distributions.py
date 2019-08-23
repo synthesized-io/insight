@@ -26,22 +26,10 @@ def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int):
-    """
-    Draw `size` samples from a joint distribution where the marginal distribution of x
-    is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
-    is N(slope*x + intercept, y_std**2).
-     """
-    x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
-    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
-    df = pd.DataFrame({'x': x, 'y': y})
-    return df
-
-
 def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
     """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
-    df = pd.DataFrame({'x': bernoulli.rvs(probability, size=size).astype(str)})
-    return df
+    x = np.random.random_sample(size=size) < probability
+    return pd.DataFrame({'x': x})
 
 
 def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
@@ -60,15 +48,10 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float,
-                      x_std: float,
-                      y_mean: float,
-                      y_std: float,
-                      size: int,
-                      cor: float = 0.) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
-    cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
+    cov = [[x_std, 0], [0, y_std]]
     x, y = np.random.multivariate_normal(mean, cov, size).T
     df = pd.DataFrame({'x': x, 'y': y})
     return df
@@ -132,23 +115,23 @@ def create_power_law_distribution(shape: float, scale: float, size: int):
 
 def create_bernoulli_distribution(ratio: float, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) bernoulli distribution with probability of 1-s equal to `ratio`"""
-    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size).astype(str)})
+    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size)})
     return df
 
 
-def create_conditional_distribution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
+def create_conditional_distibution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) distribution where y has values N_i(mean_i, std_i) and x=i where
      i=0..len(norm_params), norm_param is a sequence of (mean_i, std_i)"""
     df = pd.DataFrame()
     for i, (mean, std) in enumerate(norm_params):
-        x = [str(i)] * size
+        x = [i] * size
         y = np.random.normal(mean, std, size)
         df = df.append(pd.DataFrame({'x': x, 'y': y}), ignore_index=True)
     df = df.sample(frac=1).reset_index(drop=True)
     return df
 
 
-def create_uniform_categorical(n_classes: int, size: int) -> pd.DataFrame:
+def create_unifom_categorical(n_classes: int, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) unif{0, n_classes-1} distribution"""
     df = pd.DataFrame({'x': range(n_classes)})
     df = df.sample(size, replace=True)
@@ -163,35 +146,128 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     return df
 
 
-def create_mixed_continuous_categorical(n_classes, prior_mean=0, prior_sd=5, sd=1, size=10000):
+def create_time_series_data(func, length):
     """
-    Draw `size` samples from a joint distribution with one categorical and one continuous random variable.
+    Create a data frame of a time-series based on a time-series
+    function.
 
-    The categorical variable is drawn from a uniform distribution and each of whose `n_classes` values is
-    associated with a mean drawn from a N(prior_mean, prior_sd) distribution. The continuous variable
-    is drawn from a N(mean[cat], sd) distribution where `mean[cat]` is the mean for the value of the
-    categorical variable.
+    :param func: {times: np.array[int]} -> np.array[float]]
+                a function that takes a sequence of time steps and noise
+                and returns a series of values
+    :param length: [int] number of time steps
+    :return: pd.DataFrame{t[datetime], x[float]}
     """
-    means = prior_mean + prior_sd*np.random.randn(n_classes)
-    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
-    discrete = np.random.choice(list(range(n_classes)), size=size)
-    zs = np.random.randn(size)
-    sample_means = means[discrete]
-    values = categories[discrete]
-    continuous = sample_means + sd*zs
-    return pd.DataFrame({"x": values, "y": continuous})
+    # create time columns
+    times = np.arange(start=0, stop=length)
 
+    # create value column
+    xs = func(times)
 
-def create_multidimensional_categorical(dimensions: int, n_classes: int, size: int, prefix: str = "x") -> pd.DataFrame:
-    """
-    Draw `size` samples of `dimensions` uniform, independent categorical random variables taking one of
-    `n_classes` values.
-    """
-    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
-    z = np.random.choice(categories, dimensions*size).reshape(size, dimensions)
-    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
-    df = pd.DataFrame(z, columns=columns)
+    # cast times to date-time
+    times = pd.to_datetime(times, unit="d")
+
+    # combine
+    df = pd.DataFrame({"t": times, "x": xs})
     return df
+
+
+def additive_linear(a, b, sd):
+    """
+    A linear trend with additive noise
+    :param a: [float] slope
+    :param b: [float] intercept
+    :param sd: [float] error standard deviation
+    """
+
+    def out_func(times):
+        eps = sd * np.random.randn(times.shape[0])
+        return a * times + b + eps
+
+    return out_func
+
+
+def additive_sine(a, p, sd):
+    """
+    A sinusoidal trend with additive noise
+    :param a: [float] amplitude
+    :param p: [float] period
+    :param sd: [float] error standard deviation
+    """
+
+    def out_func(times):
+        eps = sd * np.random.randn(times.shape[0])
+        return a * np.sin(2 * np.pi * times / p) + eps
+
+    return out_func
+
+
+def auto_regressive(phi, c, sd):
+    """
+    A linear autoregressive process of order k
+    i.e an AR(k) process
+    :param phi: [np.array] regression weights
+    :param c: [float] bias
+    :param sd: [float] error standard deviation
+    """
+    k = phi.shape[0]
+
+    def out_func(times):
+        eps = sd * np.random.randn(times.shape[0])
+        out_list = k * [0.]
+        for i in range(times.shape[0]):
+            # fetch regression context: previous k values
+            x_prev = np.array(out_list[-k:][::-1])
+            # sample next value
+            x_t = c + (phi * x_prev).sum() + eps[i]
+            out_list.append(x_t)
+        return out_list[k:]
+
+    return out_func
+
+
+def add_series(*args):
+    """
+    Return a time series which is a sum of
+    several other time series.
+    :param args: times series closures
+    :return: time series closure
+    """
+
+    def out_func(times):
+        series = [func(times) for func in args]
+        return sum(series)
+
+    return out_func
+
+
+def rolling_mse_asof(data, synthesized, sd, time_unit=None):
+    """
+    Calculate the mean-squared error between the "x" values of the original and synthetic
+    data. The sets of times may not be identical so we use "as of" (last observation rolled
+    forward) to interpolate between the times in the two datasets.
+
+    The dates are also optionally truncated to some unit following the syntax for the pandas
+    `.floor` function.
+
+    :param data: [pd.DataFrame{id[int], t[datetime], x[float]}] original data
+    :param synthesized: [pd.DataFrame{id[int], t[datetime], x[float]}] synthesized data
+    :param sd: [float] error standard deviation
+    :param time_unit: [str] the time unit to round to. See documentation for pandas `.floor` method.
+    :return: [(float, float)] MSE and MSE/(2*error variance)
+    """
+    # truncate date
+    if time_unit is not None:
+        synthesized.t = synthesized.t.dt.floor(time_unit)
+        data.t = data.t.dt.floor(time_unit)
+
+    # join datasets
+    joined = pd.merge_asof(data[["t", "x"]], synthesized[["t", "x"]], on="t")
+
+    # calculate metrics
+    mse = ((joined.x_x - joined.x_y) ** 2).mean()
+    mse_eff = mse / (2 * sd ** 2)
+
+    return mse, mse_eff
 
 
 def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> None:
@@ -213,9 +289,9 @@ def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> No
 
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int = None) -> None:
     if num_iterations is None:
-        num_iterations = evaluation.configs['num_iterations']
+        num_iterations = evaluation.config['num_iterations']
     start = time.time()
-    with HighDimSynthesizer(df=data, **evaluation.configs['params']) as synthesizer:
+    with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
@@ -226,7 +302,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
         synthesized = synthesizer.synthesize(n=len(data))
         distances = [ks_2samp(data[col], synthesized[col])[0] for col in data.columns]
         avg_distance = np.mean(distances)
-        evaluation.record_metric(evaluation=name, key='avg_distance', value=avg_distance)
+        evaluation[name + '_avg_distance'] = avg_distance
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
         ax1.set_title('original')
         ax2.set_title('synthesized')
