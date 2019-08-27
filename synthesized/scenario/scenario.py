@@ -18,7 +18,7 @@ class ScenarioSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, values: Dict[str, Any], functionals: List[Functional], summarizer: str = None,
+        self, values: Dict[str, Any], functionals: List[Functional], summarizer_dir: str = None,
         # Prior distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -53,7 +53,7 @@ class ScenarioSynthesizer(Synthesizer):
             continuous_weight: Coefficient for continuous value losses.
             weight_decay: Weight decay.
         """
-        super().__init__(name='synthesizer', summarizer=summarizer)
+        super().__init__(name='synthesizer', summarizer_dir=summarizer_dir)
 
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()

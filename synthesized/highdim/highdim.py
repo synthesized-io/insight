@@ -28,7 +28,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     """
 
     def __init__(
-        self, df: pd.DataFrame, summarizer: str = None, profiler_args: ProfilerArgs = None,
+        self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Iterable[str] = None,
         # VAE distribution
@@ -107,7 +107,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
+        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
         if type_overrides is None:
             self.type_overrides: Dict[str, TypeOverride] = dict()
         else:
@@ -198,7 +198,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
-            weight_decay=weight_decay
+            weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
 
         # Input argument placeholder for num_rows

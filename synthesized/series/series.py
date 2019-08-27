@@ -16,7 +16,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
     """
 
     def __init__(
-        self, data: pd.DataFrame, summarizer: bool = False,
+        self, data: pd.DataFrame, summarizer_dir: str = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
@@ -82,7 +82,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer)
+        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir)
         self.batch_size = batch_size
 
         # For identify_value (should not be necessary)
