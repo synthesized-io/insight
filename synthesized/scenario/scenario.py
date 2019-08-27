@@ -134,13 +134,13 @@ class ScenarioSynthesizer(Synthesizer):
         summaries = list()
 
         # Number of rows to synthesize
-        self.add_placeholder(name='num_rows', dtype=tf.int64, shape=())
+        self.num_rows = tf.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
         # Prior p'(z)
         prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
 
         # Sample z ~ q(z|x)
-        z = prior.sample(sample_shape=(Module.placeholders['num_rows'],))
+        z = prior.sample(sample_shape=(self.num_rows,))
 
         # Decoder p(y|z)
         p = self.decoder.parametrize(x=z)
@@ -223,7 +223,7 @@ class ScenarioSynthesizer(Synthesizer):
         """
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
-        feed_dict = dict(num_rows=num_samples)
+        feed_dict = {self.num_rows: num_samples}
 
         for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (
@@ -251,11 +251,11 @@ class ScenarioSynthesizer(Synthesizer):
 
         else:
             fetches = self.synthesized
-            feed_dict = dict(num_rows=(num_rows % 1024))
+            feed_dict = {self.num_rows: (num_rows % 1024)}
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = dict(num_rows=1024)
+            feed_dict = {self.num_rows: 1024}
             for k in range(num_rows // 1024):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 df_synthesized = df_synthesized.append(

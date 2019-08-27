@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Tuple
 
 import pandas as pd
 import tensorflow as tf
@@ -7,9 +7,16 @@ from ..module import Module, tensorflow_name_scoped
 
 
 class Value(Module):
-
     def __init__(self, name: str):
         super().__init__(name=name)
+        self.name = name
+        self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
+
+    def placeholder_initialize(self, dtype: tf.DType, shape: Tuple):
+        assert self.placeholder is None
+        self.placeholder = tf.placeholder(
+            dtype=dtype, shape=shape, name=self.make_tf_compatible(string=self.name)
+        )
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()

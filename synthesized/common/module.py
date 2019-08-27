@@ -2,13 +2,14 @@ import os
 import time
 from functools import wraps
 from typing import Dict, Optional
-from .util import Profiler
 
+import numpy as np
 import tensorflow as tf
+
+from .util import Profiler
 
 
 class Module(object):
-    placeholders: Optional[Dict[str, tf.Tensor]] = None
     global_step: Optional[tf.Tensor] = None
     summarizer = None
 
@@ -45,7 +46,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.variable_scope(name_or_scope=make_tf_compatible(string=self.name)):
+        with tf.variable_scope(name_or_scope=self.make_tf_compatible(string=self.name)):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()
@@ -68,14 +69,6 @@ class Module(object):
             return module
         else:
             raise NotImplementedError
-
-    def add_placeholder(self, name, dtype, shape):
-        if name in Module.placeholders:
-            raise NotImplementedError
-
-        Module.placeholders[name] = tf.placeholder(
-            dtype=dtype, shape=shape, name=make_tf_compatible(string=name)
-        )
 
     def __enter__(self):
         Module.placeholders = dict()
@@ -130,9 +123,7 @@ class Module(object):
             self.run(fetches=graph_summary)
         return self
 
-    def run(self, fetches, feed_dict=None):
-        if feed_dict is not None:
-            feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+    def run(self, fetches: tf.Tensor, feed_dict: Dict[tf.Tensor, np.ndarray] = None):
         options, run_metadata = None, None
         if hasattr(self, "profiler"):
             if self.profiler.is_trace_step():
@@ -157,6 +148,9 @@ class Module(object):
             self.profiler.write_traces()
         Module.placeholders = None
 
+    def make_tf_compatible(self, string):
+        return string.replace(' ', '_').replace(':', '').replace('%', '')
+
 
 module_registry: Dict[str, Module] = dict()
 
@@ -164,10 +158,6 @@ module_registry: Dict[str, Module] = dict()
 def register(name, module):
     assert name not in module_registry
     module_registry[name] = module
-
-
-def make_tf_compatible(string):
-    return string.replace(' ', '_').replace(':', '').replace('%', '')
 
 
 def tensorflow_name_scoped(tf_function):

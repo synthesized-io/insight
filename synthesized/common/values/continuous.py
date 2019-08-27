@@ -9,7 +9,7 @@ from sklearn.preprocessing import QuantileTransformer
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 DISTRIBUTIONS = dict(
     # beta=(beta, tfd.Beta),
@@ -202,12 +202,11 @@ class ContinuousValue(Value):
         super().module_initialize()
 
         # Input placeholder for value
-        self.add_placeholder(name=self.name, dtype=tf.float32, shape=(None,))
+        self.placeholder_initialize(dtype=tf.float32, shape=(None,))
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
-        assert Module.placeholders is not None
-        return [Module.placeholders[self.name]]
+        return [self.placeholder]
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

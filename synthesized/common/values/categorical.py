@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 class CategoricalValue(Value):
@@ -129,7 +129,7 @@ class CategoricalValue(Value):
         super().module_initialize()
 
         # Input placeholder for value
-        self.add_placeholder(name=self.name, dtype=tf.int64, shape=(None,))
+        self.placeholder_initialize(dtype=tf.int64, shape=(None,))
 
         if self.probabilities is not None and not self.similarity_based:
             # "hack": scenario synthesizer, embeddings not used
@@ -148,8 +148,7 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
-        assert Module.placeholders is not None
-        return [Module.placeholders[self.name]]
+        return [self.placeholder]
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

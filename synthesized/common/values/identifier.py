@@ -1,11 +1,11 @@
 from typing import List
 
+import pandas as pd
 import tensorflow as tf
 
 from .value import Value
 from .. import util
-from ..module import Module, tensorflow_name_scoped
-import pandas as pd
+from ..module import tensorflow_name_scoped
 
 
 # TODO: num_identifiers multiplied by 3
@@ -67,10 +67,8 @@ class IdentifierValue(Value):
 
     def module_initialize(self):
         super().module_initialize()
-        self.placeholder = tf.placeholder(dtype=tf.int64, shape=(None,), name='input')
-        # tf.placeholder_with_default(input=(-1,), shape=(None,), name='input')
-        assert self.name not in Module.placeholders
-        Module.placeholders[self.name] = self.placeholder
+        self.placeholder_initialize(dtype=tf.int64, shape=(None,))
+
         initializer = util.get_initializer(initializer='normal-large')
         self.embeddings = tf.get_variable(
             name='embeddings', shape=(self.num_identifiers, self.embedding_size), dtype=tf.float32,
@@ -83,8 +81,8 @@ class IdentifierValue(Value):
         )
 
     @tensorflow_name_scoped
-    def input_tensors(self, feed=None) -> List[tf.Tensor]:
-        x = self.placeholder if feed is None else feed[self.name]
+    def input_tensors(self) -> List[tf.Tensor]:
+        x = self.placeholder
         assignment = self.current_identifier.assign(
             value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))
         )
