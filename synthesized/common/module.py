@@ -10,7 +10,6 @@ from .util import Profiler
 
 
 class Module(object):
-    global_step: Optional[tf.Tensor] = None
     summarizer = None
 
     def __init__(self, name, summarizer=None, profiler_args=None):
@@ -22,6 +21,7 @@ class Module(object):
 
         self.submodules = list()
         self.initialized = False
+        self.global_step: Optional[tf.Tensor] = None
 
     def specification(self):
         return dict(name=self.name)
@@ -71,9 +71,8 @@ class Module(object):
             raise NotImplementedError
 
     def __enter__(self):
-        Module.placeholders = dict()
         self.graph = tf.Graph()
-        Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
+        self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
         Module.summarizer = self._summarizer
 
         with self.graph.as_default():
@@ -146,7 +145,6 @@ class Module(object):
         tf.reset_default_graph()
         if hasattr(self, "profiler"):
             self.profiler.write_traces()
-        Module.placeholders = None
 
     def make_tf_compatible(self, string):
         return string.replace(' ', '_').replace(':', '').replace('%', '')

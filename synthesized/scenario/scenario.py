@@ -114,8 +114,8 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Optimizer
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer, learning_rate=learning_rate,
-            decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
+            module='optimizer', name='optimizer', optimizer=optimizer, parent=self,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
             clip_gradients=clip_gradients
         )
 
@@ -201,7 +201,7 @@ class ScenarioSynthesizer(Synthesizer):
             )
 
         with tf.control_dependencies(control_inputs=[optimized]):
-            self.optimized = Module.global_step.assign_add(delta=1)
+            self.optimized = self.global_step.assign_add(delta=1)
 
     def learn(
         self, num_iterations: int, num_samples=1024,

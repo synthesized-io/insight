@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Module, Value, ValueFactory
+from ..common import Value, ValueFactory
 from ..synthesizer import Synthesizer
 
 
@@ -156,7 +156,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
                 xs[value.name] = value.input_tensors()
         self.losses, optimized = self.vae.learn(xs=xs)
         with tf.control_dependencies(control_inputs=[optimized]):
-            self.optimized = Module.global_step.assign_add(delta=1)
+            self.optimized = self.global_step.assign_add(delta=1)
 
         # synthesize
         self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')

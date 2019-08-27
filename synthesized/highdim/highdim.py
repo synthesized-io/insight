@@ -1,4 +1,5 @@
 """This module implements the BasicSynthesizer class."""
+import enum
 from collections import OrderedDict
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 
@@ -6,10 +7,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_rules, Module, Value, ValueFactory
-from ..synthesizer import Synthesizer
+from ..common import identify_rules, Value, ValueFactory
 from ..common.util import ProfilerArgs
-import enum
+from ..synthesizer import Synthesizer
 
 
 class TypeOverride(enum.Enum):
@@ -256,7 +256,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         # Increment global step
         with tf.control_dependencies(control_inputs=[self.optimized]):
-            self.optimized = Module.global_step.assign_add(delta=1)
+            self.optimized = self.global_step.assign_add(delta=1)
 
         # API function synthesize
 

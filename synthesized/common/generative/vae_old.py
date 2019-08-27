@@ -82,8 +82,8 @@ class VAEOld(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam', learning_rate=learning_rate,
-            clip_gradients=1.0
+            module='optimizer', name='optimizer', optimizer='adam', parent=self,
+            learning_rate=learning_rate, clip_gradients=1.0
         )
 
     def specification(self) -> dict:
