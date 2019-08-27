@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from functools import wraps
 from typing import Dict, Optional, List
@@ -81,8 +82,11 @@ class Module(object):
                 if len(directories) > 6:
                     for subdir in directories[:-6]:
                         subdir = os.path.join(self.summarizer_dir, subdir)
-                        os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
-                        os.rmdir(subdir)
+                        subdir = os.path.abspath(subdir)
+                        if os.path.isdir(subdir):
+                            shutil.rmtree(subdir)
+                        else:
+                            os.remove(subdir)
                 with tf.name_scope(name='summarizer'):
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=os.path.join(self.summarizer_dir, time.strftime("%Y%m%d-%H%M%S")),
