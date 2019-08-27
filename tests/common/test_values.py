@@ -1,16 +1,15 @@
 import numpy as np
 import tensorflow as tf
 
-from synthesized.common import Module, Value
+from synthesized.common import Value
 from synthesized.common.values import CategoricalValue, ContinuousValue
 
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     assert isinstance(value.specification(), dict)
     tf.reset_default_graph()
-    Module.placeholders = dict()
     value.initialize()
-    feed_dict = {Module.placeholders[value.name]: x}
+    feed_dict = {value.placeholder: x}
     input_tensor_output = value.input_tensors()
     unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
     if y is None:

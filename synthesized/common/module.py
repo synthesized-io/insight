@@ -1,26 +1,25 @@
 import os
 import time
 from functools import wraps
-from typing import Dict, Optional
-from .util import Profiler
+from typing import Dict, Optional, List
 
+import numpy as np
 import tensorflow as tf
+from tensorflow.python.ops.summary_ops_v2 import SummaryWriter
+
+from .util import Profiler, ProfilerArgs
 
 
 class Module(object):
-    placeholders: Optional[Dict[str, tf.Tensor]] = None
-    global_step: Optional[tf.Tensor] = None
-    summarizer = None
-
-    def __init__(self, name, summarizer=None, profiler_args=None):
+    def __init__(self, name: str, summarizer_dir: str = None, profiler_args: ProfilerArgs = None):
         self.name = name
-        self._summarizer = summarizer
-        if profiler_args is not None:
-            self.profiler_args = profiler_args
-            self.profiler = None
-
-        self.submodules = list()
-        self.initialized = False
+        self.summarizer_dir = summarizer_dir
+        self.summarizer: Optional[SummaryWriter] = None
+        self.profiler_args = profiler_args
+        self.profiler: Optional[Profiler] = None
+        self.submodules: List[Module] = list()
+        self.initialized: bool = False
+        self.global_step: Optional[tf.Tensor] = None
 
     def specification(self):
         return dict(name=self.name)
@@ -45,7 +44,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.variable_scope(name_or_scope=make_tf_compatible(string=self.name)):
+        with tf.variable_scope(name_or_scope=self.make_tf_compatible(string=self.name)):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()
@@ -69,46 +68,36 @@ class Module(object):
         else:
             raise NotImplementedError
 
-    def add_placeholder(self, name, dtype, shape):
-        if name in Module.placeholders:
-            raise NotImplementedError
-
-        Module.placeholders[name] = tf.placeholder(
-            dtype=dtype, shape=shape, name=make_tf_compatible(string=name)
-        )
-
     def __enter__(self):
-        Module.placeholders = dict()
         self.graph = tf.Graph()
-        Module.global_step = tf.train.get_or_create_global_step(graph=self.graph)
-        Module.summarizer = self._summarizer
+        self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
 
         with self.graph.as_default():
-            if hasattr(self, "profiler_args"):
+            if self.profiler_args is not None:
                 self.profiler = Profiler(filepath=self.profiler_args.filepath, period=self.profiler_args.period)
 
-            if Module.summarizer is not None:
-                directories = sorted(os.listdir(Module.summarizer))
+            if self.summarizer_dir is not None:
+                directories = sorted(os.listdir(self.summarizer_dir))
                 if len(directories) > 6:
                     for subdir in directories[:-6]:
-                        subdir = os.path.join(Module.summarizer, subdir)
+                        subdir = os.path.join(self.summarizer_dir, subdir)
                         os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
                         os.rmdir(subdir)
                 with tf.name_scope(name='summarizer'):
-                    Module.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=os.path.join(Module.summarizer, time.strftime("%Y%m%d-%H%M%S")),
+                    self.summarizer = tf.contrib.summary.create_file_writer(
+                        logdir=os.path.join(self.summarizer_dir, time.strftime("%Y%m%d-%H%M%S")),
                         max_queue=None, flush_millis=10000, filename_suffix=None
                     )
 
                 # tf.contrib.summary.record_summaries_every_n_global_steps(n=100, global_step=None)
-                with Module.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
+                with self.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
                     self.initialize()
 
                     with tf.name_scope(name='initialization', default_name=None, values=None):
                         summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
                         assert len(summarizer_init) == 1
                         initialization = (tf.global_variables_initializer(), summarizer_init[0])
-                        self.summarizer_close = Module.summarizer.close()
+                        self.summarizer_close = self.summarizer.close()
                         graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
                         graph_str = tf.constant(
                             value=graph_def.SerializeToString(), dtype=tf.string, shape=(),
@@ -126,15 +115,13 @@ class Module(object):
         self.session = tf.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
-        if Module.summarizer is not None:
+        if self.summarizer is not None:
             self.run(fetches=graph_summary)
         return self
 
-    def run(self, fetches, feed_dict=None):
-        if feed_dict is not None:
-            feed_dict = {Module.placeholders[name]: value for name, value in feed_dict.items()}
+    def run(self, fetches: tf.Tensor, feed_dict: Dict[tf.Tensor, np.ndarray] = None):
         options, run_metadata = None, None
-        if hasattr(self, "profiler"):
+        if self.profiler is not None:
             if self.profiler.is_trace_step():
                 options, run_metadata = self.profiler.get_options_and_metadata()
 
@@ -142,20 +129,22 @@ class Module(object):
                 fetches=fetches, feed_dict=feed_dict, options=options, run_metadata=run_metadata
             )
 
-        if hasattr(self, "profiler"):
+        if self.profiler is not None:
             if self.profiler.is_trace_step():
                 self.profiler.read_trace(run_metadata)
             self.profiler.increment()
         return result
 
     def __exit__(self, type, value, traceback):
-        if Module.summarizer is not None:
+        if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
         tf.reset_default_graph()
-        if hasattr(self, "profiler"):
+        if self.profiler is not None:
             self.profiler.write_traces()
-        Module.placeholders = None
+
+    def make_tf_compatible(self, string):
+        return string.replace(' ', '_').replace(':', '').replace('%', '')
 
 
 module_registry: Dict[str, Module] = dict()
@@ -164,10 +153,6 @@ module_registry: Dict[str, Module] = dict()
 def register(name, module):
     assert name not in module_registry
     module_registry[name] = module
-
-
-def make_tf_compatible(string):
-    return string.replace(' ', '_').replace(':', '').replace('%', '')
 
 
 def tensorflow_name_scoped(tf_function):

@@ -1,4 +1,5 @@
 """This module implements the BasicSynthesizer class."""
+import enum
 from collections import OrderedDict
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 
@@ -6,10 +7,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import identify_rules, Module, Value, ValueFactory
-from ..synthesizer import Synthesizer
+from ..common import identify_rules, Value, ValueFactory
 from ..common.util import ProfilerArgs
-import enum
+from ..synthesizer import Synthesizer
 
 
 class TypeOverride(enum.Enum):
@@ -28,7 +28,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     """
 
     def __init__(
-        self, df: pd.DataFrame, summarizer: str = None, profiler_args: ProfilerArgs = None,
+        self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Iterable[str] = None,
         # VAE distribution
@@ -107,7 +107,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer=summarizer, profiler_args=profiler_args)
+        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
         if type_overrides is None:
             self.type_overrides: Dict[str, TypeOverride] = dict()
         else:
@@ -198,8 +198,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
-            weight_decay=weight_decay
+            weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
+
+        # Input argument placeholder for num_rows
+        self.num_rows: Optional[tf.Tensor] = None
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -253,12 +256,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         # Increment global step
         with tf.control_dependencies(control_inputs=[self.optimized]):
-            self.optimized = Module.global_step.assign_add(delta=1)
+            self.optimized = self.global_step.assign_add(delta=1)
 
         # API function synthesize
 
         # Input argument placeholder for num_rows
-        self.add_placeholder(name='num_rows', dtype=tf.int64, shape=())
+        self.num_rows = tf.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
         # Input condition values
         cs = OrderedDict()
@@ -266,7 +269,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             cs.update(zip(value.learned_input_columns(), value.input_tensors()))
 
         # VAE synthesize
-        self.synthesized = self.vae.synthesize(n=Module.placeholders['num_rows'], cs=cs)
+        self.synthesized = self.vae.synthesize(n=self.num_rows, cs=cs)
 
     def learn(
         self, num_iterations: int, df_train: pd.DataFrame,
@@ -292,15 +295,15 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         num_data = len(df_train)
         data = {
-            name: df_train[name].get_values() for value in (self.values + self.conditions)
-            for name in value.learned_input_columns()
+            placeholder: df_train[name].get_values() for value in (self.values + self.conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
-            feed_dict = {name: value_data[batch] for name, value_data in data.items()}
+            feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
@@ -330,6 +333,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 )
             else:
                 df_conditions = conditions.copy()
+        else:
+            df_conditions = None
 
         for value in self.conditions:
             df_conditions = value.preprocess(df=df_conditions)
@@ -343,31 +348,31 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         else:
             fetches = self.synthesized
-            feed_dict = dict(num_rows=(num_rows % 1024))
+            feed_dict = {self.num_rows: (num_rows % 1024)}
             for value in self.conditions:
-                for name in value.learned_input_columns():
+                for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
                     condition = df_conditions[name].values
                     if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows % 1024,))
+                        feed_dict[placeholder] = np.tile(condition, (num_rows % 1024,))
                     elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition[-num_rows % 1024:]
+                        feed_dict[placeholder] = condition[-num_rows % 1024:]
                     else:
                         raise NotImplementedError
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = dict(num_rows=1024)
+            feed_dict = {self.num_rows: 1024}
             for value in self.conditions:
-                for name in value.learned_input_columns():
+                for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
                     condition = df_conditions[name].values
                     if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (1024,))
+                        feed_dict[placeholder] = np.tile(condition, (1024,))
             for k in range(num_rows // 1024):
                 for value in self.conditions:
-                    for name in value.learned_input_columns():
+                    for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
                         condition = df_conditions[name].values
                         if condition.shape == (num_rows,):
-                            feed_dict[name] = condition[k * 1024: (k + 1) * 1024]
+                            feed_dict[placeholder] = condition[k * 1024: (k + 1) * 1024]
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True

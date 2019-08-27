@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
 from .generative import Generative
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from ..values import Value
 
 
@@ -32,12 +32,14 @@ class VAE(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float
+        weight_decay: float,
+        summarize: bool = False
     ):
         super().__init__(name=name, values=values, conditions=conditions)
 
         self.latent_size = latent_size
         self.beta = beta
+        self.summarize = summarize
 
         # Total input and output size of all values
         input_size = 0
@@ -76,8 +78,8 @@ class VAE(Generative):
 
         # Optimizer
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer, learning_rate=learning_rate,
-            decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
+            module='optimizer', name='optimizer', optimizer=optimizer, parent=self,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
             clip_gradients=clip_gradients
         )
 
@@ -175,7 +177,7 @@ class VAE(Generative):
                     name=name + '-ratio', tensor=(loss / losses['kl-loss'])
                 ))
 
-        if Module.summarizer is None:
+        if not self.summarize:
             summaries = list()
 
         # Make sure summary operations are executed
@@ -183,7 +185,7 @@ class VAE(Generative):
 
             # Optimization step
             optimized = self.optimizer.optimize(
-                loss=loss, summarize_gradient_norms=(Module.summarizer is not None)
+                loss=loss, summarize_gradient_norms=self.summarize
             )
 
         return losses, optimized

@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from ..values import Value
 
 
@@ -31,12 +31,14 @@ class VAEOld(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float
+        weight_decay: float,
+        summarize: bool = False
     ):
         super().__init__(name=name, values=values, conditions=conditions)
 
         self.latent_size = latent_size
         self.beta = beta
+        self.summarize = summarize
 
         # Total input and output size of all values
         input_size = 0
@@ -82,8 +84,8 @@ class VAEOld(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam', learning_rate=learning_rate,
-            clip_gradients=1.0
+            module='optimizer', name='optimizer', optimizer='adam', parent=self,
+            learning_rate=learning_rate, clip_gradients=1.0
         )
 
     def specification(self) -> dict:
@@ -169,7 +171,7 @@ class VAEOld(Generative):
                     name=name + '-ratio', tensor=(loss / losses['encoding'])
                 ))
 
-        if Module.summarizer is None:
+        if not self.summarize:
             summaries = list()
 
         # Make sure summary operations are executed
@@ -177,7 +179,7 @@ class VAEOld(Generative):
 
             # Optimization step
             optimized = self.optimizer.optimize(
-                loss=loss, summarize_gradient_norms=(Module.summarizer is not None)
+                loss=loss, summarize_gradient_norms=self.summarize
             )
 
         return losses, optimized
