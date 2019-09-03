@@ -6,7 +6,7 @@ import numpy as np
 
 
 class Evaluation:
-    def __init__(self, branch, revision, group, metrics_file='../metrics.jsonl'):
+    def __init__(self, branch: str, revision: str, group: str, metrics_file: str = '../metrics.jsonl'):
         self.branch = branch
         self.revision = revision
         self.group = group
@@ -14,10 +14,10 @@ class Evaluation:
         self.metrics = OrderedDict()
         self.configs = OrderedDict()
 
-    def record_config(self, evaluation, config):
+    def record_config(self, evaluation: str, config: dict):
         self.configs[evaluation] = config
 
-    def record_metric(self, evaluation, key, value):
+    def record_metric(self, evaluation: str, key: str, value: float):
         if evaluation not in self.metrics:
             self.metrics[evaluation] = OrderedDict()
         evaluation_metrics = self.metrics[evaluation]
