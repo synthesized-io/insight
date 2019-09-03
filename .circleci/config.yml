@@ -16,8 +16,6 @@ jobs:
       # - image: circleci/postgres:9.4
 
     working_directory: ~/repo
-    environment:
-      SYNTHESIZED_KEY: EE6B-6720-67A2-32F3-3139-2DF3-382D-B5F3
 
     steps:
       - checkout
