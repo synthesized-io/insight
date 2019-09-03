@@ -165,9 +165,9 @@ def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> No
 
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int = None) -> None:
     if num_iterations is None:
-        num_iterations = evaluation.config['num_iterations']
+        num_iterations = evaluation.configs['num_iterations']
     start = time.time()
-    with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
+    with HighDimSynthesizer(df=data, **evaluation.configs['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
@@ -178,7 +178,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
         synthesized = synthesizer.synthesize(n=len(data))
         distances = [ks_2samp(data[col], synthesized[col])[0] for col in data.columns]
         avg_distance = np.mean(distances)
-        evaluation[name + '_avg_distance'] = avg_distance
+        evaluation.record_metric(evaluation=name, key='avg_distance', value=avg_distance)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
         ax1.set_title('original')
         ax2.set_title('synthesized')
