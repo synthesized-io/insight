@@ -29,15 +29,16 @@ class Evaluation:
     def write_metrics(self):
         timestamp = datetime.datetime.now().isoformat()
         with open(self.metrics_file, 'a') as f:
-            for evaluation in self.metrics.keys():
+            for evaluation, evaluation_metrics in self.metrics.items():
                 data = OrderedDict()
+                data['group'] = self.group
                 data['evaluation'] = evaluation
                 data['branch'] = self.branch
                 data['revision'] = self.revision
                 data['timestamp'] = timestamp
                 if evaluation in self.configs:
                     data['config'] = json.dumps(self.configs[evaluation])
-                for name, vals in self.metrics.items():
+                for name, vals in evaluation_metrics.items():
                     data[name + '_mean'] = np.mean(vals)
                     data[name + '_std'] = np.std(vals)
                     data[name + '_count'] = len(vals)
