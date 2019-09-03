@@ -11,8 +11,8 @@ class Evaluation:
         self.revision = revision
         self.group = group
         self.metrics_file = metrics_file
-        self.metrics = OrderedDict()
-        self.configs = OrderedDict()
+        self.metrics: OrderedDict = OrderedDict()
+        self.configs: OrderedDict = OrderedDict()
 
     def record_config(self, evaluation: str, config: dict):
         self.configs[evaluation] = config
