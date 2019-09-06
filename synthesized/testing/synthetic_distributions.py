@@ -163,6 +163,37 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     return df
 
 
+def create_mixed_continuous_categorical(n_classes, prior_mean=0, prior_sd=5, sd=1, size=10000):
+    """
+    Draw `size` samples from a joint distribution with one categorical and one continuous random variable.
+
+    The categorical variable is drawn from a uniform distribution and each of whose `n_classes` values is
+    associated with a mean drawn from a N(prior_mean, prior_sd) distribution. The continuous variable
+    is drawn from a N(mean[cat], sd) distribution where `mean[cat]` is the mean for the value of the
+    categorical variable.
+    """
+    means = prior_mean + prior_sd*np.random.randn(n_classes)
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    discrete = np.random.choice(list(range(n_classes)), size=size)
+    zs = np.random.randn(size)
+    sample_means = means[discrete]
+    values = categories[discrete]
+    continuous = sample_means + sd*zs
+    return pd.DataFrame({"x": values, "y": continuous})
+
+
+def create_multidimensional_categorical(dimensions: int, n_classes: int, size: int, prefix: str = "x") -> pd.DataFrame:
+    """
+    Draw `size` samples of `dimensions` uniform, independent categorical random variables taking one of
+    `n_classes` values.
+    """
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    z = np.random.choice(categories, dimensions*size).reshape(size, dimensions)
+    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
+    df = pd.DataFrame(z, columns=columns)
+    return df
+
+
 def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> None:
     if len(value_types) == 1:
         if value_types['x'] is CategoricalValue:
