@@ -30,4 +30,6 @@ register(name='rule', module=RuleValue)
 register(name='sampling', module=SamplingValue)
 
 
-__all__ = ['Value', 'ValueFactory', 'identify_rules']
+__all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
+           'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'ProbabilityValue',
+           'RuleValue', 'SamplingValue', 'Value', 'ValueFactory']

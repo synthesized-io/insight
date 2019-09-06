@@ -22,12 +22,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from statsmodels.formula.api import ols, mnlogit
 
-from synthesized.highdim import HighDimSynthesizer
-from synthesized.common.values import CategoricalValue
-from synthesized.common.values import ContinuousValue
-from synthesized.common.values import DateValue
-from synthesized.common.values import SamplingValue
-from synthesized.common.values import Value
+from ..common.values import CategoricalValue
+from ..common.values import ContinuousValue
+from ..common.values import DateValue
+from ..common.values import SamplingValue
+from ..common.values import Value
+from ..highdim import HighDimSynthesizer
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'

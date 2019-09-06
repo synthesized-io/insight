@@ -1,20 +1,20 @@
 import time
+from typing import Dict, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.pyplot import Axes
+from numpy.random import binomial
+from numpy.random import exponential, normal
 from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
-from numpy.random import exponential, normal
-from typing import Dict, Tuple, Type
-from matplotlib.pyplot import Axes
 
-from synthesized.highdim import HighDimSynthesizer
-from synthesized.testing.evaluation import Evaluation
-from synthesized.common.values import CategoricalValue, ContinuousValue
-from numpy.random import binomial
+from . import Evaluation
+from ..common.values import CategoricalValue, ContinuousValue
+from ..highdim import HighDimSynthesizer
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:

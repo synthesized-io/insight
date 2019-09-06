@@ -1,4 +1,5 @@
-from .utility import UtilityTesting
+from .evaluation import Evaluation
 from .linkage_attack import LinkageAttackTesting, Column
+from .utility import UtilityTesting
 
-__all__ = ['UtilityTesting', 'LinkageAttackTesting', 'Column']
+__all__ = ['Evaluation', 'UtilityTesting', 'LinkageAttackTesting', 'Column']
