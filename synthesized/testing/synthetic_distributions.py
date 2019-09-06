@@ -60,7 +60,12 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int, cor: float = 0.) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float,
+                      x_std: float,
+                      y_mean: float,
+                      y_std: float,
+                      size: int,
+                      cor: float = 0.) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
     cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
