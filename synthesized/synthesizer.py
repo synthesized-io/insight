@@ -6,7 +6,7 @@ from typing import Callable, Union
 
 import pandas as pd
 
-from synthesized.common.module import Module
+from .common import Module
 
 
 def _check_license():
