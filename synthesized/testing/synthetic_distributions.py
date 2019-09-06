@@ -141,7 +141,7 @@ def create_conditional_distribution(*norm_params: Tuple[float, float], size: int
      i=0..len(norm_params), norm_param is a sequence of (mean_i, std_i)"""
     df = pd.DataFrame()
     for i, (mean, std) in enumerate(norm_params):
-        x = [i] * size
+        x = [str(i)] * size
         y = np.random.normal(mean, std, size)
         df = df.append(pd.DataFrame({'x': x, 'y': y}), ignore_index=True)
     df = df.sample(frac=1).reset_index(drop=True)
