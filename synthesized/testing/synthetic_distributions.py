@@ -26,10 +26,22 @@ def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int):
+    """
+    Draw `size` samples from a joint distribution where the marginal distribution of x
+    is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
+    is N(slope*x + intercept, y_std**2).
+     """
+    x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
+    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
+    df = pd.DataFrame({'x': x, 'y': y})
+    return df
+
+
 def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
     """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
-    x = np.random.random_sample(size=size) < probability
-    return pd.DataFrame({'x': x})
+    df = pd.DataFrame({'x': bernoulli.rvs(probability, size=size).astype(str)})
+    return df
 
 
 def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
@@ -48,10 +60,10 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int, cor: float = 0.) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
-    cov = [[x_std, 0], [0, y_std]]
+    cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
     x, y = np.random.multivariate_normal(mean, cov, size).T
     df = pd.DataFrame({'x': x, 'y': y})
     return df
@@ -115,11 +127,11 @@ def create_power_law_distribution(shape: float, scale: float, size: int):
 
 def create_bernoulli_distribution(ratio: float, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) bernoulli distribution with probability of 1-s equal to `ratio`"""
-    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size)})
+    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size).astype(str)})
     return df
 
 
-def create_conditional_distibution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
+def create_conditional_distribution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) distribution where y has values N_i(mean_i, std_i) and x=i where
      i=0..len(norm_params), norm_param is a sequence of (mean_i, std_i)"""
     df = pd.DataFrame()
@@ -131,7 +143,7 @@ def create_conditional_distibution(*norm_params: Tuple[float, float], size: int)
     return df
 
 
-def create_unifom_categorical(n_classes: int, size: int) -> pd.DataFrame:
+def create_uniform_categorical(n_classes: int, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) unif{0, n_classes-1} distribution"""
     df = pd.DataFrame({'x': range(n_classes)})
     df = df.sample(size, replace=True)
