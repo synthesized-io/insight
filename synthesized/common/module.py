@@ -148,7 +148,8 @@ class Module(object):
             self.profiler.write_traces()
 
     def make_tf_compatible(self, string):
-        return string.replace(' ', '_').replace(':', '').replace('%', '')
+        # TODO: make it always match [A-Za-z0-9_.\\-/]*
+        return string.replace(' ', '_').replace(':', '').replace('%', '').strip('_')
 
 
 module_registry: Dict[str, Module] = dict()
