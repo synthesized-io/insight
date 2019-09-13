@@ -27,7 +27,7 @@ def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, cat
     """Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and
        `categorical_dim` uniform, independent categorical random variables. """
     continuous = create_multidimensional_gaussian(dimensions=continuous_dim, size=size, prefix="x")
-    categorical = create_multidimensional_categorical(dimensions=categorical_dim, categories=categories,
+    categorical = create_multidimensional_categorical(dimensions=categorical_dim, n_classes=categories,
                                                       size=size, prefix="y")
     return pd.concat([continuous, categorical], axis=1)
 
@@ -166,7 +166,7 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
                                                                                              default_size,
                                                                                              default_categories)
         profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
-        data = create_multidimensional_categorical(dimensions=default_dimensions, categories=default_categories,
+        data = create_multidimensional_categorical(dimensions=default_dimensions, n_classes=default_categories,
                                                    size=default_size)
         with HighDimSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
@@ -180,7 +180,7 @@ def main(num_iterations: int = 2500, default_dimensions: int = 100, default_size
         profiler_args = ProfilerArgs(filepath=filepath, period=num_iterations)
         default_mixed_dim = int(default_dimensions/2)
         data = create_multidimensional_mixed(continuous_dim=default_mixed_dim, categorical_dim=default_mixed_dim,
-                                             categories=default_categories, size=default_size)
+                                             n_classes=default_categories, size=default_size)
         with HighDimSynthesizer(data=data, profiler_args=profiler_args) as synthesizer:
             synthesizer.learn(data=data, num_iterations=num_iterations)
 
