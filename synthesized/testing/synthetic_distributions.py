@@ -1,13 +1,9 @@
 import time
-from typing import Dict, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib.pyplot import Axes
-from numpy.random import binomial
-from numpy.random import exponential, normal
 from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
@@ -66,7 +62,8 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int, cor: float = 0.) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float,
+                      size: int, cor: float = 0.) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
     cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
@@ -468,7 +465,7 @@ def rolling_mse_asof(data, synthesized, sd, time_unit=None):
     return mse, mse_eff
 
 
-def plot_data(data: pd.DataFrame, ax: Axes = None):
+def plot_data(data: pd.DataFrame, ax: Axes):
     """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
     if data.shape[1] == 1:
         if data['x'].dtype.kind == 'O':
@@ -499,7 +496,8 @@ def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: A
     color_dict = {"Categorical": default_palette[0], "Continuous": default_palette[1]}
     assert (original.columns == synthetic.columns).all(), "Original and synthetic data must have the same columns."
     columns = original.columns.values.tolist()
-    assert (original.dtypes.values == synthetic.dtypes.values).all(), "Original and synthetic data must have the same data types."
+    error_msg = "Original and synthetic data must have the same data types."
+    assert (original.dtypes.values == synthetic.dtypes.values).all(), error_msg
     dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
     distances = [ks_2samp(original[col], synthetic[col])[0] for col in original.columns]
     plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
@@ -520,7 +518,7 @@ def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
 default_metrics = {"avg_distance": mean_ks_distance}
 
 
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, metrics: dict = None,
+def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, metrics: dict,
                         show_anova: bool = False, show_cat_rsquared: bool = False):
     """
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
@@ -551,4 +549,3 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, m
         if show_cat_rsquared:
             testing = UtilityTesting(synthesizer, data, data, synthesized)
             testing.show_categorical_rsquared()
-
