@@ -12,9 +12,13 @@ from scipy.stats import bernoulli
 from scipy.stats import ks_2samp
 from scipy.stats import powerlaw
 
-from . import Evaluation
-from ..common.values import CategoricalValue, ContinuousValue
 from ..highdim import HighDimSynthesizer
+from numpy.random import exponential, normal
+from typing import Tuple
+
+from numpy.random import binomial
+from random import choice, shuffle, gauss
+from ..testing import UtilityTesting
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -26,10 +30,22 @@ def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int):
+    """
+    Draw `size` samples from a joint distribution where the marginal distribution of x
+    is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
+    is N(slope*x + intercept, y_std**2).
+     """
+    x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
+    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
+    df = pd.DataFrame({'x': x, 'y': y})
+    return df
+
+
 def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
     """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
-    x = np.random.random_sample(size=size) < probability
-    return pd.DataFrame({'x': x})
+    df = pd.DataFrame({'x': bernoulli.rvs(probability, size=size).astype(str)})
+    return df
 
 
 def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
@@ -48,10 +64,10 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int, cor: float = 0.) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
-    cov = [[x_std, 0], [0, y_std]]
+    cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
     x, y = np.random.multivariate_normal(mean, cov, size).T
     df = pd.DataFrame({'x': x, 'y': y})
     return df
@@ -115,11 +131,11 @@ def create_power_law_distribution(shape: float, scale: float, size: int):
 
 def create_bernoulli_distribution(ratio: float, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) bernoulli distribution with probability of 1-s equal to `ratio`"""
-    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size)})
+    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size).astype(str)})
     return df
 
 
-def create_conditional_distibution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
+def create_conditional_distribution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) distribution where y has values N_i(mean_i, std_i) and x=i where
      i=0..len(norm_params), norm_param is a sequence of (mean_i, std_i)"""
     df = pd.DataFrame()
@@ -131,7 +147,7 @@ def create_conditional_distibution(*norm_params: Tuple[float, float], size: int)
     return df
 
 
-def create_unifom_categorical(n_classes: int, size: int) -> pd.DataFrame:
+def create_uniform_categorical(n_classes: int, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) unif{0, n_classes-1} distribution"""
     df = pd.DataFrame({'x': range(n_classes)})
     df = df.sample(size, replace=True)
@@ -144,6 +160,140 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     df = pd.DataFrame({'x': sample})
     df = df.sample(size, replace=True)
     return df
+
+
+def create_mixed_continuous_categorical(n_classes: int, prior_mean: float = 0, prior_sd: float = 5,
+                                        sd: float = 1, size: int = 10000):
+    """"""
+    means = prior_mean + prior_sd*np.random.randn(n_classes)
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    discrete = np.random.choice(list(range(n_classes)), size=size)
+    zs = np.random.randn(size)
+    sample_means = means[discrete]
+    values = categories[discrete]
+    continuous = sample_means + sd*zs
+    return pd.DataFrame({"x": values, "y": continuous})
+
+
+def create_correlated_categorical(n_classes: int, size: int, sd: float = 1.):
+    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    independent = np.random.choice(list(range(n_classes)), size=size)
+    gumbels = -np.log(-np.log(np.random.uniform(size=n_classes*size))).reshape(size, n_classes)
+    dependent = (logits[independent] + gumbels).argmax(1)
+    independent_values = categories[independent]
+    dependent_values = categories[dependent]
+    return pd.DataFrame({"x": independent_values, "y": dependent_values}).astype(str)
+
+
+def create_multidimensional_gaussian(dimensions: int, size: int, prefix: str = "x") -> pd.DataFrame:
+    """Draw `size` samples from a `dimensions`-dimensional standard gaussian. """
+    z = np.random.randn(size, dimensions)
+    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
+    df = pd.DataFrame(z, columns=columns)
+    return df
+
+
+def create_multidimensional_categorical(dimensions: int, n_classes: int, size: int, prefix: str = "x") -> pd.DataFrame:
+    """Draw `size` samples of `dimensions` uniform, independent categorical random variables. """
+    z = np.random.choice(list(map(str, range(n_classes))), dimensions * size).reshape(size, dimensions)
+    columns = [f"{prefix}_{i}" for i in range(dimensions)]
+    df = pd.DataFrame(z, columns=columns)
+    return df
+
+
+def create_multidimensional_correlated_categorical(n_classes: int, dimensions: int, sd: float = 1, size: int = 10000):
+    logits = sd*np.random.randn(dimensions*n_classes*n_classes).reshape(dimensions, n_classes, n_classes)
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    independent = np.random.choice(list(range(n_classes)), size=size)
+    independent_values = categories[independent]
+    gumbels = -np.log(-np.log(np.random.uniform(size=dimensions*size*n_classes))).reshape(dimensions,  size, n_classes)
+    val_list, val_dict = [independent], {"x_0": independent_values}
+    col_ids = list(range(dimensions))
+    for j in range(1, dimensions):
+        parent_idx = choice(col_ids[:j])
+        parent_vals = val_list[parent_idx]
+        local_logits, local_gumbels = logits[j], gumbels[j]
+        dependent = (local_logits[parent_vals] + local_gumbels).argmax(-1)
+        val_list.append(dependent)
+        dependent_values = categories[dependent]
+        val_dict[f"x_{j}"] = dependent_values
+    return pd.DataFrame(val_dict).astype(str)
+
+
+def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, n_classes: int, size: int) \
+        -> pd.DataFrame:
+    """Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and
+       `categorical_dim` uniform, independent categorical random variables. """
+    continuous = create_multidimensional_gaussian(dimensions=continuous_dim, size=size, prefix="x")
+    categorical = create_multidimensional_categorical(dimensions=categorical_dim, n_classes=n_classes,
+                                                      size=size, prefix="y")
+    return pd.concat([continuous, categorical], axis=1)
+
+
+def sample_cat_to_cat(parent_values: np.array, sd: float, size: int, n_classes: int):
+    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
+    gumbels = -np.log(-np.log(np.random.uniform(size=size*n_classes))).reshape(size, n_classes)
+    return (logits[parent_values] + gumbels).argmax(-1)
+
+
+def sample_cat_to_cont(parent_values: np.array, size: int, n_classes: int, sd: float, prior_sd: float):
+    means = prior_sd*np.random.randn(n_classes)
+    sample_means = means[parent_values]
+    zs = np.random.randn(size)
+    return sample_means + sd*zs
+
+
+def sample_cont_to_cont(parent_values: np.array, size: int, prior_sd: float, noise_sd: float):
+    weight = gauss(mu=0, sigma=prior_sd)
+    bias = gauss(mu=0, sigma=prior_sd)
+    noise = np.random.randn(size)
+    return weight*parent_values + bias + noise_sd*noise
+
+
+def sample_cont_to_cat(parent_values: np.array, size: int, prior_sd: float, n_classes: int):
+    weights, biases = prior_sd*np.random.randn(1, n_classes), prior_sd*np.random.randn(1, n_classes)
+    class_weights = biases + np.multiply(np.expand_dims(parent_values, -1), weights)
+    gumbels = -np.log(-np.log(np.random.uniform(size=size*n_classes))).reshape(size, n_classes)
+    return (class_weights + gumbels).argmax(-1)
+
+
+def create_multidimensional_correlated_mixed(continuous_dim: int, categorical_dim: int, n_classes: int,
+                                             prior_sd: float, categorical_sd: float, cont_sd: float,
+                                             size: int = 10000):
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    kinds = continuous_dim*["continuous"] + (categorical_dim-1)*["categorical"]
+    shuffle(kinds)
+    kinds.insert(0, "categorical")
+    independent = np.random.choice(list(range(n_classes)), size=size)
+    independent_values = categories[independent]
+    val_list, val_dict = [independent], {"x_0": independent_values}
+    col_ids = list(range(continuous_dim + categorical_dim))
+    for j in range(1, continuous_dim + categorical_dim):
+        kind = kinds[j]
+        parent_idx = choice(col_ids[:j])
+        parent_kind = kinds[parent_idx]
+        parent_vals = val_list[parent_idx]
+        if parent_kind == "categorical":
+            if kind == "categorical":
+                value = sample_cat_to_cat(parent_values=parent_vals, size=size, n_classes=n_classes,
+                                          sd=categorical_sd)
+            else:
+                value = sample_cat_to_cont(parent_values=parent_vals, size=size,  n_classes=n_classes,
+                                           prior_sd=prior_sd, sd=cont_sd)
+        else:
+            if kind == "categorical":
+                value = sample_cont_to_cat(parent_values=parent_vals, size=size, n_classes=n_classes,
+                                           prior_sd=prior_sd)
+            else:
+                value = sample_cont_to_cont(parent_values=parent_vals, size=size, prior_sd=prior_sd,
+                                            noise_sd=cont_sd)
+        val_list.append(value)
+        if kind == "categorical":
+            val_dict[f"x_{j}"] = categories[value]
+        else:
+            val_dict[f"x_{j}"] = value
+    return pd.DataFrame(val_dict)
 
 
 def create_time_series_data(func, length):
@@ -270,41 +420,79 @@ def rolling_mse_asof(data, synthesized, sd, time_unit=None):
     return mse, mse_eff
 
 
-def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> None:
-    if len(value_types) == 1:
-        if value_types['x'] is CategoricalValue:
-            return sns.distplot(data, ax=ax, kde=False)
+def plot_data(data, ax=None):
+    if data.shape[1] == 1:
+        if data['x'].dtype.kind == 'O':
+            return sns.countplot(data["x"], ax=ax)
+        else:
+            return sns.distplot(data["x"], ax=ax)
+    elif data.shape[1] == 2:
+        if data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'f':
+            sns.violinplot(x="x", y="y", data=data, ax=ax)
+        elif data['x'].dtype.kind == 'f' and data['y'].dtype.kind == 'f':
+            return ax.hist2d(data['x'], data['y'], bins=100)
+        elif data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'O':
+            crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r/r.sum(), axis=1)
+            sns.heatmap(crosstab, vmin=0.0, vmax=1.0, ax=ax)
         else:
             return sns.distplot(data, ax=ax)
-    elif len(value_types) == 2:
-        assert value_types['y'] is ContinuousValue
-        if value_types['x'] is CategoricalValue:
-            sns.violinplot(x="x", y="y", data=data, ax=ax)
-        else:
-            # sns.jointplot(x="x", y="y", data=data, kind="kde", ax=ax)
-            ax.hist2d(data['x'], data['y'], bins=100)
     else:
-        assert False
+        return sns.distplot(data, ax=ax)
 
 
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int = None) -> None:
-    if num_iterations is None:
-        num_iterations = evaluation.config['num_iterations']
+def plot_multidimensional(original, synthetic, ax=None):
+    dtype_dict = {"O": "Categorical", "i": "Categorical", "f": "Continuous"}
+    default_palette = sns.color_palette()
+    color_dict = {"Categorical": default_palette[0], "Continuous": default_palette[1]}
+    assert (original.columns == synthetic.columns).all(), "Original and synthetic data must have the same columns."
+    columns = original.columns.values.tolist()
+    assert (original.dtypes.values == synthetic.dtypes.values).all(), "Original and synthetic data must have the same data types."
+    dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
+    distances = [ks_2samp(original[col], synthetic[col])[0] for col in original.columns]
+    plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
+    plot.set_xticklabels(plot.get_xticklabels(), rotation=30)
+    plot.set_title("KS distance by column")
+    return plot
+
+
+def max_correlation_distance(orig, synth):
+    return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
+
+
+def mean_ks_distance(orig, synth):
+    distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
+    return np.mean(distances)
+
+
+default_metrics = {"avg_distance": mean_ks_distance}
+
+
+def synthesize_and_plot(data, name, evaluation, metrics=None,
+                        show_anova=False, show_cat_rsquared=False):
     start = time.time()
     with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
-        # print('value types:')
-        # for value in synthesizer.values:
-        #     print(value.name, value)
-        value_types = {value.name: type(value) for value in synthesizer.values}
-        synthesizer.learn(df_train=data, num_iterations=num_iterations)
-        print()
+        synthesizer.learn(df_train=data, num_iterations=evaluation.config['num_iterations'])
+        synthesized = synthesizer.synthesize(num_rows=len(data))
         print('took', time.time() - start, 's')
-        synthesized = synthesizer.synthesize(n=len(data))
-        distances = [ks_2samp(data[col], synthesized[col])[0] for col in data.columns]
-        avg_distance = np.mean(distances)
-        evaluation[name + '_avg_distance'] = avg_distance
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
-        ax1.set_title('original')
-        ax2.set_title('synthesized')
-        _plot_data(data, ax=ax1, value_types=value_types)
-        _plot_data(synthesized, ax=ax2, value_types=value_types)
+        print("Metrics:")
+        for key, metric in metrics.items():
+            value = metric(orig=data, synth=synthesized)
+            evaluation[key] = value
+            print(f"{key}: {value}")
+
+        if data.shape[1] <= 3:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
+            ax1.set_title('orig')
+            ax2.set_title('synth')
+            plot_data(data, ax=ax1)
+            plot_data(synthesized, ax=ax2)
+        else:
+            fig, ax = plt.subplots(figsize=(15, 5))
+            plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
+        if show_anova:
+            testing = UtilityTesting(synthesizer, data, data, synthesized)
+            testing.show_anova()
+        if show_cat_rsquared:
+            testing = UtilityTesting(synthesizer, data, data, synthesized)
+            testing.show_categorical_rsquared()
+
