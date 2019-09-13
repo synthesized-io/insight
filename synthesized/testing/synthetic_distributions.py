@@ -19,6 +19,8 @@ from typing import Tuple
 from numpy.random import binomial
 from random import choice, shuffle, gauss
 from ..testing import UtilityTesting
+from ..testing.evaluation import Evaluation
+from matplotlib.axes import Axes
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -30,7 +32,7 @@ def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int):
+def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int) -> pd.DataFrame:
     """
     Draw `size` samples from a joint distribution where the marginal distribution of x
     is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
@@ -124,7 +126,7 @@ def create_gauss_line(
     return df
 
 
-def create_power_law_distribution(shape: float, scale: float, size: int):
+def create_power_law_distribution(shape: float, scale: float, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) power-low distribution with pdf `shape * x**(shape-1)`"""
     return pd.DataFrame({'x': scale * powerlaw.rvs(shape, size=size)})
 
@@ -163,8 +165,16 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
 
 
 def create_mixed_continuous_categorical(n_classes: int, prior_mean: float = 0, prior_sd: float = 5,
-                                        sd: float = 1, size: int = 10000):
-    """"""
+                                        sd: float = 1, size: int = 10000) -> pd.DataFrame:
+    """
+    Create a dataset with one column drawn from a uniform categorical distribution over
+    `n_classes` and one column drawn from a normal distribution whose parameters depend on
+    the value of the categorical column.
+
+    For each of the `n_classes` possible values of the categorical column, a mean is sampled from
+    `N(prior_mean, prior_sd)`. The values of the continuous column are sampled from `N(mean[c], sd)`
+    where `mean[c]` is the mean for the value of the categorical column.
+    """
     means = prior_mean + prior_sd*np.random.randn(n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     discrete = np.random.choice(list(range(n_classes)), size=size)
@@ -175,7 +185,15 @@ def create_mixed_continuous_categorical(n_classes: int, prior_mean: float = 0, p
     return pd.DataFrame({"x": values, "y": continuous})
 
 
-def create_correlated_categorical(n_classes: int, size: int, sd: float = 1.):
+def create_correlated_categorical(n_classes: int, size: int, sd: float = 1.) -> pd.DataFrame:
+    """
+    Create a dataset with a pair of dependent categorical columns each taking one of `n_classes`
+    possible values.
+
+    The first column is uniform distributed and values of the second are drawn conditional on the first.
+    To specify the conditional distributions, for each of the `n_classes` possible values of the first column,
+    a vector of logits is drawn from `N(0, sd*I_{n_classes, n_classes})`.
+    """
     logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     independent = np.random.choice(list(range(n_classes)), size=size)
@@ -203,6 +221,15 @@ def create_multidimensional_categorical(dimensions: int, n_classes: int, size: i
 
 
 def create_multidimensional_correlated_categorical(n_classes: int, dimensions: int, sd: float = 1, size: int = 10000):
+    """
+    Create a dataset with `dimensions` dependent categorical columns each taking one of `n_classes`
+    possible values.
+
+    The first column is uniform distributed. The other columns are drawn sequentially by choosing one of
+    the previous columns uniformly at random and sampling the current column's  value dependent on it.
+    To specify the conditional distributions, for each of the `n_classes` possible values of the conditioning
+     column, a vector of logits is drawn from `N(0, sd*I_{n_classes, n_classes})`.
+    """
     logits = sd*np.random.randn(dimensions*n_classes*n_classes).reshape(dimensions, n_classes, n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     independent = np.random.choice(list(range(n_classes)), size=size)
@@ -223,8 +250,10 @@ def create_multidimensional_correlated_categorical(n_classes: int, dimensions: i
 
 def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, n_classes: int, size: int) \
         -> pd.DataFrame:
-    """Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and
-       `categorical_dim` uniform, independent categorical random variables. """
+    """
+    Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and `categorical_dim` uniform,
+    independent categorical random variables. The categorical column takes one of `n_classes` possible values.
+    """
     continuous = create_multidimensional_gaussian(dimensions=continuous_dim, size=size, prefix="x")
     categorical = create_multidimensional_categorical(dimensions=categorical_dim, n_classes=n_classes,
                                                       size=size, prefix="y")
@@ -261,6 +290,25 @@ def sample_cont_to_cat(parent_values: np.array, size: int, prior_sd: float, n_cl
 def create_multidimensional_correlated_mixed(continuous_dim: int, categorical_dim: int, n_classes: int,
                                              prior_sd: float, categorical_sd: float, cont_sd: float,
                                              size: int = 10000):
+    """
+    Create a dataset with `continuous_dim` continuous and `categorical_dim` categorical columns
+    all of which are dependent. All of the categorical columns take one of `n_classes` possible
+    values.
+
+    The first column is always categorical and drawn from a uniform distribution over `n_classes`
+    possible values. The other columns are drawn sequentially by choosing one of
+    the previous columns uniformly at random and sampling the current column's  value dependent on it.
+
+    If the current column is categorical and the conditioning column is categorical, it is drawn as in
+    `create_correlated_categoricals`. If the conditioning column is continuous, the current column is
+    sampled from a logistic regression model whose weights are biases are drawn from
+    `N(0, prior_sd*I_{n_classes, n_classes})`.
+
+    If the current column if continuous and the conditioning column is categorical, it is
+    drawn as in `create_mixed_continuous_categorical`. If the conditioning column is continuous,
+    it is drawn from a regression model with weights and biases drawn from `N(0, prior_sd*I_{n_classes, n_classes})`
+    and noise drawn from `N(0, cont_sd*I_{n_classes, n_classes})`
+    """
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     kinds = continuous_dim*["continuous"] + (categorical_dim-1)*["categorical"]
     shuffle(kinds)
@@ -420,7 +468,8 @@ def rolling_mse_asof(data, synthesized, sd, time_unit=None):
     return mse, mse_eff
 
 
-def plot_data(data, ax=None):
+def plot_data(data: pd.DataFrame, ax: Axes = None):
+    """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
     if data.shape[1] == 1:
         if data['x'].dtype.kind == 'O':
             return sns.countplot(data["x"], ax=ax)
@@ -440,7 +489,11 @@ def plot_data(data, ax=None):
         return sns.distplot(data, ax=ax)
 
 
-def plot_multidimensional(original, synthetic, ax=None):
+def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: Axes = None):
+    """
+    Plot Kolmogorov-Smirnov distance between the columns in the dataframes
+    `original` and `synthetic` on `matplotlib` axis `ax`.
+    """
     dtype_dict = {"O": "Categorical", "i": "Categorical", "f": "Continuous"}
     default_palette = sns.color_palette()
     color_dict = {"Categorical": default_palette[0], "Continuous": default_palette[1]}
@@ -455,11 +508,11 @@ def plot_multidimensional(original, synthetic, ax=None):
     return plot
 
 
-def max_correlation_distance(orig, synth):
+def max_correlation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
     return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
 
 
-def mean_ks_distance(orig, synth):
+def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
     distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
     return np.mean(distances)
 
@@ -467,8 +520,11 @@ def mean_ks_distance(orig, synth):
 default_metrics = {"avg_distance": mean_ks_distance}
 
 
-def synthesize_and_plot(data, name, evaluation, metrics=None,
-                        show_anova=False, show_cat_rsquared=False):
+def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, metrics: dict = None,
+                        show_anova: bool = False, show_cat_rsquared: bool = False):
+    """
+    Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
+    """
     start = time.time()
     with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=evaluation.config['num_iterations'])
