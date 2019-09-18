@@ -26,10 +26,22 @@ def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, size: int):
+    """
+    Draw `size` samples from a joint distribution where the marginal distribution of x
+    is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
+    is N(slope*x + intercept, y_std**2).
+     """
+    x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
+    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
+    df = pd.DataFrame({'x': x, 'y': y})
+    return df
+
+
 def create_bernoulli(probability: float, size: int) -> pd.DataFrame:
     """Draws `size` samples from a Bernoulli distribution with probability of 1 0 <= `probability` <= 1."""
-    x = np.random.random_sample(size=size) < probability
-    return pd.DataFrame({'x': x})
+    df = pd.DataFrame({'x': bernoulli.rvs(probability, size=size).astype(str)})
+    return df
 
 
 def create_categorical(probabilities: list, size: int) -> pd.DataFrame:
@@ -48,10 +60,15 @@ def create_1d_gaussian(mean: float, std: float, size: int) -> pd.DataFrame:
     return pd.DataFrame({'x': x})
 
 
-def create_gauss_ball(x_mean: float, x_std: float, y_mean: float, y_std: float, size: int) -> pd.DataFrame:
+def create_gauss_ball(x_mean: float,
+                      x_std: float,
+                      y_mean: float,
+                      y_std: float,
+                      size: int,
+                      cor: float = 0.) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) gauss distribution with params N([x_mean, y_mean], [x_std, y_std])"""
     mean = [x_mean, y_mean]
-    cov = [[x_std, 0], [0, y_std]]
+    cov = [[x_std ** 2, x_std * y_std * cor], [x_std * y_std * cor, y_std ** 2]]
     x, y = np.random.multivariate_normal(mean, cov, size).T
     df = pd.DataFrame({'x': x, 'y': y})
     return df
@@ -115,23 +132,23 @@ def create_power_law_distribution(shape: float, scale: float, size: int):
 
 def create_bernoulli_distribution(ratio: float, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) bernoulli distribution with probability of 1-s equal to `ratio`"""
-    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size)})
+    df = pd.DataFrame({'x': bernoulli.rvs(ratio, size=size).astype(str)})
     return df
 
 
-def create_conditional_distibution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
+def create_conditional_distribution(*norm_params: Tuple[float, float], size: int) -> pd.DataFrame:
     """Creates a two-dimensional (axes: x,y) distribution where y has values N_i(mean_i, std_i) and x=i where
      i=0..len(norm_params), norm_param is a sequence of (mean_i, std_i)"""
     df = pd.DataFrame()
     for i, (mean, std) in enumerate(norm_params):
-        x = [i] * size
+        x = [str(i)] * size
         y = np.random.normal(mean, std, size)
         df = df.append(pd.DataFrame({'x': x, 'y': y}), ignore_index=True)
     df = df.sample(frac=1).reset_index(drop=True)
     return df
 
 
-def create_unifom_categorical(n_classes: int, size: int) -> pd.DataFrame:
+def create_uniform_categorical(n_classes: int, size: int) -> pd.DataFrame:
     """Creates a one-dimensional (axis: x) unif{0, n_classes-1} distribution"""
     df = pd.DataFrame({'x': range(n_classes)})
     df = df.sample(size, replace=True)
@@ -143,6 +160,37 @@ def create_power_law_categorical(n_classes: int, size: int) -> pd.DataFrame:
     sample = [j for i in range(n_classes) for j in [i] * 2 ** (n_classes - i - 1)]
     df = pd.DataFrame({'x': sample})
     df = df.sample(size, replace=True)
+    return df
+
+
+def create_mixed_continuous_categorical(n_classes, prior_mean=0, prior_sd=5, sd=1, size=10000):
+    """
+    Draw `size` samples from a joint distribution with one categorical and one continuous random variable.
+
+    The categorical variable is drawn from a uniform distribution and each of whose `n_classes` values is
+    associated with a mean drawn from a N(prior_mean, prior_sd) distribution. The continuous variable
+    is drawn from a N(mean[cat], sd) distribution where `mean[cat]` is the mean for the value of the
+    categorical variable.
+    """
+    means = prior_mean + prior_sd*np.random.randn(n_classes)
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    discrete = np.random.choice(list(range(n_classes)), size=size)
+    zs = np.random.randn(size)
+    sample_means = means[discrete]
+    values = categories[discrete]
+    continuous = sample_means + sd*zs
+    return pd.DataFrame({"x": values, "y": continuous})
+
+
+def create_multidimensional_categorical(dimensions: int, n_classes: int, size: int, prefix: str = "x") -> pd.DataFrame:
+    """
+    Draw `size` samples of `dimensions` uniform, independent categorical random variables taking one of
+    `n_classes` values.
+    """
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    z = np.random.choice(categories, dimensions*size).reshape(size, dimensions)
+    columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
+    df = pd.DataFrame(z, columns=columns)
     return df
 
 
@@ -165,9 +213,9 @@ def _plot_data(data: pd.DataFrame, ax: Axes, value_types: Dict[str, Type]) -> No
 
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, num_iterations: int = None) -> None:
     if num_iterations is None:
-        num_iterations = evaluation.config['num_iterations']
+        num_iterations = evaluation.configs['num_iterations']
     start = time.time()
-    with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
+    with HighDimSynthesizer(df=data, **evaluation.configs['params']) as synthesizer:
         # print('value types:')
         # for value in synthesizer.values:
         #     print(value.name, value)
@@ -178,7 +226,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, n
         synthesized = synthesizer.synthesize(n=len(data))
         distances = [ks_2samp(data[col], synthesized[col])[0] for col in data.columns]
         avg_distance = np.mean(distances)
-        evaluation[name + '_avg_distance'] = avg_distance
+        evaluation.record_metric(evaluation=name, key='avg_distance', value=avg_distance)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
         ax1.set_title('original')
         ax2.set_title('synthesized')
