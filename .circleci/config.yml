@@ -29,7 +29,7 @@ jobs:
 
       - run:
           name: Install virtualenv
-          command: python3 -m pip install virtualenv --user
+          command: sudo python3 -m pip install virtualenv
 
       - run:
           name: Install dependencies
