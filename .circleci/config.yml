@@ -28,6 +28,10 @@ jobs:
           - v1-dependencies-
 
       - run:
+          name: Install virtualenv
+          command: python3 -m pip install virtualenv
+
+      - run:
           name: Install dependencies
           command: make venv
 
