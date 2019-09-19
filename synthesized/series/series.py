@@ -159,7 +159,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
             self.optimized = self.global_step.assign_add(delta=1)
 
         # synthesize
-        self.num_synthesize = tf.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
+        self.num_synthesize = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num-synthesize')
         self.synthesized = self.vae.synthesize(n=self.num_synthesize)
 
     def learn(

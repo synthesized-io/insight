@@ -161,7 +161,7 @@ class VAE(Generative):
             )
 
         # Regularization loss
-        reg_losses = tf.losses.get_regularization_losses()
+        reg_losses = tf.compat.v1.losses.get_regularization_losses()
         if len(reg_losses) > 0:
             losses['regularization-loss'] = tf.add_n(inputs=reg_losses)
 

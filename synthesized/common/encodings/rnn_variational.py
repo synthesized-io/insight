@@ -58,7 +58,7 @@ class RnnVariationalEncoding(Encoding):
 
         mean = self.mean.transform(x=final_state)
         stddev = self.stddev.transform(x=final_state)
-        encoding = tf.random_normal(
+        encoding = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32
         )
         encoding = mean + stddev * encoding
@@ -91,7 +91,7 @@ class RnnVariationalEncoding(Encoding):
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
-        encoding = tf.random_normal(
+        encoding = tf.random.normal(
             shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32
         )
 
