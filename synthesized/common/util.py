@@ -46,11 +46,10 @@ def get_initializer(initializer):
     elif initializer == 'orthogonal':
         return tf.orthogonal_initializer(gain=1.0)
     elif initializer == 'ones':
-        return tf.ones_initializer(dtype=tf.float32)
+        return tf.ones_initializer()
     elif initializer == 'zeros':
-        return tf.zeros_initializer(dtype=tf.float32)
-    elif initializer == 'zeros-int':
-        return tf.zeros_initializer(dtype=tf.int64)
+        return tf.zeros_initializer()
+
     else:
         raise NotImplementedError
 
@@ -58,7 +57,7 @@ def get_initializer(initializer):
 def get_regularizer(regularizer, weight):
     assert weight >= 0.0
     if regularizer == 'none' or weight == 0.0:
-        return tf.no_regularizer
+        return tf.compat.v1.no_regularizer
     elif regularizer == 'l2':
         return tf.contrib.layers.l2_regularizer(scale=weight, scope=None)
     else:

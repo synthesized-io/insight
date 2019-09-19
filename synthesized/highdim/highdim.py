@@ -261,7 +261,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # API function synthesize
 
         # Input argument placeholder for num_rows
-        self.num_rows = tf.placeholder(dtype=tf.int64, shape=(), name='num_rows')
+        self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
         # Input condition values
         cs = OrderedDict()
