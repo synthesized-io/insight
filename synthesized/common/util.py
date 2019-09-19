@@ -46,11 +46,10 @@ def get_initializer(initializer):
     elif initializer == 'orthogonal':
         return tf.orthogonal_initializer(gain=1.0)
     elif initializer == 'ones':
-        return tf.initializers.ones(dtype=tf.float32)
+        return tf.initializers.ones()
     elif initializer == 'zeros':
-        return tf.initializers.zeros(dtype=tf.float32)
-    elif initializer == 'zeros-int':
-        return tf.initializers.zeros(dtype=tf.int64)
+        return tf.initializers.zeros()
+
     else:
         raise NotImplementedError
 
