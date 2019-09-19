@@ -1,7 +1,7 @@
 # Contributing
 
 
-This document explains how we make a change to the code base.
+This document explains how we make changes to the code base.
 
 ## General information
 
