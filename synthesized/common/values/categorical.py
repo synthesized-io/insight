@@ -137,7 +137,7 @@ class CategoricalValue(Value):
         shape = (self.num_categories, self.embedding_size)
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.embeddings = tf.get_variable(
+        self.embeddings = tf.compat.v1.get_variable(
             name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True
         )
@@ -214,7 +214,7 @@ class CategoricalValue(Value):
             loss = loss + similarity_loss
         if self.entropy_regularization > 0.0:
             probs = tf.nn.softmax(logits=y, axis=-1)
-            logprobs = tf.log(x=tf.maximum(x=probs, y=1e-6))
+            logprobs = tf.math.log(x=tf.maximum(x=probs, y=1e-6))
             entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
             entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
             entropy_loss *= -self.entropy_regularization

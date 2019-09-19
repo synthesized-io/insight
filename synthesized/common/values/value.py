@@ -14,7 +14,7 @@ class Value(Module):
 
     def placeholder_initialize(self, dtype: tf.DType, shape: Tuple):
         assert self.placeholder is None
-        self.placeholder = tf.placeholder(
+        self.placeholder = tf.compat.v1.placeholder(
             dtype=dtype, shape=shape, name=self.make_tf_compatible(string=self.name)
         )
 

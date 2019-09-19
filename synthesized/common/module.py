@@ -45,7 +45,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.variable_scope(name_or_scope=self.make_tf_compatible(string=self.name)):
+        with tf.compat.v1.variable_scope(name_or_scope=self.make_tf_compatible(string=self.name)):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()
@@ -71,7 +71,7 @@ class Module(object):
 
     def __enter__(self):
         self.graph = tf.Graph()
-        self.global_step = tf.train.get_or_create_global_step(graph=self.graph)
+        self.global_step = tf.compat.v1.train.get_or_create_global_step(graph=self.graph)
 
         with self.graph.as_default():
             if self.profiler_args is not None:
@@ -100,7 +100,7 @@ class Module(object):
                     with tf.name_scope(name='initialization', default_name=None, values=None):
                         summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
                         assert len(summarizer_init) == 1
-                        initialization = (tf.global_variables_initializer(), summarizer_init[0])
+                        initialization = (tf.compat.v1.global_variables_initializer(), summarizer_init[0])
                         self.summarizer_close = self.summarizer.close()
                         graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
                         graph_str = tf.constant(
@@ -113,10 +113,10 @@ class Module(object):
 
             else:
                 self.initialize()
-                initialization = tf.global_variables_initializer()
+                initialization = tf.compat.v1.global_variables_initializer()
 
         self.graph.finalize()
-        self.session = tf.Session(target='', graph=self.graph, config=None)
+        self.session = tf.compat.v1.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
         if self.summarizer is not None:
@@ -143,7 +143,7 @@ class Module(object):
         if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
         self.session.__exit__(type, value, traceback)
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         if self.profiler is not None:
             self.profiler.write_traces()
 

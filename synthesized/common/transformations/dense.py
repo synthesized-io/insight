@@ -34,7 +34,7 @@ class DenseTransformation(Transformation):
         shape = (self.input_size, self.output_size)
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.weight = tf.get_variable(
+        self.weight = tf.compat.v1.get_variable(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True
         )
@@ -42,7 +42,7 @@ class DenseTransformation(Transformation):
         shape = (self.output_size,)
         initializer = util.get_initializer(initializer='zeros')
         if self.bias:
-            self.bias = tf.get_variable(
+            self.bias = tf.compat.v1.get_variable(
                 name='bias', shape=shape, dtype=tf.float32, initializer=initializer,
                 regularizer=regularizer, trainable=True
             )
@@ -50,11 +50,11 @@ class DenseTransformation(Transformation):
             self.bias = None
 
         if self.batchnorm:
-            self.offset = tf.get_variable(
+            self.offset = tf.compat.v1.get_variable(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )
-            self.scale = tf.get_variable(
+            self.scale = tf.compat.v1.get_variable(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )

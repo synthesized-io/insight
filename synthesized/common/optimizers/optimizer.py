@@ -5,7 +5,7 @@ from ..module import Module, tensorflow_name_scoped
 
 # TensorFlow optimizer implementations
 tf_optimizers = dict(
-    adam=tf.train.AdamOptimizer
+    adam=tf.compat.v1.train.AdamOptimizer
 )
 
 
@@ -90,7 +90,7 @@ class Optimizer(Module):
 
         """
         # Trainable variables
-        variables = tf.get_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES)
+        variables = tf.compat.v1.get_collection(key=tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
         # Make sure loss operation is executed (for attached control flow)
         with tf.control_dependencies(control_inputs=(loss,)):
@@ -100,7 +100,7 @@ class Optimizer(Module):
 
             # Check that gradients are not NaN
             assertions = [
-                tf.debugging.assert_equal(
+                tf.compat.v1.debugging.assert_equal(
                     x=tf.reduce_any(input_tensor=tf.math.is_nan(x=grad)), y=False
                 ) for grad in gradients
             ]
