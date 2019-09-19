@@ -295,7 +295,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         num_data = len(df_train)
         data = {
-            placeholder: df_train[name].get_values() for value in (self.values + self.conditions)
+            placeholder: df_train[name].to_numpy() for value in (self.values + self.conditions)
             for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
         fetches = self.optimized
