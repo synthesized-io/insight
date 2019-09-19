@@ -39,28 +39,23 @@ Note: if you cannot install venv without root check that virtualenv executable i
 
         make venv
 
-4. If running on mac OS X, set matplotlib backend:        
-        
-        mkdir -p ~/.matplotlib
-        echo 'backend: TkAgg' > ~/.matplotlib/matplotlibrc
-
-5. Run Linter (flake8 and mypy)
+4. Run Linter (flake8 and mypy)
 
         make lint
 
-6. Run Tests (both unit and integration):
+5. Run Tests (both unit and integration):
 
         make test
         
-7. Run Unit Tests
+6. Run Unit Tests
 
         make unit-test
         
-6. Build a binary wheel package
+7. Build a binary wheel package
 
         make build
 
-7. Run lint, test and build a package
+8. Run lint, test and build a package
 
         make
 Example
