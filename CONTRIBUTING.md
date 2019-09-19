@@ -32,7 +32,7 @@ a pull request, but you should add `[WIP]` (work in progress) to the name of tha
 * Understand the purpose of the change.
 * Check if the code passes tests on the CI.
 * If the branch is an experiment branch then check results of the evaluation
-* If tests fail there is no need for a review - code should be fixed first.
+* If tests fail there is no need for a review - the code should be firstly fixed.
 * Read out the code and leave comments.
 * Approve the PR (there is a button in the GitHub interface)
 
