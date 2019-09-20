@@ -145,7 +145,7 @@ class NanValue(Value):
         assert len(xs) == 1
 
         target = xs[0]
-        target_nan = tf.is_nan(x=target)
+        target_nan = tf.math.is_nan(x=target)
         target_embedding = tf.one_hot(
             indices=tf.cast(x=target_nan, dtype=tf.int64), depth=2, on_value=1.0, off_value=0.0,
             axis=1, dtype=tf.float32
