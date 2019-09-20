@@ -109,7 +109,7 @@ class NanValue(Value):
         assert len(xs) == 1
 
         # NaN embedding
-        nan = tf.is_nan(x=xs[0])
+        nan = tf.math.is_nan(x=xs[0])
         embedding = tf.nn.embedding_lookup(
             params=self.embeddings, ids=tf.cast(x=nan, dtype=tf.int64)
         )
