@@ -29,7 +29,7 @@ class LstmTransformation(Transformation):
         self.lstm.build(input_shape=(None, None, self.input_size))
 
     #     initializer = util.get_initializer(initializer='random')
-    #     self.state = tf.get_variable(
+    #     self.state = tf.compat.v1.get_variable(
     #         name='state', shape=(2 * self.output_size,), dtype=tf.float32, initializer=initializer,
     #         regularizer=None, trainable=False, collections=None, caching_device=None,
     #         partitioner=None, validate_shape=True, use_resource=None, custom_getter=None

@@ -94,7 +94,7 @@ class NanValue(Value):
         shape = (2, self.embedding_size)
         initializer = util.get_initializer(initializer='normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.embeddings = tf.get_variable(
+        self.embeddings = tf.compat.v1.get_variable(
             name='nan-embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True, collections=None, caching_device=None,
             partitioner=None, validate_shape=True, use_resource=None, custom_getter=None

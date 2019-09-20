@@ -134,7 +134,7 @@ class ScenarioSynthesizer(Synthesizer):
         summaries = list()
 
         # Number of rows to synthesize
-        self.num_rows = tf.placeholder(dtype=tf.int64, shape=(), name='num_rows')
+        self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
         # Prior p'(z)
         prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
@@ -180,7 +180,7 @@ class ScenarioSynthesizer(Synthesizer):
             self.losses[functional.name + '-loss'] = functional.loss(*samples_args)
 
         # Regularization loss
-        reg_losses = tf.losses.get_regularization_losses()
+        reg_losses = tf.compat.v1.losses.get_regularization_losses()
         if len(reg_losses) > 0:
             self.losses['regularization-loss'] = tf.add_n(inputs=reg_losses)
 

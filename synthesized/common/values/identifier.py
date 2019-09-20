@@ -70,13 +70,13 @@ class IdentifierValue(Value):
         self.placeholder_initialize(dtype=tf.int64, shape=(None,))
 
         initializer = util.get_initializer(initializer='normal-large')
-        self.embeddings = tf.get_variable(
+        self.embeddings = tf.compat.v1.get_variable(
             name='embeddings', shape=(self.num_identifiers, self.embedding_size), dtype=tf.float32,
             initializer=initializer, regularizer=None, trainable=False, collections=None,
             caching_device=None, partitioner=None, validate_shape=True, use_resource=None,
             custom_getter=None
         )
-        self.current_identifier = tf.get_variable(
+        self.current_identifier = tf.compat.v1.get_variable(
             name='current-identifier', shape=(), dtype=tf.int64, trainable=False
         )
 
