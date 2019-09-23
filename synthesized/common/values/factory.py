@@ -202,7 +202,7 @@ class ValueFactory(Module):
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
                     is_nan = num_nan > 0
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
         # Similarity-based categorical value if not too many distinct values
