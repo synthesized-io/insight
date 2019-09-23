@@ -196,8 +196,11 @@ class ContinuousValue(Value):
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
-        if self.integer and not self.float:
+        if self.integer:
             df.loc[:, self.name] = df[self.name].astype(dtype='int32')
+
+        if self.float:
+            df.loc[:, self.name] = df[self.name].astype(dtype='float32')
 
         return df
 
