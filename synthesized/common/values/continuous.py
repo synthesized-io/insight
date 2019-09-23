@@ -27,7 +27,7 @@ class ContinuousValue(Value):
     def __init__(
         self, name: str, weight: float,
         # Scenario
-        integer: bool = None, positive: bool = None, nonnegative: bool = None,
+        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
         transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
@@ -36,6 +36,7 @@ class ContinuousValue(Value):
         self.weight = weight
 
         self.integer = integer
+        self.float = float
         self.positive = positive
         self.nonnegative = nonnegative
 
@@ -89,6 +90,8 @@ class ContinuousValue(Value):
 
         if column.dtype.kind not in ('f', 'i'):
             column = self.pd_cast(column)
+
+        self.float = (column.dtype.kind == 'f')
 
         if self.integer is None:
             self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
@@ -193,7 +196,7 @@ class ContinuousValue(Value):
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
-        if self.integer:
+        if self.integer and not self.float:
             df.loc[:, self.name] = df[self.name].astype(dtype='int32')
 
         return df
