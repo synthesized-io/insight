@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
+from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
 
@@ -221,7 +222,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         else:
             assert False
         is_nan = df[name].isna().any()
-        if is_nan:
+        if is_nan and isinstance(value, ContinuousValue):
             value = self.create_nan(name, value)
         return value
 
