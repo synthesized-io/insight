@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import tensorflow as tf
@@ -21,7 +21,7 @@ class DateValue(ContinuousValue):
         self.min_date = min_date
 
         self.pd_types = ('M',)
-        self.date_format = None
+        self.date_format: Optional[str] = None
         self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
@@ -130,7 +130,8 @@ class DateValue(ContinuousValue):
         )
         for date_format in formats:
             try:
-                str_to_datetime = lambda in_datetime: datetime.strptime(in_datetime, date_format)
+                def str_to_datetime(in_datetime):
+                    return datetime.strptime(in_datetime, date_format)
                 col = col.apply(str_to_datetime)
                 self.date_format = date_format
                 break
@@ -143,7 +144,8 @@ class DateValue(ContinuousValue):
 
     def from_datetime(self, col: pd.Series) -> pd.Series:
         if self.date_format:
-            datetime_to_str = lambda in_datetime: in_datetime.strftime(self.date_format)
+            def datetime_to_str(in_datetime):
+                return in_datetime.strftime(self.date_format)
             return col.apply(datetime_to_str)
         else:
             return col
