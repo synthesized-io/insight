@@ -15,7 +15,6 @@ from typing import Tuple
 from numpy.random import binomial
 from random import choice, shuffle, gauss
 from ..testing import UtilityTesting
-from ..testing.evaluation import Evaluation
 from matplotlib.axes import Axes
 
 
