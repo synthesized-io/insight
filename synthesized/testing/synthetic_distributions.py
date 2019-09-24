@@ -518,20 +518,21 @@ def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
 default_metrics = {"avg_distance": mean_ks_distance}
 
 
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation: Evaluation, metrics: dict,
+def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
                         show_anova: bool = False, show_cat_rsquared: bool = False):
     """
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
+    evaluation.record_config(evaluation=name, config=config)
     start = time.time()
-    with HighDimSynthesizer(df=data, **evaluation.config['params']) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=evaluation.config['num_iterations'])
+    with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
+        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'])
         synthesized = synthesizer.synthesize(num_rows=len(data))
         print('took', time.time() - start, 's')
         print("Metrics:")
         for key, metric in metrics.items():
             value = metric(orig=data, synth=synthesized)
-            evaluation[key] = value
+            evaluation.record_metric(evaluation=name, key=key, value=value)
             print(f"{key}: {value}")
 
         if data.shape[1] <= 3:
