@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import tensorflow as tf
+from datetime import datetime
 
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
@@ -20,6 +21,7 @@ class DateValue(ContinuousValue):
         self.min_date = min_date
 
         self.pd_types = ('M',)
+        self.date_format: Optional[str] = None
         self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
@@ -71,7 +73,7 @@ class DateValue(ContinuousValue):
 
         self.original_dtype = type(df[self.name].iloc[0])
         if column.dtype.kind != 'M':
-            column = pd.to_datetime(column)
+            column = self.to_datetime(column)
 
         if column.is_monotonic:
             if self.start_date is None:
@@ -94,7 +96,8 @@ class DateValue(ContinuousValue):
 
     def preprocess(self, df):
         if df[self.name].dtype.kind != 'M':
-            df.loc[:, self.name] = pd.to_datetime(df[self.name])
+            df.loc[:, self.name] = self.to_datetime(df[self.name])
+
         df.loc[:, self.name + '-hour'] = df[self.name].dt.hour
         df.loc[:, self.name + '-dow'] = df[self.name].dt.weekday
         df.loc[:, self.name + '-day'] = df[self.name].dt.day - 1
@@ -115,8 +118,36 @@ class DateValue(ContinuousValue):
             df.loc[:, self.name] = self.start_date + df[self.name].cumsum(axis=0)
         else:
             df.loc[:, self.name] += self.min_date
-        df[self.name] = df[self.name].astype(self.original_dtype)
+        df.loc[:, self.name] = self.from_datetime(df[self.name])
         return df
+
+    def to_datetime(self, col: pd.Series) -> pd.Series:
+        formats = (
+            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ',
+            '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
+            '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y'
+        )
+        for date_format in formats:
+            try:
+                def str_to_datetime(in_datetime):
+                    return datetime.strptime(in_datetime, date_format)
+                col = col.apply(str_to_datetime)
+                self.date_format = date_format
+                break
+            except ValueError:
+                pass
+
+        if not self.date_format:
+            return pd.to_datetime(col)
+        return col
+
+    def from_datetime(self, col: pd.Series) -> pd.Series:
+        if self.date_format:
+            def datetime_to_str(in_datetime):
+                return in_datetime.strftime(self.date_format)
+            return col.apply(datetime_to_str)
+        else:
+            return col
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
