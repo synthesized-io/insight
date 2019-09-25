@@ -73,7 +73,7 @@ class DateValue(ContinuousValue):
 
         self.original_dtype = type(df[self.name].iloc[0])
         if column.dtype.kind != 'M':
-            column = self.to_datetime(df[self.name])
+            column = self.to_datetime(column)
 
         if column.is_monotonic:
             if self.start_date is None:
@@ -96,7 +96,6 @@ class DateValue(ContinuousValue):
 
     def preprocess(self, df):
         if df[self.name].dtype.kind != 'M':
-            # df.loc[:, self.name] = pd.to_datetime(df[self.name])
             df.loc[:, self.name] = self.to_datetime(df[self.name])
 
         df.loc[:, self.name + '-hour'] = df[self.name].dt.hour
