@@ -136,6 +136,8 @@ class DateValue(ContinuousValue):
                 break
             except ValueError:
                 pass
+            except TypeError:
+                break
 
         if not self.date_format:
             return pd.to_datetime(col)
