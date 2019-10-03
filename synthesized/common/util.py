@@ -5,6 +5,8 @@ import tensorflow as tf
 from tensorflow.python.client import timeline
 from collections import namedtuple
 
+RE_START = re.compile(r"^[^A-Za-z0-9.]")
+RE_END = re.compile(r"[^A-Za-z0-9_.\-/]")
 
 ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 
@@ -67,6 +69,4 @@ def get_regularizer(regularizer, weight):
 
 
 def make_tf_compatible(string):
-    re_start = re.compile(r"^[^A-Za-z0-9.]")
-    re_end = re.compile(r"[^A-Za-z0-9_.\-/]")
-    return re.sub(re_end, '_', re.sub(re_start, '.', str(string)))
+    return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
