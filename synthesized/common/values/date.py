@@ -123,7 +123,7 @@ class DateValue(ContinuousValue):
 
     def to_datetime(self, col: pd.Series) -> pd.Series:
         formats = (
-            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ',
+            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
             '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
             '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y'
         )
