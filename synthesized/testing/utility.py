@@ -233,27 +233,39 @@ class UtilityTesting:
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
         """
-        concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
+        # concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
+        concatenated = pd.concat([self.df_test.assign(dataset='orig', rate=1 / len(self.df_test)),
+                                  self.df_synth.assign(dataset='synth', rate=1 / len(self.df_synth))])
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
-                ax = sns.countplot(x=col, hue='dataset', data=concatenated,
-                                   palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+                # ax = sns.countplot(x=col, hue='dataset', data=concatenated,
+                #                    palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+                df_summ = concatenated[[col, 'dataset', 'rate']].groupby([col, 'dataset']).sum()
+                df_summ[col] = df_summ.index.get_level_values(0)
+                df_summ['dataset'] = df_summ.index.get_level_values(1)
+
+                sns.barplot(x=col, y='rate', hue='dataset', data=df_summ,
+                            palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
-                start, end = np.percentile(self.df_test[col], percentiles)
+                start_test, end_test = np.percentile(self.df_test[col], percentiles)
+                start_synth, end_synth = np.percentile(self.df_synth[col], percentiles)
+
                 # workaround for kde failing on datasets with only one value
                 if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
                     kde = False
                 else:
                     kde = True
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
-                             hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
+                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde,
+                             kde_kws={'clip': (start_test, end_test)},
+                             hist_kws={'color': COLOR_ORIG, 'range': [start_test, end_test]}, ax=ax)
                 sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde,
-                             kde_kws={'clip': (start, end)},
-                             hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+                             kde_kws={'clip': (start_synth, end_synth)},
+                             hist_kws={'color': COLOR_SYNTH, 'range': [start_synth, end_synth]}, ax=ax)
             plt.legend()
 
     def utility(self,
