@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped, Module
 from ..values import Value
 
 
@@ -27,7 +27,7 @@ class VAEOld(Generative):
         network: str, capacity: int, depth: int, batchnorm: bool, activation: str,
         # Optimizer
         optimizer: str, learning_rate: float, decay_steps: int, decay_rate: float,
-        initial_boost: bool, clip_gradients: float,
+        initial_boost: bool, clip_gradients: float, parent: Module,
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
@@ -39,6 +39,7 @@ class VAEOld(Generative):
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
+        self.parent = parent
 
         # Total input and output size of all values
         input_size = 0
@@ -84,8 +85,9 @@ class VAEOld(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam', parent=self,
-            learning_rate=learning_rate, clip_gradients=1.0
+            module='optimizer', name='optimizer', optimizer='adam', parent=self.parent,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            clip_gradients=1.0,
         )
 
     def specification(self) -> dict:
@@ -163,6 +165,9 @@ class VAEOld(Generative):
         total_loss = tf.add_n(inputs=list(losses.values()))
         losses['total-loss'] = total_loss
 
+        # Reconstruction loss
+        reconstruction_loss = tf.convert_to_tensor(0, dtype=tf.float32)
+
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
@@ -170,6 +175,9 @@ class VAEOld(Generative):
                 summaries.append(tf.contrib.summary.scalar(
                     name=name + '-ratio', tensor=(loss / losses['encoding'])
                 ))
+                reconstruction_loss += loss
+
+        summaries.append(tf.contrib.summary.scalar(name='reconstruction-loss', tensor=reconstruction_loss))
 
         if not self.summarize:
             summaries = list()

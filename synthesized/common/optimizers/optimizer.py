@@ -78,7 +78,7 @@ class Optimizer(Module):
         self.optimizer = tf_optimizers[self.optimizer](learning_rate=learning_rate)
 
     @tensorflow_name_scoped
-    def optimize(self, loss, summarize_gradient_norms=False):
+    def optimize(self, loss, summarize_gradient_norms=False, summarize_lr=True):
         """Optimize the given loss.
 
         Args:
@@ -125,6 +125,11 @@ class Optimizer(Module):
                 summaries.append(
                     tf.contrib.summary.scalar(name='all-gradient-norm', tensor=grad_norm)
                 )
+
+        if summarize_lr:
+            summaries.append(
+                tf.contrib.summary.scalar(name='learning-rate', tensor=self.optimizer._lr)
+            )
 
         # Make sure summary operations are executed
         with tf.control_dependencies(control_inputs=summaries):
