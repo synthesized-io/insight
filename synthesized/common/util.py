@@ -67,6 +67,6 @@ def get_regularizer(regularizer, weight):
 
 
 def make_tf_compatible(string):
-    re_start = '^[^A-Za-z0-9.]'
-    re_end = '[^A-Za-z0-9_.\\-/]'
-    return re.sub(re_end, '', re.sub(re_start, '', str(string)))
+    re_start = re.compile(r"^[^A-Za-z0-9.]")
+    re_end = re.compile(r"[^A-Za-z0-9_.\-/]")
+    return re.sub(re_end, '_', re.sub(re_start, '.', str(string)))
