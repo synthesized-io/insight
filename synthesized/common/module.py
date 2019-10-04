@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops.summary_ops_v2 import SummaryWriter
 
-from .util import Profiler, ProfilerArgs
+from .util import Profiler, ProfilerArgs, make_tf_compatible
 
 
 class Module(object):
@@ -45,7 +45,7 @@ class Module(object):
             raise NotImplementedError
         self.initialized = True
 
-        with tf.compat.v1.variable_scope(name_or_scope=self.make_tf_compatible(string=self.name)):
+        with tf.compat.v1.variable_scope(name_or_scope=make_tf_compatible(string=self.name)):
             for submodule in self.submodules:
                 submodule.initialize()
             self.module_initialize()
@@ -147,10 +147,6 @@ class Module(object):
         if self.profiler is not None:
             self.profiler.write_traces()
 
-    def make_tf_compatible(self, string):
-        # TODO: make it always match [A-Za-z0-9_.\\-/]*
-        return string.replace(' ', '_').replace(':', '').replace('%', '').strip('_')
-
 
 module_registry: Dict[str, Module] = dict()
 
@@ -164,7 +160,7 @@ def tensorflow_name_scoped(tf_function):
     @wraps(tf_function)
     def function(self, *args, **kwargs):
         name = "{}.{}".format(self.name, tf_function.__name__)
-        with tf.name_scope(name=name.replace(' ', '_').replace(':', '').replace('%', '')):
+        with tf.name_scope(name=make_tf_compatible(name)):
             results = tf_function(self, *args, **kwargs)
         return results
 
