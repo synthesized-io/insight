@@ -84,6 +84,7 @@ class Optimizer(Module):
         Args:
             loss: Loss tensor.
             summarize_gradient_norms: Whether to add summaries for gradient norms.
+            summarize_lr: Whether to add summaries for learning rate.
 
         Returns:
             The optimization operation.
