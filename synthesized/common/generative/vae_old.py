@@ -66,6 +66,8 @@ class VAEOld(Generative):
             layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
         )
 
+        # TODO: Is this correct? Shouldn't it be encoding_size=latent_size? But then decoder input size should be also
+        #  changed below
         self.encoding = self.add_module(
             module='variational', name='encoding',
             input_size=self.encoder.size(), encoding_size=capacity, beta=beta
