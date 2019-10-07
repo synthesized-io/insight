@@ -42,7 +42,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         decay_rate: float = 0.9, initial_boost: bool = False, clip_gradients: float = 1.0,
         batch_size: int = 64,
         # Losses
-        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.001,
+        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
         weight_decay: float = 1e-5,
         # Categorical
         temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
