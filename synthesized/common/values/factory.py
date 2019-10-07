@@ -169,14 +169,17 @@ class ValueFactory(Module):
         num_unique = col.nunique()
         is_nan = False
         is_float = False
-        numeric_data = pd.to_numeric(col, errors='coerce')
-        unique_numeric = numeric_data.dropna().unique()
+        numeric_data = None
 
-        float_prec = 100
-        for x in unique_numeric:
-            if (x * float_prec) % float_prec != 0:
-                is_float = True
-                break
+        # Only check if the data is float for small num_unique
+        if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data) or num_unique <= sqrt(num_data):
+            numeric_data = pd.to_numeric(col, errors='coerce')
+            unique_numeric = numeric_data.dropna().unique()
+            float_precision = 100
+            for x in unique_numeric:
+                if (x * float_precision) % float_precision != 0:
+                    is_float = True
+                    break
 
         if not is_float:
             # Categorical value if small number of distinct values
@@ -226,6 +229,10 @@ class ValueFactory(Module):
                 return value
 
         # ========== Numeric value ==========
+
+        # If we haven't calculated numeric_data above
+        if not numeric_data:
+            numeric_data = pd.to_numeric(col, errors='coerce')
 
         # Try parsing if object type
         if col.dtype.kind == 'O':
