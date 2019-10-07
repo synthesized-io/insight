@@ -168,58 +168,67 @@ class ValueFactory(Module):
         num_data = len(col)
         num_unique = col.nunique()
         is_nan = False
+        is_float = False
+        numeric_data = pd.to_numeric(col, errors='coerce')
+        unique_numeric = numeric_data.dropna().unique()
 
-        # Categorical value if small number of distinct values
-        if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
-            # is_nan = df.isna().any()
-            value = self.create_categorical(name)
+        float_prec = 100
+        for x in unique_numeric:
+            if (x * float_prec) % float_prec != 0:
+                is_float = True
+                break
 
-        # Date value
-        elif col.dtype.kind == 'M':  # 'm' timedelta
-            is_nan = col.isna().any()
-            value = self.create_date(name)
+        if not is_float:
+            # Categorical value if small number of distinct values
+            if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
+                # is_nan = df.isna().any()
+                value = self.create_categorical(name)
 
-        # Boolean value
-        elif col.dtype.kind == 'b':
-            # is_nan = df.isna().any()
-            value = self.create_categorical(name, categories=[False, True])
+            # Date value
+            elif col.dtype.kind == 'M':  # 'm' timedelta
+                is_nan = col.isna().any()
+                value = self.create_date(name)
 
-        # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-        elif col.dtype.kind == 'i':
-            value = self.create_continuous(name, integer=True)
+            # Boolean value
+            elif col.dtype.kind == 'b':
+                # is_nan = df.isna().any()
+                value = self.create_categorical(name, categories=[False, True])
 
-        # Categorical value if object type has attribute 'categories'
-        elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
-            # is_nan = df.isna().any()
-            value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
+            # Continuous value if integer (reduced variability makes similarity-categorical more likely)
+            elif col.dtype.kind == 'i':
+                value = self.create_continuous(name, integer=True)
 
-        # Date value if object type can be parsed
-        elif col.dtype.kind == 'O':
-            try:
-                date_data = pd.to_datetime(col)
-                num_nan = date_data.isna().sum()
-                if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
-                    assert date_data.dtype.kind == 'M'
-                    value = self.create_date(name)
-                    is_nan = num_nan > 0
-            except (ValueError, TypeError):
-                pass
+            # Categorical value if object type has attribute 'categories'
+            elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
+                # is_nan = df.isna().any()
+                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
 
-        # Similarity-based categorical value if not too many distinct values
-        elif num_unique <= sqrt(num_data):
-            value = self.create_categorical(name, similarity_based=True)
+            # Date value if object type can be parsed
+            elif col.dtype.kind == 'O':
+                try:
+                    date_data = pd.to_datetime(col)
+                    num_nan = date_data.isna().sum()
+                    if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+                        assert date_data.dtype.kind == 'M'
+                        value = self.create_date(name)
+                        is_nan = num_nan > 0
+                except (ValueError, TypeError):
+                    pass
 
-        # Return non-numeric value and handle NaNs if necessary
-        if value is not None:
-            if is_nan:
-                value = self.create_nan(name, value)
-            return value
+            # Similarity-based categorical value if not too many distinct values
+            elif num_unique <= sqrt(num_data):
+                value = self.create_categorical(name, similarity_based=True)
+
+            # Return non-numeric value and handle NaNs if necessary
+            if value is not None:
+                if is_nan:
+                    value = self.create_nan(name, value)
+                return value
 
         # ========== Numeric value ==========
 
         # Try parsing if object type
         if col.dtype.kind == 'O':
-            numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
             if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                 assert numeric_data.dtype.kind in ('f', 'i')
