@@ -12,9 +12,12 @@ from .util import Profiler, ProfilerArgs
 
 
 class Module(object):
-    def __init__(self, name: str, summarizer_dir: str = None, profiler_args: ProfilerArgs = None):
+    def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None,
+                 profiler_args: ProfilerArgs = None):
         self.name = name
         self.summarizer_dir = summarizer_dir
+        self.summarizer_name = '{}_{}'.format(summarizer_name, time.strftime("%Y%m%d-%H%M%S")) if summarizer_name \
+            else time.strftime("%Y%m%d-%H%M%S")
         self.summarizer: Optional[SummaryWriter] = None
         self.profiler_args = profiler_args
         self.profiler: Optional[Profiler] = None
@@ -89,7 +92,7 @@ class Module(object):
                             os.remove(subdir)
                 with tf.name_scope(name='summarizer'):
                     self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=os.path.join(self.summarizer_dir, time.strftime("%Y%m%d-%H%M%S")),
+                        logdir=os.path.join(self.summarizer_dir, self.summarizer_name),
                         max_queue=None, flush_millis=10000, filename_suffix=None
                     )
 
