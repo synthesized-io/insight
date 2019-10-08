@@ -63,6 +63,10 @@ def max_correlation_distance(orig, synth):
     return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
 
 
+def mean_correlation_distance(orig, synth):
+    return np.abs((orig.corr() - synth.corr()).to_numpy()).mean()
+
+
 def mean_ks_distance(orig, synth):
     distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
     return np.mean(distances)
@@ -79,6 +83,7 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
     max_ks_vec = []
     mean_ks_vec = []
     max_corr_vec = []
+    mean_corr_vec = []
     keep_ratio_vec = []
 
     for i in range(start, end + 1, step):
@@ -89,9 +94,10 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
         max_ks_iter = []
         mean_ks_iter = []
         max_corr_iter = []
+        mean_corr_iter = []
 
         for j in range(n_experiments):
-            data_missing = missing_patterns(data, keep_ratio=keep_ratio, mechanism=mechanism)
+            data_missing = missing_patterns(data, keep_ratio=keep_ratio, mechanism=mechanism, std_noise=std_noise)
 
             config_path = os.environ.get('EVALUATION_CONFIG_PATH', "configs/evaluation/synthetic_distributions.json")
             with open(config_path, 'r') as f:
@@ -105,20 +111,23 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
                 max_ks_iter.append(max_ks_distance(data, synthesized))
                 mean_ks_iter.append(mean_ks_distance(data, synthesized))
                 max_corr_iter.append(max_correlation_distance(data, synthesized))
+                mean_corr_iter.append(mean_correlation_distance(data, synthesized))
 
         print('Computed results for {}% NaNs for {}. Took {:.2f}s.'.format(100 - i, mechanism, time.time() - t_start))
         max_ks_vec.append(np.mean(max_ks_iter))
         mean_ks_vec.append(np.mean(mean_ks_iter))
         max_corr_vec.append(np.mean(max_corr_iter))
+        mean_corr_vec.append(np.mean(mean_corr_iter))
 
     plt.figure(figsize=(12, 8))
     plt.plot(keep_ratio_vec, max_ks_vec, label='Max KS Distance')
     plt.plot(keep_ratio_vec, mean_ks_vec, label='Mean KS Distance')
     plt.plot(keep_ratio_vec, max_corr_vec, label='Max Correlation Distance')
+    plt.plot(keep_ratio_vec, mean_corr_vec, label='Mean Correlation Distance')
     plt.legend()
     plt.title(mechanism)
     plt.xlabel('Non-Missing Ratio')
     plt.ylabel('Distance')
     plt.show()
 
-    return max_ks_vec, mean_ks_vec, max_corr_vec
+    return max_ks_vec, mean_ks_vec, max_corr_vec, mean_corr_vec
