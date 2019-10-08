@@ -259,7 +259,7 @@ def is_not_integer_float_column(col: pd.Series) -> bool:
     :param col: input pd.Series
     :return: bool
     """
-    return col.apply(is_not_integer_float).any()
+    return col.dropna().apply(is_not_integer_float).any()
 
 
 def is_not_integer_float(x: float) -> bool:
