@@ -96,29 +96,29 @@ class DateValue(ContinuousValue):
 
     def preprocess(self, df):
         if df[self.name].dtype.kind != 'M':
-            df.loc[:, self.name] = self.to_datetime(df[self.name])
+            df[self.name] = self.to_datetime(df[self.name])
 
-        df.loc[:, self.name + '-hour'] = df[self.name].dt.hour
-        df.loc[:, self.name + '-dow'] = df[self.name].dt.weekday
-        df.loc[:, self.name + '-day'] = df[self.name].dt.day - 1
-        df.loc[:, self.name + '-month'] = df[self.name].dt.month - 1
+        df[self.name + '-hour'] = df[self.name].dt.hour
+        df[self.name + '-dow'] = df[self.name].dt.weekday
+        df[self.name + '-day'] = df[self.name].dt.day - 1
+        df[self.name + '-month'] = df[self.name].dt.month - 1
         if self.min_date is None:
             previous_date = df[self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]
-            df.loc[:, self.name] = (df[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+            df[self.name] = (df[self.name] - previous_date).dt.total_seconds() / 86400
         else:
-            df.loc[:, self.name] = (df[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+            df[self.name] = (df[self.name] - self.min_date).dt.total_seconds() / 86400
         return super().preprocess(df=df)
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
-        df.loc[:, self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
+        df[self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
         if self.start_date is not None:
-            df.loc[:, self.name] = self.start_date + df[self.name].cumsum(axis=0)
+            df[self.name] = self.start_date + df[self.name].cumsum(axis=0)
         else:
-            df.loc[:, self.name] += self.min_date
-        df.loc[:, self.name] = self.from_datetime(df[self.name])
+            df[self.name] += self.min_date
+        df[self.name] = self.from_datetime(df[self.name])
         return df
 
     def to_datetime(self, col: pd.Series) -> pd.Series:
