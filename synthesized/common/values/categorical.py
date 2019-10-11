@@ -22,6 +22,8 @@ class CategoricalValue(Value):
     ):
         super().__init__(name=name)
         self.categories: Optional[Union[int, list]] = None
+        self.category2idx: Optional[Dict] = None
+        self.idx2category: Optional[Dict] = None
         self.nans_valid = False
         if categories is None:
             self.categories = None
@@ -38,6 +40,7 @@ class CategoricalValue(Value):
                     assert not isinstance(x, float) or not isnan(x)
             self.categories = unique_values
             self.num_categories = len(self.categories)
+            self.set_categories_dict()
         self.probabilities = probabilities
 
         self.capacity = capacity
@@ -55,9 +58,6 @@ class CategoricalValue(Value):
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.pandas_category = pandas_category
-
-        # self.pd_types = ()
-        # self.pd_cast = (lambda x: x)
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -104,6 +104,7 @@ class CategoricalValue(Value):
             self.num_categories = len(self.categories)
             if self.embedding_size is None:
                 self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
+            self.set_categories_dict()
         elif isinstance(self.categories, list) \
                 and unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
@@ -111,18 +112,20 @@ class CategoricalValue(Value):
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
-            fn = (lambda x: 0 if isinstance(x, float) and isnan(x) and self.nans_valid else self.categories.index(x))
-            df.loc[:, self.name] = df[self.name].map(arg=fn)
-        df.loc[:, self.name] = df[self.name].astype(dtype='int64')
+            if self.nans_valid:
+                df[self.name] = df[self.name].fillna(0)
+            df[self.name] = df[self.name].map(self.category2idx)
+        if df[self.name].dtype != 'int64':
+            df[self.name] = df[self.name].astype(dtype='int64')
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
-            df.loc[:, self.name] = df[self.name].map(arg=self.categories.__getitem__)
+            df[self.name] = df[self.name].map(self.idx2category)
         if self.pandas_category:
-            df.loc[:, self.name] = df[self.name].astype(dtype='category')
+            df[self.name] = df[self.name].astype(dtype='category')
         return df
 
     def module_initialize(self) -> None:
@@ -239,3 +242,7 @@ class CategoricalValue(Value):
         loss = tf.squared_difference(x=probs, y=self.probabilities)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
+
+    def set_categories_dict(self):
+        self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+        self.idx2category= {i: self.categories[i] for i in range(len(self.categories))}
