@@ -245,4 +245,4 @@ class CategoricalValue(Value):
 
     def set_categories_dict(self):
         self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
-        self.idx2category= {i: self.categories[i] for i in range(len(self.categories))}
+        self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
