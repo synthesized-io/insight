@@ -359,10 +359,14 @@ class UtilityTesting:
         """Plot a barplot with KS-distances between original and synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
-            distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
-            result.append({'column': col, 'distance': distance})
+            try:
+                distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
+                result.append({'column': col, 'distance': distance})
+            except TypeError:
+                pass
         df = pd.DataFrame.from_records(result)
         print("Average distance:", df['distance'].mean())
         print("Max distance:", df['distance'].max())
+        plt.figure()
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
