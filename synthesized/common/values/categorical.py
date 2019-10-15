@@ -88,7 +88,7 @@ class CategoricalValue(Value):
         unique_values = list(df[self.name].unique())
         self._set_categories(unique_values)
 
-        if self.embedding_size is None:
+        if self.embedding_size is None and self.num_categories is not None:
             self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -245,4 +245,3 @@ class CategoricalValue(Value):
         elif isinstance(self.categories, list) and \
                 categories[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
             raise NotImplementedError
-
