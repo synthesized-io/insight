@@ -1,24 +1,12 @@
-import time
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy.stats import bernoulli
-from scipy.stats import ks_2samp
-from scipy.stats import powerlaw
-
-from ..highdim import HighDimSynthesizer
-from numpy.random import exponential, normal
+from random import choice, shuffle, gauss
 from typing import Tuple
 
+import numpy as np
+import pandas as pd
 from numpy.random import binomial
-from random import choice, shuffle, gauss
-from ..testing import UtilityTesting
-from matplotlib.axes import Axes
-from scipy.stats import spearmanr
-from statsmodels.tsa.stattools import acf, pacf
-from statsmodels.formula.api import mnlogit, ols
+from numpy.random import exponential, normal
+from scipy.stats import bernoulli
+from scipy.stats import powerlaw
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
