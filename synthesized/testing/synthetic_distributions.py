@@ -16,6 +16,9 @@ from numpy.random import binomial
 from random import choice, shuffle, gauss
 from ..testing import UtilityTesting
 from matplotlib.axes import Axes
+from scipy.stats import spearmanr
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.formula.api import mnlogit, ols
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -395,7 +398,7 @@ def additive_sine(a, p, sd):
     return out_func
 
 
-def auto_regressive(phi, c, sd):
+def continuous_auto_regressive(phi, c, sd):
     """
     A linear autoregressive process of order k
     i.e an AR(k) process
@@ -419,6 +422,33 @@ def auto_regressive(phi, c, sd):
     return out_func
 
 
+def categorical_auto_regressive(n_classes, sd):
+    """
+    A first-order Markov model with categorical values.
+
+    The transition probabilities are specified by sampling
+    the logits for each row from a multivariate normal distribution with
+    zero mean and a diagonal covariance matrix with standard deviation
+    `sd`.
+
+    :param n_classes: [int] the number of categories
+    :param sd: [float] standard deviation of prior on logits
+    """
+    categories = np.array([f"v_{i}" for i in list(range(n_classes))])
+    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
+
+    def out_func(times):
+        size = times.shape[0]
+        gumbels = -np.log(-np.log(np.random.uniform(size=size * n_classes))).reshape(size, n_classes)
+        out_list = [np.random.randint(n_classes)]
+        for i in range(1, size):
+            prev_idx = out_list[-1]
+            out_idx = (logits[prev_idx] + gumbels[prev_idx]).argmax(-1)
+            out_list.append(out_idx)
+        return categories[out_list]
+    return out_func
+
+
 def add_series(*args):
     """
     Return a time series which is a sum of
@@ -434,118 +464,5 @@ def add_series(*args):
     return out_func
 
 
-def rolling_mse_asof(data, synthesized, sd, time_unit=None):
-    """
-    Calculate the mean-squared error between the "x" values of the original and synthetic
-    data. The sets of times may not be identical so we use "as of" (last observation rolled
-    forward) to interpolate between the times in the two datasets.
-
-    The dates are also optionally truncated to some unit following the syntax for the pandas
-    `.floor` function.
-
-    :param data: [pd.DataFrame{id[int], t[datetime], x[float]}] original data
-    :param synthesized: [pd.DataFrame{id[int], t[datetime], x[float]}] synthesized data
-    :param sd: [float] error standard deviation
-    :param time_unit: [str] the time unit to round to. See documentation for pandas `.floor` method.
-    :return: [(float, float)] MSE and MSE/(2*error variance)
-    """
-    # truncate date
-    if time_unit is not None:
-        synthesized.t = synthesized.t.dt.floor(time_unit)
-        data.t = data.t.dt.floor(time_unit)
-
-    # join datasets
-    joined = pd.merge_asof(data[["t", "x"]], synthesized[["t", "x"]], on="t")
-
-    # calculate metrics
-    mse = ((joined.x_x - joined.x_y) ** 2).mean()
-    mse_eff = mse / (2 * sd ** 2)
-
-    return mse, mse_eff
 
 
-def plot_data(data: pd.DataFrame, ax: Axes):
-    """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
-    if data.shape[1] == 1:
-        if data['x'].dtype.kind == 'O':
-            return sns.countplot(data["x"], ax=ax)
-        else:
-            return sns.distplot(data["x"], ax=ax)
-    elif data.shape[1] == 2:
-        if data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'f':
-            sns.violinplot(x="x", y="y", data=data, ax=ax)
-        elif data['x'].dtype.kind == 'f' and data['y'].dtype.kind == 'f':
-            return ax.hist2d(data['x'], data['y'], bins=100)
-        elif data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'O':
-            crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r/r.sum(), axis=1)
-            sns.heatmap(crosstab, vmin=0.0, vmax=1.0, ax=ax)
-        else:
-            return sns.distplot(data, ax=ax)
-    else:
-        return sns.distplot(data, ax=ax)
-
-
-def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: Axes = None):
-    """
-    Plot Kolmogorov-Smirnov distance between the columns in the dataframes
-    `original` and `synthetic` on `matplotlib` axis `ax`.
-    """
-    dtype_dict = {"O": "Categorical", "i": "Categorical", "f": "Continuous"}
-    default_palette = sns.color_palette()
-    color_dict = {"Categorical": default_palette[0], "Continuous": default_palette[1]}
-    assert (original.columns == synthetic.columns).all(), "Original and synthetic data must have the same columns."
-    columns = original.columns.values.tolist()
-    error_msg = "Original and synthetic data must have the same data types."
-    assert (original.dtypes.values == synthetic.dtypes.values).all(), error_msg
-    dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
-    distances = [ks_2samp(original[col], synthetic[col])[0] for col in original.columns]
-    plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
-    plot.set_xticklabels(plot.get_xticklabels(), rotation=30)
-    plot.set_title("KS distance by column")
-    return plot
-
-
-def max_correlation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
-
-
-def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
-    return np.mean(distances)
-
-
-default_metrics = {"avg_distance": mean_ks_distance}
-
-
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
-                        show_anova: bool = False, show_cat_rsquared: bool = False):
-    """
-    Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
-    """
-    evaluation.record_config(evaluation=name, config=config)
-    start = time.time()
-    with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'])
-        synthesized = synthesizer.synthesize(num_rows=len(data))
-        print('took', time.time() - start, 's')
-        print("Metrics:")
-        for key, metric in metrics.items():
-            value = metric(orig=data, synth=synthesized)
-            evaluation.record_metric(evaluation=name, key=key, value=value)
-            print(f"{key}: {value}")
-
-        if data.shape[1] <= 3:
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
-            ax1.set_title('orig')
-            ax2.set_title('synth')
-            plot_data(data, ax=ax1)
-            plot_data(synthesized, ax=ax2)
-        else:
-            fig, ax = plt.subplots(figsize=(15, 5))
-            plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
-        if show_anova:
-            testing = UtilityTesting(synthesizer, data, data, synthesized)
-            testing.show_anova()
-        if show_cat_rsquared:
-            testing = UtilityTesting(synthesizer, data, data, synthesized)
-            testing.show_categorical_rsquared()
