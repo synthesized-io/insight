@@ -172,7 +172,8 @@ class ValueFactory(Module):
         # Categorical value if small number of distinct values
         if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
             # is_nan = df.isna().any()
-            value = self.create_categorical(name)
+            if _column_does_not_contain_genuine_floats(col):
+                value = self.create_categorical(name)
 
         # Date value
         elif col.dtype.kind == 'M':  # 'm' timedelta
@@ -202,12 +203,13 @@ class ValueFactory(Module):
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
                     is_nan = num_nan > 0
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, OverflowError):
                 pass
 
         # Similarity-based categorical value if not too many distinct values
         elif num_unique <= sqrt(num_data):
-            value = self.create_categorical(name, similarity_based=True)
+            if _column_does_not_contain_genuine_floats(col):
+                value = self.create_categorical(name, similarity_based=True)
 
         # Return non-numeric value and handle NaNs if necessary
         if value is not None:
@@ -248,3 +250,35 @@ class ValueFactory(Module):
             value = self.create_sampling(name)
 
         return value
+
+
+def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:
+    """
+    Returns TRUE of the input column contains genuine floats, that would exclude integers with type float.
+        e.g.:
+            _column_does_not_contain_genuine_floats(['A', 'B', 'C']) returns True
+            _column_does_not_contain_genuine_floats([1.0, 3.0, 2.0]) returns True
+            _column_does_not_contain_genuine_floats([1.0, 3.2, 2.0]) returns False
+
+    :param col: input pd.Series
+    :return: bool
+    """
+
+    return not col.dropna().apply(_is_not_integer_float).any()
+
+
+def _is_not_integer_float(x: float) -> bool:
+    """
+    Returns whether 'x' is a float and is not integer.
+        e.g.:
+            _is_not_integer_float(3.0) = False
+            _is_not_integer_float(3.2) = True
+
+    :param x: input float
+    :return: bool
+    """
+
+    if type(x) == float:
+        return not x.is_integer()
+    else:
+        return False

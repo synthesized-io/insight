@@ -4,6 +4,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..module import Module, tensorflow_name_scoped
+from ..util import make_tf_compatible
 
 
 class Value(Module):
@@ -15,7 +16,7 @@ class Value(Module):
     def placeholder_initialize(self, dtype: tf.DType, shape: Tuple):
         assert self.placeholder is None
         self.placeholder = tf.compat.v1.placeholder(
-            dtype=dtype, shape=shape, name=self.make_tf_compatible(string=self.name)
+            dtype=dtype, shape=shape, name=make_tf_compatible(string=self.name)
         )
 
     def __str__(self) -> str:
