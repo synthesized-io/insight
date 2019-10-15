@@ -7,7 +7,6 @@ import logging
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
 
 from ..common import identify_rules, Value, ValueFactory
 from ..common.values import ContinuousValue
@@ -282,7 +281,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, num_iterations: int, df_train: pd.DataFrame,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, validation_freq: int = None
+        callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
