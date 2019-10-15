@@ -2,7 +2,6 @@
 import enum
 from collections import OrderedDict
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional
-import logging
 
 import numpy as np
 import pandas as pd
@@ -12,9 +11,6 @@ from ..common import identify_rules, Value, ValueFactory
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
-
-
-logger = logging.getLogger(__name__)
 
 
 class TypeOverride(enum.Enum):
