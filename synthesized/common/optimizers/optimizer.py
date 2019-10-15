@@ -78,7 +78,7 @@ class Optimizer(Module):
         self.optimizer = tf_optimizers[self.optimizer](learning_rate=learning_rate)
 
     @tensorflow_name_scoped
-    def optimize(self, loss, summarize_gradient_norms=False, summarize_lr=True):
+    def optimize(self, loss, summarize_gradient_norms=False, summarize_lr=False):
         """Optimize the given loss.
 
         Args:
