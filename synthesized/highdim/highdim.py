@@ -2,15 +2,20 @@
 import enum
 from collections import OrderedDict
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+import logging
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from sklearn.model_selection import train_test_split
 
 from ..common import identify_rules, Value, ValueFactory
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
+
+
+logger = logging.getLogger(__name__)
 
 
 class TypeOverride(enum.Enum):
@@ -277,7 +282,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, num_iterations: int, df_train: pd.DataFrame,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0
+        callback_freq: int = 0, validation_freq: int = None
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -290,11 +295,19 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 instance, the iteration number, and a dictionary of values (usually the losses) as
                 arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
+            validation_freq: Validation frequency.
 
         """
         df_train = df_train.copy()
+
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
+
+        df_train, df_valid = train_test_split(df_train, test_size=0.2, random_state=42)
+        data_valid = {
+            placeholder: df_valid[name].to_numpy() for value in (self.values + self.conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
+        }
 
         num_data = len(df_train)
         data = {
@@ -303,6 +316,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         }
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
+        fetches_valid = self.losses
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
@@ -315,6 +329,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
+
+            if validation_freq and iteration % validation_freq == 0:
+                losses_valid = self.run(fetches=fetches_valid, feed_dict=data_valid)
+                logger.info('Iteration {}, Validation total-loss={}'.format(iteration, losses_valid['total-loss']))
+
+        losses_valid = self.run(fetches=fetches_valid, feed_dict=data_valid)
+        logger.info('Training finished. Validation total-loss={}'.format(losses_valid['total-loss']))
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
