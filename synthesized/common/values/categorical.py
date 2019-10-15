@@ -24,8 +24,7 @@ class CategoricalValue(Value):
         self.categories: Optional[Union[int, list]] = None
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
-        self.nans_valid = False
-        self.categories = None
+        self.nans_valid: bool = False
         if categories is None:
             self.num_categories = None
         elif isinstance(categories, int):
