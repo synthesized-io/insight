@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from typing import List, Dict
 from scipy.stats import ks_2samp
 from scipy.stats import spearmanr
 from statsmodels.formula.api import mnlogit, ols
@@ -83,7 +84,8 @@ def max_partial_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame
 def max_categorical_auto_association_distance(orig: pd.DataFrame, synth: pd.DataFrame, max_order=20):
     cats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
             if dtype.kind == "O"]
-    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order) - calculate_auto_association(synth, col, max_order)).max()
+    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order) -
+                            calculate_auto_association(synth, col, max_order)).max()
                      for col in cats]
     return max(cat_distances)
 
@@ -141,7 +143,7 @@ def train_and_synthesize(data: pd.DataFrame, train: pd.DataFrame, test: pd.DataF
     synthesizer_class = evaluation.configs[evaluation_name]["synthesizer_class"]
     assert synthesizer_class in {"HighDimSynthesizer", "SeriesSynthesizer"}
     synthesizer_constructor = getattr(synthesized, synthesizer_class)
-    loss_history = list()
+    loss_history: List[Dict[str, float]] = list()
 
     def callback(synth, iteration, losses):
         if len(loss_history) == 0:
@@ -162,6 +164,3 @@ def train_and_synthesize(data: pd.DataFrame, train: pd.DataFrame, test: pd.DataF
             series_lengths = list(series_lengths[0])
             synthesized_data = synthesizer.synthesize(series_lengths=series_lengths)
         return synthesizer, synthesized_data, loss_history
-
-
-

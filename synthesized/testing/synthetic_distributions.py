@@ -450,7 +450,3 @@ def add_series(*args):
         return sum(series)
 
     return out_func
-
-
-
-

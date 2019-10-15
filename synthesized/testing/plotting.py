@@ -13,6 +13,7 @@ from ..testing import UtilityTesting
 from .evaluation_utils import calculate_auto_association
 from synthesized.testing.evaluation import Evaluation
 
+
 # -- Plotting functions
 def plot_data(data: pd.DataFrame, ax: Axes):
     """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
@@ -63,7 +64,8 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
-def plot_auto_association(original: np.array, synthetic: np.array, axes: np.array = None):
+def plot_auto_association(original: np.array, synthetic: np.array, axes: np.array):
+    assert axes is not None
     lags = list(range(original.shape[-1]))
     axes[0].stem(lags, original, "g", markerfmt='go', use_line_collection=True)
     axes[0].set_title("Original")
@@ -96,12 +98,12 @@ def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
 
     for i, val in enumerate(x):
         ax.fill_between((i, i+1), 2, facecolor=colors[val2idx[val]])
-    #ax.set_xticks(np.arange(0.5, len(t)+0.5, 1), t)
     ax.get_yaxis().set_visible(False)
 
 
 def sequence_line_plot(x, t, ax):
     sns.lineplot(x=t, y=x, ax=ax)
+
 
 # -- training functions
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
