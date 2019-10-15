@@ -25,22 +25,15 @@ class CategoricalValue(Value):
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid = False
+        self.categories = None
         if categories is None:
-            self.categories = None
             self.num_categories = None
         elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
             unique_values = list(pd.Series(categories).unique())
-            for n, x in enumerate(unique_values):
-                if isinstance(x, float) and isnan(x):
-                    unique_values.insert(0, unique_values.pop(n))
-                    self.nans_valid = True
-                else:
-                    assert not isinstance(x, float) or not isnan(x)
-            self.categories = unique_values
-            self.num_categories = len(self.categories)
-            self.set_categories_dict()
+            self._set_categories(unique_values)
+
         self.probabilities = probabilities
 
         self.capacity = capacity
@@ -92,22 +85,12 @@ class CategoricalValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
+
         unique_values = list(df[self.name].unique())
-        for n, x in enumerate(unique_values):
-            if isinstance(x, float) and isnan(x):
-                unique_values.insert(0, unique_values.pop(n))
-                self.nans_valid = True
-            else:
-                assert not isinstance(x, float) or not isnan(x)
-        if self.categories is None:
-            self.categories = unique_values
-            self.num_categories = len(self.categories)
-            if self.embedding_size is None:
-                self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
-            self.set_categories_dict()
-        elif isinstance(self.categories, list) \
-                and unique_values[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
-            raise NotImplementedError
+        self._set_categories(unique_values)
+
+        if self.embedding_size is None:
+            self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
@@ -243,6 +226,24 @@ class CategoricalValue(Value):
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 
-    def set_categories_dict(self):
-        self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
-        self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
+    def _set_categories(self, categories: list):
+
+        # Put any nan at the position zero of the list
+        for n, x in enumerate(categories):
+            if isinstance(x, float) and isnan(x):
+                categories.insert(0, categories.pop(n))
+                self.nans_valid = True
+            else:
+                assert not isinstance(x, float) or not isnan(x)
+
+        # If categories are not set
+        if self.categories is None:
+            self.categories = categories
+            self.num_categories = len(self.categories)
+            self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+            self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
+        # If categories have been set and are different to the given
+        elif isinstance(self.categories, list) and \
+                categories[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
+            raise NotImplementedError
+
