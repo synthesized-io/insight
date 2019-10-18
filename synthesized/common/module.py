@@ -2,7 +2,7 @@ import os
 import shutil
 import time
 from functools import wraps
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -115,7 +115,6 @@ class Module(object):
                 self.initialize()
                 initialization = tf.compat.v1.global_variables_initializer()
 
-        self.graph.finalize()
         self.session = tf.compat.v1.Session(target='', graph=self.graph, config=None)
         self.session.__enter__()
         self.run(fetches=initialization)
@@ -123,7 +122,7 @@ class Module(object):
             self.run(fetches=graph_summary)
         return self
 
-    def run(self, fetches: tf.Tensor, feed_dict: Dict[tf.Tensor, np.ndarray] = None):
+    def run(self, fetches: Union[tf.Tensor, Tuple], feed_dict: Dict[tf.Tensor, np.ndarray] = None):
         options, run_metadata = None, None
         if self.profiler is not None:
             if self.profiler.is_trace_step():
@@ -142,6 +141,7 @@ class Module(object):
     def __exit__(self, type, value, traceback):
         if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
+        self.graph.finalize()
         self.session.__exit__(type, value, traceback)
         tf.compat.v1.reset_default_graph()
         if self.profiler is not None:

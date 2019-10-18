@@ -6,10 +6,12 @@ from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from sklearn.model_selection import train_test_split
 
 from ..common import identify_rules, Value, ValueFactory
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
+from ..common import LearnControl
 from ..synthesizer import Synthesizer
 
 
@@ -58,7 +60,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Identifier
         identifier_label: str = None,
         # Rules to look for
-        find_rules: Union[str, List[str]] = None
+        find_rules: Union[str, List[str]] = None,
+        # Evaluation conditions
+        use_learn_control: bool = True,
+        split_validation: bool = True
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -107,6 +112,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             identifier_label: Identifier column.
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
+            use_learn_control: Whether to use LearnControl.
+            split_validation: Whether to split train/valid.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
         if type_overrides is None:
@@ -205,6 +212,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
 
+        # Learn Control
+        self.use_learn_control = use_learn_control
+        if use_learn_control:
+            self.learn_control = LearnControl()
+        self.split_validation = split_validation
+
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
@@ -294,17 +307,29 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
+        if self.split_validation:
+            df_train, df_valid = train_test_split(df_train, test_size=0.2)
+            feed_dict_valid = {
+                placeholder: df_valid[name].to_numpy() for value in (self.values + self.conditions)
+                for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
+            }
+
         num_data = len(df_train)
         data = {
             placeholder: df_train[name].to_numpy() for value in (self.values + self.conditions)
             for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
+
+        if not self.split_validation:
+            feed_dict_valid = data
+
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
+
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
@@ -313,6 +338,16 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
+
+            if self.use_learn_control and iteration % self.learn_control.check_frequency == 0:
+                losses_i = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
+                if self.learn_control.checkpoint_model(iteration, losses_i):
+                    break
+
+        print('Training finished:')
+        print('Train loss = {:.4f}'.format(sum(self.run(fetches=self.losses, feed_dict=data).values())))
+        if self.split_validation:
+            print('Valid loss = {:.4f}'.format(sum(self.run(fetches=self.losses, feed_dict=feed_dict_valid).values())))
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
