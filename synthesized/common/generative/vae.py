@@ -78,7 +78,7 @@ class VAE(Generative):
 
         # Optimizer
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer, parent=self,
+            module='optimizer', name='optimizer', optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
             clip_gradients=clip_gradients
         )
