@@ -27,7 +27,7 @@ class VAEOld(Generative):
         network: str, capacity: int, depth: int, batchnorm: bool, activation: str,
         # Optimizer
         optimizer: str, learning_rate: float, decay_steps: int, decay_rate: float,
-        initial_boost: bool, clip_gradients: float, parent: Module,
+        initial_boost: bool, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
@@ -39,7 +39,6 @@ class VAEOld(Generative):
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
-        self.parent = parent
 
         # Total input and output size of all values
         input_size = 0
@@ -87,7 +86,7 @@ class VAEOld(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam', parent=self.parent,
+            module='optimizer', name='optimizer', optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             clip_gradients=1.0,
         )

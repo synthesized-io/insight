@@ -199,7 +199,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             module='vae_old', name='vae', values=self.values, conditions=self.conditions,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, parent=self,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )

@@ -17,7 +17,6 @@ class Optimizer(Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        parent: Module,
         learning_rate: float, decay_steps: int = None, decay_rate: float = None,
         initial_boost: bool = False,
         # Gradient clipping by global norm
@@ -29,7 +28,6 @@ class Optimizer(Module):
         if optimizer not in tf_optimizers:
             raise NotImplementedError
         self.optimizer = optimizer
-        self.parent = parent
 
         # Learning rate
         self.learning_rate = learning_rate
@@ -64,13 +62,13 @@ class Optimizer(Module):
             if self.decay_rate is None:
                 raise NotImplementedError
             learning_rate = tf.train.exponential_decay(
-                learning_rate=self.learning_rate, global_step=self.parent.global_step,
+                learning_rate=self.learning_rate, global_step=self.global_step,
                 decay_steps=self.decay_steps, decay_rate=self.decay_rate, staircase=False
             )
 
         if self.initial_boost:
             learning_rate = tf.where(
-                condition=tf.math.less(x=self.parent.global_step, y=10),
+                condition=tf.math.less(x=self.global_step, y=10),
                 x=(5.0 * learning_rate), y=learning_rate
             )
 
