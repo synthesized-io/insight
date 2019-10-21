@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped, Module
+from ..module import tensorflow_name_scoped
 from ..values import Value
 
 
