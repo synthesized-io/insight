@@ -50,6 +50,8 @@ class Optimizer(Module):
     def module_initialize(self):
         super().module_initialize()
 
+        self.global_step = tf.compat.v1.train.get_global_step()
+
         # Learning rate
         if self.decay_steps is None:
             # Constant learning rate
