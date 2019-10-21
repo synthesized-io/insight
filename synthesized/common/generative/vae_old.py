@@ -74,7 +74,7 @@ class VAEOld(Generative):
 
         self.decoder = self.add_module(
             module=network, name='decoder',
-            input_size=(self.encoder.size() + condition_size),
+            input_size=(self.encoding.size() + condition_size),
             layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
         )
 
