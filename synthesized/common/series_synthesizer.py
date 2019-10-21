@@ -90,7 +90,7 @@ class SeriesSynthesizer(BasicSynthesizer):
     def print_learn_stats(self, data, batch, fetched, iteration, print_data):
         print('\niteration: {}'.format(iteration + 1))
         print('loss: total={loss:1.2e} ({losses})'.format(
-            iteration=(iteration + 1), loss=fetched['loss'], losses=', '.join(
+            loss=fetched['loss'], losses=', '.join(
                 '{name}={loss}'.format(name=name, loss=loss)
                 for name, loss in fetched['losses'].items()
             )
