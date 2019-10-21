@@ -6,18 +6,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
 from scipy.stats import ks_2samp
-from sklearn.preprocessing import QuantileTransformer, StandardScaler
+from sklearn.preprocessing import QuantileTransformer, StandardScaler, LabelEncoder
 
 from ..highdim.highdim import HighDimSynthesizer
 
 
 def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MCAR',
                      std_noise: float = 1.) -> pd.DataFrame:
+
+    data_missing = data.copy()
+
     if mechanism == 'MCAR':
         def drop_rand(num):
             return np.nan if np.random.uniform() > keep_ratio else num
 
-        data_missing = data.copy()
         for column in data_missing.columns:
             data_missing[column] = data_missing[column].apply(drop_rand)
 
@@ -25,14 +27,18 @@ def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MC
 
     elif mechanism in ('MAR', 'MNAR'):
 
-        data_missing = data.copy()
+        for c in data.columns:
+            if data[c].dtype.kind not in ('i', 'f'):
+                le = LabelEncoder()
+                data[c] = le.fit_transform(data[c])
+                data_missing[c] = le.fit_transform(data_missing[c])
 
         for c in data_missing.columns:
 
             if mechanism == 'MAR':
-                X = np.array(data[list(filter(lambda x: x != c, data.columns))])
+                X = np.array(data_missing[list(filter(lambda x: x != c, data_missing.columns))])
             elif mechanism == 'MNAR':
-                X = np.array(data)
+                X = np.array(data_missing)
 
             # Scale to 0 mean, 1 std
             ss = StandardScaler()
@@ -57,6 +63,19 @@ def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MC
 
     else:
         raise NotImplementedError
+
+
+def plot_missing_patterns(data, plot_function, keep_ratio=0.5, std_noise=2.5, mechanisms=None):
+    if not mechanisms:
+        mechanisms = ['MCAR', 'MAR', 'MNAR']
+
+    for mechanism in mechanisms:
+        print('============= MCAR =============')
+        data_missing = missing_patterns(data, keep_ratio=keep_ratio, std_noise=std_noise, mechanism=mechanism)
+
+        print('Prop. NaNs:')
+        print(np.sum(data_missing.isna()) / len(data_missing))
+        plot_function(data, data_missing, label1='Original', label2='Missing', title=mechanism)
 
 
 def max_correlation_distance(orig, synth):
