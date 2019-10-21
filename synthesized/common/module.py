@@ -95,7 +95,7 @@ class Module(object):
                         self.summarizer_name = '{}_{}'.format(self.summarizer_name, time.strftime("%Y%m%d-%H%M%S"))
                     else:
                         self.summarizer_name = time.strftime("%Y%m%d-%H%M%S")
-                        
+
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=os.path.join(self.summarizer_dir, self.summarizer_name),
                         max_queue=None, flush_millis=10000, filename_suffix=None
