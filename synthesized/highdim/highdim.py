@@ -63,7 +63,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         find_rules: Union[str, List[str]] = None,
         # Evaluation conditions
         use_learn_control: bool = True,
-        split_validation: bool = True
+        split_validation: bool = True,
+        validation_size: Optional[float] = 0.2
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -216,7 +217,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.use_learn_control = use_learn_control
         if use_learn_control:
             self.learn_control = LearnControl()
+
         self.split_validation = split_validation
+        if self.split_validation:
+            assert 0 < validation_size < 1, "validation_size should be (0, 1), "
+        self.validation_size = validation_size
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -308,7 +313,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             df_train = value.preprocess(df=df_train)
 
         if self.split_validation:
-            df_train, df_valid = train_test_split(df_train, test_size=0.2)
+            df_train, df_valid = train_test_split(df_train, test_size=self.validation_size)
             feed_dict_valid = {
                 placeholder: df_valid[name].to_numpy() for value in (self.values + self.conditions)
                 for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
