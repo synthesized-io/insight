@@ -95,8 +95,6 @@ class CategoricalValue(Value):
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
             df[self.name] = df[self.name].map(self.category2idx)
-            if self.nans_valid:
-                df[self.name] = df[self.name].fillna(0)
         if df[self.name].dtype != 'int64':
             df[self.name] = df[self.name].astype(dtype='int64')
         return super().preprocess(df=df)
