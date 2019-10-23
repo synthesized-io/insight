@@ -219,7 +219,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             self.learn_control = LearnControl()
 
         self.split_validation = split_validation
-        if self.split_validation:
+        if self.split_validation and validation_size:
             assert 0 < validation_size < 1, "validation_size should be (0, 1), "
         self.validation_size = validation_size
 
@@ -359,13 +359,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         df_synth = pd.DataFrame.from_dict(synthesized)[columns]
 
         final_loss = self.learn_control.calculate_loss_from_data(df_train, df_synth)
-        print('TRAIN\nFinal loss = {:.4f}'.format(sum(final_loss.values())))
+        print('TRAIN\nFinal loss = {:.4f}'.format(np.sum(final_loss.values())))
         print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
         self.learn_control.plot_learning()
 
         if self.split_validation:
             final_loss = self.learn_control.calculate_loss_from_data(df_valid, df_synth)
-            print('VALID\nFinal loss = {:.4f}'.format(sum(final_loss.values())))
+            print('VALID\nFinal loss = {:.4f}'.format(np.sum(final_loss.values())))
             print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
             self.learn_control.plot_learning()
 

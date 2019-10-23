@@ -1,5 +1,4 @@
-from typing import Optional, Union
-from collections import OrderedDict
+from typing import Optional, Dict
 
 import tensorflow as tf
 import pandas as pd
@@ -35,7 +34,7 @@ class LearnControl:
         self.must_reach_loss = must_reach_loss
         self.good_enough_loss = good_enough_loss
 
-        self.loss_log = dict()
+        self.loss_log: Dict[int, dict] = dict()
 
         self.count_no_improvement = 0
         self.best_loss: Optional[float] = None
