@@ -318,6 +318,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 placeholder: df_valid[name].to_numpy() for value in (self.values + self.conditions)
                 for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
             }
+            feed_dict_valid[self.num_rows] = len(df_valid)
+            columns = [name for value in (self.values + self.conditions) for name in value.learned_output_columns()]
 
         num_data = len(df_train)
         data = {
@@ -327,6 +329,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         if not self.split_validation:
             feed_dict_valid = data
+            df_valid = df_train
+            feed_dict_valid[self.num_rows] = len(df_train)
 
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
@@ -345,14 +349,25 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
             if self.use_learn_control and iteration % self.learn_control.check_frequency == 0:
-                losses_i = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
-                if self.learn_control.checkpoint_model(iteration, losses_i):
+                synthesized = self.run(fetches=self.synthesized, feed_dict=feed_dict_valid)
+                df_synth = pd.DataFrame.from_dict(synthesized)[columns]
+                if self.learn_control.checkpoint_model_from_data(iteration, df_valid, df_synth):
                     break
 
         print('Training finished:')
-        print('Train loss = {:.4f}'.format(sum(self.run(fetches=self.losses, feed_dict=data).values())))
+        synthesized = self.run(fetches=self.synthesized, feed_dict=feed_dict_valid)
+        df_synth = pd.DataFrame.from_dict(synthesized)[columns]
+
+        final_loss = self.learn_control.calculate_loss_from_data(df_train, df_synth)
+        print('TRAIN\nFinal loss = {:.4f}'.format(sum(final_loss.values())))
+        print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
+        self.learn_control.plot_learning()
+
         if self.split_validation:
-            print('Valid loss = {:.4f}'.format(sum(self.run(fetches=self.losses, feed_dict=feed_dict_valid).values())))
+            final_loss = self.learn_control.calculate_loss_from_data(df_valid, df_synth)
+            print('VALID\nFinal loss = {:.4f}'.format(sum(final_loss.values())))
+            print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
+            self.learn_control.plot_learning()
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
