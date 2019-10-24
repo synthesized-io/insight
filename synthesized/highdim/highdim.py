@@ -333,7 +333,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         fill_ratio = len(df_synthesized) / float(num_rows)
 
         attempt = 0
-        print('missing', num_rows - len(df_synthesized))
 
         # we will repeat synthesis and dropping unless we have enough records
         while len(df_synthesized) < num_rows:
@@ -342,7 +341,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             # we computer how many rows are missing and use fill_ratio to predict how many we will synthesize
             # also, we slightly increase this number by OVERSYNTHESIS_RATIO to get the result quicker
             n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * HighDimSynthesizer.OVERSYNTHESIS_RATIO)
-            print('n_additional', n_additional)
 
             # synthesis + dropping
             df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
@@ -351,11 +349,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             # we give up after some number of attempts
             if attempt >= HighDimSynthesizer.MAX_SYNTHESIS_ATTEMPTS:
-                print('giving up')
                 break
 
         if len(df_synthesized) >= num_rows:
-            return df_synthesized[:num_rows].copy()
+            return df_synthesized.sample(num_rows)
         else:
             return df_synthesized
 
