@@ -235,16 +235,9 @@ class ScenarioSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
-        """Generate the given number of new data rows.
-
-        Args:
-            num_rows: The number of rows to generate.
-
-        Returns:
-            The generated data.
-
-        """
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, df_original: pd.DataFrame = None
+    ) -> pd.DataFrame:
         columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
             df_synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))

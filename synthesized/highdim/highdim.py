@@ -315,6 +315,33 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, df_original: pd.DataFrame = None
+    ) -> pd.DataFrame:
+        df_synthesized = self._synthesize(num_rows=num_rows, conditions=conditions)
+
+        if df_original is None:
+            return df_synthesized
+
+        df_synthesized = self._drop_duplicates(df_original, df_synthesized)
+        fill_ratio = len(df_synthesized) / float(num_rows)
+
+        while len(df_synthesized) < num_rows:
+            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * 1.1)
+            df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
+            df_additional = self._drop_duplicates(df_original, df_additional)
+            df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
+
+        return df_synthesized.sample(num_rows)
+
+    def _drop_duplicates(self, df_original: pd.DataFrame, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+        original_rows = {row for row in df_original.itertuples(index=False)}
+        to_drop = []
+        for i, row in enumerate(df_synthesized.itertuples(index=False)):
+            if row in original_rows:
+                to_drop.append(i)
+        return df_synthesized.drop(to_drop)
+
+    def _synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
