@@ -28,6 +28,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     is, no temporal or otherwise conditional relation between the rows.
     """
 
+    OVERSYNTHESIS_RATIO = 1.1
+    MAX_SYNTHESIS_ATTEMPTS = 3
+
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
@@ -319,21 +322,43 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     ) -> pd.DataFrame:
         df_synthesized = self._synthesize(num_rows=num_rows, conditions=conditions)
 
+        # if no reference dataset provided just return what we have here
         if df_original is None:
             return df_synthesized
 
+        # the first drop of duplicates
         df_synthesized = self._drop_duplicates(df_original, df_synthesized)
+
+        # we will use fill_ratio to predict how many more records we need
         fill_ratio = len(df_synthesized) / float(num_rows)
 
+        attempt = 0
+
+        # we will repeat synthesis and dropping unless we have enough records
         while len(df_synthesized) < num_rows:
-            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * 1.1)
+            attempt += 1
+
+            # we computer how many rows are missing and use fill_ratio to predict how many we will synthesize
+            # also, we slightly increase this number by OVERSYNTHESIS_RATIO to get the result quicker
+            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * HighDimSynthesizer.OVERSYNTHESIS_RATIO)
+
+            # synthesis + dropping
             df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
             df_additional = self._drop_duplicates(df_original, df_additional)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
-        return df_synthesized.sample(num_rows)
+            # we give up after some number of attempts
+            if attempt >= HighDimSynthesizer.MAX_SYNTHESIS_ATTEMPTS:
+                break
+
+        if len(df_synthesized) >= num_rows:
+            return df_synthesized.sample(num_rows)
+        else:
+            return df_synthesized
 
     def _drop_duplicates(self, df_original: pd.DataFrame, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+        """Drop rows in df_synthesized that are present in df_original."""
+
         original_rows = {row for row in df_original.itertuples(index=False)}
         to_drop = []
         for i, row in enumerate(df_synthesized.itertuples(index=False)):
