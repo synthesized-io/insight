@@ -8,8 +8,9 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
-from ..common.values import ContinuousValue
+from ..common.sanitizer import Sanitizer, DefaultSanitizer
 from ..common.util import ProfilerArgs
+from ..common.values import ContinuousValue
 from ..synthesizer import Synthesizer
 
 
@@ -27,6 +28,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
     is, no temporal or otherwise conditional relation between the rows.
     """
+
+    OVERSYNTHESIS_RATIO = 1.1
+    MAX_SYNTHESIS_ATTEMPTS = 3
 
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
@@ -58,7 +62,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Identifier
         identifier_label: str = None,
         # Rules to look for
-        find_rules: Union[str, List[str]] = None
+        find_rules: Union[str, List[str]] = None,
+        sanitize_output=False,
+        sanitizer=None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -168,6 +174,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+
+        if sanitize_output:
+            if sanitizer is None:
+                sanitizer = DefaultSanitizer(df_original=df)
+            self.sanitizer: Optional[Sanitizer] = sanitizer
+        else:
+            self.sanitizer = None
 
         # pleas note that `ValueFactory` uses some fields defined above
         ValueFactory.__init__(self)
@@ -315,6 +328,45 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, df_original: pd.DataFrame = None
+    ) -> pd.DataFrame:
+        df_synthesized = self._synthesize(num_rows=num_rows, conditions=conditions)
+
+        # if no sanitizer provided just return what we have here
+        if self.sanitizer is None:
+            return df_synthesized
+
+        # the first drop of duplicates
+        df_synthesized = self.sanitizer.sanitize(df_synthesized)
+
+        # we will use fill_ratio to predict how many more records we need
+        fill_ratio = len(df_synthesized) / float(num_rows)
+
+        attempt = 0
+
+        # we will repeat synthesis and dropping unless we have enough records
+        while len(df_synthesized) < num_rows:
+            attempt += 1
+
+            # we computer how many rows are missing and use fill_ratio to predict how many we will synthesize
+            # also, we slightly increase this number by OVERSYNTHESIS_RATIO to get the result quicker
+            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * HighDimSynthesizer.OVERSYNTHESIS_RATIO)
+
+            # synthesis + dropping
+            df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
+            df_additional = self.sanitizer.sanitize(df_additional)
+            df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
+
+            # we give up after some number of attempts
+            if attempt >= HighDimSynthesizer.MAX_SYNTHESIS_ATTEMPTS:
+                break
+
+        if len(df_synthesized) >= num_rows:
+            return df_synthesized.sample(num_rows)
+        else:
+            return df_synthesized
+
+    def _synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
