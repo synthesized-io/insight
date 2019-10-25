@@ -1,5 +1,6 @@
 import json
 import re
+from math import log
 
 import tensorflow as tf
 from tensorflow.python.client import timeline
@@ -73,9 +74,4 @@ def make_tf_compatible(string):
 
 
 def compute_embedding_size(num_categories: int, capacity: int) -> int:
-    if capacity is None:
-        capacity = 128
-    if num_categories <= 10:
-        return num_categories
-    else:
-        return min(int(num_categories * 0.75), capacity)
+    return int(log(num_categories + 1) * capacity / 8.0)
