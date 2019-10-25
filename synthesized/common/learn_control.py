@@ -1,4 +1,5 @@
 from typing import Optional, Dict
+import logging
 
 import tensorflow as tf
 import pandas as pd
@@ -6,13 +7,15 @@ import numpy as np
 from scipy.stats import ks_2samp
 import matplotlib.pyplot as plt
 
+logger = logging.getLogger(__name__)
+
 
 class LearnControl:
     """
     This class will control the learning, checking that it improves and that stopping learning if necessary before the
     maximum number of iterations is reached.
     """
-    def __init__(self, check_frequency: int = 100, checkpoint_path: Optional[str] = None, max_to_keep: int = 10,
+    def __init__(self, check_frequency: int = 200, checkpoint_path: Optional[str] = None, max_to_keep: int = 5,
                  patience: int = 750, must_reach_loss: float = None, good_enough_loss: float = None):
         """
         Initialize LearnControl.
@@ -20,7 +23,7 @@ class LearnControl:
         :param check_frequency:
         :param checkpoint_path: Directory where checkpoints will be saved
         :param max_to_keep: If the LearnControl checks performance for 'max_to_keep' times without improvement,
-            will return True.
+            will return True. Defines the number of previous checkpoints stored.
         :param patience: How many iterations before start checking the performance.
         :param must_reach_loss: If this loss threshold is not reached, will always return False.
         :param good_enough_loss: If this loss threshold is not reached, will return True even if the model is still
@@ -57,7 +60,7 @@ class LearnControl:
         self.loss_log[iteration] = loss
 
         total_loss = sum(loss.values())
-        # print("LearnControl :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
+        logger.debug("LearnControl :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
 
         if iteration < self.patience:
             return False
@@ -68,8 +71,8 @@ class LearnControl:
 
         if not self.best_loss or total_loss < self.best_loss:
             current_checkpoint = self.checkpoint_manager.save()
-            print("LearnControl :: New loss minimum {:.4f} found at iteration {}, saving in '{}'"
-                  .format(total_loss, iteration, current_checkpoint))
+            logger.info("LearnControl :: New loss minimum {:.4f} found at iteration {}, saving in '{}'".format(
+                total_loss, iteration, current_checkpoint))
             self.best_loss = total_loss
             self.best_checkpoint = current_checkpoint
             self.best_iteration = iteration
@@ -77,8 +80,9 @@ class LearnControl:
         else:
             self.count_no_improvement += 1
             if self.count_no_improvement >= self.max_to_keep:
-                print("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model from "
-                      "iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration, self.best_loss))
+                logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
+                            "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
+                                                                          self.best_loss))
                 self.restore_best_model()
                 return True
         return False
@@ -89,17 +93,18 @@ class LearnControl:
 
     def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> dict:
         ks_distance = []
-        for col in df_orig.columns.values:
+        numerical_columns = [c for c in df_orig.columns if df_orig[c].dtype.kind in ('f', 'i')]
+        for col in numerical_columns:
             try:
                 ks_distance.append(ks_2samp(df_orig[col], df_synth[col])[0])
             except Exception as e:
-                print('WARNING :: {}'.format(e))
+                print('ks WARNING col {} :: {}'.format(col, e))
 
         corr = 0
         try:
-            corr = (df_orig.corr() - df_synth.corr()).abs().mean()
+            corr = (df_orig[numerical_columns].corr() - df_synth[numerical_columns].corr()).abs().mean()
         except Exception as e:
-            print('WARNING :: {}'.format(e))
+            print('corr WARNING :: {}'.format(e))
 
         return dict(
             corr_avg=np.mean(corr),

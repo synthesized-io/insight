@@ -6,13 +6,14 @@ from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
 
 from ..common import identify_rules, Value, ValueFactory
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..common import LearnControl
 from ..synthesizer import Synthesizer
+
+LC_SAMPLE_SIZE = 10_000
 
 
 class TypeOverride(enum.Enum):
@@ -62,9 +63,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # Evaluation conditions
-        use_learn_control: bool = True,
-        split_validation: bool = False,
-        validation_size: Optional[float] = None
+        use_learn_control: bool = True
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -218,11 +217,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         if use_learn_control:
             self.learn_control = LearnControl()
 
-        self.split_validation = split_validation
-        if self.split_validation and validation_size:
-            assert 0 < validation_size < 1, "validation_size should be (0, 1), "
-        self.validation_size = validation_size
-
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
@@ -308,29 +302,16 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             callback_freq: Callback frequency.
 
         """
-        df_train = df_train.copy()
+        df_train_orig = df_train.copy()
+        df_train = df_train_orig.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
-        columns = [name for value in (self.values + self.conditions) for name in value.learned_output_columns()]
-
-        if self.split_validation:
-            df_train, df_valid = train_test_split(df_train, test_size=self.validation_size)
-            feed_dict_valid = {
-                placeholder: df_valid[name].to_numpy() for value in (self.values + self.conditions)
-                for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
-            }
-            feed_dict_valid[self.num_rows] = len(df_valid)
 
         num_data = len(df_train)
         data = {
             placeholder: df_train[name].to_numpy() for value in (self.values + self.conditions)
             for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
-
-        if not self.split_validation:
-            feed_dict_valid = data.copy()
-            df_valid = df_train
-            feed_dict_valid[self.num_rows] = len(df_train)
 
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
@@ -349,27 +330,20 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
             if self.use_learn_control and iteration % self.learn_control.check_frequency == 0:
-                synthesized = self.run(fetches=self.synthesized, feed_dict=feed_dict_valid)
-                df_synth = pd.DataFrame.from_dict(synthesized)[columns]
-                if self.learn_control.checkpoint_model_from_data(iteration, df_valid, df_synth):
+                sample_size = min(LC_SAMPLE_SIZE, num_data)
+                df_synth = self.synthesize(num_rows=sample_size)
+                if self.learn_control.checkpoint_model_from_data(iteration, df_train_orig.sample(sample_size),
+                                                                 df_synth):
                     break
 
         print_final_results = False
         if print_final_results:
-            print('Training finished:')
-            synthesized = self.run(fetches=self.synthesized, feed_dict=feed_dict_valid)
-            df_synth = pd.DataFrame.from_dict(synthesized)[columns]
-
-            final_loss = self.learn_control.calculate_loss_from_data(df_train, df_synth)
-            print('TRAIN\nFinal loss = {:.4f}'.format(np.sum(list(final_loss.values()))))
-            print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
+            print('Training finished.')
+            df_synth = self.synthesize(num_rows=num_data)
+            final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
+            print('TRAIN\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
+            print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
             self.learn_control.plot_learning()
-
-            if self.split_validation:
-                final_loss = self.learn_control.calculate_loss_from_data(df_valid, df_synth)
-                print('VALID\nFinal loss = {:.4f}'.format(np.sum(list(final_loss.values()))))
-                print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_loss.items()]))
-                self.learn_control.plot_learning()
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
