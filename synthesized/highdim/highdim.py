@@ -21,6 +21,30 @@ class TypeOverride(enum.Enum):
     ENUMERATION = 'ENUMERATION'
 
 
+class Sanitizer:
+    """This interface defines a sanitization method of synthetic data."""
+
+    def sanitize(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+        pass
+
+
+class DefaultSanitizer(Sanitizer):
+    """The default implementation. Naively drops duplicates."""
+
+    def __init__(self, df_original: pd.DataFrame) -> None:
+        self.df_original = df_original
+
+    def sanitize(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+        """Drop rows in df_synthesized that are present in df_original."""
+
+        original_rows = {row for row in self.df_original.itertuples(index=False)}
+        to_drop = []
+        for i, row in enumerate(df_synthesized.itertuples(index=False)):
+            if row in original_rows:
+                to_drop.append(i)
+        return df_synthesized.drop(to_drop)
+
+
 class HighDimSynthesizer(Synthesizer,  ValueFactory):
     """The main synthesizer implementation.
 
@@ -61,7 +85,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Identifier
         identifier_label: str = None,
         # Rules to look for
-        find_rules: Union[str, List[str]] = None
+        find_rules: Union[str, List[str]] = None,
+        sanitize_output=False,
+        sanitizer=None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -171,6 +197,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+
+        if sanitize_output:
+            if sanitizer is None:
+                sanitizer = DefaultSanitizer(df_original=df)
+            self.sanitizer: Optional[Sanitizer] = sanitizer
+        else:
+            self.sanitizer = None
 
         # pleas note that `ValueFactory` uses some fields defined above
         ValueFactory.__init__(self)
@@ -322,12 +355,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     ) -> pd.DataFrame:
         df_synthesized = self._synthesize(num_rows=num_rows, conditions=conditions)
 
-        # if no reference dataset provided just return what we have here
-        if df_original is None:
+        # if no sanitizer provided just return what we have here
+        if self.sanitizer is None:
             return df_synthesized
 
         # the first drop of duplicates
-        df_synthesized = self._drop_duplicates(df_original, df_synthesized)
+        df_synthesized = self.sanitizer.sanitize(df_synthesized)
 
         # we will use fill_ratio to predict how many more records we need
         fill_ratio = len(df_synthesized) / float(num_rows)
@@ -344,7 +377,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             # synthesis + dropping
             df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
-            df_additional = self._drop_duplicates(df_original, df_additional)
+            df_additional = self.sanitizer.sanitize(df_additional)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
             # we give up after some number of attempts
@@ -355,16 +388,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             return df_synthesized.sample(num_rows)
         else:
             return df_synthesized
-
-    def _drop_duplicates(self, df_original: pd.DataFrame, df_synthesized: pd.DataFrame) -> pd.DataFrame:
-        """Drop rows in df_synthesized that are present in df_original."""
-
-        original_rows = {row for row in df_original.itertuples(index=False)}
-        to_drop = []
-        for i, row in enumerate(df_synthesized.itertuples(index=False)):
-            if row in original_rows:
-                to_drop.append(i)
-        return df_synthesized.drop(to_drop)
 
     def _synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None

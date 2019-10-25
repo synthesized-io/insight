@@ -75,14 +75,12 @@ class Synthesizer(Module):
         raise NotImplementedError
 
     def synthesize(self, num_rows: int,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   df_original: pd.DataFrame = None) -> pd.DataFrame:
+                   conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
-            df_original: Original data that is used to check there are no duplicate rows in the synthetic data.
         Returns:
             The generated data.
 
