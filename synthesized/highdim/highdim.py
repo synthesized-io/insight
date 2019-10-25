@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .sanitizer import Sanitizer, DefaultSanitizer
 from ..common import identify_rules, Value, ValueFactory
+from ..common.sanitizer import Sanitizer, DefaultSanitizer
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
 from ..synthesizer import Synthesizer
