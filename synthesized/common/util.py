@@ -70,3 +70,12 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
+
+
+def compute_embedding_size(num_categories: int, capacity: int) -> int:
+    if capacity is None:
+        capacity = 128
+    if num_categories <= 10:
+        return num_categories
+    else:
+        return min(int(num_categories * 0.75), capacity)

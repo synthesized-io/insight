@@ -1,4 +1,4 @@
-from math import isnan, log
+from math import isnan
 from typing import Any, Dict, List, Union, Optional
 
 import pandas as pd
@@ -37,7 +37,7 @@ class CategoricalValue(Value):
 
         self.capacity = capacity
         if embedding_size is None and self.num_categories is not None:
-            embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
+            embedding_size = util.compute_embedding_size(self.num_categories, self.capacity)
         self.embedding_size = embedding_size
         self.weight_decay = weight_decay
         self.weight = weight
@@ -89,7 +89,7 @@ class CategoricalValue(Value):
         self._set_categories(unique_values)
 
         if self.embedding_size is None and self.num_categories is not None:
-            self.embedding_size = int(log(self.num_categories + 1) * self.capacity / 2.0)
+            self.embedding_size = util.compute_embedding_size(self.num_categories, self.capacity)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):

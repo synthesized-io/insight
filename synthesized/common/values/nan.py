@@ -1,4 +1,3 @@
-from math import log
 from typing import List
 
 import numpy as np
@@ -24,7 +23,7 @@ class NanValue(Value):
 
         self.capacity = capacity
         if embedding_size is None:
-            embedding_size = int(log(2) * self.capacity / 2.0)
+            embedding_size = util.compute_embedding_size(2, self.capacity)
         self.embedding_size = embedding_size
         self.weight_decay = weight_decay
         self.weight = weight
