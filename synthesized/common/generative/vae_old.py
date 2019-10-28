@@ -67,14 +67,14 @@ class VAEOld(Generative):
 
         self.encoding = self.add_module(
             module='variational', name='encoding',
-            input_size=self.encoder.size(), encoding_size=capacity, beta=beta
+            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
         )
 
         self.modulation = None
 
         self.decoder = self.add_module(
             module=network, name='decoder',
-            input_size=(self.encoder.size() + condition_size),
+            input_size=(self.encoding.size() + condition_size),
             layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
         )
 
@@ -84,8 +84,9 @@ class VAEOld(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam', parent=self,
-            learning_rate=learning_rate, clip_gradients=1.0
+            module='optimizer', name='optimizer', optimizer=optimizer,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            clip_gradients=1.0,
         )
 
     def specification(self) -> dict:
@@ -163,6 +164,9 @@ class VAEOld(Generative):
         total_loss = tf.add_n(inputs=list(losses.values()))
         losses['total-loss'] = total_loss
 
+        # Reconstruction loss
+        reconstruction_loss = tf.convert_to_tensor(0, dtype=tf.float32)
+
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
@@ -170,6 +174,9 @@ class VAEOld(Generative):
                 summaries.append(tf.contrib.summary.scalar(
                     name=name + '-ratio', tensor=(loss / losses['encoding'])
                 ))
+                reconstruction_loss += loss
+
+        summaries.append(tf.contrib.summary.scalar(name='reconstruction-loss', tensor=reconstruction_loss))
 
         if not self.summarize:
             summaries = list()
@@ -179,7 +186,7 @@ class VAEOld(Generative):
 
             # Optimization step
             optimized = self.optimizer.optimize(
-                loss=loss, summarize_gradient_norms=self.summarize
+                loss=loss, summarize_gradient_norms=self.summarize, summarize_lr=self.summarize
             )
 
         return losses, optimized

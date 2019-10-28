@@ -33,7 +33,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     MAX_SYNTHESIS_ATTEMPTS = 3
 
     def __init__(
-        self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
+        self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
+        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Iterable[str] = None,
         # VAE distribution
@@ -42,8 +43,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         network: str = 'resnet', capacity: int = 128, depth: int = 2, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = 1000,
-        decay_rate: float = 0.9, initial_boost: bool = False, clip_gradients: float = 1.0,
+        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: bool = False, clip_gradients: float = 1.0,
         batch_size: int = 64,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
@@ -114,7 +115,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
+        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
+                             profiler_args=profiler_args)
         if type_overrides is None:
             self.type_overrides: Dict[str, TypeOverride] = dict()
         else:
