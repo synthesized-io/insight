@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Union
 import logging
 
 import tensorflow as tf
@@ -6,6 +6,9 @@ import pandas as pd
 import numpy as np
 from scipy.stats import ks_2samp
 import matplotlib.pyplot as plt
+
+from ..util import categorical_emd
+from ...synthesizer import Synthesizer
 
 logger = logging.getLogger(__name__)
 
@@ -15,27 +18,38 @@ class LearnControl:
     This class will control the learning, checking that it improves and that stopping learning if necessary before the
     maximum number of iterations is reached.
     """
-    def __init__(self, check_frequency: int = 200, checkpoint_path: Optional[str] = None, max_to_keep: int = 5,
-                 patience: int = 750, must_reach_loss: float = None, good_enough_loss: float = None):
+    def __init__(self, check_frequency: int = 100, checkpoint_path: Optional[str] = None,
+                 no_learn_iterations: int = 10, max_to_keep: int = 5,
+                 patience: int = 750, must_reach_loss: float = None, good_enough_loss: float = None,
+                 which_loss: Optional[Union[str, List[str]]] = None):
         """
         Initialize LearnControl.
 
         :param check_frequency:
         :param checkpoint_path: Directory where checkpoints will be saved
-        :param max_to_keep: If the LearnControl checks performance for 'max_to_keep' times without improvement,
-            will return True. Defines the number of previous checkpoints stored.
+        :param no_learn_iterations: If the LearnControl checks performance for 'no_learn_iterations' times without
+            improvement, will return True and stop learning.
+        :param max_to_keep: Defines the number of previous checkpoints stored.
         :param patience: How many iterations before start checking the performance.
         :param must_reach_loss: If this loss threshold is not reached, will always return False.
         :param good_enough_loss: If this loss threshold is not reached, will return True even if the model is still
             improving.
+        :param which_loss: Which loss will be evaluated in each iteration. If None, all losses will be used, otherwise
+            a str for a single loss or a list of str for more than one.
         """
 
         self.check_frequency = check_frequency
         self.checkpoint_path = checkpoint_path if checkpoint_path is not None else '/tmp/tf_checkpoints'
+        self.no_learn_iterations = no_learn_iterations
         self.max_to_keep = max_to_keep
         self.patience = patience
         self.must_reach_loss = must_reach_loss
         self.good_enough_loss = good_enough_loss
+
+        if which_loss:
+            assert which_loss in ['ks_dist_avg', 'corr_avg', 'emd_avg'], \
+                "Only 'ks_dist_avg', 'corr_avg', 'emd_avg' supported, which_loss='{}' given"
+        self.which_loss = which_loss
 
         self.loss_log: Dict[int, dict] = dict()
 
@@ -50,7 +64,7 @@ class LearnControl:
 
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
-        Compare the loss against previous iteration, evaluate the criteria and return accordingly
+        Compare the loss against previous iteration, evaluate the criteria and return accordingly.
 
         :param iteration:
         :param loss: OrderedDict containing all losses.
@@ -58,6 +72,12 @@ class LearnControl:
         """
 
         self.loss_log[iteration] = loss
+
+        if self.which_loss:
+            if isinstance(self.which_loss, int):
+                loss = loss[self.which_loss]
+            if isinstance(self.which_loss, list):
+                loss = {k: v for k, v in loss.items() if k in self.which_loss}
 
         total_loss = sum(loss.values())
         logger.debug("LearnControl :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
@@ -79,7 +99,7 @@ class LearnControl:
             self.count_no_improvement = 0
         else:
             self.count_no_improvement += 1
-            if self.count_no_improvement >= self.max_to_keep:
+            if self.count_no_improvement >= self.no_learn_iterations:
                 logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
                             "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
                                                                           self.best_loss))
@@ -88,27 +108,59 @@ class LearnControl:
         return False
 
     def checkpoint_model_from_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
-        loss = self.calculate_loss_from_data(df_orig, df_synth)
+        """
+        Given original an synthetic data, calculate the loss and cmopare it to previous iteration, evaluate the criteria
+        and return accordingly.
+
+        :param iteration:
+        :param df_orig:
+        :param df_synth:
+        :return:
+        """
+        loss = self.calculate_loss_from_data(df_orig=df_orig, df_synth=df_synth)
         return self.checkpoint_model_from_loss(iteration=iteration, loss=loss)
 
-    def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> dict:
-        ks_distance = []
-        numerical_columns = [c for c in df_orig.columns if df_orig[c].dtype.kind in ('f', 'i')]
-        for col in numerical_columns:
-            try:
-                ks_distance.append(ks_2samp(df_orig[col], df_synth[col])[0])
-            except Exception as e:
-                print('ks WARNING col {} :: {}'.format(col, e))
+    def checkpoint_model_from_synthesizer(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame,
+                                          sample_size: int):
+        """
+        Given a Synthesizer and the original data, get synthetic data, calculate the loss, compare it to previous
+        iteration, evaluate the criteria and return accordingly.
 
-        corr = 0
-        try:
-            corr = (df_orig[numerical_columns].corr() - df_synth[numerical_columns].corr()).abs().mean()
-        except Exception as e:
-            print('corr WARNING :: {}'.format(e))
+        :param iteration:
+        :param synthesizer:
+        :param df_train:
+        :param sample_size:
+        :return:
+        """
+        if iteration % self.check_frequency != 0:
+            return False
+
+        sample_size = min(sample_size, len(df_train))
+        df_synth = synthesizer.synthesize(num_rows=sample_size)
+        return self.checkpoint_model_from_data(iteration, df_train.sample(sample_size), df_synth)
+
+    def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> dict:
+        ks_distances = []
+        emd = []
+
+        for col in df_orig.columns:
+            if df_orig[col].dtype.kind in ('f', 'i'):
+                ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
+            else:
+                try:
+                    ks_distances.append(ks_2samp(
+                        pd.to_numeric(pd.to_datetime(df_orig[col])),
+                        pd.to_numeric(pd.to_datetime(df_synth[col]))
+                    )[0])
+                except ValueError:
+                    emd.append(categorical_emd(df_orig[col], df_synth[col]))
+
+        corr = (df_orig.corr() - df_synth.corr()).abs().mean()
 
         return dict(
+            ks_dist_avg=np.mean(ks_distances),
             corr_avg=np.mean(corr),
-            ks_dist_avg=np.mean(ks_distance)
+            emd_avg=np.mean(emd)
         )
 
     def restore_best_model(self) -> bool:

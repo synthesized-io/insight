@@ -8,12 +8,12 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
+from ..common.learn_control import LearnControl
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
-from ..common import LearnControl
 from ..synthesizer import Synthesizer
 
-LC_SAMPLE_SIZE = 10_000
+LEARN_CONTROL_SAMPLE_SIZE = 10_000
 
 
 class TypeOverride(enum.Enum):
@@ -302,8 +302,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             callback_freq: Callback frequency.
 
         """
+        df_train = df_train.copy()
         df_train_orig = df_train.copy()
-        df_train = df_train_orig.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
@@ -329,12 +329,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-            if self.use_learn_control and iteration % self.learn_control.check_frequency == 0:
-                sample_size = min(LC_SAMPLE_SIZE, num_data)
-                df_synth = self.synthesize(num_rows=sample_size)
-                if self.learn_control.checkpoint_model_from_data(iteration, df_train_orig.sample(sample_size),
-                                                                 df_synth):
-                    break
+            if self.use_learn_control and self.learn_control.checkpoint_model_from_synthesizer(
+                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=LEARN_CONTROL_SAMPLE_SIZE
+            ):
+                break
 
         print_final_results = False
         if print_final_results:
