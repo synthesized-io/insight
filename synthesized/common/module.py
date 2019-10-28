@@ -141,7 +141,6 @@ class Module(object):
     def __exit__(self, type, value, traceback):
         if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
-        self.graph.finalize()
         self.session.__exit__(type, value, traceback)
         tf.compat.v1.reset_default_graph()
         if self.profiler is not None:

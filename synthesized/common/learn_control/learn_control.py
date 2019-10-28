@@ -79,7 +79,7 @@ class LearnControl:
             if isinstance(self.which_loss, list):
                 loss = {k: v for k, v in loss.items() if k in self.which_loss}
 
-        total_loss = sum(loss.values())
+        total_loss = np.mean(np.nan_to_num(list(loss.values())))
         logger.debug("LearnControl :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
 
         if iteration < self.patience:
@@ -103,8 +103,9 @@ class LearnControl:
                 logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
                             "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
                                                                           self.best_loss))
-                self.restore_best_model()
+
                 return True
+                self.restore_best_model()
         return False
 
     def checkpoint_model_from_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
@@ -140,6 +141,13 @@ class LearnControl:
         return self.checkpoint_model_from_data(iteration, df_train.sample(sample_size), df_synth)
 
     def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> dict:
+        """
+        Calculate loss dictionary given two datasets
+
+        :param df_orig:
+        :param df_synth:
+        :return:
+        """
         ks_distances = []
         emd = []
 
@@ -155,13 +163,14 @@ class LearnControl:
                 except ValueError:
                     emd.append(categorical_emd(df_orig[col], df_synth[col]))
 
-        corr = (df_orig.corr() - df_synth.corr()).abs().mean()
+        corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 
-        return dict(
-            ks_dist_avg=np.mean(ks_distances),
-            corr_avg=np.mean(corr),
-            emd_avg=np.mean(emd)
+        losses = dict(
+            ks_dist_avg=self.empty_mean(ks_distances),
+            corr_avg=self.empty_mean(corr),
+            emd_avg=self.empty_mean(emd)
         )
+        return {k: v if not np.isnan(v) else 0. for k, v in losses.items()}
 
     def restore_best_model(self) -> bool:
         return self.checkpoint.restore(self.best_checkpoint)
@@ -179,7 +188,21 @@ class LearnControl:
             plt.plot(t, x[i], label=labels[i])
         x_avg = x.mean(axis=0)
         plt.plot(t, x_avg, 'k--', label='Average')
-        plt.plot([min(t), max(t)], [min(x_avg), min(x_avg)], 'k:', label='Minimum')
+
+        x_min = min(x_avg)
+        t_min = t[int(np.argmin(x_avg))]
+        plt.plot([min(t), max(t)], [x_min, x_min], 'k:', label='Minimum')
+        plt.plot([t_min, t_min], [np.min(x), np.max(x)], 'k:')
+
+        plt.plot([min(t), max(t)], [self.best_loss, self.best_loss], 'k-.', label='Minimum LC')
+        plt.plot([self.best_iteration, self.best_iteration], [np.min(x), np.max(x)], 'k-.')
+
         plt.legend()
         plt.xlabel('Iteration')
+        plt.savefig('../foo.png')
         plt.show()
+
+        return x_min, t_min
+
+    def empty_mean(self, l):
+        return np.mean(l) if len(l) > 0 else 0.
