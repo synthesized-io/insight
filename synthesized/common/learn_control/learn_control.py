@@ -185,7 +185,7 @@ class LearnControl:
     def restore_best_model(self) -> bool:
         return self.checkpoint.restore(self.best_checkpoint)
 
-    def plot_learning(self):
+    def plot_learning(self, fig_name=None):
         t = list(self.loss_log.keys())
         x = []
         for v in self.loss_log.values():
@@ -210,7 +210,8 @@ class LearnControl:
 
         plt.legend()
         plt.xlabel('Iteration')
-        plt.savefig('../foo.png')
+        if fig_name:
+            plt.savefig('{}.png'.format(fig_name))
         plt.show()
 
         return x_min, t_min
