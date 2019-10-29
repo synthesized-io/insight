@@ -77,6 +77,10 @@ def make_tf_compatible(string):
 def categorical_emd(a, b):
     space = sorted(list(set(a).union(set(b))))
 
+    # To protect from memory errors:
+    if len(space) >= 1e4:
+        return 0.
+
     a_unique, counts = np.unique(a, return_counts=True)
     a_counts = dict(zip(a_unique, counts))
 
