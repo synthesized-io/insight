@@ -5,6 +5,7 @@ import pandas as pd
 
 from synthesized import HighDimSynthesizer
 
+
 files_dir = '/Users/tonbadal/PycharmProjects/synthesized-web/project_templates/templates/'
 files = os.listdir(files_dir)
 for file in files:

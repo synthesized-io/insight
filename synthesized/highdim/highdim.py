@@ -317,7 +317,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         callback_fetches = (self.optimized, self.losses)
 
         minimum_found = False
-        plot_line = None
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
