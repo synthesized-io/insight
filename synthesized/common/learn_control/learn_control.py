@@ -62,6 +62,11 @@ class LearnControl:
         self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                              max_to_keep=self.max_to_keep)
 
+        # Remove this:
+        self.best_lc_loss = None
+        self.best_lc_iteration = None
+        self.good_enough_loss = 0.1
+
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
         Compare the loss against previous iteration, evaluate the criteria and return accordingly.
@@ -103,9 +108,14 @@ class LearnControl:
                 logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
                             "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
                                                                           self.best_loss))
+                # Remove this:
+                if not self.best_lc_loss:
+                    self.best_lc_loss = total_loss
+                    self.best_lc_iteration = iteration
 
+                # Uncomment this:
+                # self.restore_best_model()
                 return True
-                self.restore_best_model()
         return False
 
     def checkpoint_model_from_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
@@ -194,8 +204,9 @@ class LearnControl:
         plt.plot([min(t), max(t)], [x_min, x_min], 'k:', label='Minimum')
         plt.plot([t_min, t_min], [np.min(x), np.max(x)], 'k:')
 
-        plt.plot([min(t), max(t)], [self.best_loss, self.best_loss], 'k-.', label='Minimum LC')
-        plt.plot([self.best_iteration, self.best_iteration], [np.min(x), np.max(x)], 'k-.')
+        # Remove this:
+        plt.plot([min(t), max(t)], [self.best_lc_loss, self.best_lc_loss], 'k-.', label='Minimum LC')
+        plt.plot([self.best_lc_iteration, self.best_lc_iteration], [np.min(x), np.max(x)], 'k-.')
 
         plt.legend()
         plt.xlabel('Iteration')
