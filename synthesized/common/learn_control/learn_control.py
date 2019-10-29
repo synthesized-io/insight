@@ -170,7 +170,7 @@ class LearnControl:
                         pd.to_numeric(pd.to_datetime(df_synth[col]))
                     )[0])
                 except ValueError:
-                    emd.append(categorical_emd(df_orig[col], df_synth[col]))
+                    emd.append(categorical_emd(df_orig[col].dropna(), df_synth[col].dropna()))
 
         corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 

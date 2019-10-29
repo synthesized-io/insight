@@ -75,7 +75,7 @@ def make_tf_compatible(string):
 
 
 def categorical_emd(a, b):
-    space = sorted(list(set(a).union(set(b))))
+    space = list(set(a).union(set(b)))
 
     # To protect from memory errors:
     if len(space) >= 1e4:
