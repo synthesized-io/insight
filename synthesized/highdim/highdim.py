@@ -287,7 +287,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, num_iterations: int, df_train: pd.DataFrame,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0
+        callback_freq: int = 0, ds_name=None
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -349,7 +349,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
             print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
             print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
-            self.learn_control.plot_learning()
+            self.learn_control.plot_learning(ds_name)
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None

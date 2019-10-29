@@ -15,7 +15,7 @@ for file in files:
     t = datetime.now()
     with HighDimSynthesizer(df=data
                             ) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=10000)
+        synthesizer.learn(df_train=data, num_iterations=10000, ds_name=file)
         synthesized = synthesizer.synthesize(num_rows=len(data.dropna()))
     print('Total time: ', datetime.now() - t)
     print('\n================================================\n')
