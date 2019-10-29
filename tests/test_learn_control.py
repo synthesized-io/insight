@@ -1,13 +1,18 @@
 import os
 from datetime import datetime
+import json
 
 import pandas as pd
 
 from synthesized import HighDimSynthesizer
 
 
-files_dir = '/Users/tonbadal/PycharmProjects/synthesized-web/project_templates/templates/'
-files = os.listdir(files_dir)
+files_dir = '../synthesized-web/project_templates/templates/'
+# files = os.listdir(files_dir)
+
+j = json.load(open('../synthesized-web/project_templates/meta.json', 'r'))
+files = [l["file"].split('/')[1] for l in j["templates"]]
+
 for file in files:
     print("\nDATASET '{}'\n".format(file))
     data = pd.read_csv(files_dir + file)
