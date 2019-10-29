@@ -65,7 +65,6 @@ class LearnControl:
         # Remove this:
         self.best_lc_loss = None
         self.best_lc_iteration = None
-        self.good_enough_loss = 0.1
 
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
