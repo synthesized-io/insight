@@ -2,6 +2,7 @@
 import enum
 from collections import OrderedDict
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
 
-LEARN_CONTROL_SAMPLE_SIZE = 10_000
+LEARN_CONTROL_SAMPLE_SIZE = 50_000
 
 
 class TypeOverride(enum.Enum):
@@ -318,6 +319,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         minimum_found = False
 
+        t_start = datetime.now()
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
@@ -340,6 +342,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
                     print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
                     print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
+                    print("\tTraining time: {}".format(datetime.now() - t_start))
                     minimum_found = True
 
         print_final_results = True
@@ -349,6 +352,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
             print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
             print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
+            print("\tTraining time: {}".format(datetime.now() - t_start))
             self.learn_control.plot_learning(ds_name)
 
     def synthesize(

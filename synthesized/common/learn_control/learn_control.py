@@ -48,23 +48,23 @@ class LearnControl:
 
         if which_loss:
             assert which_loss in ['ks_dist_avg', 'corr_avg', 'emd_avg'], \
-                "Only 'ks_dist_avg', 'corr_avg', 'emd_avg' supported, which_loss='{}' given"
+                "Only 'ks_dist_avg', 'corr_avg', 'emd_avg' supported, given which_loss='{}'".format(which_loss)
         self.which_loss = which_loss
 
         self.loss_log: Dict[int, dict] = dict()
 
-        self.count_no_improvement = 0
+        self.count_no_improvement: int = 0
         self.best_loss: Optional[float] = None
-        self.best_checkpoint = None
-        self.best_iteration = 0
+        self.best_checkpoint: Optional[str] = None
+        self.best_iteration: int = 0
 
         self.checkpoint = tf.train.Checkpoint()
         self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                              max_to_keep=self.max_to_keep)
 
         # Remove this:
-        self.best_lc_loss = None
-        self.best_lc_iteration = None
+        self.best_lc_loss: Optional[float] = None
+        self.best_lc_iteration: Optional[int] = None
 
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
@@ -109,8 +109,8 @@ class LearnControl:
                                                                           self.best_loss))
                 # Remove this:
                 if not self.best_lc_loss:
-                    self.best_lc_loss = total_loss
-                    self.best_lc_iteration = iteration
+                    self.best_lc_loss = self.best_loss
+                    self.best_lc_iteration = self.best_iteration
 
                 # Uncomment this:
                 # self.restore_best_model()
