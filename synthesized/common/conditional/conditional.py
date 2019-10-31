@@ -119,6 +119,12 @@ class Inclusive(FloatEndpoint):
         else:
             return '{}]'.format(self.value)
 
+    def __eq__(self, other):
+        return self.value == other.value
+
+    def __repr__(self):
+        return "Inclusive({})".format(self.value)
+
 
 class Exclusive(FloatEndpoint):
     def __init__(self, value: float):
@@ -136,6 +142,12 @@ class Exclusive(FloatEndpoint):
         else:
             return '{})'.format(self.value)
 
+    def __eq__(self, other):
+        return self.value == other.value
+
+    def __repr__(self):
+        return "Exclusive({})".format(self.value)
+
 
 class FloatInterval:
     RE = re.compile(r'([\[\(])(\S+\.\S+),\s(\S+\.\S+)([\]\)])')
@@ -146,6 +158,12 @@ class FloatInterval:
 
     def is_in(self, value: float):
         return self.left.as_left_in(value) and self.right.as_right_in(value)
+
+    def __eq__(self, other):
+        return self.left == other.left and self.right == other.right
+
+    def __repr__(self):
+        return 'FloatInterval({}, {})'.format(self.left, self.right)
 
     def __str__(self) -> str:
         return '{left}, {right}'.format(left=self.left.to_str(is_left=True), right=self.right.to_str(is_left=False))
