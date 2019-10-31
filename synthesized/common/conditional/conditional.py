@@ -202,6 +202,7 @@ class FloatInterval:
     RE = re.compile(r'([\[\(])(\S+\.\S+),\s(\S+\.\S+)([\]\)])')
 
     def __init__(self, left: FloatEndpoint, right: FloatEndpoint):
+        assert left.value < right.value
         self.left = left
         self.right = right
 
