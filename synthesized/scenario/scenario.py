@@ -236,7 +236,8 @@ class ScenarioSynthesizer(Synthesizer):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
