@@ -29,10 +29,15 @@ class ConditionalSampler(Synthesizer):
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
         """
         self.synthesizer = synthesizer
+
+        # For simplicity let's store distributions in a dict where key is a column:
         self.conditions: Dict[str, Dict[Any, float]] = {}
         for col, cond in conditions:
             self.conditions[col] = cond
         self.columns: List[str] = []
+
+        # Let's compute cartesian product of all probs for each column
+        # to get probs for the joined distribution:
         category_probs = []
         for column, distr in conditions:
             self.columns.append(column)
@@ -135,13 +140,13 @@ class FloatEndpoint(ABC):
     def __init__(self, value: float):
         self.value = value
 
-    def to_str(self, is_left: bool):
+    def to_str(self, is_left: bool) -> str:
         pass
 
-    def as_left_in(self, value: float):
+    def as_left_in(self, value: float) -> bool:
         pass
 
-    def as_right_in(self, value: float):
+    def as_right_in(self, value: float) -> bool:
         pass
 
 
@@ -149,13 +154,13 @@ class Inclusive(FloatEndpoint):
     def __init__(self, value: float):
         super().__init__(value)
 
-    def as_left_in(self, value: float):
+    def as_left_in(self, value: float) -> bool:
         return value >= self.value
 
-    def as_right_in(self, value: float):
+    def as_right_in(self, value: float) -> bool:
         return value <= self.value
 
-    def to_str(self, is_left: bool):
+    def to_str(self, is_left: bool) -> str:
         if is_left:
             return '[{}'.format(self.value)
         else:
@@ -172,13 +177,13 @@ class Exclusive(FloatEndpoint):
     def __init__(self, value: float):
         super().__init__(value)
 
-    def as_left_in(self, value: float):
+    def as_left_in(self, value: float) -> bool:
         return value > self.value
 
-    def as_right_in(self, value: float):
+    def as_right_in(self, value: float) -> bool:
         return value < self.value
 
-    def to_str(self, is_left: bool):
+    def to_str(self, is_left: bool) -> str:
         if is_left:
             return '({}'.format(self.value)
         else:
@@ -200,7 +205,7 @@ class FloatInterval:
         self.left = left
         self.right = right
 
-    def is_in(self, value: float):
+    def is_in(self, value: float) -> bool:
         return self.left.as_left_in(value) and self.right.as_right_in(value)
 
     def __eq__(self, other):
