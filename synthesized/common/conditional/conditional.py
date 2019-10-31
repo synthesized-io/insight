@@ -12,9 +12,22 @@ from ...synthesizer import Synthesizer
 
 
 class ConditionalSampler(Synthesizer):
+    """
+    Samples from the distributions defined by `conditions` then it
+    samples from the synthesizer conditionally on this distribution.
+    """
+
     def __init__(
-            self, synthesizer: Synthesizer, *conditions: Tuple[str, Dict[Any, float]], min_fill_ratio: float = 0.001
+            self, synthesizer: Synthesizer, *conditions: Tuple[str, Dict[Any, float]], min_sampled_ratio: float = 0.001
     ):
+        """Create ConditionalSampler.
+
+        Args:
+            synthesizer: An underlying synthesizer
+            *conditions: A dict of desired distributions per column.
+                Distributions defined as density per category or bin.
+            min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
+        """
         self.synthesizer = synthesizer
         self.conditions: Dict[str, Dict[Any, float]] = {}
         for col, cond in conditions:
@@ -30,7 +43,7 @@ class ConditionalSampler(Synthesizer):
             for comb in category_combinations
         ]
         self.joined_probs = {row[0]: np.product(row[1]) for row in rows}
-        self.min_fill_ratio = min_fill_ratio
+        self.min_sampled_ratio = min_sampled_ratio
 
     def learn(self, num_iterations: int, df_train: pd.DataFrame,
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
@@ -39,32 +52,61 @@ class ConditionalSampler(Synthesizer):
         )
 
     def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None):
+        # For the sake of performance we will not really sample from "condition" distribution,
+        # but will rather sample directly from synthesizer and filter records so they distribution is conditional
+
+        # Counters represent hom many instances of each condition we need to sample
         counts = Counter({c: int(round(p * num_rows)) for c, p in self.joined_probs.items()})
+
+        # Let's adjust counts so they sum up to `num_rows`:
+        any_key = list(counts.keys())[0]
+        counts[any_key] += num_rows - sum(counts.values())
+
+        # The result is a list of result arrays
         result = []
-        fill_ratio = 1.0
+
+        sampled_ratio = 1.0
         all_columns = None
-        while sum(counts.values()) > 0 and fill_ratio > self.min_fill_ratio:
+        while sum(counts.values()) > 0 and sampled_ratio >= self.min_sampled_ratio:
             n_missing = sum(counts.values())
-            n_prefetch = round(n_missing / fill_ratio * 1.1)
+
+            # Estimate how many rows we need so after filtering we have enough:
+            n_prefetch = round(n_missing / sampled_ratio * 1.1)
             n_prefetch = min(n_prefetch, int(1e6))
+
+            # Synthesis:
             df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions)
+
+            # In order to filter our data frame we need keys that we will look up in counts:
             df_key = df_synthesized[self.columns]
             df_key = self._map_continuous_columns(df_key)
+
             all_columns = df_synthesized.columns
             n_added = 0
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
                 key = tuple(key_row)
+                # If counter for the instance is positive let's emit the current row:
                 if counts[key] > 0:
                     result.append(row)
                     n_added += 1
                     counts[key] -= 1
             if n_added == 0:
-                fill_ratio = 1.0 / n_prefetch
+                # In case if we couldn't sample anything this time:
+                sampled_ratio = 1.0 / n_prefetch
             else:
-                fill_ratio = float(n_added) / n_prefetch
+                sampled_ratio = float(n_added) / n_prefetch
         return pd.DataFrame.from_records(result, columns=all_columns)
 
     def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Looks for continuous columns and map values into bins that are defined in `self.conditions`.
+
+        Args:
+            df: Input data frame.
+
+        Returns:
+            Result data frame.
+
+        """
         df = df.copy()
 
         mapping = {}
@@ -150,6 +192,8 @@ class Exclusive(FloatEndpoint):
 
 
 class FloatInterval:
+    """Models an interval of float values."""
+
     RE = re.compile(r'([\[\(])(\S+\.\S+),\s(\S+\.\S+)([\]\)])')
 
     def __init__(self, left: FloatEndpoint, right: FloatEndpoint):
