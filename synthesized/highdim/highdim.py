@@ -349,7 +349,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                         print("\tTraining time: {}".format(datetime.now() - t_start))
                         minimum_found = True
 
-        print_final_results = True
+        print_final_results = False
         if print_final_results:
             print('***FINAL STOP :: ITERATION {}***'.format(iteration))
             df_synth = self.synthesize(num_rows=num_data)
