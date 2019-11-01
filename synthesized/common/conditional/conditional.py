@@ -13,8 +13,7 @@ from ...synthesizer import Synthesizer
 
 class ConditionalSampler(Synthesizer):
     """
-    Samples from the distributions defined by `conditions` then it
-    samples from the synthesizer conditionally on this distribution.
+    Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
     """
 
     def __init__(self,
