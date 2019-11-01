@@ -17,6 +17,17 @@ class LearnControl:
     """
     This class will control the learning, checking that it improves and that stopping learning if necessary before the
     maximum number of iterations is reached.
+
+    Usage example:
+
+        > lc = LearnControl()
+        > for iteration in range(iterations):
+        >     batch = get_batch()
+        >     synthesizer.learn(batch)
+        >     if lc.checkpoint_model_from_synthesizer(iteration, synthesizer=synthesizer, df_train=df_train):
+        >         break
+
+
     """
     def __init__(self, check_frequency: int = 100, checkpoint_path: Optional[str] = None,
                  no_learn_iterations: int = 10, max_to_keep: int = 5,
@@ -65,6 +76,7 @@ class LearnControl:
         # Remove this:
         self.best_lc_loss: Optional[float] = None
         self.best_lc_iteration: Optional[int] = None
+        self.test_lc: bool = False
 
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
@@ -83,7 +95,15 @@ class LearnControl:
             if isinstance(self.which_loss, list):
                 loss = {k: v for k, v in loss.items() if k in self.which_loss}
 
-        total_loss = np.mean(np.nan_to_num(list(loss.values())))
+        if len(loss) == 1:
+            total_loss = np.nanmean(list(loss.values()))
+        else:
+            total_loss = np.nanmean(np.concatenate(list(loss.values())))
+
+        if np.isnan(total_loss):
+            logger.error('LearnControl :: Total Loss is NaN')
+            return False
+
         logger.debug("LearnControl :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
 
         if iteration < self.patience:
@@ -107,14 +127,17 @@ class LearnControl:
                 logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
                             "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
                                                                           self.best_loss))
-                # Remove this:
-                if not self.best_lc_loss:
-                    self.best_lc_loss = self.best_loss
-                    self.best_lc_iteration = self.best_iteration
 
-                # Uncomment this:
-                # self.restore_best_model()
-                return True
+                if not self.test_lc:
+                    self.restore_best_model()
+                    return True
+                else:
+                    # Remove this:
+                    if not self.best_lc_loss:
+                        self.best_lc_loss = self.best_loss
+                        self.best_lc_iteration = self.best_iteration
+                    return True
+
         return False
 
     def checkpoint_model_from_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
@@ -127,8 +150,8 @@ class LearnControl:
         :param df_synth:
         :return:
         """
-        loss = self.calculate_loss_from_data(df_orig=df_orig, df_synth=df_synth)
-        return self.checkpoint_model_from_loss(iteration=iteration, loss=loss)
+        losses = self.calculate_loss_from_data(df_orig=df_orig, df_synth=df_synth)
+        return self.checkpoint_model_from_loss(iteration=iteration, loss=losses)
 
     def checkpoint_model_from_synthesizer(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame,
                                           sample_size: int):
@@ -175,11 +198,12 @@ class LearnControl:
         corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 
         losses = dict(
-            ks_dist_avg=self.empty_mean(ks_distances),
-            corr_avg=self.empty_mean(corr),
-            emd_avg=self.empty_mean(emd)
+            ks_dist_avg=ks_distances,
+            corr_avg=corr,
+            emd_avg=emd
         )
-        return {k: v if not np.isnan(v) else 0. for k, v in losses.items()}
+
+        return losses
 
     def restore_best_model(self) -> bool:
         return self.checkpoint.restore(self.best_checkpoint)
@@ -190,7 +214,7 @@ class LearnControl:
         for v in self.loss_log.values():
             x.append(list(v.values()))
         labels = list(v.keys())
-        x = np.array(x).T
+        x = np.array(np.mean(x, axis=0)).T
 
         plt.figure(figsize=(12, 8))
         for i in range(len(x)):
@@ -216,4 +240,4 @@ class LearnControl:
         return x_min, t_min
 
     def empty_mean(self, l):
-        return np.mean(l) if len(l) > 0 else 0.
+        return np.nanmean(l) if len(l) > 0 else 0.

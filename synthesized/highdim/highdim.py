@@ -336,21 +336,26 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             if self.use_learn_control and self.learn_control.checkpoint_model_from_synthesizer(
                     iteration, synthesizer=self, df_train=df_train_orig, sample_size=LEARN_CONTROL_SAMPLE_SIZE
             ):
-                if not minimum_found:
-                    print('***LEARN CONTROL WOULD STOP HERE :: ITERATION {}***'.format(iteration))
-                    df_synth = self.synthesize(num_rows=num_data)
-                    final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
-                    print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
-                    print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
-                    print("\tTraining time: {}".format(datetime.now() - t_start))
-                    minimum_found = True
+                if not self.learn_control.test_lc:
+                    break
+                else:
+                    if not minimum_found:
+                        print('***LEARN CONTROL WOULD STOP HERE :: ITERATION {}***'.format(iteration))
+                        df_synth = self.synthesize(num_rows=num_data)
+                        final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
+                        final_losses = {k: np.nanmean(v) for k, v in final_losses.items()}
+                        print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
+                        print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
+                        print("\tTraining time: {}".format(datetime.now() - t_start))
+                        minimum_found = True
 
         print_final_results = True
         if print_final_results:
             print('***FINAL STOP :: ITERATION {}***'.format(iteration))
             df_synth = self.synthesize(num_rows=num_data)
             final_losses = self.learn_control.calculate_loss_from_data(df_train_orig, df_synth)
-            print('Train results\nFinal loss = {:.4f}'.format(np.sum(list(final_losses.values()))))
+            final_losses = {k: np.nanmean(v) for k, v in final_losses.items()}
+            print('Train results\nFinal loss = {:.4f}'.format(np.mean(list(final_losses.values()))))
             print("\n".join(["\t{} = {:.4f}".format(k, v) for k, v in final_losses.items()]))
             print("\tTraining time: {}".format(datetime.now() - t_start))
             self.learn_control.plot_learning(ds_name)
