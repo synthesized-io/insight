@@ -198,9 +198,9 @@ class LearnControl:
         corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 
         losses = dict(
-            ks_dist_avg=ks_distances,
-            corr_avg=corr,
-            emd_avg=emd
+            ks_dist_avg=list(ks_distances),
+            corr_avg=list(corr),
+            emd_avg=list(emd)
         )
 
         return losses
@@ -209,12 +209,15 @@ class LearnControl:
         return self.checkpoint.restore(self.best_checkpoint)
 
     def plot_learning(self, fig_name=None):
+        if len(self.loss_log) < 2:
+            return
+
         t = list(self.loss_log.keys())
         x = []
         for v in self.loss_log.values():
-            x.append(list(v.values()))
+            x.append([np.nanmean(l) for l in v.values()])
         labels = list(v.keys())
-        x = np.array(np.mean(x, axis=0)).T
+        x = np.array(x).T
 
         plt.figure(figsize=(12, 8))
         for i in range(len(x)):
@@ -228,8 +231,9 @@ class LearnControl:
         plt.plot([t_min, t_min], [np.min(x), np.max(x)], 'k:')
 
         # Remove this:
-        plt.plot([min(t), max(t)], [self.best_lc_loss, self.best_lc_loss], 'k-.', label='Minimum LC')
-        plt.plot([self.best_lc_iteration, self.best_lc_iteration], [np.min(x), np.max(x)], 'k-.')
+        if self.test_lc:
+            plt.plot([min(t), max(t)], [self.best_lc_loss, self.best_lc_loss], 'k-.', label='Minimum LC')
+            plt.plot([self.best_lc_iteration, self.best_lc_iteration], [np.min(x), np.max(x)], 'k-.')
 
         plt.legend()
         plt.xlabel('Iteration')
