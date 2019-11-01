@@ -58,7 +58,10 @@ class ConditionalSampler(Synthesizer):
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None):
+    def synthesize(self,
+                   num_rows: int,
+                   conditions: Union[dict, pd.DataFrame] = None,
+                   progress_callback: Callable[[int], None] = None):
         # For the sake of performance we will not really sample from "condition" distribution,
         # but will rather sample directly from synthesizer and filter records so they distribution is conditional
 
