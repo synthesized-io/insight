@@ -204,7 +204,8 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         fetches = self.synthesized
         feed_dict = {self.num_synthesize: num_rows % 1024}
