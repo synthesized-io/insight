@@ -17,37 +17,39 @@ class ConditionalSampler(Synthesizer):
     samples from the synthesizer conditionally on this distribution.
     """
 
-    def __init__(
-            self, synthesizer: Synthesizer, *conditions: Tuple[str, Dict[Any, float]], min_sampled_ratio: float = 0.001
-    ):
+    def __init__(self,
+                 synthesizer: Synthesizer,
+                 *explicit_marginals: Tuple[str, Dict[Any, float]],
+                 min_sampled_ratio: float = 0.001):
         """Create ConditionalSampler.
 
         Args:
             synthesizer: An underlying synthesizer
-            *conditions: A dict of desired distributions per column.
-                Distributions defined as density per category or bin.
+            *explicit_marginals: A dict of desired marginal distributions per column.
+                Distributions defined as density per category or bin. The result will be sampled
+                from the synthesizer conditionally on these marginals.
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
         """
         self.synthesizer = synthesizer
 
         # For simplicity let's store distributions in a dict where key is a column:
-        self.conditions: Dict[str, Dict[Any, float]] = {}
-        for col, cond in conditions:
-            self.conditions[col] = cond
-        self.columns: List[str] = []
+        self.explicit_marginals: Dict[str, Dict[Any, float]] = {}
+        for col, cond in explicit_marginals:
+            self.explicit_marginals[col] = cond
+        self.conditional_columns: List[str] = []
 
         # Let's compute cartesian product of all probs for each column
         # to get probs for the joined distribution:
         category_probs = []
-        for column, distr in conditions:
-            self.columns.append(column)
+        for column, distr in explicit_marginals:
+            self.conditional_columns.append(column)
             category_probs.append([(category, prob) for category, prob in distr.items()])
         category_combinations = product(*category_probs)
         rows = [
             tuple(zip(*comb))
             for comb in category_combinations
         ]
-        self.joined_probs = {row[0]: np.product(row[1]) for row in rows}
+        self.joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         self.min_sampled_ratio = min_sampled_ratio
 
     def learn(self, num_iterations: int, df_train: pd.DataFrame,
@@ -61,19 +63,19 @@ class ConditionalSampler(Synthesizer):
         # but will rather sample directly from synthesizer and filter records so they distribution is conditional
 
         # Counters represent hom many instances of each condition we need to sample
-        counts = Counter({c: int(round(p * num_rows)) for c, p in self.joined_probs.items()})
+        marginal_counts = Counter({c: int(round(p * num_rows)) for c, p in self.joined_marginal_probs.items()})
 
         # Let's adjust counts so they sum up to `num_rows`:
-        any_key = list(counts.keys())[0]
-        counts[any_key] += num_rows - sum(counts.values())
+        any_key = list(marginal_counts.keys())[0]
+        marginal_counts[any_key] += num_rows - sum(marginal_counts.values())
 
         # The result is a list of result arrays
         result = []
 
         sampled_ratio = 1.0
         all_columns = None
-        while sum(counts.values()) > 0 and sampled_ratio >= self.min_sampled_ratio:
-            n_missing = sum(counts.values())
+        while sum(marginal_counts.values()) > 0 and sampled_ratio >= self.min_sampled_ratio:
+            n_missing = sum(marginal_counts.values())
 
             # Estimate how many rows we need so after filtering we have enough:
             n_prefetch = round(n_missing / sampled_ratio * 1.1)
@@ -83,7 +85,7 @@ class ConditionalSampler(Synthesizer):
             df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions)
 
             # In order to filter our data frame we need keys that we will look up in counts:
-            df_key = df_synthesized[self.columns]
+            df_key = df_synthesized[self.conditional_columns]
             df_key = self._map_continuous_columns(df_key)
 
             all_columns = df_synthesized.columns
@@ -91,10 +93,10 @@ class ConditionalSampler(Synthesizer):
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
                 key = tuple(key_row)
                 # If counter for the instance is positive let's emit the current row:
-                if counts[key] > 0:
+                if marginal_counts[key] > 0:
                     result.append(row)
                     n_added += 1
-                    counts[key] -= 1
+                    marginal_counts[key] -= 1
             if n_added == 0:
                 # In case if we couldn't sample anything this time:
                 sampled_ratio = 1.0 / n_prefetch
@@ -117,14 +119,14 @@ class ConditionalSampler(Synthesizer):
         mapping = {}
         continuos_columns = {v.name for v in self.synthesizer.values if isinstance(v, ContinuousValue)}  # type: ignore
         for col in continuos_columns:
-            if col in self.conditions:
+            if col in self.explicit_marginals:
                 intervals = []
-                for str_interval in self.conditions[col].keys():
+                for str_interval in self.explicit_marginals[col].keys():
                     interval = FloatInterval.parse(str_interval)
                     intervals.append(interval)
                 mapping[col] = intervals
 
-        for col in self.columns:
+        for col in self.conditional_columns:
             if col in continuos_columns:
                 def map_value(value: float):
                     intervals = mapping[col]
