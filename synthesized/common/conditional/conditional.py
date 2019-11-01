@@ -34,6 +34,7 @@ class ConditionalSampler(Synthesizer):
         # For simplicity let's store distributions in a dict where key is a column:
         self.explicit_marginals: Dict[str, Dict[Any, float]] = {}
         for col, cond in explicit_marginals:
+            assert np.isclose(sum(cond.values()), 1.0)
             self.explicit_marginals[col] = cond
         self.conditional_columns: List[str] = []
 
