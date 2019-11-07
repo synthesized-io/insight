@@ -58,8 +58,8 @@ class LearnControl:
         self.good_enough_loss = good_enough_loss
 
         if which_loss:
-            assert which_loss in ['ks_dist_avg', 'corr_avg', 'emd_avg'], \
-                "Only 'ks_dist_avg', 'corr_avg', 'emd_avg' supported, given which_loss='{}'".format(which_loss)
+            assert which_loss in ['ks_dist', 'corr', 'emd'], \
+                "Only 'ks_dist', 'corr', 'emd' supported, given which_loss='{}'".format(which_loss)
         self.which_loss = which_loss
 
         self.loss_log: Dict[int, dict] = dict()
@@ -76,7 +76,7 @@ class LearnControl:
         # Remove this:
         self.best_lc_loss: Optional[float] = None
         self.best_lc_iteration: Optional[int] = None
-        self.test_lc: bool = False
+        self.test_lc: bool = True
 
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
@@ -198,9 +198,9 @@ class LearnControl:
         corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 
         losses = dict(
-            ks_dist_avg=list(ks_distances),
-            corr_avg=list(corr),
-            emd_avg=list(emd)
+            ks_dist=list(ks_distances),
+            corr=list(corr),
+            emd=list(emd)
         )
 
         return losses
@@ -214,8 +214,11 @@ class LearnControl:
 
         t = list(self.loss_log.keys())
         x = []
+
+        empty_mean = lambda l: np.nanmean(l) if len(l) > 0 else 0
+
         for v in self.loss_log.values():
-            x.append([np.nanmean(l) for l in v.values()])
+            x.append([empty_mean(l) for l in v.values()])
         labels = list(v.keys())
         x = np.array(x).T
 
@@ -238,10 +241,7 @@ class LearnControl:
         plt.legend()
         plt.xlabel('Iteration')
         if fig_name:
-            plt.savefig('{}.png'.format(fig_name))
+            plt.savefig('figures-lc/{}.png'.format(fig_name))
         plt.show()
 
         return x_min, t_min
-
-    def empty_mean(self, l):
-        return np.nanmean(l) if len(l) > 0 else 0.
