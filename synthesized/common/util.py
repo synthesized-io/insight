@@ -74,4 +74,4 @@ def make_tf_compatible(string):
 
 
 def compute_embedding_size(num_categories: int, capacity: int) -> int:
-    return int(log(num_categories + 1) * capacity / 8.0)
+    return max(int(log(num_categories + 1) * capacity / 8.0), capacity)
