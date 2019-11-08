@@ -1,6 +1,5 @@
 import json
 import re
-from math import log
 
 import tensorflow as tf
 from tensorflow.python.client import timeline
@@ -71,7 +70,3 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
-
-
-def compute_embedding_size(num_categories: int, capacity: int) -> int:
-    return max(int(log(num_categories + 1) * capacity / 8.0), capacity)
