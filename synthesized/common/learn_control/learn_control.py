@@ -30,7 +30,7 @@ class LearnControl:
 
     """
     def __init__(self, check_frequency: int = 100, checkpoint_path: Optional[str] = None,
-                 no_learn_iterations: int = 10, max_to_keep: int = 5,
+                 no_learn_n_checks: int = 10, max_to_keep: int = 3,
                  patience: int = 750, must_reach_loss: float = None, good_enough_loss: float = None,
                  which_loss: Optional[Union[str, List[str]]] = None):
         """
@@ -38,7 +38,7 @@ class LearnControl:
 
         :param check_frequency:
         :param checkpoint_path: Directory where checkpoints will be saved
-        :param no_learn_iterations: If the LearnControl checks performance for 'no_learn_iterations' times without
+        :param no_learn_n_checks: If the LearnControl checks performance for 'no_learn_iterations' times without
             improvement, will return True and stop learning.
         :param max_to_keep: Defines the number of previous checkpoints stored.
         :param patience: How many iterations before start checking the performance.
@@ -51,19 +51,22 @@ class LearnControl:
 
         self.check_frequency = check_frequency
         self.checkpoint_path = checkpoint_path if checkpoint_path is not None else '/tmp/tf_checkpoints'
-        self.no_learn_iterations = no_learn_iterations
+        self.no_learn_n_checks = no_learn_n_checks
         self.max_to_keep = max_to_keep
         self.patience = patience
         self.must_reach_loss = must_reach_loss
         self.good_enough_loss = good_enough_loss
 
         if which_loss:
-            assert which_loss in ['ks_dist', 'corr', 'emd'], \
-                "Only 'ks_dist', 'corr', 'emd' supported, given which_loss='{}'".format(which_loss)
+            if isinstance(which_loss, int):
+                assert which_loss in ['ks_dist', 'corr', 'emd'], \
+                    "Only 'ks_dist', 'corr', 'emd' supported, given which_loss='{}'".format(which_loss)
+            elif isinstance(which_loss, list):
+                assert np.all([l in ['ks_dist', 'corr', 'emd'] for l in which_loss]), \
+                    "Only 'ks_dist', 'corr', 'emd' supported, given which_loss='{}'".format(which_loss)
         self.which_loss = which_loss
 
-        self.loss_log: Dict[int, dict] = dict()
-
+        self.loss_log: Dict[int, Dict[str, List[float]]] = dict()
         self.count_no_improvement: int = 0
         self.best_loss: Optional[float] = None
         self.best_checkpoint: Optional[str] = None
@@ -73,16 +76,11 @@ class LearnControl:
         self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                              max_to_keep=self.max_to_keep)
 
-        # Remove this:
-        self.best_lc_loss: Optional[float] = None
-        self.best_lc_iteration: Optional[int] = None
-        self.test_lc: bool = True
-
     def checkpoint_model_from_loss(self, iteration: int, loss: dict) -> bool:
         """
         Compare the loss against previous iteration, evaluate the criteria and return accordingly.
 
-        :param iteration:
+        :param iteration: Iteration number.
         :param loss: OrderedDict containing all losses.
         :return: Returns True if criteria are met to stop learning.
         """
@@ -123,26 +121,19 @@ class LearnControl:
             self.count_no_improvement = 0
         else:
             self.count_no_improvement += 1
-            if self.count_no_improvement >= self.no_learn_iterations:
+            if self.count_no_improvement >= self.no_learn_n_checks:
                 logger.info("LearnControl :: The model hasn't improved between iterations {1} and {0}. Restoring model "
                             "from iteration {1} with loss {2:.4f}".format(iteration, self.best_iteration,
                                                                           self.best_loss))
 
-                if not self.test_lc:
-                    self.restore_best_model()
-                    return True
-                else:
-                    # Remove this:
-                    if not self.best_lc_loss:
-                        self.best_lc_loss = self.best_loss
-                        self.best_lc_iteration = self.best_iteration
-                    return True
+                self.restore_best_model()
+                return True
 
         return False
 
     def checkpoint_model_from_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
         """
-        Given original an synthetic data, calculate the loss and cmopare it to previous iteration, evaluate the criteria
+        Given original an synthetic data, calculate the loss and compare it to previous iteration, evaluate the criteria
         and return accordingly.
 
         :param iteration:
@@ -154,7 +145,7 @@ class LearnControl:
         return self.checkpoint_model_from_loss(iteration=iteration, loss=losses)
 
     def checkpoint_model_from_synthesizer(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame,
-                                          sample_size: int):
+                                          sample_size: int) -> bool:
         """
         Given a Synthesizer and the original data, get synthetic data, calculate the loss, compare it to previous
         iteration, evaluate the criteria and return accordingly.
@@ -172,9 +163,10 @@ class LearnControl:
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.checkpoint_model_from_data(iteration, df_train.sample(sample_size), df_synth)
 
-    def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> dict:
+    def calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> Dict[str, List[float]]:
         """
-        Calculate loss dictionary given two datasets
+        Calculate loss dictionary given two datasets. Each item in the dictionary will include a key (loss name, allowed
+        options are 'ks_dist', 'corr' and 'emd'), and a value (list of losses per column).
 
         :param df_orig:
         :param df_synth:
@@ -215,7 +207,8 @@ class LearnControl:
         t = list(self.loss_log.keys())
         x = []
 
-        empty_mean = lambda l: np.nanmean(l) if len(l) > 0 else 0
+        def empty_mean(l):
+            return np.nanmean(l) if len(l) > 0 else 0
 
         for v in self.loss_log.values():
             x.append([empty_mean(l) for l in v.values()])
@@ -232,11 +225,6 @@ class LearnControl:
         t_min = t[int(np.argmin(x_avg))]
         plt.plot([min(t), max(t)], [x_min, x_min], 'k:', label='Minimum')
         plt.plot([t_min, t_min], [np.min(x), np.max(x)], 'k:')
-
-        # Remove this:
-        if self.test_lc:
-            plt.plot([min(t), max(t)], [self.best_lc_loss, self.best_lc_loss], 'k-.', label='Minimum LC')
-            plt.plot([self.best_lc_iteration, self.best_lc_iteration], [np.min(x), np.max(x)], 'k-.')
 
         plt.legend()
         plt.xlabel('Iteration')
