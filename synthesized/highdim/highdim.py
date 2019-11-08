@@ -13,7 +13,7 @@ from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
 
-LEARN_CONTROL_SAMPLE_SIZE = 50_000
+LEARN_CONTROL_SAMPLE_SIZE = 25_000
 
 
 class TypeOverride(enum.Enum):

@@ -136,10 +136,10 @@ class LearnControl:
         Given original an synthetic data, calculate the loss and compare it to previous iteration, evaluate the criteria
         and return accordingly.
 
-        :param iteration:
-        :param df_orig:
-        :param df_synth:
-        :return:
+        :param iteration: Iteration number.
+        :param df_orig: Original DataFrame.
+        :param df_synth: Synthesized DataFrame.
+        :return: Returns True if criteria are met to stop learning.
         """
         losses = self.calculate_loss_from_data(df_orig=df_orig, df_synth=df_synth)
         return self.checkpoint_model_from_loss(iteration=iteration, loss=losses)
@@ -150,11 +150,11 @@ class LearnControl:
         Given a Synthesizer and the original data, get synthetic data, calculate the loss, compare it to previous
         iteration, evaluate the criteria and return accordingly.
 
-        :param iteration:
-        :param synthesizer:
-        :param df_train:
-        :param sample_size:
-        :return:
+        :param iteration: Iteration number.
+        :param synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
+        :param df_train: Original DataFrame.
+        :param sample_size: Maximum sample size to compare DataFrames.
+        :return: Returns True if criteria are met to stop learning.
         """
         if iteration % self.check_frequency != 0:
             return False
@@ -168,9 +168,9 @@ class LearnControl:
         Calculate loss dictionary given two datasets. Each item in the dictionary will include a key (loss name, allowed
         options are 'ks_dist', 'corr' and 'emd'), and a value (list of losses per column).
 
-        :param df_orig:
-        :param df_synth:
-        :return:
+        :param df_orig: Original DataFrame.
+        :param df_synth: Synthesized DataFrame.
+        :return: Returns True if criteria are met to stop learning.
         """
         ks_distances = []
         emd = []
@@ -229,7 +229,10 @@ class LearnControl:
         plt.legend()
         plt.xlabel('Iteration')
         if fig_name:
-            plt.savefig('figures-lc/{}.png'.format(fig_name))
+            try:
+                plt.savefig('figures-lc/{}.png'.format(fig_name))
+            except Exception as e:
+                logger.warning("LearnControl :: Can't save figure, exception '{}'".format(e))
         plt.show()
 
         return x_min, t_min
