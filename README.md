@@ -31,7 +31,7 @@ Project setup
 
 2. Install virtualenv command:
 
-        pip3 install --user virtualenv
+        pip3 install virtualenv
         
 Note: if you cannot install venv without root check that virtualenv executable is owned by your user
 
