@@ -62,6 +62,8 @@ class ConditionalSampler(Synthesizer):
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
                    progress_callback: Callable[[int], None] = None):
+        if progress_callback is not None:
+            progress_callback(0)
         # For the sake of performance we will not really sample from "condition" distribution,
         # but will rather sample directly from synthesizer and filter records so they distribution is conditional
 
@@ -105,6 +107,10 @@ class ConditionalSampler(Synthesizer):
                 sampled_ratio = 1.0 / n_prefetch
             else:
                 sampled_ratio = float(n_added) / n_prefetch
+            if progress_callback is not None:
+                progress_callback(round(n_added * 100.0 / num_rows))
+        if progress_callback is not None:
+            progress_callback(100)
         return pd.DataFrame.from_records(result, columns=all_columns)
 
     def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
