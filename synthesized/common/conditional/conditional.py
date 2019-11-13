@@ -92,6 +92,7 @@ class ConditionalSampler(Synthesizer):
             # In order to filter our data frame we need keys that we will look up in counts:
             df_key = df_synthesized[self.conditional_columns]
             df_key = self._map_continuous_columns(df_key)
+            df_key = df_key.astype(str)
 
             all_columns = df_synthesized.columns
             n_added = 0
