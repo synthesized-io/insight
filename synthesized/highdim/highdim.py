@@ -71,7 +71,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             df: Data sample which is representative of the target data to generate. Usually, it is
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
-            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
             profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
             distribution: Distribution type: "normal".
@@ -113,7 +113,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
             use_learn_control: Whether to use LearnControl.
-            split_validation: Whether to split train/valid.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
         if type_overrides is None:
