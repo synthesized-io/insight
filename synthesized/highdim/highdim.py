@@ -449,7 +449,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 )
                 if progress_callback is not None:
                     # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                    progress_callback(max(0, int((k + 1) * 98 / n_batches)))
+                    progress_callback(round((k + 1) * 98.0 / n_batches))
         for value in (self.values + self.conditions):
             df_synthesized = value.postprocess(df=df_synthesized)
 
