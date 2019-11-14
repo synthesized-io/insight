@@ -1,4 +1,3 @@
-from math import log
 from typing import List
 
 import numpy as np
@@ -6,6 +5,7 @@ import tensorflow as tf
 
 from .value import Value
 from .continuous import ContinuousValue
+from .categorical import compute_embedding_size
 from .. import util
 from ..module import tensorflow_name_scoped
 
@@ -24,7 +24,7 @@ class NanValue(Value):
 
         self.capacity = capacity
         if embedding_size is None:
-            embedding_size = int(log(2) * self.capacity / 2.0)
+            embedding_size = compute_embedding_size(2, self.capacity)
         self.embedding_size = embedding_size
         self.weight_decay = weight_decay
         self.weight = weight
