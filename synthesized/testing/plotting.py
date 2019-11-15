@@ -12,6 +12,7 @@ from synthesized import HighDimSynthesizer
 from ..testing import UtilityTesting
 from .evaluation_utils import calculate_auto_association
 from synthesized.testing.evaluation import Evaluation
+from synthesized.testing.util import categorical_emd
 
 
 # -- Plotting functions
@@ -76,18 +77,58 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
 def plot_avg_distances(test: pd.DataFrame, evaluation: Evaluation, evaluation_name: str,
                        results: list):
     result = []
-    for i, (synthesizer, synthesized_, _) in enumerate(results):
-        test_ = synthesizer.preprocess(test)
-        synthesized_ = synthesizer.preprocess(synthesized_)
-        distances = [ks_2samp(test_[col], synthesized_[col])[0] for col in synthesized_.columns]
-        avg_distance = np.mean(distances)
-        print('run: {}, AVG distance: {}'.format(i+1, avg_distance))
-        result.append({'run': i+1, 'avg_distance': avg_distance})
-        evaluation.record_metric(evaluation=evaluation_name, key='avg_distance', value=avg_distance)
-    df = pd.DataFrame.from_records(result)
-    df['run'] = df['run'].astype('category')
-    g = sns.barplot(y='run', x='avg_distance', data=df)
-    g.set_xlim(0.0, 1.0)
+    for i, (synthesizer, synthesized, _, _) in enumerate(results):
+        testc = test.copy().dropna()
+        synthesized = synthesized.copy().dropna()
+
+        # Calculate distances for all columns
+        ks_distances = []
+        emd = []
+        for col in test.columns:
+            if test[col].dtype.kind in ('f', 'i'):
+                ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
+            else:
+                try:
+                    ks_distances.append(ks_2samp(
+                        pd.to_numeric(pd.to_datetime(test[col])),
+                        pd.to_numeric(pd.to_datetime(synthesized[col]))
+                    )[0])
+                except ValueError:
+                    emd.append(categorical_emd(test[col], synthesized[col]))
+
+        corr = np.abs((test.corr() - synthesized.corr()).to_numpy())
+
+        # Compute summaries
+        avg_ks_distance = np.mean(ks_distances)
+        max_ks_distance = np.max(ks_distances)
+        avg_corr = corr.mean()
+        max_corr = corr.max()
+        avg_emd = np.mean(emd)
+        max_emd = np.max(emd)
+
+        current_result = {
+            'ks_distance_avg': avg_ks_distance,
+            'ks_distance_max': max_ks_distance,
+            'corr_dist_avg': avg_corr,
+            'corr_dist_max': max_corr,
+            'emd_categ_avg': avg_emd,
+            'emd_categ_max': max_emd
+        }
+
+        print_line = ''
+        for k, v in current_result.items():
+            evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
+            print_line += '\n\t{}={:.4f}'.format(k, v)
+
+        print('run: {}, Results: {}'.format(i + 1, print_line))
+
+        plt.figure()
+        sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
+        plt.xticks(rotation=10)
+        plt.show()
+
+        current_result['run'] = i + 1
+        result.append(current_result)
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
