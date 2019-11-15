@@ -8,8 +8,9 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
-from ..common.values import ContinuousValue
+from ..common.sanitizer import Sanitizer, DefaultSanitizer
 from ..common.util import ProfilerArgs
+from ..common.values import ContinuousValue
 from ..synthesizer import Synthesizer
 
 
@@ -28,8 +29,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     is, no temporal or otherwise conditional relation between the rows.
     """
 
+    OVERSYNTHESIS_RATIO = 1.1
+    MAX_SYNTHESIS_ATTEMPTS = 3
+
     def __init__(
-        self, df: pd.DataFrame, summarizer_dir: str = None, profiler_args: ProfilerArgs = None,
+        self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
+        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Iterable[str] = None,
         # VAE distribution
@@ -38,8 +43,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         network: str = 'resnet', capacity: int = 128, depth: int = 2, batchnorm: bool = True,
         activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = 1000,
-        decay_rate: float = 0.9, initial_boost: bool = False, clip_gradients: float = 1.0,
+        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: bool = False, clip_gradients: float = 1.0,
         batch_size: int = 64,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
@@ -58,7 +63,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Identifier
         identifier_label: str = None,
         # Rules to look for
-        find_rules: Union[str, List[str]] = None
+        find_rules: Union[str, List[str]] = None,
+        sanitize_output=False,
+        sanitizer=None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -108,7 +115,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
+        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
+                             profiler_args=profiler_args)
         if type_overrides is None:
             self.type_overrides: Dict[str, TypeOverride] = dict()
         else:
@@ -168,6 +176,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Values
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+
+        if sanitize_output:
+            if sanitizer is None:
+                sanitizer = DefaultSanitizer(df_original=df)
+            self.sanitizer: Optional[Sanitizer] = sanitizer
+        else:
+            self.sanitizer = None
 
         # pleas note that `ValueFactory` uses some fields defined above
         ValueFactory.__init__(self)
@@ -315,7 +330,59 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
+    ) -> pd.DataFrame:
+        if progress_callback is not None:
+            progress_callback(0)
+
+        df_synthesized = self._synthesize(num_rows=num_rows, conditions=conditions, progress_callback=progress_callback)
+
+        if progress_callback is not None:
+            progress_callback(99)
+
+        # if no sanitizer provided just return what we have here
+        if self.sanitizer is None:
+            if progress_callback is not None:
+                progress_callback(100)
+            return df_synthesized
+
+        # the first drop of duplicates
+        df_synthesized = self.sanitizer.sanitize(df_synthesized)
+
+        # we will use fill_ratio to predict how many more records we need
+        fill_ratio = len(df_synthesized) / float(num_rows)
+
+        attempt = 0
+
+        # we will repeat synthesis and dropping unless we have enough records
+        while len(df_synthesized) < num_rows:
+            attempt += 1
+
+            # we computer how many rows are missing and use fill_ratio to predict how many we will synthesize
+            # also, we slightly increase this number by OVERSYNTHESIS_RATIO to get the result quicker
+            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * HighDimSynthesizer.OVERSYNTHESIS_RATIO)
+
+            # synthesis + dropping
+            df_additional = self._synthesize(num_rows=n_additional, conditions=conditions)
+            df_additional = self.sanitizer.sanitize(df_additional)
+            df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
+
+            # we give up after some number of attempts
+            if attempt >= HighDimSynthesizer.MAX_SYNTHESIS_ATTEMPTS:
+                break
+
+        if progress_callback is not None:
+            progress_callback(100)
+
+        if len(df_synthesized) >= num_rows:
+            return df_synthesized.sample(num_rows)
+        else:
+            return df_synthesized
+
+    def _synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
@@ -327,6 +394,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             The generated data.
 
         """
+
         if conditions is not None:
             if isinstance(conditions, dict):
                 df_conditions = pd.DataFrame.from_dict(
@@ -368,7 +436,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     condition = df_conditions[name].values
                     if condition.shape == (1,):
                         feed_dict[placeholder] = np.tile(condition, (1024,))
-            for k in range(num_rows // 1024):
+            n_batches = num_rows // 1024
+            for k in range(n_batches):
                 for value in self.conditions:
                     for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
                         condition = df_conditions[name].values
@@ -378,7 +447,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True
                 )
-
+                if progress_callback is not None:
+                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                    progress_callback(round((k + 1) * 98.0 / n_batches))
         for value in (self.values + self.conditions):
             df_synthesized = value.postprocess(df=df_synthesized)
 

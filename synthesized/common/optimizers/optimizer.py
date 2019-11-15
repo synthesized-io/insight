@@ -17,7 +17,6 @@ class Optimizer(Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        parent: Module,
         learning_rate: float, decay_steps: int = None, decay_rate: float = None,
         initial_boost: bool = False,
         # Gradient clipping by global norm
@@ -29,7 +28,6 @@ class Optimizer(Module):
         if optimizer not in tf_optimizers:
             raise NotImplementedError
         self.optimizer = optimizer
-        self.parent = parent
 
         # Learning rate
         self.learning_rate = learning_rate
@@ -52,6 +50,8 @@ class Optimizer(Module):
     def module_initialize(self):
         super().module_initialize()
 
+        self.global_step = tf.compat.v1.train.get_global_step()
+
         # Learning rate
         if self.decay_steps is None:
             # Constant learning rate
@@ -64,13 +64,13 @@ class Optimizer(Module):
             if self.decay_rate is None:
                 raise NotImplementedError
             learning_rate = tf.train.exponential_decay(
-                learning_rate=self.learning_rate, global_step=self.parent.global_step,
+                learning_rate=self.learning_rate, global_step=self.global_step,
                 decay_steps=self.decay_steps, decay_rate=self.decay_rate, staircase=False
             )
 
         if self.initial_boost:
             learning_rate = tf.where(
-                condition=tf.math.less(x=self.parent.global_step, y=10),
+                condition=tf.math.less(x=self.global_step, y=10),
                 x=(5.0 * learning_rate), y=learning_rate
             )
 
@@ -78,12 +78,13 @@ class Optimizer(Module):
         self.optimizer = tf_optimizers[self.optimizer](learning_rate=learning_rate)
 
     @tensorflow_name_scoped
-    def optimize(self, loss, summarize_gradient_norms=False):
+    def optimize(self, loss, summarize_gradient_norms=False, summarize_lr=False):
         """Optimize the given loss.
 
         Args:
             loss: Loss tensor.
             summarize_gradient_norms: Whether to add summaries for gradient norms.
+            summarize_lr: Whether to add summaries for learning rate.
 
         Returns:
             The optimization operation.
@@ -125,6 +126,11 @@ class Optimizer(Module):
                 summaries.append(
                     tf.contrib.summary.scalar(name='all-gradient-norm', tensor=grad_norm)
                 )
+
+        if summarize_lr:
+            summaries.append(
+                tf.contrib.summary.scalar(name='learning-rate', tensor=self.optimizer._lr)
+            )
 
         # Make sure summary operations are executed
         with tf.control_dependencies(control_inputs=summaries):

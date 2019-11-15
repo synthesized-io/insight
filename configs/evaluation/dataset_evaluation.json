@@ -7,6 +7,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "SeriousDlqin2yrs",
       "synthesizer_class": "HighDimSynthesizer"
@@ -17,6 +18,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "Payment",
       "synthesizer_class": "HighDimSynthesizer"
@@ -27,6 +29,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "salary-class",
       "synthesizer_class": "HighDimSynthesizer"
@@ -39,6 +42,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "default payment next month",
       "synthesizer_class": "HighDimSynthesizer"
@@ -49,6 +53,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "Opportunity Result",
       "synthesizer_class": "HighDimSynthesizer"
@@ -59,6 +64,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "income",
       "synthesizer_class": "HighDimSynthesizer"
@@ -69,6 +75,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "treatment",
       "synthesizer_class": "HighDimSynthesizer"
@@ -79,6 +86,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "fraud",
       "synthesizer_class": "HighDimSynthesizer"
@@ -89,6 +97,7 @@
       "num_iterations": 2500,
       "num_passes": 1,
       "params": {
+        "sanitize_output": true
       },
       "target": "Old/New",
       "synthesizer_class": "HighDimSynthesizer"

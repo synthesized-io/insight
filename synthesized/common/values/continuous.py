@@ -130,37 +130,31 @@ class ContinuousValue(Value):
         # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
 
         if df[self.name].dtype.kind not in ('f', 'i'):
-            df.loc[:, self.name] = self.pd_cast(df[self.name])
+            df[self.name] = self.pd_cast(df[self.name])
 
-        df.loc[:, self.name] = df[self.name].astype(dtype='float32')
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.distribution == 'dirac':
             return df
 
-        if self.positive or self.nonnegative:
-            if self.nonnegative and not self.positive:
-                df.loc[:, self.name] = np.maximum(df[self.name], 0.001)
-            # df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
-            #     np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
-            # )
+        if self.nonnegative and not self.positive:
+            df[self.name] = np.maximum(df[self.name], 0.001)
 
         if self.distribution == 'normal':
             assert self.distribution_params is not None
             mean, stddev = self.distribution_params
-            df.loc[:, self.name] = (df[self.name] - mean) / stddev
+            df[self.name] = (df[self.name] - mean) / stddev
 
         elif self.distribution is not None:
-            df.loc[:, self.name] = norm.ppf(
+            df[self.name] = norm.ppf(
                 DISTRIBUTIONS[self.distribution][0].cdf(df[self.name], *self.distribution_params)
             )
             df = df[(df[self.name] != float('inf')) & (df[self.name] != float('-inf'))]
         elif self.transformer:
-            column = df[self.name].values
             if self.transformer_noise:
-                column += np.random.normal(scale=self.transformer_noise, size=len(column))
-            df.loc[:, self.name] = self.transformer.transform(column.reshape(-1, 1))
+                df[self.name] += np.random.normal(scale=self.transformer_noise, size=len(df[self.name]))
+            df[self.name] = self.transformer.transform(df[self.name].values.reshape(-1, 1))
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
@@ -171,36 +165,31 @@ class ContinuousValue(Value):
         df = super().postprocess(df=df)
         if self.distribution == 'dirac':
             assert self.distribution_params is not None
-            df.loc[:, self.name] = self.distribution_params[0]
+            df[self.name] = self.distribution_params[0]
+
         else:
             if self.distribution == 'normal':
                 assert self.distribution_params is not None
                 mean, stddev = self.distribution_params
-                df.loc[:, self.name] = df[self.name] * stddev + mean
+                df[self.name] = df[self.name] * stddev + mean
             elif self.distribution is not None:
-                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                df[self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
                     norm.cdf(df[self.name]), *self.distribution_params
                 )
             elif self.transformer:
-                df.loc[:, self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
+                df[self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
 
-            if self.positive or self.nonnegative:
-                # df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
-                #                        np.maximum(df[self.name], 0.0)
-                if self.nonnegative and not self.positive:
-                    zeros = np.zeros_like(df[self.name])
-                    df.loc[:, self.name] = np.where(
-                        (df[self.name] >= 0.001), df[self.name], zeros
-                    )
+            if self.nonnegative and not self.positive:
+                df.loc[(df[self.name] < 0.001), self.name] = 0
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.integer:
-            df.loc[:, self.name] = df[self.name].astype(dtype='int32')
+            df[self.name] = df[self.name].astype(dtype='int32')
 
-        if self.float:
-            df.loc[:, self.name] = df[self.name].astype(dtype='float32')
+        if self.float and df[self.name].dtype != 'float32':
+            df[self.name] = df[self.name].astype(dtype='float32')
 
         return df
 
