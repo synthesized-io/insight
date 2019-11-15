@@ -78,7 +78,6 @@ def plot_avg_distances(test: pd.DataFrame, evaluation: Evaluation, evaluation_na
                        results: list):
     result = []
     for i, (synthesizer, synthesized, _, _) in enumerate(results):
-        testc = test.copy().dropna()
         synthesized = synthesized.copy().dropna()
 
         # Calculate distances for all columns
