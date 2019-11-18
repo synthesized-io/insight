@@ -31,8 +31,8 @@ class LearningManager:
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
                  checkpoint_path: str = '/tmp/tf_checkpoints',
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3,
-                 patience: int = 750, must_reach_loss: float = None, good_enough_loss: float = None,
-                 loss_name: Optional[Union[str, List[str]]] = None):
+                 patience: int = 750, must_reach_metric: float = None, good_enough_metric: float = None,
+                 stop_metric_name: Optional[Union[str, List[str]]] = None):
         """Initialize LearningManager.
 
         Args:
@@ -43,11 +43,11 @@ class LearningManager:
                 improvement, will return True and stop learning.
             max_to_keep: Defines the number of previous checkpoints stored.
             patience: How many iterations before start checking the performance.
-            must_reach_loss: If this loss threshold is not reached, will always return False.
-            good_enough_loss: If this loss threshold is not reached, will return True even if the model is still
-                improving.
-            loss_name: Which loss will be evaluated in each iteration. If None, all losses will be used, otherwise
-                a str for a single loss or a list of str for more than one.
+            must_reach_metric: If this 'stop_metric' threshold is not reached, will always return False.
+            good_enough_metric: If this 'stop_metric' threshold is not reached, will return True even if the model is
+                still improving.
+            stop_metric_name: Which 'stop_metric' will be evaluated in each iteration. If None, all 'stop_metric'es will
+                be used, otherwise a str for a single 'stop_metric' or a list of str for more than one.
         """
 
         self.check_frequency = check_frequency
@@ -56,20 +56,20 @@ class LearningManager:
         self.n_checks_no_improvement = n_checks_no_improvement
         self.max_to_keep = max_to_keep
         self.patience = patience
-        self.must_reach_loss = must_reach_loss
-        self.good_enough_loss = good_enough_loss
+        self.must_reach_metric = must_reach_metric
+        self.good_enough_metric = good_enough_metric
 
-        if loss_name:
-            if isinstance(loss_name, str):
-                assert loss_name in ['ks_dist', 'corr', 'emd'], \
-                    "Only 'ks_dist', 'corr', 'emd' supported, given loss_name='{}'".format(loss_name)
-            elif isinstance(loss_name, list):
-                assert np.all([l in ['ks_dist', 'corr', 'emd'] for l in loss_name]), \
-                    "Only 'ks_dist', 'corr', 'emd' supported, given loss_name='{}'".format(loss_name)
-        self.loss_name = loss_name
+        if stop_metric_name:
+            if isinstance(stop_metric_name, str):
+                assert stop_metric_name in ['ks_dist', 'corr', 'emd'], \
+                    "Only 'ks_dist', 'corr', 'emd' supported, given stop_metric='{}'".format(stop_metric_name)
+            elif isinstance(stop_metric_name, list):
+                assert np.all([l in ['ks_dist', 'corr', 'emd'] for l in stop_metric_name]), \
+                    "Only 'ks_dist', 'corr', 'emd' supported, given stop_metric='{}'".format(stop_metric_name)
+        self.stop_metric_name = stop_metric_name
 
         self.count_no_improvement: int = 0
-        self.best_loss: Optional[float] = None
+        self.best_stop_metric: Optional[float] = None
         self.best_checkpoint: Optional[str] = None
         self.best_iteration: int = 0
 
@@ -78,12 +78,12 @@ class LearningManager:
             self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                                  max_to_keep=self.max_to_keep)
 
-    def stop_learning_check_loss(self, iteration: int, loss: dict) -> bool:
-        """Compare the loss against previous iteration, evaluate the criteria and return accordingly.
+    def stop_learning_check_metric(self, iteration: int, stop_metric: dict) -> bool:
+        """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
 
         Args:
             iteration: Iteration number.
-            loss: OrderedDict containing all losses.
+            stop_metric: OrderedDict containing all stop_metrics.
 
         Returns
             bool: True if criteria are met to stop learning.
@@ -91,44 +91,44 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        if self.loss_name:
-            if isinstance(self.loss_name, str):
-                loss = {self.loss_name: loss[self.loss_name]}
-            if isinstance(self.loss_name, list):
-                loss = {k: v for k, v in loss.items() if k in self.loss_name}
+        if self.stop_metric_name:
+            if isinstance(self.stop_metric_name, str):
+                stop_metric = {self.stop_metric_name: stop_metric[self.stop_metric_name]}
+            if isinstance(self.stop_metric_name, list):
+                stop_metric = {k: v for k, v in stop_metric.items() if k in self.stop_metric_name}
 
-        total_loss = np.nanmean(np.concatenate(list(loss.values())))
+        total_stop_metric = np.nanmean(np.concatenate(list(stop_metric.values())))
 
-        if np.isnan(total_loss):
-            logger.error('LearningManager :: Total Loss is NaN')
+        if np.isnan(total_stop_metric):
+            logger.error("LearningManager :: Total 'stop_metric' is NaN")
             return False
 
-        logger.debug("LearningManager :: Iteration {}. Current Loss = {:.4f}".format(iteration, total_loss))
+        logger.debug("LearningManager :: Iteration {}. Current Metric = {:.4f}".format(iteration, total_stop_metric))
 
         if iteration < self.patience:
             return False
-        if self.must_reach_loss and total_loss > self.must_reach_loss:
+        if self.must_reach_metric and total_stop_metric > self.must_reach_metric:
             return False
-        if self.good_enough_loss and total_loss < self.good_enough_loss:
+        if self.good_enough_metric and total_stop_metric < self.good_enough_metric:
             return True
 
-        if not self.best_loss or total_loss < self.best_loss:
-            self.best_loss = total_loss
+        if not self.best_stop_metric or total_stop_metric < self.best_stop_metric:
+            self.best_stop_metric = total_stop_metric
             self.best_iteration = iteration
             self.count_no_improvement = 0
             if self.use_checkpointing:
                 current_checkpoint = self.checkpoint_manager.save()
-                logger.info("LearningManager :: New loss minimum {:.4f} found at iteration {}, saving in '{}'".format(
-                    total_loss, iteration, current_checkpoint))
+                logger.info("LearningManager :: New stop_metric minimum {:.4f} found at iteration {}, saving in '{}'"
+                            .format(total_stop_metric, iteration, current_checkpoint))
                 self.best_checkpoint = current_checkpoint
         else:
             self.count_no_improvement += 1
             if self.count_no_improvement >= self.n_checks_no_improvement:
                 if self.use_checkpointing:
-                    logger.info("LearningManager :: The model hasn't improved between iterations {1} and {0}. "
-                                "Restoring model from iteration {1} with loss {2:.4f}".format(iteration,
+                    logger.info("LearningManager :: The model hasn't improved between iterations {1} and {0}. Restoring"
+                                " model from iteration {1} with 'stop_metric' {2:.4f}".format(iteration,
                                                                                               self.best_iteration,
-                                                                                              self.best_loss))
+                                                                                              self.best_stop_metric))
                     # Restore best model and stop learning.
                     self.checkpoint.restore(self.best_checkpoint)
                 else:
@@ -139,8 +139,8 @@ class LearningManager:
         return False
 
     def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
-        """Given original an synthetic data, calculate the loss and compare it to previous iteration, evaluate the criteria
-        and return accordingly.
+        """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
+        the criteria and return accordingly.
 
         Args:
             iteration: Iteration number.
@@ -153,12 +153,12 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        losses = self._calculate_loss_from_data(df_orig=df_orig, df_synth=df_synth)
-        return self.stop_learning_check_loss(iteration=iteration, loss=losses)
+        stop_metrics = self._calculate_stop_metric_from_data(df_orig=df_orig, df_synth=df_synth)
+        return self.stop_learning_check_metric(iteration=iteration, stop_metric=stop_metrics)
 
     def stop_learning(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame, sample_size: int) -> bool:
-        """Given a Synthesizer and the original data, get synthetic data, calculate the loss, compare it to previous
-        iteration, evaluate the criteria and return accordingly.
+        """Given a Synthesizer and the original data, get synthetic data, calculate the 'stop_metric', compare it to
+        previous iteration, evaluate the criteria and return accordingly.
 
         Args:
             iteration: Iteration number.
@@ -176,9 +176,10 @@ class LearningManager:
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth)
 
-    def _calculate_loss_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> Dict[str, List[float]]:
-        """Calculate loss dictionary given two datasets. Each item in the dictionary will include a key (loss name, allowed
-        options are 'ks_dist', 'corr' and 'emd'), and a value (list of losses per column).
+    def _calculate_stop_metric_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> Dict[str, List[float]]:
+        """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
+        (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
+        stop_metrics per column).
 
         Args
             df_orig: Original DataFrame.
@@ -204,10 +205,10 @@ class LearningManager:
 
         corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
 
-        losses = dict(
+        stop_metrics = dict(
             ks_dist=list(ks_distances),
             corr=list(corr),
             emd=list(emd)
         )
 
-        return losses
+        return stop_metrics
