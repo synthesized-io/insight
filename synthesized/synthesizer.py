@@ -74,12 +74,15 @@ class Synthesizer(Module):
         """
         raise NotImplementedError
 
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
+    def synthesize(self, num_rows: int,
+                   conditions: Union[dict, pd.DataFrame] = None,
+                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
-
+            conditions: The condition values for the generated rows.
+            progress_callback: A callback that receives current percentage of the progress.
         Returns:
             The generated data.
 
