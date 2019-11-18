@@ -8,12 +8,10 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
-from ..common.learn_control import LearnControl
+from ..common.learning_manager import LearningManager
 from ..common.values import ContinuousValue
 from ..common.util import ProfilerArgs
 from ..synthesizer import Synthesizer
-
-LEARN_CONTROL_SAMPLE_SIZE = 25_000
 
 
 class TypeOverride(enum.Enum):
@@ -63,7 +61,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # Evaluation conditions
-        use_learn_control: bool = True
+        learning_manager: bool = True
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -112,7 +110,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             identifier_label: Identifier column.
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
-            use_learn_control: Whether to use LearnControl.
+            learning_manager: Whether to use LearningManager.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, profiler_args=profiler_args)
         if type_overrides is None:
@@ -211,10 +209,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
 
-        # Learn Control
-        self.use_learn_control = use_learn_control
-        if use_learn_control:
-            self.learn_control = LearnControl()
+        # Learning Manager
+        self.learning_manager = LearningManager() if learning_manager else None
+        self.learning_manager_sample_size = 25_000
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -328,8 +325,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-            if self.use_learn_control and self.learn_control.checkpoint_model_from_synthesizer(
-                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=LEARN_CONTROL_SAMPLE_SIZE
+            if self.learning_manager and self.learning_manager.stop_learning(
+                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
             ):
                 break
 
