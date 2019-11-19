@@ -57,6 +57,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Person
         title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
         lastname_label: str = None, email_label: str = None,
+        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
         # Address
         postcode_label: str = None, city_label: str = None, street_label: str = None,
         address_label: str = None, postcode_regex: str = None,
@@ -106,6 +107,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             firstname_label: Person first name column.
             lastname_label: Person last name column.
             email_label: Person e-mail address column.
+            mobile_number_label: Person mobile number column.
+            home_number_label: Person home number column.
+            home_number_label Person work number column.
             postcode_label: Address postcode column.
             city_label: Address city column.
             street_label: Address street column.
@@ -160,6 +164,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        self.mobile_number_label = mobile_number_label
+        self.home_number_label = home_number_label
+        self.work_number_label = work_number_label
         # Address
         self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
@@ -192,7 +199,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 value = self._apply_type_overrides(df, name)
             else:
                 value = self.identify_value(col=df[name], name=name)
-            assert len(value.columns()) == 1 and value.columns()[0] == name
             if name in self.condition_columns:
                 self.conditions.append(value)
             else:

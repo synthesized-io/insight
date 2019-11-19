@@ -88,7 +88,10 @@ class ValueFactory(Module):
             gender_label=self.module.gender_label,
             name_label=self.module.name_label, firstname_label=self.module.firstname_label,
             lastname_label=self.module.lastname_label, email_label=self.module.email_label,
-            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+            mobile_number_label=self.module.mobile_number_label,
+            home_number_label=self.module.home_number_label,
+            work_number_label=self.module.work_number_label,
+            capacity=self.module.capacity
         )
 
     def create_compound_address(self) -> CompoundAddressValue:
@@ -136,7 +139,10 @@ class ValueFactory(Module):
                 name == getattr(self.module, 'name_label', None) or \
                 name == getattr(self.module, 'firstname_label', None) or \
                 name == getattr(self.module, 'lastname_label', None) or \
-                name == getattr(self.module, 'email_label', None):
+                name == getattr(self.module, 'email_label', None) or \
+                name == getattr(self.module, 'mobile_number_label', None) or \
+                name == getattr(self.module, 'home_number_label', None) or \
+                name == getattr(self.module, 'work_number_label', None):
             if self.module.person_value is None:
                 value = self.create_person()
                 self.module.person_value = value
