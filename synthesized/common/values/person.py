@@ -13,7 +13,9 @@ from ..module import tensorflow_name_scoped
 class PersonValue(Value):
 
     def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None,
-                 lastname_label=None, email_label=None, capacity=None, dict_cache_size=10000):
+                 lastname_label=None, email_label=None,
+                 mobile_number_label=None, home_number_label=None, work_number_label=None,
+                 capacity=None, dict_cache_size=10000):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -22,10 +24,14 @@ class PersonValue(Value):
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        self.mobile_number_label = mobile_number_label
+        self.home_number_label = home_number_label
+        self.work_number_label = work_number_label
         # Assume the gender are always encoded like M or F or U(???)
         self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
 
         fkr = faker.Faker(locale='en_GB')
+        self.fkr = fkr
         self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
         self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
         self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))
@@ -62,7 +68,6 @@ class PersonValue(Value):
             return self.gender.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
         if self.gender is not None:
             self.gender.extract(df=df)
 
@@ -75,7 +80,7 @@ class PersonValue(Value):
         df = super().postprocess(df=df)
 
         if self.gender is None:
-            gender = np.random.choice(a=['female', 'male'], size=len(df))
+            gender = pd.Series(np.random.choice(a=['F', 'M'], size=len(df)))
         else:
             df = self.gender.postprocess(data=df)
             gender = df[self.gender_label]
@@ -105,6 +110,12 @@ class PersonValue(Value):
             df.loc[:, self.email_label] = firstname.str.lower() \
                 .str.cat(others=lastname.str.lower(), sep='.')
             df.loc[:, self.email_label] += '@example.com'
+        if self.mobile_number_label is not None:
+            df.loc[:, self.mobile_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
+        if self.home_number_label is not None:
+            df.loc[:, self.home_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
+        if self.work_number_label is not None:
+            df.loc[:, self.work_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
         return df
 
     @tensorflow_name_scoped
