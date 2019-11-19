@@ -4,6 +4,8 @@ import re
 import tensorflow as tf
 from tensorflow.python.client import timeline
 from collections import namedtuple
+import numpy as np
+from pyemd import emd
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
 RE_END = re.compile(r"[^A-Za-z0-9_.\-/]")
@@ -70,3 +72,27 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
+
+
+def categorical_emd(a, b):
+    space = list(set(a).union(set(b)))
+
+    # To protect from memory errors:
+    if len(space) >= 1e4:
+        return 0.
+
+    a_unique, counts = np.unique(a, return_counts=True)
+    a_counts = dict(zip(a_unique, counts))
+
+    b_unique, counts = np.unique(b, return_counts=True)
+    b_counts = dict(zip(b_unique, counts))
+
+    p = np.array([float(a_counts[x]) if x in a_counts else 0.0 for x in space])
+    q = np.array([float(b_counts[x]) if x in b_counts else 0.0 for x in space])
+
+    p /= np.sum(p)
+    q /= np.sum(q)
+
+    distances = 1 - np.eye(len(space))
+
+    return emd(p, q, distances)

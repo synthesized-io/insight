@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
+from ..common.learning_manager import LearningManager
 from ..common.sanitizer import Sanitizer, DefaultSanitizer
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
@@ -64,6 +65,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
+        # Evaluation conditions
+        learning_manager: bool = True,
         sanitize_output=False,
         sanitizer=None
     ):
@@ -73,7 +76,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             df: Data sample which is representative of the target data to generate. Usually, it is
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
-            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
             profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
             distribution: Distribution type: "normal".
@@ -114,6 +117,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             identifier_label: Identifier column.
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
+            learning_manager: Whether to use LearningManager.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
                              profiler_args=profiler_args)
@@ -220,6 +224,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
 
+        # Learning Manager
+        self.learning_manager = LearningManager() if learning_manager else None
+        self.learning_manager_sample_size = 25_000
+
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
@@ -306,6 +314,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         """
         df_train = df_train.copy()
+        df_train_orig = df_train.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
@@ -314,12 +323,14 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             placeholder: df_train[name].to_numpy() for value in (self.values + self.conditions)
             for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
+
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
+
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
@@ -328,6 +339,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
+
+            if self.learning_manager and self.learning_manager.stop_learning(
+                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
+            ):
+                break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
