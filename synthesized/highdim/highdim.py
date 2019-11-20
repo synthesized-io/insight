@@ -37,7 +37,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
         profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
-        produce_nans_for: Optional[Union[bool, Iterable[str]]] = None,
+        produce_nans_for: Union[bool, Iterable[str], None] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
