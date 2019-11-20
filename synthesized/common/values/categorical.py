@@ -16,7 +16,7 @@ class CategoricalValue(Value):
         smoothing: float, moving_average: tf.train.ExponentialMovingAverage, similarity_regularization: float,
         entropy_regularization: float,
         # Optional
-        similarity_based: bool = False, pandas_category: bool = False,
+        similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
         categories: Union[int, list] = None, probabilities=None, embedding_size: int = None
     ):
@@ -50,6 +50,7 @@ class CategoricalValue(Value):
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.pandas_category = pandas_category
+        self.produce_nans = produce_nans
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -66,7 +67,7 @@ class CategoricalValue(Value):
             weight=self.weight, temperature=self.temperature, smoothing=self.smoothing,
             moving_average=self.moving_average,
             similarity_regularization=self.similarity_regularization,
-            entropy_regularization=self.entropy_regularization
+            entropy_regularization=self.entropy_regularization, produce_nans=self.produce_nans
         )
         return spec
 
@@ -147,7 +148,11 @@ class CategoricalValue(Value):
             y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
 
         # Choose argmax class
-        y = tf.argmax(input=y, axis=1)
+        if self.nans_valid is False or self.produce_nans:
+            y = tf.argmax(input=y, axis=1)
+        else:
+            # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
+            y = tf.argmax(input=y[:, 1:], axis=1) + 1
 
         return [y]
 

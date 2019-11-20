@@ -117,7 +117,7 @@ class NanValue(Value):
         # Wrapped value input
         x = self.value.unify_inputs(xs=xs)
 
-        # Set NaNs to zero to avoid propagating NaNs
+        # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
         x = tf.where(condition=nan, x=tf.zeros_like(tensor=x), y=x)
 
         # Concatenate NaN embedding and wrapped value

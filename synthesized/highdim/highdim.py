@@ -37,7 +37,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
         profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
-        produce_nans_for: Iterable[str] = None,
+        produce_nans_for: Optional[Union[bool, Iterable[str]]] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -80,6 +80,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
             profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
+            produce_nans_for: A list containing the columns for which nans will be synthesized. If None or False, no
+                column will generate nulls, if True all columns generate nulls (if it applies).
             distribution: Distribution type: "normal".
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
@@ -130,10 +132,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         else:
             self.type_overrides = type_overrides
 
-        if produce_nans_for is None:
-            self.produce_nans_for: Set[str] = set()
+        if isinstance(produce_nans_for, Iterable):
+            self.produce_nans_for: Set[str] = set(produce_nans_for)
+        elif produce_nans_for:
+            self.produce_nans_for = set(df.columns)
         else:
-            self.produce_nans_for = set(produce_nans_for)
+            self.produce_nans_for = set()
 
         if condition_columns is None:
             self.condition_columns: List[str] = []
