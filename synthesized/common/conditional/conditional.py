@@ -109,7 +109,7 @@ class ConditionalSampler(Synthesizer):
             else:
                 sampled_ratio = float(n_added) / n_prefetch
             if progress_callback is not None:
-                progress_callback(round(n_added * 100.0 / num_rows))
+                progress_callback(round(len(result) * 100.0 / num_rows))
         if progress_callback is not None:
             progress_callback(100)
         return pd.DataFrame.from_records(result, columns=all_columns)
