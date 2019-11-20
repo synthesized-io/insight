@@ -15,6 +15,7 @@ from .identifier import IdentifierValue
 from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
+from .bank_number import BankNumberValue
 from .value import Module
 from .value import Value
 
@@ -94,6 +95,15 @@ class ValueFactory(Module):
             capacity=self.module.capacity
         )
 
+    def create_bank(self) -> BankNumberValue:
+        """Create BankNumberValue."""
+        return self.module.add_module(
+            module='bank', name='bank',
+            bic_label=self.module.bic_label,
+            sort_code_label=self.module.sort_code_label,
+            account_label=self.module.account_label
+        )
+
     def create_compound_address(self) -> CompoundAddressValue:
         """Create CompoundAddressValue."""
         return self.add_module(
@@ -119,14 +129,14 @@ class ValueFactory(Module):
         """Create SamplingValue."""
         return self.module.add_module(module='sampling', name=name)
 
-    def identify_value(self, col: pd.Series, name: str) -> Value:
+    def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
         """Autodetect the type of a column and assign a name.
 
         Args:
             col: A column from DataFrame.
             name: A name to give to the value.
 
-        Returns: Detected value.
+        Returns: Detected value or None which means that value has already been detected before.
 
         """
         value: Optional[Value] = None
@@ -146,6 +156,18 @@ class ValueFactory(Module):
             if self.module.person_value is None:
                 value = self.create_person()
                 self.module.person_value = value
+            else:
+                return None
+
+        # Bank value
+        elif name == getattr(self.module, 'bic_label', None) or \
+                name == getattr(self.module, 'sort_code_label', None) or \
+                name == getattr(self.module, 'account_label', None):
+            if self.module.bank_value is None:
+                value = self.create_bank()
+                self.module.bank_value = value
+            else:
+                return None
 
         # Address value
         elif name == getattr(self.module, 'postcode_label', None) or \
@@ -154,16 +176,24 @@ class ValueFactory(Module):
             if self.module.address_value is None:
                 value = self.create_address()
                 self.module.address_value = value
+            else:
+                return None
 
         # Compound address value
         elif name == getattr(self.module, 'address_label', None):
-            value = self.create_compound_address()
-            self.module.address_value = value
+            if self.module.address_value is None:
+                value = self.create_compound_address()
+                self.module.address_value = value
+            else:
+                return None
 
         # Identifier value
         elif name == getattr(self.module, 'identifier_label', None):
-            value = self.create_identifier(name)
-            self.module.identifier_value = value
+            if self.module.identifier_value is None:
+                value = self.create_identifier(name)
+                self.module.identifier_value = value
+            else:
+                return None
 
         # Return pre-configured value
         if value is not None:
@@ -255,6 +285,7 @@ class ValueFactory(Module):
         else:
             value = self.create_sampling(name)
 
+        assert value is not None
         return value
 
 
