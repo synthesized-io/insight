@@ -136,7 +136,7 @@ class ValueFactory(Module):
             col: A column from DataFrame.
             name: A name to give to the value.
 
-        Returns: Detected value or None which means that value has already been detected before.
+        Returns: Detected value or None which means that the value has already been detected before.
 
         """
         value: Optional[Value] = None
