@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 import pandas as pd
@@ -18,8 +18,7 @@ class AddressValue(Value):
     postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
 
     def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None,
-                 city_label=None, street_label=None, house_number_label=None,
-                 postcodes=None):
+                 city_label=None, street_label=None, house_number_label=None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -31,19 +30,15 @@ class AddressValue(Value):
         self.street_label = street_label
         self.house_number_label = house_number_label
 
-        if postcodes is None:
-            self.postcodes = None
-        else:
-            self.postcodes = sorted(postcodes)
-
-        self.streets = {}
-        self.cities = {}
+        self.postcodes: Dict[str, List[str]] = {}
+        self.streets: Dict[str, str] = {}
+        self.cities: Dict[str, str] = {}
 
         if postcode_label is None:
             self.postcode = None
         else:
             self.postcode = self.add_module(
-                module=CategoricalValue, name=postcode_label, categories=self.postcodes,
+                module=CategoricalValue, name=postcode_label,
                 **categorical_kwargs
             )
 
@@ -72,13 +67,6 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        if self.postcodes is None:
-            self.postcodes = dict()
-            fixed = False
-        else:
-            self.postcodes = {postcode: list() for postcode in self.postcodes}
-            fixed = True
-
         keys = []
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
@@ -93,10 +81,7 @@ class AddressValue(Value):
             postcode_key = postcode[:index]
             postcode_value = postcode[index:]
             if postcode_key not in self.postcodes:
-                if fixed:
-                    raise NotImplementedError
-                else:
-                    self.postcodes[postcode_key] = []
+                self.postcodes[postcode_key] = []
             self.postcodes[postcode_key].append(postcode_value)
 
             if self.street_label:
