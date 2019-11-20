@@ -207,10 +207,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
-                value = self.identify_value(col=df[name], name=name)
+                identified_value = self.identify_value(col=df[name], name=name)
                 # None means the value has already been detected:
-                if value is None:
+                if identified_value is None:
                     continue
+                value = identified_value
             if name in self.condition_columns:
                 self.conditions.append(value)
             else:
