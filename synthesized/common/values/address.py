@@ -15,9 +15,10 @@ from ..module import tensorflow_name_scoped
 
 
 class AddressValue(Value):
-    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? [0-9]+[A-Za-z]{2}$')
+    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
 
-    def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, city_label=None, street_label=None,
+    def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None,
+                 city_label=None, street_label=None, house_number_label=None,
                  postcodes=None):
         super().__init__(name=name)
 
@@ -28,6 +29,7 @@ class AddressValue(Value):
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
+        self.house_number_label = house_number_label
 
         if postcodes is None:
             self.postcodes = None
@@ -42,7 +44,7 @@ class AddressValue(Value):
         else:
             self.postcode = self.add_module(
                 module=CategoricalValue, name=postcode_label, categories=self.postcodes,
-                capacity=capacity
+                **categorical_kwargs
             )
 
     def learned_input_columns(self) -> List[str]:
@@ -70,8 +72,6 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
-
         if self.postcodes is None:
             self.postcodes = dict()
             fixed = False
@@ -146,7 +146,7 @@ class AddressValue(Value):
             postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(df)),
                                  name=self.postcode_label)
         else:
-            df = self.postcode.postprocess(data=df)
+            df = self.postcode.postprocess(df=df)
             postcode = df[self.postcode_label].astype(dtype='str')
 
         def expand_postcode(key):
@@ -165,6 +165,9 @@ class AddressValue(Value):
 
         if self.street_label:
             df[self.street_label] = postcode.apply(lookup_street)
+
+        if self.house_number_label:
+            df[self.house_number_label] = np.random.randint(1, 100, size=len(df))
 
         return df
 

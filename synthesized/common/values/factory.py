@@ -118,7 +118,8 @@ class ValueFactory(Module):
             module='address', name='address', postcode_level=0,
             postcode_label=self.module.postcode_label, city_label=self.module.city_label,
             street_label=self.module.street_label,
-            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+            house_number_label=self.module.house_number_label,
+            categorical_kwargs=self.categorical_kwargs
         )
 
     def create_enumeration(self, name: str) -> EnumerationValue:
@@ -172,7 +173,8 @@ class ValueFactory(Module):
         # Address value
         elif name == getattr(self.module, 'postcode_label', None) or \
                 name == getattr(self.module, 'city_label', None) or \
-                name == getattr(self.module, 'street_label', None):
+                name == getattr(self.module, 'street_label', None) or \
+                name == getattr(self.module, 'house_number_label', None):
             if self.module.address_value is None:
                 value = self.create_address()
                 self.module.address_value = value
