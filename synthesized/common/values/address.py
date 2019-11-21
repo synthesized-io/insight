@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 import pandas as pd
@@ -15,10 +15,10 @@ from ..module import tensorflow_name_scoped
 
 
 class AddressValue(Value):
-    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? [0-9]+[A-Za-z]{2}$')
+    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
 
-    def __init__(self, name, postcode_level=0, postcode_label=None, capacity=None, city_label=None, street_label=None,
-                 postcodes=None):
+    def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None,
+                 city_label=None, street_label=None, house_number_label=None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -28,21 +28,18 @@ class AddressValue(Value):
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
+        self.house_number_label = house_number_label
 
-        if postcodes is None:
-            self.postcodes = None
-        else:
-            self.postcodes = sorted(postcodes)
-
-        self.streets = {}
-        self.cities = {}
+        self.postcodes: Dict[str, List[str]] = {}
+        self.streets: Dict[str, str] = {}
+        self.cities: Dict[str, str] = {}
 
         if postcode_label is None:
             self.postcode = None
         else:
             self.postcode = self.add_module(
-                module=CategoricalValue, name=postcode_label, categories=self.postcodes,
-                capacity=capacity
+                module=CategoricalValue, name=postcode_label,
+                **categorical_kwargs
             )
 
     def learned_input_columns(self) -> List[str]:
@@ -70,15 +67,6 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
-
-        if self.postcodes is None:
-            self.postcodes = dict()
-            fixed = False
-        else:
-            self.postcodes = {postcode: list() for postcode in self.postcodes}
-            fixed = True
-
         keys = []
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
@@ -93,10 +81,7 @@ class AddressValue(Value):
             postcode_key = postcode[:index]
             postcode_value = postcode[index:]
             if postcode_key not in self.postcodes:
-                if fixed:
-                    raise NotImplementedError
-                else:
-                    self.postcodes[postcode_key] = []
+                self.postcodes[postcode_key] = []
             self.postcodes[postcode_key].append(postcode_value)
 
             if self.street_label:
@@ -146,7 +131,7 @@ class AddressValue(Value):
             postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(df)),
                                  name=self.postcode_label)
         else:
-            df = self.postcode.postprocess(data=df)
+            df = self.postcode.postprocess(df=df)
             postcode = df[self.postcode_label].astype(dtype='str')
 
         def expand_postcode(key):
@@ -165,6 +150,9 @@ class AddressValue(Value):
 
         if self.street_label:
             df[self.street_label] = postcode.apply(lookup_street)
+
+        if self.house_number_label:
+            df[self.house_number_label] = np.random.randint(1, 100, size=len(df))
 
         return df
 

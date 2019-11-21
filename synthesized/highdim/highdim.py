@@ -62,7 +62,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Bank
         bic_label: str = None, sort_code_label: str = None, account_label: str = None,
         # Address
-        postcode_label: str = None, city_label: str = None, street_label: str = None,
+        postcode_label: str = None, city_label: str = None, street_label: str = None, house_number_label: str = None,
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
@@ -121,6 +121,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             postcode_label: Address postcode column.
             city_label: Address city column.
             street_label: Address street column.
+            house_number_label: Address house number column.
             address_label: Address combined column.
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
@@ -185,6 +186,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
+        self.house_number_label = house_number_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
