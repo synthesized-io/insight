@@ -42,7 +42,7 @@ class AddressValue(Value):
 
         self.postcodes: Dict[str, List[AddressRecord]] = {}
 
-        if postcode_label is None:
+        if postcode_label is None or self.fake:
             self.postcode = None
         else:
             self.postcode = self.add_module(
@@ -75,6 +75,8 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
+        if self.fake:
+            return
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
             postcode_key = self._get_postcode_key(postcode)
@@ -96,6 +98,8 @@ class AddressValue(Value):
             self.postcode.extract(df=postcode_data)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.fake:
+            return super().preprocess(df=df)
         postcodes = []
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
@@ -124,30 +128,42 @@ class AddressValue(Value):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
+        if self.fake:
+            if self.postcode_label is not None:
+                df[self.postcode_label] = [self.fkr.postcode() for _ in range(len(df))]
 
-        if self.postcodes is None or isinstance(self.postcodes, set):
-            raise NotImplementedError
-        if self.postcode is None:
-            postcode = np.random.choice(a=list(self.postcodes), size=len(df))
+            if self.city_label is not None:
+                df[self.city_label] = [self.fkr.city() for _ in range(len(df))]
+
+            if self.street_label is not None:
+                df[self.street_label] = [self.fkr.street_name() for _ in range(len(df))]
+
+            if self.house_number_label is not None:
+                df[self.house_number_label] = [self.fkr.building_number() for _ in range(len(df))]
         else:
-            df = self.postcode.postprocess(df=df)
-            postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
+            if self.postcodes is None or isinstance(self.postcodes, set):
+                raise NotImplementedError
+            if self.postcode is None:
+                postcode = np.random.choice(a=list(self.postcodes), size=len(df))
+            else:
+                df = self.postcode.postprocess(df=df)
+                postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
 
-        def sample_address(postcode_key):
-            return np.random.choice(self.postcodes[postcode_key])
+            def sample_address(postcode_key):
+                return np.random.choice(self.postcodes[postcode_key])
 
-        addresses = np.vectorize(sample_address)(postcode)
+            addresses = np.vectorize(sample_address)(postcode)
 
-        df[self.postcode_label] = list(map(lambda a: a.postcode, addresses))
+            df[self.postcode_label] = list(map(lambda a: a.postcode, addresses))
 
-        if self.city_label:
-            df[self.city_label] = list(map(lambda a: a.city, addresses))
+            if self.city_label:
+                df[self.city_label] = list(map(lambda a: a.city, addresses))
 
-        if self.street_label:
-            df[self.street_label] = list(map(lambda a: a.street, addresses))
+            if self.street_label:
+                df[self.street_label] = list(map(lambda a: a.street, addresses))
 
-        if self.house_number_label:
-            df[self.house_number_label] = list(map(lambda a: a.house_number, addresses))
+            if self.house_number_label:
+                df[self.house_number_label] = list(map(lambda a: a.house_number, addresses))
 
         return df
 
