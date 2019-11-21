@@ -1,24 +1,32 @@
 import re
 from typing import List, Dict
 
+import faker
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .value import Value
 from .categorical import CategoricalValue
+from .value import Value
 from ..module import tensorflow_name_scoped
 
 
-# TODO: postcodes needs one-time scan to collect
-# street etc optional
+class AddressRecord:
+    def __init__(self, city, postcode, street, house_number):
+        self.city = city
+        self.postcode = postcode
+        self.street = street
+        self.house_number = house_number
+
+    def __repr__(self):
+        return "<AddressRecord {}, {}, {}, {}>".format(self.city, self.postcode, self.street, self.house_number)
 
 
 class AddressValue(Value):
     postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
 
     def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None,
-                 city_label=None, street_label=None, house_number_label=None):
+                 city_label=None, street_label=None, house_number_label=None, fake=False):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -29,10 +37,10 @@ class AddressValue(Value):
         self.city_label = city_label
         self.street_label = street_label
         self.house_number_label = house_number_label
+        self.fake = fake
+        self.fkr = faker.Faker(locale='en_GB')
 
-        self.postcodes: Dict[str, List[str]] = {}
-        self.streets: Dict[str, str] = {}
-        self.cities: Dict[str, str] = {}
+        self.postcodes: Dict[str, List[AddressRecord]] = {}
 
         if postcode_label is None:
             self.postcode = None
@@ -67,52 +75,31 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        keys = []
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
-            if not self.__class__.postcode_regex.match(postcode):
-                raise ValueError(postcode)
-            if self.postcode_level == 0:  # 1-2 letters
-                index = 2 - postcode[1].isdigit()
-            elif self.postcode_level == 1:
-                index = postcode.index(' ')
-            elif self.postcode_level == 2:
-                index = postcode.index(' ') + 2
-            postcode_key = postcode[:index]
-            postcode_value = postcode[index:]
+            postcode_key = self._get_postcode_key(postcode)
+
+            city = row[self.city_label] if self.city_label else None
+            street = row[self.street_label] if self.street_label else None
+            house_number = row[self.house_number_label] if self.house_number_label else None
+
             if postcode_key not in self.postcodes:
                 self.postcodes[postcode_key] = []
-            self.postcodes[postcode_key].append(postcode_value)
-
-            if self.street_label:
-                self.streets[postcode_key] = row[self.street_label]
-
-            if self.city_label:
-                self.cities[postcode_key] = row[self.city_label]
-
-            keys.append(postcode_key)
+            self.postcodes[postcode_key].append(AddressRecord(city, postcode, street, house_number))
 
         # convert list to ndarray for better performance
         for key, postcode in self.postcodes.items():
             self.postcodes[key] = np.array(self.postcodes[key])
 
         if self.postcode is not None:
-            postcode_data = pd.DataFrame({self.postcode_label: keys})
+            postcode_data = pd.DataFrame({self.postcode_label: list(self.postcodes.keys())})
             self.postcode.extract(df=postcode_data)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         postcodes = []
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
-            if not self.__class__.postcode_regex.match(postcode):
-                raise ValueError(postcode)
-            if self.postcode_level == 0:  # 1-2 letters
-                index = 2 - postcode[1].isdigit()
-            elif self.postcode_level == 1:
-                index = postcode.index(' ')
-            elif self.postcode_level == 2:
-                index = postcode.index(' ') + 2
-            postcode_key = postcode[:index]
+            postcode_key = self._get_postcode_key(postcode)
             postcodes.append(postcode_key)
 
         df[self.postcode_label] = postcodes
@@ -122,37 +109,45 @@ class AddressValue(Value):
 
         return super().preprocess(df=df)
 
+    def _get_postcode_key(self, postcode: str):
+        if not AddressValue.postcode_regex.match(postcode):
+            raise ValueError(postcode)
+        if self.postcode_level == 0:  # 1-2 letters
+            index = 2 - postcode[1].isdigit()
+        elif self.postcode_level == 1:
+            index = postcode.index(' ')
+        elif self.postcode_level == 2:
+            index = postcode.index(' ') + 2
+        else:
+            raise ValueError(self.postcode_level)
+        return postcode[:index]
+
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
 
         if self.postcodes is None or isinstance(self.postcodes, set):
             raise NotImplementedError
         if self.postcode is None:
-            postcode = pd.Series(data=np.random.choice(a=list(self.postcodes), size=len(df)),
-                                 name=self.postcode_label)
+            postcode = np.random.choice(a=list(self.postcodes), size=len(df))
         else:
             df = self.postcode.postprocess(df=df)
-            postcode = df[self.postcode_label].astype(dtype='str')
+            postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
 
-        def expand_postcode(key):
-            return key + np.random.choice(self.postcodes[key])
+        def sample_address(postcode_key):
+            return np.random.choice(self.postcodes[postcode_key])
 
-        def lookup_city(key):
-            return self.cities[key]
+        addresses = np.vectorize(sample_address)(postcode)
 
-        def lookup_street(key):
-            return self.streets[key]
-
-        df[self.postcode_label] = postcode.apply(expand_postcode)
+        df[self.postcode_label] = list(map(lambda a: a.postcode, addresses))
 
         if self.city_label:
-            df[self.city_label] = postcode.apply(lookup_city)
+            df[self.city_label] = list(map(lambda a: a.city, addresses))
 
         if self.street_label:
-            df[self.street_label] = postcode.apply(lookup_street)
+            df[self.street_label] = list(map(lambda a: a.street, addresses))
 
         if self.house_number_label:
-            df[self.house_number_label] = np.random.randint(1, 100, size=len(df))
+            df[self.house_number_label] = list(map(lambda a: a.house_number, addresses))
 
         return df
 
