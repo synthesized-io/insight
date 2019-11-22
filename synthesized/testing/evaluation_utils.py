@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import pandas as pd
 from typing import List, Dict
@@ -151,11 +152,13 @@ def train_and_synthesize(data: pd.DataFrame, train: pd.DataFrame, test: pd.DataF
         else:
             loss_history.append({name: losses[name] for name in loss_history[0]})
 
+    t = time.time()
     with synthesizer_constructor(df=data, **evaluation.configs[evaluation_name]['params']) as synthesizer:
         synthesizer.learn(
             df_train=train, num_iterations=evaluation.configs[evaluation_name]['num_iterations'],
             callback=callback, callback_freq=100
         )
+        training_time = time.time() - t
         if synthesizer_class == "HighDimSynthesizer":
             synthesized_data = synthesizer.synthesize(num_rows=len(test))
         else:
@@ -163,4 +166,4 @@ def train_and_synthesize(data: pd.DataFrame, train: pd.DataFrame, test: pd.DataF
                 evaluation.configs[evaluation_name]["params"]["identifier_label"]).count().to_numpy().transpose()
             series_lengths = list(series_lengths[0])
             synthesized_data = synthesizer.synthesize(series_lengths=series_lengths)
-        return synthesizer, synthesized_data, loss_history
+        return synthesizer, synthesized_data, loss_history, training_time
