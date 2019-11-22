@@ -23,7 +23,7 @@ class AddressRecord:
         self.house_name = house_name
 
     def __repr__(self):
-        return "<AddressRecord {} {} {} {} {} {} {}>".format(
+        return "<AddressRecord {} {} {} {} {} {} {} {}>".format(
             self.postcode,
             self.county,
             self.city,
