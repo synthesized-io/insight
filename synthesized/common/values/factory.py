@@ -116,9 +116,10 @@ class ValueFactory(Module):
         """Create AddressValue."""
         return self.add_module(
             module='address', name='address', postcode_level=0,
-            postcode_label=self.module.postcode_label, city_label=self.module.city_label,
-            street_label=self.module.street_label,
-            house_number_label=self.module.house_number_label,
+            postcode_label=self.module.postcode_label, county_label=self.module.county_label,
+            city_label=self.module.city_label, district_label=self.module.district_label,
+            street_label=self.module.street_label, house_number_label=self.module.house_number_label,
+            flat_label=self.module.flat_label, house_name_label=self.module.house_name_label,
             categorical_kwargs=self.categorical_kwargs
         )
 
@@ -172,9 +173,13 @@ class ValueFactory(Module):
 
         # Address value
         elif name == getattr(self.module, 'postcode_label', None) or \
+                name == getattr(self.module, 'county_label', None) or \
                 name == getattr(self.module, 'city_label', None) or \
+                name == getattr(self.module, 'district_label', None) or \
                 name == getattr(self.module, 'street_label', None) or \
-                name == getattr(self.module, 'house_number_label', None):
+                name == getattr(self.module, 'house_number_label', None) or \
+                name == getattr(self.module, 'flat_label', None) or \
+                name == getattr(self.module, 'house_name_label', None):
             if self.module.address_value is None:
                 value = self.create_address()
                 self.module.address_value = value

@@ -61,7 +61,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Bank
         bic_label: str = None, sort_code_label: str = None, account_label: str = None,
         # Address
-        postcode_label: str = None, city_label: str = None, street_label: str = None, house_number_label: str = None,
+        postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
+        street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
@@ -116,9 +117,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             sort_code_label: Bank sort code column.
             account_label: Bank account column.
             postcode_label: Address postcode column.
+            county_label: Address county column.
             city_label: Address city column.
+            district_label: Address district column.
             street_label: Address street column.
             house_number_label: Address house number column.
+            flat_label: Address flat number column.
+            house_name_label: Address house column.
             address_label: Address combined column.
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
@@ -180,9 +185,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Address
         self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
+        self.county_label = county_label
         self.city_label = city_label
+        self.district_label = district_label
         self.street_label = street_label
         self.house_number_label = house_number_label
+        self.flat_label = flat_label
+        self.house_name_label = house_name_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
