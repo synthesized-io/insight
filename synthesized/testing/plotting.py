@@ -32,7 +32,7 @@ def plot_data(data: pd.DataFrame, ax: Axes):
             crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r/r.sum(), axis=1)
             sns.heatmap(crosstab, vmin=0.0, vmax=1.0, ax=ax)
         else:
-            return sns.distplot(data, ax=ax)
+            return sns.distplot(data, ax=ax, color=["b", "g"])
     else:
         return sns.distplot(data, ax=ax)
 
