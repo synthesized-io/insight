@@ -60,6 +60,7 @@ class ValueFactory(Module):
     def create_categorical(self, name: str, **kwargs) -> CategoricalValue:
         """Create CategoricalValue."""
         categorical_kwargs = dict(self.categorical_kwargs)
+        categorical_kwargs['produce_nans'] = True if name in self.module.produce_nans_for else False
         categorical_kwargs.update(kwargs)
         return self.add_module(module='categorical', name=name, **categorical_kwargs)
 
