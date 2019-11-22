@@ -102,8 +102,12 @@ def plot_avg_distances(test: pd.DataFrame, evaluation: Evaluation, evaluation_na
         max_ks_distance = np.max(ks_distances)
         avg_corr = corr.mean()
         max_corr = corr.max()
-        avg_emd = np.mean(emd)
-        max_emd = np.max(emd)
+        if len(emd) > 0:
+            avg_emd = np.mean(emd)
+            max_emd = np.max(emd)
+        else:
+            avg_emd = float("nan")
+            max_emd = float("nan")
 
         current_result = {
             'ks_distance_avg': avg_ks_distance,
