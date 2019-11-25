@@ -139,7 +139,7 @@ class LearningManager:
         return False
 
     def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 column_names: List[str] = None) -> bool:
+                                 column_names: Optional[List[str]] = None) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -177,13 +177,13 @@ class LearningManager:
             return False
 
         sample_size = min(sample_size, len(df_train)) if sample_size else len(df_train)
-        column_names = [v.name for v in synthesizer.values if v.name in df_train.columns]
+        column_names = [v.name for v in synthesizer.get_values() if v.name in df_train.columns]
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth,
                                              column_names=column_names)
 
     def _calculate_stop_metric_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                         column_names: List[str] = None) -> Dict[str, List[float]]:
+                                         column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
         """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
         (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
         stop_metrics per column).
@@ -196,15 +196,15 @@ class LearningManager:
         Returns
             bool: True if criteria are met to stop learning.
         """
-        if not column_names:
-            column_names = df_orig.columns
+        if column_names is None:
+            column_names_df: List[str] = df_orig.columns
         else:
-            column_names = list(filter(lambda c: c in df_orig.columns, column_names))
+            column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
 
         ks_distances = []
         emd = []
 
-        for col in column_names:
+        for col in column_names_df:
             if df_orig[col].dtype.kind in ('f', 'i') and df_synth[col].dtype.kind in ('f', 'i'):
                 ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
             else:

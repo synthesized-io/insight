@@ -2,11 +2,11 @@
 import base64
 from datetime import datetime
 import os
-from typing import Callable, Union
+from typing import Callable, Union, List
 
 import pandas as pd
 
-from .common import Module
+from .common import Module, Value
 
 
 def _check_license():
@@ -49,6 +49,8 @@ if not _check_license():
 
 
 class Synthesizer(Module):
+    def get_values(self) -> List[Value]:
+        raise NotImplementedError()
 
     @staticmethod
     def logging(synthesizer, iteration, fetched):
