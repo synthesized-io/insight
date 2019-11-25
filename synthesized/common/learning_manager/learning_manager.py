@@ -205,7 +205,7 @@ class LearningManager:
         emd = []
 
         for col in column_names_df:
-            if df_orig[col].dtype.kind in ('f', 'i') and df_synth[col].dtype.kind in ('f', 'i'):
+            if df_orig[col].dtype.kind in ('f', 'i') and df_orig[col].dtype.kind == df_synth[col].dtype.kind:
                 ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
             else:
                 try:
