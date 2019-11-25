@@ -93,7 +93,7 @@ class ValueFactory(Module):
             mobile_number_label=self.module.mobile_number_label,
             home_number_label=self.module.home_number_label,
             work_number_label=self.module.work_number_label,
-            capacity=self.module.capacity
+            categorical_kwargs=self.categorical_kwargs
         )
 
     def create_bank(self) -> BankNumberValue:
