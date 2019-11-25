@@ -262,6 +262,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.learning_manager = LearningManager() if learning_manager else None
         self.learning_manager_sample_size = 25_000
 
+    def get_values(self) -> List[Value]:
+        return self.values
+
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
