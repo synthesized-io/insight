@@ -127,11 +127,11 @@ class PersonValue(Value):
                 .str.cat(others=lastname.str.lower(), sep='.')
             df.loc[:, self.email_label] += '@example.com'
         if self.mobile_number_label is not None:
-            df.loc[:, self.mobile_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
+            df.loc[:, self.mobile_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         if self.home_number_label is not None:
-            df.loc[:, self.home_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
+            df.loc[:, self.home_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         if self.work_number_label is not None:
-            df.loc[:, self.work_number_label] = [self.fkr.phone_number() for _ in range(len(df))]
+            df.loc[:, self.work_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         return df
 
     @tensorflow_name_scoped
