@@ -177,7 +177,7 @@ class LearningManager:
             return False
 
         sample_size = min(sample_size, len(df_train)) if sample_size else len(df_train)
-        column_names = [v.name for v in synthesizer.get_values() if v.name in df_train.columns]
+        column_names = list(np.concatenate([v.learned_input_columns() for v in synthesizer.get_values()]))
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth,
                                              column_names=column_names)
@@ -205,7 +205,7 @@ class LearningManager:
         emd = []
 
         for col in column_names_df:
-            if df_orig[col].dtype.kind in ('f', 'i') and df_orig[col].dtype.kind == df_synth[col].dtype.kind:
+            if df_orig[col].dtype.kind in ('f', 'i'):
                 ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
             else:
                 try:
@@ -216,8 +216,8 @@ class LearningManager:
                 except ValueError:
                     emd.append(categorical_emd(df_orig[col].dropna(), df_synth[col].dropna()))
 
-        corr = (df_orig[column_names].corr(method='kendall') -
-                df_synth[column_names].corr(method='kendall')).abs().mean()
+        corr = (df_orig[column_names_df].corr(method='kendall') -
+                df_synth[column_names_df].corr(method='kendall')).abs().mean()
 
         stop_metrics = dict(
             ks_dist=list(ks_distances),
