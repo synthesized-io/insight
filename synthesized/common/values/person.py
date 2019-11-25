@@ -12,10 +12,10 @@ from ..module import tensorflow_name_scoped
 
 class PersonValue(Value):
 
-    def __init__(self, name, title_label=None, gender_label=None, name_label=None, firstname_label=None,
-                 lastname_label=None, email_label=None,
+    def __init__(self, name, categorical_kwargs: dict, title_label=None, gender_label=None, name_label=None,
+                 firstname_label=None, lastname_label=None, email_label=None,
                  mobile_number_label=None, home_number_label=None, work_number_label=None,
-                 capacity=None, dict_cache_size=10000):
+                 dict_cache_size=10000):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -28,7 +28,8 @@ class PersonValue(Value):
         self.home_number_label = home_number_label
         self.work_number_label = work_number_label
         # Assume the gender are always encoded like M or F or U(???)
-        self.title_mapping = {'M': 'Mr', 'F': 'Mrs', 'U': 'female'}
+        self.title_mapping = {'M': 'MR', 'F': 'MRS', 'U': 'MRS'}
+        self.gender_mapping = {'MR': 'M', 'MRS': 'F', 'MS': 'F', 'MISS': 'F'}
 
         fkr = faker.Faker(locale='en_GB')
         self.fkr = fkr
@@ -38,9 +39,14 @@ class PersonValue(Value):
 
         if gender_label is None:
             self.gender = None
+        elif self.title_label == self.gender_label:
+            # a special case when we extract gender from title:
+            self.gender = self.add_module(
+                module=CategoricalValue, name='_gender', **categorical_kwargs
+            )
         else:
             self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, capacity=capacity
+                module=CategoricalValue, name=gender_label, **categorical_kwargs
             )
 
     def learned_input_columns(self) -> List[str]:
@@ -69,10 +75,16 @@ class PersonValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         if self.gender is not None:
+            if self.title_label == self.gender_label:
+                df['_gender'] = df[self.title_label].map(self.gender_mapping)
             self.gender.extract(df=df)
+            if self.title_label == self.gender_label:
+                df.drop('_gender', axis=1, inplace=True)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.gender is not None:
+            if self.title_label == self.gender_label:
+                df['_gender'] = df[self.title_label].map(self.gender_mapping)
             df = self.gender.preprocess(df=df)
         return super().preprocess(df=df)
 
@@ -82,8 +94,12 @@ class PersonValue(Value):
         if self.gender is None:
             gender = pd.Series(np.random.choice(a=['F', 'M'], size=len(df)))
         else:
-            df = self.gender.postprocess(data=df)
-            gender = df[self.gender_label]
+            df = self.gender.postprocess(df=df)
+            if self.title_label == self.gender_label:
+                gender = df['_gender']
+                df.drop('_gender', axis=1, inplace=True)
+            else:
+                gender = df[self.gender_label]
 
         def get_first_name(g):
             if g == 'M':
@@ -91,7 +107,7 @@ class PersonValue(Value):
             else:
                 return np.random.choice(self.female_first_name_cache)
 
-        title = gender.astype(dtype=str).apply(func=self.title_mapping.__getitem__)
+        title = gender.astype(dtype=str).map(self.title_mapping)
         firstname = gender.astype(dtype=str).apply(func=get_first_name)
         lastname = pd.Series(data=np.random.choice(self.last_name_cache, size=len(df)))
 
