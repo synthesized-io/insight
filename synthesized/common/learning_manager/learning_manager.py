@@ -138,7 +138,8 @@ class LearningManager:
 
         return False
 
-    def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> bool:
+    def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                 column_names: List[str] = None) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -146,6 +147,7 @@ class LearningManager:
             iteration: Iteration number.
             df_orig: Original DataFrame.
             df_synth: Synthesized DataFrame.
+            column_names: List of columns used to compute the 'break_metric'.
 
         Returns
             bool: True if criteria are met to stop learning.
@@ -153,10 +155,12 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        stop_metrics = self._calculate_stop_metric_from_data(df_orig=df_orig, df_synth=df_synth)
+        stop_metrics = self._calculate_stop_metric_from_data(df_orig=df_orig, df_synth=df_synth,
+                                                             column_names=column_names)
         return self.stop_learning_check_metric(iteration=iteration, stop_metric=stop_metrics)
 
-    def stop_learning(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame, sample_size: int) -> bool:
+    def stop_learning(self, iteration: int, synthesizer: Synthesizer, df_train: pd.DataFrame,
+                      sample_size: int = None) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the 'stop_metric', compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -172,11 +176,14 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        sample_size = min(sample_size, len(df_train))
+        sample_size = min(sample_size, len(df_train)) if sample_size else len(df_train)
+        column_names = [v.name for v in synthesizer.values if v.name in df_train.columns]
         df_synth = synthesizer.synthesize(num_rows=sample_size)
-        return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth)
+        return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth,
+                                             column_names=column_names)
 
-    def _calculate_stop_metric_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame) -> Dict[str, List[float]]:
+    def _calculate_stop_metric_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                         column_names: List[str] = None) -> Dict[str, List[float]]:
         """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
         (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
         stop_metrics per column).
@@ -184,15 +191,21 @@ class LearningManager:
         Args
             df_orig: Original DataFrame.
             df_synth: Synthesized DataFrame.
+            column_names: List of columns used to compute the 'break_metric'.
 
         Returns
             bool: True if criteria are met to stop learning.
         """
+        if not column_names:
+            column_names = df_orig.columns
+        else:
+            column_names = list(filter(lambda c: c in df_orig.columns, column_names))
+
         ks_distances = []
         emd = []
 
-        for col in df_orig.columns:
-            if df_orig[col].dtype.kind in ('f', 'i'):
+        for col in column_names:
+            if df_orig[col].dtype.kind in ('f', 'i') and df_synth[col].dtype.kind in ('f', 'i'):
                 ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
             else:
                 try:
@@ -203,7 +216,8 @@ class LearningManager:
                 except ValueError:
                     emd.append(categorical_emd(df_orig[col].dropna(), df_synth[col].dropna()))
 
-        corr = (df_orig.corr(method='kendall') - df_synth.corr(method='kendall')).abs().mean()
+        corr = (df_orig[column_names].corr(method='kendall') -
+                df_synth[column_names].corr(method='kendall')).abs().mean()
 
         stop_metrics = dict(
             ks_dist=list(ks_distances),
