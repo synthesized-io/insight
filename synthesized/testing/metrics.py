@@ -8,8 +8,8 @@ from typing import List, Union
 from statsmodels.formula.api import mnlogit
 
 
-# --- Association between continuous and continuous
 def continuous_correlation(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
+    """Association between continuous and continuous"""
     return np.corrcoef(x, y)[0, 1]
 
 
@@ -17,20 +17,22 @@ def continuous_rsquared(x: List[Union[int, float]], y: List[Union[int, float]]) 
     return continuous_correlation(x, y)**2
 
 
-# --- Association between categorical and categorical
-def categorical_logistic_rsquared(x: List, y: List) -> float:
+def categorical_logistic_rsquared(x: list, y: list) -> float:
+    """Nominal association between categorical and categorical"""
     temp_df = pd.DataFrame({"x": x, "y": y})
     model = mnlogit("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
     return model.prsquared
 
 
-def contingency_table(x: List, y: List) -> sm.stats.Table:
+def contingency_table(x: list, y: list) -> sm.stats.Table:
+    """Returns the contingency table of two categorical variables."""
     temp_df = pd.DataFrame({"x": x, "y": y})
     table = sm.stats.Table.from_data(temp_df)
     return table
 
 
-def cramers_v(x: List, y: List) -> float:
+def cramers_v(x: list, y: list) -> float:
+    """Nominal association between categorical and categorical"""
     table = contingency_table(x, y)
     expected = table.fittedvalues.to_numpy()
     real = table.table
@@ -41,13 +43,14 @@ def cramers_v(x: List, y: List) -> float:
     return v
 
 
-def normalized_contingency_residuals(x: List, y: List) -> pd.DataFrame:
+def normalized_contingency_residuals(x: list, y: list) -> pd.DataFrame:
+    """Returns the associations between two categorical variables for a data set."""
     xcats = np.sort(list(set(x))).tolist()
     ycats = np.sort(list(set(y))).tolist()
 
     table = contingency_table(x, y)
     expected = table.fittedvalues.to_numpy() + 1.0
-    real = table.table
+    real = table.table + 1.0
 
     values = ((real - expected) / expected).flatten()
     records = [(xcats[n // len(ycats)], ycats[n % len(ycats)], v) for n, v in enumerate(values)]
@@ -56,7 +59,8 @@ def normalized_contingency_residuals(x: List, y: List) -> pd.DataFrame:
     return df
 
 
-def normalized_contingency_residuals_diff(x1: List, y1: List, x2: List, y2: List) -> pd.DataFrame:
+def normalized_contingency_residuals_diff(x1: list, y1: list, x2: list, y2: list) -> pd.DataFrame:
+    """Returns the differences in association between two categorical variables for two data sets."""
     df1 = normalized_contingency_residuals(x1, y1)
     df2 = normalized_contingency_residuals(x2, y2)
 
@@ -74,5 +78,6 @@ def normalized_contingency_residuals_diff(x1: List, y1: List, x2: List, y2: List
     return df
 
 
-def max_contingency_residuals_diff(x1: List, y1: List, x2: List, y2: List) -> float:
+def max_contingency_residuals_diff(x1: list, y1: list, x2: list, y2: list) -> float:
+    """Returns the largest difference in association between two categorical variables for two data sets."""
     return max(normalized_contingency_residuals_diff(x1, y1, x2, y2)['residuals'])
