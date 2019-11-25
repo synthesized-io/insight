@@ -9,11 +9,12 @@ from statsmodels.formula.api import mnlogit
 
 
 def continuous_correlation(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-    """Association between continuous and continuous"""
+    """Correlation coefficient between two continuous variables."""
     return np.corrcoef(x, y)[0, 1]
 
 
 def continuous_rsquared(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
+    """Association between continuous and continuous"""
     return continuous_correlation(x, y)**2
 
 
