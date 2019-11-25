@@ -38,6 +38,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
+        column_aliases: Dict[str, str] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -150,6 +151,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         else:
             self.produce_nans_for = set()
 
+        if column_aliases is None:
+            self.column_aliases: Dict[str, str] = {}
+        else:
+            self.column_aliases = column_aliases
+
         if condition_columns is None:
             self.condition_columns: List[str] = []
         else:
@@ -223,6 +229,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         ValueFactory.__init__(self)
 
         for name in df.columns:
+            # we are skipping aliases
+            if name in self.column_aliases:
+                continue
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
@@ -508,6 +517,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         if len(columns) == 0:
             df_synthesized.pop('_sentinel')
+
+        # aliases:
+        for alias, col in self.column_aliases.items():
+            df_synthesized[alias] = df_synthesized[col]
 
         assert len(df_synthesized.columns) == len(self.columns)
         df_synthesized = df_synthesized[self.columns]
