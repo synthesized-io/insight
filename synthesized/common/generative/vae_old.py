@@ -2,6 +2,7 @@ from collections import OrderedDict
 from typing import Dict, List, Tuple
 
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
@@ -125,6 +126,14 @@ class VAEOld(Generative):
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
         x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
+
+        summaries.extend([
+            tf.contrib.summary.histogram(name='posterior_distribution', tensor=x),
+            tf.contrib.summary.image(
+                name='latent_space_correlation',
+                tensor=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.latent_size, self.latent_size, 1)))
+            )
+        ])
 
         if len(self.conditions) > 0:
             # Condition c
