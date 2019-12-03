@@ -209,25 +209,33 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if plot_losses:
             display(Markdown("## Show loss history"))
             pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
+            plt.show()
         if plot_distances:
             display(Markdown("## Show average distances"))
             plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
+            plt.show()
         if show_distribution_distances:
             display(Markdown("## Show distribution distances"))
             testing.show_distribution_distances()
+            plt.show()
         if show_distributions:
             display(Markdown("## Show distributions"))
             testing.show_distributions(remove_outliers=0.01)
+            plt.show()
         if show_correlation_distances:
             display(Markdown("## Show correlation distances"))
             testing.show_corr_distances()
+            plt.show()
         if show_correlation_matrix:
             display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
+            plt.show()
         if show_anova:
             display(Markdown("## Show correlation matrices"))
             testing.show_anova()
+            plt.show()
         if show_cat_rsquared:
             display(Markdown("## Show categorical R^2"))
             testing.show_categorical_rsquared()
+            plt.show()
         return testing
