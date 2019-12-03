@@ -53,3 +53,5 @@ logs/
 .mypy_cache/
 .coverage*
 coverage.txt
+
+.DS_Store
