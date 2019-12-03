@@ -164,7 +164,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if len(loss_history) == 0:
             loss_history.append(losses)
         else:
-            loss_history.append({name: losses[local_name] for local_name in loss_history[0]})
+            loss_history.append({local_name: losses[local_name] for local_name in loss_history[0]})
         return True
 
     evaluation.record_config(evaluation=name, config=config)
