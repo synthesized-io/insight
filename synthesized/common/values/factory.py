@@ -15,6 +15,7 @@ from .identifier import IdentifierValue
 from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
+from .bank_number import BankNumberValue
 from .value import Module
 from .value import Value
 
@@ -88,7 +89,19 @@ class ValueFactory(Module):
             gender_label=self.module.gender_label,
             name_label=self.module.name_label, firstname_label=self.module.firstname_label,
             lastname_label=self.module.lastname_label, email_label=self.module.email_label,
-            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+            mobile_number_label=self.module.mobile_number_label,
+            home_number_label=self.module.home_number_label,
+            work_number_label=self.module.work_number_label,
+            capacity=self.module.capacity
+        )
+
+    def create_bank(self) -> BankNumberValue:
+        """Create BankNumberValue."""
+        return self.module.add_module(
+            module='bank', name='bank',
+            bic_label=self.module.bic_label,
+            sort_code_label=self.module.sort_code_label,
+            account_label=self.module.account_label
         )
 
     def create_compound_address(self) -> CompoundAddressValue:
@@ -105,7 +118,8 @@ class ValueFactory(Module):
             module='address', name='address', postcode_level=0,
             postcode_label=self.module.postcode_label, city_label=self.module.city_label,
             street_label=self.module.street_label,
-            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+            house_number_label=self.module.house_number_label,
+            categorical_kwargs=self.categorical_kwargs
         )
 
     def create_enumeration(self, name: str) -> EnumerationValue:
@@ -116,14 +130,14 @@ class ValueFactory(Module):
         """Create SamplingValue."""
         return self.module.add_module(module='sampling', name=name)
 
-    def identify_value(self, col: pd.Series, name: str) -> Value:
+    def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
         """Autodetect the type of a column and assign a name.
 
         Args:
             col: A column from DataFrame.
             name: A name to give to the value.
 
-        Returns: Detected value.
+        Returns: Detected value or None which means that the value has already been detected before.
 
         """
         value: Optional[Value] = None
@@ -136,28 +150,52 @@ class ValueFactory(Module):
                 name == getattr(self.module, 'name_label', None) or \
                 name == getattr(self.module, 'firstname_label', None) or \
                 name == getattr(self.module, 'lastname_label', None) or \
-                name == getattr(self.module, 'email_label', None):
+                name == getattr(self.module, 'email_label', None) or \
+                name == getattr(self.module, 'mobile_number_label', None) or \
+                name == getattr(self.module, 'home_number_label', None) or \
+                name == getattr(self.module, 'work_number_label', None):
             if self.module.person_value is None:
                 value = self.create_person()
                 self.module.person_value = value
+            else:
+                return None
+
+        # Bank value
+        elif name == getattr(self.module, 'bic_label', None) or \
+                name == getattr(self.module, 'sort_code_label', None) or \
+                name == getattr(self.module, 'account_label', None):
+            if self.module.bank_value is None:
+                value = self.create_bank()
+                self.module.bank_value = value
+            else:
+                return None
 
         # Address value
         elif name == getattr(self.module, 'postcode_label', None) or \
                 name == getattr(self.module, 'city_label', None) or \
-                name == getattr(self.module, 'street_label', None):
+                name == getattr(self.module, 'street_label', None) or \
+                name == getattr(self.module, 'house_number_label', None):
             if self.module.address_value is None:
                 value = self.create_address()
                 self.module.address_value = value
+            else:
+                return None
 
         # Compound address value
         elif name == getattr(self.module, 'address_label', None):
-            value = self.create_compound_address()
-            self.module.address_value = value
+            if self.module.address_value is None:
+                value = self.create_compound_address()
+                self.module.address_value = value
+            else:
+                return None
 
         # Identifier value
         elif name == getattr(self.module, 'identifier_label', None):
-            value = self.create_identifier(name)
-            self.module.identifier_value = value
+            if self.module.identifier_value is None:
+                value = self.create_identifier(name)
+                self.module.identifier_value = value
+            else:
+                return None
 
         # Return pre-configured value
         if value is not None:
@@ -249,6 +287,7 @@ class ValueFactory(Module):
         else:
             value = self.create_sampling(name)
 
+        assert value is not None
         return value
 
 

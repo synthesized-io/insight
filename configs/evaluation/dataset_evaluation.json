@@ -4,7 +4,7 @@
     "james": {
       "data": "data/credit_with_categoricals.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -15,7 +15,7 @@
     "sweden_motor_insurance": {
       "data": "data/insurance/sweden_motor_insurance/sweden_motor_insurance.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -26,7 +26,7 @@
     "arx": {
       "data": "data/arx_adult.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -39,7 +39,7 @@
       "ignore_columns": [
         "ID"
       ],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -50,7 +50,7 @@
     "sales_pipeline": {
       "data": "data/templates/sales_pipeline.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -61,7 +61,7 @@
     "segmentation_analysis": {
       "data": "data/templates/segmentation_analysis.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -72,7 +72,7 @@
     "vitor": {
       "data": "data/vitor.csv",
       "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -83,7 +83,7 @@
     "fraud_detection": {
       "data": "data/fraud_detection_mini.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true
@@ -94,7 +94,7 @@
     "housing_prices": {
       "data": "data/templates/price_paid_household.csv",
       "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": 2500,
+      "num_iterations": 10000,
       "num_passes": 1,
       "params": {
         "sanitize_output": true

@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import identify_rules, Value, ValueFactory
+from ..common.learning_manager import LearningManager
 from ..common.sanitizer import Sanitizer, DefaultSanitizer
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
@@ -57,13 +58,18 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Person
         title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
         lastname_label: str = None, email_label: str = None,
+        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        # Bank
+        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
         # Address
-        postcode_label: str = None, city_label: str = None, street_label: str = None,
+        postcode_label: str = None, city_label: str = None, street_label: str = None, house_number_label: str = None,
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
+        # Evaluation conditions
+        learning_manager: bool = True,
         sanitize_output=False,
         sanitizer=None
     ):
@@ -73,7 +79,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             df: Data sample which is representative of the target data to generate. Usually, it is
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
-            summarizer: Directory for TensorBoard summaries, automatically creates unique subfolder.
+            summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
             profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
             distribution: Distribution type: "normal".
@@ -106,14 +112,22 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             firstname_label: Person first name column.
             lastname_label: Person last name column.
             email_label: Person e-mail address column.
+            mobile_number_label: Person mobile number column.
+            home_number_label: Person home number column.
+            work_number_label Person work number column.
+            bic_label: BIC column.
+            sort_code_label: Bank sort code column.
+            account_label: Bank account column.
             postcode_label: Address postcode column.
             city_label: Address city column.
             street_label: Address street column.
+            house_number_label: Address house number column.
             address_label: Address combined column.
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
+            learning_manager: Whether to use LearningManager.
         """
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
                              profiler_args=profiler_args)
@@ -154,17 +168,25 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.columns = list(df.columns)
         # Person
         self.person_value: Optional[Value] = None
+        self.bank_value: Optional[Value] = None
         self.title_label = title_label
         self.gender_label = gender_label
         self.name_label = name_label
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        self.mobile_number_label = mobile_number_label
+        self.home_number_label = home_number_label
+        self.work_number_label = work_number_label
+        self.bic_label = bic_label
+        self.sort_code_label = sort_code_label
+        self.account_label = account_label
         # Address
         self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
         self.city_label = city_label
         self.street_label = street_label
+        self.house_number_label = house_number_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
@@ -191,8 +213,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
-                value = self.identify_value(col=df[name], name=name)
-            assert len(value.columns()) == 1 and value.columns()[0] == name
+                identified_value = self.identify_value(col=df[name], name=name)
+                # None means the value has already been detected:
+                if identified_value is None:
+                    continue
+                value = identified_value
             if name in self.condition_columns:
                 self.conditions.append(value)
             else:
@@ -219,6 +244,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
+
+        # Learning Manager
+        self.learning_manager = LearningManager() if learning_manager else None
+        self.learning_manager_sample_size = 25_000
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -306,6 +335,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         """
         df_train = df_train.copy()
+        df_train_orig = df_train.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
@@ -314,12 +344,14 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             placeholder: df_train[name].to_numpy() for value in (self.values + self.conditions)
             for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
         }
+
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
         for iteration in range(1, num_iterations + 1):
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
+
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
@@ -328,6 +360,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     return
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
+
+            if self.learning_manager and self.learning_manager.stop_learning(
+                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
+            ):
+                break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
