@@ -148,7 +148,7 @@ def sequence_line_plot(x, t, ax):
 # -- training functions
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
                         test_data: Optional[pd.DataFrame] = None, time_series: bool = False,
-                        col: str = "x", max_lag: int = 10, plot_losses: bool = False,
+                        col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
                         plot_distances: bool = False, show_distribution_distances: bool = False,
                         show_distributions: bool = False, show_correlation_distances: bool = False,
                         show_correlation_matrix: bool = False, show_anova: bool = False,
@@ -179,31 +179,31 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             value = metric(orig=data, synth=synthesized)
             evaluation.record_metric(evaluation=name, key=key, value=value)
             print(f"{key}: {value}")
-
-        if time_series:
-            Markdown("## Plot time-series data")
-            fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
-            fig.tight_layout()
-            original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
-            synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
-            t_orig = np.arange(0, data.shape[0])
-            plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
-            axes[0, 0].set_title("Original")
-            t_synth = np.arange(0, synthesized.shape[0])
-            plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
-            axes[0, 1].set_title("Synthetic")
-            plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
-        elif data.shape[1] <= 3:
-            Markdown("## Plot data")
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
-            ax1.set_title('orig')
-            ax2.set_title('synth')
-            plot_data(data, ax=ax1)
-            plot_data(synthesized, ax=ax2)
-        else:
-            Markdown("## Plot data")
-            fig, ax = plt.subplots(figsize=(15, 5))
-            plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
+        if plot_basic:
+            if time_series:
+                Markdown("## Plot time-series data")
+                fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
+                fig.tight_layout()
+                original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
+                synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
+                t_orig = np.arange(0, data.shape[0])
+                plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
+                axes[0, 0].set_title("Original")
+                t_synth = np.arange(0, synthesized.shape[0])
+                plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
+                axes[0, 1].set_title("Synthetic")
+                plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
+            elif data.shape[1] <= 3:
+                Markdown("## Plot data")
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
+                ax1.set_title('orig')
+                ax2.set_title('synth')
+                plot_data(data, ax=ax1)
+                plot_data(synthesized, ax=ax2)
+            else:
+                Markdown("## Plot data")
+                fig, ax = plt.subplots(figsize=(15, 5))
+                plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
         testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
         if plot_losses:
             Markdown("## Show loss history")
