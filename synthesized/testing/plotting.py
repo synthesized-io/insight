@@ -15,7 +15,7 @@ from .evaluation_utils import calculate_auto_association
 from synthesized.testing.evaluation import Evaluation
 from synthesized.testing.util import categorical_emd
 
-from IPython.display import Markdown
+from IPython.display import Markdown, display
 from typing import List
 
 
@@ -182,7 +182,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             print(f"{key}: {value}")
         if plot_basic:
             if time_series:
-                Markdown("## Plot time-series data")
+                display(Markdown("## Plot time-series data"))
                 fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
                 fig.tight_layout()
                 original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
@@ -195,39 +195,39 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                 axes[0, 1].set_title("Synthetic")
                 plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
             elif data.shape[1] <= 3:
-                Markdown("## Plot data")
+                display(Markdown("## Plot data"))
                 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
                 ax1.set_title('orig')
                 ax2.set_title('synth')
                 plot_data(data, ax=ax1)
                 plot_data(synthesized, ax=ax2)
             else:
-                Markdown("## Plot data")
+                display(Markdown("## Plot data"))
                 fig, ax = plt.subplots(figsize=(15, 5))
                 plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
         testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
         if plot_losses:
-            Markdown("## Show loss history")
+            display(Markdown("## Show loss history"))
             pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
         if plot_distances:
-            Markdown("## Show average distances")
-
+            display(Markdown("## Show average distances"))
             plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
         if show_distribution_distances:
-            Markdown("## Show distribution distances")
+            display(Markdown("## Show distribution distances"))
             testing.show_distribution_distances()
         if show_distributions:
-            Markdown("## Show distributions")
+            display(Markdown("## Show distributions"))
             testing.show_distributions(remove_outliers=0.01)
         if show_correlation_distances:
-            Markdown("## Show correlation distances")
+            display(Markdown("## Show correlation distances"))
             testing.show_corr_distances()
         if show_correlation_matrix:
-            Markdown("## Show correlation matrices")
+            display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
         if show_anova:
-            Markdown("## Show correlation matrices")
+            display(Markdown("## Show correlation matrices"))
             testing.show_anova()
         if show_cat_rsquared:
+            display(Markdown("## Show categorical R^2"))
             testing.show_categorical_rsquared()
         return testing
