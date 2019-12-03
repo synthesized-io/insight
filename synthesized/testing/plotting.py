@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import cm
+from typing import Optional
 
 from scipy.stats import ks_2samp
 from matplotlib.axes import Axes
@@ -13,6 +14,8 @@ from ..testing import UtilityTesting
 from .evaluation_utils import calculate_auto_association
 from synthesized.testing.evaluation import Evaluation
 from synthesized.testing.util import categorical_emd
+
+from IPython.display import Markdown
 
 
 # -- Plotting functions
@@ -74,64 +77,57 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
     axes[1].set_title("Synthetic")
 
 
-def plot_avg_distances(test: pd.DataFrame, evaluation: Evaluation, evaluation_name: str,
-                       results: list):
-    result = []
-    for i, (synthesizer, synthesized, _, _) in enumerate(results):
-        synthesized = synthesized.copy().dropna()
+def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
+                       evaluation: Evaluation, evaluation_name: str):
+    synthesized = synthesized.copy().dropna()
 
-        # Calculate distances for all columns
-        ks_distances = []
-        emd = []
-        for col in test.columns:
-            if test[col].dtype.kind in ('f', 'i'):
-                ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
-            else:
-                try:
-                    ks_distances.append(ks_2samp(
-                        pd.to_numeric(pd.to_datetime(test[col])),
-                        pd.to_numeric(pd.to_datetime(synthesized[col]))
-                    )[0])
-                except ValueError:
-                    emd.append(categorical_emd(test[col], synthesized[col]))
-
-        corr = np.abs((test.corr() - synthesized.corr()).to_numpy())
-
-        # Compute summaries
-        avg_ks_distance = np.mean(ks_distances)
-        max_ks_distance = np.max(ks_distances)
-        avg_corr = corr.mean()
-        max_corr = corr.max()
-        if len(emd) > 0:
-            avg_emd = np.mean(emd)
-            max_emd = np.max(emd)
+    # Calculate distances for all columns
+    ks_distances = []
+    emd = []
+    for col in test.columns:
+        if test[col].dtype.kind in ('f', 'i'):
+            ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
         else:
-            avg_emd = float("nan")
-            max_emd = float("nan")
+            try:
+                ks_distances.append(ks_2samp(
+                    pd.to_numeric(pd.to_datetime(test[col])),
+                    pd.to_numeric(pd.to_datetime(synthesized[col]))
+                )[0])
+            except ValueError:
+                emd.append(categorical_emd(test[col], synthesized[col]))
 
-        current_result = {
-            'ks_distance_avg': avg_ks_distance,
-            'ks_distance_max': max_ks_distance,
-            'corr_dist_avg': avg_corr,
-            'corr_dist_max': max_corr,
-            'emd_categ_avg': avg_emd,
-            'emd_categ_max': max_emd
-        }
+    corr = np.abs((test.corr() - synthesized.corr()).to_numpy())
 
-        print_line = ''
-        for k, v in current_result.items():
-            evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
-            print_line += '\n\t{}={:.4f}'.format(k, v)
+    # Compute summaries
+    avg_ks_distance = np.mean(ks_distances)
+    max_ks_distance = np.max(ks_distances)
+    avg_corr = corr.mean()
+    max_corr = corr.max()
+    if len(emd) > 0:
+        avg_emd = np.mean(emd)
+        max_emd = np.max(emd)
+    else:
+        avg_emd = float("nan")
+        max_emd = float("nan")
 
-        print('run: {}, Results: {}'.format(i + 1, print_line))
+    current_result = {
+        'ks_distance_avg': avg_ks_distance,
+        'ks_distance_max': max_ks_distance,
+        'corr_dist_avg': avg_corr,
+        'corr_dist_max': max_corr,
+        'emd_categ_avg': avg_emd,
+        'emd_categ_max': max_emd
+    }
 
-        plt.figure()
-        sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
-        plt.xticks(rotation=10)
-        plt.show()
+    print_line = ''
+    for k, v in current_result.items():
+        evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
+        print_line += '\n\t{}={:.4f}'.format(k, v)
 
-        current_result['run'] = i + 1
-        result.append(current_result)
+    plt.figure()
+    sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
+    plt.xticks(rotation=10)
+    plt.show()
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
@@ -151,17 +147,33 @@ def sequence_line_plot(x, t, ax):
 
 # -- training functions
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
-                        time_series: bool = False, col: str = "x", max_lag: int = 10, show_anova: bool = False,
+                        test_data: Optional[pd.DataFrame] = None, time_series: bool = False,
+                        col: str = "x", max_lag: int = 10, plot_losses: bool = False,
+                        plot_distances: bool = False, show_distribution_distances: bool = False,
+                        show_distributions: bool = False, show_correlation_distances: bool = False,
+                        show_correlation_matrix: bool = False, show_anova: bool = False,
                         show_cat_rsquared: bool = False):
     """
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
+    eval_data = test_data if test_data is not None else data
+    loss_history = list()
+
+    def callback(synth, iteration, losses):
+        if len(loss_history) == 0:
+            loss_history.append(losses)
+        else:
+            loss_history.append({name: losses[local_name] for local_name in loss_history[0]})
+        return True
+
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
     with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'])
+        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback, callback_freq=100)
+        training_time = time.time() - start
         synthesized = synthesizer.synthesize(num_rows=len(data))
-        print('took', time.time() - start, 's')
+        print('took', training_time, 's')
+        evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
         print("Metrics:")
         for key, metric in metrics.items():
             value = metric(orig=data, synth=synthesized)
@@ -169,6 +181,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             print(f"{key}: {value}")
 
         if time_series:
+            Markdown("## Plot time-series data")
             fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
             fig.tight_layout()
             original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
@@ -181,17 +194,39 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             axes[0, 1].set_title("Synthetic")
             plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
         elif data.shape[1] <= 3:
+            Markdown("## Plot data")
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
             ax1.set_title('orig')
             ax2.set_title('synth')
             plot_data(data, ax=ax1)
             plot_data(synthesized, ax=ax2)
         else:
+            Markdown("## Plot data")
             fig, ax = plt.subplots(figsize=(15, 5))
             plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
+        testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
+        if plot_losses:
+            Markdown("## Show loss history")
+            pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
+        if plot_distances:
+            Markdown("## Show average distances")
+
+            plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
+        if show_distribution_distances:
+            Markdown("## Show distribution distances")
+            testing.show_distribution_distances()
+        if show_distributions:
+            Markdown("## Show distributions")
+            testing.show_distributions(remove_outliers=0.01)
+        if show_correlation_distances:
+            Markdown("## Show correlation distances")
+            testing.show_corr_distances()
+        if show_correlation_matrix:
+            Markdown("## Show correlation matrices")
+            testing.show_corr_matrices()
         if show_anova:
-            testing = UtilityTesting(synthesizer, data, data, synthesized)
+            Markdown("## Show correlation matrices")
             testing.show_anova()
         if show_cat_rsquared:
-            testing = UtilityTesting(synthesizer, data, data, synthesized)
             testing.show_categorical_rsquared()
+        return testing
