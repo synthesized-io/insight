@@ -16,6 +16,7 @@ from synthesized.testing.evaluation import Evaluation
 from synthesized.testing.util import categorical_emd
 
 from IPython.display import Markdown
+from typing import List
 
 
 # -- Plotting functions
@@ -157,7 +158,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
-    loss_history = list()
+    loss_history: List[dict] = list()
 
     def callback(synth, iteration, losses):
         if len(loss_history) == 0:
