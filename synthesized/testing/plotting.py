@@ -165,7 +165,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             loss_history.append(losses)
         else:
             loss_history.append({local_name: losses[local_name] for local_name in loss_history[0]})
-        return True
+        return False
 
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
