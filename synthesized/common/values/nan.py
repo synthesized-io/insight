@@ -106,8 +106,6 @@ class NanValue(Value):
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
-
         # NaN embedding
         nan = tf.math.is_nan(x=xs[0])
         embedding = tf.nn.embedding_lookup(
@@ -142,8 +140,6 @@ class NanValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, y, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
-
         target = xs[0]
         target_nan = tf.math.is_nan(x=target)
         target_embedding = tf.one_hot(
