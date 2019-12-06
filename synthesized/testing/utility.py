@@ -10,6 +10,7 @@ from __future__ import division, print_function, absolute_import
 from enum import Enum
 from typing import Tuple, Dict
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -81,6 +82,18 @@ class UtilityTesting:
         for v in synthesizer.values:
             self.value_by_name[v.name] = v
 
+        # Set the style of plots
+        plt.style.use('seaborn')
+        mpl.rcParams["axes.facecolor"] = 'w'
+        mpl.rcParams['grid.color'] = 'grey'
+        mpl.rcParams['grid.alpha'] = 0.1
+
+        mpl.rcParams['axes.linewidth'] = 0.3
+        mpl.rcParams['axes.edgecolor'] = 'grey'
+
+        mpl.rcParams['axes.spines.right'] = True
+        mpl.rcParams['axes.spines.top'] = True
+
     def show_corr_matrices(self, figsize: Tuple[float, float] = (15, 11)) -> None:
         """Plot two correlations matrices: one for the original data and one for the synthetic one.
 
@@ -103,17 +116,19 @@ class UtilityTesting:
             # Draw the heatmap with the mask and correct aspect ratio
             hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
                              square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax)
+            ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
 
             if title is not None:
                 hm.set_title(title)
 
         # Set up the matplotlib figure
-        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
+        plt.title('Correlation Matrices')
 
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize: Tuple[float, float] = (4, 10)) -> None:
+    def show_corr_distances(self, figsize: Tuple[float, float] = None) -> None:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -130,9 +145,13 @@ class UtilityTesting:
         if not result:
             return
         df = pd.DataFrame.from_records(result)
-        print('Average distance:', df['distance'].mean())
-        print('Max distance:', df['distance'].max())
+        if figsize is None:
+            figsize = (10, int(len(df) / 6))
+
+        print('Average correlation distance:', df['distance'].mean())
+        print('Max correlation distance:', df['distance'].max())
         plt.figure(figsize=figsize)
+        plt.title('Correlation Distances')
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
 
@@ -226,7 +245,7 @@ class UtilityTesting:
 
     def show_distributions(self,
                            remove_outliers: float = 0.0,
-                           figsize: Tuple[float, float] = (14, 50),
+                           figsize: Tuple[float, float] = None,
                            cols: int = 2) -> None:
         """Plot comparison plots of all variables in the original and synthetic datasets.
 
@@ -235,14 +254,25 @@ class UtilityTesting:
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
         """
-        concatenated = pd.concat([self.df_test.assign(dataset='orig'), self.df_synth.assign(dataset='synth')])
+        if not figsize:
+            figsize = (14, 5 * len(self.display_types))
+
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             if dtype == DisplayType.CATEGORICAL:
+
+                col_orig = pd.DataFrame(self.df_orig[col]).dropna()
+                col_synth = pd.DataFrame(self.df_synth[col]).dropna()
+                sample_size = min(len(col_orig), len(col_synth))
+                concatenated = pd.concat([col_orig.assign(dataset='orig').sample(sample_size),
+                                          col_synth.assign(dataset='synth').sample(sample_size)])
+
                 ax = sns.countplot(x=col, hue='dataset', data=concatenated,
                                    palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(self.df_test[col], percentiles)
@@ -257,6 +287,8 @@ class UtilityTesting:
                              kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
+        plt.title('Distributions')
+        plt.show()
 
     def show_auto_associations(self, figsize: Tuple[float, float] = (14, 50), cols: int = 2, max_order=30):
         fig = plt.figure(figsize=figsize)
@@ -364,7 +396,11 @@ class UtilityTesting:
             distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
-        print("Average distance:", df['distance'].mean())
-        print("Max distance:", df['distance'].max())
+        print("Average KS distance:", df['distance'].mean())
+        print("Max KS distance:", df['distance'].max())
+
+        plt.figure(figsize=(8, int(len(df) / 2)))
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
+        plt.title('KS Distances')
+        plt.show()
