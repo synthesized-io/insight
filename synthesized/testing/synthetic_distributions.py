@@ -193,7 +193,7 @@ def create_correlated_categorical(n_classes: int, size: int, sd: float = 1.) -> 
 
 def create_multidimensional_gaussian(dimensions: int, size: int, prefix: str = "x") -> pd.DataFrame:
     """Draw `size` samples from a `dimensions`-dimensional standard gaussian. """
-    z = np.random.randn(size, dimensions)
+    z = np.random.randn(size, dimensions).astype(np.float32)
     columns = ["{}_{}".format(prefix, i) for i in range(dimensions)]
     df = pd.DataFrame(z, columns=columns)
     return df
@@ -254,17 +254,17 @@ def sample_cat_to_cat(parent_values: np.array, sd: float, size: int, n_classes: 
 
 
 def sample_cat_to_cont(parent_values: np.array, size: int, n_classes: int, sd: float, prior_sd: float):
-    means = prior_sd*np.random.randn(n_classes)
+    means = prior_sd*np.random.randn(n_classes).astype(np.float32)
     sample_means = means[parent_values]
     zs = np.random.randn(size)
-    return sample_means + sd*zs
+    return (sample_means + sd*zs).astype(np.float32)
 
 
 def sample_cont_to_cont(parent_values: np.array, size: int, prior_sd: float, noise_sd: float):
     weight = gauss(mu=0, sigma=prior_sd)
     bias = gauss(mu=0, sigma=prior_sd)
     noise = np.random.randn(size)
-    return weight*parent_values + bias + noise_sd*noise
+    return (weight*parent_values + bias + noise_sd*noise).astype(np.float32)
 
 
 def sample_cont_to_cat(parent_values: np.array, size: int, prior_sd: float, n_classes: int):
