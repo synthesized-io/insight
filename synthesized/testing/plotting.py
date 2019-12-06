@@ -165,14 +165,14 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             loss_history.append(losses)
         else:
             loss_history.append({local_name: losses[local_name] for local_name in loss_history[0]})
-        return True
+        return False
 
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
     with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback, callback_freq=100)
         training_time = time.time() - start
-        synthesized = synthesizer.synthesize(num_rows=len(data))
+        synthesized = synthesizer.synthesize(num_rows=len(eval_data))
         print('took', training_time, 's')
         evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
         print("Metrics:")
