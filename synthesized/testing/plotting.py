@@ -28,7 +28,7 @@ def plot_data(data: pd.DataFrame, ax: Axes):
         else:
             return sns.distplot(data["x"], ax=ax)
     elif data.shape[1] == 2:
-        if data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'f':
+        if data['x'].dtype.kind in {'O', 'i'} and data['y'].dtype.kind == 'f':
             sns.violinplot(x="x", y="y", data=data, ax=ax)
         elif data['x'].dtype.kind == 'f' and data['y'].dtype.kind == 'f':
             return ax.hist2d(data['x'], data['y'], bins=100)
