@@ -32,7 +32,7 @@ class BankNumberValue(Value):
         if self.bic_label is not None:
             df.loc[:, self.bic_label] = [iban[4:8] for iban in ibans]
         if self.sort_code_label is not None:
-            df.loc[:, self.sort_code_label] = [iban[8:14] for iban in ibans]
+            df.loc[:, self.sort_code_label] = [int(iban[8:14]) for iban in ibans]
         if self.account_label is not None:
-            df.loc[:, self.account_label] = [iban[14:] for iban in ibans]
+            df.loc[:, self.account_label] = [int(iban[14:]) for iban in ibans]
         return df

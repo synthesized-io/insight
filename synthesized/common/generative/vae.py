@@ -1,12 +1,14 @@
 from collections import OrderedDict
+from itertools import combinations
 from typing import Dict, List, Tuple
 
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
+import tensorflow_probability as tfp
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
-from ..values import Value
+from ..values import Value, CategoricalValue
 
 
 class VAE(Generative):
@@ -131,6 +133,11 @@ class VAE(Generative):
 
         # Sample z ~ q(z|x)
         z = q.sample()
+        summaries.append(tf.contrib.summary.image(
+            name='latent_space_correlation',
+            tensor=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
+        ))
+        summaries.append(tf.contrib.summary.histogram(name='posterior', tensor=z))
 
         if len(self.conditions) > 0:
             # Condition c
@@ -160,6 +167,23 @@ class VAE(Generative):
                 y=y, xs=[xs[name] for name in value.learned_output_columns()]
             )
 
+        # Categorical Contingency Plots in tensorboard
+        with tf.compat.v1.name_scope("contingency_plots"):
+            for (value_a, y_a), (value_b, y_b) in combinations(
+                    [(v, tf.one_hot(v.output_tensors(vy)[0], depth=v.num_categories))
+                     for v, vy in zip(self.values, ys) if isinstance(v, CategoricalValue)],
+                    r=2
+            ):
+                summaries.append(
+                    tf.contrib.summary.image(
+                        name=f"{value_a.name}_{value_b.name}",
+                        tensor=tf.expand_dims(tf.cast(tf.reduce_sum(tf.matmul(
+                            tf.expand_dims(y_a, axis=-1),
+                            tf.expand_dims(y_b, axis=1)
+                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1)
+                    )
+                )
+
         # Regularization loss
         reg_losses = tf.compat.v1.losses.get_regularization_losses()
         if len(reg_losses) > 0:
@@ -172,10 +196,6 @@ class VAE(Generative):
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
-            if name != 'total-loss' and name != 'kl-loss':
-                summaries.append(tf.contrib.summary.scalar(
-                    name=name + '-ratio', tensor=(loss / losses['kl-loss'])
-                ))
 
         if not self.summarize:
             summaries = list()

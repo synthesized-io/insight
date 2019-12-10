@@ -1,5 +1,6 @@
 from math import isnan, log
 from typing import Any, Dict, List, Union, Optional
+import logging
 
 import pandas as pd
 import tensorflow as tf
@@ -7,6 +8,8 @@ import tensorflow as tf
 from .value import Value
 from .. import util
 from ..module import tensorflow_name_scoped
+
+logger = logging.getLogger(__name__)
 
 
 class CategoricalValue(Value):
@@ -16,7 +19,7 @@ class CategoricalValue(Value):
         smoothing: float, moving_average: tf.train.ExponentialMovingAverage, similarity_regularization: float,
         entropy_regularization: float,
         # Optional
-        similarity_based: bool = False, pandas_category: bool = False,
+        similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
         categories: Union[int, list] = None, probabilities=None, embedding_size: int = None
     ):
@@ -50,6 +53,7 @@ class CategoricalValue(Value):
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.pandas_category = pandas_category
+        self.produce_nans = produce_nans
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -66,7 +70,7 @@ class CategoricalValue(Value):
             weight=self.weight, temperature=self.temperature, smoothing=self.smoothing,
             moving_average=self.moving_average,
             similarity_regularization=self.similarity_regularization,
-            entropy_regularization=self.entropy_regularization
+            entropy_regularization=self.entropy_regularization, produce_nans=self.produce_nans
         )
         return spec
 
@@ -146,8 +150,17 @@ class CategoricalValue(Value):
             embeddings = tf.expand_dims(input=self.embeddings, axis=0)
             y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
 
+        if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
+            logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
+                           "Setting 'procude_nans=True' for this column".format(self.name))
+            self.produce_nans = True
+
         # Choose argmax class
-        y = tf.argmax(input=y, axis=1)
+        if self.nans_valid is False or self.produce_nans:
+            y = tf.argmax(input=y, axis=1)
+        else:
+            # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
+            y = tf.argmax(input=y[:, 1:], axis=1) + 1
 
         return [y]
 

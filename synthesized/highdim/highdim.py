@@ -37,7 +37,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
         profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
-        produce_nans_for: Iterable[str] = None,
+        produce_nans_for: Union[bool, Iterable[str], None] = None,
+        column_aliases: Dict[str, str] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
@@ -62,7 +63,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Bank
         bic_label: str = None, sort_code_label: str = None, account_label: str = None,
         # Address
-        postcode_label: str = None, city_label: str = None, street_label: str = None, house_number_label: str = None,
+        postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
+        street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
@@ -82,6 +84,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
             profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
+            produce_nans_for: A list containing the columns for which nans will be synthesized. If None or False, no
+                column will generate nulls, if True all columns generate nulls (if it applies).
             distribution: Distribution type: "normal".
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
@@ -119,9 +123,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             sort_code_label: Bank sort code column.
             account_label: Bank account column.
             postcode_label: Address postcode column.
+            county_label: Address county column.
             city_label: Address city column.
+            district_label: Address district column.
             street_label: Address street column.
             house_number_label: Address house number column.
+            flat_label: Address flat number column.
+            house_name_label: Address house column.
             address_label: Address combined column.
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
@@ -136,10 +144,17 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         else:
             self.type_overrides = type_overrides
 
-        if produce_nans_for is None:
-            self.produce_nans_for: Set[str] = set()
+        if isinstance(produce_nans_for, Iterable):
+            self.produce_nans_for: Set[str] = set(produce_nans_for)
+        elif produce_nans_for:
+            self.produce_nans_for = set(df.columns)
         else:
-            self.produce_nans_for = set(produce_nans_for)
+            self.produce_nans_for = set()
+
+        if column_aliases is None:
+            self.column_aliases: Dict[str, str] = {}
+        else:
+            self.column_aliases = column_aliases
 
         if condition_columns is None:
             self.condition_columns: List[str] = []
@@ -184,9 +199,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Address
         self.address_value: Optional[Value] = None
         self.postcode_label = postcode_label
+        self.county_label = county_label
         self.city_label = city_label
+        self.district_label = district_label
         self.street_label = street_label
         self.house_number_label = house_number_label
+        self.flat_label = flat_label
+        self.house_name_label = house_name_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
         # Identifier
@@ -210,6 +229,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         ValueFactory.__init__(self)
 
         for name in df.columns:
+            # we are skipping aliases
+            if name in self.column_aliases:
+                continue
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
@@ -248,6 +270,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Learning Manager
         self.learning_manager = LearningManager() if learning_manager else None
         self.learning_manager_sample_size = 25_000
+
+    def get_values(self) -> List[Value]:
+        return self.values
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -492,6 +517,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         if len(columns) == 0:
             df_synthesized.pop('_sentinel')
+
+        # aliases:
+        for alias, col in self.column_aliases.items():
+            df_synthesized[alias] = df_synthesized[col]
 
         assert len(df_synthesized.columns) == len(self.columns)
         df_synthesized = df_synthesized[self.columns]
