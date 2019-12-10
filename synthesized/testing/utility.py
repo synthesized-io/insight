@@ -29,7 +29,7 @@ from ..common.values import SamplingValue
 from ..common.values import Value
 from ..highdim import HighDimSynthesizer
 
-from synthesized.testing import evaluation_utils as eval_utils
+from synthesized.testing import metrics as eval_metrics
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'
@@ -263,8 +263,8 @@ class UtilityTesting:
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             n = list(range(1, max_order+1))
-            original_auto = eval_utils.calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
-            synth_auto = eval_utils.calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
+            original_auto = eval_metrics.calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
+            synth_auto = eval_metrics.calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
             ax.stem(n, original_auto, 'b', markerfmt='bo', label="Original")
             ax.stem(n, synth_auto, 'g', markerfmt='go', label="Synthetic")
             ax.set_title(label=col)
