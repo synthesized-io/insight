@@ -9,6 +9,7 @@ from __future__ import division, print_function, absolute_import
 
 from enum import Enum
 from typing import Tuple, Dict
+from datetime import datetime
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ from scipy.stats import ks_2samp
 from sklearn import clone
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, normalized_mutual_info_score
 from sklearn.metrics.scorer import roc_auc_scorer
 from statsmodels.formula.api import ols, mnlogit
 
@@ -103,8 +104,14 @@ class UtilityTesting:
         def show_corr_matrix(df, title=None, ax=None):
             sns.set(style='white')
 
+            df_numeric = df.copy()
+            for c in df_numeric.columns:
+                df_numeric[c] = pd.to_numeric(df_numeric[c], errors='coerce')
+                if df_numeric[c].isna().all():
+                    df_numeric.drop(c, axis=1, inplace=True)
+
             # Compute the correlation matrix
-            corr = df.corr(method='kendall')
+            corr = df_numeric.corr(method='kendall')
 
             # Generate a mask for the upper triangle
             mask = np.zeros_like(corr, dtype=np.bool)
@@ -115,7 +122,7 @@ class UtilityTesting:
 
             # Draw the heatmap with the mask and correct aspect ratio
             hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                             square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax)
+                             square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax, annot=True, fmt='.2f')
             ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
 
             if title is not None:
@@ -276,6 +283,9 @@ class UtilityTesting:
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(self.df_test[col], percentiles)
+                if start == end:
+                    start, end = min(self.df_test[col]), max(self.df_test[col])
+
                 # workaround for kde failing on datasets with only one value
                 if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
                     kde = False
@@ -393,7 +403,11 @@ class UtilityTesting:
         """Plot a barplot with KS-distances between original and synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
-            distance = ks_2samp(self.df_test[col], self.df_synth[col])[0]
+            col_test = pd.to_numeric(self.df_test[col], errors='coerce').dropna()
+            col_synth = pd.to_numeric(self.df_synth[col], errors='coerce').dropna()
+            if len(col_test) == 0 or len(col_synth) == 0:
+                continue
+            distance = ks_2samp(col_test, col_synth)[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
         print("Average KS distance:", df['distance'].mean())
@@ -403,4 +417,49 @@ class UtilityTesting:
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
         plt.title('KS Distances')
+        plt.show()
+
+    def show_mutual_information(self):
+        # normalized_mutual_info_score
+
+        def pairwise_attributes_mutual_information(dataset):
+            dataset = dataset.dropna()
+            t = datetime.now()
+            sorted_columns = sorted(dataset.columns)
+            mi_df = pd.DataFrame(columns=sorted_columns, index=sorted_columns, dtype=float)
+            for row in mi_df.columns:
+                for col in mi_df.columns:
+                    mi_df.loc[row, col] = normalized_mutual_info_score(dataset[row], dataset[col])
+            print(datetime.now() - t)
+            return mi_df
+
+        max_sample_size = 25_000
+        sample_size = min(len(self.df_orig), len(self.df_synth), max_sample_size)
+
+        data_pwcorr = pairwise_attributes_mutual_information(self.df_orig.sample(sample_size))
+        synth_pwcorr = pairwise_attributes_mutual_information(self.df_synth.sample(sample_size))
+
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+        mask = np.zeros_like(data_pwcorr, dtype=np.bool)
+        mask[np.triu_indices_from(mask)] = True
+
+        fig, axs = plt.subplots(1, 2, figsize=(15, 10), sharex=True, sharey=True)
+        sns.heatmap(data_pwcorr, mask=mask, annot=True, ax=axs[0], cmap=cmap, fmt='.2f', cbar=False)
+        sns.heatmap(synth_pwcorr, mask=mask, annot=True, ax=axs[1], cmap=cmap, fmt='.2f', cbar=False)
+
+        axs[0].set_title('Original')
+        axs[1].set_title('Synthesized')
+
+        for ax in axs:
+            ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+
+        plt.tight_layout()
+        plt.show()
+
+        pw_diff = data_pwcorr - synth_pwcorr
+        plt.figure(figsize=(10, 10))
+        ax = sns.heatmap(data_pwcorr - pw_diff, mask=mask, annot=True, vmin=-1.0, vmax=1.0, cmap=cmap, fmt='.2f')
+        ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+
+        plt.tight_layout()
         plt.show()
