@@ -42,5 +42,5 @@ class Evaluation:
                     data[name + '_mean'] = np.mean(vals)
                     data[name + '_std'] = np.std(vals)
                     data[name + '_count'] = len(vals)
-                json.dump(data, f)
+                json.dump(data, f, separators=(',', ':'))
                 f.write('\n')
