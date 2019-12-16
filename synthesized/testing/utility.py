@@ -9,7 +9,6 @@ from __future__ import division, print_function, absolute_import
 
 from enum import Enum
 from typing import Tuple, Dict
-from datetime import datetime
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
