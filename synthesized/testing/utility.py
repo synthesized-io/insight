@@ -271,9 +271,12 @@ class UtilityTesting:
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
+            title = col
 
             col_test = self.df_orig[col].dropna()
             col_synth = self.df_synth[col].dropna()
+            if len(col_test) == 0 or len(col_synth) == 0:
+                continue
 
             if dtype == DisplayType.CATEGORICAL:
 
@@ -305,6 +308,11 @@ class UtilityTesting:
                 sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde,
                              kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+
+                ks_distance = ks_2samp(col_test, col_synth)[0]
+                title += '(KS Dist={:.3f})'.format(ks_distance)
+
+            ax.set_title(title)
             plt.legend()
         plt.title('Distributions')
         plt.show()
