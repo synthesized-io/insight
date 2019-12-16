@@ -28,6 +28,7 @@ from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue
 from ..common.values import DateValue
 from ..common.values import SamplingValue
+from ..common.values import NanValue
 from ..common.values import Value
 from ..highdim import HighDimSynthesizer
 
@@ -71,6 +72,9 @@ class UtilityTesting:
 
         self.display_types: Dict[str, DisplayType] = {}
         for value in synthesizer.values:
+            if isinstance(value, NanValue):
+                value = value.value
+
             if isinstance(value, DateValue):
                 self.df_orig[value.name] = pd.to_datetime(self.df_orig[value.name])
                 self.df_test[value.name] = pd.to_datetime(self.df_test[value.name])
@@ -267,12 +271,17 @@ class UtilityTesting:
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
+
+            col_test = self.df_orig[col].dropna()
+            col_synth = self.df_synth[col].dropna()
+
             if dtype == DisplayType.CATEGORICAL:
 
-                col_orig = pd.DataFrame(self.df_orig[col]).dropna()
-                col_synth = pd.DataFrame(self.df_synth[col]).dropna()
-                sample_size = min(len(col_orig), len(col_synth))
-                concatenated = pd.concat([col_orig.assign(dataset='orig').sample(sample_size),
+                col_test = pd.DataFrame(col_test)
+                col_synth = pd.DataFrame(col_synth)
+
+                sample_size = min(len(col_test), len(col_synth))
+                concatenated = pd.concat([col_test.assign(dataset='orig').sample(sample_size),
                                           col_synth.assign(dataset='synth').sample(sample_size)])
 
                 ax = sns.countplot(x=col, hue='dataset', data=concatenated,
@@ -282,18 +291,18 @@ class UtilityTesting:
 
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
-                start, end = np.percentile(self.df_test[col], percentiles)
+                start, end = np.percentile(col_test, percentiles)
                 if start == end:
-                    start, end = min(self.df_test[col]), max(self.df_test[col])
+                    start, end = min(col_test), max(col_test)
 
                 # workaround for kde failing on datasets with only one value
-                if self.df_test[col].nunique() < 2 or self.df_synth[col].nunique() < 2:
+                if col_test.nunique() < 2 or col_synth.nunique() < 2:
                     kde = False
                 else:
                     kde = True
-                sns.distplot(self.df_test[col], color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
+                sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(self.df_synth[col], color=COLOR_SYNTH, label='synth', kde=kde,
+                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde,
                              kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
             plt.legend()
@@ -424,13 +433,11 @@ class UtilityTesting:
 
         def pairwise_attributes_mutual_information(dataset):
             dataset = dataset.dropna()
-            t = datetime.now()
             sorted_columns = sorted(dataset.columns)
             mi_df = pd.DataFrame(columns=sorted_columns, index=sorted_columns, dtype=float)
             for row in mi_df.columns:
                 for col in mi_df.columns:
                     mi_df.loc[row, col] = normalized_mutual_info_score(dataset[row], dataset[col])
-            print(datetime.now() - t)
             return mi_df
 
         max_sample_size = 25_000
@@ -458,8 +465,11 @@ class UtilityTesting:
 
         pw_diff = data_pwcorr - synth_pwcorr
         plt.figure(figsize=(10, 10))
-        ax = sns.heatmap(data_pwcorr - pw_diff, mask=mask, annot=True, vmin=-1.0, vmax=1.0, cmap=cmap, fmt='.2f')
+        ax = sns.heatmap(pw_diff, mask=mask, annot=True, vmin=-1.0, vmax=1.0, cmap=cmap, fmt='.2f')
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
 
         plt.tight_layout()
         plt.show()
+
+        print("Max PW Mutual Information distance: ", np.max(np.max(pw_diff)))
+        print("Average PW Mutual Information distance: ", np.max(np.mean(pw_diff)))
