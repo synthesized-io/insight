@@ -30,6 +30,7 @@ from ..common.values import SamplingValue
 from ..common.values import NanValue
 from ..common.values import Value
 from ..highdim import HighDimSynthesizer
+from ..testing.util import categorical_emd
 
 from synthesized.testing import metrics as eval_metrics
 
@@ -279,17 +280,20 @@ class UtilityTesting:
 
             if dtype == DisplayType.CATEGORICAL:
 
-                col_test = pd.DataFrame(col_test)
-                col_synth = pd.DataFrame(col_synth)
+                df_col_test = pd.DataFrame(col_test)
+                df_col_synth = pd.DataFrame(col_synth)
 
                 sample_size = min(len(col_test), len(col_synth))
-                concatenated = pd.concat([col_test.assign(dataset='orig').sample(sample_size),
-                                          col_synth.assign(dataset='synth').sample(sample_size)])
+                concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
+                                          df_col_synth.assign(dataset='synth').sample(sample_size)])
 
                 ax = sns.countplot(x=col, hue='dataset', data=concatenated,
                                    palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
 
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+
+                emd_distance = categorical_emd(col_test, col_synth)
+                title += '(EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
@@ -435,6 +439,27 @@ class UtilityTesting:
         plt.title('KS Distances')
         plt.show()
 
+    def show_emd_distances(self) -> None:
+        """Plot a barplot with EMD-distances between original and synthetic columns."""
+        result = []
+
+        for i, (col, dtype) in enumerate(self.display_types.items()):
+            if dtype != DisplayType.CATEGORICAL:
+                continue
+
+            emd_distance = categorical_emd(self.df_test[col], self.df_synth[col])
+            result.append({'column': col, 'emd_distance': emd_distance})
+
+        df = pd.DataFrame.from_records(result)
+        print("Average EMD distance:", df['emd_distance'].mean())
+        print("Max EMD distance:", df['emd_distance'].max())
+
+        plt.figure(figsize=(8, int(len(df) / 2)))
+        g = sns.barplot(y='column', x='emd_distance', data=df)
+        g.set_xlim(0.0, 1.0)
+        plt.title('EMD Distances')
+        plt.show()
+
     def show_mutual_information(self):
         # normalized_mutual_info_score
 
@@ -474,9 +499,9 @@ class UtilityTesting:
         plt.figure(figsize=(10, 10))
         ax = sns.heatmap(pw_diff, mask=mask, annot=True, vmin=-1.0, vmax=1.0, cmap=cmap, fmt='.2f')
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
-
         plt.tight_layout()
-        plt.show()
 
         print("Max PW Mutual Information distance: ", np.max(np.max(pw_diff)))
         print("Average PW Mutual Information distance: ", np.max(np.mean(pw_diff)))
+
+        plt.show()
