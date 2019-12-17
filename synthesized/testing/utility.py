@@ -468,6 +468,9 @@ class UtilityTesting:
             emd_distance = categorical_emd(self.df_test[col], self.df_synth[col])
             result.append({'column': col, 'emd_distance': emd_distance})
 
+        if len(result) == 0:
+            return 0., 0.
+
         df = pd.DataFrame.from_records(result)
         emd_dist_max = df['emd_distance'].max()
         emd_dist_avg = df['emd_distance'].mean()
