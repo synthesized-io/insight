@@ -8,7 +8,7 @@
 from __future__ import division, print_function, absolute_import
 
 from enum import Enum
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -140,7 +140,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize: Tuple[float, float] = None) -> Optional[Tuple[float, float]]:
+    def show_corr_distances(self, figsize: Tuple[float, float] = None) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -156,7 +156,7 @@ class UtilityTesting:
                     result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
 
         if not result:
-            return None
+            return 0., 0.
 
         df = pd.DataFrame.from_records(result)
         if figsize is None:
