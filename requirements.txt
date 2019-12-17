@@ -10,3 +10,4 @@ pyemd==0.5.1
 flask_restful==0.3.7
 faker==2.0.2
 statsmodels==0.10.1
+simplejson==3.17.0
