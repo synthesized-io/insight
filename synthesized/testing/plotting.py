@@ -223,8 +223,8 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                         col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
                         plot_distances: bool = False, show_distribution_distances: bool = False,
                         show_distributions: bool = False, show_correlation_distances: bool = False,
-                        show_correlation_matrix: bool = False, show_anova: bool = False,
-                        show_cat_rsquared: bool = False):
+                        show_correlation_matrix: bool = False, show_emd_distances: bool = False,
+                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False):
     """
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
@@ -281,13 +281,15 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             display(Markdown("## Show loss history"))
             pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
             plt.show()
-        if plot_distances:
-            display(Markdown("## Show average distances"))
-            plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
-            plt.show()
+        # if plot_distances:
+        #     display(Markdown("## Show average distances"))
+        #     plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
+        #     plt.show()
         if show_distribution_distances:
             display(Markdown("## Show distribution distances"))
-            testing.show_distribution_distances()
+            ks_dist_max, ks_dist_avg = testing.show_distribution_distances()
+            evaluation.record_metric(evaluation=name, key='ks_distance_max', value=ks_dist_max)
+            evaluation.record_metric(evaluation=name, key='ks_distance_avg', value=ks_dist_avg)
             plt.show()
         if show_distributions:
             display(Markdown("## Show distributions"))
@@ -295,14 +297,26 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             plt.show()
         if show_correlation_distances:
             display(Markdown("## Show correlation distances"))
-            testing.show_corr_distances()
+            corr_dist_max, corr_dist_avg = testing.show_corr_distances()
+            evaluation.record_metric(evaluation=name, key='corr_dist_max', value=corr_dist_max)
+            evaluation.record_metric(evaluation=name, key='corr_dist_avg', value=corr_dist_avg)
             plt.show()
         if show_correlation_matrix:
             display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
             plt.show()
+        if show_emd_distances:
+            display(Markdown("## Show EMD distances"))
+            emd_dist_max, emd_dist_avg = testing.show_emd_distances()
+            evaluation.record_metric(evaluation=name, key='emd_categ_max', value=emd_dist_max)
+            evaluation.record_metric(evaluation=name, key='emd_categ_avg', value=emd_dist_avg)
+            plt.show()
+        if show_pw_mi_distances:
+            display(Markdown("## Show Pairwise Mutual Information distances"))
+            testing.show_mutual_information()
+            plt.show()
         if show_anova:
-            display(Markdown("## Show correlation matrices"))
+            display(Markdown("## Show ANOVA"))
             testing.show_anova()
             plt.show()
         if show_cat_rsquared:

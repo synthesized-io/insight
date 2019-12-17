@@ -127,9 +127,10 @@ class UtilityTesting:
             # Draw the heatmap with the mask and correct aspect ratio
             hm = sns.heatmap(corr, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
                              square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax, annot=True, fmt='.2f')
-            ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
 
-            if title is not None:
+            if ax:
+                ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+            if title:
                 hm.set_title(title)
 
         # Set up the matplotlib figure
@@ -468,8 +469,8 @@ class UtilityTesting:
             result.append({'column': col, 'emd_distance': emd_distance})
 
         df = pd.DataFrame.from_records(result)
-        emd_dist_max = df['emd_distance'].mean()
-        emd_dist_avg = df['emd_distance'].avg()
+        emd_dist_max = df['emd_distance'].max()
+        emd_dist_avg = df['emd_distance'].mean()
 
         print("Max EMD distance:", emd_dist_max)
         print("Average EMD distance:", emd_dist_avg)
@@ -485,15 +486,12 @@ class UtilityTesting:
     def show_mutual_information(self) -> Tuple[float, float]:
         # normalized_mutual_info_score
 
-        n_columns = len(self.df_test)
-        mask = np.zeros((n_columns, n_columns), dtype=np.bool)
-        mask[np.triu_indices_from(mask)] = True
-
         def pairwise_attributes_mutual_information(data: pd.DataFrame) -> pd.DataFrame:
             data = data.dropna()
             sorted_columns = sorted(data.columns)
             n_columns = len(sorted_columns)
-            mi_df = pd.DataFrame(columns=sorted_columns, index=sorted_columns, dtype=float)
+            mi_df = pd.DataFrame(np.ones((n_columns, n_columns)), columns=sorted_columns, index=sorted_columns,
+                                 dtype=float)
 
             for j in range(n_columns):
                 row = sorted_columns[j]
@@ -507,6 +505,12 @@ class UtilityTesting:
 
         data_pwcorr = pairwise_attributes_mutual_information(self.df_orig.sample(sample_size))
         synth_pwcorr = pairwise_attributes_mutual_information(self.df_synth.sample(sample_size))
+
+        if len(data_pwcorr) == 0 or len(synth_pwcorr) == 0:
+            return 0., 0.
+
+        mask = np.zeros_like(data_pwcorr, dtype=np.bool)
+        mask[np.triu_indices_from(mask)] = True
 
         cmap = sns.diverging_palette(220, 10, as_cmap=True)
         fig, axs = plt.subplots(1, 2, figsize=(15, 10), sharex=True, sharey=True)
