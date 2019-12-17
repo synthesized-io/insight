@@ -8,7 +8,7 @@
 from __future__ import division, print_function, absolute_import
 
 from enum import Enum
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,7 +20,7 @@ from sklearn import clone
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, normalized_mutual_info_score
-from sklearn.metrics.scorer import roc_auc_scorer
+from sklearn.metrics import roc_auc_score
 from statsmodels.formula.api import ols, mnlogit
 
 from ..common.values import CategoricalValue
@@ -139,7 +139,7 @@ class UtilityTesting:
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
 
-    def show_corr_distances(self, figsize: Tuple[float, float] = None) -> None:
+    def show_corr_distances(self, figsize: Tuple[float, float] = None) -> Optional[Tuple[float, float]]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -153,18 +153,26 @@ class UtilityTesting:
                     row_name = distances.index[i]
                     col_name = distances.iloc[:, j].name
                     result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+
         if not result:
-            return
+            return None
+
         df = pd.DataFrame.from_records(result)
         if figsize is None:
             figsize = (10, int(len(df) / 6))
 
-        print('Average correlation distance:', df['distance'].mean())
-        print('Max correlation distance:', df['distance'].max())
+        corr_dist_max = df['distance'].max()
+        corr_dist_avg = df['distance'].mean()
+
+        print('Max correlation distance:', corr_dist_max)
+        print('Average correlation distance:', corr_dist_avg)
+
         plt.figure(figsize=figsize)
         plt.title('Correlation Distances')
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
+
+        return corr_dist_max, corr_dist_avg
 
     def _filter_column_data_types(self):
         categorical, continuous = [], []
@@ -364,29 +372,32 @@ class UtilityTesting:
         if self.display_types[target] == DisplayType.CATEGORICAL:
             clf = clone(classifier)
             clf.fit(X, y)
-            orig_score = roc_auc_scorer(clf, X_test, y_test)
+            y_pred_orig = clf.predict(X_test)
+            orig_score = roc_auc_score(y_test, y_pred_orig)
 
             clf = clone(classifier)
             clf.fit(X_synth, y_synth)
-            synth_score = roc_auc_scorer(clf, X_test, y_test)
+            y_pred_synth = clf.predict(X_test)
+            synth_score = roc_auc_score(y_test, y_pred_synth)
 
             print("ROC AUC (orig):", orig_score)
             print("ROC AUC (synth):", synth_score)
-            return synth_score
+
         else:
             clf = clone(regressor)
             clf.fit(X, y)
             y_pred_orig = clf.predict(X_test)
+            orig_score = r2_score(y_test, y_pred_orig)
 
             clf = clone(regressor)
             clf.fit(X_synth, y_synth)
             y_pred_synth = clf.predict(X_test)
-
-            orig_score = r2_score(y_test, y_pred_orig)
             synth_score = r2_score(y_test, y_pred_synth)
+
             print("R2 (orig):", orig_score)
             print("R2 (synth):", synth_score)
-            return synth_score
+
+        return orig_score - synth_score
 
     def autocorrelation_diff_plot_seaborn(self, max_lag: int = 100) -> None:
         """Plot autocorrelation.
@@ -430,8 +441,12 @@ class UtilityTesting:
             distance = ks_2samp(col_test, col_synth)[0]
             result.append({'column': col, 'distance': distance})
         df = pd.DataFrame.from_records(result)
-        print("Average KS distance:", df['distance'].mean())
-        print("Max KS distance:", df['distance'].max())
+
+        ks_dist_max = df['distance'].max()
+        ks_dist_avg = df['distance'].mean()
+
+        print("Max KS distance:", ks_dist_max)
+        print("Average KS distance:", ks_dist_avg)
 
         plt.figure(figsize=(8, int(len(df) / 2)))
         g = sns.barplot(y='column', x='distance', data=df)
@@ -439,7 +454,9 @@ class UtilityTesting:
         plt.title('KS Distances')
         plt.show()
 
-    def show_emd_distances(self) -> None:
+        return ks_dist_max, ks_dist_avg
+
+    def show_emd_distances(self) -> Tuple[float, float]:
         """Plot a barplot with EMD-distances between original and synthetic columns."""
         result = []
 
@@ -451,8 +468,11 @@ class UtilityTesting:
             result.append({'column': col, 'emd_distance': emd_distance})
 
         df = pd.DataFrame.from_records(result)
-        print("Average EMD distance:", df['emd_distance'].mean())
-        print("Max EMD distance:", df['emd_distance'].max())
+        emd_dist_max = df['emd_distance'].mean()
+        emd_dist_avg = df['emd_distance'].avg()
+
+        print("Max EMD distance:", emd_dist_max)
+        print("Average EMD distance:", emd_dist_avg)
 
         plt.figure(figsize=(8, int(len(df) / 2)))
         g = sns.barplot(y='column', x='emd_distance', data=df)
@@ -460,16 +480,26 @@ class UtilityTesting:
         plt.title('EMD Distances')
         plt.show()
 
-    def show_mutual_information(self):
+        return emd_dist_max, emd_dist_avg
+
+    def show_mutual_information(self) -> Tuple[float, float]:
         # normalized_mutual_info_score
 
-        def pairwise_attributes_mutual_information(dataset):
-            dataset = dataset.dropna()
-            sorted_columns = sorted(dataset.columns)
+        n_columns = len(self.df_test)
+        mask = np.zeros((n_columns, n_columns), dtype=np.bool)
+        mask[np.triu_indices_from(mask)] = True
+
+        def pairwise_attributes_mutual_information(data: pd.DataFrame) -> pd.DataFrame:
+            data = data.dropna()
+            sorted_columns = sorted(data.columns)
+            n_columns = len(sorted_columns)
             mi_df = pd.DataFrame(columns=sorted_columns, index=sorted_columns, dtype=float)
-            for row in mi_df.columns:
-                for col in mi_df.columns:
-                    mi_df.loc[row, col] = normalized_mutual_info_score(dataset[row], dataset[col])
+
+            for j in range(n_columns):
+                row = sorted_columns[j]
+                for i in range(j + 1, n_columns):
+                    col = sorted_columns[i]
+                    mi_df.loc[row, col] = mi_df.loc[col, row] = normalized_mutual_info_score(data[row], data[col])
             return mi_df
 
         max_sample_size = 25_000
@@ -479,9 +509,6 @@ class UtilityTesting:
         synth_pwcorr = pairwise_attributes_mutual_information(self.df_synth.sample(sample_size))
 
         cmap = sns.diverging_palette(220, 10, as_cmap=True)
-        mask = np.zeros_like(data_pwcorr, dtype=np.bool)
-        mask[np.triu_indices_from(mask)] = True
-
         fig, axs = plt.subplots(1, 2, figsize=(15, 10), sharex=True, sharey=True)
         sns.heatmap(data_pwcorr, mask=mask, annot=True, ax=axs[0], cmap=cmap, fmt='.2f', cbar=False)
         sns.heatmap(synth_pwcorr, mask=mask, annot=True, ax=axs[1], cmap=cmap, fmt='.2f', cbar=False)
@@ -501,7 +528,11 @@ class UtilityTesting:
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
         plt.tight_layout()
 
-        print("Max PW Mutual Information distance: ", np.max(np.max(pw_diff)))
-        print("Average PW Mutual Information distance: ", np.max(np.mean(pw_diff)))
+        pw_dist_max = np.max(np.max(pw_diff))
+        pw_dist_avg = np.mean(np.mean(pw_diff))
+        print("Max PW Mutual Information distance: ", pw_dist_max)
+        print("Average PW Mutual Information distance: ", pw_dist_avg)
 
         plt.show()
+
+        return pw_dist_max, pw_dist_avg
