@@ -1,4 +1,4 @@
-import json
+import simplejson
 from random import choice, random
 
 
@@ -7,7 +7,7 @@ class HyperparamSpec(object):
     def __init__(self, specification):
         if isinstance(specification, str):
             with open(specification, 'r') as filehandle:
-                specification = json.load(fp=filehandle)
+                specification = simplejson.load(fp=filehandle)
 
         for spec in specification:
             assert spec.get('dimensionality', 1) == 1
