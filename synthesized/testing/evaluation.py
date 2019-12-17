@@ -1,5 +1,5 @@
 import datetime
-import json
+import simplejson
 from collections import OrderedDict
 
 import numpy as np
@@ -37,10 +37,10 @@ class Evaluation:
                 data['revision'] = self.revision
                 data['timestamp'] = timestamp
                 if evaluation in self.configs:
-                    data['config'] = json.dumps(self.configs[evaluation])
+                    data['config'] = simplejson.dumps(self.configs[evaluation], separators=(',', ':'), ignore_nan=True)
                 for name, vals in evaluation_metrics.items():
                     data[name + '_mean'] = np.mean(vals)
                     data[name + '_std'] = np.std(vals)
                     data[name + '_count'] = len(vals)
-                json.dump(data, f, separators=(',', ':'))
+                simplejson.dump(data, f, separators=(',', ':'), ignore_nan=True)
                 f.write('\n')
