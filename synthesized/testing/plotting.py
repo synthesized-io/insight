@@ -139,24 +139,26 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         max_ks_distance = np.max(ks_distances)
     else:
         avg_ks_distance = max_ks_distance = 0.
+
     if len(corr_distances) > 0:
         avg_corr_distance = np.mean(corr_distances)
         max_corr_distance = np.max(corr_distances)
     else:
         avg_corr_distance = max_corr_distance = 0.
+
     if len(emd_distances) > 0:
-        avg_emd = np.mean(emd_distances)
-        max_emd = np.max(emd_distances)
+        avg_emd_distances = np.mean(emd_distances)
+        max_emd_distances = np.max(emd_distances)
     else:
-        avg_emd = max_emd = 0.
+        avg_emd_distances = max_emd_distances = 0.
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
         'ks_distance_max': max_ks_distance,
         'corr_dist_avg': avg_corr_distance,
         'corr_dist_max': max_corr_distance,
-        'emd_categ_avg': avg_emd,
-        'emd_categ_max': max_emd
+        'emd_categ_avg': avg_emd_distances,
+        'emd_categ_max': max_emd_distances
     }
 
     print_line = ''
