@@ -24,6 +24,7 @@ from typing import List
 
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
+MAX_PVAL = 0.05
 
 
 # -- Plotting functions
@@ -91,26 +92,32 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
     # Calculate distances for all columns
     ks_distances = []
-    emd = []
+    emd_distances = []
     corr_distances = []
 
     for col in test.columns:
+
         if test[col].dtype.kind == 'f':
-            ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
+            ks_distance, ks_pval = ks_2samp(test[col].dropna(), synthesized[col].dropna())
+            if ks_pval > MAX_PVAL:
+                ks_distances.append(ks_distance)
 
-        if test[col].dtype.kind == 'i':
-            ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
+        elif test[col].dtype.kind == 'i':
+            ks_distance, ks_pval = ks_2samp(test[col], synthesized[col])
+            if ks_pval > MAX_PVAL:
+                ks_distances.append(ks_distance)
+
             if len(test[col].unique()) < NUM_UNIQUE_CATEGORICAL:
-                emd.append(categorical_emd(test[col], synthesized[col]))
+                emd_distances.append(categorical_emd(test[col], synthesized[col]))
 
-        if test[col].dtype.kind in ('O', 'b'):
+        elif test[col].dtype.kind in ('O', 'b'):
             # We want to make sure that the column doesn't contain dates. If 1000 samples are not dates, there aren't
             sample_size = min(len(test), MAX_SAMPLE_DATES)
             if np.all(pd.to_datetime(test[col].sample(sample_size), errors='coerce').isna()):
-                emd.append(categorical_emd(test[col], synthesized[col]))
+                emd_distances.append(categorical_emd(test[col], synthesized[col]))
 
-        test[col] = pd.to_numeric(test[col], errors='coerce')
-        synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+            test[col] = pd.to_numeric(test[col], errors='coerce')
+            synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
 
     for i in range(len(test.columns)):
         col_i = test.columns[i]
@@ -123,7 +130,7 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
                 corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
                 corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
 
-                if pvalue_orig <= 0.05 or pvalue_synth <= 0.05:
+                if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
                     corr_distances.append(abs(corr_orig - corr_synth))
 
     # Compute summaries
@@ -137,9 +144,9 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         max_corr_distance = np.max(corr_distances)
     else:
         avg_corr_distance = max_corr_distance = 0.
-    if len(emd) > 0:
-        avg_emd = np.mean(emd)
-        max_emd = np.max(emd)
+    if len(emd_distances) > 0:
+        avg_emd = np.mean(emd_distances)
+        max_emd = np.max(emd_distances)
     else:
         avg_emd = max_emd = 0.
 
@@ -158,7 +165,13 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
     plt.figure()
-    sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
+    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
+
+    values = list(current_result.values())
+    for i in range(len(values)):
+        v = values[i]
+        g.text(i, v, round(v, 3), color='black', ha="center")
+
     plt.xticks(rotation=10)
     plt.show()
 
