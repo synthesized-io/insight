@@ -15,11 +15,15 @@ from synthesized.testing.util import categorical_emd
 
 from scipy.stats import ks_2samp
 from scipy.stats import spearmanr
+from scipy.stats import kendalltau
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
 
 from IPython.display import Markdown, display
 from typing import List
+
+MAX_SAMPLE_DATES = 2500
+NUM_UNIQUE_CATEGORICAL = 100
 
 
 # -- Plotting functions
@@ -88,37 +92,62 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
     # Calculate distances for all columns
     ks_distances = []
     emd = []
+    corr_distances = []
+
     for col in test.columns:
-        if test[col].dtype.kind in ('f', 'i'):
+        if test[col].dtype.kind == 'f':
             ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
-        else:
-            try:
-                ks_distances.append(ks_2samp(
-                    pd.to_numeric(pd.to_datetime(test[col])),
-                    pd.to_numeric(pd.to_datetime(synthesized[col]))
-                )[0])
-            except ValueError:
+
+        if test[col].dtype.kind == 'i':
+            ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
+            if len(test[col].unique()) < NUM_UNIQUE_CATEGORICAL:
                 emd.append(categorical_emd(test[col], synthesized[col]))
 
-    corr = np.abs((test.corr() - synthesized.corr()).to_numpy())
+        if test[col].dtype.kind in ('O', 'b'):
+            # We want to make sure that the column doesn't contain dates. If 1000 samples are not dates, there aren't
+            sample_size = min(len(test), MAX_SAMPLE_DATES)
+            if np.all(pd.to_datetime(test[col].sample(sample_size), errors='coerce').isna()):
+                emd.append(categorical_emd(test[col], synthesized[col]))
+
+        test[col] = pd.to_numeric(test[col], errors='coerce')
+        synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+
+    for i in range(len(test.columns)):
+        col_i = test.columns[i]
+        for j in range(i + 1, len(test.columns)):
+            col_j = test.columns[j]
+            test_clean = test[[col_i, col_j]].dropna()
+            synth_clean = synthesized[[col_i, col_j]].dropna()
+
+            if len(test_clean) > 0 and len(synth_clean) > 0:
+                corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
+                corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
+
+                if pvalue_orig <= 0.05 or pvalue_synth <= 0.05:
+                    corr_distances.append(abs(corr_orig - corr_synth))
 
     # Compute summaries
-    avg_ks_distance = np.mean(ks_distances)
-    max_ks_distance = np.max(ks_distances)
-    avg_corr = corr.mean()
-    max_corr = corr.max()
+    if len(ks_distances) > 0:
+        avg_ks_distance = np.mean(ks_distances)
+        max_ks_distance = np.max(ks_distances)
+    else:
+        avg_ks_distance = max_ks_distance = 0.
+    if len(corr_distances) > 0:
+        avg_corr_distance = np.mean(corr_distances)
+        max_corr_distance = np.max(corr_distances)
+    else:
+        avg_corr_distance = max_corr_distance = 0.
     if len(emd) > 0:
         avg_emd = np.mean(emd)
         max_emd = np.max(emd)
     else:
-        avg_emd = float("nan")
-        max_emd = float("nan")
+        avg_emd = max_emd = 0.
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
         'ks_distance_max': max_ks_distance,
-        'corr_dist_avg': avg_corr,
-        'corr_dist_max': max_corr,
+        'corr_dist_avg': avg_corr_distance,
+        'corr_dist_max': max_corr_distance,
         'emd_categ_avg': avg_emd,
         'emd_categ_max': max_emd
     }
