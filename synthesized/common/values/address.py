@@ -41,7 +41,7 @@ class AddressValue(Value):
     def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None, county_label=None,
                  city_label=None, district_label=None, street_label=None, house_number_label=None, flat_label=None,
                  house_name_label=None,
-                 fake=False):
+                 fake=True):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
