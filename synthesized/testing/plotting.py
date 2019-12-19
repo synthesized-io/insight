@@ -112,11 +112,12 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             ks_distances.append(ks_distance)
 
         elif test[col].dtype.kind == 'i':
-            ks_distance, _ = ks_2samp(test[col], synthesized[col])
-            ks_distances.append(ks_distance)
-
-            if len(test[col].unique()) < NUM_UNIQUE_CATEGORICAL:
+            if test[col].nunique() < np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
                 emd_distances.append(categorical_emd(test[col].dropna(), synthesized[col].dropna()))
+
+            else:
+                ks_distance, _ = ks_2samp(test[col], synthesized[col])
+                ks_distances.append(ks_distance)
 
         elif test[col].dtype.kind in ('O', 'b'):
 
