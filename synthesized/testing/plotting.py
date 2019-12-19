@@ -25,6 +25,8 @@ from typing import List
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
 MAX_PVAL = 0.05
+NAN_FRACTION_THRESHOLD = 0.25
+CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
 
 # -- Plotting functions
@@ -87,8 +89,9 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
 
 
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
-                       evaluation: Evaluation, evaluation_name: str):
-    synthesized = synthesized.copy().dropna()
+                       evaluation: Evaluation, evaluation_name: str, ax: Axes = None):
+    test = test.copy()
+    synthesized = synthesized.copy()
 
     # Calculate distances for all columns
     ks_distances = []
@@ -97,27 +100,49 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
     for col in test.columns:
 
+        # Dop column if contains too many nans
+        nan_fraction = test[col].isnull().sum() / len(test)
+        if nan_fraction > NAN_FRACTION_THRESHOLD:
+            test.drop(col, axis=1, inplace=True)
+            synthesized.drop(col, axis=1, inplace=True)
+            continue
+
         if test[col].dtype.kind == 'f':
-            ks_distance, ks_pval = ks_2samp(test[col].dropna(), synthesized[col].dropna())
-            if ks_pval > MAX_PVAL:
-                ks_distances.append(ks_distance)
+            ks_distance, _ = ks_2samp(test[col].dropna(), synthesized[col].dropna())
+            ks_distances.append(ks_distance)
 
         elif test[col].dtype.kind == 'i':
-            ks_distance, ks_pval = ks_2samp(test[col], synthesized[col])
-            if ks_pval > MAX_PVAL:
-                ks_distances.append(ks_distance)
+            ks_distance, _ = ks_2samp(test[col], synthesized[col])
+            ks_distances.append(ks_distance)
 
             if len(test[col].unique()) < NUM_UNIQUE_CATEGORICAL:
-                emd_distances.append(categorical_emd(test[col], synthesized[col]))
+                emd_distances.append(categorical_emd(test[col].dropna(), synthesized[col].dropna()))
 
         elif test[col].dtype.kind in ('O', 'b'):
-            # We want to make sure that the column doesn't contain dates. If 1000 samples are not dates, there aren't
-            sample_size = min(len(test), MAX_SAMPLE_DATES)
-            if np.all(pd.to_datetime(test[col].sample(sample_size), errors='coerce').isna()):
-                emd_distances.append(categorical_emd(test[col], synthesized[col]))
 
-            test[col] = pd.to_numeric(test[col], errors='coerce')
-            synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+            # Try to convert to numeric
+            col_num = pd.to_numeric(test[col], errors='coerce')
+            if col_num.isna().sum() / len(col_num) < NAN_FRACTION_THRESHOLD:
+                test[col] = col_num
+                synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+
+            # Dop column if is sampling value
+            elif test[col].nunique() > np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
+                test.drop(col, axis=1, inplace=True)
+                synthesized.drop(col, axis=1, inplace=True)
+                continue
+
+            # DROP COLUMN IF DATES
+            elif not np.all(pd.to_datetime(test[col].sample(min(len(test), MAX_SAMPLE_DATES)), errors='coerce').isna()):
+                test.drop(col, axis=1, inplace=True)
+                synthesized.drop(col, axis=1, inplace=True)
+                continue
+
+            else:
+                emd_distances.append(categorical_emd(test[col].dropna(), synthesized[col].dropna()))
+                test.drop(col, axis=1, inplace=True)
+                synthesized.drop(col, axis=1, inplace=True)
+                continue
 
     for i in range(len(test.columns)):
         col_i = test.columns[i]
@@ -166,16 +191,19 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
-    plt.figure()
-    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
+    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax)
 
     values = list(current_result.values())
     for i in range(len(values)):
         v = values[i]
         g.text(i, v, round(v, 3), color='black', ha="center")
 
-    plt.xticks(rotation=10)
-    plt.show()
+    if ax:
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(10)
+    else:
+        plt.xticks(rotation=10)
+
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
