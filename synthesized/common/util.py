@@ -41,7 +41,7 @@ class Profiler:
 
     def write_traces(self):
         with open(self.filepath, 'w') as out_file:
-            simplejson.dump(self.traces, out_file)
+            simplejson.dump(self.traces, out_file, ignore_nan=True)
 
 
 def get_initializer(initializer):
