@@ -205,7 +205,6 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         plt.xticks(rotation=10)
 
 
-
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
     values = np.unique(x)
     val2idx = {val: i for i, val in enumerate(values)}
