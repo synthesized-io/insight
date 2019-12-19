@@ -1,4 +1,4 @@
-import json
+import simplejson
 import re
 
 import tensorflow as tf
@@ -35,13 +35,13 @@ class Profiler:
     def read_trace(self, run_metadata):
         fetched_timeline = timeline.Timeline(run_metadata.step_stats)
         chrome_trace = fetched_timeline.generate_chrome_trace_format()
-        trace_events = json.loads(chrome_trace)
+        trace_events = simplejson.loads(chrome_trace)
         trace_events["step"] = self.step
         self.traces.append(trace_events)
 
     def write_traces(self):
         with open(self.filepath, 'w') as out_file:
-            json.dump(self.traces, out_file)
+            simplejson.dump(self.traces, out_file, ignore_nan=True)
 
 
 def get_initializer(initializer):

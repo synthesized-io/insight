@@ -1,6 +1,6 @@
 import time
 import os
-import json
+import simplejson
 
 import numpy as np
 import pandas as pd
@@ -120,7 +120,7 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
 
             config_path = os.environ.get('EVALUATION_CONFIG_PATH', "configs/evaluation/synthetic_distributions.json")
             with open(config_path, 'r') as f:
-                configs = json.load(f)
+                configs = simplejson.load(f)
                 config = configs["instances"]["synthetic"]
 
             with HighDimSynthesizer(df=data_missing, **config['params']) as synthesizer:
