@@ -78,7 +78,7 @@ class LearningManager:
             self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                                  max_to_keep=self.max_to_keep)
 
-    def stop_learning_check_metric(self, iteration: int, stop_metric: dict) -> bool:
+    def stop_learning_check_metric(self, iteration: int, stop_metric: Dict[str, List[float]]) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
 
         Args:
@@ -124,6 +124,7 @@ class LearningManager:
         else:
             self.count_no_improvement += 1
             if self.count_no_improvement >= self.n_checks_no_improvement:
+                print(self.count_no_improvement, self.n_checks_no_improvement)
                 if self.use_checkpointing:
                     logger.info("LearningManager :: The model hasn't improved between iterations {1} and {0}. Restoring"
                                 " model from iteration {1} with 'stop_metric' {2:.4f}".format(iteration,
