@@ -4,6 +4,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import cm
 from typing import Optional
+import logging
 
 from matplotlib.axes import Axes
 
@@ -22,10 +23,13 @@ from statsmodels.tsa.stattools import acf, pacf
 from IPython.display import Markdown, display
 from typing import List
 
+logger = logging.getLogger(__name__)
+
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
 MAX_PVAL = 0.05
 NAN_FRACTION_THRESHOLD = 0.25
+NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
 
@@ -97,27 +101,42 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
     ks_distances = []
     emd_distances = []
     corr_distances = []
+    numerical_columns = []
 
     for col in test.columns:
-
-        # Dop column if contains too many nans
-        nan_fraction = test[col].isnull().sum() / len(test)
-        if nan_fraction > NAN_FRACTION_THRESHOLD:
-            test.drop(col, axis=1, inplace=True)
-            synthesized.drop(col, axis=1, inplace=True)
-            continue
+        ks_distance, emd_distance = None, None
+        len_test = len(test)
 
         if test[col].dtype.kind == 'f':
-            ks_distance, _ = ks_2samp(test[col].dropna(), synthesized[col].dropna())
+            col_test_clean = test[col].dropna()
+            col_synth_clean = synthesized[col].dropna()
+            if len(col_test_clean) < len_test:
+                logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                            .format(col, len(col_test_clean), len_test))
+            ks_distance, ks_pval = ks_2samp(col_test_clean, col_synth_clean)
+            if ks_pval > MAX_PVAL:
+                logger.info("Column '{}' KS calculation has pval={}".format(col, ks_pval))
             ks_distances.append(ks_distance)
+            numerical_columns.append(col)
 
         elif test[col].dtype.kind == 'i':
             if test[col].nunique() < np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
-                emd_distances.append(categorical_emd(test[col].dropna(), synthesized[col].dropna()))
+                logger.info("Column '{}' treated as categorical with {} categories".format(col, test[col].nunique()))
+                emd_distance = categorical_emd(test[col].dropna(), synthesized[col].dropna())
+                emd_distances.append(emd_distance)
 
             else:
-                ks_distance, _ = ks_2samp(test[col], synthesized[col])
+                col_test_clean = test[col].dropna()
+                col_synth_clean = synthesized[col].dropna()
+                if len(col_test_clean) < len_test:
+                    logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                                .format(col, len(col_test_clean), len_test))
+                ks_distance, ks_pval = ks_2samp(col_test_clean, col_synth_clean)
+                if ks_pval > MAX_PVAL:
+                    logger.info("Column '{}' KS calculation has pval={}".format(col, ks_pval))
                 ks_distances.append(ks_distance)
+
+            numerical_columns.append(col)
 
         elif test[col].dtype.kind in ('O', 'b'):
 
@@ -126,29 +145,20 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             if col_num.isna().sum() / len(col_num) < NAN_FRACTION_THRESHOLD:
                 test[col] = col_num
                 synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+                numerical_columns.append(col)
 
-            # Dop column if is sampling value
-            elif test[col].nunique() > np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
-                test.drop(col, axis=1, inplace=True)
-                synthesized.drop(col, axis=1, inplace=True)
-                continue
+            # if (is not sampling) and (is not date):
+            elif (test[col].nunique() <= np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER) and \
+                    np.all(pd.to_datetime(test[col].sample(min(len(test), MAX_SAMPLE_DATES)), errors='coerce').isna()):
+                emd_distance = categorical_emd(test[col].dropna(), synthesized[col].dropna())
+                emd_distances.append(emd_distance)
 
-            # DROP COLUMN IF DATES
-            elif not np.all(pd.to_datetime(test[col].sample(min(len(test), MAX_SAMPLE_DATES)), errors='coerce').isna()):
-                test.drop(col, axis=1, inplace=True)
-                synthesized.drop(col, axis=1, inplace=True)
-                continue
+            print(col, ks_distance, emd_distance)
 
-            else:
-                emd_distances.append(categorical_emd(test[col].dropna(), synthesized[col].dropna()))
-                test.drop(col, axis=1, inplace=True)
-                synthesized.drop(col, axis=1, inplace=True)
-                continue
-
-    for i in range(len(test.columns)):
-        col_i = test.columns[i]
-        for j in range(i + 1, len(test.columns)):
-            col_j = test.columns[j]
+    for i in range(len(numerical_columns)):
+        col_i = numerical_columns[i]
+        for j in range(i + 1, len(numerical_columns)):
+            col_j = numerical_columns[j]
             test_clean = test[[col_i, col_j]].dropna()
             synth_clean = synthesized[[col_i, col_j]].dropna()
 
@@ -158,6 +168,7 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
                 if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
                     corr_distances.append(abs(corr_orig - corr_synth))
+                    print(col_i, col_j, abs(corr_orig - corr_synth))
 
     # Compute summaries
     if len(ks_distances) > 0:
