@@ -87,7 +87,7 @@ if __name__ == '__main__':
     pub = (133, 247)
     priv = (13, 247)
 
-    a = encrypt(pub, 'lkgng 2019-08-30')
+    a = encrypt(pub, 'lkgng 2020-12-31')
     b = bytes(a)
     b = base64.b16encode(b).decode('utf-8')
 
