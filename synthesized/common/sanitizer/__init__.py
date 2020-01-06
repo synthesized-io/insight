@@ -1,4 +1,4 @@
-from .sanitizer import Sanitizer, DefaultSanitizer
+from .sanitizer import Sanitizer
 
 
-__all__ = ['Sanitizer', 'DefaultSanitizer']
+__all__ = ['Sanitizer']
