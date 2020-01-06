@@ -385,7 +385,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             # Use VAE loss as stopping criteria
             if self.learning_manager and iteration % self.learning_manager.check_frequency == 0:
-                print(iteration)
                 batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
                 feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
                 losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
