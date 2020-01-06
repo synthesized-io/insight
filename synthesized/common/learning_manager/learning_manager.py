@@ -10,6 +10,7 @@ from ..util import categorical_emd
 from ...synthesizer import Synthesizer
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class LearningManager:
