@@ -354,6 +354,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             callback_freq: Callback frequency.
 
         """
+        num_iterations = None
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
@@ -377,7 +378,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
 
             if callback is not None and callback_freq > 0 and (
-                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
 
@@ -412,6 +413,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             if num_iterations:
                 keep_learning = iteration < num_iterations
 
+            # if self.learning_manager and self.learning_manager.stop_learning(
+            #         iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
+            # ):
+            #     break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
