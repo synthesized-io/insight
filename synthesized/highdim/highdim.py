@@ -370,7 +370,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
 
             if callback is not None and callback_freq > 0 and (
-                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
 
@@ -385,6 +385,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             # Use VAE loss as stopping criteria
             if self.learning_manager and iteration % self.learning_manager.check_frequency == 0:
+                print(iteration)
                 batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
                 feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
                 losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
@@ -392,8 +393,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 if self.learning_manager.stop_learning_check_metric(iteration, losses):
                     break
 
+            iteration += 1
             if num_iterations:
-                iteration += 1
                 keep_learning = iteration < num_iterations
 
             # if self.learning_manager and self.learning_manager.stop_learning(
