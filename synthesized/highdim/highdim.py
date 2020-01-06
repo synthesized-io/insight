@@ -377,7 +377,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
 
             if callback is not None and callback_freq > 0 and (
-                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
 
