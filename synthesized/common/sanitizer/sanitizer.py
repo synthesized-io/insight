@@ -1,8 +1,11 @@
 from typing import Union, Callable
+import logging
 
 import pandas as pd
 
 from ...synthesizer import Synthesizer
+
+logger = logging.getLogger(__name__)
 
 
 class Sanitizer(Synthesizer):
@@ -19,7 +22,7 @@ class Sanitizer(Synthesizer):
         self.synthesizer = synthesizer
         self.df_original = df_original
 
-    def sanitize(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+    def _sanitize(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
         """Drop rows in df_synthesized that are present in df_original."""
 
         def normalize_tuple(nt):
@@ -52,7 +55,7 @@ class Sanitizer(Synthesizer):
             progress_callback(99)
 
         # the first drop of duplicates
-        df_synthesized = self.sanitize(df_synthesized)
+        df_synthesized = self._sanitize(df_synthesized)
 
         # we will use fill_ratio to predict how many more records we need
         fill_ratio = len(df_synthesized) / float(num_rows)
@@ -71,7 +74,7 @@ class Sanitizer(Synthesizer):
 
             # synthesis + dropping
             df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions)
-            df_additional = self.sanitize(df_additional)
+            df_additional = self._sanitize(df_additional)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
             # we give up after some number of attempts
@@ -81,7 +84,11 @@ class Sanitizer(Synthesizer):
         if progress_callback is not None:
             progress_callback(100)
 
-        if len(df_synthesized) >= num_rows:
+        if len(df_synthesized) > num_rows:
             return df_synthesized.sample(num_rows)
+        elif len(df_synthesized) == num_rows:
+            return df_synthesized
         else:
+            logger.warning("After {} attempts, the number of synthesized rows is fewer than 'num_rows' as there is an "
+                           "overlap between synthetic and original data.".format(attempt))
             return df_synthesized
