@@ -255,7 +255,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         # Learning Manager
         self.learning_manager = LearningManager() if learning_manager else None
-        self.learning_manager_sample_size = 25_000
+        self.learning_manager_sample_size = 50_000
 
     def get_values(self) -> List[Value]:
         return self.values
@@ -329,7 +329,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.synthesized = self.vae.synthesize(n=self.num_rows, cs=cs)
 
     def learn(
-        self, num_iterations: int, df_train: pd.DataFrame,
+        self, num_iterations: Optional[int], df_train: pd.DataFrame,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -346,8 +346,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             callback_freq: Callback frequency.
 
         """
+        num_iterations = None
+        assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
+
         df_train = df_train.copy()
-        df_train_orig = df_train.copy()
+        # df_train_orig = df_train.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
@@ -360,7 +363,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
-        for iteration in range(1, num_iterations + 1):
+        iteration = 0
+        keep_learning = True
+        while keep_learning:
             batch = np.random.randint(num_data, size=self.batch_size)
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
 
@@ -378,10 +383,23 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-            if self.learning_manager and self.learning_manager.stop_learning(
-                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
-            ):
-                break
+            # Use VAE loss as stopping criteria
+            if self.learning_manager and iteration % self.learning_manager.check_frequency == 0:
+                batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
+                feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
+                losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
+                losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
+                if self.learning_manager.stop_learning_check_metric(iteration, losses):
+                    break
+
+            if num_iterations:
+                iteration += 1
+                keep_learning = iteration < num_iterations
+
+            # if self.learning_manager and self.learning_manager.stop_learning(
+            #         iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
+            # ):
+            #     break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
