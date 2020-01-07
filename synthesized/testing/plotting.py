@@ -1,27 +1,23 @@
 import time
+from typing import Optional, List, Tuple
+import logging
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import cm
-from typing import Optional
-import logging
-
 from matplotlib.axes import Axes
-
 import matplotlib.pyplot as plt
-from synthesized import HighDimSynthesizer
-from ..testing import UtilityTesting
-from synthesized.testing.evaluation import Evaluation
-from synthesized.testing.util import categorical_emd
-
-from scipy.stats import ks_2samp
-from scipy.stats import spearmanr
-from scipy.stats import kendalltau
+from scipy.stats import ks_2samp, spearmanr, kendalltau
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
-
 from IPython.display import Markdown, display
-from typing import List
+
+from ..highdim import HighDimSynthesizer
+from ..testing import UtilityTesting
+from ..testing.evaluation import Evaluation
+from ..testing.util import categorical_emd
+
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +88,13 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
     axes[1].set_title("Synthetic")
 
 
+def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
+    if len(x) > 0:
+        return np.mean(x), np.max(x)
+    else:
+        return 0., 0.
+
+
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
                        evaluation: Evaluation, evaluation_name: str, ax: Axes = None,
                        record_metrics: bool = True):
@@ -114,9 +117,7 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             if len(col_test_clean) < len_test:
                 logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
                             .format(col, len(col_test_clean), len_test))
-            ks_distance, ks_pval = ks_2samp(col_test_clean, col_synth_clean)
-            if ks_pval > MAX_PVAL:
-                logger.info("Column '{}' KS calculation has pval={}".format(col, ks_pval))
+            ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
             ks_distances.append(ks_distance)
             numerical_columns.append(col)
 
@@ -132,9 +133,7 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
                 if len(col_test_clean) < len_test:
                     logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
                                 .format(col, len(col_test_clean), len_test))
-                ks_distance, ks_pval = ks_2samp(col_test_clean, col_synth_clean)
-                if ks_pval > MAX_PVAL:
-                    logger.info("Column '{}' KS calculation has pval={}".format(col, ks_pval))
+                ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
                 ks_distances.append(ks_distance)
 
             numerical_columns.append(col)
@@ -152,9 +151,8 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             elif (test[col].nunique() <= np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER) and \
                     np.all(pd.to_datetime(test[col].sample(min(len(test), MAX_SAMPLE_DATES)), errors='coerce').isna()):
                 emd_distance = categorical_emd(test[col].dropna(), synthesized[col].dropna())
-                emd_distances.append(emd_distance)
-
-            print(col, ks_distance, emd_distance)
+                if not np.isnan(emd_distance):
+                    emd_distances.append(emd_distance)
 
     for i in range(len(numerical_columns)):
         col_i = numerical_columns[i]
@@ -169,34 +167,19 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
                 if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
                     corr_distances.append(abs(corr_orig - corr_synth))
-                    print(col_i, col_j, abs(corr_orig - corr_synth))
 
     # Compute summaries
-    if len(ks_distances) > 0:
-        avg_ks_distance = np.mean(ks_distances)
-        max_ks_distance = np.max(ks_distances)
-    else:
-        avg_ks_distance = max_ks_distance = 0.
-
-    if len(corr_distances) > 0:
-        avg_corr_distance = np.mean(corr_distances)
-        max_corr_distance = np.max(corr_distances)
-    else:
-        avg_corr_distance = max_corr_distance = 0.
-
-    if len(emd_distances) > 0:
-        avg_emd_distances = np.mean(emd_distances)
-        max_emd_distances = np.max(emd_distances)
-    else:
-        avg_emd_distances = max_emd_distances = 0.
+    avg_ks_distance, max_ks_distance = calculate_mean_max(ks_distances)
+    avg_corr_distance, max_corr_distance = calculate_mean_max(corr_distances)
+    avg_emd_distance, max_emd_distance = calculate_mean_max(emd_distances)
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
         'ks_distance_max': max_ks_distance,
         'corr_dist_avg': avg_corr_distance,
         'corr_dist_max': max_corr_distance,
-        'emd_categ_avg': avg_emd_distances,
-        'emd_categ_max': max_emd_distances
+        'emd_categ_avg': avg_emd_distance,
+        'emd_categ_max': max_emd_distance
     }
 
     print_line = ''
