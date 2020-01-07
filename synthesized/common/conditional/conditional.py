@@ -7,13 +7,18 @@ from typing import Any, Dict, Tuple, Union, Callable, List
 import numpy as np
 import pandas as pd
 
-from ...common.values.continuous import ContinuousValue
+from ...common.values import ContinuousValue, CategoricalValue, NanValue
 from ...synthesizer import Synthesizer
 
 
 class ConditionalSampler(Synthesizer):
     """
     Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
+
+    Example:
+        >>> cond = ConditionalSampler(synthesizer, ('SeriousDlqin2yrs', {'0': 0.3, '1': 0.7}),
+        >>>                                        ('age', {'[0.0, 50.0)': 0.5, '[50.0, 100.0)': 0.5}))
+        >>> cond.synthesize(num_rows=10))
     """
 
     def __init__(self,
@@ -30,14 +35,14 @@ class ConditionalSampler(Synthesizer):
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
         """
         self.synthesizer = synthesizer
+        self._validate_explicit_marginals(explicit_marginals)
 
         # For simplicity let's store distributions in a dict where key is a column:
         self.explicit_marginals: Dict[str, Dict[Any, float]] = {}
         for col, cond in explicit_marginals:
-            assert np.isclose(sum(cond.values()), 1.0)
             self.explicit_marginals[col] = cond
-        self.conditional_columns: List[str] = []
 
+        self.conditional_columns: List[str] = []
         # Let's compute cartesian product of all probs for each column
         # to get probs for the joined distribution:
         category_probs = []
@@ -127,8 +132,9 @@ class ConditionalSampler(Synthesizer):
         df = df.copy()
 
         mapping = {}
-        continuos_columns = {v.name for v in self.synthesizer.values if isinstance(v, ContinuousValue)}  # type: ignore
-        for col in continuos_columns:
+        continuous_columns = {v.name for v in self.synthesizer.get_values() if (isinstance(v, ContinuousValue) or
+                              isinstance(v, NanValue))}
+        for col in continuous_columns:
             if col in self.explicit_marginals:
                 intervals = []
                 for str_interval in self.explicit_marginals[col].keys():
@@ -137,7 +143,7 @@ class ConditionalSampler(Synthesizer):
                 mapping[col] = intervals
 
         for col in self.conditional_columns:
-            if col in continuos_columns:
+            if col in continuous_columns:
                 def map_value(value: float):
                     intervals = mapping[col]
                     for interval in intervals:
@@ -146,6 +152,26 @@ class ConditionalSampler(Synthesizer):
                 df[col] = df[col].apply(map_value)
 
         return df
+
+    def _validate_explicit_marginals(self, explicit_marginals):
+        values = self.synthesizer.get_values()
+        values_name = [value.name for value in values]
+
+        for col, cond in explicit_marginals:
+            if not np.isclose(sum(cond.values()), 1.0):
+                raise ValueError("Marginal probabilities do no add up to 1 for '{}'".format(col))
+            if col not in values_name:
+                raise ValueError("Column '{}' not found in learned values for the given synthesizer.".format(col))
+
+            v = values[values_name.index(col)]
+            if isinstance(v, CategoricalValue):
+                categories = [str(c) for c in v.categories if c is not np.nan]
+                for category in cond.keys():
+                    if not isinstance(category, str):
+                        raise TypeError("Given bins must be strings. Bin {} is not a string".format(category))
+                    elif category not in categories:
+                        raise ValueError("Category '{}' for column '{}' not found in learned data. Available options "
+                                         "are: '{}'".format(category, col, ', '.join(categories)))
 
 
 class FloatEndpoint(ABC):
