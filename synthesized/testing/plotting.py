@@ -1,25 +1,32 @@
 import time
+from typing import Optional, List, Tuple
+import logging
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import cm
-from typing import Optional
-
 from matplotlib.axes import Axes
-
 import matplotlib.pyplot as plt
-from synthesized import HighDimSynthesizer
-from ..testing import UtilityTesting
-from synthesized.testing.evaluation import Evaluation
-from synthesized.testing.util import categorical_emd
-
-from scipy.stats import ks_2samp
-from scipy.stats import spearmanr
+from scipy.stats import ks_2samp, spearmanr, kendalltau
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
-
 from IPython.display import Markdown, display
-from typing import List
+
+from ..highdim import HighDimSynthesizer
+from ..testing import UtilityTesting
+from ..testing.evaluation import Evaluation
+from ..testing.util import categorical_emd
+
+
+logger = logging.getLogger(__name__)
+
+MAX_SAMPLE_DATES = 2500
+NUM_UNIQUE_CATEGORICAL = 100
+MAX_PVAL = 0.05
+NAN_FRACTION_THRESHOLD = 0.25
+NON_NAN_COUNT_THRESHOLD = 500
+CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
 
 # -- Plotting functions
@@ -81,57 +88,118 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
     axes[1].set_title("Synthetic")
 
 
+def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
+    if len(x) > 0:
+        return np.mean(x), np.max(x)
+    else:
+        return 0., 0.
+
+
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
-                       evaluation: Evaluation, evaluation_name: str):
-    synthesized = synthesized.copy().dropna()
+                       evaluation: Evaluation, evaluation_name: str, ax: Axes = None,
+                       record_metrics: bool = True):
+    test = test.copy()
+    synthesized = synthesized.copy()
 
     # Calculate distances for all columns
     ks_distances = []
-    emd = []
-    for col in test.columns:
-        if test[col].dtype.kind in ('f', 'i'):
-            ks_distances.append(ks_2samp(test[col], synthesized[col])[0])
-        else:
-            try:
-                ks_distances.append(ks_2samp(
-                    pd.to_numeric(pd.to_datetime(test[col])),
-                    pd.to_numeric(pd.to_datetime(synthesized[col]))
-                )[0])
-            except ValueError:
-                emd.append(categorical_emd(test[col], synthesized[col]))
+    emd_distances = []
+    corr_distances = []
+    numerical_columns = []
 
-    corr = np.abs((test.corr() - synthesized.corr()).to_numpy())
+    for col in test.columns:
+        ks_distance, emd_distance = None, None
+        len_test = len(test)
+
+        if test[col].dtype.kind == 'f':
+            col_test_clean = test[col].dropna()
+            col_synth_clean = synthesized[col].dropna()
+            if len(col_test_clean) < len_test:
+                logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                            .format(col, len(col_test_clean), len_test))
+            ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+            ks_distances.append(ks_distance)
+            numerical_columns.append(col)
+
+        elif test[col].dtype.kind == 'i':
+            if test[col].nunique() < np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
+                logger.info("Column '{}' treated as categorical with {} categories".format(col, test[col].nunique()))
+                emd_distance = categorical_emd(test[col].dropna(), synthesized[col].dropna())
+                emd_distances.append(emd_distance)
+
+            else:
+                col_test_clean = test[col].dropna()
+                col_synth_clean = synthesized[col].dropna()
+                if len(col_test_clean) < len_test:
+                    logger.info("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                                .format(col, len(col_test_clean), len_test))
+                ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+                ks_distances.append(ks_distance)
+
+            numerical_columns.append(col)
+
+        elif test[col].dtype.kind in ('O', 'b'):
+
+            # Try to convert to numeric
+            col_num = pd.to_numeric(test[col], errors='coerce')
+            if col_num.isna().sum() / len(col_num) < NAN_FRACTION_THRESHOLD:
+                test[col] = col_num
+                synthesized[col] = pd.to_numeric(synthesized[col], errors='coerce')
+                numerical_columns.append(col)
+
+            # if (is not sampling) and (is not date):
+            elif (test[col].nunique() <= np.log(len(test)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER) and \
+                    np.all(pd.to_datetime(test[col].sample(min(len(test), MAX_SAMPLE_DATES)), errors='coerce').isna()):
+                emd_distance = categorical_emd(test[col].dropna(), synthesized[col].dropna())
+                if not np.isnan(emd_distance):
+                    emd_distances.append(emd_distance)
+
+    for i in range(len(numerical_columns)):
+        col_i = numerical_columns[i]
+        for j in range(i + 1, len(numerical_columns)):
+            col_j = numerical_columns[j]
+            test_clean = test[[col_i, col_j]].dropna()
+            synth_clean = synthesized[[col_i, col_j]].dropna()
+
+            if len(test_clean) > 0 and len(synth_clean) > 0:
+                corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
+                corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
+
+                if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
+                    corr_distances.append(abs(corr_orig - corr_synth))
 
     # Compute summaries
-    avg_ks_distance = np.mean(ks_distances)
-    max_ks_distance = np.max(ks_distances)
-    avg_corr = corr.mean()
-    max_corr = corr.max()
-    if len(emd) > 0:
-        avg_emd = np.mean(emd)
-        max_emd = np.max(emd)
-    else:
-        avg_emd = float("nan")
-        max_emd = float("nan")
+    avg_ks_distance, max_ks_distance = calculate_mean_max(ks_distances)
+    avg_corr_distance, max_corr_distance = calculate_mean_max(corr_distances)
+    avg_emd_distance, max_emd_distance = calculate_mean_max(emd_distances)
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
         'ks_distance_max': max_ks_distance,
-        'corr_dist_avg': avg_corr,
-        'corr_dist_max': max_corr,
-        'emd_categ_avg': avg_emd,
-        'emd_categ_max': max_emd
+        'corr_dist_avg': avg_corr_distance,
+        'corr_dist_max': max_corr_distance,
+        'emd_categ_avg': avg_emd_distance,
+        'emd_categ_max': max_emd_distance
     }
 
     print_line = ''
     for k, v in current_result.items():
-        evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
+        if record_metrics:
+            evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
-    plt.figure()
-    sns.barplot(x=list(current_result.keys()), y=list(current_result.values()))
-    plt.xticks(rotation=10)
-    plt.show()
+    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax)
+
+    values = list(current_result.values())
+    for i in range(len(values)):
+        v = values[i]
+        g.text(i, v, round(v, 3), color='black', ha="center")
+
+    if ax:
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(10)
+    else:
+        plt.xticks(rotation=10)
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
