@@ -125,7 +125,6 @@ class LearningManager:
         else:
             self.count_no_improvement += 1
             if self.count_no_improvement >= self.n_checks_no_improvement:
-                print(self.count_no_improvement, self.n_checks_no_improvement)
                 if self.use_checkpointing:
                     logger.info("LearningManager :: The model hasn't improved between iterations {1} and {0}. Restoring"
                                 " model from iteration {1} with 'stop_metric' {2:.4f}".format(iteration,
