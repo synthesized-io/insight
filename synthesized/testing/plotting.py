@@ -93,7 +93,8 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
 
 
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
-                       evaluation: Evaluation, evaluation_name: str, ax: Axes = None):
+                       evaluation: Evaluation, evaluation_name: str, ax: Axes = None,
+                       record_metrics: bool = True):
     test = test.copy()
     synthesized = synthesized.copy()
 
@@ -200,7 +201,8 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
     print_line = ''
     for k, v in current_result.items():
-        evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
+        if record_metrics:
+            evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
     g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax)
