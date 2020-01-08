@@ -6,9 +6,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "SeriousDlqin2yrs",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -17,9 +15,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "Payment",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -28,9 +24,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "salary-class",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -41,9 +35,7 @@
       ],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "default payment next month",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -52,9 +44,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "Opportunity Result",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -63,9 +53,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "income",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -74,9 +62,7 @@
       "ignore_columns": ["Unnamed: 0"],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "treatment",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -85,9 +71,7 @@
       "ignore_columns": [],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "fraud",
       "synthesizer_class": "HighDimSynthesizer"
     },
@@ -96,9 +80,7 @@
       "ignore_columns": ["Unnamed: 0"],
       "num_iterations": 10000,
       "num_passes": 1,
-      "params": {
-        "sanitize_output": true
-      },
+      "params": {},
       "target": "Old/New",
       "synthesizer_class": "HighDimSynthesizer"
     }
