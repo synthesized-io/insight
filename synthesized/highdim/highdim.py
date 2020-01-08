@@ -355,7 +355,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             callback_freq: Callback frequency.
 
         """
-        num_iterations = None
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
