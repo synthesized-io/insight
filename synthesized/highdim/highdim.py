@@ -167,7 +167,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         self.batch_size = batch_size
         self.increase_batch_size_every = increase_batch_size_every
-        self.max_batch_size = max_batch_size
+        self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
 
         # For identify_value (should not be necessary)
         self.capacity = capacity
