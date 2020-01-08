@@ -96,8 +96,8 @@ def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
 
 
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
-                       evaluation: Evaluation, evaluation_name: str, ax: Axes = None,
-                       record_metrics: bool = True):
+                       evaluation: Optional[Evaluation] = None, evaluation_name: Optional[str] = None,
+                       ax: Axes = None):
     test = test.copy()
     synthesized = synthesized.copy()
 
@@ -184,7 +184,8 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
 
     print_line = ''
     for k, v in current_result.items():
-        if record_metrics:
+        if evaluation:
+            assert evaluation_name, 'If evaluation is given, evaluation_name must be given too.'
             evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
