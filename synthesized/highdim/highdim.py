@@ -1,6 +1,8 @@
 """This module implements the BasicSynthesizer class."""
 import enum
 from collections import OrderedDict
+from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+import logging
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional, Tuple
 
 import numpy as np
@@ -12,6 +14,9 @@ from ..common.learning_manager import LearningManager
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
 from ..synthesizer import Synthesizer
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class TypeOverride(enum.Enum):
@@ -43,7 +48,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         batchnorm: bool = True, activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: int = 500, clip_gradients: float = 1.0, batch_size: int = 1024,
+        initial_boost: int = 500, clip_gradients: float = 1.0,
+        # Batch size
+        batch_size: int = 1024, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 2048,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
@@ -159,6 +166,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             self.find_rules = find_rules
 
         self.batch_size = batch_size
+        self.increase_batch_size_every = increase_batch_size_every
+        self.max_batch_size = max_batch_size
 
         # For identify_value (should not be necessary)
         self.capacity = capacity
@@ -389,12 +398,18 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
                 losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
                 losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
+                # print(iteration, losses)
                 if self.learning_manager.stop_learning_check_metric(iteration, losses):
                     break
 
             iteration += 1
             if num_iterations:
                 keep_learning = iteration < num_iterations
+
+            if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
+                    iteration % self.increase_batch_size_every == 0:
+                self.batch_size *= 2
+                logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
             # if self.learning_manager and self.learning_manager.stop_learning(
             #         iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
