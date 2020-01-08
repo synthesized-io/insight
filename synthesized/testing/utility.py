@@ -91,7 +91,7 @@ class UtilityTesting:
             sns.set(style='white')
 
             # Compute the correlation matrix
-            corr = df.corr()
+            corr = df.corr(method='kendall')
 
             # Generate a mask for the upper triangle
             mask = np.zeros_like(corr, dtype=np.bool)
@@ -119,7 +119,7 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
-        distances = (self.df_test.corr() - self.df_synth.corr()).abs()
+        distances = (self.df_test.corr(method='kendall') - self.df_synth.corr(method='kendall')).abs()
         result = []
         for i in range(distances.shape[0]):
             for j in range(distances.shape[1]):
