@@ -1,9 +1,8 @@
 """This module implements the BasicSynthesizer class."""
 import enum
 from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Set, Iterable, Optional
-import logging
 from typing import Callable, List, Union, Dict, Set, Iterable, Optional, Tuple
+import logging
 
 import numpy as np
 import pandas as pd
@@ -50,7 +49,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 500, clip_gradients: float = 1.0,
         # Batch size
-        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
+        batch_size: int = 64, increase_batch_size_every: Optional[int] = 1000,
+        increase_batch_size_by: int = 4, max_batch_size: Optional[int] = 1024,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
@@ -167,6 +167,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         self.batch_size = batch_size
         self.increase_batch_size_every = increase_batch_size_every
+        self.increase_batch_size_by = increase_batch_size_by
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
 
         # For identify_value (should not be necessary)
@@ -263,7 +264,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
-        self.learning_manager = LearningManager() if learning_manager else None
+        self.learning_manager = LearningManager(check_frequency=50) if learning_manager else None
         self.learning_manager_sample_size = 50_000
 
     def get_values(self) -> List[Value]:
@@ -407,7 +408,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                     iteration % self.increase_batch_size_every == 0:
-                self.batch_size *= 2
+                self.batch_size *= self.increase_batch_size_by
+                if self.batch_size > self.max_batch_size:
+                    self.batch_size = self.max_batch_size
                 logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
             # if self.learning_manager and self.learning_manager.stop_learning(
