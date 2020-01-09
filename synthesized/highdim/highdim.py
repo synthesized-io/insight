@@ -399,7 +399,10 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 if self.learning_manager.stop_learning_check_metric(iteration, losses):
                     break
 
-            # Increase batch size
+            iteration += 1
+            if num_iterations:
+                keep_learning = iteration < num_iterations
+
             if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                     iteration % self.increase_batch_size_every == 0:
                 self.batch_size *= 2
