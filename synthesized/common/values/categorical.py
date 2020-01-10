@@ -157,7 +157,7 @@ class CategoricalValue(Value):
             y = tf.squeeze(tf.random.categorical(logits=y, num_samples=1, dtype=tf.int64))
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64))
+            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64)) + 1
 
         return [y]
 
