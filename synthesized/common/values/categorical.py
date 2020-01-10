@@ -1,5 +1,5 @@
 from math import isnan, log
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional
 import logging
 
 import pandas as pd
@@ -21,17 +21,15 @@ class CategoricalValue(Value):
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
-        categories: Union[int, list] = None, probabilities=None, embedding_size: int = None
+        categories: List = None, probabilities=None, embedding_size: int = None
     ):
         super().__init__(name=name)
-        self.categories: Optional[Union[int, list]] = None
+        self.categories: Optional[List] = None
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
         if categories is None:
-            self.num_categories = None
-        elif isinstance(categories, int):
-            self.categories = self.num_categories = categories
+            self.num_categories: Optional[int] = None
         else:
             unique_values = np.sort(pd.Series(categories).unique()).tolist()
             self._set_categories(unique_values)
@@ -39,8 +37,10 @@ class CategoricalValue(Value):
         self.probabilities = probabilities
         self.capacity = capacity
 
-        if embedding_size is None:
-            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
+        if embedding_size:
+            self.embedding_size: Optional[int] = embedding_size
+        else:
+            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=similarity_based)
 
         if similarity_based:
             self.embedding_initialization = 'glorot-normal'
@@ -235,8 +235,8 @@ class CategoricalValue(Value):
             raise NotImplementedError
 
 
-def compute_embedding_size(num_categories: int, similarity_based=True) -> int:
-    if similarity_based:
+def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = True) -> Optional[int]:
+    if similarity_based and num_categories:
         return int(log(num_categories + 1) * 2.0)
     else:
         return num_categories
