@@ -50,11 +50,8 @@ class CategoricalValue(Value):
         self.weight_decay = weight_decay
         self.weight = weight
 
-        if moving_average:
-            self.moving_average: Optional[tf.train.ExponentialMovingAverage] = \
-                tf.train.ExponentialMovingAverage(decay=0.9)
-        else:
-            self.moving_average = None
+        self.use_moving_average: bool = moving_average
+        self.moving_average: Optional[tf.train.ExponentialMovingAverage] = None
 
         self.embeddings = None
         self.similarity_based = similarity_based
@@ -74,7 +71,7 @@ class CategoricalValue(Value):
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based, weight_decay=self.weight_decay,
-            weight=self.weight, temperature=self.temperature, moving_average=(True if self.moving_average else False),
+            weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
             produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
         )
         return spec
@@ -131,6 +128,9 @@ class CategoricalValue(Value):
             regularizer=regularizer, trainable=True
         )
         tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
+
+        if self.use_moving_average:
+            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
@@ -235,7 +235,7 @@ class CategoricalValue(Value):
             raise NotImplementedError
 
 
-def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = True) -> Optional[int]:
+def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:
     if similarity_based and num_categories:
         return int(log(num_categories + 1) * 2.0)
     else:
