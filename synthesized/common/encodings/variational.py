@@ -43,9 +43,15 @@ class VariationalEncoding(Encoding):
 
             if self.beta is not None:
                 encoding_loss *= self.beta
-            return x, encoding_loss
+            if return_mean_and_stddev:
+                return x, encoding_loss, mean, stddev
+            else:
+                return x, encoding_loss
         else:
-            return x
+            if return_mean_and_stddev:
+                return x, mean, stddev
+            else:
+                return x
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
