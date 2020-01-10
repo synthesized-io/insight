@@ -37,7 +37,7 @@ def test_categorical():
     value = CategoricalValue(
         name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
         embedding_size=None, pandas_category=False, similarity_based=False, weight_decay=0.0,
-        temperature=1.0, moving_average=None,
+        temperature=1.0, moving_average=False,
     )
     _test_value(
         value=value, x=np.random.randint(low=0, high=8, size=(4,)),
