@@ -29,7 +29,7 @@ class VariationalEncoding(Encoding):
         return self.encoding_size
 
     @tensorflow_name_scoped
-    def encode(self, x, encoding_loss=False, condition=(), encoding_plus_loss=False):
+    def encode(self, x, encoding_loss=False, condition=(), encoding_plus_loss=False, return_mean_and_stddev=False):
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
         x = tf.random.normal(

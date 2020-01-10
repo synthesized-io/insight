@@ -322,6 +322,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         for value in self.conditions:
             cs.update(zip(value.learned_input_columns(), value.input_tensors()))
 
+        # VAE encode
+        self.xs_latent_space, self.xs_synthesized = self.vae.encode(xs=xs, cs=cs)
+
         # VAE synthesize
         self.synthesized = self.vae.synthesize(n=self.num_rows, cs=cs)
 
@@ -465,3 +468,70 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         df_synthesized = df_synthesized[self.columns]
 
         return df_synthesized
+
+    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
+            -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Encodes dataset and returns the corresponding latent space and generated data.
+
+        Args:
+            df_encode: Input dataset
+            conditions: The condition values for the generated rows.
+
+        Returns:
+            (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
+        """
+        df_encode = df_encode.copy()
+        for value in (self.values + self.conditions):
+            df_encode = value.preprocess(df=df_encode)
+
+        num_rows = len(df_encode)
+        feed_dict = {
+            placeholder: df_encode[name].to_numpy() for value in (self.values + self.conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
+        }
+        feed_dict[self.num_rows] = num_rows
+
+        if conditions is not None:
+            if isinstance(conditions, dict):
+                df_conditions = pd.DataFrame.from_dict(
+                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
+                )
+            else:
+                df_conditions = conditions.copy()
+        else:
+            df_conditions = None
+
+        for value in self.conditions:
+            df_conditions = value.preprocess(df=df_conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
+                condition = df_conditions[name].values
+                if condition.shape == (1,):
+                    feed_dict[placeholder] = np.tile(condition, (num_rows,))
+                elif condition.shape == (num_rows,):
+                    feed_dict[placeholder] = condition[-num_rows:]
+                else:
+                    raise NotImplementedError
+
+        encoded, decoded = self.run(fetches=(self.xs_latent_space, self.xs_synthesized), feed_dict=feed_dict)
+
+        columns = [
+            name for value in (self.values + self.conditions)
+            for name in value.learned_output_columns()
+        ]
+        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
+
+        for value in (self.values + self.conditions):
+            df_synthesized = value.postprocess(df=df_synthesized)
+
+        # aliases:
+        for alias, col in self.column_aliases.items():
+            df_synthesized[alias] = df_synthesized[col]
+
+        assert len(df_synthesized.columns) == len(self.columns)
+        df_synthesized = df_synthesized[self.columns]
+
+        latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
+        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{l}_{n}" for l in 'lms'
+                                                                for n in range(encoded['sample'].shape[1])])
+
+        return df_encoded, df_synthesized

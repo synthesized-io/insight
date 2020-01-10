@@ -142,9 +142,11 @@ class VAEOld(Generative):
 
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
-        x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
+        x, encoding_loss, mean, stddev = self.encoding.encode(x=x, encoding_loss=True, return_mean_and_stddev=True)
 
         summaries.extend([
+            tf.contrib.summary.histogram(name='mean', tensor=mean),
+            tf.contrib.summary.histogram(name='stddev', tensor=stddev),
             tf.contrib.summary.histogram(name='posterior_distribution', tensor=x),
             tf.contrib.summary.image(
                 name='latent_space_correlation',
@@ -230,6 +232,66 @@ class VAEOld(Generative):
             )
 
         return losses, optimized
+
+    @tensorflow_name_scoped
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+        """Encoding Step for VAE.
+
+        Args:
+            xs: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+
+        """
+        if len(xs) == 0:
+            return tf.no_op(), dict()
+
+        # Concatenate input tensors per value
+        x = tf.concat(values=[
+            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+            for value in self.values if value.learned_input_size() > 0
+        ], axis=1)
+
+        #################################
+
+        x = self.linear_input.transform(x)
+        x = self.encoder.transform(x=x)
+        z, mean, std = self.encoding.encode(x=x, return_mean_and_stddev=True)
+
+        latent_space = z
+
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
+
+            # Concatenate z,c
+            z = tf.concat(values=(z, c), axis=1)
+
+        x = self.decoder.transform(x=z)
+        y = self.linear_output.transform(x=x)
+
+        # Split output tensors per value
+        ys = tf.split(
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
+        )
+
+        # Output tensors per value
+        synthesized: Dict[str, tf.Tensor] = OrderedDict()
+        for value, y in zip(self.values, ys):
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+
+        for value in self.conditions:
+            for name in value.learned_output_columns():
+                synthesized[name] = cs[name]
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
