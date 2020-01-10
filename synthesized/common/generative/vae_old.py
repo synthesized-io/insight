@@ -78,7 +78,7 @@ class VAEOld(Generative):
 
         self.encoding = self.add_module(
             module='variational', name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta,
+            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
         )
 
         self.modulation = None

@@ -17,7 +17,7 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name: str, capacity: int, weight_decay: float, weight: float, temperature: float,
-        moving_average: Union[bool, tf.train.ExponentialMovingAverage],
+        moving_average: bool,
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
@@ -39,18 +39,22 @@ class CategoricalValue(Value):
         self.probabilities = probabilities
         self.capacity = capacity
 
+        if embedding_size is None:
+            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
+
         if similarity_based:
-            if embedding_size is None and self.num_categories is not None:
-                embedding_size = compute_embedding_size(self.num_categories)
-            self.embedding_size = embedding_size
             self.embedding_initialization = 'glorot-normal'
         else:
-            self.embedding_size = self.num_categories
             self.embedding_initialization = 'orthogonal-small'
 
         self.weight_decay = weight_decay
         self.weight = weight
-        self.moving_average: Optional[tf.train.ExponentialMovingAverage] = moving_average
+
+        if moving_average:
+            self.moving_average: Optional[tf.train.ExponentialMovingAverage] = \
+                tf.train.ExponentialMovingAverage(decay=0.9)
+        else:
+            self.moving_average = None
 
         self.embeddings = None
         self.similarity_based = similarity_based
@@ -70,7 +74,7 @@ class CategoricalValue(Value):
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based, weight_decay=self.weight_decay,
-            weight=self.weight, temperature=self.temperature, moving_average=self.moving_average,
+            weight=self.weight, temperature=self.temperature, moving_average=(True if self.moving_average else False),
             produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
         )
         return spec
@@ -89,11 +93,8 @@ class CategoricalValue(Value):
         unique_values = np.sort(df[self.name].unique()).tolist()
         self._set_categories(unique_values)
 
-        if self.similarity_based:
-            if self.embedding_size is None and self.num_categories is not None:
-                self.embedding_size = compute_embedding_size(self.num_categories)
-        else:
-            self.embedding_size = self.num_categories
+        if self.embedding_size is None:
+            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
@@ -131,11 +132,6 @@ class CategoricalValue(Value):
         )
         tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
 
-        if self.moving_average:
-            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
-        else:
-            self.moving_average = None
-
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
         return [self.placeholder]
@@ -157,7 +153,7 @@ class CategoricalValue(Value):
             y = tf.squeeze(tf.random.categorical(logits=y, num_samples=1, dtype=tf.int64))
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64))
+            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64)) + 1
 
         return [y]
 
@@ -239,5 +235,8 @@ class CategoricalValue(Value):
             raise NotImplementedError
 
 
-def compute_embedding_size(num_categories: int) -> int:
-    return int(log(num_categories + 1) * 2.0)
+def compute_embedding_size(num_categories: int, similarity_based=True) -> int:
+    if similarity_based:
+        return int(log(num_categories + 1) * 2.0)
+    else:
+        return num_categories
