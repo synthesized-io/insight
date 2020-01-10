@@ -40,14 +40,13 @@ class VariationalEncoding(Encoding):
         x = mean + stddev * x
 
         encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
-                        - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+            - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
         encoding_loss = tf.reduce_mean(tf.reduce_sum(encoding_loss, axis=1), axis=0)
 
         if self.beta is not None:
             encoding_loss *= self.beta
 
         return x, encoding_loss, mean, stddev
-
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
