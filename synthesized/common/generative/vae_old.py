@@ -63,7 +63,7 @@ class VAEOld(Generative):
             input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
-        if residual_depths is not None and network == 'resnet':
+        if network == 'resnet':
             self.encoder = self.add_module(
                 module=network, name='encoder',
                 input_size=self.linear_input.size(), depths=residual_depths,
@@ -78,12 +78,12 @@ class VAEOld(Generative):
 
         self.encoding = self.add_module(
             module='variational', name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta,
+            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
         )
 
         self.modulation = None
 
-        if residual_depths is not None and network == 'resnet':
+        if network == 'resnet':
             self.decoder = self.add_module(
                 module=network, name='decoder',
                 input_size=(self.encoding.size() + condition_size), depths=residual_depths,
