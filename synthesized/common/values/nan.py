@@ -24,7 +24,7 @@ class NanValue(Value):
 
         self.capacity = capacity
         if embedding_size is None:
-            embedding_size = compute_embedding_size(2, self.capacity)
+            embedding_size = compute_embedding_size(2)
         self.embedding_size = embedding_size
         self.weight_decay = weight_decay
         self.weight = weight

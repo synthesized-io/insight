@@ -7,6 +7,7 @@ from typing import Dict, Optional, List, Union, Tuple
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops.summary_ops_v2 import SummaryWriter
+from tensorflow.compat.v1.train import Saver
 
 from .util import Profiler, ProfilerArgs, make_tf_compatible
 
@@ -18,6 +19,7 @@ class Module(object):
         self.summarizer_dir = summarizer_dir
         self.summarizer_name = summarizer_name
         self.summarizer: Optional[SummaryWriter] = None
+        self.saver: Optional[Saver] = None
         self.profiler_args = profiler_args
         self.profiler: Optional[Profiler] = None
         self.submodules: List[Module] = list()
@@ -118,6 +120,9 @@ class Module(object):
                         graph_summary = tf.contrib.summary.graph(
                             param=graph_str, step=self.global_step
                         )
+                        self.var_list = tf.compat.v1.get_collection('EMBEDDINGS')
+                        if len(self.var_list) > 0:
+                            self.saver = Saver(var_list=self.var_list)
 
             else:
                 self.initialize()

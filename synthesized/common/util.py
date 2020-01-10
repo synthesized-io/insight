@@ -47,10 +47,17 @@ class Profiler:
 def get_initializer(initializer):
     if initializer == 'normal':
         return tf.random_normal_initializer(mean=0.0, stddev=1e-2)
+    elif initializer == 'normal-small':
+        # for embeddings - see https://arxiv.org/pdf/1711.09160.pdf
+        return tf.random_normal_initializer(mean=0.0, stddev=1e-3)
     elif initializer == 'normal-large':
         return tf.random_normal_initializer(mean=0.0, stddev=1.0)
+    elif initializer == 'glorot-normal':
+        return tf.glorot_normal_initializer()
     elif initializer == 'orthogonal':
         return tf.orthogonal_initializer(gain=1.0)
+    elif initializer == 'orthogonal-small':
+        return tf.orthogonal_initializer(gain=1e-2)
     elif initializer == 'ones':
         return tf.ones_initializer()
     elif initializer == 'zeros':

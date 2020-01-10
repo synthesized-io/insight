@@ -29,8 +29,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 5e-4,
         weight_decay: float = 0.0,
         # Categorical
-        smoothing=0.0, moving_average=True, similarity_regularization=0.0,
-        entropy_regularization=0.1,
+        moving_average=True,
         # Person
         title_label=None, gender_label=None, name_label=None, firstname_label=None, lastname_label=None,
         email_label=None,
@@ -65,10 +64,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
             continuous_weight: Coefficient for continuous value losses.
             beta: VAE KL-loss beta.
             weight_decay: Weight decay.
-            smoothing: Smoothing for categorical value distributions.
             moving_average: Whether to use moving average scaling for categorical values.
-            similarity_regularization: Similarity regularization coefficient for categorical values.
-            entropy_regularization: Entropy regularization coefficient for categorical values.
             title_label: Person title column.
             gender_label: Person gender column.
             name_label: Person combined first and last name column.
@@ -89,10 +85,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
         self.capacity = capacity
         self.categorical_weight = categorical_weight
         self.continuous_weight = continuous_weight
-        self.smoothing = smoothing
         self.moving_average = moving_average
-        self.similarity_regularization = similarity_regularization
-        self.entropy_regularization = entropy_regularization
 
         # Person
         self.person_value = None

@@ -4,6 +4,7 @@ import logging
 
 import pandas as pd
 import tensorflow as tf
+import numpy as np
 
 from .value import Value
 from .. import util
@@ -16,8 +17,7 @@ class CategoricalValue(Value):
 
     def __init__(
         self, name: str, capacity: int, weight_decay: float, weight: float, temperature: float,
-        smoothing: float, moving_average: tf.train.ExponentialMovingAverage, similarity_regularization: float,
-        entropy_regularization: float,
+        moving_average: Union[bool, tf.train.ExponentialMovingAverage],
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
@@ -33,23 +33,26 @@ class CategoricalValue(Value):
         elif isinstance(categories, int):
             self.categories = self.num_categories = categories
         else:
-            unique_values = list(pd.Series(categories).unique())
+            unique_values = np.sort(pd.Series(categories).unique()).tolist()
             self._set_categories(unique_values)
 
         self.probabilities = probabilities
-
         self.capacity = capacity
-        if embedding_size is None and self.num_categories is not None:
-            embedding_size = compute_embedding_size(self.num_categories, self.capacity)
-        self.embedding_size = embedding_size
+
+        if similarity_based:
+            if embedding_size is None and self.num_categories is not None:
+                embedding_size = compute_embedding_size(self.num_categories)
+            self.embedding_size = embedding_size
+            self.embedding_initialization = 'glorot-normal'
+        else:
+            self.embedding_size = self.num_categories
+            self.embedding_initialization = 'orthogonal-small'
+
         self.weight_decay = weight_decay
         self.weight = weight
-
-        self.smoothing = smoothing
         self.moving_average: Optional[tf.train.ExponentialMovingAverage] = moving_average
-        self.similarity_regularization = similarity_regularization
-        self.entropy_regularization = entropy_regularization
 
+        self.embeddings = None
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.pandas_category = pandas_category
@@ -67,10 +70,8 @@ class CategoricalValue(Value):
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based, weight_decay=self.weight_decay,
-            weight=self.weight, temperature=self.temperature, smoothing=self.smoothing,
-            moving_average=self.moving_average,
-            similarity_regularization=self.similarity_regularization,
-            entropy_regularization=self.entropy_regularization, produce_nans=self.produce_nans
+            weight=self.weight, temperature=self.temperature, moving_average=self.moving_average,
+            produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
         )
         return spec
 
@@ -79,21 +80,20 @@ class CategoricalValue(Value):
         return self.embedding_size
 
     def learned_output_size(self) -> int:
-        if self.similarity_based:
-            assert self.embedding_size is not None
-            return self.embedding_size
-        else:
-            assert self.num_categories is not None
-            return self.num_categories
+        assert self.num_categories is not None
+        return self.num_categories
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
 
-        unique_values = list(df[self.name].unique())
+        unique_values = np.sort(df[self.name].unique()).tolist()
         self._set_categories(unique_values)
 
-        if self.embedding_size is None and self.num_categories is not None:
-            self.embedding_size = compute_embedding_size(self.num_categories, self.capacity)
+        if self.similarity_based:
+            if self.embedding_size is None and self.num_categories is not None:
+                self.embedding_size = compute_embedding_size(self.num_categories)
+        else:
+            self.embedding_size = self.num_categories
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
@@ -122,12 +122,15 @@ class CategoricalValue(Value):
             # "hack": scenario synthesizer, embeddings not used
             return
         shape = (self.num_categories, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
+        initializer = util.get_initializer(initializer=self.embedding_initialization)
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
+
         self.embeddings = tf.compat.v1.get_variable(
             name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True
         )
+        tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
+
         if self.moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
         else:
@@ -144,12 +147,6 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        if self.similarity_based:
-            # Similarities as logits
-            y = tf.expand_dims(input=y, axis=1)
-            embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
-
         if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
@@ -157,10 +154,10 @@ class CategoricalValue(Value):
 
         # Choose argmax class
         if self.nans_valid is False or self.produce_nans:
-            y = tf.argmax(input=y, axis=1)
+            y = tf.squeeze(tf.random.categorical(logits=y, num_samples=1, dtype=tf.int64))
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y = tf.argmax(input=y[:, 1:], axis=1) + 1
+            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64))
 
         return [y]
 
@@ -171,7 +168,7 @@ class CategoricalValue(Value):
 
         if self.moving_average is not None:
             assert self.num_categories is not None
-            frequency = tf.concat(values=(list(range(self.num_categories)), target), axis=0)
+            frequency = tf.concat(values=(np.array(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
             frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
             frequency = frequency - 1
@@ -181,40 +178,24 @@ class CategoricalValue(Value):
                 frequency = self.moving_average.average(var=frequency)
                 frequency = tf.nn.embedding_lookup(
                     params=frequency, ids=target, partition_strategy='mod', validate_indices=True,
-                    max_norm=None
+                    max_norm=None, name='frequency'
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
         else:
             weights = 1.0
-        target = tf.one_hot(
-            indices=target, depth=self.num_categories, on_value=1.0, off_value=0.0, axis=1,
-            dtype=tf.float32
-        )
-        if self.similarity_based:  # is that right?
-            y = tf.expand_dims(input=y, axis=1)
-            embeddings = tf.expand_dims(input=self.embeddings, axis=0)
-            y = tf.reduce_sum(input_tensor=(y * embeddings), axis=2, keepdims=False)
+
         y = y / self.temperature
         assert self.num_categories is not None
-        target = target * (1.0 - self.smoothing) + self.smoothing / self.num_categories
+
+        target = tf.one_hot(
+            indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=1,
+            dtype=tf.float32
+        )
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
-        # loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
-        if self.similarity_regularization > 0.0:
-            similarity_loss = tf.matmul(a=self.embeddings, b=self.embeddings, transpose_b=True)
-            similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=1)
-            similarity_loss = tf.reduce_sum(input_tensor=similarity_loss, axis=0)
-            similarity_loss = self.similarity_regularization * similarity_loss
-            loss = loss + similarity_loss
-        if self.entropy_regularization > 0.0:
-            probs = tf.nn.softmax(logits=y, axis=-1)
-            logprobs = tf.math.log(x=tf.maximum(x=probs, y=1e-6))
-            entropy_loss = -tf.reduce_sum(input_tensor=(probs * logprobs), axis=1)
-            entropy_loss = tf.reduce_sum(input_tensor=entropy_loss, axis=0)
-            entropy_loss *= -self.entropy_regularization
-            loss = loss + entropy_loss
+
         return loss
 
     @tensorflow_name_scoped
@@ -258,5 +239,5 @@ class CategoricalValue(Value):
             raise NotImplementedError
 
 
-def compute_embedding_size(num_categories: int, capacity: int) -> int:
-    return min(int(log(num_categories + 1) * capacity / 8.0), capacity)
+def compute_embedding_size(num_categories: int) -> int:
+    return int(log(num_categories + 1) * 2.0)

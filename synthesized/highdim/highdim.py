@@ -48,8 +48,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
         weight_decay: float = 1e-5,
         # Categorical
-        temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
-        similarity_regularization: float = 0.1, entropy_regularization: float = 0.1,
+        categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
+        # Continuous
+        continuous_weight: float = 5.0,
         # Conditions
         condition_columns: List[str] = None,
         # Person
@@ -94,15 +95,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             initial_boost: Learning rate boost for initial steps.
             clip_gradients: Gradient norm clipping.
             batch_size: Batch size.
-            categorical_weight: Coefficient for categorical value losses.
-            continuous_weight: Coefficient for continuous value losses.
             beta: VAE KL-loss beta.
             weight_decay: Weight decay.
+            categorical_weight: Coefficient for categorical value losses.
             temperature: Temperature for categorical value distributions.
-            smoothing: Smoothing for categorical value distributions.
             moving_average: Whether to use moving average scaling for categorical values.
-            similarity_regularization: Similarity regularization coefficient for categorical values.
-            entropy_regularization: Entropy regularization coefficient for categorical values.
+            continuous_weight: Coefficient for continuous value losses.
             condition_columns: ???.
             title_label: Person title column.
             gender_label: Person gender column.
@@ -165,13 +163,14 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # For identify_value (should not be necessary)
         self.capacity = capacity
         self.weight_decay = weight_decay
+
+        # Categorical
         self.categorical_weight = categorical_weight
-        self.continuous_weight = continuous_weight
         self.temperature = temperature
-        self.smoothing = smoothing
         self.moving_average = moving_average
-        self.similarity_regularization = similarity_regularization
-        self.entropy_regularization = entropy_regularization
+
+        # Continuous
+        self.continuous_weight = continuous_weight
 
         # Overall columns
         self.columns = list(df.columns)
