@@ -12,9 +12,9 @@ from ..module import tensorflow_name_scoped
 class DateValue(ContinuousValue):
 
     def __init__(
-        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None
+        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None, **continuous_kwargs
     ):
-        super().__init__(name=name, weight=weight)
+        super().__init__(name=name, weight=weight, **continuous_kwargs)
 
         assert start_date is None or min_date is None
         self.start_date = start_date

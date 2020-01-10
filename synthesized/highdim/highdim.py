@@ -36,7 +36,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
         # VAE distribution
-        distribution: str = 'normal', latent_size: int = 128,
+        distribution: str = 'normal', latent_size: int = 32,
         # Network
         network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = 6,
@@ -313,8 +313,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # Increment global step
         with tf.control_dependencies(control_inputs=[self.optimized]):
             self.optimized = self.global_step.assign_add(delta=1)
-
-        # API function synthesize
 
         # Input argument placeholder for num_rows
         self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
