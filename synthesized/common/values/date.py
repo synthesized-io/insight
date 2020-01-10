@@ -25,6 +25,7 @@ class DateValue(ContinuousValue):
         self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
+        categorical_kwargs['similarity_based'] = True
         self.hour = self.add_module(
             module=CategoricalValue, name=(self.name + '-hour'), categories=24, **categorical_kwargs
         )
