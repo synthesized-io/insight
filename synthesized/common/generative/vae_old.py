@@ -142,7 +142,7 @@ class VAEOld(Generative):
 
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
-        x, encoding_loss, mean, stddev = self.encoding.encode(x=x, encoding_loss=True, return_mean_and_stddev=True)
+        x, encoding_loss, mean, stddev = self.encoding.encode(x=x)
 
         summaries.extend([
             tf.contrib.summary.histogram(name='mean', tensor=mean),
@@ -259,7 +259,7 @@ class VAEOld(Generative):
 
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
-        z, mean, std = self.encoding.encode(x=x, return_mean_and_stddev=True)
+        z, encoding_loss, mean, std = self.encoding.encode(x=x)
 
         latent_space = z
 
