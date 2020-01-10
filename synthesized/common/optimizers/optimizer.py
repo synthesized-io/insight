@@ -17,8 +17,7 @@ class Optimizer(Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        learning_rate: float, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: bool = False,
+        learning_rate: float, decay_steps: int = None, decay_rate: float = None, initial_boost: int = 0,
         # Gradient clipping by global norm
         clip_gradients: float = None
     ):
@@ -70,8 +69,8 @@ class Optimizer(Module):
 
         if self.initial_boost:
             learning_rate = tf.where(
-                condition=tf.math.less(x=self.global_step, y=10),
-                x=(5.0 * learning_rate), y=learning_rate
+                condition=tf.math.less(x=self.global_step, y=self.initial_boost),
+                x=(10.0 * learning_rate), y=learning_rate
             )
 
         # TensorFlow optimizer

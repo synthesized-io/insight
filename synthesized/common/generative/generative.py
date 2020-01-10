@@ -15,6 +15,10 @@ class Generative(Module):
         self.values = values
         self.conditions = conditions
 
+    def module_initialize(self):
+        super().module_initialize()
+        self.global_step = tf.compat.v1.train.get_global_step()
+
     @tensorflow_name_scoped
     def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
         """Training step for the generative model.

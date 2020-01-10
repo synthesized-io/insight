@@ -1,7 +1,7 @@
 """This module implements the BasicSynthesizer class."""
 import enum
 from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+from typing import Callable, List, Union, Dict, Set, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -38,15 +38,14 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 128,
         # Network
-        network: str = 'resnet', capacity: int = 128, depth: int = 2, batchnorm: bool = True,
-        activation: str = 'relu',
+        network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
+        residual_depths: Union[None, int, List[int]] = 6,
+        batchnorm: bool = True, activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: bool = False, clip_gradients: float = 1.0,
-        batch_size: int = 64,
+        optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: int = 500, clip_gradients: float = 1.0, batch_size: int = 1024,
         # Losses
-        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
-        weight_decay: float = 1e-5,
+        beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
         categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
         # Continuous
@@ -85,14 +84,15 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
-            depth: Architecture depth.
+            num_layers: Architecture depth.
+            residual_depths: The depth(s) of each individual residual layer.
             batchnorm: Whether to use batch normalization.
             activation: Activation function.
             optimizer: Optimizer.
             learning_rate: Learning rate.
             decay_steps: Learning rate decay steps.
             decay_rate: Learning rate decay rate.
-            initial_boost: Learning rate boost for initial steps.
+            initial_boost: Number of steps for initial x10 learning rate boost.
             clip_gradients: Gradient norm clipping.
             batch_size: Batch size.
             beta: VAE KL-loss beta.
@@ -244,8 +244,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.vae = self.add_module(
             module='vae_old', name='vae', values=self.values, conditions=self.conditions,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
-            depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
+            optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
@@ -367,6 +367,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
+
+                if self.saver is not None and self.summarizer_dir is not None and self.initialized:
+                    self.saver.save(sess=self.session, save_path=self.summarizer_dir + 'embeddings.ckpt',
+                                    global_step=self.global_step)
+
                 if callback(self, iteration, fetched) is True:
                     return
             else:
