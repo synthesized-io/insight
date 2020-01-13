@@ -281,15 +281,13 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             display(Markdown("## Show loss history"))
             pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
             plt.show()
-        # if plot_distances:
-        #     display(Markdown("## Show average distances"))
-        #     plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
-        #     plt.show()
+        if plot_distances:
+            display(Markdown("## Show average distances"))
+            plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
+            plt.show()
         if show_distribution_distances:
             display(Markdown("## Show distribution distances"))
-            ks_dist_max, ks_dist_avg = testing.show_distribution_distances()
-            evaluation.record_metric(evaluation=name, key='ks_distance_max', value=ks_dist_max)
-            evaluation.record_metric(evaluation=name, key='ks_distance_avg', value=ks_dist_avg)
+            testing.show_distribution_distances()
             plt.show()
         if show_distributions:
             display(Markdown("## Show distributions"))
@@ -297,9 +295,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             plt.show()
         if show_correlation_distances:
             display(Markdown("## Show correlation distances"))
-            corr_dist_max, corr_dist_avg = testing.show_corr_distances()
-            evaluation.record_metric(evaluation=name, key='corr_dist_max', value=corr_dist_max)
-            evaluation.record_metric(evaluation=name, key='corr_dist_avg', value=corr_dist_avg)
+            testing.show_corr_distances()
             plt.show()
         if show_correlation_matrix:
             display(Markdown("## Show correlation matrices"))
@@ -307,9 +303,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             plt.show()
         if show_emd_distances:
             display(Markdown("## Show EMD distances"))
-            emd_dist_max, emd_dist_avg = testing.show_emd_distances()
-            evaluation.record_metric(evaluation=name, key='emd_categ_max', value=emd_dist_max)
-            evaluation.record_metric(evaluation=name, key='emd_categ_avg', value=emd_dist_avg)
+            testing.show_emd_distances()
             plt.show()
         if show_pw_mi_distances:
             display(Markdown("## Show Pairwise Mutual Information distances"))
