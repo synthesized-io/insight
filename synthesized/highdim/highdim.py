@@ -49,8 +49,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 500, clip_gradients: float = 1.0,
         # Batch size
-        batch_size: int = 64, increase_batch_size_every: Optional[int] = 1000,
-        increase_batch_size_by: int = 4, max_batch_size: Optional[int] = 1024,
+        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500,
+        increase_batch_size_by: int = 2, max_batch_size: Optional[int] = 1024,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
