@@ -31,7 +31,7 @@ class CategoricalValue(Value):
         if categories is None:
             self.num_categories: Optional[int] = None
         else:
-            unique_values = np.sort(pd.Series(categories).unique()).tolist()
+            unique_values = pd.Series(categories).unique()
             self._set_categories(unique_values)
 
         self.probabilities = probabilities
@@ -87,7 +87,7 @@ class CategoricalValue(Value):
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
 
-        unique_values = np.sort(df[self.name].unique()).tolist()
+        unique_values = df[self.name].unique()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
@@ -215,13 +215,17 @@ class CategoricalValue(Value):
 
     def _set_categories(self, categories: list):
 
+        found = None
         # Put any nan at the position zero of the list
         for n, x in enumerate(categories):
             if isinstance(x, float) and isnan(x):
-                categories.insert(0, categories.pop(n))
+                found = categories.pop(n)
                 self.nans_valid = True
-            else:
-                assert not isinstance(x, float) or not isnan(x)
+                break
+
+        categories = np.sort(categories).tolist()
+        if found is not None:
+            categories.insert(0, found)
 
         # If categories are not set
         if self.categories is None:
