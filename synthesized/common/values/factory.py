@@ -16,6 +16,7 @@ from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
 from .bank_number import BankNumberValue
+from .constant import ConstantValue
 from .value import Module
 from .value import Value
 
@@ -129,6 +130,10 @@ class ValueFactory(Module):
         """Create SamplingValue."""
         return self.module.add_module(module='sampling', name=name)
 
+    def create_constant(self, name: str) -> ConstantValue:
+        """Create ConstantValue."""
+        return self.module.add_module(module='constant', name=name)
+
     def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
         """Autodetect the type of a column and assign a name.
 
@@ -210,8 +215,11 @@ class ValueFactory(Module):
         num_unique = col.nunique()
         is_nan = False
 
+        if num_unique == 1:
+            return self.create_constant(name)
+
         # Categorical value if small number of distinct values
-        if num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
+        elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:

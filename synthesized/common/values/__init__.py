@@ -11,6 +11,7 @@ from .person import PersonValue
 from .bank_number import BankNumberValue
 from .rule import RuleValue
 from .sampling import SamplingValue
+from .constant import ConstantValue
 from .value import Value
 from ..module import register
 from .factory import ValueFactory
@@ -28,8 +29,9 @@ register(name='person', module=PersonValue)
 register(name='bank', module=BankNumberValue)
 register(name='rule', module=RuleValue)
 register(name='sampling', module=SamplingValue)
+register(name='constant', module=ConstantValue)
 
 
 __all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
            'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
-           'RuleValue', 'SamplingValue', 'Value', 'ValueFactory']
+           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory']
