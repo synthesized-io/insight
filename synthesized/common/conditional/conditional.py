@@ -159,7 +159,7 @@ class ConditionalSampler(Synthesizer):
 
         for col, cond in explicit_marginals:
             if not np.isclose(sum(cond.values()), 1.0):
-                raise ValueError("Marginal probabilities do no add up to 1 for '{}'".format(col))
+                raise ValueError("Marginal probabilities do not add up to 1 for '{}'".format(col))
             if col not in values_name:
                 raise ValueError("Column '{}' not found in learned values for the given synthesizer.".format(col))
 
