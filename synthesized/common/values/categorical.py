@@ -31,7 +31,7 @@ class CategoricalValue(Value):
         if categories is None:
             self.num_categories: Optional[int] = None
         else:
-            unique_values = pd.Series(categories).unique()
+            unique_values = pd.Series(categories).unique().tolist()
             self._set_categories(unique_values)
 
         self.probabilities = probabilities
@@ -87,7 +87,7 @@ class CategoricalValue(Value):
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
 
-        unique_values = df[self.name].unique()
+        unique_values = df[self.name].unique().tolist()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
