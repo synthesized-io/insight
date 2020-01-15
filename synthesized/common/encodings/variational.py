@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import tensorflow as tf
 
 from .encoding import Encoding
@@ -29,23 +31,22 @@ class VariationalEncoding(Encoding):
         return self.encoding_size
 
     @tensorflow_name_scoped
-    def encode(self, x, encoding_loss=False, condition=(), encoding_plus_loss=False):
+    def encode(self, x, condition=()) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         mean = self.mean.transform(x=x)
         stddev = self.stddev.transform(x=x)
         x = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         x = mean + stddev * x
-        if encoding_loss:
-            encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
-                            - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-            encoding_loss = tf.reduce_mean(tf.reduce_sum(encoding_loss, axis=1), axis=0)
 
-            if self.beta is not None:
-                encoding_loss *= self.beta
-            return x, encoding_loss
-        else:
-            return x
+        encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
+            - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+        encoding_loss = tf.reduce_mean(tf.reduce_sum(encoding_loss, axis=1), axis=0)
+
+        if self.beta is not None:
+            encoding_loss *= self.beta
+
+        return x, encoding_loss, mean, stddev
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):

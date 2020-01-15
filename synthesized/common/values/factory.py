@@ -43,10 +43,7 @@ class ValueFactory(Module):
         nan_kwargs['weight'] = self.module.categorical_weight
         continuous_kwargs['weight'] = self.module.continuous_weight
         categorical_kwargs['temperature'] = self.module.temperature
-        categorical_kwargs['smoothing'] = self.module.smoothing
         categorical_kwargs['moving_average'] = self.module.moving_average
-        categorical_kwargs['similarity_regularization'] = self.module.similarity_regularization
-        categorical_kwargs['entropy_regularization'] = self.module.entropy_regularization
 
         self.categorical_kwargs = categorical_kwargs
         self.continuous_kwargs = continuous_kwargs
@@ -225,7 +222,10 @@ class ValueFactory(Module):
         elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
-                value = self.create_categorical(name)
+                if num_unique > 2:
+                    value = self.create_categorical(name, similarity_based=True)
+                else:
+                    value = self.create_categorical(name)
 
         # Date value
         elif col.dtype.kind == 'M':  # 'm' timedelta
@@ -244,7 +244,11 @@ class ValueFactory(Module):
         # Categorical value if object type has attribute 'categories'
         elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
-            value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
+            if num_unique > 2:
+                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
+                                                similarity_based=True)
+            else:
+                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
 
         # Date value if object type can be parsed
         elif col.dtype.kind == 'O':
@@ -261,7 +265,10 @@ class ValueFactory(Module):
         # Similarity-based categorical value if not too many distinct values
         elif num_unique <= sqrt(num_data):
             if _column_does_not_contain_genuine_floats(col):
-                value = self.create_categorical(name, similarity_based=True)
+                if num_unique > 2:
+                    value = self.create_categorical(name, similarity_based=True)
+                else:
+                    value = self.create_categorical(name)
 
         # Return non-numeric value and handle NaNs if necessary
         if value is not None:

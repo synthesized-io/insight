@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from itertools import combinations
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -26,21 +26,23 @@ class VAEOld(Generative):
         # Latent distribution
         distribution: str, latent_size: int,
         # Encoder and decoder network
-        network: str, capacity: int, depth: int, batchnorm: bool, activation: str,
+        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
+        activation: str,
         # Optimizer
         optimizer: str, learning_rate: float, decay_steps: int, decay_rate: float,
-        initial_boost: bool, clip_gradients: float,
+        initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
         weight_decay: float,
-        summarize: bool = False
+        summarize: bool = False, summarize_gradient_norms: bool = False,
     ):
         super().__init__(name=name, values=values, conditions=conditions)
 
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
+        self.summarize_gradient_norms = summarize_gradient_norms
 
         # Total input and output size of all values
         input_size = 0
@@ -61,11 +63,18 @@ class VAEOld(Generative):
             input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
-        self.encoder = self.add_module(
-            module=network, name='encoder',
-            input_size=self.linear_input.size(),
-            layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
-        )
+        if network == 'resnet':
+            self.encoder = self.add_module(
+                module=network, name='encoder',
+                input_size=self.linear_input.size(), depths=residual_depths,
+                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
+            )
+        else:
+            self.encoder = self.add_module(
+                module=network, name='encoder',
+                input_size=self.linear_input.size(),
+                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
+            )
 
         self.encoding = self.add_module(
             module='variational', name='encoding',
@@ -74,11 +83,18 @@ class VAEOld(Generative):
 
         self.modulation = None
 
-        self.decoder = self.add_module(
-            module=network, name='decoder',
-            input_size=(self.encoding.size() + condition_size),
-            layer_sizes=[capacity for _ in range(depth)], weight_decay=weight_decay
-        )
+        if network == 'resnet':
+            self.decoder = self.add_module(
+                module=network, name='decoder',
+                input_size=(self.encoding.size() + condition_size), depths=residual_depths,
+                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
+            )
+        else:
+            self.decoder = self.add_module(
+                module=network, name='decoder',
+                input_size=(self.encoding.size() + condition_size),
+                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
+            )
 
         self.linear_output = self.add_module(
             module='dense', name='linear-output',
@@ -88,7 +104,7 @@ class VAEOld(Generative):
         self.optimizer = self.add_module(
             module='optimizer', name='optimizer', optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
-            clip_gradients=1.0,
+            clip_gradients=clip_gradients, initial_boost=initial_boost
         )
 
     def specification(self) -> dict:
@@ -126,9 +142,11 @@ class VAEOld(Generative):
 
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
-        x, encoding_loss = self.encoding.encode(x=x, encoding_loss=True)
+        x, encoding_loss, mean, stddev = self.encoding.encode(x=x)
 
         summaries.extend([
+            tf.contrib.summary.histogram(name='mean', tensor=mean),
+            tf.contrib.summary.histogram(name='stddev', tensor=stddev),
             tf.contrib.summary.histogram(name='posterior_distribution', tensor=x),
             tf.contrib.summary.image(
                 name='latent_space_correlation',
@@ -210,10 +228,70 @@ class VAEOld(Generative):
 
             # Optimization step
             optimized = self.optimizer.optimize(
-                loss=loss, summarize_gradient_norms=self.summarize, summarize_lr=self.summarize
+                loss=total_loss, summarize_gradient_norms=self.summarize_gradient_norms, summarize_lr=self.summarize
             )
 
         return losses, optimized
+
+    @tensorflow_name_scoped
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+        """Encoding Step for VAE.
+
+        Args:
+            xs: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+
+        """
+        if len(xs) == 0:
+            return tf.no_op(), dict()
+
+        # Concatenate input tensors per value
+        x = tf.concat(values=[
+            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
+            for value in self.values if value.learned_input_size() > 0
+        ], axis=1)
+
+        #################################
+
+        x = self.linear_input.transform(x)
+        x = self.encoder.transform(x=x)
+        z, encoding_loss, mean, std = self.encoding.encode(x=x)
+
+        latent_space = z
+
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
+
+            # Concatenate z,c
+            z = tf.concat(values=(z, c), axis=1)
+
+        x = self.decoder.transform(x=z)
+        y = self.linear_output.transform(x=x)
+
+        # Split output tensors per value
+        ys = tf.split(
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
+        )
+
+        # Output tensors per value
+        synthesized: Dict[str, tf.Tensor] = OrderedDict()
+        for value, y in zip(self.values, ys):
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+
+        for value in self.conditions:
+            for name in value.learned_output_columns():
+                synthesized[name] = cs[name]
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:

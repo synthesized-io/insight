@@ -9,7 +9,6 @@ from .identify_rules import identify_rules
 from .nan import NanValue
 from .person import PersonValue
 from .bank_number import BankNumberValue
-from .probability import ProbabilityValue
 from .rule import RuleValue
 from .sampling import SamplingValue
 from .constant import ConstantValue
@@ -28,7 +27,6 @@ register(name='identifier', module=IdentifierValue)
 register(name='nan', module=NanValue)
 register(name='person', module=PersonValue)
 register(name='bank', module=BankNumberValue)
-register(name='probability', module=ProbabilityValue)
 register(name='rule', module=RuleValue)
 register(name='sampling', module=SamplingValue)
 register(name='constant', module=ConstantValue)
@@ -36,4 +34,4 @@ register(name='constant', module=ConstantValue)
 
 __all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
            'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
-           'ProbabilityValue', 'RuleValue', 'SamplingValue', 'ConstantValue', 'Value', 'ValueFactory']
+           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory']

@@ -12,6 +12,8 @@ class ResnetTransformation(Transformation):
 
         self.layers = list()
         previous_size = self.input_size
+        depths = 2 if depths is None else depths
+
         for n, layer_size in enumerate(layer_sizes):
             if isinstance(depths, int):
                 layer = self.add_module(

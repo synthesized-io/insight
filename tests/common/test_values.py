@@ -37,8 +37,7 @@ def test_categorical():
     value = CategoricalValue(
         name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
         embedding_size=None, pandas_category=False, similarity_based=False, weight_decay=0.0,
-        temperature=1.0, smoothing=0.1, moving_average=None, similarity_regularization=0.1,
-        entropy_regularization=0.1
+        temperature=1.0, moving_average=False,
     )
     _test_value(
         value=value, x=np.random.randint(low=0, high=8, size=(4,)),
@@ -50,10 +49,12 @@ def test_categorical_similarity():
     value = CategoricalValue(
         name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
         embedding_size=None, pandas_category=False, similarity_based=True, weight_decay=0.0,
-        temperature=1.0, smoothing=0.1, moving_average=True, similarity_regularization=0.1,
-        entropy_regularization=0.1
+        temperature=1.0, moving_average=True
     )
-    _test_value(value=value, x=np.random.randint(low=0, high=8, size=(4,)))
+    _test_value(
+        value=value, x=np.random.randint(low=0, high=8, size=(4,)),
+        y=np.random.randn(4, value.learned_output_size())
+    )
 
 
 def test_continuous():

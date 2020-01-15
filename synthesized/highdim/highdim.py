@@ -1,7 +1,7 @@
 """This module implements the BasicSynthesizer class."""
 import enum
 from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+from typing import Callable, List, Union, Dict, Set, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,20 +36,20 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
         # VAE distribution
-        distribution: str = 'normal', latent_size: int = 128,
+        distribution: str = 'normal', latent_size: int = 32,
         # Network
-        network: str = 'resnet', capacity: int = 128, depth: int = 2, batchnorm: bool = True,
-        activation: str = 'relu',
+        network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
+        residual_depths: Union[None, int, List[int]] = 6,
+        batchnorm: bool = True, activation: str = 'relu',
         # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-4, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: bool = False, clip_gradients: float = 1.0,
-        batch_size: int = 64,
+        optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: int = 500, clip_gradients: float = 1.0, batch_size: int = 1024,
         # Losses
-        categorical_weight: float = 1.0, continuous_weight: float = 1.0, beta: float = 0.064,
-        weight_decay: float = 1e-5,
+        beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
-        temperature: float = 1.0, smoothing: float = 0.1, moving_average: bool = True,
-        similarity_regularization: float = 0.1, entropy_regularization: float = 0.1,
+        categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
+        # Continuous
+        continuous_weight: float = 5.0,
         # Conditions
         condition_columns: List[str] = None,
         # Person
@@ -84,25 +84,23 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             latent_size: Latent size.
             network: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
-            depth: Architecture depth.
+            num_layers: Architecture depth.
+            residual_depths: The depth(s) of each individual residual layer.
             batchnorm: Whether to use batch normalization.
             activation: Activation function.
             optimizer: Optimizer.
             learning_rate: Learning rate.
             decay_steps: Learning rate decay steps.
             decay_rate: Learning rate decay rate.
-            initial_boost: Learning rate boost for initial steps.
+            initial_boost: Number of steps for initial x10 learning rate boost.
             clip_gradients: Gradient norm clipping.
             batch_size: Batch size.
-            categorical_weight: Coefficient for categorical value losses.
-            continuous_weight: Coefficient for continuous value losses.
             beta: VAE KL-loss beta.
             weight_decay: Weight decay.
+            categorical_weight: Coefficient for categorical value losses.
             temperature: Temperature for categorical value distributions.
-            smoothing: Smoothing for categorical value distributions.
             moving_average: Whether to use moving average scaling for categorical values.
-            similarity_regularization: Similarity regularization coefficient for categorical values.
-            entropy_regularization: Entropy regularization coefficient for categorical values.
+            continuous_weight: Coefficient for continuous value losses.
             condition_columns: ???.
             title_label: Person title column.
             gender_label: Person gender column.
@@ -165,13 +163,14 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         # For identify_value (should not be necessary)
         self.capacity = capacity
         self.weight_decay = weight_decay
+
+        # Categorical
         self.categorical_weight = categorical_weight
-        self.continuous_weight = continuous_weight
         self.temperature = temperature
-        self.smoothing = smoothing
         self.moving_average = moving_average
-        self.similarity_regularization = similarity_regularization
-        self.entropy_regularization = entropy_regularization
+
+        # Continuous
+        self.continuous_weight = continuous_weight
 
         # Overall columns
         self.columns = list(df.columns)
@@ -245,8 +244,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.vae = self.add_module(
             module='vae_old', name='vae', values=self.values, conditions=self.conditions,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
-            depth=depth, batchnorm=batchnorm, activation=activation, optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
+            optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
@@ -315,8 +314,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         with tf.control_dependencies(control_inputs=[self.optimized]):
             self.optimized = self.global_step.assign_add(delta=1)
 
-        # API function synthesize
-
         # Input argument placeholder for num_rows
         self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
@@ -324,6 +321,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         cs = OrderedDict()
         for value in self.conditions:
             cs.update(zip(value.learned_input_columns(), value.input_tensors()))
+
+        # VAE encode
+        self.xs_latent_space, self.xs_synthesized = self.vae.encode(xs=xs, cs=cs)
 
         # VAE synthesize
         self.synthesized = self.vae.synthesize(n=self.num_rows, cs=cs)
@@ -368,6 +368,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
             ):
                 _, fetched = self.run(fetches=callback_fetches, feed_dict=feed_dict)
+
+                if self.saver is not None and self.summarizer_dir is not None and self.initialized:
+                    self.saver.save(sess=self.session, save_path=self.summarizer_dir + 'embeddings.ckpt',
+                                    global_step=self.global_step)
+
                 if callback(self, iteration, fetched) is True:
                     return
             else:
@@ -463,3 +468,70 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         df_synthesized = df_synthesized[self.columns]
 
         return df_synthesized
+
+    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
+            -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Encodes dataset and returns the corresponding latent space and generated data.
+
+        Args:
+            df_encode: Input dataset
+            conditions: The condition values for the generated rows.
+
+        Returns:
+            (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
+        """
+        df_encode = df_encode.copy()
+        for value in (self.values + self.conditions):
+            df_encode = value.preprocess(df=df_encode)
+
+        num_rows = len(df_encode)
+        feed_dict = {
+            placeholder: df_encode[name].to_numpy() for value in (self.values + self.conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
+        }
+        feed_dict[self.num_rows] = num_rows
+
+        if conditions is not None:
+            if isinstance(conditions, dict):
+                df_conditions = pd.DataFrame.from_dict(
+                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
+                )
+            else:
+                df_conditions = conditions.copy()
+        else:
+            df_conditions = None
+
+        for value in self.conditions:
+            df_conditions = value.preprocess(df=df_conditions)
+            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
+                condition = df_conditions[name].values
+                if condition.shape == (1,):
+                    feed_dict[placeholder] = np.tile(condition, (num_rows,))
+                elif condition.shape == (num_rows,):
+                    feed_dict[placeholder] = condition[-num_rows:]
+                else:
+                    raise NotImplementedError
+
+        encoded, decoded = self.run(fetches=(self.xs_latent_space, self.xs_synthesized), feed_dict=feed_dict)
+
+        columns = [
+            name for value in (self.values + self.conditions)
+            for name in value.learned_output_columns()
+        ]
+        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
+
+        for value in (self.values + self.conditions):
+            df_synthesized = value.postprocess(df=df_synthesized)
+
+        # aliases:
+        for alias, col in self.column_aliases.items():
+            df_synthesized[alias] = df_synthesized[col]
+
+        assert len(df_synthesized.columns) == len(self.columns)
+        df_synthesized = df_synthesized[self.columns]
+
+        latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
+        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{l}_{n}" for l in 'lms'
+                                                                for n in range(encoded['sample'].shape[1])])
+
+        return df_encoded, df_synthesized

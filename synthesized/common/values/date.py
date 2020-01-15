@@ -12,9 +12,9 @@ from ..module import tensorflow_name_scoped
 class DateValue(ContinuousValue):
 
     def __init__(
-        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None
+        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None, **continuous_kwargs
     ):
-        super().__init__(name=name, weight=weight)
+        super().__init__(name=name, weight=weight, **continuous_kwargs)
 
         assert start_date is None or min_date is None
         self.start_date = start_date
@@ -25,17 +25,18 @@ class DateValue(ContinuousValue):
         self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
+        categorical_kwargs['similarity_based'] = True
         self.hour = self.add_module(
-            module=CategoricalValue, name=(self.name + '-hour'), categories=24, **categorical_kwargs
+            module=CategoricalValue, name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
         )
         self.dow = self.add_module(
-            module=CategoricalValue, name=(self.name + '-dow'), categories=7, **categorical_kwargs
+            module=CategoricalValue, name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
         )
         self.day = self.add_module(
-            module=CategoricalValue, name=(self.name + '-day'), categories=31, **categorical_kwargs
+            module=CategoricalValue, name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
         )
         self.month = self.add_module(
-            module=CategoricalValue, name=(self.name + '-month'), categories=12, **categorical_kwargs
+            module=CategoricalValue, name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
         )
 
     def __str__(self):

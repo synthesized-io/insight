@@ -66,10 +66,7 @@ class ScenarioSynthesizer(Synthesizer):
         nan_kwargs['weight'] = categorical_weight
         continuous_kwargs['weight'] = continuous_weight
         categorical_kwargs['temperature'] = 1.0
-        categorical_kwargs['smoothing'] = 0.0
         categorical_kwargs['moving_average'] = False
-        categorical_kwargs['similarity_regularization'] = 0.0
-        categorical_kwargs['entropy_regularization'] = 0.0
 
         # Values
         self.values: List[Value] = list()
