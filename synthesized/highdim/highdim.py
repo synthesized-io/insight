@@ -49,8 +49,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 500, clip_gradients: float = 1.0,
         # Batch size
-        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500,
-        increase_batch_size_by: int = 2, max_batch_size: Optional[int] = 1024,
+        batch_size: int = 1024, increase_batch_size_every: Optional[int] = None, max_batch_size: Optional[int] = None,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
@@ -167,7 +166,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         self.batch_size = batch_size
         self.increase_batch_size_every = increase_batch_size_every
-        self.increase_batch_size_by = increase_batch_size_by
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
 
         # For identify_value (should not be necessary)
@@ -398,25 +396,22 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
                 losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
                 losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
-                # print(iteration, losses)
                 if self.learning_manager.stop_learning_check_metric(iteration, losses):
                     break
 
-            iteration += 1
-            if num_iterations:
-                keep_learning = iteration < num_iterations
-
+            # Increase batch size
             if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                     iteration % self.increase_batch_size_every == 0:
-                self.batch_size *= self.increase_batch_size_by
+                self.batch_size *= 2
                 if self.batch_size > self.max_batch_size:
                     self.batch_size = self.max_batch_size
                 logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
-            # if self.learning_manager and self.learning_manager.stop_learning(
-            #         iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
-            # ):
-            #     break
+            # Increment iteration number, and check if we reached max num_iterations
+            iteration += 1
+            if num_iterations:
+                keep_learning = iteration < num_iterations
+
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
