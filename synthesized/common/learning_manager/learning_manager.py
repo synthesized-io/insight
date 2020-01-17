@@ -31,8 +31,8 @@ class LearningManager:
     """
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
                  checkpoint_path: str = '/tmp/tf_checkpoints',
-                 n_checks_no_improvement: int = 10, max_to_keep: int = 3,
-                 patience: int = 750, must_reach_metric: float = None, good_enough_metric: float = None,
+                 n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
+                 tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
                  stop_metric_name: Optional[Union[str, List[str]]] = None):
         """Initialize LearningManager.
 
@@ -44,6 +44,7 @@ class LearningManager:
                 improvement, will return True and stop learning.
             max_to_keep: Defines the number of previous checkpoints stored.
             patience: How many iterations before start checking the performance.
+            tol: Tolerance for comparing current 'stop_metric' to best 'stop metric'.
             must_reach_metric: If this 'stop_metric' threshold is not reached, will always return False.
             good_enough_metric: If this 'stop_metric' threshold is not reached, will return True even if the model is
                 still improving.
@@ -57,6 +58,7 @@ class LearningManager:
         self.n_checks_no_improvement = n_checks_no_improvement
         self.max_to_keep = max_to_keep
         self.patience = patience
+        self.tol = tol
         self.must_reach_metric = must_reach_metric
         self.good_enough_metric = good_enough_metric
 
@@ -113,7 +115,7 @@ class LearningManager:
         if self.good_enough_metric and total_stop_metric < self.good_enough_metric:
             return True
 
-        if not self.best_stop_metric or total_stop_metric < self.best_stop_metric:
+        if not self.best_stop_metric or total_stop_metric < self.best_stop_metric - self.tol:
             self.best_stop_metric = total_stop_metric
             self.best_iteration = iteration
             self.count_no_improvement = 0
