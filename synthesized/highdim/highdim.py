@@ -47,7 +47,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         batchnorm: bool = True, activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: int = 500, clip_gradients: float = 1.0,
+        initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
         batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
         # Losses
@@ -262,8 +262,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
-        self.learning_manager = LearningManager(check_frequency=50) if learning_manager else None
+        check_frequency = 25  # This parameter should be increased if batch_size or max_batch_size is decreased.
         self.learning_manager_sample_size = 50_000
+        self.learning_manager = LearningManager(check_frequency=check_frequency) if learning_manager else None
 
     def get_values(self) -> List[Value]:
         return self.values
