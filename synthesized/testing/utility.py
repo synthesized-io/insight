@@ -529,9 +529,9 @@ class UtilityTesting:
         plt.tight_layout()
         plt.show()
 
-        pw_diff = data_pwcorr - synth_pwcorr
+        pw_diff = abs(data_pwcorr - synth_pwcorr)
         plt.figure(figsize=(10, 10))
-        ax = sns.heatmap(pw_diff, mask=mask, annot=True, vmin=-1.0, vmax=1.0, cmap=cmap, fmt='.2f')
+        ax = sns.heatmap(pw_diff, mask=mask, annot=True, vmin=0.0, vmax=1.0, cmap=cmap, fmt='.2f')
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
         plt.tight_layout()
 
