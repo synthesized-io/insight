@@ -5,7 +5,7 @@ import pytest
 from synthesized import ScenarioSynthesizer
 
 
-@pytest.mark.integration
+@pytest.mark.skip(reason="ScenarioSynthesizer is currently not in use and not up-to-date.")
 def test_scenarios_quick():
     passed = True
     failed = list()
@@ -33,6 +33,7 @@ def test_scenarios_quick():
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
 
 
+@pytest.mark.skip(reason="ScenarioSynthesizer is currently not in use and not up-to-date.")
 def test_unittest_scenario_quick():
     with open('scenarios/unittest.json', 'r') as filehandle:
         scenario = json.load(fp=filehandle)
