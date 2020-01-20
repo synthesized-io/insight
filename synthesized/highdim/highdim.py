@@ -270,6 +270,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
     def get_values(self) -> List[Value]:
         return self.values
 
+    def get_conditions(self) -> List[Value]:
+        return self.conditions
+
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
@@ -419,7 +422,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                     self.batch_size = self.max_batch_size
                 if self.batch_size == self.max_batch_size:
                     logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
-                self.learning_manager.check_frequency = int(10_000 / self.batch_size)
+                if self.learning_manager:
+                    self.learning_manager.check_frequency = int(10_000 / self.batch_size)
                 logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
             # Increment iteration number, and check if we reached max num_iterations

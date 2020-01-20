@@ -193,9 +193,6 @@ class LearningManager:
         if len(column_names) == 0:
             return False
 
-        if hasattr(synthesizer, 'conditions') and len(synthesizer.conditions) > 0:
-            raise NotImplementedError
-
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth,
                                              column_names=column_names)

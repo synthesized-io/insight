@@ -52,6 +52,9 @@ class Synthesizer(Module):
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
+    def get_conditions(self) -> List[Value]:
+        raise NotImplementedError()
+
     @staticmethod
     def logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
