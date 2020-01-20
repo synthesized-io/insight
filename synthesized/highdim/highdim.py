@@ -262,8 +262,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
-        check_frequency = 25  # This parameter should be increased if batch_size or max_batch_size is decreased.
+        check_frequency = int(1e4 / np.sqrt(self.batch_size))
         self.learning_manager_sample_size = 50_000
+        self.use_vae_loss = False
         self.learning_manager = LearningManager(check_frequency=check_frequency) if learning_manager else None
 
     def get_values(self) -> List[Value]:
@@ -358,7 +359,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
-        # df_train_orig = df_train.copy()
+        df_train_orig = df_train.copy()
         for value in (self.values + self.conditions):
             df_train = value.preprocess(df=df_train)
 
@@ -393,12 +394,19 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
             # Use VAE loss as stopping criteria
             if self.learning_manager and iteration % self.learning_manager.check_frequency == 0:
-                batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
-                feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
-                losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
-                losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
-                if self.learning_manager.stop_learning_check_metric(iteration, losses):
-                    break
+                if self.use_vae_loss:
+                    batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
+                    feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
+                    losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
+                    losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
+                    if self.learning_manager.stop_learning_check_metric(iteration, losses):
+                        break
+                else:
+                    if self.learning_manager.stop_learning(
+                            iteration, synthesizer=self, df_train=df_train_orig,
+                            sample_size=self.learning_manager_sample_size
+                    ):
+                        break
 
             iteration += 1
             if num_iterations:
@@ -409,6 +417,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 self.batch_size *= 2
                 if self.batch_size > self.max_batch_size:
                     self.batch_size = self.max_batch_size
+                if self.batch_size == self.max_batch_size:
+                    logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
+                self.learning_manager.check_frequency = int(10_000 / self.batch_size)
                 logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
             # Increment iteration number, and check if we reached max num_iterations

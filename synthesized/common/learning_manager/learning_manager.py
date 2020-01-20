@@ -4,7 +4,7 @@ import logging
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, kendalltau
 
 from ..util import categorical_emd
 from ...synthesizer import Synthesizer
@@ -62,13 +62,14 @@ class LearningManager:
         self.must_reach_metric = must_reach_metric
         self.good_enough_metric = good_enough_metric
 
+        allowed_stop_metric_names = ['ks_distances', 'corr_distances', 'emd_distances']
         if stop_metric_name:
             if isinstance(stop_metric_name, str):
-                assert stop_metric_name in ['ks_dist', 'corr', 'emd'], \
-                    "Only 'ks_dist', 'corr', 'emd' supported, given stop_metric='{}'".format(stop_metric_name)
+                assert stop_metric_name in allowed_stop_metric_names, \
+                    "Only {} supported, given stop_metric='{}'".format(stop_metric_name, allowed_stop_metric_names)
             elif isinstance(stop_metric_name, list):
-                assert np.all([l in ['ks_dist', 'corr', 'emd'] for l in stop_metric_name]), \
-                    "Only 'ks_dist', 'corr', 'emd' supported, given stop_metric='{}'".format(stop_metric_name)
+                assert np.all([l in allowed_stop_metric_names for l in stop_metric_name]), \
+                    "Only {} supported, given stop_metric='{}'".format(stop_metric_name, allowed_stop_metric_names)
         self.stop_metric_name = stop_metric_name
 
         self.count_no_improvement: int = 0
@@ -80,6 +81,14 @@ class LearningManager:
             self.checkpoint = tf.train.Checkpoint()
             self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, directory=self.checkpoint_path,
                                                                  max_to_keep=self.max_to_keep)
+
+        # Some constants to compute metrics
+        self.max_sample_dates = 2500
+        self.num_unique_categorical = 100
+        self.max_pval = 0.05
+        self.nan_fraction_threshold = 0.25
+        self.non_nan_count_threshold = 500
+        self.categorical_threshold_log_multiplier = 2.5
 
     def stop_learning_check_metric(self, iteration: int, stop_metric: Dict[str, List[float]]) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
@@ -184,9 +193,18 @@ class LearningManager:
         if len(column_names) == 0:
             return False
 
+        if hasattr(synthesizer, 'conditions') and len(synthesizer.conditions) > 0:
+            raise NotImplementedError
+
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train.sample(sample_size), df_synth,
                                              column_names=column_names)
+
+    def restart_learning_manager(self):
+        self.count_no_improvement: int = 0
+        self.best_stop_metric: Optional[float] = None
+        self.best_checkpoint: Optional[str] = None
+        self.best_iteration: int = 0
 
     def _calculate_stop_metric_from_data(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                                          column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
@@ -207,28 +225,78 @@ class LearningManager:
         else:
             column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
 
+        # Calculate distances for all columns
         ks_distances = []
-        emd = []
+        emd_distances = []
+        corr_distances = []
+        numerical_columns = []
 
+        len_test = len(df_orig)
         for col in column_names_df:
-            if df_orig[col].dtype.kind in ('f', 'i'):
-                ks_distances.append(ks_2samp(df_orig[col], df_synth[col])[0])
-            else:
-                try:
-                    ks_distances.append(ks_2samp(
-                        pd.to_numeric(pd.to_datetime(df_orig[col])),
-                        pd.to_numeric(pd.to_datetime(df_synth[col]))
-                    )[0])
-                except ValueError:
-                    emd.append(categorical_emd(df_orig[col].dropna(), df_synth[col].dropna()))
 
-        corr = (df_orig[column_names_df].corr(method='kendall') -
-                df_synth[column_names_df].corr(method='kendall')).abs().mean()
+            if df_orig[col].dtype.kind == 'f':
+                col_test_clean = df_orig[col].dropna()
+                col_synth_clean = df_synth[col].dropna()
+                if len(col_test_clean) < len_test:
+                    logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                                 .format(col, len(col_test_clean), len_test))
+                ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+                ks_distances.append(ks_distance)
+                numerical_columns.append(col)
 
-        stop_metrics = dict(
-            ks_dist=list(ks_distances),
-            corr=list(corr),
-            emd=list(emd)
-        )
+            elif df_orig[col].dtype.kind == 'i':
+                if df_orig[col].nunique() < np.log(len(df_orig)) * self.categorical_threshold_log_multiplier:
+                    logger.debug(
+                        "Column '{}' treated as categorical with {} categories".format(col, df_orig[col].nunique()))
+                    emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
+                    emd_distances.append(emd_distance)
+
+                else:
+                    col_test_clean = df_orig[col].dropna()
+                    col_synth_clean = df_synth[col].dropna()
+                    if len(col_test_clean) < len_test:
+                        logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                                     .format(col, len(col_test_clean), len_test))
+                    ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+                    ks_distances.append(ks_distance)
+
+                numerical_columns.append(col)
+
+            elif df_orig[col].dtype.kind in ('O', 'b'):
+
+                # Try to convert to numeric
+                col_num = pd.to_numeric(df_orig[col], errors='coerce')
+                if col_num.isna().sum() / len(col_num) < self.nan_fraction_threshold:
+                    df_orig[col] = col_num
+                    df_synth[col] = pd.to_numeric(df_synth[col], errors='coerce')
+                    numerical_columns.append(col)
+
+                # if (is not sampling) and (is not date):
+                elif (df_orig[col].nunique() <= np.log(len(df_orig)) * self.categorical_threshold_log_multiplier) and \
+                        np.all(pd.to_datetime(df_orig[col].sample(min(len(df_orig), self.max_sample_dates)),
+                                              errors='coerce').isna()):
+                    emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
+                    if not np.isnan(emd_distance):
+                        emd_distances.append(emd_distance)
+
+        for i in range(len(numerical_columns)):
+            col_i = numerical_columns[i]
+            for j in range(i + 1, len(numerical_columns)):
+                col_j = numerical_columns[j]
+                test_clean = df_orig[[col_i, col_j]].dropna()
+                synth_clean = df_synth[[col_i, col_j]].dropna()
+
+                if len(test_clean) > 0 and len(synth_clean) > 0:
+                    corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
+                    corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
+
+                    if pvalue_orig <= self.max_pval or pvalue_synth <= self.max_pval:
+                        corr_distances.append(abs(corr_orig - corr_synth))
+
+        stop_metrics = {
+            'ks_distances': ks_distances,
+            'corr_distances': corr_distances,
+            'emd_distances': emd_distances
+        }
 
         return stop_metrics
