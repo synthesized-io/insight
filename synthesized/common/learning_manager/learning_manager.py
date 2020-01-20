@@ -188,6 +188,9 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
+        if len(synthesizer.get_conditions()) > 0:
+            raise NotImplementedError
+
         sample_size = min(sample_size, len(df_train)) if sample_size else len(df_train)
         column_names = [col for v in synthesizer.get_values() for col in v.learned_input_columns()]
         if len(column_names) == 0:
