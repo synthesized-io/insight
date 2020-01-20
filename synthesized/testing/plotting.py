@@ -223,8 +223,8 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                         col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
                         plot_distances: bool = False, show_distribution_distances: bool = False,
                         show_distributions: bool = False, show_correlation_distances: bool = False,
-                        show_correlation_matrix: bool = False, show_anova: bool = False,
-                        show_cat_rsquared: bool = False):
+                        show_correlation_matrix: bool = False, show_emd_distances: bool = False,
+                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False):
     """
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
@@ -301,8 +301,16 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
             plt.show()
+        if show_emd_distances:
+            display(Markdown("## Show EMD distances"))
+            testing.show_emd_distances()
+            plt.show()
+        if show_pw_mi_distances:
+            display(Markdown("## Show Pairwise Mutual Information distances"))
+            testing.show_mutual_information()
+            plt.show()
         if show_anova:
-            display(Markdown("## Show correlation matrices"))
+            display(Markdown("## Show ANOVA"))
             testing.show_anova()
             plt.show()
         if show_cat_rsquared:
