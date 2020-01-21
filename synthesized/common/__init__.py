@@ -14,5 +14,6 @@ from .values import identify_rules, Value, ValueFactory
 
 __all__ = [
     'Synthesizer', 'Module', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
-    'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value', 'ValueFactory'
+    'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value',
+    'ValueFactory'
 ]
