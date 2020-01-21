@@ -29,7 +29,7 @@ from ..common.values import DateValue
 from ..common.values import SamplingValue
 from ..common.values import NanValue
 from ..common.values import Value
-from ..synthesizer import Synthesizer
+from ..common.synthesizer import Synthesizer
 from ..testing.util import categorical_emd
 from ..testing import metrics as eval_metrics
 

@@ -7,7 +7,8 @@ from typing import Callable, Union, List, Optional
 import pandas as pd
 import tensorflow as tf
 
-from .common import Module, Value
+from .module import Module
+from .values import Value
 
 
 def _check_license():

@@ -1,3 +1,4 @@
+from .synthesizer import Synthesizer
 from .module import Module, tensorflow_name_scoped
 from .conditional import ConditionalSampler
 from .distributions import Distribution
@@ -12,6 +13,6 @@ from .values import identify_rules, Value, ValueFactory
 
 
 __all__ = [
-    'Module', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional', 'Generative',
-    'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value', 'ValueFactory'
+    'Synthesizer', 'Module', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
+    'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value', 'ValueFactory'
 ]

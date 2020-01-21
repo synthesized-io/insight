@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Distribution, Functional, Module, Value
-from ..synthesizer import Synthesizer
+from ..common.synthesizer import Synthesizer
 
 
 class ScenarioSynthesizer(Synthesizer):

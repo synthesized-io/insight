@@ -7,13 +7,12 @@ from typing import Any, Dict, Tuple, Union, Callable, List, Optional
 import numpy as np
 import pandas as pd
 
-from ...common.values import ContinuousValue, CategoricalValue, NanValue
-from ...synthesizer import Synthesizer
+from ..values import ContinuousValue, CategoricalValue, NanValue
+from ..synthesizer import Synthesizer
 
 
 class ConditionalSampler(Synthesizer):
-    """
-    Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
+    """Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
 
     Example:
         >>> cond = ConditionalSampler(synthesizer, ('SeriousDlqin2yrs', {'0': 0.3, '1': 0.7}),

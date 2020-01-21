@@ -6,7 +6,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Value, ValueFactory
-from ..synthesizer import Synthesizer
+from ..common.synthesizer import Synthesizer
 
 
 class SeriesSynthesizer(Synthesizer, ValueFactory):

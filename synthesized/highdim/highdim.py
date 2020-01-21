@@ -12,7 +12,7 @@ from ..common import identify_rules, Value, ValueFactory
 from ..common.learning_manager import LearningManager
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
-from ..synthesizer import Synthesizer
+from ..common.synthesizer import Synthesizer
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)

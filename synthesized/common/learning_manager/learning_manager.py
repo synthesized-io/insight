@@ -5,7 +5,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-from ...synthesizer import Synthesizer
+from ...common.synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
