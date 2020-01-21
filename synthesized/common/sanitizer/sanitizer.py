@@ -3,7 +3,7 @@ import logging
 
 import pandas as pd
 
-from ...common.synthesizer import Synthesizer
+from ..synthesizer import Synthesizer
 
 logger = logging.getLogger(__name__)
 
