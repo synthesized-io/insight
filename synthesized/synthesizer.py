@@ -2,9 +2,10 @@
 import base64
 from datetime import datetime
 import os
-from typing import Callable, Union, List
+from typing import Callable, Union, List, Optional
 
 import pandas as pd
+import tensorflow as tf
 
 from .common import Module, Value
 
@@ -55,6 +56,12 @@ class Synthesizer(Module):
     def get_conditions(self) -> List[Value]:
         raise NotImplementedError()
 
+    def get_losses(self) -> tf.Tensor:
+        raise NotImplementedError()
+
+    def preprocess(self, df):
+        return df
+
     @staticmethod
     def logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
@@ -62,14 +69,15 @@ class Synthesizer(Module):
         return False
 
     def learn(
-        self, num_iterations: int, df_train: pd.DataFrame, callback: Callable[[object, int, dict], bool] = logging,
-        callback_freq: int = 0
+        self, df_train: pd.DataFrame, num_iterations: Optional[int],
+        callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
         Repeated calls continue training the model, possibly on different data.
 
         Args:
+            df_train: The training data.
             num_iterations: The number of training iterations (not epochs).
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
                 instance, the iteration number, and a dictionary of values (usually the losses) as

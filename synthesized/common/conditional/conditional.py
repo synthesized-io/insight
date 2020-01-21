@@ -2,7 +2,7 @@ import re
 from abc import ABC
 from collections import Counter
 from itertools import product
-from typing import Any, Dict, Tuple, Union, Callable, List
+from typing import Any, Dict, Tuple, Union, Callable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -57,7 +57,7 @@ class ConditionalSampler(Synthesizer):
         self.joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         self.min_sampled_ratio = min_sampled_ratio
 
-    def learn(self, num_iterations: int, df_train: pd.DataFrame,
+    def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq

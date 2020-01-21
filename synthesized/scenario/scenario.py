@@ -1,6 +1,6 @@
 """This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Dict, Any, Union
+from typing import Callable, List, Dict, Any, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -27,6 +27,8 @@ class ScenarioSynthesizer(Synthesizer):
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
+        # Batch size
+        batch_size: int = 1024,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, weight_decay: float = 0.0
     ):
@@ -92,6 +94,7 @@ class ScenarioSynthesizer(Synthesizer):
         # Prior distribution p'(z)
         self.distribution = distribution
         self.latent_size = latent_size
+        self.batch_size = batch_size
 
         # Decoder: parametrized distribution p(y|z)
         parametrization = dict(
@@ -201,7 +204,7 @@ class ScenarioSynthesizer(Synthesizer):
             self.optimized = self.global_step.assign_add(delta=1)
 
     def learn(
-        self, num_iterations: int, num_samples=1024,
+        self, df_train: pd.DataFrame = None, num_iterations: Optional[int] = None,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -210,6 +213,7 @@ class ScenarioSynthesizer(Synthesizer):
         Repeated calls continue training the model, possibly on different data.
 
         Args:
+            df_train: The training data, not used for ScenarioSynthesizer.
             num_iterations: The number of training iterations (not epochs).
             num_samples: The number of samples for which the loss is computed.
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
@@ -218,9 +222,12 @@ class ScenarioSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
+        if num_iterations is None:
+            raise NotImplementedError
+
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
-        feed_dict = {self.num_rows: num_samples}
+        feed_dict = {self.num_rows: np.array(self.batch_size)}
 
         for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (

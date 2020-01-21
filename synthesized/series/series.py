@@ -1,5 +1,5 @@
 """This module implements the SeriesSynthesizer class."""
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -156,7 +156,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
         self.synthesized = self.vae.synthesize(n=self.num_synthesize)
 
     def learn(
-        self, num_iterations: int, data: pd.DataFrame,
+        self, data: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -173,6 +173,9 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
             callback_freq: Callback frequency.
 
         """
+        if num_iterations is None:
+            raise NotImplementedError
+
         data = data.copy()
         for value in self.values:
             data = value.preprocess(df=data)

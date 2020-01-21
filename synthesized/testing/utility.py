@@ -29,10 +29,9 @@ from ..common.values import DateValue
 from ..common.values import SamplingValue
 from ..common.values import NanValue
 from ..common.values import Value
-from ..highdim import HighDimSynthesizer
+from ..synthesizer import Synthesizer
 from ..testing.util import categorical_emd
-
-from synthesized.testing import metrics as eval_metrics
+from ..testing import metrics as eval_metrics
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'
@@ -50,7 +49,7 @@ class UtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
     def __init__(self,
-                 synthesizer: HighDimSynthesizer,
+                 synthesizer: Synthesizer,
                  df_orig: pd.DataFrame,
                  df_test: pd.DataFrame,
                  df_synth: pd.DataFrame):
@@ -71,7 +70,7 @@ class UtilityTesting:
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
 
         self.display_types: Dict[str, DisplayType] = {}
-        for value in synthesizer.values:
+        for value in synthesizer.get_values():
             if isinstance(value, NanValue):
                 value = value.value
 
@@ -84,7 +83,7 @@ class UtilityTesting:
             elif isinstance(value, CategoricalValue):
                 self.display_types[value.name] = DisplayType.CATEGORICAL
         self.value_by_name: Dict[str, Value] = {}
-        for v in synthesizer.values:
+        for v in synthesizer.get_values():
             self.value_by_name[v.name] = v
 
         # Set the style of plots

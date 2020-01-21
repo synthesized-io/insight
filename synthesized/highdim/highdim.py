@@ -262,16 +262,20 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
-        check_frequency = int(1e4 / np.sqrt(self.batch_size))
-        self.learning_manager_sample_size = 50_000
-        self.use_vae_loss = False
-        self.learning_manager = LearningManager(check_frequency=check_frequency) if learning_manager else None
+        self.learning_manager: Optional[LearningManager] = None
+        if learning_manager:
+            self.use_vae_loss = True
+            self.learning_manager = LearningManager()
+            self.learning_manager.set_check_frequency(self.batch_size)
 
     def get_values(self) -> List[Value]:
         return self.values
 
     def get_conditions(self) -> List[Value]:
         return self.conditions
+
+    def get_losses(self) -> tf.Tensor:
+        return self.losses
 
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
@@ -304,7 +308,6 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         return spec
 
     def preprocess(self, df):
-        # TODO: temporary for evaluation notebook!
         df = df.copy()
         for value in (self.values + self.conditions):
             df = value.preprocess(df=df)
@@ -342,7 +345,7 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         self.synthesized = self.vae.synthesize(n=self.num_rows, cs=cs)
 
     def learn(
-        self, num_iterations: Optional[int], df_train: pd.DataFrame,
+        self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -351,8 +354,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         Repeated calls continue training the model, possibly on different data.
 
         Args:
-            num_iterations: The number of training iterations (not epochs).
             df_train: The training data.
+            num_iterations: The number of training iterations (not epochs).
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
                 instance, the iteration number, and a dictionary of values (usually the losses) as
                 arguments. Aborts training if the return value is True.
@@ -395,26 +398,12 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-            # Use VAE loss as stopping criteria
-            if self.learning_manager and iteration % self.learning_manager.check_frequency == 0:
-                if self.use_vae_loss:
-                    batch_valid = np.random.randint(num_data, size=self.learning_manager_sample_size)
-                    feed_dict_valid = {placeholder: value_data[batch_valid] for placeholder, value_data in data.items()}
-                    losses = self.run(fetches=self.losses, feed_dict=feed_dict_valid)
-                    losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
-                    if self.learning_manager.stop_learning_check_metric(iteration, losses):
-                        break
-                else:
-                    if self.learning_manager.stop_learning(
-                            iteration, synthesizer=self, df_train=df_train_orig,
-                            sample_size=self.learning_manager_sample_size
-                    ):
-                        break
+            if self.learning_manager:
+                if self.learning_manager.stop_learning(iteration, synthesizer=self, use_vae_loss=self.use_vae_loss,
+                                                       data_dict=data, num_data=num_data, df_train_orig=df_train_orig):
+                    break
 
-            iteration += 1
-            if num_iterations:
-                keep_learning = iteration < num_iterations
-
+            # Increase batch size
             if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                     iteration % self.increase_batch_size_every == 0:
                 self.batch_size *= 2
@@ -423,18 +412,13 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
                 if self.batch_size == self.max_batch_size:
                     logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                 if self.learning_manager:
-                    self.learning_manager.check_frequency = int(10_000 / self.batch_size)
+                    self.learning_manager.set_check_frequency(self.batch_size)
                 logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
             # Increment iteration number, and check if we reached max num_iterations
             iteration += 1
             if num_iterations:
                 keep_learning = iteration < num_iterations
-
-            # if self.learning_manager and self.learning_manager.stop_learning(
-            #         iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
-            # ):
-            #     break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
