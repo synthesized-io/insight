@@ -301,13 +301,16 @@ class UtilityTesting:
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
 
                 emd_distance = categorical_emd(col_test, col_synth)
-                title += '(EMD Dist={:.3f})'.format(emd_distance)
+                title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(col_test, percentiles)
                 if start == end:
                     start, end = min(col_test), max(col_test)
+
+                # In case the synthesized data has overflown and has much different domain
+                col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
 
                 # workaround for kde failing on datasets with only one value
                 if col_test.nunique() < 2 or col_synth.nunique() < 2:
@@ -316,12 +319,11 @@ class UtilityTesting:
                     kde = True
                 sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde,
-                             kde_kws={'clip': (start, end)},
+                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
 
                 ks_distance = ks_2samp(col_test, col_synth)[0]
-                title += '(KS Dist={:.3f})'.format(ks_distance)
+                title += ' (KS Dist={:.3f})'.format(ks_distance)
 
             ax.set_title(title)
             plt.legend()
