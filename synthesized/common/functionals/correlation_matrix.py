@@ -43,7 +43,7 @@ class CorrelationMatrixFunctional(Functional):
         variances_x = tf.expand_dims(input=variances, axis=1)
         variances_y = tf.expand_dims(input=variances, axis=0)
         correlation_matrix = covariance_matrix / tf.sqrt(x=variances_x) / tf.sqrt(x=variances_y)
-        loss = tf.squared_difference(x=correlation_matrix, y=self.correlation_matrix)
+        loss = tf.math.squared_difference(x=correlation_matrix, y=self.correlation_matrix)
         # loss = tf.Print(loss, (correlation_matrix,), summarize=9)
         loss = tf.reduce_mean(input_tensor=loss, axis=(0, 1))
         return loss

@@ -33,7 +33,7 @@ class ProbabilitiesFunctional(Functional):
         _, _, counts = tf.unique_with_counts(x=samples)
         counts = counts - 1
         probs = tf.cast(x=counts, dtype=tf.float32) / tf.cast(x=num_samples, dtype=tf.float32)
-        loss = tf.squared_difference(x=probs, y=self.probabilities)
+        loss = tf.math.squared_difference(x=probs, y=self.probabilities)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 

@@ -173,8 +173,8 @@ class CategoricalValue(Value):
             with tf.control_dependencies(control_inputs=(update,)):
                 frequency = self.moving_average.average(var=frequency)
                 frequency = tf.nn.embedding_lookup(
-                    params=frequency, ids=target, partition_strategy='mod', validate_indices=True,
-                    max_norm=None, name='frequency'
+                    params=frequency, ids=target, max_norm=None,
+                    name='frequency'
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
@@ -189,7 +189,7 @@ class CategoricalValue(Value):
             indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=1,
             dtype=tf.float32
         )
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=target, logits=y, axis=1)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
 
         return loss
@@ -209,7 +209,7 @@ class CategoricalValue(Value):
         _, _, counts = tf.unique_with_counts(x=samples)
         counts = counts - 1
         probs = tf.cast(x=counts, dtype=tf.float32) / tf.cast(x=num_samples, dtype=tf.float32)
-        loss = tf.squared_difference(x=probs, y=self.probabilities)
+        loss = tf.math.squared_difference(x=probs, y=self.probabilities)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 

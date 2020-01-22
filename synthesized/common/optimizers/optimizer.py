@@ -62,13 +62,13 @@ class Optimizer(Module):
             # Exponentially decaying learning rate
             if self.decay_rate is None:
                 raise NotImplementedError
-            learning_rate = tf.train.exponential_decay(
+            learning_rate = tf.compat.v1.train.exponential_decay(
                 learning_rate=self.learning_rate, global_step=self.global_step,
                 decay_steps=self.decay_steps, decay_rate=self.decay_rate, staircase=False
             )
 
         if self.initial_boost > 0:
-            learning_rate = tf.where(
+            learning_rate = tf.compat.v1.where(
                 condition=tf.math.less(x=self.global_step, y=self.initial_boost),
                 x=(10.0 * learning_rate), y=learning_rate
             )
@@ -116,19 +116,19 @@ class Optimizer(Module):
         if summarize_gradient_norms:
             # Summarize gradient norms
             for grad, var in zip(gradients, variables):
-                summaries.append(tf.contrib.summary.scalar(
+                summaries.append(tf.compat.v2.summary.scalar(
                     name=(var.name[:var.name.index(':')] + '-gradient-norm'),
-                    tensor=tf.norm(tensor=grad, ord='euclidean')
-                ))
+                    data=tf.norm(tensor=grad, ord='euclidean')
+                , step=tf.compat.v1.train.get_or_create_global_step()))
             if self.clip_gradients is not None:
                 # Add global gradient norm if clipping
                 summaries.append(
-                    tf.contrib.summary.scalar(name='all-gradient-norm', tensor=grad_norm)
+                    tf.compat.v2.summary.scalar(name='all-gradient-norm', data=grad_norm, step=tf.compat.v1.train.get_or_create_global_step())
                 )
 
         if summarize_lr:
             summaries.append(
-                tf.contrib.summary.scalar(name='learning-rate', tensor=self.optimizer._lr)
+                tf.compat.v2.summary.scalar(name='learning-rate', data=self.optimizer._lr, step=tf.compat.v1.train.get_or_create_global_step())
             )
 
         # Make sure summary operations are executed

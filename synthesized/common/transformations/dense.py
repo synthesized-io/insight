@@ -70,7 +70,7 @@ class DenseTransformation(Transformation):
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
         if self.batchnorm:
-            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keep_dims=False)
+            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keepdims=False)
             x = tf.nn.batch_normalization(
                 x=x, mean=mean, variance=variance, offset=self.offset,
                 scale=tf.nn.softplus(features=self.scale), variance_epsilon=1e-6

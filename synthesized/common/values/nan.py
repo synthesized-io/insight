@@ -45,10 +45,12 @@ class NanValue(Value):
         return spec
 
     def learned_input_columns(self):
-        yield from self.value.learned_input_columns()
+        for column in self.value.learned_input_columns():
+            yield column
 
     def learned_output_columns(self):
-        yield from self.value.learned_output_columns()
+        for column in self.value.learned_output_columns():
+            yield column
 
     def learned_input_size(self):
         return self.embedding_size + self.value.learned_input_size()
@@ -116,7 +118,7 @@ class NanValue(Value):
         x = self.value.unify_inputs(xs=xs)
 
         # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
-        x = tf.where(condition=nan, x=tf.zeros_like(tensor=x), y=x)
+        x = tf.compat.v1.where(condition=nan, x=tf.zeros_like(input=x), y=x)
 
         # Concatenate NaN embedding and wrapped value
         x = tf.concat(values=(embedding, x), axis=1)
@@ -134,7 +136,7 @@ class NanValue(Value):
         if self.produce_nans:
             # Replace wrapped value with NaNs
             for n, y in enumerate(ys):
-                ys[n] = tf.where(condition=nan, x=(y * np.nan), y=y)
+                ys[n] = tf.compat.v1.where(condition=nan, x=(y * np.nan), y=y)
 
         return ys
 
@@ -146,7 +148,7 @@ class NanValue(Value):
             indices=tf.cast(x=target_nan, dtype=tf.int64), depth=2, on_value=1.0, off_value=0.0,
             axis=1, dtype=tf.float32
         )
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+        loss = tf.nn.softmax_cross_entropy_with_logits(
             labels=target_embedding, logits=y[:, :2], axis=1
         )
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)

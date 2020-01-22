@@ -88,8 +88,7 @@ class IdentifierValue(Value):
         )
         with tf.control_dependencies(control_inputs=(assignment,)):
             x = tf.nn.embedding_lookup(
-                params=self.embeddings, ids=x, partition_strategy='mod', validate_indices=True,
-                max_norm=None
+                params=self.embeddings, ids=x, max_norm=None
             )
         return [x]
 
@@ -112,11 +111,11 @@ class IdentifierValue(Value):
 
     @tensorflow_name_scoped
     def random_value(self, n):
-        identifier = tf.random_uniform(
+        identifier = tf.random.uniform(
             shape=(n,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
         )
         x = tf.nn.embedding_lookup(
-            params=self.embeddings, ids=identifier, partition_strategy='mod',
-            validate_indices=True, max_norm=None
+            params=self.embeddings, ids=identifier,
+            max_norm=None
         )
         return identifier, x

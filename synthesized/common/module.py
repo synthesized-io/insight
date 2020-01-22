@@ -25,6 +25,7 @@ class Module(object):
         self.submodules: List[Module] = list()
         self.initialized: bool = False
         self.global_step: Optional[tf.Tensor] = None
+        tf.compat.v1.disable_eager_execution()
 
     def specification(self):
         return dict(name=self.name)
@@ -91,23 +92,23 @@ class Module(object):
                             shutil.rmtree(subdir)
                         else:
                             os.remove(subdir)
-                with tf.name_scope(name='summarizer'):
+                with tf.compat.v1.name_scope(name='summarizer'):
 
                     if self.summarizer_name:
                         self.summarizer_name = '{}_{}'.format(self.summarizer_name, time.strftime("%Y%m%d-%H%M%S"))
                     else:
                         self.summarizer_name = time.strftime("%Y%m%d-%H%M%S")
 
-                    self.summarizer = tf.contrib.summary.create_file_writer(
+                    self.summarizer = tf.compat.v2.summary.create_file_writer(
                         logdir=os.path.join(self.summarizer_dir, self.summarizer_name),
                         max_queue=None, flush_millis=10000, filename_suffix=None
                     )
 
                 # tf.contrib.summary.record_summaries_every_n_global_steps(n=100, global_step=None)
-                with self.summarizer.as_default(), tf.contrib.summary.always_record_summaries():
+                with self.summarizer.as_default(), tf.compat.v2.summary.record_if(True):
                     self.initialize()
 
-                    with tf.name_scope(name='initialization', default_name=None, values=None):
+                    with tf.compat.v1.name_scope(name='initialization', default_name=None, values=None):
                         summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
                         assert len(summarizer_init) == 1
                         initialization = (tf.compat.v1.global_variables_initializer(), summarizer_init[0])
@@ -115,7 +116,7 @@ class Module(object):
                         graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
                         graph_str = tf.constant(
                             value=graph_def.SerializeToString(), dtype=tf.string, shape=(),
-                            verify_shape=False
+                            verify_shape_is_now_always_true=False
                         )
                         graph_summary = tf.contrib.summary.graph(
                             param=graph_str, step=self.global_step
@@ -172,7 +173,7 @@ def tensorflow_name_scoped(tf_function):
     @wraps(tf_function)
     def function(self, *args, **kwargs):
         name = "{}.{}".format(self.name, tf_function.__name__)
-        with tf.name_scope(name=make_tf_compatible(name)):
+        with tf.compat.v1.name_scope(name=make_tf_compatible(name)):
             results = tf_function(self, *args, **kwargs)
         return results
 

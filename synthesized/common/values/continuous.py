@@ -250,7 +250,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(concentration=shape, rate=1.0)
-            samples = tf.where(
+            samples = tf.compat.v1.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = (samples - location) / scale
@@ -261,7 +261,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(location=location, scale=scale)
-            samples = tf.where(
+            samples = tf.compat.v1.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = distribution.cdf(value=samples)
@@ -271,7 +271,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(loc=log(scale), scale=scale)
-            samples = tf.where(
+            samples = tf.compat.v1.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = samples - location
@@ -282,7 +282,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS['gamma'][1]
             assert distribution_class is not None
             distribution = distribution_class(concentration=shape, rate=1.0)
-            samples = tf.where(
+            samples = tf.compat.v1.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = (samples - location) / scale
@@ -290,15 +290,15 @@ class ContinuousValue(Value):
         else:
             assert False
 
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
         normal_distribution = tfd.Normal(loc=0.0, scale=1.0)
         samples = normal_distribution.quantile(value=samples)
-        samples = tf.boolean_mask(tensor=samples, mask=tf.is_finite(x=samples))
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.is_finite(x=samples))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
 
         mean, variance = tf.nn.moments(x=samples, axes=0)
-        mean_loss = tf.squared_difference(x=mean, y=0.0)
-        variance_loss = tf.squared_difference(x=variance, y=1.0)
+        mean_loss = tf.math.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.math.squared_difference(x=variance, y=1.0)
 
         mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
         difference = samples - mean
@@ -312,7 +312,7 @@ class ContinuousValue(Value):
         # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
         #     0.25 * tf.square(x=(kurtosis - 3.0)))
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
-        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        jarque_bera_loss = tf.math.squared_difference(x=jarque_bera, y=0.0)
         loss = mean_loss + variance_loss + jarque_bera_loss
 
         return loss

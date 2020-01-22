@@ -10,17 +10,17 @@ from synthesized.common.transformations.resnet import ResnetTransformation
 
 def _test_transformation(transformation, modulation=False):
     assert isinstance(transformation.specification(), dict)
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     transformation.initialize()
     if modulation:
-        transform_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
-        condition_input = tf.placeholder(dtype=tf.float32, shape=(None, 6))
+        transform_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 8))
+        condition_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 6))
         transform_output = transformation.transform(x=transform_input, condition=condition_input)
     else:
-        transform_input = tf.placeholder(dtype=tf.float32, shape=(None, 8))
+        transform_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 8))
         transform_output = transformation.transform(x=transform_input)
-    initialize = tf.global_variables_initializer()
-    with tf.Session() as session:
+    initialize = tf.compat.v1.global_variables_initializer()
+    with tf.compat.v1.Session() as session:
         session.run(fetches=initialize)
         if modulation:
             transformed = session.run(

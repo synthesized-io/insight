@@ -7,7 +7,7 @@ from synthesized.common.values import CategoricalValue, ContinuousValue
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     assert isinstance(value.specification(), dict)
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     value.initialize()
     feed_dict = {value.placeholder: x}
     input_tensor_output = value.input_tensors()
@@ -16,12 +16,12 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
         output_tensors_output = value.output_tensors(y=unified_tensor_output)
         loss_output = value.loss(y=unified_tensor_output, xs=input_tensor_output)
     else:
-        output_input = tf.placeholder(dtype=tf.float32, shape=(None, value.learned_output_size()))
+        output_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, value.learned_output_size()))
         feed_dict[output_input] = y
         output_tensors_output = value.output_tensors(y=output_input)
         loss_output = value.loss(y=output_input, xs=[x])
-    initialize = tf.global_variables_initializer()
-    with tf.Session() as session:
+    initialize = tf.compat.v1.global_variables_initializer()
+    with tf.compat.v1.Session() as session:
         session.run(fetches=initialize)
         input_tensor = session.run(fetches=input_tensor_output[0], feed_dict=feed_dict)
         assert input_tensor.shape == (4,)

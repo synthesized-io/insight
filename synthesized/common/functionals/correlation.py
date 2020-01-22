@@ -31,7 +31,7 @@ class CorrelationFunctional(Functional):
         mean2 = tf.stop_gradient(input=mean2)
         covariance = tf.reduce_mean(input_tensor=((samples1 - mean1) * (samples2 - mean2)), axis=0)
         correlation = covariance / tf.sqrt(x=variance1) / tf.sqrt(x=variance2)
-        loss = tf.squared_difference(x=correlation, y=self.correlation)
+        loss = tf.math.squared_difference(x=correlation, y=self.correlation)
         return loss
 
     def check_distance(self, samples1, samples2):

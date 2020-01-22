@@ -26,7 +26,7 @@ class MeanFunctional(Functional):
     @tensorflow_name_scoped
     def loss(self, samples):
         mean = tf.reduce_mean(input_tensor=samples, axis=0)
-        loss = tf.squared_difference(x=mean, y=self.mean)
+        loss = tf.math.squared_difference(x=mean, y=self.mean)
         return loss
 
     def check_distance(self, samples):

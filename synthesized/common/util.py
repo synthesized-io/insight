@@ -28,8 +28,8 @@ class Profiler:
 
     @staticmethod
     def get_options_and_metadata():
-        options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
+        options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+        run_metadata = tf.compat.v1.RunMetadata()
         return options, run_metadata
 
     def read_trace(self, run_metadata):
@@ -46,21 +46,21 @@ class Profiler:
 
 def get_initializer(initializer):
     if initializer == 'normal':
-        return tf.random_normal_initializer(mean=0.0, stddev=1e-2)
+        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1e-2)
     elif initializer == 'normal-small':
-        return tf.random_normal_initializer(mean=0.0, stddev=1e-3)
+        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1e-3)
     elif initializer == 'normal-large':
-        return tf.random_normal_initializer(mean=0.0, stddev=1.0)
+        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1.0)
     elif initializer == 'glorot-normal':
-        return tf.glorot_normal_initializer()
+        return tf.compat.v1.glorot_normal_initializer()
     elif initializer == 'orthogonal':
-        return tf.orthogonal_initializer(gain=1.0)
+        return tf.compat.v1.orthogonal_initializer(gain=1.0)
     elif initializer == 'orthogonal-small':
-        return tf.orthogonal_initializer(gain=1e-2)
+        return tf.compat.v1.orthogonal_initializer(gain=1e-2)
     elif initializer == 'ones':
-        return tf.ones_initializer()
+        return tf.compat.v1.ones_initializer()
     elif initializer == 'zeros':
-        return tf.zeros_initializer()
+        return tf.compat.v1.zeros_initializer()
 
     else:
         raise NotImplementedError
@@ -71,7 +71,7 @@ def get_regularizer(regularizer, weight):
     if regularizer == 'none' or weight == 0.0:
         return tf.compat.v1.no_regularizer
     elif regularizer == 'l2':
-        return tf.contrib.layers.l2_regularizer(scale=weight, scope=None)
+        return tf.keras.regularizers.l2(l=0.5 * (weight))
     else:
         raise NotImplementedError
 
