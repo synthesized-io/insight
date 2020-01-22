@@ -118,17 +118,17 @@ class Optimizer(Module):
             for grad, var in zip(gradients, variables):
                 summaries.append(tf.compat.v2.summary.scalar(
                     name=(var.name[:var.name.index(':')] + '-gradient-norm'),
-                    data=tf.norm(tensor=grad, ord='euclidean')
-                , step=tf.compat.v1.train.get_or_create_global_step()))
+                    data=tf.norm(tensor=grad, ord='euclidean'), step=self.step
+                ))
             if self.clip_gradients is not None:
                 # Add global gradient norm if clipping
                 summaries.append(
-                    tf.compat.v2.summary.scalar(name='all-gradient-norm', data=grad_norm, step=tf.compat.v1.train.get_or_create_global_step())
+                    tf.compat.v2.summary.scalar(name='all-gradient-norm', data=grad_norm, step=self.global_step)
                 )
 
         if summarize_lr:
             summaries.append(
-                tf.compat.v2.summary.scalar(name='learning-rate', data=self.optimizer._lr, step=tf.compat.v1.train.get_or_create_global_step())
+                tf.compat.v2.summary.scalar(name='learning-rate', data=self.optimizer._lr, step=self.global_step)
             )
 
         # Make sure summary operations are executed

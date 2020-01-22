@@ -219,7 +219,9 @@ class VAEOld(Generative):
             if name != 'total-loss' and name != 'encoding':
                 reconstruction_loss += loss
 
-        summaries.append(tf.compat.v2.summary.scalar(name='reconstruction-loss', data=reconstruction_loss, step=self.global_step))
+        summaries.append(
+            tf.compat.v2.summary.scalar(name='reconstruction-loss', data=reconstruction_loss, step=self.global_step)
+        )
 
         if not self.summarize:
             summaries = list()

@@ -187,7 +187,7 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Loss summaries
         for name, loss in self.losses.items():
-            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=tf.compat.v1.train.get_or_create_global_step()))
+            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=self.global_step))
 
         # Make sure summary operations are executed
         with tf.control_dependencies(control_inputs=summaries):
