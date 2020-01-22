@@ -71,7 +71,7 @@ def get_regularizer(regularizer, weight):
     if regularizer == 'none' or weight == 0.0:
         return tf.compat.v1.no_regularizer
     elif regularizer == 'l2':
-        return tf.keras.regularizers.l2(l=0.5 * (weight))
+        return tf.keras.regularizers.l2(0.5 * (weight))
     else:
         raise NotImplementedError
 
