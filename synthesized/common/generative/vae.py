@@ -129,15 +129,16 @@ class VAE(Generative):
         kldiv = tf.reduce_sum(input_tensor=kldiv, axis=1)
         kldiv = tf.reduce_mean(input_tensor=kldiv, axis=0)
         losses['kl-loss'] = self.beta * kldiv
-        summaries.append(tf.compat.v2.summary.scalar(name='kl-divergence', data=kldiv, step=tf.compat.v1.train.get_or_create_global_step()))
+        summaries.append(tf.compat.v2.summary.scalar(name='kl-divergence', data=kldiv, step=self.global_step))
 
         # Sample z ~ q(z|x)
         z = q.sample()
         summaries.append(tf.compat.v2.summary.image(
             name='latent_space_correlation',
-            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
-        , step=tf.compat.v1.train.get_or_create_global_step()))
-        summaries.append(tf.compat.v2.summary.histogram(name='posterior', data=z, step=tf.compat.v1.train.get_or_create_global_step()))
+            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1)),
+            step=self.global_step
+        ))
+        summaries.append(tf.compat.v2.summary.histogram(name='posterior', data=z, step=self.global_step))
 
         if len(self.conditions) > 0:
             # Condition c
@@ -180,8 +181,8 @@ class VAE(Generative):
                         data=tf.expand_dims(tf.cast(tf.reduce_sum(input_tensor=tf.matmul(
                             tf.expand_dims(y_a, axis=-1),
                             tf.expand_dims(y_b, axis=1)
-                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1)
-                    , step=tf.compat.v1.train.get_or_create_global_step())
+                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1), step=self.global_step
+                    )
                 )
 
         # Regularization loss
@@ -195,7 +196,7 @@ class VAE(Generative):
 
         # Loss summaries
         for name, loss in losses.items():
-            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=tf.compat.v1.train.get_or_create_global_step()))
+            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=self.global_step))
 
         if not self.summarize:
             summaries = list()

@@ -145,13 +145,14 @@ class VAEOld(Generative):
         x, encoding_loss, mean, stddev = self.encoding.encode(x=x)
 
         summaries.extend([
-            tf.compat.v2.summary.histogram(name='mean', data=mean, step=tf.compat.v1.train.get_or_create_global_step()),
-            tf.compat.v2.summary.histogram(name='stddev', data=stddev, step=tf.compat.v1.train.get_or_create_global_step()),
-            tf.compat.v2.summary.histogram(name='posterior_distribution', data=x, step=tf.compat.v1.train.get_or_create_global_step()),
+            tf.compat.v2.summary.histogram(name='mean', data=mean, step=self.global_step),
+            tf.compat.v2.summary.histogram(name='stddev', data=stddev, step=self.global_step),
+            tf.compat.v2.summary.histogram(name='posterior_distribution', data=x, step=self.global_step),
             tf.compat.v2.summary.image(
                 name='latent_space_correlation',
-                data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.latent_size, self.latent_size, 1)))
-            , step=tf.compat.v1.train.get_or_create_global_step())
+                data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.latent_size, self.latent_size, 1))),
+                step=self.global_step
+            )
         ])
 
         if len(self.conditions) > 0:
@@ -196,8 +197,8 @@ class VAEOld(Generative):
                         data=tf.expand_dims(tf.cast(tf.reduce_sum(input_tensor=tf.matmul(
                             tf.expand_dims(y_a, axis=-1),
                             tf.expand_dims(y_b, axis=1)
-                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1)
-                    , step=tf.compat.v1.train.get_or_create_global_step())
+                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1), step=self.global_step
+                    )
                 )
 
         # Regularization loss
@@ -214,11 +215,11 @@ class VAEOld(Generative):
 
         # Loss summaries
         for name, loss in losses.items():
-            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=tf.compat.v1.train.get_or_create_global_step()))
+            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=self.global_step))
             if name != 'total-loss' and name != 'encoding':
                 reconstruction_loss += loss
 
-        summaries.append(tf.compat.v2.summary.scalar(name='reconstruction-loss', data=reconstruction_loss, step=tf.compat.v1.train.get_or_create_global_step()))
+        summaries.append(tf.compat.v2.summary.scalar(name='reconstruction-loss', data=reconstruction_loss, step=self.global_step))
 
         if not self.summarize:
             summaries = list()
