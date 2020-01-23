@@ -85,7 +85,8 @@ class LearningManager:
                                                                  max_to_keep=self.max_to_keep)
 
     def set_check_frequency(self, batch_size: int):
-        self.check_frequency = int(1e4 / np.sqrt(batch_size))
+        self.check_frequency = int(1e3 / np.sqrt(batch_size))
+        logger.info("LearningManager :: check_frequency updated to {}".format(self.check_frequency))
 
     def stop_learning_check_metric(self, iteration: int, stop_metric: Dict[str, List[float]]) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
@@ -112,7 +113,7 @@ class LearningManager:
             logger.error("LearningManager :: Total 'stop_metric' is NaN")
             return False
 
-        logger.debug("LearningManager :: Iteration {}. Current Metric = {:.4f}".format(iteration, total_stop_metric))
+        logger.debug("LearningManager :: Iteration {}. Current stop_metric={:.4f}".format(iteration, total_stop_metric))
 
         if iteration < self.patience:
             return False
@@ -122,22 +123,23 @@ class LearningManager:
             return True
 
         if not self.best_stop_metric or total_stop_metric < self.best_stop_metric - self.tol:
+            logger.info("LearningManager :: New stop_metric minimum {:.4f} found at iteration {} after {}/{} checks "
+                        "without improvement"
+                        .format(total_stop_metric, iteration, self.count_no_improvement, self.n_checks_no_improvement))
             self.best_stop_metric = total_stop_metric
             self.best_iteration = iteration
             self.count_no_improvement = 0
             if self.use_checkpointing:
                 current_checkpoint = self.checkpoint_manager.save()
-                logger.info("LearningManager :: New stop_metric minimum {:.4f} found at iteration {}, saving in '{}'"
-                            .format(total_stop_metric, iteration, current_checkpoint))
                 self.best_checkpoint = current_checkpoint
         else:
             self.count_no_improvement += 1
             if self.count_no_improvement >= self.n_checks_no_improvement:
                 if self.use_checkpointing:
                     logger.info("LearningManager :: The model hasn't improved between iterations {1} and {0}. Restoring"
-                                " model from iteration {1} with 'stop_metric' {2:.4f}".format(iteration,
-                                                                                              self.best_iteration,
-                                                                                              self.best_stop_metric))
+                                " model from iteration {1} with stop_metric={2:.4f}".format(iteration,
+                                                                                            self.best_iteration,
+                                                                                            self.best_stop_metric))
                     # Restore best model and stop learning.
                     self.checkpoint.restore(self.best_checkpoint)
                 else:
@@ -236,6 +238,9 @@ class LearningManager:
         Returns
             bool: True if criteria are met to stop learning.
         """
+        if iteration % self.check_frequency != 0:
+            return False
+
         if use_vae_loss:
             assert data_dict is not None and num_data is not None
             return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict,
