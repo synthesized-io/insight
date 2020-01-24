@@ -1,22 +1,32 @@
+from typing import Optional
+import tensorflow as tf
 from ..module import Module, tensorflow_name_scoped
 
 
-class Transformation(Module):
+class Transformation(tf.keras.layers.Layer):
 
-    def __init__(self, name, input_size, output_size):
-        super().__init__(name=name)
+    def __init__(self, name, input_size, output_size, dtype=tf.float32):
+        super(Transformation, self).__init__(name=name, dtype=dtype)
 
         self.input_size = input_size
         self.output_size = output_size
+        self._output: Optional[tf.Tensor] = None
 
     def specification(self):
-        spec = super().specification()
+        spec = dict(name=self.name)
         spec.update(input_size=self.input_size, output_size=self.output_size)
         return spec
 
     def size(self):
         return self.output_size
 
-    @tensorflow_name_scoped
-    def transform(self, x, *args):
-        raise NotImplementedError
+    def compute_output_shape(self, input_shape):
+        return [None, self.output_size]
+
+    # @tensorflow_name_scoped
+    # def transform(self, x, *args):
+    #     raise NotImplementedError
+
+    @property
+    def output(self):
+        return self._output

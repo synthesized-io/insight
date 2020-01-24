@@ -13,7 +13,7 @@ class DenseTransformation(Transformation):
         self, name, input_size, output_size, bias=True, batchnorm=True, activation='relu',
         weight_decay=0.0
     ):
-        super().__init__(name=name, input_size=input_size, output_size=output_size)
+        super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
 
         self.bias = bias
         self.batchnorm = batchnorm
@@ -28,13 +28,11 @@ class DenseTransformation(Transformation):
         )
         return spec
 
-    def module_initialize(self):
-        super().module_initialize()
-
+    def build(self, input_shape):
         shape = (self.input_size, self.output_size)
         initializer = util.get_initializer(initializer='glorot-normal')
         regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.weight = tf.compat.v1.get_variable(
+        self.weight = self.add_weight(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
             regularizer=regularizer, trainable=True
         )
@@ -42,7 +40,7 @@ class DenseTransformation(Transformation):
         shape = (self.output_size,)
         initializer = util.get_initializer(initializer='zeros')
         if self.bias:
-            self.bias = tf.compat.v1.get_variable(
+            self.bias = self.add_weight(
                 name='bias', shape=shape, dtype=tf.float32, initializer=initializer,
                 regularizer=regularizer, trainable=True
             )
@@ -50,19 +48,20 @@ class DenseTransformation(Transformation):
             self.bias = None
 
         if self.batchnorm:
-            self.offset = tf.compat.v1.get_variable(
+            self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )
-            self.scale = tf.compat.v1.get_variable(
+            self.scale = self.add_weight(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )
 
-    @tensorflow_name_scoped
-    def transform(self, x):
+        self.built = True
+
+    def call(self, inputs, **kwargs):
         x = tf.matmul(
-            a=x, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,
+            a=inputs, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,
             adjoint_b=False, a_is_sparse=False, b_is_sparse=False
         )
 
@@ -88,5 +87,6 @@ class DenseTransformation(Transformation):
         else:
             raise NotImplementedError
 
-        # dropout
+        self._output = x
+
         return x

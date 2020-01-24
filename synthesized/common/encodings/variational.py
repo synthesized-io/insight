@@ -13,14 +13,19 @@ class VariationalEncoding(Encoding):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 
-        self.mean = self.add_module(
-            module=DenseTransformation, name='mean', input_size=self.input_size,
+        self.mean = DenseTransformation(
+            name='mean', input_size=self.input_size,
             output_size=self.encoding_size, batchnorm=False, activation='none'
         )
-        self.stddev = self.add_module(
-            module=DenseTransformation, name='stddev', input_size=self.input_size,
+        self.stddev = DenseTransformation(
+            name='stddev', input_size=self.input_size,
             output_size=self.encoding_size, batchnorm=False, activation='softplus'
         )
+
+    def build(self, input_shape):
+        self.mean.build(input_shape)
+        self.stddev.build(input_shape)
+        self.built = True
 
     def specification(self):
         spec = super().specification()
@@ -30,10 +35,9 @@ class VariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    @tensorflow_name_scoped
-    def encode(self, x, condition=()) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
-        mean = self.mean.transform(x=x)
-        stddev = self.stddev.transform(x=x)
+    def call(self, inputs, condition=()) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+        mean = self.mean(inputs)
+        stddev = self.stddev(inputs)
         x = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
@@ -46,7 +50,9 @@ class VariationalEncoding(Encoding):
         if self.beta is not None:
             encoding_loss *= self.beta
 
-        return x, encoding_loss, mean, stddev
+        self.add_loss(encoding_loss, inputs=inputs)
+
+        return x
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):

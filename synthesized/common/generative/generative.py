@@ -2,11 +2,11 @@ from typing import Dict, List, Tuple
 
 import tensorflow as tf
 
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from ..values import Value
 
 
-class Generative(Module):
+class Generative(tf.Module):
     """Base class for generative models."""
 
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
@@ -14,10 +14,6 @@ class Generative(Module):
 
         self.values = values
         self.conditions = conditions
-
-    def module_initialize(self):
-        super().module_initialize()
-        self.global_step = tf.compat.v1.train.get_global_step()
 
     @tensorflow_name_scoped
     def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
@@ -45,3 +41,7 @@ class Generative(Module):
 
         """
         raise NotImplementedError
+
+    def specification(self):
+        spec = dict(name=self._name)
+        return spec

@@ -159,6 +159,7 @@ class ContinuousValue(Value):
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
+        df[self.name] = df[self.name].astype(np.float32)
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -195,9 +196,6 @@ class ContinuousValue(Value):
 
     def module_initialize(self) -> None:
         super().module_initialize()
-
-        # Input placeholder for value
-        self.placeholder_initialize(dtype=tf.float32, shape=(None,))
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:

@@ -1,4 +1,5 @@
 from .transformation import Transformation
+from .dense import DenseTransformation
 from ..module import tensorflow_name_scoped
 
 
@@ -12,8 +13,8 @@ class MlpTransformation(Transformation):
         self.layers = list()
         previous_size = self.input_size
         for n, layer_size in enumerate(layer_sizes):
-            layer = self.add_module(
-                module='dense', name=('layer' + str(n)), input_size=previous_size,
+            layer = DenseTransformation(
+                name=('layer' + str(n)), input_size=previous_size,
                 output_size=layer_size, batchnorm=batchnorm, activation=activation,
                 weight_decay=weight_decay
             )
@@ -25,9 +26,14 @@ class MlpTransformation(Transformation):
         spec.update(layers=[layer.specification() for layer in self.layers])
         return spec
 
-    @tensorflow_name_scoped
-    def transform(self, x):
+    def build(self, input_shape):
         for layer in self.layers:
-            x = layer.transform(x=x)
+            layer.build(input_shape)
+            input_shape = layer.compute_output_shape(input_shape)
+        self.built = True
 
-        return x
+    def call(self, inputs):
+        for layer in self.layers:
+            inputs = layer(inputs=inputs)
+
+        return inputs

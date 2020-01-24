@@ -45,12 +45,10 @@ class NanValue(Value):
         return spec
 
     def learned_input_columns(self):
-        for column in self.value.learned_input_columns():
-            yield column
+        return self.value.learned_input_columns()
 
     def learned_output_columns(self):
-        for column in self.value.learned_output_columns():
-            yield column
+        return self.value.learned_output_columns()
 
     def learned_input_size(self):
         return self.embedding_size + self.value.learned_input_size()
@@ -64,6 +62,15 @@ class NanValue(Value):
             column = self.value.pd_cast(column)
         df_clean = df[column.notna()]
         self.value.extract(df=df_clean)
+
+        shape = (2, self.embedding_size)
+        initializer = util.get_initializer(initializer='normal')
+        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
+        self.embeddings = tf.compat.v1.get_variable(
+            name='nan-embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
+            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+        )
 
     def preprocess(self, df):
         if df[self.value.name].dtype.kind not in self.value.pd_types:

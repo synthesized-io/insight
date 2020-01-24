@@ -93,6 +93,27 @@ class CategoricalValue(Value):
         if self.embedding_size is None:
             self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
 
+        self.build()
+
+    @tensorflow_name_scoped
+    def build(self):
+        if self.probabilities is not None and not self.similarity_based:
+            # "hack": scenario synthesizer, embeddings not used
+            return
+        shape = (self.num_categories, self.embedding_size)
+        initializer = util.get_initializer(initializer=self.embedding_initialization)
+        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
+
+        self.embeddings = tf.Variable(initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings',
+                                      trainable=True)
+        tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES, regularizer(self.embeddings))
+        tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
+
+        if self.use_moving_average:
+            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
+            self.frequency = tf.Variable(initial_value=np.zeros(shape=(self.num_categories,)), dtype=tf.float32)
+            self.moving_average.apply(var_list=[self.frequency])
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
@@ -113,26 +134,24 @@ class CategoricalValue(Value):
     def module_initialize(self) -> None:
         super().module_initialize()
 
-        # Input placeholder for value
-        self.placeholder_initialize(dtype=tf.int64, shape=(None,))
+        # if self.probabilities is not None and not self.similarity_based:
+        #     # "hack": scenario synthesizer, embeddings not used
+        #     return
+        # shape = (self.num_categories, self.embedding_size)
+        # initializer = util.get_initializer(initializer=self.embedding_initialization)
+        # regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
+        #
+        # self.embeddings = tf.compat.v1.get_variable(
+        #     name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
+        #     regularizer=regularizer, trainable=True
+        # )
+        # tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
+        #
+        # if self.use_moving_average:
+        #     self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
+        #     self.frequency = tf.Variable(initial_value=np.zeros(shape=(self.num_categories,)), dtype=tf.float32)
+        #     self.moving_average.apply(var_list=[self.frequency])
 
-        if self.probabilities is not None and not self.similarity_based:
-            # "hack": scenario synthesizer, embeddings not used
-            return
-        shape = (self.num_categories, self.embedding_size)
-        initializer = util.get_initializer(initializer=self.embedding_initialization)
-        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-
-        self.embeddings = tf.compat.v1.get_variable(
-            name='embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True
-        )
-        tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
-
-        if self.use_moving_average:
-            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
-
-    @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
         return [self.placeholder]
 
@@ -161,17 +180,16 @@ class CategoricalValue(Value):
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 1
         target = xs[0]
-
         if self.moving_average is not None:
             assert self.num_categories is not None
             frequency = tf.concat(values=(np.array(range(self.num_categories)), target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
             frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
-            frequency = frequency - 1
+            frequency = tf.cast(frequency - 1, dtype=tf.float32)
             frequency = frequency / tf.reduce_sum(input_tensor=frequency, axis=0, keepdims=False)
-            update = self.moving_average.apply(var_list=(frequency,))
-            with tf.control_dependencies(control_inputs=(update,)):
-                frequency = self.moving_average.average(var=frequency)
+            with tf.control_dependencies([self.frequency.assign(frequency)]):
+                self.moving_average.apply(var_list=[self.frequency,])
+                frequency = self.moving_average.average(var=self.frequency)
                 frequency = tf.nn.embedding_lookup(
                     params=frequency, ids=target, max_norm=None,
                     name='frequency'
@@ -194,7 +212,6 @@ class CategoricalValue(Value):
 
         return loss
 
-    @tensorflow_name_scoped
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
         assert len(ys) == 1
 

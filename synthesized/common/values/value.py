@@ -3,24 +3,26 @@ from typing import List, Optional, Tuple
 import pandas as pd
 import tensorflow as tf
 
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from ..util import make_tf_compatible
 
 
-class Value(Module):
+class Value(tf.Module):
     def __init__(self, name: str):
-        super().__init__(name=name)
-        self.name = name
+        super().__init__(name=self.__class__.__name__+'_'+make_tf_compatible(name))
+        self._name = name
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
-
-    def placeholder_initialize(self, dtype: tf.DType, shape: Tuple):
-        assert self.placeholder is None
-        self.placeholder = tf.compat.v1.placeholder(
-            dtype=dtype, shape=shape, name=make_tf_compatible(string=self.name)
-        )
+        self.built = False
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()
+
+    @property
+    def name(self):
+        return self._name
+
+    def specification(self):
+        return dict(name=self._name)
 
     def columns(self) -> List[str]:
         """External columns which are covered by this value.
@@ -185,3 +187,6 @@ class Value(Module):
 
         """
         return tf.constant(value=0.0, dtype=tf.float32)
+
+    def build(self) -> None:
+        self.built = True

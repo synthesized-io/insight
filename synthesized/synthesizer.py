@@ -5,8 +5,8 @@ import os
 from typing import Callable, Union, List
 
 import pandas as pd
-
-from .common import Module, Value
+from .common import Value
+import tensorflow as tf
 
 
 def _check_license():
@@ -48,7 +48,7 @@ if not _check_license():
     raise Exception('Failed to load license key')
 
 
-class Synthesizer(Module):
+class Synthesizer(tf.Module):
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
@@ -90,3 +90,9 @@ class Synthesizer(Module):
 
         """
         raise NotImplementedError
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        pass

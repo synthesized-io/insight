@@ -1,5 +1,8 @@
+import tensorflow as tf
+
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
+from .residual import ResidualTransformation
 
 
 class ResnetTransformation(Transformation):
@@ -16,14 +19,12 @@ class ResnetTransformation(Transformation):
 
         for n, layer_size in enumerate(layer_sizes):
             if isinstance(depths, int):
-                layer = self.add_module(
-                    module='residual', name=('layer' + str(n)), input_size=previous_size,
+                layer = ResidualTransformation(name=('ResidualLayer_' + str(n)), input_size=previous_size,
                     output_size=layer_size, depth=depths, batchnorm=batchnorm,
                     activation=activation, weight_decay=weight_decay
                 )
             else:
-                layer = self.add_module(
-                    module='residual', name=('layer' + str(n)), input_size=previous_size,
+                layer = ResidualTransformation(name=('ResidualLayer_' + str(n)), input_size=previous_size,
                     output_size=layer_size, depth=depths[n], batchnorm=batchnorm,
                     activation=activation, weight_decay=weight_decay
                 )
@@ -35,9 +36,14 @@ class ResnetTransformation(Transformation):
         spec.update(layers=[layer.specification() for layer in self.layers])
         return spec
 
-    @tensorflow_name_scoped
-    def transform(self, x):
+    def build(self, input_shape):
         for layer in self.layers:
-            x = layer.transform(x=x)
+            layer.build(input_shape)
+            input_shape = layer.compute_output_shape(input_shape)
+        self.built = True
 
-        return x
+    def call(self, inputs, **kwargs):
+        for layer in self.layers:
+            inputs = layer(inputs)
+
+        return inputs

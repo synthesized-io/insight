@@ -14,7 +14,7 @@ from .sampling import SamplingValue
 from .constant import ConstantValue
 from .value import Value
 from ..module import register
-from .factory import ValueFactory
+from .factory import ValueFactory, TypeOverride
 
 
 register(name='address', module=AddressValue)
@@ -34,4 +34,4 @@ register(name='constant', module=ConstantValue)
 
 __all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
            'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
-           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory']
+           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride']

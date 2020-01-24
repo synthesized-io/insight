@@ -8,7 +8,7 @@ import numpy as np
 from pyemd import emd
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
-RE_END = re.compile(r"[^A-Za-z0-9_.\-/]")
+RE_END = re.compile(r"[^A-Za-z0-9_./]")
 
 ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 
@@ -46,21 +46,21 @@ class Profiler:
 
 def get_initializer(initializer):
     if initializer == 'normal':
-        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1e-2)
+        return tf.keras.initializers.RandomNormal(mean=0.0, stddev=1e-2)
     elif initializer == 'normal-small':
-        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1e-3)
+        return tf.keras.initializers.RandomNormal(mean=0.0, stddev=1e-3)
     elif initializer == 'normal-large':
-        return tf.compat.v1.random_normal_initializer(mean=0.0, stddev=1.0)
+        return tf.keras.initializers.RandomNormal(mean=0.0, stddev=1.0)
     elif initializer == 'glorot-normal':
-        return tf.compat.v1.glorot_normal_initializer()
+        return tf.keras.initializers.glorot_normal()
     elif initializer == 'orthogonal':
-        return tf.compat.v1.orthogonal_initializer(gain=1.0)
+        return tf.keras.initializers.orthogonal(gain=1.0)
     elif initializer == 'orthogonal-small':
-        return tf.compat.v1.orthogonal_initializer(gain=1e-2)
+        return tf.keras.initializers.orthogonal(gain=1e-2)
     elif initializer == 'ones':
-        return tf.compat.v1.ones_initializer()
+        return tf.keras.initializers.ones()
     elif initializer == 'zeros':
-        return tf.compat.v1.zeros_initializer()
+        return tf.keras.initializers.zeros()
 
     else:
         raise NotImplementedError

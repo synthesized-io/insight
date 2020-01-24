@@ -10,30 +10,20 @@ from synthesized.common.transformations.resnet import ResnetTransformation
 
 def _test_transformation(transformation, modulation=False):
     assert isinstance(transformation.specification(), dict)
-    tf.compat.v1.reset_default_graph()
-    transformation.initialize()
     if modulation:
-        transform_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 8))
-        condition_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 6))
-        transform_output = transformation.transform(x=transform_input, condition=condition_input)
+        transform_input = np.random.randn(4, 8).astype(np.float32)
+        condition_input = np.random.randn(4, 6).astype(np.float32)
+        transform_output = transformation(inputs=transform_input, condition=condition_input)
     else:
-        transform_input = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 8))
-        transform_output = transformation.transform(x=transform_input)
-    initialize = tf.compat.v1.global_variables_initializer()
-    with tf.compat.v1.Session() as session:
-        session.run(fetches=initialize)
-        if modulation:
-            transformed = session.run(
-                fetches=transform_output, feed_dict={
-                    transform_input: np.random.randn(4, 8), condition_input: np.random.randn(4, 6)
-                }
-            )
-            assert transformed.shape == (4, 8)
-        else:
-            transformed = session.run(
-                fetches=transform_output, feed_dict={transform_input: np.random.randn(4, 8)}
-            )
-            assert transformed.shape == (4, 6)
+        transform_input = np.random.randn(4, 8).astype(np.float32)
+        transform_output = transformation(inputs=transform_input)
+
+    if modulation:
+        transformed = transform_output
+        assert transformed.shape == (4, 8)
+    else:
+        transformed = transform_output
+        assert transformed.shape == (4, 6)
 
 
 def test_dense():
