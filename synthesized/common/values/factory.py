@@ -40,7 +40,7 @@ class ValueFactory(Module):
         categorical_kwargs['weight_decay'] = self.module.weight_decay
         nan_kwargs['weight_decay'] = self.module.weight_decay
         categorical_kwargs['weight'] = self.module.categorical_weight
-        nan_kwargs['weight'] = self.module.categorical_weight
+        nan_kwargs['weight'] = self.module.nan_weight
         continuous_kwargs['weight'] = self.module.continuous_weight
         categorical_kwargs['temperature'] = self.module.temperature
         categorical_kwargs['moving_average'] = self.module.moving_average

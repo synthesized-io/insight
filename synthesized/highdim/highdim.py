@@ -50,6 +50,8 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
         # Continuous
         continuous_weight: float = 5.0,
+        # Nan
+        nan_weight: float = 1.0,
         # Conditions
         condition_columns: List[str] = None,
         # Person
@@ -171,6 +173,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
 
         # Continuous
         self.continuous_weight = continuous_weight
+
+        # Nan
+        self.nan_weight = nan_weight
 
         # Overall columns
         self.columns = list(df.columns)
