@@ -7,7 +7,7 @@ import tensorflow_probability as tfp
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
-from ..values import Value, CategoricalValue
+from ..values import ValueFactory
 from ..transformations import ResnetTransformation, DenseTransformation
 from ..encodings import VariationalEncoding
 from ..optimizers import Optimizer
@@ -25,7 +25,7 @@ class VAEOld(Generative):
     """
 
     def __init__(
-        self, name: str, values: List[Value], conditions: List[Value],
+        self, name: str, value_factory: ValueFactory,
         # Latent distribution
         distribution: str, latent_size: int, global_step: tf.Variable,
         # Encoder and decoder network
@@ -40,12 +40,14 @@ class VAEOld(Generative):
         weight_decay: float,
         summarize: bool = False, summarize_gradient_norms: bool = False
     ):
-        super().__init__(name=name, values=values, conditions=conditions)
+        super().__init__(name=name, values=value_factory.get_values(), conditions=value_factory.get_conditions())
         self.global_step = global_step
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
         self.summarize_gradient_norms = summarize_gradient_norms
+
+        self.value_factory = value_factory
 
         # Total input and output size of all values
         input_size = 0
@@ -123,103 +125,40 @@ class VAEOld(Generative):
         if len(xs) == 0:
             return dict(), tf.no_op()
 
-        losses: Dict[str, tf.Tensor] = OrderedDict()
-        summaries = list()
-
-        with tf.name_scope("Value_Factory"):
-            # Concatenate input tensors per value
-            x = tf.concat(values=[
-                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                for value in self.values if value.learned_input_size() > 0
-            ], axis=1)
+        x = self.value_factory.unified_inputs(xs)
 
         #################################
-
         x = self.linear_input(x)
         x = self.encoder(x)
-        x = self.encoding(x)
-
-        encoding_loss = tf.identity(self.encoding.losses[0], name='encoding_loss')
-
-        with tf.name_scope("latent_space"):
-            tf.summary.histogram(name='mean', data=self.encoding.mean.output, step=self.global_step),
-            tf.summary.histogram(name='stddev', data=self.encoding.stddev.output, step=self.global_step),
-            tf.summary.histogram(name='posterior_distribution', data=x, step=self.global_step),
-            tf.summary.image(
-                name='latent_space_correlation',
-                data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.latent_size, self.latent_size, 1))),
-                step=self.global_step
-            )
-
-        with tf.name_scope("Conditions_Factory"):
-            if len(self.conditions) > 0:
-                # Condition c
-                c = tf.concat(values=[
-                    value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                    for value in self.conditions
-                ], axis=1)
-
-                # Concatenate z,c
-                x = tf.concat(values=(x, c), axis=1)
-
+        z = self.encoding(x)
+        x = self.value_factory.add_conditions(z, conditions=xs)
         x = self.decoder(x)
         y = self.linear_output(x)
-
         #################################
 
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
-        )
+        # Losses
+        losses = self.value_factory.value_losses(y=y, inputs=xs)
+        encoding_loss = tf.identity(self.encoding.losses[0], name='encoding_loss')
+        reconstruction_loss = tf.identity(losses['reconstruction-loss'], name='reconstruction_loss')
+        regularization_loss = tf.identity(losses['regularization-loss'], name='regularization_loss')
 
-        with tf.name_scope("Value_Losses"):
-            # Reconstruction loss per value
-            for value, y in zip(self.values, ys):
-                losses[value.name + '-loss'] = value.loss(
-                    y=y, xs=[xs[name] for name in value.learned_output_columns()]
-                )
-
-            # Categorical Contingency Plots in tensorboard
-            with tf.name_scope("contingency_plots"):
-                for (value_a, y_a), (value_b, y_b) in combinations(
-                        [(v, tf.one_hot(v.output_tensors(vy)[0], depth=v.num_categories))
-                         for v, vy in zip(self.values, ys) if isinstance(v, CategoricalValue)],
-                        r=2
-                ):
-                    tf.summary.image(
-                        name=f"{value_a.name}_{value_b.name}",
-                        data=tf.expand_dims(tf.cast(tf.reduce_sum(input_tensor=tf.matmul(
-                            tf.expand_dims(y_a, axis=-1),
-                            tf.expand_dims(y_b, axis=1)
-                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1), step=self.global_step
-                    )
-
-            # Regularization loss
-            reg_losses = tf.compat.v1.losses.get_regularization_losses()
-            if len(reg_losses) > 0:
-                regularization_loss = tf.add_n(inputs=reg_losses, name='regularization_loss')
-            else:
-                regularization_loss = tf.constant(0, dtype=tf.float32)
-
-            # Reconstruction loss
-            reconstruction_loss = tf.add_n(inputs=list(losses.values()), name='reconstruction_loss')
-
-        regularization_loss = tf.identity(regularization_loss, name='regularization_loss')
-        reconstruction_loss = tf.identity(reconstruction_loss, name='reconstruction_loss')
-
-        losses['encoding-loss'] = encoding_loss
-        losses['regularization-loss'] = regularization_loss
-        losses['reconstruction-loss'] = reconstruction_loss
-
-        # Total loss
         total_loss = tf.add_n(
             inputs=[encoding_loss, reconstruction_loss, regularization_loss], name='total_loss'
         )
-
+        losses['encoding-loss'] = encoding_loss
         losses['total-loss'] = total_loss
 
-        # Loss summaries
+        # Summaries
+        with tf.name_scope("latent_space"):
+            tf.summary.histogram(name='mean', data=self.encoding.mean.output, step=self.global_step),
+            tf.summary.histogram(name='stddev', data=self.encoding.stddev.output, step=self.global_step),
+            tf.summary.histogram(name='posterior_distribution', data=z, step=self.global_step),
+            tf.summary.image(
+                name='latent_space_correlation',
+                data=tf.abs(tf.reshape(tfp.stats.correlation(z), shape=(1, self.latent_size, self.latent_size, 1))),
+                step=self.global_step
+            )
+
         for name, loss in losses.items():
             tf.summary.scalar(name=name, data=loss, step=self.global_step)
 
@@ -240,7 +179,7 @@ class VAEOld(Generative):
         self.xs = xs
 
         # Optimization step
-        optimized = self.optimizer.optimize(
+        self.optimizer.optimize(
             loss=self.loss, summarize_gradient_norms=self.summarize_gradient_norms, summarize_lr=self.summarize
         )
 

@@ -153,7 +153,7 @@ class HighDimSynthesizer(Synthesizer):
 
         # VAE
         self.vae = VAEOld(
-            name='vae', values=self.get_values(), conditions=self.get_conditions(), global_step=self.global_step,
+            name='vae', value_factory=self.value_factory, global_step=self.global_step,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps, decay_rate=decay_rate,

@@ -22,6 +22,7 @@ from .sampling import SamplingValue
 from .bank_number import BankNumberValue
 from .constant import ConstantValue
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
@@ -256,6 +257,58 @@ class ValueFactory(tf.Module):
 
     def get_conditions(self) -> List[Value]:
         return self.conditions
+
+    @tensorflow_name_scoped
+    def unified_inputs(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        # Concatenate input tensors per value
+        x = tf.concat(values=[
+            value.unify_inputs(xs=[inputs[name] for name in value.learned_input_columns()])
+            for value in self.values if value.learned_input_size() > 0
+        ], axis=1)
+
+        return x
+
+    @tensorflow_name_scoped
+    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, tf.Tensor]) -> tf.Tensor:
+        if len(self.conditions) > 0:
+            # Condition c
+            c = tf.concat(values=[
+                value.unify_inputs(xs=[conditions[name] for name in value.learned_input_columns()])
+                for value in self.conditions
+            ], axis=1)
+
+            # Concatenate z,c
+            x = tf.concat(values=(x, c), axis=1)
+
+        return x
+
+    @tensorflow_name_scoped
+    def value_losses(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # Split output tensors per value
+        ys = tf.split(
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
+        )
+
+        losses: Dict[str, tf.Tensor] = OrderedDict()
+
+        # Reconstruction loss per value
+        for value, y in zip(self.values, ys):
+            losses[value.name + '-loss'] = value.loss(
+                y=y, xs=[inputs[name] for name in value.learned_output_columns()]
+            )
+
+        # Regularization loss
+        reg_losses = tf.compat.v1.losses.get_regularization_losses()
+        if len(reg_losses) > 0:
+            losses['regularization-loss'] = tf.add_n(inputs=reg_losses, name='regularization_loss')
+        else:
+            losses['regularization-loss'] = tf.constant(0, dtype=tf.float32)
+
+        # Reconstruction loss
+        losses['reconstruction-loss'] = tf.add_n(inputs=list(losses.values()), name='reconstruction_loss')
+
+        return losses
 
     def get_column_names(self) -> List[str]:
         columns = [
