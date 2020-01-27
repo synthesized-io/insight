@@ -29,10 +29,9 @@ from ..common.values import DateValue
 from ..common.values import SamplingValue
 from ..common.values import NanValue
 from ..common.values import Value
-from ..highdim import HighDimSynthesizer
+from ..common.synthesizer import Synthesizer
 from ..testing.util import categorical_emd
-
-from synthesized.testing import metrics as eval_metrics
+from ..testing import metrics as eval_metrics
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'
@@ -50,7 +49,7 @@ class UtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
     def __init__(self,
-                 synthesizer: HighDimSynthesizer,
+                 synthesizer: Synthesizer,
                  df_orig: pd.DataFrame,
                  df_test: pd.DataFrame,
                  df_synth: pd.DataFrame):
@@ -71,7 +70,7 @@ class UtilityTesting:
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
 
         self.display_types: Dict[str, DisplayType] = {}
-        for value in synthesizer.values:
+        for value in synthesizer.get_values():
             if isinstance(value, NanValue):
                 value = value.value
 
@@ -84,7 +83,7 @@ class UtilityTesting:
             elif isinstance(value, CategoricalValue):
                 self.display_types[value.name] = DisplayType.CATEGORICAL
         self.value_by_name: Dict[str, Value] = {}
-        for v in synthesizer.values:
+        for v in synthesizer.get_values():
             self.value_by_name[v.name] = v
 
         # Set the style of plots
@@ -302,13 +301,16 @@ class UtilityTesting:
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
 
                 emd_distance = categorical_emd(col_test, col_synth)
-                title += '(EMD Dist={:.3f})'.format(emd_distance)
+                title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(col_test, percentiles)
                 if start == end:
                     start, end = min(col_test), max(col_test)
+
+                # In case the synthesized data has overflown and has much different domain
+                col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
 
                 # workaround for kde failing on datasets with only one value
                 if col_test.nunique() < 2 or col_synth.nunique() < 2:
@@ -317,12 +319,11 @@ class UtilityTesting:
                     kde = True
                 sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde,
-                             kde_kws={'clip': (start, end)},
+                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws={'clip': (start, end)},
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
 
                 ks_distance = ks_2samp(col_test, col_synth)[0]
-                title += '(KS Dist={:.3f})'.format(ks_distance)
+                title += ' (KS Dist={:.3f})'.format(ks_distance)
 
             ax.set_title(title)
             plt.legend()

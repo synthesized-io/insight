@@ -4,7 +4,7 @@
     "james": {
       "data": "data/credit_with_categoricals.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "SeriousDlqin2yrs",
@@ -13,7 +13,7 @@
     "sweden_motor_insurance": {
       "data": "data/insurance/sweden_motor_insurance/sweden_motor_insurance.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "Payment",
@@ -22,7 +22,7 @@
     "arx": {
       "data": "data/arx_adult.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "salary-class",
@@ -33,7 +33,7 @@
       "ignore_columns": [
         "ID"
       ],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "default payment next month",
@@ -42,7 +42,7 @@
     "sales_pipeline": {
       "data": "data/templates/sales_pipeline.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "Opportunity Result",
@@ -51,7 +51,7 @@
     "segmentation_analysis": {
       "data": "data/templates/segmentation_analysis.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "income",
@@ -60,7 +60,7 @@
     "vitor": {
       "data": "data/vitor.csv",
       "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "treatment",
@@ -69,7 +69,7 @@
     "fraud_detection": {
       "data": "data/fraud_detection_mini.csv",
       "ignore_columns": [],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "fraud",
@@ -78,7 +78,7 @@
     "housing_prices": {
       "data": "data/templates/price_paid_household.csv",
       "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": 10000,
+      "num_iterations": null,
       "num_passes": 1,
       "params": {},
       "target": "Old/New",

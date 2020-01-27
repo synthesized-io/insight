@@ -219,6 +219,7 @@ class VAEOld(Generative):
                 reconstruction_loss += loss
 
         summaries.append(tf.contrib.summary.scalar(name='reconstruction-loss', tensor=reconstruction_loss))
+        losses['reconstruction-loss'] = reconstruction_loss
 
         if not self.summarize:
             summaries = list()
