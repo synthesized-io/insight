@@ -1,7 +1,4 @@
-import tensorflow as tf
-
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
 from .residual import ResidualTransformation
 
 
@@ -19,14 +16,14 @@ class ResnetTransformation(Transformation):
 
         for n, layer_size in enumerate(layer_sizes):
             if isinstance(depths, int):
-                layer = ResidualTransformation(name=('ResidualLayer_' + str(n)), input_size=previous_size,
-                    output_size=layer_size, depth=depths, batchnorm=batchnorm,
-                    activation=activation, weight_decay=weight_decay
+                layer = ResidualTransformation(
+                    name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
+                    depth=depths, batchnorm=batchnorm, activation=activation, weight_decay=weight_decay
                 )
             else:
-                layer = ResidualTransformation(name=('ResidualLayer_' + str(n)), input_size=previous_size,
-                    output_size=layer_size, depth=depths[n], batchnorm=batchnorm,
-                    activation=activation, weight_decay=weight_decay
+                layer = ResidualTransformation(
+                    name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
+                    depth=depths[n], batchnorm=batchnorm, activation=activation, weight_decay=weight_decay
                 )
             self.layers.append(layer)
             previous_size = layer_size

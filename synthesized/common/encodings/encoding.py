@@ -1,5 +1,5 @@
 import tensorflow as tf
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 class Encoding(tf.keras.layers.Layer):

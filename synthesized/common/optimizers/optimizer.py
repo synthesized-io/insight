@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-from ..module import Module, tensorflow_name_scoped
-
-
 # TensorFlow optimizer implementations
 tf_optimizers = dict(
     adam=tf.keras.optimizers.Adam
@@ -17,7 +14,8 @@ class Optimizer(tf.Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        learning_rate: tf.Tensor, global_step: tf.Variable, decay_steps: int = None, decay_rate: float = None, initial_boost: int = 0,
+        learning_rate: tf.Tensor, global_step: tf.Variable, decay_steps: int = None, decay_rate: float = None,
+        initial_boost: int = 0,
         # Gradient clipping by global norm
         clip_gradients: float = None
     ):

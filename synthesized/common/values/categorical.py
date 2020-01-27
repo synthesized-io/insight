@@ -188,7 +188,7 @@ class CategoricalValue(Value):
             frequency = tf.cast(frequency - 1, dtype=tf.float32)
             frequency = frequency / tf.reduce_sum(input_tensor=frequency, axis=0, keepdims=False)
             with tf.control_dependencies([self.frequency.assign(frequency)]):
-                self.moving_average.apply(var_list=[self.frequency,])
+                self.moving_average.apply(var_list=[self.frequency, ])
                 frequency = self.moving_average.average(var=self.frequency)
                 frequency = tf.nn.embedding_lookup(
                     params=frequency, ids=target, max_norm=None,

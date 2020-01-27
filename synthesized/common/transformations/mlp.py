@@ -1,6 +1,5 @@
 from .transformation import Transformation
 from .dense import DenseTransformation
-from ..module import tensorflow_name_scoped
 
 
 class MlpTransformation(Transformation):

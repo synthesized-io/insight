@@ -3,7 +3,6 @@ from math import log
 import tensorflow as tf
 
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
 from .. import util
 
 

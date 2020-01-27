@@ -9,7 +9,7 @@ from ..common import Value, ValueFactory
 from ..synthesizer import Synthesizer
 
 
-class SeriesSynthesizer(Synthesizer, ValueFactory):
+class SeriesSynthesizer(Synthesizer):
     """The series synthesizer implementation.
 
     Synthesizer which can learn from data to produce time-series tabular data.
@@ -78,7 +78,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
             postcode_regex: Address postcode regular expression.
             identifier_label: Identifier column.
         """
-        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir)
+        super(Synthesizer, self).__init__(name='synthesizer')
         self.batch_size = batch_size
 
         # For identify_value (should not be necessary)
@@ -111,7 +111,27 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
         # Values
         self.values: List[Value] = list()
 
-        ValueFactory.__init__(self)
+        self.value_factory: ValueFactory = ValueFactory(
+            name='value_factory', df=data,
+            capacity=capacity, weight_decay=weight_decay,
+            continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=1.0,
+            moving_average=moving_average,
+            type_overrides=None, produce_nans_for=None, column_aliases=None,
+            condition_columns=None, find_rules=None,
+            # Person
+            title_label=title_label, gender_label=gender_label, name_label=name_label, firstname_label=firstname_label,
+            lastname_label=lastname_label, email_label=email_label, mobile_number_label=None,
+            home_number_label=None, work_number_label=None,
+            # Bank
+            bic_label=None, sort_code_label=None, account_label=None,
+            # Address
+            postcode_label=postcode_label, county_label=None, city_label=city_label,
+            district_label=None, street_label=street_label, house_number_label=None,
+            flat_label=None, house_name_label=None, address_label=address_label,
+            postcode_regex=postcode_regex,
+            # Identifier
+            identifier_label=identifier_label,
+        )
 
         vae_values = list()
         for name, dtype in zip(data.dtypes.axes[0], data.dtypes):
@@ -124,7 +144,7 @@ class SeriesSynthesizer(Synthesizer, ValueFactory):
 
         # VAE
         self.vae = self.add_module(
-            module='vae', name='vae', values=vae_values, distribution=distribution,
+            module='vae', name='vae', value_factory=self.value_factory, distribution=distribution,
             latent_size=latent_size, network=network, capacity=capacity, depth=depth,
             batchnorm=batchnorm, activation=activation, optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,

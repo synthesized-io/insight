@@ -109,11 +109,6 @@ class Module(object):
 
                     with tf.name_scope(name='initialization'):
                         self.summarizer_close = self.summarizer.close()
-                        graph_def = self.graph.as_graph_def(from_version=None, add_shapes=True)
-                        graph_str = tf.constant(
-                            value=graph_def.SerializeToString(), dtype=tf.string, shape=(),
-                            verify_shape_is_now_always_true=False
-                        )
                         self.var_list = tf.compat.v1.get_collection('EMBEDDINGS')
                         if len(self.var_list) > 0:
                             self.saver = Saver(var_list=self.var_list)
@@ -129,9 +124,10 @@ class Module(object):
             if self.profiler.is_trace_step():
                 options, run_metadata = self.profiler.get_options_and_metadata()
 
-        result = self.session.run(
-                fetches=fetches, feed_dict=feed_dict, options=options, run_metadata=run_metadata
-            )
+        # result = self.session.run(
+        #         fetches=fetches, feed_dict=feed_dict, options=options, run_metadata=run_metadata
+        # )
+        result = None
 
         if self.profiler is not None:
             if self.profiler.is_trace_step():
@@ -142,7 +138,7 @@ class Module(object):
     def __exit__(self, type, value, traceback):
         if self.summarizer is not None:
             self.run(fetches=self.summarizer_close)
-        self.session.__exit__(type, value, traceback)
+        # self.session.__exit__(type, value, traceback)
         tf.compat.v1.reset_default_graph()
         if self.profiler is not None:
             self.profiler.write_traces()

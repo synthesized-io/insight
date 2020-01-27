@@ -1,12 +1,11 @@
 """This module implements the BasicSynthesizer class."""
-from typing import Callable, List, Union, Dict, Iterable, Optional, Set, Tuple
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Generative
 from ..common import Value, ValueFactory, TypeOverride
 from ..common.learning_manager import LearningManager
 from ..common.util import ProfilerArgs
@@ -156,8 +155,8 @@ class HighDimSynthesizer(Synthesizer):
             name='vae', value_factory=self.value_factory, global_step=self.global_step,
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
-            optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps, decay_rate=decay_rate,
-            initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
+            optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
+            decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
 
@@ -234,7 +233,6 @@ class HighDimSynthesizer(Synthesizer):
                 #     return
             else:
                 self.vae.learn(xs=feed_dict)
-
 
             if self.learning_manager and self.learning_manager.stop_learning(
                     iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size

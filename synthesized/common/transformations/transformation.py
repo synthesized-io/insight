@@ -1,6 +1,5 @@
 from typing import Optional
 import tensorflow as tf
-from ..module import Module, tensorflow_name_scoped
 
 
 class Transformation(tf.keras.layers.Layer):

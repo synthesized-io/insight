@@ -1,7 +1,6 @@
 import tensorflow as tf
 
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
 from .. import util
 from .dense import DenseTransformation
 from .linear import LinearTransformation
