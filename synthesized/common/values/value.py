@@ -125,16 +125,6 @@ class Value(tf.Module):
         return df
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        """Input tensors.
-
-        Returns:
-            Input tensors, one per `learned_input_columns()`.
-
-        """
-        return list()
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         """Unifies input tensors into a single input embedding for a generative model.
 

@@ -9,7 +9,6 @@ from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import ResnetTransformation, DenseTransformation, Transformation
 from ..encodings import VariationalEncoding
 from ..optimizers import Optimizer
-from ..util import record_summaries_every_n_global_steps
 
 
 class VAEOld(Generative):
@@ -72,14 +71,12 @@ class VAEOld(Generative):
                 layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
             )
         else:
-            encoder = module_registry[network].__init__(
+            self.encoder = module_registry[network].__init__(
                 name='encoder',
                 input_size=self.linear_input.size(), layer_sizes=[capacity for _ in range(num_layers)],
                 weight_decay=weight_decay
             )
-            if type(encoder) == Transformation:
-                self.encoder: Transformation = encoder
-            else:
+            if not isinstance(self.encoder, Transformation):
                 raise ValueError
 
         self.encoding = VariationalEncoding(

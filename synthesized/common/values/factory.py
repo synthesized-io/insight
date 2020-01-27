@@ -2,7 +2,6 @@
 import enum
 from math import log, sqrt
 from typing import Dict, Any, Optional, Union, Iterable, List, Set
-from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
@@ -22,7 +21,6 @@ from .sampling import SamplingValue
 from .bank_number import BankNumberValue
 from .constant import ConstantValue
 from .value import Value
-from ..module import tensorflow_name_scoped
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25

@@ -1,10 +1,9 @@
 import simplejson
 import re
+from collections import namedtuple
 
 import tensorflow as tf
 from tensorflow.python.client import timeline
-from collections import namedtuple
-import tensorflow as tf
 from tensorflow.python.eager import context
 import numpy as np
 from pyemd import emd
@@ -19,7 +18,9 @@ def record_summaries_every_n_global_steps(n: int, global_step: tf.Variable):
     """Sets the should_record_summaries Tensor to true if global_step % n == 0."""
     with tf.device("cpu:0"):
         if n != 0:
-            should = lambda: tf.math.equal(global_step % tf.constant(n, dtype=tf.int64), 0)
+            def should():
+                return tf.math.equal(global_step % tf.constant(n, dtype=tf.int64), 0)
+
             if not context.executing_eagerly():
                 should = should()
         else:
