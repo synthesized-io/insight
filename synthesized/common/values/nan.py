@@ -66,26 +66,18 @@ class NanValue(Value):
     def preprocess(self, df):
         if df[self.value.name].dtype.kind not in self.value.pd_types:
             df.loc[:, self.value.name] = self.value.pd_cast(df[self.value.name])
+
         nan = df[self.value.name].isna()
-        df.loc[:, self.value.name] = df[self.value.name].fillna(method='bfill').fillna(method='ffill')
-        # clean = df.dropna(subset=(self.value.name,))
-        df = self.value.preprocess(df=df)
-        # df.loc[:, self.value.name] = df[self.value.name].astype(encoded[self.value.name].dtype)
-        # df = pd.merge(df.fillna(), encoded, how='outer')
-        df.loc[nan, self.value.name] = np.nan
+        df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
+
         return super().preprocess(df=df)
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
-        # clean = df.dropna(subset=(self.value.name,))
-        # postprocessed = self.value.postprocess(data=clean)
-        # df = pd.merge(data, postprocessed, how='outer')
+
         nan = df[self.value.name].isna()
-        if nan.any():
-            df.loc[:, self.value.name] = df[self.value.name].fillna(method='bfill').fillna(method='ffill')
-        df = self.value.postprocess(df=df)
-        if nan.any():
-            df.loc[nan, self.value.name] = np.nan
+        df.loc[~nan, :] = self.value.postprocess(df=df.loc[~nan, :])
+
         return df
 
     def module_initialize(self):
@@ -115,7 +107,7 @@ class NanValue(Value):
         # Wrapped value input
         x = self.value.unify_inputs(xs=xs)
 
-        # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
+        # Set NaNs to zero to avoid propagating NaNs (doesn't matter because of mask in loss function)
         x = tf.where(condition=nan, x=tf.zeros_like(tensor=x), y=x)
 
         # Concatenate NaN embedding and wrapped value
@@ -126,7 +118,7 @@ class NanValue(Value):
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         # NaN classification part
-        nan = tf.math.equal(x=tf.argmax(input=y[:, :2], axis=1), y=1)
+        nan = tf.math.equal(x=tf.squeeze(tf.random.categorical(logits=y[:, :2], num_samples=1), axis=1), y=1)
 
         # Wrapped value output tensors
         ys = self.value.output_tensors(y=y[:, 2:])

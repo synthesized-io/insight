@@ -215,7 +215,7 @@ class VAEOld(Generative):
         # Loss summaries
         for name, loss in losses.items():
             summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
-            if name != 'total-loss' and name != 'encoding':
+            if name not in ('total-loss', 'encoding', 'regularization-loss'):
                 reconstruction_loss += loss
 
         summaries.append(tf.contrib.summary.scalar(name='reconstruction-loss', tensor=reconstruction_loss))
