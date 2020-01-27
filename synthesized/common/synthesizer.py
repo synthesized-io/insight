@@ -5,8 +5,9 @@ import os
 from typing import Callable, Union, List, Optional
 
 import pandas as pd
-from .common import Value
 import tensorflow as tf
+
+from .values import Value
 
 
 def _check_license():
@@ -71,6 +72,15 @@ class Synthesizer(tf.Module):
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
+    def get_conditions(self) -> List[Value]:
+        raise NotImplementedError()
+
+    def get_losses(self) -> tf.Tensor:
+        raise NotImplementedError()
+
+    def preprocess(self, df):
+        return df
+
     @staticmethod
     def logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
@@ -78,14 +88,15 @@ class Synthesizer(tf.Module):
         return False
 
     def learn(
-        self, num_iterations: int, df_train: pd.DataFrame, callback: Callable[[object, int, dict], bool] = logging,
-        callback_freq: int = 0
+        self, df_train: pd.DataFrame, num_iterations: Optional[int],
+        callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
         Repeated calls continue training the model, possibly on different data.
 
         Args:
+            df_train: The training data.
             num_iterations: The number of training iterations (not epochs).
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
                 instance, the iteration number, and a dictionary of values (usually the losses) as

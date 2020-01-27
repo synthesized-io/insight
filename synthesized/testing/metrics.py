@@ -1,14 +1,27 @@
 """Generic metrics for various types/combinations of values."""
+import logging
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from scipy.stats import ks_2samp
-from scipy.stats import spearmanr
+from scipy.stats import ks_2samp, spearmanr, kendalltau
 from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
 from itertools import chain
-from typing import List, Union
+from typing import List, Union, Optional, Dict
 from statsmodels.formula.api import mnlogit
+
+from .util import categorical_emd
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
+
+MAX_SAMPLE_DATES = 2500
+NUM_UNIQUE_CATEGORICAL = 100
+MAX_PVAL = 0.05
+NAN_FRACTION_THRESHOLD = 0.25
+NON_NAN_COUNT_THRESHOLD = 500
+CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
 
 def continuous_correlation(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
@@ -191,6 +204,102 @@ def rolling_mse_asof(sd, time_unit=None):
 
         return mse_eff
     return mse_function
+
+
+def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                 column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
+    """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
+    (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
+    stop_metrics per column).
+
+    Args
+        df_orig: Original DataFrame.
+        df_synth: Synthesized DataFrame.
+        column_names: List of columns used to compute the 'break_metric'.
+
+    Returns
+        bool: True if criteria are met to stop learning.
+    """
+    if column_names is None:
+        column_names_df: List[str] = df_orig.columns
+    else:
+        column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
+
+    # Calculate distances for all columns
+    ks_distances = []
+    emd_distances = []
+    corr_distances = []
+    numerical_columns = []
+
+    len_test = len(df_orig)
+    for col in column_names_df:
+
+        if df_orig[col].dtype.kind == 'f':
+            col_test_clean = df_orig[col].dropna()
+            col_synth_clean = df_synth[col].dropna()
+            if len(col_test_clean) < len_test:
+                logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                             .format(col, len(col_test_clean), len_test))
+            ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+            ks_distances.append(ks_distance)
+            numerical_columns.append(col)
+
+        elif df_orig[col].dtype.kind == 'i':
+            if df_orig[col].nunique() < np.log(len(df_orig)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
+                logger.debug(
+                    "Column '{}' treated as categorical with {} categories".format(col, df_orig[col].nunique()))
+                emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
+                emd_distances.append(emd_distance)
+
+            else:
+                col_test_clean = df_orig[col].dropna()
+                col_synth_clean = df_synth[col].dropna()
+                if len(col_test_clean) < len_test:
+                    logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
+                                 .format(col, len(col_test_clean), len_test))
+                ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
+                ks_distances.append(ks_distance)
+
+            numerical_columns.append(col)
+
+        elif df_orig[col].dtype.kind in ('O', 'b'):
+
+            # Try to convert to numeric
+            col_num = pd.to_numeric(df_orig[col], errors='coerce')
+            if col_num.isna().sum() / len(col_num) < NAN_FRACTION_THRESHOLD:
+                df_orig[col] = col_num
+                df_synth[col] = pd.to_numeric(df_synth[col], errors='coerce')
+                numerical_columns.append(col)
+
+            # if (is not sampling) and (is not date):
+            elif (df_orig[col].nunique() <= np.log(len(df_orig)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER) and \
+                    np.all(pd.to_datetime(df_orig[col].sample(min(len(df_orig), MAX_SAMPLE_DATES)),
+                                          errors='coerce').isna()):
+                emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
+                if not np.isnan(emd_distance):
+                    emd_distances.append(emd_distance)
+
+    for i in range(len(numerical_columns)):
+        col_i = numerical_columns[i]
+        for j in range(i + 1, len(numerical_columns)):
+            col_j = numerical_columns[j]
+            test_clean = df_orig[[col_i, col_j]].dropna()
+            synth_clean = df_synth[[col_i, col_j]].dropna()
+
+            if len(test_clean) > 0 and len(synth_clean) > 0:
+                corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
+                corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
+
+                if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
+                    corr_distances.append(abs(corr_orig - corr_synth))
+
+    stop_metrics = {
+        'ks_distances': ks_distances,
+        'corr_distances': corr_distances,
+        'emd_distances': emd_distances
+    }
+
+    return stop_metrics
 
 
 # -- global constants

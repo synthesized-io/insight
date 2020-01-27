@@ -1,7 +1,7 @@
 from .highdim import HighDimSynthesizer
 from .scenario import ScenarioSynthesizer
 from .series import SeriesSynthesizer
-from .synthesizer import Synthesizer
+from .common.synthesizer import Synthesizer
 from .version import __version__
 
 __all__ = [
