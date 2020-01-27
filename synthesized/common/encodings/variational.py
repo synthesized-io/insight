@@ -52,7 +52,7 @@ class VariationalEncoding(Encoding):
 
         self.add_loss(encoding_loss, inputs=inputs)
 
-        return x
+        return x, encoding_loss, mean, stddev
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):

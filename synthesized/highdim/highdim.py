@@ -206,14 +206,7 @@ class HighDimSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
-
-
-        # Bracket the function call with
-        # tf.summary.trace_on() and tf.summary.trace_export().
-
-
-        df_train = df_train.copy()
-        df_train_orig = df_train.copy()
+        df_train_orig = df_train
         df_train = self.value_factory.preprocess(df_train)
         data = self.value_factory.get_data_feed_dict(df_train)
 

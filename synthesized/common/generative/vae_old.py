@@ -1,6 +1,4 @@
-from collections import OrderedDict
-from itertools import combinations
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -32,7 +30,7 @@ class VAEOld(Generative):
         network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
         activation: str,
         # Optimizer
-        optimizer: str, learning_rate: tf.Tensor, decay_steps: int, decay_rate: float,
+        optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
         initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
@@ -106,7 +104,8 @@ class VAEOld(Generative):
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False, activation='none'
         )
 
-        self.optimizer = Optimizer(name='optimizer', optimizer=optimizer, global_step=self.global_step,
+        self.optimizer = Optimizer(
+            name='optimizer', optimizer=optimizer, global_step=self.global_step,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             clip_gradients=clip_gradients, initial_boost=initial_boost
         )
@@ -202,47 +201,20 @@ class VAEOld(Generative):
         if len(xs) == 0:
             return tf.no_op(), dict()
 
-        # Concatenate input tensors per value
-        x = tf.concat(values=[
-            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-            for value in self.values if value.learned_input_size() > 0
-        ], axis=1)
-
         #################################
-
+        x = self.value_factory.unified_inputs(xs)
         x = self.linear_input.transform(x)
         x = self.encoder.transform(x=x)
-        z, encoding_loss, mean, std = self.encoding.encode(x=x)
 
-        latent_space = z
+        latent_space = self.encoding.encode(x=x)
+        mean = self.encoding.mean.output
+        std = self.encoding.stddev.output
 
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            z = tf.concat(values=(z, c), axis=1)
-
-        x = self.decoder.transform(x=z)
+        x = self.value_factory.add_conditions(x=latent_space, conditions=xs)
+        x = self.decoder.transform(x=x)
         y = self.linear_output.transform(x=x)
-
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
-        )
-
-        # Output tensors per value
-        synthesized: Dict[str, tf.Tensor] = OrderedDict()
-        for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
-
-        for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = cs[name]
+        synthesized = self.value_factory.value_outputs(y=y, conditions=cs)
+        #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
@@ -258,22 +230,13 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-        ys = self._synthesize(n=n, cs=cs, num_cs=tf.constant(len(self.conditions), dtype=tf.int64))
-
-        # Output tensors per value
-        synthesized: Dict[str, tf.Tensor] = OrderedDict()
-        for value, y in zip(self.values, ys):
-            synthesized.update([(a, b.numpy())
-                               for a, b in zip(value.learned_output_columns(), value.output_tensors(y=y))])
-
-        for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = cs[name]
+        y = self._synthesize(n=n, cs=cs, num_cs=tf.constant(len(self.conditions), dtype=tf.int64))
+        synthesized = self.value_factory.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
     @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], num_cs: tf.Tensor) -> List[tf.Tensor]:
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
         """Generate the given number of instances.
 
         Args:
@@ -284,25 +247,9 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-
         x = self.encoding.sample(n=n)
-
-        if num_cs > tf.constant(0, dtype=tf.int64):
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
-
+        x = self.value_factory.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
-        )
-        return ys
+        return y

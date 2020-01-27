@@ -310,6 +310,25 @@ class ValueFactory(tf.Module):
 
         return losses
 
+    @tensorflow_name_scoped
+    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # Split output tensors per value
+        ys = tf.split(
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            axis=1
+        )
+
+        # Output tensors per value
+        synthesized: Dict[str, tf.Tensor] = OrderedDict()
+        for value, y in zip(self.values, ys):
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+
+        for value in self.conditions:
+            for name in value.learned_output_columns():
+                synthesized[name] = conditions[name]
+
+        return synthesized
+
     def get_column_names(self) -> List[str]:
         columns = [
             name for value in (self.values + self.conditions)
