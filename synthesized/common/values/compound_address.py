@@ -118,10 +118,6 @@ class CompoundAddressValue(Value):
         return df
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        return self.postcode.input_tensors()
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         return self.postcode.unify_inputs(xs=xs)
 

@@ -110,10 +110,6 @@ class NanValue(Value):
         )
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        return self.value.input_tensors()
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         # NaN embedding
         nan = tf.math.is_nan(x=xs[0])
@@ -125,7 +121,7 @@ class NanValue(Value):
         x = self.value.unify_inputs(xs=xs)
 
         # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
-        x = tf.compat.v1.where(condition=nan, x=tf.zeros_like(input=x), y=x)
+        x = tf.where(condition=nan, x=tf.zeros_like(input=x), y=x)
 
         # Concatenate NaN embedding and wrapped value
         x = tf.concat(values=(embedding, x), axis=1)
@@ -143,7 +139,7 @@ class NanValue(Value):
         if self.produce_nans:
             # Replace wrapped value with NaNs
             for n, y in enumerate(ys):
-                ys[n] = tf.compat.v1.where(condition=nan, x=(y * np.nan), y=y)
+                ys[n] = tf.where(condition=nan, x=(y * np.nan), y=y)
 
         return ys
 

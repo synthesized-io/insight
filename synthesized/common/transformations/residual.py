@@ -50,11 +50,11 @@ class ResidualTransformation(Transformation):
         if self.batchnorm:
             shape = (self.output_size,)
             initializer = util.get_initializer(initializer='zeros')
-            self.offset = tf.compat.v1.get_variable(
+            self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
             )
-            self.scale = tf.compat.v1.get_variable(
+            self.scale = self.add_weight(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
             )

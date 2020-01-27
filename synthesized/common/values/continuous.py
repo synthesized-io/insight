@@ -248,7 +248,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(concentration=shape, rate=1.0)
-            samples = tf.compat.v1.where(
+            samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = (samples - location) / scale
@@ -259,7 +259,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(location=location, scale=scale)
-            samples = tf.compat.v1.where(
+            samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = distribution.cdf(value=samples)
@@ -269,7 +269,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS[self.distribution][1]
             assert distribution_class is not None
             distribution = distribution_class(loc=log(scale), scale=scale)
-            samples = tf.compat.v1.where(
+            samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = samples - location
@@ -280,7 +280,7 @@ class ContinuousValue(Value):
             distribution_class = DISTRIBUTIONS['gamma'][1]
             assert distribution_class is not None
             distribution = distribution_class(concentration=shape, rate=1.0)
-            samples = tf.compat.v1.where(
+            samples = tf.where(
                 condition=(samples < location), x=(samples + 2 * location), y=samples
             )
             samples = (samples - location) / scale

@@ -135,13 +135,6 @@ class PersonValue(Value):
         return df
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        if self.gender is None:
-            return super().input_tensors()
-        else:
-            return self.gender.input_tensors()
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         if self.gender is None:
             return super().unify_inputs(xs=xs)

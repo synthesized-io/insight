@@ -307,8 +307,8 @@ class HighDimSynthesizer(Synthesizer):
 
         num_rows = len(df_encode)
         feed_dict = {
-            placeholder: df_encode[name].to_numpy() for value in (self.values + self.conditions)
-            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
+            name: df_encode[name].to_numpy() for value in (self.values + self.conditions)
+            for name in value.learned_input_columns()
         }
         feed_dict[self.num_rows] = num_rows
 

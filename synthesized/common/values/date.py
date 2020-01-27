@@ -154,15 +154,6 @@ class DateValue(ContinuousValue):
             return col
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        xs = super().input_tensors()
-        xs.extend(self.hour.input_tensors())
-        xs.extend(self.dow.input_tensors())
-        xs.extend(self.day.input_tensors())
-        xs.extend(self.month.input_tensors())
-        return xs
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 5
         xs[0] = super().unify_inputs(xs=xs[0: 1])
