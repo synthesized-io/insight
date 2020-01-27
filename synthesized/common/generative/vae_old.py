@@ -230,7 +230,7 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-        y = self._synthesize(n=n, cs=cs, num_cs=tf.constant(len(self.conditions), dtype=tf.int64))
+        y = self._synthesize(n=n, cs=cs)
         synthesized = self.value_factory.value_outputs(y=y, conditions=cs)
 
         return synthesized

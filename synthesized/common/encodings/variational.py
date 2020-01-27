@@ -35,7 +35,7 @@ class VariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, condition=()) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def call(self, inputs, condition=()) -> tf.Tensor:
         mean = self.mean(inputs)
         stddev = self.stddev(inputs)
         x = tf.random.normal(
@@ -52,7 +52,7 @@ class VariationalEncoding(Encoding):
 
         self.add_loss(encoding_loss, inputs=inputs)
 
-        return x, encoding_loss, mean, stddev
+        return x
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
