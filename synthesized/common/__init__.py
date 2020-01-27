@@ -15,5 +15,5 @@ from .values import identify_rules, Value, ValueFactory, TypeOverride
 __all__ = [
     'Synthesizer', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
     'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value',
-    'ValueFactory'
+    'ValueFactory', 'TypeOverride'
 ]
