@@ -5,7 +5,7 @@ import pandas as pd
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized import TypeOverride
+from synthesized.common import TypeOverride
 from synthesized.common.values.continuous import ContinuousValue
 
 
@@ -58,4 +58,4 @@ def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
     synthesizer = HighDimSynthesizer(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
-    assert type(synthesizer.values[0]) == ContinuousValue
+    assert type(synthesizer.get_values()[0]) == ContinuousValue

@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
 from ..module import tensorflow_name_scoped
-from ..module import Module
 
 
 # TensorFlow distribution implementations
@@ -12,7 +11,7 @@ tf_distributions = dict(
 )
 
 
-class Distribution(Module):
+class Distribution(tf.Module):
     """Parametrized distribution, either directly or by a neural network."""
 
     def __init__(

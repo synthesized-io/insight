@@ -1,4 +1,4 @@
-from .module import Module, tensorflow_name_scoped
+from .module import tensorflow_name_scoped
 from .distributions import Distribution
 from .encodings import Encoding
 from .functionals import Functional
@@ -10,7 +10,7 @@ from .learning_manager import LearningManager
 
 
 __all__ = [
-    'Distribution', 'Encoding', 'Functional', 'Generative', 'identify_rules', 'Module',
+    'Distribution', 'Encoding', 'Functional', 'Generative', 'identify_rules',
     'Optimizer', 'Transformation', 'tensorflow_name_scoped', 'Value', 'ValueFactory', 'LearningManager',
     'TypeOverride'
 ]

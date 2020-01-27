@@ -53,7 +53,8 @@ class CategoricalValue(Value):
         self.use_moving_average: bool = moving_average
         self.moving_average: Optional[tf.train.ExponentialMovingAverage] = None
 
-        self.embeddings = None
+        self.embeddings: Optional[tf.Variable] = None
+        self.frequency: Optional[tf.Variable] = None
         self.similarity_based = similarity_based
         self.temperature = temperature
         self.pandas_category = pandas_category
@@ -111,7 +112,10 @@ class CategoricalValue(Value):
 
         if self.use_moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
-            self.frequency = tf.Variable(initial_value=np.zeros(shape=(self.num_categories,)), dtype=tf.float32)
+            self.frequency = tf.Variable(
+                initial_value=np.zeros(shape=(self.num_categories,)), trainable=False, dtype=tf.float32,
+                name='moving_avg_freq'
+            )
             self.moving_average.apply(var_list=[self.frequency])
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:

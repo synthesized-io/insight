@@ -1,3 +1,4 @@
+from typing import Callable, List
 import tensorflow as tf
 
 # TensorFlow optimizer implementations
@@ -14,7 +15,7 @@ class Optimizer(tf.Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        learning_rate: tf.Tensor, global_step: tf.Variable, decay_steps: int = None, decay_rate: float = None,
+        learning_rate: tf.Tensor, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0,
         # Gradient clipping by global norm
         clip_gradients: float = None
@@ -22,7 +23,7 @@ class Optimizer(tf.Module):
         super().__init__(name=name)
 
         # Optimizer
-        self.global_step = global_step
+        self.global_step = tf.summary.experimental.get_step()
 
         # Learning rate
         self._learning_rate = learning_rate
@@ -34,7 +35,10 @@ class Optimizer(tf.Module):
         self.clip_gradients = clip_gradients
         if optimizer not in tf_optimizers:
             raise NotImplementedError
-        self.optimizer = tf_optimizers[optimizer](learning_rate=self.learning_rate)
+        if self.clip_gradients is not None:
+            self.optimizer = tf_optimizers[optimizer](learning_rate=self.learning_rate, clipnorm=self.clip_gradients)
+        else:
+            self.optimizer = tf_optimizers[optimizer](learning_rate=self.learning_rate)
 
     def specification(self):
         spec = dict(name=self._name)
@@ -49,7 +53,7 @@ class Optimizer(tf.Module):
     def learning_rate(self) -> tf.Tensor:
         if self.initial_boost > 0:
             if self.global_step < self.initial_boost:
-                lr = 10.0 * self._learning_rate
+                lr = tf.constant(10.0, dtype=tf.float32) * self._learning_rate
             else:
                 lr = self._learning_rate
         else:
@@ -66,12 +70,14 @@ class Optimizer(tf.Module):
                 raise NotImplementedError
             lr = lr * tf.math.pow(self.decay_rate, self.global_step/self.decay_steps)
 
+        tf.summary.scalar(name='learning_rate', data=lr)
+
         return lr
 
     def module_initialize(self):
         super().module_initialize()
 
-    def optimize(self, loss, summarize_gradient_norms=False, summarize_lr=False):
+    def optimize(self, loss: Callable[..., tf.Tensor], variables: Callable[..., List[tf.Variable]]):
         """Optimize the given loss.
 
         Args:
@@ -84,54 +90,5 @@ class Optimizer(tf.Module):
 
         """
         # Trainable variables
-        variables = tf.compat.v1.get_collection(key=tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
         self.optimizer.minimize(loss=loss, var_list=variables)
         return
-
-        # # Make sure loss operation is executed (for attached control flow)
-        # with tf.control_dependencies(control_inputs=(loss,)):
-        #
-        #     # Loss gradients
-        #     gradients = tf.gradients(ys=loss, xs=variables)
-        #
-        #     # Check that gradients are not NaN
-        #     assertions = [
-        #         tf.compat.v1.debugging.assert_equal(
-        #             x=tf.reduce_any(input_tensor=tf.math.is_nan(x=grad)), y=False
-        #         ) for grad in gradients
-        #     ]
-        #
-        # with tf.control_dependencies(control_inputs=assertions):
-        #     if self.clip_gradients is not None:
-        #         # Global norm gradient clipping
-        #         gradients, grad_norm = tf.clip_by_global_norm(
-        #             t_list=gradients, clip_norm=self.clip_gradients
-        #         )
-        #
-        # summaries = list()
-        # if summarize_gradient_norms:
-        #     # Summarize gradient norms
-        #     for grad, var in zip(gradients, variables):
-        #         summaries.append(tf.compat.v2.summary.scalar(
-        #             name=(var.name[:var.name.index(':')] + '-gradient-norm'),
-        #             data=tf.norm(tensor=grad, ord='euclidean'), step=self.global_step
-        #         ))
-        #     if self.clip_gradients is not None:
-        #         # Add global gradient norm if clipping
-        #         summaries.append(
-        #             tf.compat.v2.summary.scalar(name='all-gradient-norm', data=grad_norm, step=self.global_step)
-        #         )
-        #
-        # if summarize_lr:
-        #     summaries.append(
-        #         tf.compat.v2.summary.scalar(name='learning-rate', data=self.optimizer._lr, step=self.global_step)
-        #     )
-        #
-        # # Make sure summary operations are executed
-        # with tf.control_dependencies(control_inputs=summaries):
-        #
-        #     # Optimization step
-        #     grads_and_vars = list(zip(gradients, variables))
-        #     optimized = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
-
-        # return optimized

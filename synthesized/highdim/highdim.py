@@ -1,6 +1,5 @@
 """This module implements the BasicSynthesizer class."""
 from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -8,7 +7,7 @@ import tensorflow as tf
 
 from ..common import Value, ValueFactory, TypeOverride
 from ..common.learning_manager import LearningManager
-from ..common.util import ProfilerArgs
+from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
 from ..synthesizer import Synthesizer
 from ..common.generative import VAEOld
 
@@ -120,7 +119,9 @@ class HighDimSynthesizer(Synthesizer):
                 synthesized.common.values.PairwiseRuleFactory for more examples.
             learning_manager: Whether to use LearningManager.
         """
-        super(HighDimSynthesizer, self).__init__(name='synthesizer')
+        super(HighDimSynthesizer, self).__init__(
+            name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
+        )
         self.value_factory = ValueFactory(
             name='value_factory', df=df,
             capacity=capacity, weight_decay=weight_decay,
@@ -142,17 +143,11 @@ class HighDimSynthesizer(Synthesizer):
             # Identifier
             identifier_label=identifier_label,
         )
-        self.global_step = tf.Variable(initial_value=0, dtype=tf.int64)
         self.batch_size = batch_size
-
-        # Set up logging.
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.logdir = 'logs/%s' % stamp
-        self.writer = tf.summary.create_file_writer(self.logdir)
 
         # VAE
         self.vae = VAEOld(
-            name='vae', value_factory=self.value_factory, global_step=self.global_step,
+            name='vae', values=self.get_values(), conditions=self.get_conditions(),
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
@@ -211,35 +206,34 @@ class HighDimSynthesizer(Synthesizer):
 
         num_data = len(df_train)
 
-        for iteration in range(1, num_iterations + 1):
-            batch = np.random.randint(num_data, size=self.batch_size)
-            feed_dict = {placeholder: tf.constant(value_data[batch]) for placeholder, value_data in data.items()}
+        with record_summaries_every_n_global_steps(callback_freq, self.global_step):
+            for iteration in range(1, num_iterations + 1):
+                batch = np.random.randint(num_data, size=self.batch_size)
+                feed_dict = {placeholder: tf.constant(value_data[batch]) for placeholder, value_data in data.items()}
 
-            if iteration == 1:
-                tf.summary.trace_on(graph=True, profiler=False)
-                self.vae.learn(xs=feed_dict)
-                with self.writer.as_default():
-                    tf.summary.trace_export(name="Learn", step=self.global_step)
-                tf.summary.trace_off()
+                if callback is not None and callback_freq > 0 and (
+                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                ):
+                    if self.writer is not None and iteration == 1:
+                        tf.summary.trace_on(graph=True, profiler=False)
+                        self.vae.learn(xs=feed_dict)
+                        tf.summary.trace_export(name="Learn", step=self.global_step)
+                        tf.summary.trace_off()
+                    else:
+                        self.vae.learn(xs=feed_dict)
 
-            elif callback is not None and callback_freq > 0 and (
-                iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
-            ):
-                with self.writer.as_default():
+                    # if callback(self, iteration, fetched) is True:
+                    #     return
+                else:
                     self.vae.learn(xs=feed_dict)
-                self.writer.flush()
 
-                # if callback(self, iteration, fetched) is True:
-                #     return
-            else:
-                self.vae.learn(xs=feed_dict)
+                if self.learning_manager and self.learning_manager.stop_learning(
+                        iteration, synthesizer=self, df_train=df_train_orig,
+                        sample_size=self.learning_manager_sample_size
+                ):
+                    break
 
-            if self.learning_manager and self.learning_manager.stop_learning(
-                    iteration, synthesizer=self, df_train=df_train_orig, sample_size=self.learning_manager_sample_size
-            ):
-                break
-
-            self.global_step.assign_add(1)
+                self.global_step.assign_add(1)
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
@@ -271,7 +265,8 @@ class HighDimSynthesizer(Synthesizer):
         n_batches = num_rows // 1024
         data = self.value_factory.get_conditions_data(df_conditions)
 
-        tf.summary.trace_on(graph=True, profiler=False)
+        if self.writer is not None:
+            tf.summary.trace_on(graph=True, profiler=False)
 
         for k in range(n_batches):
             feed_dict.update({
@@ -289,12 +284,9 @@ class HighDimSynthesizer(Synthesizer):
 
         df_synthesized = self.value_factory.postprocess(df_synthesized)
 
-        with self.writer.as_default():
-            tf.summary.trace_export(
-                name='Synthesize',
-                step=0
-            )
-        tf.summary.trace_off()
+        if self.writer is not None:
+            tf.summary.trace_export(name='Synthesize', step=0)
+            tf.summary.trace_off()
 
         return df_synthesized
 

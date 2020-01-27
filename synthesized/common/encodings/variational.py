@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from .encoding import Encoding
 from ..transformations import DenseTransformation
@@ -49,6 +50,14 @@ class VariationalEncoding(Encoding):
             encoding_loss *= self.beta
 
         self.add_loss(encoding_loss, inputs=inputs)
+
+        tf.summary.histogram(name='mean', data=self.mean.output),
+        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='posterior_distribution', data=x),
+        tf.summary.image(
+            name='latent_space_correlation',
+            data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.encoding_size, self.encoding_size, 1)))
+        )
 
         return x
 

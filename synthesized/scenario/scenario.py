@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Distribution, Functional, Module, Value
+from ..common import Distribution, Functional, Value
 from ..synthesizer import Synthesizer
 
 
+# TODO: Update this class.
 class ScenarioSynthesizer(Synthesizer):
     """The scenario synthesizer implementation.
 
@@ -104,7 +105,7 @@ class ScenarioSynthesizer(Synthesizer):
         )
 
         # Functionals
-        self.functionals: List[Module] = list()
+        self.functionals: List[tf.Module] = list()
         for functional in functionals:
             functional = self.add_module(module=functional)
             self.functionals.append(functional)
