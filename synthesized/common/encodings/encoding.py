@@ -22,7 +22,7 @@ class Encoding(tf.keras.layers.Layer):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def encode(self, x, condition=(), encoding_plus_loss=False):
+    def call(self, x, condition=()):
         raise NotImplementedError
 
     @tensorflow_name_scoped
