@@ -150,6 +150,7 @@ class HighDimSynthesizer(Synthesizer):
             identifier_label=identifier_label,
         )
         self.batch_size = batch_size
+        self.tf_batch_size = tf.Variable(initial_value=batch_size, dtype=tf.int64)
         self.increase_batch_size_every = increase_batch_size_every
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
 
@@ -251,6 +252,7 @@ class HighDimSynthesizer(Synthesizer):
                         break
 
                 # Increase batch size
+                tf.summary.scalar(name='batch_size', data=self.tf_batch_size)
                 if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                         iteration % self.increase_batch_size_every == 0:
                     self.batch_size *= 2
@@ -260,6 +262,7 @@ class HighDimSynthesizer(Synthesizer):
                         logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                     if self.learning_manager:
                         self.learning_manager.set_check_frequency(self.batch_size)
+                    self.tf_batch_size.assign(self.batch_size)
                     logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
                 # Increment iteration number, and check if we reached max num_iterations
