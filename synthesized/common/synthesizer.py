@@ -75,7 +75,7 @@ class Synthesizer(tf.Module):
     def get_conditions(self) -> List[Value]:
         raise NotImplementedError()
 
-    def get_losses(self) -> tf.Tensor:
+    def get_losses(self, data) -> tf.Tensor:
         raise NotImplementedError()
 
     def preprocess(self, df):

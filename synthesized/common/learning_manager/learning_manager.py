@@ -196,8 +196,7 @@ class LearningManager:
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
                                              column_names=column_names)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[tf.Tensor, np.array],
-                               num_data: int, data_length: int):
+    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]):
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -213,11 +212,12 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=data_length, dtype=tf.int64)
+        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=list(data_dict.values())[0].shape[0],
+                                        dtype=tf.int64)
         feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch_valid)
                      for name, value_data in data_dict.items()}
 
-        losses = synthesizer.get_losses(feed_dict=feed_dict)
+        losses = synthesizer.get_losses(data=feed_dict)
         losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
         return self.stop_learning_check_metric(iteration, losses)
 
@@ -243,8 +243,7 @@ class LearningManager:
 
         if use_vae_loss:
             assert data_dict is not None and num_data is not None
-            return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict,
-                                               num_data=num_data, data_length=len(df_train_orig))
+            return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
         else:
             assert df_train_orig is not None
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)

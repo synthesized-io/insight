@@ -182,7 +182,9 @@ class HighDimSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
-    def get_losses(self) -> tf.Tensor:
+    def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
+        self.vae.xs = data
+        self.vae.loss()
         return self.vae.losses
 
     def specification(self):
