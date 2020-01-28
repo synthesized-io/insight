@@ -218,7 +218,7 @@ class LearningManager:
                      for name, value_data in data_dict.items()}
 
         losses = synthesizer.get_losses(data=feed_dict)
-        losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
+        losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
         return self.stop_learning_check_metric(iteration, losses)
 
     def stop_learning(self, iteration: int, synthesizer: Synthesizer, use_vae_loss: bool = True,
