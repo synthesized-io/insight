@@ -61,3 +61,5 @@ def test_unittest_dataset():
     assert all(distance < 0.33 for _, distance in distances), 'Failed: ' + ', '.join(
         '{}={:.3f}'.format(name, distance) for name, distance in distances if distance >= 0.33
     )
+
+test_unittest_dataset_quick()

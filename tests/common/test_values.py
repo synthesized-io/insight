@@ -29,7 +29,7 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
 def test_categorical():
     value = CategoricalValue(
         name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
-        embedding_size=None, pandas_category=False, similarity_based=False, weight_decay=0.0,
+        embedding_size=None, pandas_category=False, similarity_based=False,
         temperature=1.0, moving_average=False,
     )
     _test_value(
@@ -41,7 +41,7 @@ def test_categorical():
 def test_categorical_similarity():
     value = CategoricalValue(
         name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
-        embedding_size=None, pandas_category=False, similarity_based=True, weight_decay=0.0,
+        embedding_size=None, pandas_category=False, similarity_based=True,
         temperature=1.0, moving_average=True
     )
     _test_value(

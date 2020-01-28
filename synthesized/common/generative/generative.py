@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..values import Value
+from ..util import get_regularizer
 
 
 class Generative(tf.Module):
@@ -91,7 +92,11 @@ class Generative(tf.Module):
             )
 
         # Regularization loss
-        reg_losses = tf.compat.v1.losses.get_regularization_losses()
+        l2_regularizer = get_regularizer('l2', weight=self.weight_decay)
+
+        reg_losses = [l2_regularizer(v) for v in self.trainable_variables
+                      if 'scale' not in v.name and 'offset' not in v.name]
+
         if len(reg_losses) > 0:
             losses['regularization-loss'] = tf.add_n(inputs=reg_losses, name='regularization_loss')
         else:

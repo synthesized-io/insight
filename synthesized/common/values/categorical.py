@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class CategoricalValue(Value):
 
     def __init__(
-        self, name: str, capacity: int, weight_decay: float, weight: float, temperature: float,
+        self, name: str, capacity: int, weight: float, temperature: float,
         moving_average: bool,
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
@@ -47,7 +47,6 @@ class CategoricalValue(Value):
         else:
             self.embedding_initialization = 'orthogonal-small'
 
-        self.weight_decay = weight_decay
         self.weight = weight
 
         self.use_moving_average: bool = moving_average
@@ -72,7 +71,7 @@ class CategoricalValue(Value):
         spec = super().specification()
         spec.update(
             categories=self.categories, embedding_size=self.embedding_size,
-            similarity_based=self.similarity_based, weight_decay=self.weight_decay,
+            similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
             produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
         )
@@ -104,12 +103,11 @@ class CategoricalValue(Value):
             return
         shape = (self.num_categories, self.embedding_size)
         initializer = util.get_initializer(initializer=self.embedding_initialization)
-        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
 
-        self.embeddings = tf.Variable(initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings',
-                                      trainable=True)
-        tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES, regularizer(self.embeddings))
-        tf.compat.v1.add_to_collection('EMBEDDINGS', self.embeddings)
+        self.embeddings = tf.Variable(
+            initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
+            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+        )
 
         if self.use_moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)

@@ -132,7 +132,7 @@ class HighDimSynthesizer(Synthesizer):
         )
         self.value_factory = ValueFactory(
             name='value_factory', df=df,
-            capacity=capacity, weight_decay=weight_decay,
+            capacity=capacity,
             continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
             moving_average=moving_average, nan_weight=nan_weight,
             type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,

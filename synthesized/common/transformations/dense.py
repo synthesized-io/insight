@@ -4,44 +4,40 @@ import tensorflow as tf
 
 from .transformation import Transformation
 from .. import util
+from ..module import tensorflow_name_scoped
 
 
 class DenseTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, output_size, bias=True, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, output_size, bias=True, batchnorm=True, activation='relu'
     ):
         super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
 
         self.bias = bias
         self.batchnorm = batchnorm
         self.activation = activation
-        self.weight_decay = weight_decay
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            bias=self.bias, batchnorm=self.batchnorm, activation=self.activation,
-            weight_decay=self.weight_decay
+            bias=self.bias, batchnorm=self.batchnorm, activation=self.activation
         )
         return spec
 
+    @tensorflow_name_scoped
     def build(self, input_shape):
         shape = (self.input_size, self.output_size)
         initializer = util.get_initializer(initializer='glorot-normal')
-        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
         self.weight = self.add_weight(
-            name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True
+            name='weight', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
         )
 
         shape = (self.output_size,)
         initializer = util.get_initializer(initializer='zeros')
         if self.bias:
             self.bias = self.add_weight(
-                name='bias', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=regularizer, trainable=True
+                name='bias', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
             )
         else:
             self.bias = None

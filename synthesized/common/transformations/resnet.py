@@ -1,12 +1,12 @@
 from .transformation import Transformation
 from .residual import ResidualTransformation
+from ..module import tensorflow_name_scoped
 
 
 class ResnetTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, layer_sizes, depths=2, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, layer_sizes, depths=2, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
 
@@ -18,12 +18,12 @@ class ResnetTransformation(Transformation):
             if isinstance(depths, int):
                 layer = ResidualTransformation(
                     name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
-                    depth=depths, batchnorm=batchnorm, activation=activation, weight_decay=weight_decay
+                    depth=depths, batchnorm=batchnorm, activation=activation
                 )
             else:
                 layer = ResidualTransformation(
                     name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
-                    depth=depths[n], batchnorm=batchnorm, activation=activation, weight_decay=weight_decay
+                    depth=depths[n], batchnorm=batchnorm, activation=activation
                 )
             self.layers.append(layer)
             previous_size = layer_size
@@ -33,6 +33,7 @@ class ResnetTransformation(Transformation):
         spec.update(layers=[layer.specification() for layer in self.layers])
         return spec
 
+    @tensorflow_name_scoped
     def build(self, input_shape):
         for layer in self.layers:
             layer.build(input_shape)

@@ -5,7 +5,7 @@ from .dense import DenseTransformation
 class MlpTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, layer_sizes, batchnorm=True, activation='relu', weight_decay=0.0
+        self, name, input_size, layer_sizes, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
 
@@ -14,8 +14,7 @@ class MlpTransformation(Transformation):
         for n, layer_size in enumerate(layer_sizes):
             layer = DenseTransformation(
                 name=('layer' + str(n)), input_size=previous_size,
-                output_size=layer_size, batchnorm=batchnorm, activation=activation,
-                weight_decay=weight_decay
+                output_size=layer_size, batchnorm=batchnorm, activation=activation
             )
             self.layers.append(layer)
             previous_size = layer_size
@@ -31,7 +30,7 @@ class MlpTransformation(Transformation):
             input_shape = layer.compute_output_shape(input_shape)
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         for layer in self.layers:
             inputs = layer(inputs=inputs)
 

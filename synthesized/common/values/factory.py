@@ -38,9 +38,8 @@ class ValueFactory(tf.Module):
     """A Mix-In that you extend to be able to create various values."""
 
     def __init__(
-        self, df: pd.DataFrame, capacity: int = 128, weight_decay: float = 1e-5, continuous_weight: float = 1.0,
-        categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, smoothing: float = 0.1,
-        entropy_regularization: float = 0.1, similarity_regularization: float = 0.1, nan_weight: float = 1.0,
+        self, df: pd.DataFrame, capacity: int = 128, continuous_weight: float = 1.0,
+        categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, nan_weight: float = 1.0,
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
@@ -69,8 +68,6 @@ class ValueFactory(tf.Module):
         nan_kwargs: Dict[str, Any] = dict()
         categorical_kwargs['capacity'] = capacity
         nan_kwargs['capacity'] = capacity
-        categorical_kwargs['weight_decay'] = weight_decay
-        nan_kwargs['weight_decay'] = weight_decay
         categorical_kwargs['weight'] = categorical_weight
         nan_kwargs['weight'] = nan_weight
         continuous_kwargs['weight'] = continuous_weight
@@ -92,7 +89,6 @@ class ValueFactory(tf.Module):
         self.conditions: List[Value] = list()
 
         self.capacity = capacity
-        self.weight_decay = weight_decay
 
         # Person
         self.person_value: Optional[Value] = None

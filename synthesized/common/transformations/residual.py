@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .transformation import Transformation
 from .. import util
+from ..module import tensorflow_name_scoped
 from .dense import DenseTransformation
 from .linear import LinearTransformation
 
@@ -9,8 +10,7 @@ from .linear import LinearTransformation
 class ResidualTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, output_size, depth=2, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, output_size, depth=2, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
@@ -21,18 +21,16 @@ class ResidualTransformation(Transformation):
         for n in range(depth - 1):
             self.layers.append(DenseTransformation(
                 name=('Dense_' + str(n)), input_size=input_size,
-                output_size=input_size, batchnorm=batchnorm, activation=activation,
-                weight_decay=weight_decay
+                output_size=input_size, batchnorm=batchnorm, activation=activation
             ))
         self.layers.append(DenseTransformation(
             name=('Dense_' + str(depth - 1)), input_size=input_size,
-            output_size=output_size, weight_decay=weight_decay
+            output_size=output_size
         ))
 
         if input_size != output_size:
             self.identity_transformation = LinearTransformation(
-                name='idtransform', input_size=input_size, output_size=output_size,
-                weight_decay=weight_decay,
+                name='idtransform', input_size=input_size, output_size=output_size
             )
         else:
             self.identity_transformation = None
@@ -46,6 +44,7 @@ class ResidualTransformation(Transformation):
         )
         return spec
 
+    @tensorflow_name_scoped
     def build(self, input_shape):
         if self.batchnorm:
             shape = (self.output_size,)
