@@ -228,8 +228,9 @@ class HighDimSynthesizer(Synthesizer):
             keep_learning = True
             iteration = 0
             while keep_learning:
-                batch = np.random.randint(num_data, size=self.batch_size)
-                feed_dict = {placeholder: tf.constant(value_data[batch]) for placeholder, value_data in data.items()}
+                batch = tf.random.uniform(shape=(self.batch_size,), maxval=self.batch_size, dtype=tf.int64)
+                feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
+                             for name, value_data in data.items()}
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0

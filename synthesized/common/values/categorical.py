@@ -59,6 +59,7 @@ class CategoricalValue(Value):
         self.temperature = temperature
         self.pandas_category = pandas_category
         self.produce_nans = produce_nans
+        self.dtype = tf.int64
 
     def __str__(self) -> str:
         string = super().__str__()

@@ -13,6 +13,7 @@ class Value(tf.Module):
         self._name = name
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
+        self.dtype = tf.float32
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()

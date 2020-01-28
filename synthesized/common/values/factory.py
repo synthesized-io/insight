@@ -216,7 +216,7 @@ class ValueFactory(tf.Module):
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
         data = {
-            name: df[name].to_numpy() for value in (self.values + self.conditions)
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in (self.values + self.conditions)
             for name in value.learned_input_columns()
         }
         return data
