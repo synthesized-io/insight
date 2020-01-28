@@ -1,14 +1,13 @@
-from collections import OrderedDict
-from itertools import combinations
-from typing import Dict, List, Tuple
+from typing import Dict, List, Union, Optional
 
 import tensorflow as tf
-from tensorflow_probability import distributions as tfd
 import tensorflow_probability as tfp
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped
-from ..values import Value, CategoricalValue
+from ..values import Value
+from ..module import tensorflow_name_scoped, module_registry
+from ..distributions import Distribution
+from ..optimizers import Optimizer
 
 
 class VAE(Generative):
@@ -27,21 +26,22 @@ class VAE(Generative):
         # Latent distribution
         distribution: str, latent_size: int,
         # Encoder and decoder network
-        network: str, capacity: int, depth: int, batchnorm: bool, activation: str,
+        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
+        activation: str,
         # Optimizer
-        optimizer: str, learning_rate: float, decay_steps: int, decay_rate: float,
-        initial_boost: bool, clip_gradients: float,
+        optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
+        initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
         weight_decay: float,
-        summarize: bool = False
+        summarize: bool = False, summarize_gradient_norms: bool = False
     ):
         super().__init__(name=name, values=values, conditions=conditions)
-
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
+        self.summarize_gradient_norms = summarize_gradient_norms
 
         # Total input and output size of all values
         input_size = 0
@@ -57,32 +57,35 @@ class VAE(Generative):
             assert value.learned_input_columns() == value.learned_output_columns()
             condition_size += value.learned_input_size()
 
-        # Encoder: parametrized distribution q(z|x)
-        parametrization = dict(
-            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
-            activation=activation, weight_decay=weight_decay
+        kwargs = dict(
+            name='encoder', input_size=input_size, depths=residual_depths,
+            layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay,
+            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
         )
-        self.encoder = self.add_module(
-            module='distribution', name='encoder', input_size=input_size, output_size=latent_size,
-            distribution=distribution, parametrization=parametrization
+        for k in list(kwargs.keys()):
+            if kwargs[k] is None:
+                del kwargs[k]
+        self.encoder = module_registry[network](**kwargs)
+
+        self.encoding = Distribution(
+            name='encoding', input_size=capacity, output_size=latent_size,
+            distribution=distribution, beta=beta, encode=True
         )
 
         # Decoder: parametrized distribution p(y|z,c)
-        parametrization = dict(
-            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
-            activation=activation, weight_decay=weight_decay
-        )
-        self.decoder = self.add_module(
-            module='distribution', name='decoder',
-            input_size=(self.encoder.size() + condition_size), output_size=output_size,
-            distribution='deterministic', parametrization=parametrization
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + condition_size)
+        self.decoder = module_registry[network](**kwargs)
+
+        self.decoding = Distribution(
+            name='decoding',
+            input_size=self.decoder.size(), output_size=output_size,
+            distribution='deterministic', beta=beta, encode=False
         )
 
-        # Optimizer
-        self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
-            clip_gradients=clip_gradients
+        self.optimizer = Optimizer(
+            name='optimizer', optimizer=optimizer,
+            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+            clip_gradients=clip_gradients, initial_boost=initial_boost
         )
 
     def specification(self) -> dict:
@@ -93,8 +96,44 @@ class VAE(Generative):
         )
         return spec
 
+    def loss(self):
+        if len(self.xs) == 0:
+            return dict(), tf.no_op()
+
+        x = self.unified_inputs(self.xs)
+
+        #################################
+        x = self.encoder(x)
+        q = self.encoding(x)
+        z = q.sample()
+        x = self.add_conditions(x=z, conditions=self.xs)
+        x = self.decoder(x)
+        p = self.decoding(x)
+        y = p.sample()
+        #################################
+
+        self.losses = self.value_losses(y=y, inputs=self.xs)
+        kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
+        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
+        regularization_loss = tf.identity(self.losses['regularization-loss'], name='regularization_loss')
+
+        total_loss = tf.add_n(
+            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
+        )
+        self.losses['kl-loss'] = kl_loss
+        self.losses['total-loss'] = total_loss
+
+        tf.summary.image(
+            name='latent_space_correlation',
+            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
+        )
+        tf.summary.histogram(name='posterior', data=z)
+
+        return total_loss
+
+    @tf.function
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
+    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
 
         Args:
@@ -104,112 +143,13 @@ class VAE(Generative):
             Dictionary of loss tensors, and optimization operation.
 
         """
-        if len(xs) == 0:
-            return dict(), tf.no_op()
-
-        losses: Dict[str, tf.Tensor] = OrderedDict()
-        summaries = list()
-
-        # Concatenate input tensors per value
-        x = tf.concat(values=[
-            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-            for value in self.values if value.learned_input_size() > 0
-        ], axis=1)
-
-        # Encoder q(z|x)
-        q = self.encoder.parametrize(x=x)
-        if q.reparameterization_type is not tfd.FULLY_REPARAMETERIZED:
-            raise NotImplementedError
-
-        # Prior p'(z)
-        prior = self.encoder.prior()
-
-        # KL-divergence loss
-        kldiv = tfd.kl_divergence(distribution_a=q, distribution_b=prior, allow_nan_stats=False)
-        kldiv = tf.reduce_sum(input_tensor=kldiv, axis=1)
-        kldiv = tf.reduce_mean(input_tensor=kldiv, axis=0)
-        losses['kl-loss'] = self.beta * kldiv
-        summaries.append(tf.compat.v2.summary.scalar(name='kl-divergence', data=kldiv, step=self.global_step))
-
-        # Sample z ~ q(z|x)
-        z = q.sample()
-        summaries.append(tf.compat.v2.summary.image(
-            name='latent_space_correlation',
-            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1)),
-            step=self.global_step
-        ))
-        summaries.append(tf.compat.v2.summary.histogram(name='posterior', data=z, step=self.global_step))
-
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            z = tf.concat(values=(z, c), axis=1)
-
-        # Decoder p(y|z,c)
-        p = self.decoder.parametrize(x=z)
-
-        # Sample y ~ p(y|z,c)
-        y = p.sample()
-
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
+        self.xs = xs
+        # Optimization step
+        self.optimizer.optimize(
+            loss=self.loss, variables=self.get_trainable_variables
         )
 
-        # Reconstruction loss per value
-        for value, y in zip(self.values, ys):
-            losses[value.name + '-loss'] = value.loss(
-                y=y, xs=[xs[name] for name in value.learned_output_columns()]
-            )
-
-        # Categorical Contingency Plots in tensorboard
-        with tf.compat.v1.name_scope("contingency_plots"):
-            for (value_a, y_a), (value_b, y_b) in combinations(
-                    [(v, tf.one_hot(v.output_tensors(vy)[0], depth=v.num_categories))
-                     for v, vy in zip(self.values, ys) if isinstance(v, CategoricalValue)],
-                    r=2
-            ):
-                summaries.append(
-                    tf.compat.v2.summary.image(
-                        name=f"{value_a.name}_{value_b.name}",
-                        data=tf.expand_dims(tf.cast(tf.reduce_sum(input_tensor=tf.matmul(
-                            tf.expand_dims(y_a, axis=-1),
-                            tf.expand_dims(y_b, axis=1)
-                        ), axis=0, keepdims=True), dtype=tf.float32), axis=-1), step=self.global_step
-                    )
-                )
-
-        # Regularization loss
-        reg_losses = tf.compat.v1.losses.get_regularization_losses()
-        if len(reg_losses) > 0:
-            losses['regularization-loss'] = tf.add_n(inputs=reg_losses)
-
-        # Total loss
-        total_loss = tf.add_n(inputs=list(losses.values()))
-        losses['total-loss'] = total_loss
-
-        # Loss summaries
-        for name, loss in losses.items():
-            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=self.global_step))
-
-        if not self.summarize:
-            summaries = list()
-
-        # Make sure summary operations are executed
-        with tf.control_dependencies(control_inputs=summaries):
-
-            # Optimization step
-            optimized = self.optimizer.optimize(
-                loss=loss, summarize_gradient_norms=self.summarize
-            )
-
-        return losses, optimized
+        return
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
@@ -223,41 +163,28 @@ class VAE(Generative):
             Output tensor per column.
 
         """
-        # Prior p'(z)
-        prior = self.encoder.prior()
-
-        # Sample z ~ p'(z)
-        z = prior.sample(sample_shape=(n,))
-
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            z = tf.concat(values=(z, c), axis=1)
-
-        # Decoder p(y|z,c)
-        p = self.decoder.parametrize(x=z)
-
-        # Sample y ~ p(y|z,c)
-        y = p.sample()
-
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
-        )
-
-        # Output tensors per value
-        synthesized: Dict[str, tf.Tensor] = OrderedDict()
-        for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
-
-        for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = cs[name]
+        y = self._synthesize(n=n, cs=cs)
+        synthesized = self.value_outputs(y=y, conditions=cs)
 
         return synthesized
+
+    @tf.function
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        """Generate the given number of instances.
+
+        Args:
+            n: Number of instances to generate.
+            cs: Condition tensor per column.
+
+        Returns:
+            Output tensor per column.
+
+        """
+        prior = self.encoding.prior()
+        z = prior.sample(sample_shape=(n,))
+        z = self.add_conditions(x=z, conditions=cs)
+        x = self.decoder(z)
+        p = self.decoding(x)
+        y = p.sample()
+
+        return y

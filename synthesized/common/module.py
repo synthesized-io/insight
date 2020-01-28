@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .util import make_tf_compatible
 
-module_registry: Dict[str, tf.Module] = dict()
+module_registry: Dict[str, tf.keras.layers.Layer] = dict()
 
 
 def register(name, module):

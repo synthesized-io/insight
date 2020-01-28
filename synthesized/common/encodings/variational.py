@@ -42,14 +42,14 @@ class VariationalEncoding(Encoding):
         )
         x = mean + stddev * x
 
-        encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
+        kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
             - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-        encoding_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=encoding_loss, axis=1), axis=0)
+        kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
 
         if self.beta is not None:
-            encoding_loss *= self.beta
+            kl_loss *= self.beta
 
-        self.add_loss(encoding_loss, inputs=inputs)
+        self.add_loss(kl_loss, inputs=inputs)
 
         tf.summary.histogram(name='mean', data=self.mean.output),
         tf.summary.histogram(name='stddev', data=self.stddev.output),
