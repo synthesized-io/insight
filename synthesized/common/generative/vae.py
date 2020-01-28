@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Tuple, Optional
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -154,6 +154,41 @@ class VAE(Generative):
         )
 
         return
+
+    @tf.function
+    @tensorflow_name_scoped
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+        """Encoding Step for VAE.
+
+        Args:
+            xs: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+
+        """
+        if len(xs) == 0:
+            return tf.no_op(), dict()
+
+        #################################
+        x = self.unified_inputs(xs)
+        x = self.encoder(x)
+        q = self.encoding(x)
+
+        latent_space = q.sample()
+        mean = self.encoding.mean.output
+        std = self.encoding.stddev.output
+
+        x = self.add_conditions(x=latent_space, conditions=xs)
+        x = self.decoder(x)
+        p = self.decoding(x)
+        y = p.sample()
+        synthesized = self.value_outputs(y=y, conditions=cs)
+        #################################
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:

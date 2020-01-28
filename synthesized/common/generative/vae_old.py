@@ -173,16 +173,16 @@ class VAEOld(Generative):
 
         #################################
         x = self.unified_inputs(xs)
-        x = self.linear_input.transform(x)
-        x = self.encoder.transform(x=x)
+        x = self.linear_input(x)
+        x = self.encoder(x)
 
-        latent_space = self.encoding.encode(x=x)
+        latent_space = self.encoding(x)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
         x = self.add_conditions(x=latent_space, conditions=xs)
-        x = self.decoder.transform(x=x)
-        y = self.linear_output.transform(x=x)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         synthesized = self.value_outputs(y=y, conditions=cs)
         #################################
 
