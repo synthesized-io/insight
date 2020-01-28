@@ -46,6 +46,8 @@ class HighDimSynthesizer(Synthesizer):
         categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
         # Continuous
         continuous_weight: float = 5.0,
+        # Nan
+        nan_weight: float = 1.0,
         # Conditions
         condition_columns: List[str] = None,
         # Person
@@ -132,7 +134,7 @@ class HighDimSynthesizer(Synthesizer):
             name='value_factory', df=df,
             capacity=capacity, weight_decay=weight_decay,
             continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
-            moving_average=moving_average,
+            moving_average=moving_average, nan_weight=nan_weight,
             type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
             condition_columns=condition_columns, find_rules=find_rules,
             # Person

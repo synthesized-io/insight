@@ -40,7 +40,7 @@ class ValueFactory(tf.Module):
     def __init__(
         self, df: pd.DataFrame, capacity: int = 128, weight_decay: float = 1e-5, continuous_weight: float = 1.0,
         categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, smoothing: float = 0.1,
-        entropy_regularization: float = 0.1, similarity_regularization: float = 0.1,
+        entropy_regularization: float = 0.1, similarity_regularization: float = 0.1, nan_weight: float = 1.0,
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
@@ -72,7 +72,7 @@ class ValueFactory(tf.Module):
         categorical_kwargs['weight_decay'] = weight_decay
         nan_kwargs['weight_decay'] = weight_decay
         categorical_kwargs['weight'] = categorical_weight
-        nan_kwargs['weight'] = categorical_weight
+        nan_kwargs['weight'] = nan_weight
         continuous_kwargs['weight'] = continuous_weight
         categorical_kwargs['temperature'] = temperature
         categorical_kwargs['moving_average'] = moving_average
