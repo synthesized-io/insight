@@ -64,7 +64,7 @@ class VAEOld(Generative):
 
         kwargs = dict(
             name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
-            layer_sizes=[capacity for _ in range(num_layers)] if not num_layers else None, weight_decay=weight_decay,
+            layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None, weight_decay=weight_decay,
             output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
         )
         for k in list(kwargs.keys()):
