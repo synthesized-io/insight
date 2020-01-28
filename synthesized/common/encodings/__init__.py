@@ -5,4 +5,4 @@ from ..module import register
 
 register(name='variational', module=VariationalEncoding)
 
-__all__ = ['Encoding']
+__all__ = ['Encoding', 'VariationalEncoding']

@@ -18,4 +18,5 @@ register(name='residual', module=ResidualTransformation)
 register(name='resnet', module=ResnetTransformation)
 
 
-__all__ = ['Transformation']
+__all__ = ['Transformation', 'DenseTransformation', 'LinearTransformation', 'MlpTransformation',
+           'ModulationTransformation', 'ResidualTransformation', 'ResnetTransformation']
