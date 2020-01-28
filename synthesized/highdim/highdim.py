@@ -369,6 +369,9 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         """
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
+        if self.learning_manager:
+            self.learning_manager.restart_learning_manager()
+
         df_train = df_train.copy()
         df_train_orig = df_train.copy()
         for value in (self.values + self.conditions):
