@@ -183,7 +183,7 @@ class HighDimSynthesizer(Synthesizer):
         return self.value_factory.get_conditions()
 
     def get_losses(self) -> tf.Tensor:
-        return self.losses
+        return self.vae.losses
 
     def specification(self):
         spec = super().specification()
@@ -228,7 +228,7 @@ class HighDimSynthesizer(Synthesizer):
             keep_learning = True
             iteration = 0
             while keep_learning:
-                batch = tf.random.uniform(shape=(self.batch_size,), maxval=self.batch_size, dtype=tf.int64)
+                batch = tf.random.uniform(shape=(self.batch_size,), maxval=len(df_train), dtype=tf.int64)
                 feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
                              for name, value_data in data.items()}
 

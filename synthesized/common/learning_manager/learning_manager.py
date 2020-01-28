@@ -197,7 +197,7 @@ class LearningManager:
                                              column_names=column_names)
 
     def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[tf.Tensor, np.array],
-                               num_data: int):
+                               num_data: int, data_length: int):
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -213,16 +213,16 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = np.random.randint(num_data, size=self.sample_size)
-        feed_dict = {placeholder: value_data[batch_valid] for placeholder, value_data in data_dict.items()}
+        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=data_length, dtype=tf.int64)
+        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch_valid)
+                     for name, value_data in data_dict.items()}
 
-        loss_tensor = synthesizer.get_losses()
-        losses = synthesizer.run(fetches=loss_tensor, feed_dict=feed_dict)
+        losses = synthesizer.get_losses(feed_dict=feed_dict)
         losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'encoding']}
         return self.stop_learning_check_metric(iteration, losses)
 
     def stop_learning(self, iteration: int, synthesizer: Synthesizer, use_vae_loss: bool = True,
-                      data_dict: Dict[tf.Tensor, np.array] = None, num_data: int = None,
+                      data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
                       df_train_orig: pd.DataFrame = None):
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return
         accordingly.
@@ -244,7 +244,7 @@ class LearningManager:
         if use_vae_loss:
             assert data_dict is not None and num_data is not None
             return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict,
-                                               num_data=num_data)
+                                               num_data=num_data, data_length=len(df_train_orig))
         else:
             assert df_train_orig is not None
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)

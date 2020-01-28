@@ -134,19 +134,19 @@ class VAEOld(Generative):
         #################################
 
         # Losses
-        losses = self.value_losses(y=y, inputs=self.xs)
+        self.losses = self.value_losses(y=y, inputs=self.xs)
         encoding_loss = tf.identity(self.encoding.losses[0], name='encoding_loss')
-        reconstruction_loss = tf.identity(losses['reconstruction-loss'], name='reconstruction_loss')
-        regularization_loss = tf.identity(losses['regularization-loss'], name='regularization_loss')
+        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
+        regularization_loss = tf.identity(self.losses['regularization-loss'], name='regularization_loss')
 
         total_loss = tf.add_n(
             inputs=[encoding_loss, reconstruction_loss, regularization_loss], name='total_loss'
         )
-        losses['encoding-loss'] = encoding_loss
-        losses['total-loss'] = total_loss
+        self.losses['encoding-loss'] = encoding_loss
+        self.losses['total-loss'] = total_loss
 
         # Summaries
-        for name, loss in losses.items():
+        for name, loss in self.losses.items():
             tf.summary.scalar(name=name, data=loss)
 
         return total_loss
