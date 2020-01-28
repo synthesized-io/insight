@@ -26,9 +26,10 @@ class Evaluation:
         else:
             evaluation_metrics[key] = [value]
 
-    def write_metrics(self):
+    def write_metrics(self, append=True):
         timestamp = datetime.datetime.now().isoformat()
-        with open(self.metrics_file, 'a') as f:
+        write_mode = 'a' if append else 'w'
+        with open(self.metrics_file, write_mode) as f:
             for evaluation, evaluation_metrics in self.metrics.items():
                 data = OrderedDict()
                 data['group'] = self.group

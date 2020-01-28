@@ -363,6 +363,10 @@ class UtilityTesting:
                     df = df.drop(col, axis=1)
             return df
 
+        self.df_orig_encoded = self.df_orig_encoded.copy().dropna()
+        self.df_synth_encoded = self.df_synth_encoded.copy().dropna()
+        self.df_test_encoded = self.df_test_encoded.copy().dropna()
+
         X, y = self.df_orig_encoded.drop(target, 1), self.df_orig_encoded[target]
         X_synth, y_synth = self.df_synth_encoded.drop(target, 1), self.df_synth_encoded[target]
         X_test, y_test = self.df_test_encoded.drop(target, 1), self.df_test_encoded[target]
@@ -399,7 +403,7 @@ class UtilityTesting:
             print("R2 (orig):", orig_score)
             print("R2 (synth):", synth_score)
 
-        return orig_score - synth_score
+        return synth_score
 
     def autocorrelation_diff_plot_seaborn(self, max_lag: int = 100) -> None:
         """Plot autocorrelation.
