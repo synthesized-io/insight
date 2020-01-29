@@ -57,7 +57,7 @@ class Synthesizer(tf.Module):
         tf.summary.experimental.set_step(self.global_step)
 
         self.logdir = None
-        self.loss_history = list()
+        self.loss_history: List[dict] = list()
         self.writer: Optional[tf.summary.SummaryWriter] = None
 
         # Set up logging.
