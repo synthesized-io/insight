@@ -10,6 +10,7 @@ from ..common import Distribution, Functional, Value
 from ..common.synthesizer import Synthesizer
 
 
+# TODO: Migrate to TensorFlow2
 class ScenarioSynthesizer(Synthesizer):
     """The scenario synthesizer implementation.
 
@@ -133,9 +134,6 @@ class ScenarioSynthesizer(Synthesizer):
 
         summaries = list()
 
-        # Number of rows to synthesize
-        self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
-
         # Prior p'(z)
         prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
 
@@ -190,7 +188,7 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Loss summaries
         for name, loss in self.losses.items():
-            summaries.append(tf.compat.v2.summary.scalar(name=name, data=loss, step=self.global_step))
+            summaries.append(tf.summary.scalar(name=name, data=loss))
 
         # Make sure summary operations are executed
         with tf.control_dependencies(control_inputs=summaries):
