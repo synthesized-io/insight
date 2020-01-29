@@ -23,8 +23,8 @@ class CompoundAddressValue(Value):
         self.postcode_regex = postcode_regex
 
         self.postcodes = None
-        self.postcode = self.add_module(
-            module=CategoricalValue, name=address_label, categories=self.postcodes,
+        self.postcode = CategoricalValue(
+            name=address_label, categories=self.postcodes,
             capacity=capacity
         )
         self.faker = Faker(locale='en_GB')

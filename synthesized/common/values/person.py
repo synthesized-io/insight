@@ -41,12 +41,12 @@ class PersonValue(Value):
             self.gender = None
         elif self.title_label == self.gender_label:
             # a special case when we extract gender from title:
-            self.gender = self.add_module(
-                module=CategoricalValue, name='_gender', **categorical_kwargs
+            self.gender = CategoricalValue(
+                name='_gender', **categorical_kwargs
             )
         else:
-            self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, **categorical_kwargs
+            self.gender = CategoricalValue(
+                name=gender_label, **categorical_kwargs
             )
 
     def learned_input_columns(self) -> List[str]:

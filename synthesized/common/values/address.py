@@ -66,8 +66,8 @@ class AddressValue(Value):
         if self.fake:
             self.postcode = None
         else:
-            self.postcode = self.add_module(
-                module=CategoricalValue, name=postcode_label,
+            self.postcode = CategoricalValue(
+                name=postcode_label,
                 **categorical_kwargs
             )
 

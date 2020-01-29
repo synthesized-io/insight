@@ -26,17 +26,17 @@ class DateValue(ContinuousValue):
         self.original_dtype = None
 
         categorical_kwargs['similarity_based'] = True
-        self.hour = self.add_module(
-            module=CategoricalValue, name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
+        self.hour = CategoricalValue(
+            name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
         )
-        self.dow = self.add_module(
-            module=CategoricalValue, name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
+        self.dow = CategoricalValue(
+            name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
         )
-        self.day = self.add_module(
-            module=CategoricalValue, name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
+        self.day = CategoricalValue(
+            name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
         )
-        self.month = self.add_module(
-            module=CategoricalValue, name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
+        self.month = CategoricalValue(
+            name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
         )
 
     def __str__(self):
