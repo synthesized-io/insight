@@ -226,6 +226,7 @@ class ContinuousValue(Value):
         # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     @tensorflow_name_scoped

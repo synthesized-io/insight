@@ -45,3 +45,7 @@ class ResnetTransformation(Transformation):
             inputs = layer(inputs)
 
         return inputs
+
+    @property
+    def regularization_losses(self):
+        return [loss for layer in self.layers for loss in layer.regularization_losses]

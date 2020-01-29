@@ -108,6 +108,7 @@ class CategoricalValue(Value):
             initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
             dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
         )
+        self.add_l2_loss(self.embeddings)
 
         if self.use_moving_average:
             self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
@@ -189,7 +190,7 @@ class CategoricalValue(Value):
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
-
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:

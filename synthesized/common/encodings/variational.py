@@ -50,6 +50,7 @@ class VariationalEncoding(Encoding):
             kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
 
         tf.summary.histogram(name='mean', data=self.mean.output),
         tf.summary.histogram(name='stddev', data=self.stddev.output),
@@ -67,3 +68,7 @@ class VariationalEncoding(Encoding):
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         return x
+
+    @property
+    def regularization_losses(self):
+        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]

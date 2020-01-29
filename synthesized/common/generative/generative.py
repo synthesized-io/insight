@@ -91,17 +91,6 @@ class Generative(tf.Module):
                 y=y, xs=[inputs[name] for name in value.learned_output_columns()]
             )
 
-        # Regularization loss
-        l2_regularizer = get_regularizer('l2', weight=self.weight_decay)
-
-        reg_losses = [l2_regularizer(v) for v in self.trainable_variables
-                      if 'scale' not in v.name and 'offset' not in v.name]
-
-        if len(reg_losses) > 0:
-            losses['regularization-loss'] = tf.add_n(inputs=reg_losses, name='regularization_loss')
-        else:
-            losses['regularization-loss'] = tf.constant(0, dtype=tf.float32)
-
         # Reconstruction loss
         losses['reconstruction-loss'] = tf.add_n(inputs=list(losses.values()), name='reconstruction_loss')
 

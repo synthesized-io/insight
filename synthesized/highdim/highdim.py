@@ -228,12 +228,11 @@ class HighDimSynthesizer(Synthesizer):
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
-            iteration = 0
+            iteration = 1
             while keep_learning:
                 batch = tf.random.uniform(shape=(self.batch_size,), maxval=len(df_train), dtype=tf.int64)
                 feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
                              for name, value_data in data.items()}
-
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                 ):

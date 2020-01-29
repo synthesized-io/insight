@@ -97,3 +97,11 @@ class ResidualTransformation(Transformation):
 
         # dropout
         return x
+
+    @property
+    def regularization_losses(self):
+        losses = [loss for layer in self.layers for loss in layer.regularization_losses]
+        if self.identity_transformation is not None:
+            losses.extend(self.identity_transformation.regularization_losses)
+
+        return losses

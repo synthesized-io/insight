@@ -68,6 +68,7 @@ class NanValue(Value):
             initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
             dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
         )
+        self.add_l2_loss(self.embeddings)
 
     def preprocess(self, df):
         if df[self.value.name].dtype.kind not in self.value.pd_types:
@@ -95,6 +96,7 @@ class NanValue(Value):
             initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
             dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
         )
+        self.add_l2_loss(self.embeddings)
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -143,4 +145,5 @@ class NanValue(Value):
         )
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
         loss += self.value.loss(y=y[:, 2:], xs=xs, mask=tf.math.logical_not(x=target_nan))
+        tf.summary.scalar(name=self.name, data=loss)
         return loss

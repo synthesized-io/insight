@@ -14,6 +14,7 @@ class Value(tf.Module):
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
         self.dtype = tf.float32
+        self._regularization_losses: List[tf.Tensor] = list()
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()
@@ -181,3 +182,13 @@ class Value(tf.Module):
 
     def build(self) -> None:
         self.built = True
+
+    @property
+    def regularization_losses(self):
+        return self._regularization_losses
+
+    def add_l2_loss(self, variable: tf.Variable):
+        l2 = tf.keras.regularizers.l2(1.0)
+        l2_loss = l2(variable)
+        self._regularization_losses.append(l2_loss)
+        return l2_loss

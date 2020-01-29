@@ -1,11 +1,12 @@
 import tensorflow as tf
 from ..module import tensorflow_name_scoped
+from ..transformations import Transformation
 
 
-class Encoding(tf.keras.layers.Layer):
+class Encoding(Transformation):
 
     def __init__(self, name, input_size, encoding_size, condition_size=0):
-        super().__init__(name=name, dtype=tf.float32)
+        super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
         self.input_size = input_size
         self.encoding_size = encoding_size
         self.condition_size = condition_size
