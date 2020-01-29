@@ -5,15 +5,13 @@ from typing import Callable, List, Union, Dict, Set, Iterable, Optional
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ks_2samp
 import tensorflow as tf
 
 from ..common import Value, ValueFactory
-from ..common.module import Module, tensorflow_name_scoped
-from ..common.optimizers import Optimizer
 from ..common.util import ProfilerArgs
 from ..common.values import ContinuousValue
-from ..synthesizer import Synthesizer
+from ..common import Synthesizer
+
 
 class TypeOverride(enum.Enum):
     ID = 'ID'
