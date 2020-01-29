@@ -244,8 +244,8 @@ class HighDimSynthesizer(Synthesizer):
                     else:
                         self.vae.learn(xs=feed_dict)
 
-                    # if callback(self, iteration, fetched) is True:
-                    #     return
+                    if callback(self, iteration, self.vae.losses) is True:
+                        return
                 else:
                     self.vae.learn(xs=feed_dict)
 
