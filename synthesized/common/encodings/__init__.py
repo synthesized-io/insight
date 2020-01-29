@@ -1,5 +1,5 @@
 from .encoding import Encoding
-from .rnn_variational_new import RnnVariationalEncoding
+from .rnn_variational import RnnVariationalEncoding
 from .variational import VariationalEncoding
 from ..module import register
 

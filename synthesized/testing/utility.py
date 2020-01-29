@@ -23,6 +23,7 @@ from sklearn.metrics import mean_squared_error, r2_score, normalized_mutual_info
 from sklearn.metrics import roc_auc_score
 from statsmodels.formula.api import ols, mnlogit
 from statsmodels.tsa.stattools import acf, pacf
+from jellyfish import jaro_distance
 
 from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue

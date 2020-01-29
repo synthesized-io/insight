@@ -14,7 +14,8 @@ class RnnVariationalEncoding(Encoding):
 
         self.lstm_encoder = self.add_module(
             module='lstm', name='lstm', input_size=self.input_size,
-            output_size=self.encoding_size, return_state=True
+            output_size=self.encoding_size,
+            return_state=False, return_sequences=False
         )
 
         self.mean = self.add_module(
@@ -29,19 +30,11 @@ class RnnVariationalEncoding(Encoding):
             activation='softplus'
         )
 
-        self.initial_input = self.add_module(
-            module='dense', name='initial-input',
-            input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
-            batchnorm=False, activation='none'
+        self.lstm_decoder = self.add_module(
+            module='lstm', name='lstm', input_size=self.encoding_size,
+            output_size=self.input_size,
+            return_state=False, return_sequences=True, return_state_and_x=True
         )
-
-        self.initial_state = self.add_module(
-            module='dense', name='initial-state',
-            input_size=(self.encoding_size + self.condition_size), output_size=(2 * self.encoding_size),
-            batchnorm=False, activation='none'
-        )
-
-        self.lstm_decoder = tf.keras.layers.LSTMCell(units=self.encoding_size)
 
     def specification(self):
         spec = super().specification()
@@ -53,93 +46,68 @@ class RnnVariationalEncoding(Encoding):
 
     def module_initialize(self):
         super().module_initialize()
-        self.lstm_decoder.build(input_shape=(None, self.encoding_size))
 
     @tensorflow_name_scoped
     def encode(self, x, condition=(), encoding_plus_loss=False):
-        batch_size = tf.shape(input=x)[0]
-        final_state = self.lstm_encoder.transform(x=x)
-        final_state = tf.expand_dims(input=final_state, axis=0)
-
-        mean = self.mean.transform(x=final_state)
-        stddev = self.stddev.transform(x=final_state)
+        hx = self.lstm_encoder.transform(x=x)
+        hx = tf.expand_dims(hx, axis=0)
+        mean = self.mean.transform(x=hx)
+        stddev = self.stddev.transform(x=hx)
 
         encoding = tf.random.normal(
-            shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32
+            shape=tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32
         )
         encoding = mean + stddev * encoding
 
-        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
-        initial_input = self.initial_input.transform(x=x)
-        initial_state = self.initial_state.transform(x=x)
-        initial_state = [
-            initial_state[:, :self.encoding_size], initial_state[:, self.encoding_size:]
-        ]
+        # y = self.lstm_loop(encoding, 1000, x=x)
 
-        helper = RnnEncodingHelper(encoding_size=self.encoding_size, initial_input=initial_input)
-        decoder = tf.contrib.seq2seq.BasicDecoder(
-            cell=self.lstm_decoder, helper=helper, initial_state=initial_state
-        )
-        final_outputs, final_state, final_sequence_length = tf.contrib.seq2seq.dynamic_decode(
-            decoder=decoder, impute_finished=True, maximum_iterations=batch_size
-        )
-        x = final_outputs.sample_id[0]
+        encoding_x = tf.concat([encoding, x[:-1, :]], axis=0)
+        _, y = self.lstm_decoder.transform(encoding_x)
 
         if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
-                - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+                            - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_mean(tf.reduce_sum(encoding_loss, axis=1), axis=0)
 
             if self.beta is not None:
                 encoding_loss *= self.beta
-            return x, encoding, encoding_loss
+            return y, encoding, encoding_loss, mean, stddev
         else:
-            return x
+            return y
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
-        encoding = tf.random.normal(
-            shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32
+
+        encoding = tf.random.normal(shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
+        y = self.lstm_loop(encoding, n)
+
+        return y
+
+    def lstm_loop(self, encoding, n, x=None):
+        y = tf.Variable(tf.zeros(shape=(1, self.encoding_size)), dtype=tf.float32, trainable=False)
+
+        state = tf.zeros(shape=(2 * self.encoding_size))
+
+        iteration = tf.constant(0, dtype=tf.int64)
+
+        def cond(_iteration, _encoding, _state, _y):
+            return tf.less(_iteration, n)
+
+        def body(_iteration, _encoding, _state, _y):
+            if x is not None and n > 0:
+                x_in = tf.expand_dims(x[n-1, :], axis=0)
+                _state, _encoding = self.lstm_decoder.transform(x_in, state=_state)
+            else:
+                _state, _encoding = self.lstm_decoder.transform(_encoding, state=_state)
+            _y = tf.concat([_y, _encoding], axis=0)
+            return tf.add(_iteration, 1), _encoding, _state, _y
+
+        iteration, encoding, state, y = tf.while_loop(
+            cond, body, [iteration, encoding, state, y],
+            shape_invariants=[iteration.get_shape(), encoding.get_shape(), state.get_shape(),
+                              tf.TensorShape([None, self.encoding_size])]
         )
 
-        x = tf.concat(values=((encoding,) + tuple(condition)), axis=1)
-        initial_input = self.initial_input.transform(x=x)
-        initial_state = self.initial_state.transform(x=x)
-        initial_state = [
-            initial_state[:, :self.encoding_size], initial_state[:, self.encoding_size:]
-        ]
+        y = y[1:]
 
-        helper = RnnEncodingHelper(encoding_size=self.encoding_size, initial_input=initial_input)
-        decoder = tf.contrib.seq2seq.BasicDecoder(
-            cell=self.lstm_decoder, helper=helper, initial_state=initial_state
-        )
-        final_outputs, final_state, final_sequence_length = tf.contrib.seq2seq.dynamic_decode(
-            decoder=decoder, impute_finished=True, maximum_iterations=tf.cast(x=n, dtype=tf.int32)
-        )
-        x = final_outputs.sample_id[0]
-
-        return x
-
-
-class RnnEncodingHelper(tf.contrib.seq2seq.CustomHelper):
-
-    def __init__(self, encoding_size, initial_input):
-        self.initial_input = initial_input
-
-        super().__init__(
-            initialize_fn=self.initialize_fn, sample_fn=self.sample_fn,
-            next_inputs_fn=self.next_inputs_fn, sample_ids_shape=(encoding_size,),
-            sample_ids_dtype=tf.float32
-        )
-
-    def initialize_fn(self):
-        # finished, next_inputs
-        return tf.zeros(shape=(1,), dtype=tf.bool), self.initial_input
-
-    def sample_fn(self, time, outputs, state):
-        # sample_ids
-        return outputs
-
-    def next_inputs_fn(self, time, outputs, state, sample_ids):
-        # finished, next_inputs, next_state
-        return tf.zeros(shape=(1,), dtype=tf.bool), sample_ids, state
+        return y
