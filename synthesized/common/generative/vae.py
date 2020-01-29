@@ -113,20 +113,26 @@ class VAE(Generative):
         y = p.sample()
         #################################
 
+        # Losses
         self.losses = self.value_losses(y=y, inputs=self.xs)
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
-        regularization_loss = tf.identity(self.losses['regularization-loss'], name='regularization_loss')
+        regularization_loss = tf.multiply(
+            x=self.weight_decay,
+            y=tf.add_n(inputs=self.regularization_losses),
+            name='regularization_loss'
+        )
 
         total_loss = tf.add_n(
             inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
         )
+        self.losses['regularization-loss'] = regularization_loss
         self.losses['kl-loss'] = kl_loss
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        for name, loss in self.losses.items():
-            tf.summary.scalar(name=name, data=loss)
+        tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
 
         tf.summary.image(
             name='latent_space_correlation',
@@ -228,3 +234,11 @@ class VAE(Generative):
         y = p.sample()
 
         return y
+
+    @property
+    def regularization_losses(self):
+        return [
+            loss
+            for module in [self.encoder, self.encoding, self.decoder, self.decoding] + self.values
+            for loss in module.regularization_losses
+        ]

@@ -129,3 +129,7 @@ class Distribution(tf.keras.layers.Layer):
         p = tf_distributions[distribution](**kwargs)
 
         return p
+
+    @property
+    def regularization_losses(self):
+        return [loss for module in self.distr_trafos for loss in module.regularization_losses]
