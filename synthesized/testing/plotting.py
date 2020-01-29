@@ -14,6 +14,7 @@ from statsmodels.tsa.stattools import acf, pacf
 from IPython.display import Markdown, display
 
 from ..highdim import HighDimSynthesizer
+from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
 from ..testing.evaluation import Evaluation
 from .metrics import calculate_evaluation_metrics
@@ -160,9 +161,11 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                         plot_distances: bool = False, show_distribution_distances: bool = False,
                         show_distributions: bool = False, show_correlation_distances: bool = False,
                         show_correlation_matrix: bool = False, show_emd_distances: bool = False,
-                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False):
+                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False,
+                        show_acf_distances: bool = False,  show_pacf_distances: bool = False,
+                        show_transition_distances: bool = False, show_series: bool = False):
     """
-    Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
+    Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
 
@@ -177,17 +180,33 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
 
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
-    with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback, callback_freq=100)
-        training_time = time.time() - start
-        synthesized = synthesizer.synthesize(num_rows=len(eval_data))
-        print('took', training_time, 's')
+
+    if config['synthesizer_class'] == 'HighDimSynthesizer':
+
+        with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
+            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+                              callback_freq=100)
+            training_time = time.time() - start
+            synthesized = synthesizer.synthesize(num_rows=len(eval_data))
+            print('took', training_time, 's')
+
+    elif config['synthesizer_class'] == 'SeriesSynthesizer':
+
+        with SeriesSynthesizer(df=data, **config['params']) as synthesizer:
+            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+                              callback_freq=100)
+            training_time = time.time() - start
+            synthesized = synthesizer.synthesize(num_rows=len(eval_data))
+            print('took', training_time, 's')
+
+
         evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
         print("Metrics:")
         for key, metric in metrics.items():
             value = metric(orig=data, synth=synthesized)
             evaluation.record_metric(evaluation=name, key=key, value=value)
             print(f"{key}: {value}")
+
         if plot_basic:
             if time_series:
                 display(Markdown("## Plot time-series data"))
@@ -214,6 +233,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                 fig, ax = plt.subplots(figsize=(15, 5))
                 plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
         testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
+
         if plot_losses:
             display(Markdown("## Show loss history"))
             pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
@@ -246,8 +266,26 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if show_cat_rsquared:
             display(Markdown("## Show categorical R^2"))
             testing.show_categorical_rsquared()
-        return testing
 
+        # TIME SERIES
+        if show_acf_distances:
+            display(Markdown("## Show Auto-correaltion Distances"))
+            testing.show_autocorrelation_distances()
+            plt.show()
+        if show_pacf_distances:
+            display(Markdown("## Show Partial Auto-correlation Distances"))
+            testing.show_partial_autocorrelation_distances()
+            plt.show()
+        if show_transition_distances:
+            display(Markdown("## Show Transition Distances"))
+            testing.testing.show_transition_distances()
+            plt.show()
+        if show_series:
+            display(Markdown("## Show Series Sample"))
+            testing.show_series()
+            plt.show()
+
+        return testing
 
 # -- Measures of association for different pairs of data types
 def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):

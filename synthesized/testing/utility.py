@@ -22,6 +22,7 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.metrics import mean_squared_error, r2_score, normalized_mutual_info_score
 from sklearn.metrics import roc_auc_score
 from statsmodels.formula.api import ols, mnlogit
+from statsmodels.tsa.stattools import acf, pacf
 
 from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue
@@ -52,7 +53,8 @@ class UtilityTesting:
                  synthesizer: Synthesizer,
                  df_orig: pd.DataFrame,
                  df_test: pd.DataFrame,
-                 df_synth: pd.DataFrame):
+                 df_synth: pd.DataFrame,
+                 identifier=None):
         """Create an instance of UtilityTesting.
 
         Args:
@@ -69,6 +71,10 @@ class UtilityTesting:
         self.df_test_encoded = synthesizer.preprocess(df=df_test)
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
 
+        self.date_cols = []
+        self.continuous_cols = []
+        self.categorical_cols = []
+
         self.display_types: Dict[str, DisplayType] = {}
         for value in synthesizer.get_values():
             if isinstance(value, NanValue):
@@ -78,13 +84,22 @@ class UtilityTesting:
                 self.df_orig[value.name] = pd.to_datetime(self.df_orig[value.name])
                 self.df_test[value.name] = pd.to_datetime(self.df_test[value.name])
                 self.df_synth[value.name] = pd.to_datetime(self.df_synth[value.name])
+                self.date_cols.append(value.name)
             elif isinstance(value, ContinuousValue):
                 self.display_types[value.name] = DisplayType.CONTINUOUS
+                self.continuous_cols.append(value.name)
             elif isinstance(value, CategoricalValue):
                 self.display_types[value.name] = DisplayType.CATEGORICAL
+                self.categorical_cols.append(value.name)
         self.value_by_name: Dict[str, Value] = {}
         for v in synthesizer.get_values():
             self.value_by_name[v.name] = v
+
+        # Identifiers (only for Time-Series)
+        self.identifier = identifier
+        if identifier:
+            self.unique_ids_orig = self.df_orig[identifier].unique()
+            self.unique_ids_synth = self.df_synth[identifier].unique()
 
         # Set the style of plots
         plt.style.use('seaborn')
@@ -136,8 +151,12 @@ class UtilityTesting:
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
         plt.title('Correlation Matrices')
 
-        show_corr_matrix(self.df_test, title='Original', ax=ax1)
-        show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
+        if self.identifier:
+            show_corr_matrix(self.df_test.drop(self.identifier, axis=1), title='Original', ax=ax1)
+            show_corr_matrix(self.df_synth.drop(self.identifier, axis=1), title='Synthetic', ax=ax2)
+        else:
+            show_corr_matrix(self.df_test, title='Original', ax=ax1)
+            show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
         plt.show()
 
     def show_corr_distances(self, figsize: Tuple[float, float] = None) -> Tuple[float, float]:
@@ -146,7 +165,12 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
-        distances = (self.df_test.corr(method='kendall') - self.df_synth.corr(method='kendall')).abs()
+        if self.identifier:
+            distances = (self.df_test.drop(self.identifier, axis=1).corr(method='kendall') -
+                         self.df_synth.drop(self.identifier, axis=1).corr(method='kendall')).abs()
+        else:
+            distances = (self.df_test.corr(method='kendall') - self.df_synth.corr(method='kendall')).abs()
+
         result = []
         for i in range(distances.shape[0]):
             for j in range(distances.shape[1]):
@@ -160,7 +184,7 @@ class UtilityTesting:
 
         df = pd.DataFrame.from_records(result)
         if figsize is None:
-            figsize = (10, len(df)//6 + 2)
+            figsize = (10, len(df) // 6 + 2)
 
         corr_dist_max = df['distance'].max()
         corr_dist_avg = df['distance'].mean()
@@ -279,7 +303,7 @@ class UtilityTesting:
             cols: Number of columns in the plot grid.
         """
         if not figsize:
-            figsize = (14, 5 * len(self.display_types)+2)
+            figsize = (14, 5 * len(self.display_types) + 2)
 
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
@@ -553,3 +577,153 @@ class UtilityTesting:
         plt.show()
 
         return pw_dist_max, pw_dist_avg
+
+    def get_avg_fn(self, df, col, unique_ids, fn, nlags=40):
+        distance = []
+        for i in unique_ids:
+            col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna()
+            if len(col_test) > 0:
+                distance.append(np.mean(fn(col_test, fft=True, nlags=nlags)))
+
+        return distance
+
+    def show_autocorrelation_distances(self, nlags=40):
+        """Plot a barplot with ACF-distances between original and synthetic columns."""
+        result = []
+        for i in range(len(self.continuous_cols)):
+            col = self.continuous_cols[i]
+
+            acf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=acf, nlags=nlags)
+            acf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=acf,
+                                                 nlags=nlags)
+
+            if len(acf_distance_synth) == 0 or len(acf_distance_synth) == 0:
+                continue
+
+            acf_distance = np.abs(np.mean(acf_distance_orig) - np.mean(acf_distance_synth))
+            result.append({'column': col, 'distance': acf_distance})
+
+        if len(result) == 0:
+            return 0., 0.
+
+        df = pd.DataFrame.from_records(result)
+
+        acf_dist_max = df['distance'].max()
+        acf_dist_avg = df['distance'].mean()
+
+        print("Max ACF distance:", acf_dist_max)
+        print("Average ACF distance:", acf_dist_avg)
+
+        plt.figure(figsize=(8, np.ceil(len(df) / 2)))
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
+        plt.title('ACF Distances')
+        plt.show()
+
+        return acf_dist_max, acf_dist_avg
+
+    def show_series(self, num_series=10, figsize: Tuple[float, float] = None):
+
+        if not figsize:
+            figsize = (14, 10 * len(self.display_types))
+
+        if not self.identifier:
+            raise NotImplementedError
+
+        identifiers_orig = np.random.choice(self.df_orig[self.identifier].unique(), num_series)
+        identifiers_synth = np.random.choice(self.df_synth[self.identifier].unique(), num_series)
+
+        fig = plt.figure(figsize=figsize)
+        for i in range(len(self.continuous_cols)):
+            col = self.continuous_cols[i]
+
+            # Original
+            ax = fig.add_subplot(2 * len(self.display_types), 2, 2 * i + 1)
+
+            for idf in identifiers_orig:
+                x = self.df_orig.loc[self.df_orig[self.identifier] == idf, col].dropna().values
+                ax.plot(range(len(x)), x, label=idf)
+                ax.legend()
+                ax.set_title(col + ' (Original)')
+
+            # Synthesized
+            ax = fig.add_subplot(2 * len(self.display_types), 2, 2 * i + 2)
+            for idf in identifiers_synth:
+                x = self.df_synth.loc[self.df_synth[self.identifier] == idf, col].dropna().values
+                ax.plot(range(len(x)), x, label=idf)
+                ax.legend()
+                ax.set_title(col + ' (Synthesized)')
+
+        plt.tight_layout()
+        plt.show()
+
+    def show_transition_distances(self):
+        """Plot a barplot with ACF-distances between original and synthetic columns."""
+        result = []
+        for col in self.categorical_cols:
+            val2idx = {v: i for i, v in enumerate(np.unique(self.df_test[col]))}
+            # ORIGINAL DATA
+            t_orig = np.zeros((len(val2idx), len(val2idx)))
+            k = 0
+            for i in self.unique_ids_orig:
+                t_orig += eval_metrics.transition_matrix(
+                    self.df_test.loc[self.df_test[self.identifier] == i, col], val2idx=val2idx)[0]
+                k += 1
+            t_orig /= k
+
+            # Convert to dataframe
+            t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_test[col])))
+            t_orig.index = np.unique(self.df_test[col])
+
+            # SYNTHESIZED DATA
+            t_synth = np.zeros((len(val2idx), len(val2idx)))
+            k = 0
+            for i in self.unique_ids_synth:
+                t_synth += eval_metrics.transition_matrix(
+                    self.df_synth.loc[self.df_synth[self.identifier] == i, col], val2idx=val2idx)[0]
+                k += 1
+            t_synth /= k
+
+            # Convert to dataframe
+            t_synth = pd.DataFrame(t_synth, columns=list(np.unique(self.df_synth[col])))
+            t_synth.index = np.unique(self.df_synth[col])
+
+            # Generate a custom diverging colormap
+            cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+            f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 7), sharex=True, sharey=True)
+
+            # Draw the heatmap with the mask and correct aspect ratio
+            sns.heatmap(t_orig, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                        square=True, linewidths=.5, cbar=False, ax=ax1, annot=True, fmt='.2f')
+            sns.heatmap(t_synth, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                        square=True, linewidths=.5, cbar=False, ax=ax2, annot=True, fmt='.2f')
+            sns.heatmap(abs(t_orig - t_synth), cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                        square=True, linewidths=.5, cbar=False, ax=ax3, annot=True, fmt='.2f')
+            ax2.set_ylim(ax2.get_ylim()[0] + .5, ax2.get_ylim()[1] - .5)
+
+            ax1.set_title(col + ' - Transition Distances (Original)')
+            ax2.set_title(col + ' - Transition Distances (Synthesized)')
+            ax3.set_title(col + ' - Transition Distances (Difference)')
+            plt.show()
+
+            result.append({'column': col, 'distance': abs(t_orig - t_synth).mean().mean()})
+
+        if len(result) == 0:
+            return 0., 0.
+
+        df = pd.DataFrame.from_records(result)
+
+        dist_max = df['distance'].max()
+        dist_avg = df['distance'].mean()
+
+        print("Max Transition distance:", dist_max)
+        print("Average Transition distance:", dist_avg)
+
+        plt.figure(figsize=(8, np.ceil(len(df) / 2)))
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
+        plt.title('ACF Distances')
+        plt.show()
+
+        return dist_max, dist_avg

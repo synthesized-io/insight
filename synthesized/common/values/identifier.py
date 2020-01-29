@@ -46,16 +46,20 @@ class IdentifierValue(Value):
         spec.update(identifiers=self.identifiers, embedding_size=self.embedding_size)
         return spec
 
-    def learned_input_size(self):
+    def learned_input_size(self) -> int:
+        assert self.embedding_size is not None
         return self.embedding_size
 
     def learned_output_size(self):
         return 0
 
     def extract(self, df):
+        super().extract(df=df)
+
         if self.identifiers is None:
             self.identifiers = sorted(df[self.name].unique())
             self.num_identifiers = len(self.identifiers)
+
         elif sorted(df[self.name].unique()) != self.identifiers:
             raise NotImplementedError
 
@@ -67,6 +71,7 @@ class IdentifierValue(Value):
 
     def module_initialize(self):
         super().module_initialize()
+        # Input placeholder for value
         self.placeholder_initialize(dtype=tf.int64, shape=(None,))
 
         initializer = util.get_initializer(initializer='normal-large')
@@ -81,19 +86,16 @@ class IdentifierValue(Value):
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
-        x = self.placeholder
-        assignment = self.current_identifier.assign(
-            value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=x))
-        )
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            x = tf.nn.embedding_lookup(
-                params=self.embeddings, ids=x, max_norm=None
-            )
-        return [x]
+        return [self.placeholder]
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        return xs[0]
+        assert len(xs) == 1
+        assignment = self.current_identifier.assign(
+            value=tf.maximum(x=self.current_identifier, y=tf.reduce_max(input_tensor=xs[0]))
+        )
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
     def next_identifier(self):
@@ -104,7 +106,7 @@ class IdentifierValue(Value):
     @tensorflow_name_scoped
     def next_identifier_embedding(self):
         x = tf.random.normal(
-            shape=(1, self.embedding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
+            shape=(self.embedding_size,), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         return self.next_identifier(), x
 

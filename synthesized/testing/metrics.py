@@ -206,6 +206,24 @@ def rolling_mse_asof(sd, time_unit=None):
     return mse_function
 
 
+def transition_matrix(transitions, val2idx=None):
+    if not val2idx:
+        val2idx = {v: i for i, v in enumerate(np.unique(transitions))}
+
+    n = len(val2idx)  # number of states
+    M = np.zeros((n, n))
+
+    for (v_i, v_j) in zip(transitions, transitions[1:]):
+        M[val2idx[v_i], val2idx[v_j]] += 1
+
+    for row in M:
+        s = sum(row)
+        if s > 0:
+            row[:] = [f / s for f in row]
+
+    return M, val2idx
+
+
 def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                                  column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
     """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key

@@ -16,26 +16,31 @@ class RnnVariationalEncoding(Encoding):
             module='lstm', name='lstm', input_size=self.input_size,
             output_size=self.encoding_size, return_state=True
         )
+
         self.mean = self.add_module(
             module='dense', name='mean',
             input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='none'
         )
+
         self.stddev = self.add_module(
             module='dense', name='stddev',
             input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='softplus'
         )
+
         self.initial_input = self.add_module(
             module='dense', name='initial-input',
             input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
             batchnorm=False, activation='none'
         )
+
         self.initial_state = self.add_module(
             module='dense', name='initial-state',
-            input_size=(self.encoding_size + self.condition_size),
-            output_size=(2 * self.encoding_size), batchnorm=False, activation='none'
+            input_size=(self.encoding_size + self.condition_size), output_size=(2 * self.encoding_size),
+            batchnorm=False, activation='none'
         )
+
         self.lstm_decoder = tf.keras.layers.LSTMCell(units=self.encoding_size)
 
     def specification(self):
@@ -58,6 +63,7 @@ class RnnVariationalEncoding(Encoding):
 
         mean = self.mean.transform(x=final_state)
         stddev = self.stddev.transform(x=final_state)
+
         encoding = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32
         )
@@ -82,7 +88,8 @@ class RnnVariationalEncoding(Encoding):
         if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
                 - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-            encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
+            encoding_loss = tf.reduce_mean(tf.reduce_sum(encoding_loss, axis=1), axis=0)
+
             if self.beta is not None:
                 encoding_loss *= self.beta
             return x, encoding, encoding_loss
