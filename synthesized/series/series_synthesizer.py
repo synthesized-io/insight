@@ -264,29 +264,29 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         self.synthesized = self.vae_series.synthesize(n=self.num_rows, cs=cs)
 
     def learn(
-        self, num_iterations: int, df: pd.DataFrame,
+        self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0, verbose=50, print_data=0
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
 
-        df = df.copy()
+        df_train = df_train.copy()
         for value in self.values_conditions_identifier:
-            df = value.preprocess(df=df)
+            df_train = value.preprocess(df=df_train)
 
         if self.identifier_label is None:
-            num_data = [len(df)]
+            num_data = [len(df_train)]
             groups = [{
-                value.name: df[value.name].to_numpy() for value in self.values_conditions_identifier
+                value.name: df_train[value.name].to_numpy() for value in self.values_conditions_identifier
             }]
 
         else:
-            groups = [group[1] for group in df.groupby(by=self.identifier_label)]
+            groups = [group[1] for group in df_train.groupby(by=self.identifier_label)]
             num_data = [len(group) for group in groups]
             for n, group in enumerate(groups):
                 groups[n] = {
-                    value.name: df[value.name].to_numpy() for value in self.values_conditions_identifier
+                    value.name: df_train[value.name].to_numpy() for value in self.values_conditions_identifier
                 }
 
         fetches = self.optimized
@@ -316,13 +316,13 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
                 iteration == 0 or iteration % verbose == 0
             ):
                 group = randrange(len(num_data))
-                df = groups[group]
+                df_train = groups[group]
                 start = randrange(max(num_data[group] - 1024, 1))
                 batch = np.arange(start, min(start + 1024, num_data[group]))
 
                 feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
                 fetched = self.run(fetches=self.losses, feed_dict=feed_dict)
-                self.print_learn_stats(df, batch, fetched, iteration, print_data)
+                self.print_learn_stats(df_train, batch, fetched, iteration, print_data)
 
         feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
         synth = self.run(fetches=self.learned_seq, feed_dict=feed_dict)
