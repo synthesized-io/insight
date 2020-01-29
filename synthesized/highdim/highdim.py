@@ -302,8 +302,11 @@ class HighDimSynthesizer(Synthesizer,  ValueFactory):
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
 
+        batches = np.arange(0, num_data)
+        n_batches = num_data // self.batch_size
         for iteration in range(1, num_iterations + 1):
-            batch = np.random.randint(num_data, size=self.batch_size)
+            batch_idx = np.random.randint(n_batches)
+            batch = batches[batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
             if callback is not None and callback_freq > 0 and (
                 iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0

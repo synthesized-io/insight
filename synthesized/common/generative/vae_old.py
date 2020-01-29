@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
-from ..values import Value
+from ..values import Value, ContinuousValue, CategoricalValue
 
 
 class VAEOld(Generative):
@@ -139,7 +139,6 @@ class VAEOld(Generative):
         y = self.linear_output.transform(x=x)
 
         #################################
-
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -194,37 +193,62 @@ class VAEOld(Generative):
 
         Returns:
             Output tensor per column.
-
         """
-
-        x = self.encoding.sample(n=n)
-
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
-
-        x = self.decoder.transform(x=x)
-        y = self.linear_output.transform(x=x)
-
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+        dtype_dict = {"Continuous": tf.float32, "Categorical": tf.int64}
+        init_z = tf.random_normal(self.latent_size)
+        init_h = self.encoder.init_h()
+        outputs = [tf.TensorArray(dtype=dtype_dict[str(value)], size=n) for value in self.values]
+        init_z = self.encoding.sample(inputs=init_h, state=init_z)
+        init_y = self.decoder.transform(x=init_z)
+        init_y = self.linear_output.transform(x=init_y)
+        init_ys = tf.split(
+            value=init_y, num_or_size_splits=[value.learned_output_size() for value in self.values],
             axis=1
         )
 
         # Output tensors per value
+        for i, (value, y) in enumerate(zip(self.values, init_ys)):
+            outputs[i].write(0, value.output_tensors(y=y))
+        loop_vars = (tf.constant(1), init_z, outputs)
+
+        def condition(index, state, tas):
+            return tf.less(index, n)
+
+        def body(index, state, tas):
+            x = tf.concat(values=[
+                value.unify_inputs(xs=[tas[i].gather(index-1)]) for i, value in enumerate(self.values)
+            ], axis=1)
+
+            x = self.linear_input.transform(x)
+            x = self.encoder.transform(x=x)
+
+            z = self.encoding.sample(inputs=x, state=state)
+            if len(self.conditions) > 0:
+                # Condition c
+                c = tf.concat(values=[
+                    value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
+                    for value in self.conditions
+                ], axis=1)
+
+                # Concatenate z,c
+                z = tf.concat(values=(z, c), axis=1)
+
+            loc_y = self.decoder.transform(x=z)
+            loc_y = self.linear_output.transform(x=loc_y)
+
+            # Split output tensors per value
+            ys = tf.split(
+                value=loc_y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+                axis=1
+            )
+
+            # Output tensors per value
+            for j, (value, loop_y) in enumerate(zip(self.values, ys)):
+                tas[j].write(index, value.output_tensors(y=loop_y))
+            return index + 1, z, tas
+
+        _, _, outputs = tf.while_loop(cond=condition, body=body, loop_vars=loop_vars)
         synthesized: Dict[str, tf.Tensor] = OrderedDict()
-        for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
-
-        for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = cs[name]
-
+        for value, output in zip(self.values, outputs):
+            synthesized.update(zip(value.learned_output_columns(), output))
         return synthesized
