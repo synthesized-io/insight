@@ -1,4 +1,4 @@
-tensorflow==2.1.0
+https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow_cpu-2.1.0-cp36-cp36m-manylinux2010_x86_64.whl
 tensorflow_probability==0.7.0
 numpy==1.18.1
 scipy==1.4.1
