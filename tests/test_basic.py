@@ -40,7 +40,7 @@ def test_unittest_dataset_quick():
         df=df_original, capacity=8, num_layers=1, batch_size=8, condition_columns=['SeriousDlqin2yrs'],
         learning_manager=False, summarizer_dir='logs/'
     ) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original, callback=True, callback_freq=2)
+        synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})
         assert len(df_synthesized) == 10000
         assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
@@ -61,5 +61,3 @@ def test_unittest_dataset():
     assert all(distance < 0.33 for _, distance in distances), 'Failed: ' + ', '.join(
         '{}={:.3f}'.format(name, distance) for name, distance in distances if distance >= 0.33
     )
-
-test_unittest_dataset_quick()
