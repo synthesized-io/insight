@@ -140,7 +140,6 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
         self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
@@ -162,7 +161,6 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
         target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None

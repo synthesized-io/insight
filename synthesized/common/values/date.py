@@ -155,7 +155,6 @@ class DateValue(ContinuousValue):
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 5
         self.build()
         xs[0] = super().unify_inputs(xs=xs[0: 1])
         xs[1] = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
