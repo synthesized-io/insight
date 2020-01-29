@@ -156,6 +156,7 @@ class DateValue(ContinuousValue):
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 5
+        self.build()
         xs[0] = super().unify_inputs(xs=xs[0: 1])
         xs[1] = self.hour.unify_inputs(xs=xs[1: 2])
         xs[2] = self.dow.unify_inputs(xs=xs[2: 3])
@@ -165,3 +166,12 @@ class DateValue(ContinuousValue):
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):
+
+    @tensorflow_name_scoped
+    def build(self):
+        if not self.built:
+            self.hour.build()
+            self.dow.build()
+            self.day.build()
+            self.month.build()
+            self.built = True

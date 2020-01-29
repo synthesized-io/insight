@@ -9,7 +9,7 @@ import numpy as np
 from pyemd import emd
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
-RE_END = re.compile(r"[^A-Za-z0-9_./]")
+RE_END = re.compile(r"[^A-Za-z0-9.]")
 
 ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 

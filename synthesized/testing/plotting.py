@@ -165,13 +165,13 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
-    loss_history: List[dict] = list()
 
     def callback(synth, iteration, losses):
-        if len(loss_history) == 0:
-            loss_history.append(losses)
-        else:
-            loss_history.append({local_name: losses[local_name] for local_name in loss_history[0]})
+        if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
+            if len(synth.loss_history) == 0:
+                synth.loss_history.append({n: l.numpy() for n, l in losses.items()})
+            else:
+                synth.loss_history.append({local_name: losses[local_name].numpy() for local_name in synth.loss_history[0]})
         return False
 
     evaluation.record_config(evaluation=name, config=config)
@@ -215,7 +215,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
         if plot_losses:
             display(Markdown("## Show loss history"))
-            pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
+            pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
             plt.show()
         if plot_distances:
             display(Markdown("## Show average distances"))

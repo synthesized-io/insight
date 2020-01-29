@@ -98,25 +98,28 @@ class CategoricalValue(Value):
 
     @tensorflow_name_scoped
     def build(self):
-        if self.probabilities is not None and not self.similarity_based:
-            # "hack": scenario synthesizer, embeddings not used
-            return
-        shape = (self.num_categories, self.embedding_size)
-        initializer = util.get_initializer(initializer=self.embedding_initialization)
+        if not self.built:
+            if self.probabilities is not None and not self.similarity_based:
+                # "hack": scenario synthesizer, embeddings not used
+                return
+            shape = (self.num_categories, self.embedding_size)
+            initializer = util.get_initializer(initializer=self.embedding_initialization)
 
-        self.embeddings = tf.Variable(
-            initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
-            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
-        )
-        self.add_l2_loss(self.embeddings)
-
-        if self.use_moving_average:
-            self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
-            self.frequency = tf.Variable(
-                initial_value=np.zeros(shape=(self.num_categories,)), trainable=False, dtype=tf.float32,
-                name='moving_avg_freq'
+            self.embeddings = tf.Variable(
+                initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
+                dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
             )
-            self.moving_average.apply(var_list=[self.frequency])
+            self.add_l2_loss(self.embeddings)
+
+            if self.use_moving_average:
+                self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
+                self.frequency = tf.Variable(
+                    initial_value=np.zeros(shape=(self.num_categories,)), trainable=False, dtype=tf.float32,
+                    name='moving_avg_freq'
+                )
+                self.moving_average.apply(var_list=[self.frequency])
+
+        self.built = True
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
@@ -138,6 +141,7 @@ class CategoricalValue(Value):
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 1
+        self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
