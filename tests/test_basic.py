@@ -2,7 +2,6 @@ import os
 import pytest
 
 import pandas as pd
-import sklearn as skl
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
@@ -13,7 +12,6 @@ from synthesized import HighDimSynthesizer
 def test_datasets_quick():
     passed = True
     failed = list()
-    print(skl.__version__)
 
     for root, dirs, files in os.walk('data'):
         for filename in files:
