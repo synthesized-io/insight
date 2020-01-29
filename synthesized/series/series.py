@@ -113,7 +113,7 @@ class SeriesSynthesizer(Synthesizer):
 
         self.value_factory: ValueFactory = ValueFactory(
             name='value_factory', df=data,
-            capacity=capacity, weight_decay=weight_decay,
+            capacity=capacity,
             continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=1.0,
             moving_average=moving_average,
             type_overrides=None, produce_nans_for=None, column_aliases=None,

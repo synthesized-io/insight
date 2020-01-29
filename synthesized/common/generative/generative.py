@@ -5,7 +5,6 @@ import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..values import Value
-from ..util import get_regularizer
 
 
 class Generative(tf.Module):
