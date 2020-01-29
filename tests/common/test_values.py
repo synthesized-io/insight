@@ -7,7 +7,7 @@ from synthesized.common.values import CategoricalValue, ContinuousValue
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     assert isinstance(value.specification(), dict)
-    with tf.summary.create_noop_writer().as_default():
+    with tf.summary.record_if(False):
         value.build()
         input_tensor_output = [tf.constant(value=x)]
         unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
