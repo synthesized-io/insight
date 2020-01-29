@@ -138,6 +138,7 @@ class UtilityTesting:
 
         show_corr_matrix(self.df_test, title='Original', ax=ax1)
         show_corr_matrix(self.df_synth, title='Synthetic', ax=ax2)
+        plt.show()
 
     def show_corr_distances(self, figsize: Tuple[float, float] = None) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
@@ -159,7 +160,7 @@ class UtilityTesting:
 
         df = pd.DataFrame.from_records(result)
         if figsize is None:
-            figsize = (10, int(len(df) / 6))
+            figsize = (10, len(df)//6 + 2)
 
         corr_dist_max = df['distance'].max()
         corr_dist_avg = df['distance'].mean()
@@ -171,6 +172,9 @@ class UtilityTesting:
         plt.title('Correlation Distances')
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
+        print(figsize)
+        print(df)
+        plt.show()
 
         return corr_dist_max, corr_dist_avg
 
@@ -217,6 +221,7 @@ class UtilityTesting:
 
         _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
                         square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax2)
+        plt.show()
 
     def show_categorical_rsquared(self, figsize: Tuple[float, float] = (10, 10)):
         """
@@ -262,6 +267,8 @@ class UtilityTesting:
         _ = sns.heatmap(synth_anovas, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
                         square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax2)
 
+        plt.show()
+
     def show_distributions(self,
                            remove_outliers: float = 0.0,
                            figsize: Tuple[float, float] = None,
@@ -274,7 +281,7 @@ class UtilityTesting:
             cols: Number of columns in the plot grid.
         """
         if not figsize:
-            figsize = (14, 5 * len(self.display_types))
+            figsize = (14, 5 * len(self.display_types)+2)
 
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
@@ -450,7 +457,7 @@ class UtilityTesting:
         print("Max KS distance:", ks_dist_max)
         print("Average KS distance:", ks_dist_avg)
 
-        plt.figure(figsize=(8, int(len(df) / 2)))
+        plt.figure(figsize=(8, int(len(df) / 2) + 2))
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
         plt.title('KS Distances')
@@ -479,7 +486,7 @@ class UtilityTesting:
         print("Max EMD distance:", emd_dist_max)
         print("Average EMD distance:", emd_dist_avg)
 
-        plt.figure(figsize=(8, int(len(df) / 2)))
+        plt.figure(figsize=(8, int(len(df) / 2) + 2))
         g = sns.barplot(y='column', x='emd_distance', data=df)
         g.set_xlim(0.0, 1.0)
         plt.title('EMD Distances')

@@ -225,35 +225,27 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if show_distribution_distances:
             display(Markdown("## Show distribution distances"))
             testing.show_distribution_distances()
-            plt.show()
         if show_distributions:
             display(Markdown("## Show distributions"))
             testing.show_distributions(remove_outliers=0.01)
-            plt.show()
         if show_correlation_distances:
             display(Markdown("## Show correlation distances"))
             testing.show_corr_distances()
-            plt.show()
         if show_correlation_matrix:
             display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
-            plt.show()
         if show_emd_distances:
             display(Markdown("## Show EMD distances"))
             testing.show_emd_distances()
-            plt.show()
         if show_pw_mi_distances:
             display(Markdown("## Show Pairwise Mutual Information distances"))
             testing.show_mutual_information()
-            plt.show()
         if show_anova:
             display(Markdown("## Show ANOVA"))
             testing.show_anova()
-            plt.show()
         if show_cat_rsquared:
             display(Markdown("## Show categorical R^2"))
             testing.show_categorical_rsquared()
-            plt.show()
         return testing
 
 
