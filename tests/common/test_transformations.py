@@ -10,20 +10,21 @@ from synthesized.common.transformations.resnet import ResnetTransformation
 
 def _test_transformation(transformation, modulation=False):
     assert isinstance(transformation.specification(), dict)
-    if modulation:
-        transform_input = np.random.randn(4, 8).astype(np.float32)
-        condition_input = np.random.randn(4, 6).astype(np.float32)
-        transform_output = transformation(inputs=transform_input, condition=condition_input)
-    else:
-        transform_input = np.random.randn(4, 8).astype(np.float32)
-        transform_output = transformation(inputs=transform_input)
+    with tf.summary.create_noop_writer().as_default():
+        if modulation:
+            transform_input = np.random.randn(4, 8).astype(np.float32)
+            condition_input = np.random.randn(4, 6).astype(np.float32)
+            transform_output = transformation(inputs=transform_input, condition=condition_input)
+        else:
+            transform_input = np.random.randn(4, 8).astype(np.float32)
+            transform_output = transformation(inputs=transform_input)
 
-    if modulation:
-        transformed = transform_output
-        assert transformed.shape == (4, 8)
-    else:
-        transformed = transform_output
-        assert transformed.shape == (4, 6)
+        if modulation:
+            transformed = transform_output
+            assert transformed.shape == (4, 8)
+        else:
+            transformed = transform_output
+            assert transformed.shape == (4, 6)
 
 
 def test_dense():
