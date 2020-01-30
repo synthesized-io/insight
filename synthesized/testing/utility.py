@@ -622,6 +622,41 @@ class UtilityTesting:
 
         return acf_dist_max, acf_dist_avg
 
+    def show_partial_autocorrelation_distances(self, nlags=40):
+        """Plot a barplot with PACF-distances between original and synthetic columns."""
+        result = []
+        for i in range(len(self.continuous_cols)):
+            col = self.continuous_cols[i]
+
+            pacf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=pacf, nlags=nlags)
+            pacf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=pacf,
+                                                 nlags=nlags)
+
+            if len(pacf_distance_synth) == 0 or len(pacf_distance_synth) == 0:
+                continue
+
+            pacf_distance = np.abs(np.mean(pacf_distance_orig) - np.mean(pacf_distance_synth))
+            result.append({'column': col, 'distance': pacf_distance})
+
+        if len(result) == 0:
+            return 0., 0.
+
+        df = pd.DataFrame.from_records(result)
+
+        pacf_dist_max = df['distance'].max()
+        pacf_dist_avg = df['distance'].mean()
+
+        print("Max PACF distance:", pacf_dist_max)
+        print("Average PACF distance:", pacf_dist_avg)
+
+        plt.figure(figsize=(8, np.ceil(len(df) / 2)))
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
+        plt.title('PACF Distances')
+        plt.show()
+
+        return pacf_dist_max, pacf_dist_avg
+
     def show_series(self, num_series=10, figsize: Tuple[float, float] = None):
 
         if not figsize:

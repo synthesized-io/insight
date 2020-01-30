@@ -266,10 +266,12 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, verbose=50, print_data=0
+        callback_freq: int = 0
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
+        verbose = 50
+        print_data = 0
 
         df_train = df_train.copy()
         for value in self.values_conditions_identifier:
@@ -325,9 +327,9 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
                 self.print_learn_stats(df_train, batch, fetched, iteration, print_data)
 
         feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
-        synth = self.run(fetches=self.learned_seq, feed_dict=feed_dict)
+        self.run(fetches=self.learned_seq, feed_dict=feed_dict)
 
-        return [value_data[batch] for value_data in data.values()], synth
+        # return [value_data[batch] for value_data in data.values()], synth
 
     def print_learn_stats(self, df, batch, fetched, iteration, print_data):
         print('ITERATION {iteration} :: Loss: total={loss:.4f} ({losses})'.format(
