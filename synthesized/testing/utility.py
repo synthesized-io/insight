@@ -587,10 +587,15 @@ class UtilityTesting:
 
     def get_avg_fn(self, df, col, unique_ids, fn, nlags=40):
         distance = []
-        for i in unique_ids:
-            col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna()
+        if unique_ids:
+            for i in unique_ids:
+                col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna()
+                if len(col_test) > 0:
+                    distance.append(np.mean(fn(col_test, nlags=nlags)))
+        else:
+            col_test = pd.to_numeric(df[col], errors='coerce').dropna()
             if len(col_test) > 0:
-                distance.append(np.mean(fn(col_test, fft=True, nlags=nlags)))
+                distance.append(np.mean(fn(col_test, nlags=nlags)))
 
         return distance
 
