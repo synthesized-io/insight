@@ -194,7 +194,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     elif config['synthesizer_class'] == 'SeriesSynthesizer':
 
         if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
-            num_series = eval_data['identifier_label'].nunique()
+            num_series = eval_data['params']['identifier_label'].nunique()
             series_length = np.ceil(len_eval_data / num_series)
         else:
             num_series = 1
@@ -244,7 +244,9 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
 
     if plot_losses:
         display(Markdown("## Show loss history"))
-        pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
+        df_losses = pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
+        if len(df_losses) > 0:
+            df_losses.plot(figsize=(15, 7))
         plt.show()
     if plot_distances:
         display(Markdown("## Show average distances"))
@@ -279,7 +281,9 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     # TIME SERIES
     if show_acf_distances:
         display(Markdown("## Show Auto-correaltion Distances"))
-        testing.show_autocorrelation_distances()
+        acf_dist_max, acf_dist_avg = testing.show_autocorrelation_distances()
+        evaluation.record_metric(evaluation=name, key='acf_dist_max', value=acf_dist_max)
+        evaluation.record_metric(evaluation=name, key='acf_dist_avg', value=acf_dist_avg)
         plt.show()
     if show_pacf_distances:
         display(Markdown("## Show Partial Auto-correlation Distances"))
@@ -287,7 +291,9 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         plt.show()
     if show_transition_distances:
         display(Markdown("## Show Transition Distances"))
-        testing.testing.show_transition_distances()
+        trans_dist_max, trans_dist_avg = testing.testing.show_transition_distances()
+        evaluation.record_metric(evaluation=name, key='trans_dist_max', value=trans_dist_max)
+        evaluation.record_metric(evaluation=name, key='trans_dist_avg', value=trans_dist_avg)
         plt.show()
     if show_series:
         display(Markdown("## Show Series Sample"))

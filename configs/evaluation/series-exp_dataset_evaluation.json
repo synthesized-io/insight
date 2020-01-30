@@ -14,7 +14,7 @@
       "synthesizer_class": "SeriesSynthesizer"
     },
     "bitcoin-price": {
-      "data": "data/time-series/bitcoin-price.csv",
+      "data": "data/time-series/bitcoin_price.csv",
       "ignore_columns": ["Date"],
       "num_iterations": 50,
       "num_passes": 1,
@@ -50,7 +50,7 @@
       "synthesizer_class": "SeriesSynthesizer"
     },
     "household_power_consumption": {
-      "data": "data/time-series/household_power_consumption.csv",
+      "data": "data/time-series/household_power_consumption_small.csv",
       "ignore_columns": ["DateTime"],
       "num_iterations": 50,
       "num_passes": 1,

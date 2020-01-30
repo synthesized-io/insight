@@ -587,7 +587,7 @@ class UtilityTesting:
 
         return distance
 
-    def show_autocorrelation_distances(self, nlags=40):
+    def show_autocorrelation_distances(self, nlags: int = 40, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
         for i in range(len(self.continuous_cols)):
@@ -614,11 +614,12 @@ class UtilityTesting:
         print("Max ACF distance:", acf_dist_max)
         print("Average ACF distance:", acf_dist_avg)
 
-        plt.figure(figsize=(8, np.ceil(len(df) / 2)))
-        g = sns.barplot(y='column', x='distance', data=df)
-        g.set_xlim(0.0, 1.0)
-        plt.title('ACF Distances')
-        plt.show()
+        if plot_results:
+            plt.figure(figsize=(8, np.ceil(len(df) / 2)))
+            g = sns.barplot(y='column', x='distance', data=df)
+            g.set_xlim(0.0, 1.0)
+            plt.title('ACF Distances')
+            plt.show()
 
         return acf_dist_max, acf_dist_avg
 
@@ -692,7 +693,7 @@ class UtilityTesting:
         plt.tight_layout()
         plt.show()
 
-    def show_transition_distances(self):
+    def show_transition_distances(self, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
         for col in self.categorical_cols:
@@ -726,21 +727,22 @@ class UtilityTesting:
             # Generate a custom diverging colormap
             cmap = sns.diverging_palette(220, 10, as_cmap=True)
 
-            f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 7), sharex=True, sharey=True)
+            if plot_results:
+                f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 7), sharex=True, sharey=True)
 
-            # Draw the heatmap with the mask and correct aspect ratio
-            sns.heatmap(t_orig, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar=False, ax=ax1, annot=True, fmt='.2f')
-            sns.heatmap(t_synth, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar=False, ax=ax2, annot=True, fmt='.2f')
-            sns.heatmap(abs(t_orig - t_synth), cmap=cmap, vmin=0.0, vmax=1.0, center=0,
-                        square=True, linewidths=.5, cbar=False, ax=ax3, annot=True, fmt='.2f')
-            ax2.set_ylim(ax2.get_ylim()[0] + .5, ax2.get_ylim()[1] - .5)
+                # Draw the heatmap with the mask and correct aspect ratio
+                sns.heatmap(t_orig, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                            square=True, linewidths=.5, cbar=False, ax=ax1, annot=True, fmt='.2f')
+                sns.heatmap(t_synth, cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                            square=True, linewidths=.5, cbar=False, ax=ax2, annot=True, fmt='.2f')
+                sns.heatmap(abs(t_orig - t_synth), cmap=cmap, vmin=0.0, vmax=1.0, center=0,
+                            square=True, linewidths=.5, cbar=False, ax=ax3, annot=True, fmt='.2f')
+                ax2.set_ylim(ax2.get_ylim()[0] + .5, ax2.get_ylim()[1] - .5)
 
-            ax1.set_title(col + ' - Transition Distances (Original)')
-            ax2.set_title(col + ' - Transition Distances (Synthesized)')
-            ax3.set_title(col + ' - Transition Distances (Difference)')
-            plt.show()
+                ax1.set_title(col + ' - Transition Distances (Original)')
+                ax2.set_title(col + ' - Transition Distances (Synthesized)')
+                ax3.set_title(col + ' - Transition Distances (Difference)')
+                plt.show()
 
             result.append({'column': col, 'distance': abs(t_orig - t_synth).mean().mean()})
 
@@ -755,10 +757,11 @@ class UtilityTesting:
         print("Max Transition distance:", dist_max)
         print("Average Transition distance:", dist_avg)
 
-        plt.figure(figsize=(8, np.ceil(len(df) / 2)))
-        g = sns.barplot(y='column', x='distance', data=df)
-        g.set_xlim(0.0, 1.0)
-        plt.title('ACF Distances')
-        plt.show()
+        if plot_results:
+            plt.figure(figsize=(8, np.ceil(len(df) / 2)))
+            g = sns.barplot(y='column', x='distance', data=df)
+            g.set_xlim(0.0, 1.0)
+            plt.title('ACF Distances')
+            plt.show()
 
         return dist_max, dist_avg
