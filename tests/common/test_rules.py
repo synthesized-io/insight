@@ -27,9 +27,10 @@ def test_piecewise_detection():
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
     synth = HighDimSynthesizer(df=df, find_rules=['find_piecewise'])
-    assert len(synth.values) == 15
+    values = synth.get_values()
+    assert len(values) == 15
     for i in range(5):
-        assert isinstance(synth.values[i], RuleValue)
+        assert isinstance(values[i], RuleValue)
 
 
 @pytest.mark.integration
@@ -69,9 +70,10 @@ def test_pulse_detection():
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
     synth = HighDimSynthesizer(df=df, find_rules=['find_pulse'])
-    assert len(synth.values) == 16
+    values = synth.get_values()
+    assert len(values) == 16
     for i in range(4):
-        assert isinstance(synth.values[i], RuleValue)
+        assert isinstance(values[i], RuleValue)
 
 
 @pytest.mark.integration

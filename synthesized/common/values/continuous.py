@@ -159,6 +159,7 @@ class ContinuousValue(Value):
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
+        df[self.name] = df[self.name].astype(np.float32)
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -196,9 +197,6 @@ class ContinuousValue(Value):
     def module_initialize(self) -> None:
         super().module_initialize()
 
-        # Input placeholder for value
-        self.placeholder_initialize(dtype=tf.float32, shape=(None,))
-
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
         return [self.placeholder]
@@ -228,6 +226,7 @@ class ContinuousValue(Value):
         # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     @tensorflow_name_scoped
@@ -290,15 +289,15 @@ class ContinuousValue(Value):
         else:
             assert False
 
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
         normal_distribution = tfd.Normal(loc=0.0, scale=1.0)
         samples = normal_distribution.quantile(value=samples)
-        samples = tf.boolean_mask(tensor=samples, mask=tf.is_finite(x=samples))
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.is_finite(x=samples))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
 
         mean, variance = tf.nn.moments(x=samples, axes=0)
-        mean_loss = tf.squared_difference(x=mean, y=0.0)
-        variance_loss = tf.squared_difference(x=variance, y=1.0)
+        mean_loss = tf.math.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.math.squared_difference(x=variance, y=1.0)
 
         mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
         difference = samples - mean
@@ -312,7 +311,7 @@ class ContinuousValue(Value):
         # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
         #     0.25 * tf.square(x=(kurtosis - 3.0)))
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
-        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        jarque_bera_loss = tf.math.squared_difference(x=jarque_bera, y=0.0)
         loss = mean_loss + variance_loss + jarque_bera_loss
 
         return loss

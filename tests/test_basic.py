@@ -38,7 +38,7 @@ def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
     with HighDimSynthesizer(
         df=df_original, capacity=8, num_layers=1, batch_size=8, condition_columns=['SeriousDlqin2yrs'],
-        learning_manager=False
+        learning_manager=False, summarizer_dir='logs/'
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})

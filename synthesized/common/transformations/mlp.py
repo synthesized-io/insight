@@ -1,21 +1,20 @@
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
+from .dense import DenseTransformation
 
 
 class MlpTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, layer_sizes, batchnorm=True, activation='relu', weight_decay=0.0
+        self, name, input_size, layer_sizes, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
 
         self.layers = list()
         previous_size = self.input_size
         for n, layer_size in enumerate(layer_sizes):
-            layer = self.add_module(
-                module='dense', name=('layer' + str(n)), input_size=previous_size,
-                output_size=layer_size, batchnorm=batchnorm, activation=activation,
-                weight_decay=weight_decay
+            layer = DenseTransformation(
+                name=('layer' + str(n)), input_size=previous_size,
+                output_size=layer_size, batchnorm=batchnorm, activation=activation
             )
             self.layers.append(layer)
             previous_size = layer_size
@@ -25,9 +24,20 @@ class MlpTransformation(Transformation):
         spec.update(layers=[layer.specification() for layer in self.layers])
         return spec
 
-    @tensorflow_name_scoped
-    def transform(self, x):
+    def build(self, input_shape):
         for layer in self.layers:
-            x = layer.transform(x=x)
+            layer.build(input_shape)
+            input_shape = layer.compute_output_shape(input_shape)
+        self.built = True
 
-        return x
+    def call(self, inputs, **kwargs):
+        for layer in self.layers:
+            inputs = layer(inputs=inputs)
+
+        return inputs
+
+    @property
+    def regularization_losses(self):
+        losses = [loss for layer in self.layers for loss in layer.regularization_losses]
+
+        return losses

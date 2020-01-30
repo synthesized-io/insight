@@ -1,12 +1,12 @@
 from .transformation import Transformation
+from .residual import ResidualTransformation
 from ..module import tensorflow_name_scoped
 
 
 class ResnetTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, layer_sizes, depths=2, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, layer_sizes, depths=2, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
 
@@ -16,16 +16,14 @@ class ResnetTransformation(Transformation):
 
         for n, layer_size in enumerate(layer_sizes):
             if isinstance(depths, int):
-                layer = self.add_module(
-                    module='residual', name=('layer' + str(n)), input_size=previous_size,
-                    output_size=layer_size, depth=depths, batchnorm=batchnorm,
-                    activation=activation, weight_decay=weight_decay
+                layer = ResidualTransformation(
+                    name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
+                    depth=depths, batchnorm=batchnorm, activation=activation
                 )
             else:
-                layer = self.add_module(
-                    module='residual', name=('layer' + str(n)), input_size=previous_size,
-                    output_size=layer_size, depth=depths[n], batchnorm=batchnorm,
-                    activation=activation, weight_decay=weight_decay
+                layer = ResidualTransformation(
+                    name=('ResidualLayer_' + str(n)), input_size=previous_size, output_size=layer_size,
+                    depth=depths[n], batchnorm=batchnorm, activation=activation
                 )
             self.layers.append(layer)
             previous_size = layer_size
@@ -36,8 +34,18 @@ class ResnetTransformation(Transformation):
         return spec
 
     @tensorflow_name_scoped
-    def transform(self, x):
+    def build(self, input_shape):
         for layer in self.layers:
-            x = layer.transform(x=x)
+            layer.build(input_shape)
+            input_shape = layer.compute_output_shape(input_shape)
+        self.built = True
 
-        return x
+    def call(self, inputs, **kwargs):
+        for layer in self.layers:
+            inputs = layer(inputs)
+
+        return inputs
+
+    @property
+    def regularization_losses(self):
+        return [loss for layer in self.layers for loss in layer.regularization_losses]

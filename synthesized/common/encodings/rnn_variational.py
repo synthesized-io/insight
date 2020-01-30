@@ -81,7 +81,7 @@ class RnnVariationalEncoding(Encoding):
 
         if encoding_plus_loss:
             encoding_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) \
-                - tf.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
+                - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
             encoding_loss = tf.reduce_sum(input_tensor=encoding_loss, axis=(0, 1), keepdims=False)
             if self.beta is not None:
                 encoding_loss *= self.beta

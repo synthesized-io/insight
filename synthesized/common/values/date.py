@@ -26,17 +26,17 @@ class DateValue(ContinuousValue):
         self.original_dtype = None
 
         categorical_kwargs['similarity_based'] = True
-        self.hour = self.add_module(
-            module=CategoricalValue, name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
+        self.hour = CategoricalValue(
+            name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
         )
-        self.dow = self.add_module(
-            module=CategoricalValue, name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
+        self.dow = CategoricalValue(
+            name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
         )
-        self.day = self.add_module(
-            module=CategoricalValue, name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
+        self.day = CategoricalValue(
+            name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
         )
-        self.month = self.add_module(
-            module=CategoricalValue, name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
+        self.month = CategoricalValue(
+            name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
         )
 
     def __str__(self):
@@ -154,23 +154,23 @@ class DateValue(ContinuousValue):
             return col
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        xs = super().input_tensors()
-        xs.extend(self.hour.input_tensors())
-        xs.extend(self.dow.input_tensors())
-        xs.extend(self.day.input_tensors())
-        xs.extend(self.month.input_tensors())
-        return xs
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 5
+        self.build()
         xs[0] = super().unify_inputs(xs=xs[0: 1])
-        xs[1] = self.hour.unify_inputs(xs=xs[1: 2])
-        xs[2] = self.dow.unify_inputs(xs=xs[2: 3])
-        xs[3] = self.day.unify_inputs(xs=xs[3: 4])
-        xs[4] = self.month.unify_inputs(xs=xs[4: 5])
+        xs[1] = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
+        xs[2] = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
+        xs[3] = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
+        xs[4] = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
         return tf.concat(values=xs, axis=1)
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):
+
+    @tensorflow_name_scoped
+    def build(self):
+        if not self.built:
+            self.hour.build()
+            self.dow.build()
+            self.day.build()
+            self.month.build()
+            self.built = True

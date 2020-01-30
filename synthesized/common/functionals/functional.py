@@ -1,7 +1,9 @@
-from ..module import Module, tensorflow_name_scoped
+import tensorflow as tf
+
+from ..module import tensorflow_name_scoped
 
 
-class Functional(Module):
+class Functional(tf.Module):
 
     def __init__(self, values, name=None):
         if name is None:

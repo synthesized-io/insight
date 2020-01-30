@@ -41,12 +41,12 @@ class PersonValue(Value):
             self.gender = None
         elif self.title_label == self.gender_label:
             # a special case when we extract gender from title:
-            self.gender = self.add_module(
-                module=CategoricalValue, name='_gender', **categorical_kwargs
+            self.gender = CategoricalValue(
+                name='_gender', **categorical_kwargs
             )
         else:
-            self.gender = self.add_module(
-                module=CategoricalValue, name=gender_label, **categorical_kwargs
+            self.gender = CategoricalValue(
+                name=gender_label, **categorical_kwargs
             )
 
     def learned_input_columns(self) -> List[str]:
@@ -133,13 +133,6 @@ class PersonValue(Value):
         if self.work_number_label is not None:
             df.loc[:, self.work_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         return df
-
-    @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        if self.gender is None:
-            return super().input_tensors()
-        else:
-            return self.gender.input_tensors()
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

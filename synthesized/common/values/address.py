@@ -66,8 +66,8 @@ class AddressValue(Value):
         if self.fake:
             self.postcode = None
         else:
-            self.postcode = self.add_module(
-                module=CategoricalValue, name=postcode_label,
+            self.postcode = CategoricalValue(
+                name=postcode_label,
                 **categorical_kwargs
             )
 
@@ -224,13 +224,6 @@ class AddressValue(Value):
                 df[self.house_name_label] = list(map(lambda a: a.house_name, addresses))
 
         return df
-
-    @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        if self.postcode is None:
-            return super().input_tensors()
-        else:
-            return self.postcode.input_tensors()
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

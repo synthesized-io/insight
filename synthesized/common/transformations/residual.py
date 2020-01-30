@@ -1,15 +1,16 @@
 import tensorflow as tf
 
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
 from .. import util
+from ..module import tensorflow_name_scoped
+from .dense import DenseTransformation
+from .linear import LinearTransformation
 
 
 class ResidualTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, output_size, depth=2, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, output_size, depth=2, batchnorm=True, activation='relu'
     ):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
@@ -18,20 +19,18 @@ class ResidualTransformation(Transformation):
 
         self.layers = list()
         for n in range(depth - 1):
-            self.layers.append(self.add_module(
-                module='dense', name=('layer' + str(n)), input_size=input_size,
-                output_size=input_size, batchnorm=batchnorm, activation=activation,
-                weight_decay=weight_decay
+            self.layers.append(DenseTransformation(
+                name=('Dense_' + str(n)), input_size=input_size,
+                output_size=input_size, batchnorm=batchnorm, activation=activation
             ))
-        self.layers.append(self.add_module(
-            module='linear', name=('layer' + str(depth - 1)), input_size=input_size,
-            output_size=output_size, weight_decay=weight_decay
+        self.layers.append(DenseTransformation(
+            name=('Dense_' + str(depth - 1)), input_size=input_size,
+            output_size=output_size
         ))
 
         if input_size != output_size:
-            self.identity_transformation = self.add_module(
-                module='linear', name='idtransform', input_size=input_size, output_size=output_size,
-                weight_decay=weight_decay,
+            self.identity_transformation = LinearTransformation(
+                name='idtransform', input_size=input_size, output_size=output_size
             )
         else:
             self.identity_transformation = None
@@ -45,33 +44,41 @@ class ResidualTransformation(Transformation):
         )
         return spec
 
-    def module_initialize(self):
-        super().module_initialize()
-
+    @tensorflow_name_scoped
+    def build(self, input_shape):
         if self.batchnorm:
             shape = (self.output_size,)
             initializer = util.get_initializer(initializer='zeros')
-            self.offset = tf.compat.v1.get_variable(
+            self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
             )
-            self.scale = tf.compat.v1.get_variable(
+            self.scale = self.add_weight(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
             )
 
-    @tensorflow_name_scoped
-    def transform(self, x):
-        residual = x
+        if self.identity_transformation is not None:
+            self.identity_transformation.build(input_shape)
+
         for layer in self.layers:
-            residual = layer.transform(x=residual)
+            layer.build(input_shape)
+            input_shape = layer.compute_output_shape(input_shape)
+
+        self.built = True
+
+    def call(self, inputs, **kwargs):
+        residual = inputs
+        for layer in self.layers:
+            residual = layer(residual)
 
         if self.identity_transformation is not None:
-            x = self.identity_transformation.transform(x=x)
-        x = x + residual
+            inputs = self.identity_transformation(inputs)
+
+        x = inputs + residual
 
         if self.batchnorm:
-            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keep_dims=False)
+            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keepdims=False)
             x = tf.nn.batch_normalization(
                 x=x, mean=mean, variance=variance, offset=self.offset,
                 scale=tf.nn.softplus(features=self.scale), variance_epsilon=1e-6
@@ -90,3 +97,11 @@ class ResidualTransformation(Transformation):
 
         # dropout
         return x
+
+    @property
+    def regularization_losses(self):
+        losses = [loss for layer in self.layers for loss in layer.regularization_losses]
+        if self.identity_transformation is not None:
+            losses.extend(self.identity_transformation.regularization_losses)
+
+        return losses

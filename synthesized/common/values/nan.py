@@ -13,7 +13,7 @@ from ..module import tensorflow_name_scoped
 class NanValue(Value):
 
     def __init__(
-        self, name: str, value: Value, capacity: int, weight_decay: float, weight: float,
+        self, name: str, value: Value, capacity: int, weight: float,
         embedding_size: int = None, produce_nans: bool = False
     ):
         super().__init__(name=name)
@@ -26,7 +26,6 @@ class NanValue(Value):
         if embedding_size is None:
             embedding_size = compute_embedding_size(2, similarity_based=False)
         self.embedding_size = embedding_size
-        self.weight_decay = weight_decay
         self.weight = weight
 
         self.produce_nans = produce_nans
@@ -40,15 +39,15 @@ class NanValue(Value):
         spec = super().specification()
         spec.update(
             value=self.value.specification(), produce_nans=self.produce_nans,
-            embedding_size=self.embedding_size, weight_decay=self.weight_decay
+            embedding_size=self.embedding_size
         )
         return spec
 
     def learned_input_columns(self):
-        yield from self.value.learned_input_columns()
+        return self.value.learned_input_columns()
 
     def learned_output_columns(self):
-        yield from self.value.learned_output_columns()
+        return self.value.learned_output_columns()
 
     def learned_input_size(self):
         return self.embedding_size + self.value.learned_input_size()
@@ -62,6 +61,14 @@ class NanValue(Value):
             column = self.value.pd_cast(column)
         df_clean = df[column.notna()]
         self.value.extract(df=df_clean)
+
+        shape = (2, self.embedding_size)
+        initializer = util.get_initializer(initializer='normal')
+        self.embeddings = tf.Variable(
+            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+        )
+        self.add_regularization_weight(self.embeddings)
 
     def preprocess(self, df):
         if df[self.value.name].dtype.kind not in self.value.pd_types:
@@ -85,16 +92,11 @@ class NanValue(Value):
 
         shape = (2, self.embedding_size)
         initializer = util.get_initializer(initializer='normal')
-        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.embeddings = tf.compat.v1.get_variable(
-            name='nan-embeddings', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True, collections=None, caching_device=None,
-            partitioner=None, validate_shape=True, use_resource=None, custom_getter=None
+        self.embeddings = tf.Variable(
+            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
         )
-
-    @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        return self.value.input_tensors()
+        self.add_regularization_weight(self.embeddings)
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -107,8 +109,8 @@ class NanValue(Value):
         # Wrapped value input
         x = self.value.unify_inputs(xs=xs)
 
-        # Set NaNs to zero to avoid propagating NaNs (doesn't matter because of mask in loss function)
-        x = tf.where(condition=nan, x=tf.zeros_like(tensor=x), y=x)
+        # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
+        x = tf.where(condition=tf.expand_dims(input=nan, axis=1), x=tf.zeros_like(input=x), y=x)
 
         # Concatenate NaN embedding and wrapped value
         x = tf.concat(values=(embedding, x), axis=1)
@@ -138,9 +140,10 @@ class NanValue(Value):
             indices=tf.cast(x=target_nan, dtype=tf.int64), depth=2, on_value=1.0, off_value=0.0,
             axis=1, dtype=tf.float32
         )
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+        loss = tf.nn.softmax_cross_entropy_with_logits(
             labels=target_embedding, logits=y[:, :2], axis=1
         )
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
         loss += self.value.loss(y=y[:, 2:], xs=xs, mask=tf.math.logical_not(x=target_nan))
+        tf.summary.scalar(name=self.name, data=loss)
         return loss

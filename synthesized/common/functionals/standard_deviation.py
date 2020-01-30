@@ -27,7 +27,7 @@ class StandardDeviationFunctional(Functional):
     def loss(self, samples):
         _, variance = tf.nn.moments(x=samples, axes=0)
         stddev = tf.sqrt(x=variance)
-        loss = tf.squared_difference(x=stddev, y=self.stddev)
+        loss = tf.math.squared_difference(x=stddev, y=self.stddev)
         return loss
 
     def check_distance(self, samples):

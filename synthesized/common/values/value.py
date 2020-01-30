@@ -1,26 +1,31 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
+import re
 
 import pandas as pd
 import tensorflow as tf
 
-from ..module import Module, tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from ..util import make_tf_compatible
 
 
-class Value(Module):
+class Value(tf.Module):
     def __init__(self, name: str):
-        super().__init__(name=name)
-        self.name = name
+        super().__init__(name=self.__class__.__name__+'_'+re.sub("\\.", '_', make_tf_compatible(name)))
+        self._name = name
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
-
-    def placeholder_initialize(self, dtype: tf.DType, shape: Tuple):
-        assert self.placeholder is None
-        self.placeholder = tf.compat.v1.placeholder(
-            dtype=dtype, shape=shape, name=make_tf_compatible(string=self.name)
-        )
+        self.built = False
+        self.dtype = tf.float32
+        self._regularization_losses: List[tf.Tensor] = list()
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-5].lower()
+
+    @property
+    def name(self):
+        return self._name
+
+    def specification(self):
+        return dict(name=self._name)
 
     def columns(self) -> List[str]:
         """External columns which are covered by this value.
@@ -123,16 +128,6 @@ class Value(Module):
         return df
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        """Input tensors.
-
-        Returns:
-            Input tensors, one per `learned_input_columns()`.
-
-        """
-        return list()
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         """Unifies input tensors into a single input embedding for a generative model.
 
@@ -185,3 +180,14 @@ class Value(Module):
 
         """
         return tf.constant(value=0.0, dtype=tf.float32)
+
+    def build(self) -> None:
+        self.built = True
+
+    @property
+    def regularization_losses(self):
+        return self._regularization_losses
+
+    def add_regularization_weight(self, variable: tf.Variable):
+        self._regularization_losses.append(variable)
+        return variable
