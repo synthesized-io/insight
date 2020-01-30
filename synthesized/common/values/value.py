@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 
 import pandas as pd
 import tensorflow as tf
@@ -9,7 +10,7 @@ from ..util import make_tf_compatible
 
 class Value(tf.Module):
     def __init__(self, name: str):
-        super().__init__(name=self.__class__.__name__+'_'+make_tf_compatible(name))
+        super().__init__(name=self.__class__.__name__+'_'+re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
