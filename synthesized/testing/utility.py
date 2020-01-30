@@ -672,11 +672,8 @@ class UtilityTesting:
         if not figsize:
             figsize = (14, 10 * len(self.display_types))
 
-        if not self.identifier:
-            raise NotImplementedError
-
-        identifiers_orig = np.random.choice(self.df_orig[self.identifier].unique(), num_series)
-        identifiers_synth = np.random.choice(self.df_synth[self.identifier].unique(), num_series)
+        identifiers_orig = np.random.choice(self.unique_ids_orig, num_series) if self.identifier else []
+        identifiers_synth = np.random.choice(self.unique_ids_synth, num_series) if self.identifier else []
 
         fig = plt.figure(figsize=figsize)
         for i in range(len(self.continuous_cols)):
