@@ -425,7 +425,7 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
                 else:
                     raise NotImplementedError
 
-        columns = [value.name for value in self.values_conditions_identifier]
+        columns = [name for value in self.values_conditions_identifier for name in value.learned_input_columns()]
         synthesized = None
 
         if num_series is not None:
