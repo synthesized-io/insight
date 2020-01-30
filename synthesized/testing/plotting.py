@@ -250,6 +250,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         display(Markdown("## Show average distances"))
         plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
         plt.show()
+
     if show_distribution_distances:
         display(Markdown("## Show distribution distances"))
         testing.show_distribution_distances()

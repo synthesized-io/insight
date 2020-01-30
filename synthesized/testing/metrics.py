@@ -238,6 +238,9 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
     Returns
         bool: True if criteria are met to stop learning.
     """
+    df_orig = df_orig.copy()
+    df_synth = df_synth.copy()
+
     if column_names is None:
         column_names_df: List[str] = df_orig.columns
     else:
@@ -319,6 +322,19 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
 
     return stop_metrics
 
+
+def calculate_evaluation_metrics_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                             column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
+
+    df_orig = df_orig.copy()
+    df_synth = df_synth.copy()
+
+    if column_names is None:
+        column_names_df: List[str] = df_orig.columns
+    else:
+        column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
+
+    return dict()
 
 # -- global constants
 default_metrics = {"avg_distance": mean_ks_distance}

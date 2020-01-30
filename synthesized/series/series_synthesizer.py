@@ -196,6 +196,15 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         # Output DF
         self.synthesized: Optional[Dict[str, tf.Tensor]] = None
 
+    def get_values(self) -> List[Value]:
+        return self.values
+
+    def get_conditions(self) -> List[Value]:
+        return self.conditions
+
+    def get_losses(self) -> tf.Tensor:
+        return self.losses
+
     def _apply_type_overrides(self, df, name) -> Value:
         assert name in self.type_overrides
         forced_type = self.type_overrides[name]
