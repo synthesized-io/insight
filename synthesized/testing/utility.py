@@ -8,7 +8,7 @@
 from __future__ import division, print_function, absolute_import
 
 from enum import Enum
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -349,6 +349,9 @@ class UtilityTesting:
                 # In case the synthesized data has overflown and has much different domain
                 col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
 
+                if len(col_synth) == 0:
+                    continue
+
                 # workaround for kde failing on datasets with only one value
                 if col_test.nunique() < 2 or col_synth.nunique() < 2:
                     kde = False
@@ -585,9 +588,9 @@ class UtilityTesting:
 
         return pw_dist_max, pw_dist_avg
 
-    def get_avg_fn(self, df, col, unique_ids, fn, nlags=40):
+    def get_avg_fn(self, df, col, unique_ids: List, fn, nlags=40):
         distance = []
-        if unique_ids:
+        if len(unique_ids) > 0:
             for i in unique_ids:
                 col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna()
                 if len(col_test) > 0:
@@ -639,9 +642,10 @@ class UtilityTesting:
         result = []
         for col in self.continuous_cols:
 
-            pacf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=pacf, nlags=nlags)
-            pacf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=pacf,
+            pacf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=pacf,
                                                  nlags=nlags)
+            pacf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=pacf,
+                                                  nlags=nlags)
 
             if len(pacf_distance_synth) == 0 or len(pacf_distance_synth) == 0:
                 continue

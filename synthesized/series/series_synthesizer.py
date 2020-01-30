@@ -57,11 +57,11 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
-        ## SeriesSynthesizer
+        # SeriesSynthesizer
         encoding: str = 'variational',
         lstm_mode: int = 1,
         max_seq_len: int = 1024,
-        condition_labels: List[str] = ()
+        condition_labels: List[str] = []
     ):
         Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
                              profiler_args=profiler_args)
@@ -131,15 +131,9 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         self.postcode_label = postcode_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
-        # Identifier
-        self.identifier_value: Optional[Value] = None
-        self.identifier_label = identifier_label
+
         # Date
         self.date_value: Optional[Value] = None
-
-        # history
-        self.loss_history = list()
-        self.ks_distance_history = list()
 
         # Values
         self.values: List[Value] = list()
@@ -257,9 +251,6 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         # VAE learn
         self.losses, self.optimized = self.vae_series.learn(xs=xs)
 
-        # VAE learn
-        self.learned_seq = self.vae_series.learn(xs=xs, return_sequence=True)
-
         # # Increment global step
         with tf.control_dependencies(control_inputs=[self.optimized]):
             self.optimized = self.global_step.assign_add(delta=1)
@@ -278,7 +269,7 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, verbose = 50, print_data = 0
+        callback_freq: int = 50
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
@@ -297,7 +288,7 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         else:
             groups = [group[1] for group in df_train.groupby(by=self.identifier_label)]
             num_data = [len(group) for group in groups]
-            for n, group in enumerate(groups):
+            for n in range(len(groups)):
                 groups[n] = {
                     value.name: df_train[name].to_numpy() for value in self.values_conditions_identifier
                     for name in value.learned_input_columns()
@@ -326,8 +317,8 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
             feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
             self.run(fetches=fetches, feed_dict=feed_dict)
 
-            if verbose > 0 and (
-                iteration == 0 or iteration % verbose == 0
+            if callback_freq > 0 and (
+                iteration == 0 or iteration % callback_freq == 0
             ):
                 group = randrange(len(num_data))
                 df_train = groups[group]
@@ -336,53 +327,32 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
 
                 feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
                 fetched = self.run(fetches=self.losses, feed_dict=feed_dict)
-                self.print_learn_stats(df_train, batch, fetched, iteration, print_data)
-
-        feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
-        self.run(fetches=self.learned_seq, feed_dict=feed_dict)
+                self._print_learn_stats(fetched, iteration)
 
         # return [value_data[batch] for value_data in data.values()], synth
 
-    def print_learn_stats(self, df, batch, fetched, iteration, print_data):
+    def _print_learn_stats(self, fetched, iteration):
         print('ITERATION {iteration} :: Loss: total={loss:.4f} ({losses})'.format(
             iteration=(iteration + 1), loss=fetched['total-loss'], losses=', '.join(
                 '{name}={loss:.4f}'.format(name=name, loss=loss)
                 for name, loss in fetched.items()
             )
         ))
-        # self.loss_history.append(fetched)
-        #
-        # synthesized = self.synthesize(1000)
-        # synthesized = self.preprocess(df=synthesized)
-        # dist_by_col = [(col, ks_2samp(df[col], synthesized[col].get_values())[0]) for col in df.keys()]
-        # avg_dist = np.mean([dist for (col, dist) in dist_by_col])
-        # dists = ', '.join(['{col}={dist:.2f}'.format(col=col, dist=dist) for (col, dist) in dist_by_col])
-        # print('KS distances: avg={avg_dist:.2f} ({dists})'.format(avg_dist=avg_dist, dists=dists))
-        # self.ks_distance_history.append(dict(dist_by_col))
-        #
-        # if print_data > 0:
-        #     print('original data:')
-        #     print(pd.DataFrame.from_dict({key: value[batch] for key, value in df.items()}).head(print_data))
-        #     print('synthesized data:')
-        #     print(pd.DataFrame.from_dict(fetched['synthesized']).head(print_data))
 
-    def get_loss_history(self):
-        return pd.DataFrame.from_records(self.loss_history)
-
-    def get_ks_distance_history(self):
-        return pd.DataFrame.from_records(self.ks_distance_history)
-
-    def synthesize(self, num_series: int = None, series_length: int = None, series_lengths: List[int] = None,
-                   conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
+    def synthesize(self, series_length: int,
+                   conditions: Union[dict, pd.DataFrame] = None,
+                   progress_callback: Callable[[int], None] = None,
+                   num_series: int = None, series_lengths: List[int] = None
+                   ) -> pd.DataFrame:
         """Synthesize a dataset from the learned model
 
-        :param num_series: Number of series to synthesize.
         :param series_length: Length of the synthesized series, if all have same length.
-        :param series_lengths: List of lenghts of each synthesized series, if they are different
         :param conditions: Conditions.
+        :param progress_callback: Progress bar callback.
+        :param num_series: Number of series to synthesize.
+        :param series_lengths: List of lenghts of each synthesized series, if they are different
         :return: Synthesized dataframe.
         """
-
         if num_series is not None:
             assert series_length is not None, "If 'num_series' is given, 'series_length' must be defined."
             assert series_lengths is None, "Parameter 'series_lengths' is incompatible with 'num_series'."
@@ -428,7 +398,7 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         columns = [name for value in self.values_conditions_identifier for name in value.learned_input_columns()]
         synthesized = None
 
-        if num_series is not None:
+        if num_series is not None and series_length is not None:
             for i in range(num_series):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 if self.identifier_label:

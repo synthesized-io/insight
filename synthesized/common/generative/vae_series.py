@@ -1,4 +1,3 @@
-import os
 from collections import OrderedDict
 from typing import Dict, List, Tuple, Union
 
@@ -6,13 +5,13 @@ import tensorflow as tf
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped
-from ..values import Value
+from ..values import Value, IdentifierValue
 
 
 class SeriesVAE(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
-            lstm_mode: int, identifier_label: str, identifier_value: Value,
+            lstm_mode: int, identifier_label: str, identifier_value: IdentifierValue,
             # Latent space
             latent_size: int,
             # Encoder and decoder network
@@ -43,7 +42,6 @@ class SeriesVAE(Generative):
         self.learning_rate = learning_rate
         self.decay_steps = decay_steps
         self.decay_rate = decay_rate
-        self.optimizer = optimizer
         self.weight_decay = weight_decay
 
         self.identifier_label = identifier_label
@@ -120,7 +118,7 @@ class SeriesVAE(Generative):
         )
 
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer='adam',
+            module='optimizer', name='optimizer', optimizer=optimizer,
             learning_rate=self.learning_rate, clip_gradients=clip_gradients,
             decay_steps=self.decay_steps, decay_rate=self.decay_rate,
             initial_boost=initial_boost
@@ -135,7 +133,7 @@ class SeriesVAE(Generative):
         return spec
 
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor], return_sequence=False) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
+    def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
 
         if len(xs) == 0:
             return dict(), tf.no_op()
@@ -201,12 +199,6 @@ class SeriesVAE(Generative):
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
             axis=1
         )
-
-        if return_sequence:
-            synthesized = OrderedDict()
-            for value, y in zip(self.values, ys):
-                synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
-            return synthesized
 
         losses['encoding-loss'] = encoding_loss
         reconstruction_loss = 0
@@ -291,4 +283,3 @@ class SeriesVAE(Generative):
                 synthesized[name] = cs[name]
 
         return synthesized
-
