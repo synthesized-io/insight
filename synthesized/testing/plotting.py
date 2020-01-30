@@ -181,6 +181,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
 
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
+    identifier_label = None
 
     if config['synthesizer_class'] == 'HighDimSynthesizer':
 
@@ -194,7 +195,8 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     elif config['synthesizer_class'] == 'SeriesSynthesizer':
 
         if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
-            num_series = eval_data['params']['identifier_label'].nunique()
+            identifier_label = config['params']['identifier_label']
+            num_series = eval_data[identifier_label].nunique()
             series_length = np.ceil(len_eval_data / num_series)
         else:
             num_series = 1
@@ -240,7 +242,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             fig, ax = plt.subplots(figsize=(15, 5))
             plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
 
-    testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
+    testing = UtilityTesting(synthesizer, data, eval_data, synthesized, identifier=identifier_label)
 
     if plot_losses:
         display(Markdown("## Show loss history"))

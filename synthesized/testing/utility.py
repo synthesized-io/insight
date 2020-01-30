@@ -333,6 +333,11 @@ class UtilityTesting:
                 title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
+                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna()
+                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna()
+                if len(col_test) == 0 or len(col_synth) == 0:
+                    continue
+
                 percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
                 start, end = np.percentile(col_test, percentiles)
                 if start == end:
@@ -534,7 +539,8 @@ class UtilityTesting:
                 row = sorted_columns[j]
                 for i in range(j + 1, n_columns):
                     col = sorted_columns[i]
-                    mi_df.loc[row, col] = mi_df.loc[col, row] = normalized_mutual_info_score(data[row], data[col])
+                    mi_df.loc[row, col] = mi_df.loc[col, row] = normalized_mutual_info_score(
+                        data[row], data[col], average_method='arithmetic')
             return mi_df
 
         max_sample_size = 25_000

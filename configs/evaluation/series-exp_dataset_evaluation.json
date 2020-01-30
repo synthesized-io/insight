@@ -1,5 +1,5 @@
 {
-  "source": "evaluation/dataset_evaluation.ipynb",
+  "source": "evaluation/dataset_evaluation_timeseries.ipynb",
   "instances": {
     "air-quality": {
       "data": "data/time-series/air-quality.csv",
