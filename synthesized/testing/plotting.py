@@ -197,7 +197,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
             identifier_label = config['params']['identifier_label']
             num_series = eval_data[identifier_label].nunique()
-            series_length = np.ceil(len_eval_data / num_series)
+            series_length = int(len_eval_data / num_series)
         else:
             num_series = 1
             series_length = len_eval_data
