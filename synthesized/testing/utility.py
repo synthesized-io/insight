@@ -22,7 +22,7 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.metrics import mean_squared_error, r2_score, normalized_mutual_info_score
 from sklearn.metrics import roc_auc_score
 from statsmodels.formula.api import ols, mnlogit
-from statsmodels.tsa.stattools import acf
+from statsmodels.tsa.stattools import acf, pacf
 
 from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue
@@ -100,6 +100,9 @@ class UtilityTesting:
         if identifier:
             self.unique_ids_orig = self.df_orig[identifier].unique()
             self.unique_ids_synth = self.df_synth[identifier].unique()
+        else:
+            self.unique_ids_orig = []
+            self.unique_ids_synth = []
 
         # Set the style of plots
         plt.style.use('seaborn')
