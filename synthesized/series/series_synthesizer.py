@@ -179,6 +179,9 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         for value in self.values_conditions_identifier:
             value.extract(df=df)
 
+        self.learned_values_conditions_identifier = [value_learned for value in self.values_conditions_identifier
+                                                     for value_learned in value.learned_input_columns()]
+
         # VAE
         self.vae_series = self.add_module(
             module='vae_series', name='vae', values=self.values, conditions=self.conditions,
@@ -275,12 +278,10 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0
+        callback_freq: int = 0, verbose = 50, print_data = 0
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
-        verbose = 50
-        print_data = 0
 
         df_train = df_train.copy()
         for value in self.values_conditions_identifier:
@@ -289,7 +290,8 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         if self.identifier_label is None:
             num_data = [len(df_train)]
             groups = [{
-                value.name: df_train[value.name].to_numpy() for value in self.values_conditions_identifier
+                value.name: df_train[name].to_numpy() for value in self.values_conditions_identifier
+                for name in value.learned_input_columns()
             }]
 
         else:
@@ -297,7 +299,8 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
             num_data = [len(group) for group in groups]
             for n, group in enumerate(groups):
                 groups[n] = {
-                    value.name: df_train[value.name].to_numpy() for value in self.values_conditions_identifier
+                    value.name: df_train[name].to_numpy() for value in self.values_conditions_identifier
+                    for name in value.learned_input_columns()
                 }
 
         fetches = self.optimized

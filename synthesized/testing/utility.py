@@ -503,9 +503,7 @@ class UtilityTesting:
         """Plot a barplot with EMD-distances between original and synthetic columns."""
         result = []
 
-        for i, (col, dtype) in enumerate(self.display_types.items()):
-            if dtype != DisplayType.CATEGORICAL:
-                continue
+        for col in self.categorical_cols:
 
             emd_distance = categorical_emd(self.df_test[col], self.df_synth[col])
             result.append({'column': col, 'emd_distance': emd_distance})
@@ -599,8 +597,7 @@ class UtilityTesting:
     def show_autocorrelation_distances(self, nlags: int = 40, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
-        for i in range(len(self.continuous_cols)):
-            col = self.continuous_cols[i]
+        for col in self.continuous_cols:
 
             acf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=acf, nlags=nlags)
             acf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=acf,
@@ -635,8 +632,7 @@ class UtilityTesting:
     def show_partial_autocorrelation_distances(self, nlags=40):
         """Plot a barplot with PACF-distances between original and synthetic columns."""
         result = []
-        for i in range(len(self.continuous_cols)):
-            col = self.continuous_cols[i]
+        for col in self.continuous_cols:
 
             pacf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=pacf, nlags=nlags)
             pacf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=pacf,
@@ -672,29 +668,38 @@ class UtilityTesting:
         if not figsize:
             figsize = (14, 10 * len(self.display_types))
 
-        identifiers_orig = np.random.choice(self.unique_ids_orig, num_series) if self.identifier else []
-        identifiers_synth = np.random.choice(self.unique_ids_synth, num_series) if self.identifier else []
+        if self.identifier:
+            identifiers_orig = np.random.choice(self.unique_ids_orig, num_series)
+            identifiers_synth = np.random.choice(self.unique_ids_synth, num_series)
 
         fig = plt.figure(figsize=figsize)
         for i in range(len(self.continuous_cols)):
             col = self.continuous_cols[i]
 
             # Original
-            ax = fig.add_subplot(2 * len(self.display_types), 2, 2 * i + 1)
+            ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 1)
 
-            for idf in identifiers_orig:
-                x = self.df_orig.loc[self.df_orig[self.identifier] == idf, col].dropna().values
-                ax.plot(range(len(x)), x, label=idf)
-                ax.legend()
-                ax.set_title(col + ' (Original)')
+            if self.identifier:
+                for idf in identifiers_orig:
+                    x = self.df_orig.loc[self.df_orig[self.identifier] == idf, col].dropna().values
+                    ax.plot(range(len(x)), x, label=idf)
+            else:
+                x = self.df_orig[col].dropna().values
+                ax.plot(range(len(x)), x)
+            ax.legend()
+            ax.set_title(col + ' (Original)')
 
             # Synthesized
-            ax = fig.add_subplot(2 * len(self.display_types), 2, 2 * i + 2)
-            for idf in identifiers_synth:
-                x = self.df_synth.loc[self.df_synth[self.identifier] == idf, col].dropna().values
-                ax.plot(range(len(x)), x, label=idf)
-                ax.legend()
-                ax.set_title(col + ' (Synthesized)')
+            ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2)
+            if self.identifier:
+                for idf in identifiers_synth:
+                    x = self.df_synth.loc[self.df_synth[self.identifier] == idf, col].dropna().values
+                    ax.plot(range(len(x)), x, label=idf)
+            else:
+                x = self.df_synth[col].dropna().values
+                ax.plot(range(len(x)), x)
+            ax.legend()
+            ax.set_title(col + ' (Synthesized)')
 
         plt.tight_layout()
         plt.show()
