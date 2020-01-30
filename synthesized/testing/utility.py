@@ -590,14 +590,14 @@ class UtilityTesting:
 
     def get_avg_fn(self, df, col, unique_ids: List, fn, nlags=40):
         distance = []
-        if len(unique_ids) > 0:
+        if len(unique_ids) > nlags:
             for i in unique_ids:
-                col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna()
-                if len(col_test) > 0:
+                col_test = pd.to_numeric(df.loc[df[self.identifier] == i, col], errors='coerce').dropna().values
+                if len(col_test) > 1:
                     distance.append(np.mean(fn(col_test, nlags=nlags)))
         else:
-            col_test = pd.to_numeric(df[col], errors='coerce').dropna()
-            if len(col_test) > 0:
+            col_test = pd.to_numeric(df[col], errors='coerce').dropna().values
+            if len(col_test) > nlags:
                 distance.append(np.mean(fn(col_test, nlags=nlags)))
 
         return distance
@@ -690,12 +690,15 @@ class UtilityTesting:
 
             if self.identifier:
                 for idf in identifiers_orig:
-                    x = self.df_orig.loc[self.df_orig[self.identifier] == idf, col].dropna().values
-                    ax.plot(range(len(x)), x, label=idf)
+                    x = pd.to_numeric(self.df_orig.loc[self.df_orig[self.identifier] == idf, col], errors='coerce'
+                                      ).dropna().values
+                    if len(x) > 1:
+                        ax.plot(range(len(x)), x, label=idf)
+                ax.legend()
             else:
-                x = self.df_orig[col].dropna().values
-                ax.plot(range(len(x)), x)
-            ax.legend()
+                x = pd.to_numeric(self.df_orig[col], errors='coerce').dropna().values
+                if len(x) > 1:
+                    ax.plot(range(len(x)), x)
             ax.set_title(col + ' (Original)')
 
             # Synthesized
