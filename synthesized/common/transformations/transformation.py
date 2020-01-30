@@ -35,7 +35,8 @@ class Transformation(tf.keras.layers.Layer):
     def regularization_losses(self):
         return self._regularization_losses
 
-    def add_regularization_weights(self, variable: Union[tf.Variable, List[tf.Variable]]) -> Union[tf.Variable, List[tf.Variable]]:
+    def add_regularization_weights(self, variable: Union[tf.Variable, List[tf.Variable]]) -> \
+            Union[tf.Variable, List[tf.Variable]]:
         if type(variable) is list:
             self._regularization_losses.extend(variable)
         else:
