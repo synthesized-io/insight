@@ -187,8 +187,6 @@ class Value(tf.Module):
     def regularization_losses(self):
         return self._regularization_losses
 
-    def add_l2_loss(self, variable: tf.Variable):
-        l2 = tf.keras.regularizers.l2(1.0)
-        l2_loss = l2(variable)
-        self._regularization_losses.append(l2_loss)
-        return l2_loss
+    def add_regularization_weight(self, variable: tf.Variable):
+        self._regularization_losses.append(variable)
+        return variable

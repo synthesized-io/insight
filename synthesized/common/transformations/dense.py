@@ -32,7 +32,7 @@ class DenseTransformation(Transformation):
         self.weight = self.add_weight(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
         )
-        self.add_l2_loss(self.weight)
+        self.add_regularization_weights(self.weight)
 
         shape = (self.output_size,)
         initializer = util.get_initializer(initializer='zeros')
@@ -40,7 +40,7 @@ class DenseTransformation(Transformation):
             self.bias = self.add_weight(
                 name='bias', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
             )
-            self.add_l2_loss(self.bias)
+            self.add_regularization_weights(self.bias)
         else:
             self.bias = None
 

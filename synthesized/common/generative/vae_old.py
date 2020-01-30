@@ -43,6 +43,7 @@ class VAEOld(Generative):
         self.summarize = summarize
         self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
+        self.l2 = tf.keras.regularizers.l2(weight_decay)
 
         # Total input and output size of all values
         input_size = 0
@@ -121,9 +122,8 @@ class VAEOld(Generative):
         self.losses = self.value_losses(y=y, inputs=self.xs)
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
-        regularization_loss = tf.multiply(
-            x=self.weight_decay,
-            y=tf.add_n(inputs=self.regularization_losses),
+        regularization_loss = tf.add_n(
+            inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'
         )
 

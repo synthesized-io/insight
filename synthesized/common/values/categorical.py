@@ -109,7 +109,7 @@ class CategoricalValue(Value):
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
                 dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
             )
-            self.add_l2_loss(self.embeddings)
+            self.add_regularization_weight(self.embeddings)
 
             if self.use_moving_average:
                 self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)

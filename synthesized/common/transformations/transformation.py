@@ -35,14 +35,9 @@ class Transformation(tf.keras.layers.Layer):
     def regularization_losses(self):
         return self._regularization_losses
 
-    def add_l2_loss(self, variable: Union[tf.Variable, List[tf.Variable]]) -> Union[tf.Tensor, List[tf.Tensor]]:
-        l2 = tf.keras.regularizers.l2(1.0)
+    def add_regularization_weights(self, variable: Union[tf.Variable, List[tf.Variable]]) -> Union[tf.Variable, List[tf.Variable]]:
         if type(variable) is list:
-            l2_losses = [l2(v) for v in variable]
-            self._regularization_losses.extend(l2_losses)
-            return l2_losses
+            self._regularization_losses.extend(variable)
         else:
-            l2 = tf.keras.regularizers.l2(1.0)
-            l2_loss = l2(variable)
-            self._regularization_losses.append(l2_loss)
-            return l2_loss
+            self._regularization_losses.append(variable)
+        return variable
