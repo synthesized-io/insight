@@ -172,8 +172,6 @@ class UtilityTesting:
         plt.title('Correlation Distances')
         g = sns.barplot(y='column', x='distance', data=df)
         g.set_xlim(0.0, 1.0)
-        print(figsize)
-        print(df)
         plt.show()
 
         return corr_dist_max, corr_dist_avg

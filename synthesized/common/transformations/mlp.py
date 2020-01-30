@@ -35,3 +35,9 @@ class MlpTransformation(Transformation):
             inputs = layer(inputs=inputs)
 
         return inputs
+
+    @property
+    def regularization_losses(self):
+        losses = [loss for layer in self.layers for loss in layer.regularization_losses]
+
+        return losses

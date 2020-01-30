@@ -188,7 +188,7 @@ class VAE(Generative):
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
-        x = self.add_conditions(x=latent_space, conditions=xs)
+        x = self.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         p = self.decoding(x)
         y = p.sample()
