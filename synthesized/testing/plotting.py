@@ -293,7 +293,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         plt.show()
     if show_transition_distances:
         display(Markdown("## Show Transition Distances"))
-        trans_dist_max, trans_dist_avg = testing.testing.show_transition_distances()
+        trans_dist_max, trans_dist_avg = testing.show_transition_distances()
         evaluation.record_metric(evaluation=name, key='trans_dist_max', value=trans_dist_max)
         evaluation.record_metric(evaluation=name, key='trans_dist_avg', value=trans_dist_avg)
         plt.show()
