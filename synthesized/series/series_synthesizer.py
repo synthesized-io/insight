@@ -102,8 +102,8 @@ class SeriesSynthesizer(Synthesizer):
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
             lstm_mode=self.lstm_mode, latent_size=latent_size, network=network, capacity=capacity,
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
-            optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
-            initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
+            optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
+            decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay, summarize=(summarizer_dir is not None)
         )
 
@@ -140,7 +140,7 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 50
+        callback_freq: int = 0, print_status_freq: int = 25
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
@@ -173,7 +173,7 @@ class SeriesSynthesizer(Synthesizer):
                 else:
                     self.vae.learn(xs=feed_dict)
 
-                if iteration % callback_freq:
+                if iteration % print_status_freq == 0:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
 
                 # Increment iteration number, and check if we reached max num_iterations
@@ -187,7 +187,7 @@ class SeriesSynthesizer(Synthesizer):
 
     def _print_learn_stats(self, fetched, iteration):
         print('ITERATION {iteration} :: Loss: total={loss:.4f} ({losses})'.format(
-            iteration=(iteration + 1), loss=fetched['total-loss'], losses=', '.join(
+            iteration=(iteration), loss=fetched['total-loss'], losses=', '.join(
                 '{name}={loss:.4f}'.format(name=name, loss=loss)
                 for name, loss in fetched.items()
             )

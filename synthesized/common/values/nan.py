@@ -76,6 +76,7 @@ class NanValue(Value):
 
         nan = df[self.value.name].isna()
         df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
+        df[self.value.name] = df[self.value.name].astype(np.float32)
 
         return super().preprocess(df=df)
 
@@ -114,7 +115,6 @@ class NanValue(Value):
 
         # Concatenate NaN embedding and wrapped value
         x = tf.concat(values=(embedding, x), axis=1)
-
         return x
 
     @tensorflow_name_scoped

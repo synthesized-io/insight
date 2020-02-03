@@ -88,36 +88,13 @@ class RnnVariationalEncoding(Encoding):
     def sample(self, n, condition=()):
 
         encoding = tf.random.normal(shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
-        y = self.lstm_loop(encoding, n)
-
-        return y
-
-    def lstm_loop(self, encoding, n, x=None):
-        y = tf.Variable(tf.zeros(shape=(1, self.encoding_size)), dtype=tf.float32, trainable=False)
-
+        y = []
         state = tf.zeros(shape=(2 * self.encoding_size))
+        for i in range(n):
+            state, encoding = self.lstm_decoder(inputs=encoding, state=state)
+            y.append(encoding)
 
-        iteration = tf.constant(0, dtype=tf.int64)
-
-        def cond(_iteration, _encoding, _state, _y):
-            return tf.less(_iteration, n)
-
-        def body(_iteration, _encoding, _state, _y):
-            if x is not None and n > 0:
-                x_in = tf.expand_dims(x[n-1, :], axis=0)
-                _state, _encoding = self.lstm_decoder.transform(x_in, state=_state)
-            else:
-                _state, _encoding = self.lstm_decoder.transform(_encoding, state=_state)
-            _y = tf.concat([_y, _encoding], axis=0)
-            return tf.add(_iteration, 1), _encoding, _state, _y
-
-        iteration, encoding, state, y = tf.while_loop(
-            cond, body, [iteration, encoding, state, y],
-            shape_invariants=[iteration.get_shape(), encoding.get_shape(), state.get_shape(),
-                              tf.TensorShape([None, self.encoding_size])]
-        )
-
-        y = y[1:]
+        y = tf.concat(y, axis=0)
 
         return y
 
