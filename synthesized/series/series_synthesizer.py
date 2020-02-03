@@ -156,12 +156,24 @@ class SeriesSynthesizer(Synthesizer):
             while keep_learning:
 
                 feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
-                self.vae.learn(xs=feed_dict)
 
-                if callback_freq > 0 and (
-                    iteration == 0 or iteration % callback_freq == 0
+                if callback is not None and callback_freq > 0 and (
+                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                 ):
-                    feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, max_seq_len=50_000)
+                    if self.writer is not None and iteration == 1:
+                        tf.summary.trace_on(graph=True, profiler=False)
+                        self.vae.learn(xs=feed_dict)
+                        tf.summary.trace_export(name="Learn", step=self.global_step)
+                        tf.summary.trace_off()
+                    else:
+                        self.vae.learn(xs=feed_dict)
+
+                    if callback(self, iteration, self.vae.losses) is True:
+                        return
+                else:
+                    self.vae.learn(xs=feed_dict)
+
+                if iteration % callback_freq:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
 
                 # Increment iteration number, and check if we reached max num_iterations

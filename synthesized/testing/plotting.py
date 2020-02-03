@@ -247,6 +247,11 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     if plot_losses:
         display(Markdown("## Show loss history"))
         df_losses = pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
+        print('*********************')
+        print(synthesizer.loss_history)
+        print('* * * * * * * * * * *')
+        print(df_losses)
+        print('*********************')
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
         plt.show()

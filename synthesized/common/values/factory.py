@@ -254,9 +254,9 @@ class ValueFactory(tf.Module):
 
         if num_data[group] > max_seq_len:
             start = randrange(num_data[group] - max_seq_len)
-            batch = np.arange(start, start + max_seq_len)
+            batch = tf.range(start, start + max_seq_len)
         else:
-            batch = np.arange(num_data[group])
+            batch = tf.range(num_data[group])
 
         feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
                      for name, value_data in data.items()}
