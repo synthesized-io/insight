@@ -1,27 +1,19 @@
-from random import randrange
-import enum
-from collections import OrderedDict
-from typing import Callable, List, Union, Dict, Set, Iterable, Optional
+from typing import Callable, List, Union, Dict, Iterable, Optional
+import logging
 
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Value, ValueFactory
-from ..common.util import ProfilerArgs
-from ..common.values import ContinuousValue
+from ..common import Value, ValueFactory, TypeOverride
+from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
 from ..common import Synthesizer
+from ..common.generative import SeriesVAE
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
-class TypeOverride(enum.Enum):
-    ID = 'ID'
-    DATE = 'DATE'
-    CATEGORICAL = 'CATEGORICAL'
-    CONTINUOUS = 'CONTINUOUS'
-    ENUMERATION = 'ENUMERATION'
-
-
-class SeriesSynthesizer(Synthesizer,  ValueFactory):
+class SeriesSynthesizer(Synthesizer):
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
         profiler_args: ProfilerArgs = None,
@@ -36,7 +28,9 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         batchnorm: bool = True, activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: int = 0, clip_gradients: float = 1.0, batch_size: int = 1024,
+        initial_boost: int = 0, clip_gradients: float = 1.0,
+        # Batch size
+        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-6,
         # Categorical
@@ -50,8 +44,12 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         # Person
         title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
         lastname_label: str = None, email_label: str = None,
+        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        # Bank
+        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
         # Address
-        postcode_label: str = None, city_label: str = None, street_label: str = None,
+        postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
+        street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
@@ -63,35 +61,30 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         max_seq_len: int = 1024,
         condition_labels: List[str] = []
     ):
-        Synthesizer.__init__(self, name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name,
-                             profiler_args=profiler_args)
-        if type_overrides is None:
-            self.type_overrides: Dict[str, TypeOverride] = dict()
-        else:
-            self.type_overrides = type_overrides
-
-        if isinstance(produce_nans_for, Iterable):
-            self.produce_nans_for: Set[str] = set(produce_nans_for)
-        elif produce_nans_for:
-            self.produce_nans_for = set(df.columns)
-        else:
-            self.produce_nans_for = set()
-
-        if column_aliases is None:
-            self.column_aliases: Dict[str, str] = {}
-        else:
-            self.column_aliases = column_aliases
-
-        if condition_columns is None:
-            self.condition_columns: List[str] = []
-        else:
-            self.condition_columns = condition_columns
-
-        if find_rules is None:
-            self.find_rules: Union[str, List[str]] = []
-        else:
-            self.find_rules = find_rules
-
+        super(SeriesSynthesizer, self).__init__(
+            name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
+        )
+        self.value_factory = ValueFactory(
+            name='value_factory', df=df,
+            capacity=capacity,
+            continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
+            moving_average=moving_average, nan_weight=nan_weight,
+            type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
+            condition_columns=condition_columns, find_rules=find_rules,
+            # Person
+            title_label=title_label, gender_label=gender_label, name_label=name_label, firstname_label=firstname_label,
+            lastname_label=lastname_label, email_label=email_label, mobile_number_label=mobile_number_label,
+            home_number_label=home_number_label, work_number_label=work_number_label,
+            # Bank
+            bic_label=bic_label, sort_code_label=sort_code_label, account_label=account_label,
+            # Address
+            postcode_label=postcode_label, county_label=county_label, city_label=city_label,
+            district_label=district_label, street_label=street_label, house_number_label=house_number_label,
+            flat_label=flat_label, house_name_label=house_name_label, address_label=address_label,
+            postcode_regex=postcode_regex,
+            # Identifier
+            identifier_label=identifier_label,
+        )
         self.encoding_type = encoding
         if lstm_mode not in (1, 2):
             raise NotImplementedError
@@ -99,88 +92,15 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         self.max_seq_len = max_seq_len
 
         self.batch_size = batch_size
-
-        # For identify_value (should not be necessary)
-        self.capacity = capacity
-        self.weight_decay = weight_decay
-
-        # Categorical
-        self.categorical_weight = categorical_weight
-        self.temperature = temperature
-        self.moving_average = moving_average
-
-        # Continuous
-        self.continuous_weight = continuous_weight
-
-        # Nan
-        self.nan_weight = nan_weight
-
-        # Overall columns
-        self.columns = list(df.columns)
-        # Person
-        self.person_value: Optional[Value] = None
-        self.bank_value: Optional[Value] = None
-        self.title_label = title_label
-        self.gender_label = gender_label
-        self.name_label = name_label
-        self.firstname_label = firstname_label
-        self.lastname_label = lastname_label
-        self.email_label = email_label
-        # Address
-        self.address_value: Optional[Value] = None
-        self.postcode_label = postcode_label
-        self.address_label = address_label
-        self.postcode_regex = postcode_regex
-
-        # Date
-        self.date_value: Optional[Value] = None
-
-        # Values
-        self.values: List[Value] = list()
-        self.conditions: List[Value] = list()
-        if identifier_label:
-            assert identifier_label in df.columns, "The given DataFrame is missing the column given for " \
-                                                   "'identifier_label'."
-        self.identifier_label: Optional[str] = identifier_label
-        self.identifier_value: Optional[Value] = None
-        self.values_conditions_identifier = []
-
-        # pleas note that `ValueFactory` uses some fields defined above
-        ValueFactory.__init__(self)
-
-        for name in df.columns:
-            # we are skipping aliases
-            if name in self.column_aliases:
-                continue
-            if name in self.type_overrides:
-                value = self._apply_type_overrides(df, name)
-            else:
-                identified_value = self.identify_value(col=df[name], name=name)
-                # None means the value has already been detected:
-                if identified_value is None:
-                    continue
-                value = identified_value
-            if name in self.condition_columns:
-                self.conditions.append(value)
-            elif name == identifier_label:
-                self.identifier_value = value
-            else:
-                self.values.append(value)
-            self.values_conditions_identifier.append(value)
-
-        # Automatic extraction of specification parameters
-        df = df.copy()
-        for value in self.values_conditions_identifier:
-            value.extract(df=df)
-
-        self.learned_values_conditions_identifier = [value_learned for value in self.values_conditions_identifier
-                                                     for value_learned in value.learned_input_columns()]
+        self.tf_batch_size = tf.Variable(initial_value=batch_size, dtype=tf.int64)
+        self.increase_batch_size_every = increase_batch_size_every
+        self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
 
         # VAE
-        self.vae_series = self.add_module(
-            module='vae_series', name='vae', values=self.values, conditions=self.conditions,
-            identifier_label=self.identifier_label, identifier_value=self.identifier_value, lstm_mode=self.lstm_mode,
-            latent_size=latent_size, network=network, capacity=capacity,
+        self.vae = SeriesVAE(
+            name='vae', values=self.get_values(), conditions=self.get_conditions(),
+            identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
+            lstm_mode=self.lstm_mode, latent_size=latent_size, network=network, capacity=capacity,
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
             optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
             initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
@@ -194,77 +114,28 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         self.synthesized: Optional[Dict[str, tf.Tensor]] = None
 
     def get_values(self) -> List[Value]:
-        return self.values
+        return self.value_factory.get_values()
 
     def get_conditions(self) -> List[Value]:
-        return self.conditions
+        return self.value_factory.get_conditions()
 
-    def get_losses(self) -> tf.Tensor:
-        return self.losses
-
-    def _apply_type_overrides(self, df, name) -> Value:
-        assert name in self.type_overrides
-        forced_type = self.type_overrides[name]
-        if forced_type == TypeOverride.ID:
-            value: Value = self.create_identifier(name)
-            self.identifier_value = value
-        elif forced_type == TypeOverride.CATEGORICAL:
-            value = self.create_categorical(name)
-        elif forced_type == TypeOverride.CONTINUOUS:
-            value = self.create_continuous(name)
-        elif forced_type == TypeOverride.DATE:
-            value = self.create_date(name)
-        elif forced_type == TypeOverride.ENUMERATION:
-            value = self.create_enumeration(name)
-        else:
-            assert False
-        is_nan = df[name].isna().any()
-        if is_nan and isinstance(value, ContinuousValue):
-            value = self.create_nan(name, value)
-        return value
+    def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
+        self.vae.xs = data
+        self.vae.loss()
+        return self.vae.losses
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            values=[value.specification() for value in self.values],
-            conditions=[value.specification() for value in self.conditions],
-            vae=self.vae_series.specification(), batch_size=self.batch_size
+            values=[value.specification() for value in self.value_factory.get_values()],
+            conditions=[value.specification() for value in self.value_factory.get_conditions()],
+            vae=self.vae.specification(), batch_size=self.batch_size
         )
         return spec
 
-    def preprocess(self, df: pd.DataFrame):
-        df = df.copy()
-        for value in self.values:
-            df = value.preprocess(df=df)
+    def preprocess(self, df):
+        df = self.value_factory.preprocess(df)
         return df
-
-    def module_initialize(self):
-        super().module_initialize()
-
-        # API function learn
-
-        # Input values
-        xs = OrderedDict()
-        for value in self.values_conditions_identifier:
-            xs.update(zip(value.learned_input_columns(), value.input_tensors()))
-
-        # VAE learn
-        self.losses, self.optimized = self.vae_series.learn(xs=xs)
-
-        # # Increment global step
-        with tf.control_dependencies(control_inputs=[self.optimized]):
-            self.optimized = self.global_step.assign_add(delta=1)
-
-        # Input argument placeholder for num_rows
-        self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
-
-        # Input condition values
-        cs = OrderedDict()
-        for value in self.conditions:
-            cs.update(zip(value.learned_input_columns(), value.input_tensors()))
-
-        # VAE synthesize
-        self.synthesized = self.vae_series.synthesize(n=self.num_rows, cs=cs)
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -275,59 +146,30 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         assert num_iterations is not None and num_iterations > 0
 
         df_train = df_train.copy()
-        for value in self.values_conditions_identifier:
-            df_train = value.preprocess(df=df_train)
+        df_train = self.value_factory.preprocess(df_train)
 
-        if self.identifier_label is None:
-            num_data = [len(df_train)]
-            groups = [{
-                value.name: df_train[name].to_numpy() for value in self.values_conditions_identifier
-                for name in value.learned_input_columns()
-            }]
+        groups, num_data = self.value_factory.get_groups_feed_dict(df_train)
 
-        else:
-            groups = [group[1] for group in df_train.groupby(by=self.identifier_label)]
-            num_data = [len(group) for group in groups]
-            for n in range(len(groups)):
-                groups[n] = {
-                    value.name: df_train[name].to_numpy() for value in self.values_conditions_identifier
-                    for name in value.learned_input_columns()
-                }
+        with record_summaries_every_n_global_steps(callback_freq, self.global_step):
+            keep_learning = True
+            iteration = 1
+            while keep_learning:
 
-        fetches = self.optimized
-        # fetches = self.synthesized
+                feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
+                self.vae.learn(xs=feed_dict)
 
-        # Batch iteration
-        for iteration in range(num_iterations):
+                if callback_freq > 0 and (
+                    iteration == 0 or iteration % callback_freq == 0
+                ):
+                    feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, max_seq_len=50_000)
+                    self._print_learn_stats(self.get_losses(feed_dict), iteration)
 
-            group = randrange(len(num_data))
-            data_dict = groups[group]
+                # Increment iteration number, and check if we reached max num_iterations
+                iteration += 1
+                if num_iterations:
+                    keep_learning = iteration < num_iterations
 
-            data = {
-                placeholder: data_dict[name] for value in self.values_conditions_identifier
-                for name, placeholder in zip(value.learned_input_columns(), value.input_tensors())
-            }
-
-            if num_data[group] > self.max_seq_len:
-                start = randrange(num_data[group] - self.max_seq_len)
-                batch = np.arange(start, start + self.max_seq_len)
-            else:
-                batch = np.arange(num_data[group])
-
-            feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
-            self.run(fetches=fetches, feed_dict=feed_dict)
-
-            if callback_freq > 0 and (
-                iteration == 0 or iteration % callback_freq == 0
-            ):
-                group = randrange(len(num_data))
-                df_train = groups[group]
-                start = randrange(max(num_data[group] - 1024, 1))
-                batch = np.arange(start, min(start + 1024, num_data[group]))
-
-                feed_dict = {placeholder: value_data[batch] for placeholder, value_data in data.items()}
-                fetched = self.run(fetches=self.losses, feed_dict=feed_dict)
-                self._print_learn_stats(fetched, iteration)
+                self.global_step.assign_add(1)
 
         # return [value_data[batch] for value_data in data.values()], synth
 
@@ -368,41 +210,17 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
         if self.lstm_mode == 0:
             raise NotImplementedError
 
-        if conditions is not None:
-            if isinstance(conditions, dict):
-                df_conditions = pd.DataFrame.from_dict(
-                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
-                )
-            else:
-                df_conditions = conditions.copy()
-        else:
-            df_conditions = None
+        df_conditions = self.value_factory.preprocess_conditions(conditions=conditions)
+        columns = self.value_factory.get_column_names()
 
-        for value in self.conditions:
-            df_conditions = value.preprocess(df=df_conditions)
-
-        fetches = self.synthesized
-        feed_dict = {self.num_rows: series_length}
-
-        # Add conditions to 'feed_dict'
-        for value in self.conditions:
-            for name, placeholder in zip(value.learned_input_columns(), value.input_tensors()):
-                condition = df_conditions[name].values
-                if condition.shape == (1,):
-                    feed_dict[placeholder] = np.tile(condition, (series_length,))
-                elif condition.shape == (series_length,):
-                    feed_dict[placeholder] = condition
-                else:
-                    raise NotImplementedError
-
-        columns = [name for value in self.values_conditions_identifier for name in value.learned_input_columns()]
+        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
 
         if num_series is not None and series_length is not None:
             for i in range(num_series):
-                other = self.run(fetches=fetches, feed_dict=feed_dict)
-                if self.identifier_label:
-                    other[self.identifier_label] = [i for _ in range(series_length)]
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
+                if self.value_factory.identifier_label:
+                    other[self.value_factory.identifier_label] = [i for _ in range(series_length)]
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -411,16 +229,16 @@ class SeriesSynthesizer(Synthesizer,  ValueFactory):
 
         elif series_lengths is not None:
             for i, series_length in enumerate(series_lengths):
-                other = self.run(fetches=fetches, feed_dict=feed_dict)
-                if self.identifier_label:
-                    other[self.identifier_label] = [i for _ in range(series_length)]
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
+                if self.value_factory.identifier_label:
+                    other[self.value_factory.identifier_label] = [i for _ in range(series_length)]
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
                 else:
                     synthesized = synthesized.append(other, ignore_index=True)
 
-        for value in self.values_conditions_identifier:
-            synthesized = value.postprocess(df=synthesized)
+        df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
-        return synthesized
+        return df_synthesized

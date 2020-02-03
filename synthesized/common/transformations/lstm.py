@@ -18,28 +18,26 @@ class LstmTransformation(Transformation):
 
         if self.return_state:
             assert output_size % 2 == 0
-            units = self.output_size // 2
+            self.units = self.output_size // 2
         else:
-            units = self.output_size
-
-        # tf.keras.layers.CuDNNLSTM
-        self.lstm = tf.keras.layers.LSTM(units=units, return_sequences=self.return_sequences, return_state=True)
+            self.units = self.output_size
 
     def specification(self):
         spec = super().specification()
         return spec
 
-    def module_initialize(self):
-        super().module_initialize()
+    @tensorflow_name_scoped
+    def build(self, input_shape):
+        self.lstm = tf.keras.layers.LSTM(units=self.units, return_sequences=self.return_sequences, return_state=True)
         self.lstm.build(input_shape=(None, None, self.input_size))
 
     @tensorflow_name_scoped
-    def transform(self, x, state=None):
+    def call(self, inputs, state=None):
 
-        expand_squeeze = True if x.shape.ndims == 2 else False
+        expand_squeeze = True if inputs.shape.ndims == 2 else False
 
         if expand_squeeze:
-            x = tf.expand_dims(input=x, axis=0)
+            inputs = tf.expand_dims(input=inputs, axis=0)
 
         if state is None:
             initial_state = None
@@ -53,7 +51,7 @@ class LstmTransformation(Transformation):
 
             initial_state = tf.map_fn(lambda s: s, [h0, c0])
 
-        x, h, c = self.lstm(inputs=x, initial_state=initial_state)
+        inputs, h, c = self.lstm(inputs=inputs, initial_state=initial_state)
 
         if self.return_state:
             state = tf.concat(values=(h, c), axis=1)
@@ -66,11 +64,11 @@ class LstmTransformation(Transformation):
             state = tf.concat(values=(h, c), axis=1)
 
             if expand_squeeze:
-                x = tf.squeeze(input=x, axis=0)
+                inputs = tf.squeeze(input=inputs, axis=0)
                 state = tf.squeeze(input=state, axis=0)
-            return state, x
+            return state, inputs
 
         else:
             if expand_squeeze:
-                x = tf.squeeze(input=x, axis=0)
-            return x
+                inputs = tf.squeeze(input=inputs, axis=0)
+            return inputs

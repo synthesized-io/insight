@@ -223,10 +223,11 @@ class HighDimSynthesizer(Synthesizer):
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
 
-        df_train_orig = df_train
+        df_train = df_train.copy()
+        df_train_orig = df_train.copy()
         df_train = self.value_factory.preprocess(df_train)
-        data = self.value_factory.get_data_feed_dict(df_train)
 
+        data = self.value_factory.get_data_feed_dict(df_train)
         num_data = len(df_train)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -314,8 +315,8 @@ class HighDimSynthesizer(Synthesizer):
 
         for k in range(n_batches):
             feed_dict.update({
-                placeholder: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
-                for placeholder, condition_data in data.items()
+                name: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
+                for name, condition_data in data.items()
                 if condition_data.shape == (num_rows,)
             })
             other = self.vae.synthesize(tf.constant(1024, dtype=tf.int64), cs=feed_dict)

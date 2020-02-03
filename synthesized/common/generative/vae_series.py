@@ -1,25 +1,28 @@
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped, module_registry
+from ..transformations import DenseTransformation, LstmTransformation
+from ..encodings import VariationalEncoding, RnnVariationalEncoding
 from ..values import Value, IdentifierValue
+from ..optimizers import Optimizer
 
 
 class SeriesVAE(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
-            lstm_mode: int, identifier_label: str, identifier_value: IdentifierValue,
+            lstm_mode: int, identifier_label: Optional[str], identifier_value: Optional[IdentifierValue],
             # Latent space
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
             batchnorm: bool, activation: str,
             # Optimizer
-            optimizer: str, learning_rate: float, decay_steps: int, decay_rate: float,
-            initial_boost: bool, clip_gradients: float,
+            optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
+            initial_boost: int, clip_gradients: float,
             # Beta KL loss coefficient
             beta: float,
             # Weight decay
@@ -43,6 +46,7 @@ class SeriesVAE(Generative):
         self.decay_steps = decay_steps
         self.decay_rate = decay_rate
         self.weight_decay = weight_decay
+        self.l2 = tf.keras.regularizers.l2(weight_decay)
 
         self.identifier_label = identifier_label
         self.identifier_value = identifier_value
@@ -56,33 +60,30 @@ class SeriesVAE(Generative):
             input_size += value.learned_input_size()
             output_size += value.learned_output_size()
 
-        self.linear_input = self.add_module(
-            module='dense', name='linear-input',
+        self.linear_input = DenseTransformation(
+            name='linear-input',
             input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
-        if network == 'resnet':
-            self.encoder = self.add_module(
-                module=network, name='encoder',
-                input_size=self.linear_input.size(), depths=residual_depths,
-                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
-            )
-        else:
-            self.encoder = self.add_module(
-                module=network, name='encoder',
-                input_size=self.linear_input.size(),
-                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
-            )
+        kwargs = dict(
+            name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
+            layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
+            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+        )
+        for k in list(kwargs.keys()):
+            if kwargs[k] is None:
+                del kwargs[k]
+        self.encoder = module_registry[network](**kwargs)
 
         if self.lstm_mode == 1:
-            self.encoding = self.add_module(
-                module='variational', name='encoding',
+            self.encoding = VariationalEncoding(
+                name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
                 beta=self.beta
             )
 
-            self.lstm = self.add_module(
-                module='lstm', name='lstm',
+            self.lstm: Optional[LstmTransformation] = LstmTransformation(
+                name='lstm',
                 input_size=self.encoding.size(), output_size=self.capacity
             )
 
@@ -91,34 +92,24 @@ class SeriesVAE(Generative):
         else:
             self.lstm = None
 
-            self.encoding = self.add_module(
-                module='rnn_variational', name='encoding',
+            self.encoding = RnnVariationalEncoding(
+                name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
                 beta=self.beta
             )
 
             decoder_input_size = self.encoding.size()
 
-        if network == 'resnet':
-            self.decoder = self.add_module(
-                module=network, name='decoder',
-                input_size=decoder_input_size, depths=residual_depths,
-                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
-            )
-        else:
-            self.decoder = self.add_module(
-                module=network, name='decoder',
-                input_size=decoder_input_size,
-                layer_sizes=[capacity for _ in range(num_layers)], weight_decay=weight_decay
-            )
+        kwargs['name'], kwargs['input_size'] = 'decoder', decoder_input_size
+        self.decoder = module_registry[network](**kwargs)
 
-        self.linear_output = self.add_module(
-            module='dense', name='linear-output',
+        self.linear_output = DenseTransformation(
+            name='linear-output',
             input_size=self.decoder.size(), output_size=output_size, batchnorm=False, activation='none'
         )
 
-        self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer,
+        self.optimizer = Optimizer(
+            name='optimizer', optimizer=optimizer,
             learning_rate=self.learning_rate, clip_gradients=clip_gradients,
             decay_steps=self.decay_steps, decay_rate=self.decay_rate,
             initial_boost=initial_boost
@@ -132,154 +123,105 @@ class SeriesVAE(Generative):
         )
         return spec
 
-    @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:
-
-        if len(xs) == 0:
+    def loss(self):
+        if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        losses: Dict[str, tf.Tensor] = OrderedDict()
-        summaries = list()
-
-        # Concatenate input tensors per value
-        x = tf.concat(values=[
-            value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-            for value in self.values if value.learned_input_size() > 0
-        ], axis=1)
-
-        # Get identifier
+        x = self.unified_inputs(self.xs)
         if self.identifier_label:
-            identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
+            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
 
         #################################
-
-        x = self.linear_input.transform(x=x)
-        x = self.encoder.transform(x=x)
-
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[xs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
+        x = self.linear_input(inputs=x)
+        x = self.encoder(inputs=x)
+        x = self.add_conditions(x, conditions=self.xs)
 
         if self.lstm_mode == 1:
-            encoding, encoding_loss, mean, stddev = self.encoding.encode(x=x)
-
+            encoding = self.encoding(inputs=x)
             if self.identifier_label is None:
-                x = self.lstm.transform(x=encoding)
+                x = self.lstm(inputs=encoding)
             else:
-                x = self.lstm.transform(x=encoding, state=identifier)
+                x = self.lstm(inputs=encoding, state=identifier)
         else:
-            x, encoding, encoding_loss, mean, stddev = self.encoding.encode(
-                x=x, encoding_plus_loss=True
-            )
-
-        if self.summarize:
-            summaries.append(tf.contrib.summary.scalar(
-                name='encoding-mean', tensor=mean, family=None, step=None
-            ))
-            summaries.append(tf.contrib.summary.scalar(
-                name='encoding-variance', tensor=stddev, family=None, step=None
-            ))
-            summaries.append(tf.contrib.summary.scalar(
-                name='encoding-loss', tensor=encoding_loss, family=None, step=None
-            ))
-
-        x = self.decoder.transform(x=x)
-        y = self.linear_output.transform(x=x)
+            x = self.encoding(inputs=x)
+        x = self.decoder(inputs=x)
+        y = self.linear_output(inputs=x)
 
         #################################
 
-        # Split output tensors per value
-        ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
+        # Losses
+        self.losses: Dict[str, tf.Tensor] = OrderedDict()
+
+        reconstruction_loss = tf.identity(self.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+        kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
+        regularization_loss = tf.add_n(
+            inputs=[self.l2(w) for w in self.regularization_losses],
+            name='regularization_loss'
         )
 
-        losses['encoding-loss'] = encoding_loss
-        reconstruction_loss = 0
+        total_loss = tf.add_n(
+            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
+        )
+        self.losses['reconstruction-loss'] = reconstruction_loss
+        self.losses['regularization-loss'] = regularization_loss
+        self.losses['kl-loss'] = kl_loss
+        self.losses['total-loss'] = total_loss
 
-        # Reconstruction loss per value
-        for value, y_ in zip(self.values, ys):
-            value_loss = value.loss(
-                y=y_, xs=[xs[name] for name in value.learned_output_columns()]
-            )
-            losses[value.name + '-loss'] = value_loss
-            reconstruction_loss += value_loss
-
-        # Reconstruction loss
-        summaries.append(tf.contrib.summary.scalar(name='reconstruction-loss', tensor=reconstruction_loss))
-
-        # Regularization loss
-        reg_losses = tf.compat.v1.losses.get_regularization_losses()
-        if len(reg_losses) > 0:
-            losses['regularization-loss'] = tf.add_n(inputs=reg_losses)
-
-        # Total loss
-        total_loss = tf.add_n(inputs=list(losses.values()))
-        losses['total-loss'] = total_loss
-
-        # Loss summaries
+        # Summaries
         if self.summarize:
-            for name, loss in losses.items():
-                summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
-                if name not in ('total-loss', 'encoding-loss'):
-                    summaries.append(tf.contrib.summary.scalar(
-                        name=name + '-ratio', tensor=(loss / losses['encoding-loss'])
-                    ))
+            tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+            tf.summary.scalar(name='kl-loss', data=kl_loss)
+            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+            tf.summary.scalar(name='total-loss', data=total_loss)
 
+        return total_loss
+
+    @tf.function
+    @tensorflow_name_scoped
+    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
+        self.xs = xs
         # Optimization step
-        optimized = self.optimizer.optimize(
-            loss=total_loss, summarize_gradient_norms=self.summarize, summaries=summaries
+        self.optimizer.optimize(
+            loss=self.loss, variables=self.get_trainable_variables
         )
 
-        return losses, optimized
+        return
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        y, identifier = self._synthesize(n=n, cs=cs)
+        synthesized = self.value_outputs(y=y, conditions=cs, identifier=identifier)
+
+        return synthesized
+
+    @tf.function
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) \
+            -> Tuple[Dict[str, tf.Tensor], Optional[tf.Tensor]]:
 
         x = self.encoding.sample(n=n)
+        x = self.add_conditions(x=x, conditions=cs)
+        identifier = None
 
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=[cs[name] for name in value.learned_input_columns()])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
-
-        if self.lstm_mode == 2 and self.identifier_label is not None:
+        if self.lstm_mode == 2 and self.identifier_value is not None:
             identifier = self.identifier_value.next_identifier()
             identifier = tf.tile(input=identifier, multiples=(n,))
 
-        elif self.lstm_mode == 1:
-            if self.identifier_label is None:
-                x = self.lstm.transform(x=x)
+        elif self.lstm_mode == 1 and self.lstm:
+            if self.identifier_value is None:
+                x = self.lstm(inputs=x)
             else:
                 identifier, state = self.identifier_value.next_identifier_embedding()
-                x = self.lstm.transform(x=x, state=state)
+                x = self.lstm(inputs=x, state=state)
 
-        x = self.decoder.transform(x=x)
-        y = self.linear_output.transform(x=x)
-        ys = tf.split(value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-                      axis=1, num=None, name=None)
+        x = self.decoder(inputs=x)
+        y = self.linear_output(inputs=x)
 
-        # Output tensors per value
-        synthesized = OrderedDict()
-        if self.identifier_value is not None:
-            synthesized[self.identifier_label] = identifier
+        return y, identifier
 
-        for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
-
-        for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = cs[name]
-
-        return synthesized
+    @property
+    def regularization_losses(self):
+        return [
+            loss
+            for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
+            for loss in module.regularization_losses
+        ]

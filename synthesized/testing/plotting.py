@@ -303,6 +303,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         plt.show()
     return testing
 
+
 # -- Measures of association for different pairs of data types
 def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
     variable = dataset[col].to_numpy()

@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple, Union, Optional
+from collections import OrderedDict
 
 import tensorflow as tf
 
@@ -119,24 +120,28 @@ class VAEOld(Generative):
         #################################
 
         # Losses
-        self.losses = self.value_losses(y=y, inputs=self.xs)
+        self.losses: Dict[str, tf.Tensor] = OrderedDict()
+
+        reconstruction_loss = tf.identity(self.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
-        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'
         )
 
         total_loss = tf.add_n(
-            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
+            inputs=[reconstruction_loss, kl_loss, regularization_loss], name='total_loss'
         )
+        self.losses['reconstruction-loss'] = reconstruction_loss
         self.losses['regularization-loss'] = regularization_loss
         self.losses['kl-loss'] = kl_loss
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
         tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 

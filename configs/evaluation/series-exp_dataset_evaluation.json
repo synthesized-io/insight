@@ -1,6 +1,40 @@
 {
   "source": "evaluation/dataset_evaluation_timeseries.ipynb",
   "instances": {
+    "standard_and_poors500_lstm1": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 50,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_lstm2": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 50,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": 2
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_highdim": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 5000,
+      "num_passes": 1,
+      "params": {
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
     "air-quality": {
       "data": "data/time-series/air-quality.csv",
       "ignore_columns": ["Date", "Time"],
@@ -57,18 +91,6 @@
       "params": {
         "identifier_label": null,
         "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "occupancy_data": {
-      "data": "data/time-series/sandp500_5yr.csv",
-      "ignore_columns": ["date"],
-      "num_iterations": 50,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": "Name",
-        "lstm_mode": 2
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"

@@ -724,11 +724,15 @@ class UtilityTesting:
             # ORIGINAL DATA
             t_orig = np.zeros((len(val2idx), len(val2idx)))
             k = 0
-            for i in self.unique_ids_orig:
+            if self.identifier:
+                for i in self.unique_ids_orig:
+                    t_orig += eval_metrics.transition_matrix(
+                        self.df_test.loc[self.df_test[self.identifier] == i, col], val2idx=val2idx)[0]
+                    k += 1
+                t_orig /= k
+            else:
                 t_orig += eval_metrics.transition_matrix(
-                    self.df_test.loc[self.df_test[self.identifier] == i, col], val2idx=val2idx)[0]
-                k += 1
-            t_orig /= k
+                    self.df_test.loc[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
             t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_test[col])))
@@ -737,11 +741,15 @@ class UtilityTesting:
             # SYNTHESIZED DATA
             t_synth = np.zeros((len(val2idx), len(val2idx)))
             k = 0
-            for i in self.unique_ids_synth:
+            if self.identifier:
+                for i in self.unique_ids_synth:
+                    t_synth += eval_metrics.transition_matrix(
+                        self.df_synth.loc[self.df_synth[self.identifier] == i, col], val2idx=val2idx)[0]
+                    k += 1
+                t_synth /= k
+            else:
                 t_synth += eval_metrics.transition_matrix(
-                    self.df_synth.loc[self.df_synth[self.identifier] == i, col], val2idx=val2idx)[0]
-                k += 1
-            t_synth /= k
+                    self.df_synth[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
             t_synth = pd.DataFrame(t_synth, columns=list(np.unique(self.df_synth[col])))
