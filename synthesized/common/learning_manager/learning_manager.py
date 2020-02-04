@@ -1,9 +1,10 @@
 import logging
+import tempfile
+from typing import Optional, Dict, List, Union
+
 import numpy as np
 import pandas as pd
-import tempfile
 import tensorflow as tf
-from typing import Optional, Dict, List, Union
 
 from ..synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
