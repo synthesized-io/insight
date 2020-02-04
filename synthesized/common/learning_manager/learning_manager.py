@@ -1,9 +1,9 @@
-from typing import Optional, Dict, List, Union
 import logging
-
-import tensorflow as tf
-import pandas as pd
 import numpy as np
+import pandas as pd
+import tempfile
+import tensorflow as tf
+from typing import Optional, Dict, List, Union
 
 from ..synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
@@ -29,7 +29,7 @@ class LearningManager:
 
     """
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
-                 checkpoint_path: str = '/tmp/tf_checkpoints',
+                 checkpoint_path: str = None,
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
                  tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
                  stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000):
@@ -53,7 +53,10 @@ class LearningManager:
 
         self.check_frequency = check_frequency
         self.use_checkpointing = use_checkpointing
-        self.checkpoint_path = checkpoint_path
+        if checkpoint_path is not None:
+            self.checkpoint_path = checkpoint_path
+        else:
+            self.checkpoint_path = tempfile.mkdtemp()
         self.n_checks_no_improvement = n_checks_no_improvement
         self.max_to_keep = max_to_keep
         self.patience = patience
