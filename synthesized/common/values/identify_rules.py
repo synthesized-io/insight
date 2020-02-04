@@ -198,6 +198,9 @@ def identify_rules(df: pd.DataFrame, values: List[Value], tests: Union[str, List
     """ Loops through all pairs of values and finds the presence of simple
     rules.
     """
+    if not tests:
+        return values
+
     # Find pairwise relationships
     M = len(values)
     new_values = []

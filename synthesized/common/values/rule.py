@@ -99,13 +99,6 @@ class RuleValue(Value):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        xs: List[tf.Tensor] = list()
-        for value in self.values:
-            xs.extend(value.input_tensors())
-        return xs
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         x = list()
         index = 0

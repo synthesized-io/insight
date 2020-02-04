@@ -8,28 +8,14 @@ from .identifier import IdentifierValue
 from .identify_rules import identify_rules
 from .nan import NanValue
 from .person import PersonValue
-from .probability import ProbabilityValue
+from .bank_number import BankNumberValue
 from .rule import RuleValue
 from .sampling import SamplingValue
+from .constant import ConstantValue
 from .value import Value
-from ..module import register
-from .factory import ValueFactory
-
-
-register(name='address', module=AddressValue)
-register(name='categorical', module=CategoricalValue)
-register(name='compound_address', module=CompoundAddressValue)
-register(name='continuous', module=ContinuousValue)
-register(name='date', module=DateValue)
-register(name='enumeration', module=EnumerationValue)
-register(name='identifier', module=IdentifierValue)
-register(name='nan', module=NanValue)
-register(name='person', module=PersonValue)
-register(name='probability', module=ProbabilityValue)
-register(name='rule', module=RuleValue)
-register(name='sampling', module=SamplingValue)
+from .factory import ValueFactory, TypeOverride
 
 
 __all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
-           'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'ProbabilityValue',
-           'RuleValue', 'SamplingValue', 'Value', 'ValueFactory']
+           'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
+           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride']

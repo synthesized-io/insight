@@ -5,7 +5,7 @@ import pytest
 from synthesized import ScenarioSynthesizer
 
 
-@pytest.mark.integration
+@pytest.mark.skip(reason="ScenarioSynthesizer is currently not in use and not up-to-date.")
 def test_scenarios_quick():
     passed = True
     failed = list()
@@ -20,9 +20,9 @@ def test_scenarios_quick():
                     scenario = json.load(fp=filehandle)
                 assert len(scenario) == 2 and 'functionals' in scenario and 'values' in scenario
                 with ScenarioSynthesizer(
-                    values=scenario['values'], functionals=scenario['functionals'], capacity=8, depth=1
+                    values=scenario['values'], functionals=scenario['functionals'], capacity=8, depth=1, batch_size=32
                 ) as synthesizer:
-                    synthesizer.learn(num_iterations=10, num_samples=32)
+                    synthesizer.learn(num_iterations=10)
                     df_synthesized = synthesizer.synthesize(num_rows=10000)
                     assert len(df_synthesized) == 10000
 
@@ -33,13 +33,14 @@ def test_scenarios_quick():
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
 
 
+@pytest.mark.skip(reason="ScenarioSynthesizer is currently not in use and not up-to-date.")
 def test_unittest_scenario_quick():
     with open('scenarios/unittest.json', 'r') as filehandle:
         scenario = json.load(fp=filehandle)
     assert len(scenario) == 2 and 'functionals' in scenario and 'values' in scenario
     with ScenarioSynthesizer(
-        values=scenario['values'], functionals=scenario['functionals'], capacity=8, depth=1
+        values=scenario['values'], functionals=scenario['functionals'], capacity=8, depth=1, batch_size=32
     ) as synthesizer:
-        synthesizer.learn(num_iterations=10, num_samples=32)
+        synthesizer.learn(num_iterations=10)
         df_synthesized = synthesizer.synthesize(num_rows=10000)
         assert len(df_synthesized) == 10000

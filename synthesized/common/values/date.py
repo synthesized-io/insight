@@ -12,9 +12,9 @@ from ..module import tensorflow_name_scoped
 class DateValue(ContinuousValue):
 
     def __init__(
-        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None
+        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None, **continuous_kwargs
     ):
-        super().__init__(name=name, weight=weight)
+        super().__init__(name=name, weight=weight, **continuous_kwargs)
 
         assert start_date is None or min_date is None
         self.start_date = start_date
@@ -25,17 +25,18 @@ class DateValue(ContinuousValue):
         self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
-        self.hour = self.add_module(
-            module=CategoricalValue, name=(self.name + '-hour'), categories=24, **categorical_kwargs
+        categorical_kwargs['similarity_based'] = True
+        self.hour = CategoricalValue(
+            name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
         )
-        self.dow = self.add_module(
-            module=CategoricalValue, name=(self.name + '-dow'), categories=7, **categorical_kwargs
+        self.dow = CategoricalValue(
+            name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
         )
-        self.day = self.add_module(
-            module=CategoricalValue, name=(self.name + '-day'), categories=31, **categorical_kwargs
+        self.day = CategoricalValue(
+            name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
         )
-        self.month = self.add_module(
-            module=CategoricalValue, name=(self.name + '-month'), categories=12, **categorical_kwargs
+        self.month = CategoricalValue(
+            name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
         )
 
     def __str__(self):
@@ -96,36 +97,37 @@ class DateValue(ContinuousValue):
 
     def preprocess(self, df):
         if df[self.name].dtype.kind != 'M':
-            df.loc[:, self.name] = self.to_datetime(df[self.name])
+            df[self.name] = self.to_datetime(df[self.name])
 
-        df.loc[:, self.name + '-hour'] = df[self.name].dt.hour
-        df.loc[:, self.name + '-dow'] = df[self.name].dt.weekday
-        df.loc[:, self.name + '-day'] = df[self.name].dt.day - 1
-        df.loc[:, self.name + '-month'] = df[self.name].dt.month - 1
+        df[self.name + '-hour'] = df[self.name].dt.hour
+        df[self.name + '-dow'] = df[self.name].dt.weekday
+        df[self.name + '-day'] = df[self.name].dt.day - 1
+        df[self.name + '-month'] = df[self.name].dt.month - 1
         if self.min_date is None:
             previous_date = df[self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]
-            df.loc[:, self.name] = (df[self.name] - previous_date).dt.total_seconds() / (24 * 60 * 60)
+            df[self.name] = (df[self.name] - previous_date).dt.total_seconds() / 86400
         else:
-            df.loc[:, self.name] = (df[self.name] - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+            df[self.name] = (df[self.name] - self.min_date).dt.total_seconds() / 86400
         return super().preprocess(df=df)
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
-        df.loc[:, self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
+        df[self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
         if self.start_date is not None:
-            df.loc[:, self.name] = self.start_date + df[self.name].cumsum(axis=0)
+            df[self.name] = self.start_date + df[self.name].cumsum(axis=0)
         else:
-            df.loc[:, self.name] += self.min_date
-        df.loc[:, self.name] = self.from_datetime(df[self.name])
+            df[self.name] += self.min_date
+        df[self.name] = self.from_datetime(df[self.name])
         return df
 
     def to_datetime(self, col: pd.Series) -> pd.Series:
         formats = (
             '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
             '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
-            '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y'
+            '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
+            '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
         )
         for date_format in formats:
             try:
@@ -152,23 +154,23 @@ class DateValue(ContinuousValue):
             return col
 
     @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        xs = super().input_tensors()
-        xs.extend(self.hour.input_tensors())
-        xs.extend(self.dow.input_tensors())
-        xs.extend(self.day.input_tensors())
-        xs.extend(self.month.input_tensors())
-        return xs
-
-    @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 5
+        self.build()
         xs[0] = super().unify_inputs(xs=xs[0: 1])
-        xs[1] = self.hour.unify_inputs(xs=xs[1: 2])
-        xs[2] = self.dow.unify_inputs(xs=xs[2: 3])
-        xs[3] = self.day.unify_inputs(xs=xs[3: 4])
-        xs[4] = self.month.unify_inputs(xs=xs[4: 5])
+        xs[1] = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
+        xs[2] = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
+        xs[3] = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
+        xs[4] = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
         return tf.concat(values=xs, axis=1)
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):
+
+    @tensorflow_name_scoped
+    def build(self):
+        if not self.built:
+            self.hour.build()
+            self.dow.build()
+            self.day.build()
+            self.month.build()
+            self.built = True

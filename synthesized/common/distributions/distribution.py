@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
-from ..module import tensorflow_name_scoped
-from ..module import Module
+from ..transformations.linear import LinearTransformation
 
 
 # TensorFlow distribution implementations
@@ -12,7 +11,7 @@ tf_distributions = dict(
 )
 
 
-class Distribution(Module):
+class Distribution(tf.keras.layers.Layer):
     """Parametrized distribution, either directly or by a neural network."""
 
     def __init__(
@@ -20,12 +19,11 @@ class Distribution(Module):
         # Input and output size
         input_size: int, output_size: int,
         # Distribution: "deterministic", "normal"
-        distribution: str,
-        # Parametrization specification excluding name and input_size
-        parametrization: dict = None
+        distribution: str, beta: float = None, encode: bool = False
     ):
         super().__init__(name=name)
-
+        self.beta = beta
+        self.encode = encode
         # Output size
         self.output_size = output_size
 
@@ -34,33 +32,22 @@ class Distribution(Module):
             raise NotImplementedError
         self.distribution = distribution
 
-        # Parametrization
-        if parametrization is None:
-            # Direct parametrization
-            self.parametrization = None
-        else:
-            # Neural network parametrization
-            self.parametrization = self.add_module(
-                name='parametrization', input_size=input_size, **parametrization
-            )
-            input_size = self.parametrization.size()
-
         # Distribution-specific parameters
         if self.distribution == 'deterministic':
             # Deterministic Dirac distribution: value
-            self.loc = self.add_module(
-                module='linear', name='loc', input_size=input_size, output_size=output_size
+            self.mean = LinearTransformation(
+                name='mean', input_size=input_size, output_size=output_size
             )
-            self.distr_trafos = [self.loc]
+            self.distr_trafos = [self.mean]
         elif self.distribution == 'normal':
             # Normal distribution: mean and variance
-            self.loc = self.add_module(
-                module='linear', name='loc', input_size=input_size, output_size=output_size
+            self.mean = LinearTransformation(
+                name='mean', input_size=input_size, output_size=output_size
             )
-            self.scale = self.add_module(
-                module='linear', name='scale', input_size=input_size, output_size=output_size
+            self.stddev = LinearTransformation(
+                name='stddev', input_size=input_size, output_size=output_size
             )
-            self.distr_trafos = [self.loc, self.scale]
+            self.distr_trafos = [self.mean, self.stddev]
         else:
             raise NotImplementedError
 
@@ -68,35 +55,52 @@ class Distribution(Module):
         spec = super().specification()
         spec.update(
             output_size=self.output_size, distribution=self.distribution,
-            distr_trafos=[trafo.specification() for trafo in self.distr_trafos],
-            parametrization=self.parametrization.specification()
+            distr_trafos=[trafo.specification() for trafo in self.distr_trafos]
         )
         return spec
 
     def size(self):
         return self.output_size
 
-    @tensorflow_name_scoped
-    def parametrize(self, x: tf.Tensor) -> tfd.Distribution:
-        if self.parametrization is not None:
-            # Neural network parametrization
-            x = self.parametrization.transform(x=x)
+    def build(self, input_shape):
+        if self.distribution == 'deterministic':
+            self.mean.build(input_shape=input_shape)
+        elif self.distribution == 'normal':
+            self.mean.build(input_shape=input_shape)
+            self.stddev.build(input_shape=input_shape)
+        else:
+            raise NotImplementedError
 
+        self.built = True
+
+    def call(self, inputs: tf.Tensor, **kwargs) -> tfd.Distribution:
         # Distribution arguments
         if self.distribution == 'deterministic':
             # Deterministic distribution
-            loc = self.loc.transform(x=x)
+            loc = self.mean(inputs)
             kwargs = dict(loc=loc)
         elif self.distribution == 'normal':
             # Normal distribution
-            loc = self.loc.transform(x=x)
-            scale = tf.exp(x=self.scale.transform(x=x))
+            loc = self.mean(inputs)
+            scale = tf.exp(x=self.stddev(inputs))
             kwargs = dict(loc=loc, scale=scale)
         else:
             raise NotImplementedError
 
         # TensorFlow distribution
         p = tf_distributions[self.distribution](validate_args=True, allow_nan_stats=False, **kwargs)
+
+        if self.encode:
+            if p.reparameterization_type is not tfd.FULLY_REPARAMETERIZED:
+                raise NotImplementedError
+
+            # KL-divergence loss
+            kldiv = tfd.kl_divergence(distribution_a=p, distribution_b=self.prior(), allow_nan_stats=False)
+            kldiv = tf.reduce_sum(input_tensor=kldiv, axis=1)
+            kldiv = tf.reduce_mean(input_tensor=kldiv, axis=0)
+            kl_loss = tf.multiply(self.beta, kldiv, name='kl_loss')
+            tf.summary.scalar(name='kl-loss', data=kl_loss)
+            self.add_loss(kl_loss)
 
         return p
 
@@ -125,3 +129,7 @@ class Distribution(Module):
         p = tf_distributions[distribution](**kwargs)
 
         return p
+
+    @property
+    def regularization_losses(self):
+        return [loss for module in self.distr_trafos for loss in module.regularization_losses]

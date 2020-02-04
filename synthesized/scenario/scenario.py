@@ -1,15 +1,16 @@
 """This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Dict, Any, Union
+from typing import Callable, List, Dict, Any, Union, Optional
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Distribution, Functional, Module, Value
-from ..synthesizer import Synthesizer
+from ..common import Distribution, Functional, Value
+from ..common.synthesizer import Synthesizer
 
 
+# TODO: Migrate to TensorFlow2
 class ScenarioSynthesizer(Synthesizer):
     """The scenario synthesizer implementation.
 
@@ -27,6 +28,8 @@ class ScenarioSynthesizer(Synthesizer):
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
+        # Batch size
+        batch_size: int = 1024,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, weight_decay: float = 0.0
     ):
@@ -66,10 +69,7 @@ class ScenarioSynthesizer(Synthesizer):
         nan_kwargs['weight'] = categorical_weight
         continuous_kwargs['weight'] = continuous_weight
         categorical_kwargs['temperature'] = 1.0
-        categorical_kwargs['smoothing'] = 0.0
         categorical_kwargs['moving_average'] = False
-        categorical_kwargs['similarity_regularization'] = 0.0
-        categorical_kwargs['entropy_regularization'] = 0.0
 
         # Values
         self.values: List[Value] = list()
@@ -95,6 +95,7 @@ class ScenarioSynthesizer(Synthesizer):
         # Prior distribution p'(z)
         self.distribution = distribution
         self.latent_size = latent_size
+        self.batch_size = batch_size
 
         # Decoder: parametrized distribution p(y|z)
         parametrization = dict(
@@ -107,14 +108,14 @@ class ScenarioSynthesizer(Synthesizer):
         )
 
         # Functionals
-        self.functionals: List[Module] = list()
+        self.functionals: List[tf.Module] = list()
         for functional in functionals:
             functional = self.add_module(module=functional)
             self.functionals.append(functional)
 
         # Optimizer
         self.optimizer = self.add_module(
-            module='optimizer', name='optimizer', optimizer=optimizer, parent=self,
+            module='optimizer', name='optimizer', optimizer=optimizer,
             learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost,
             clip_gradients=clip_gradients
         )
@@ -132,9 +133,6 @@ class ScenarioSynthesizer(Synthesizer):
         super().module_initialize()
 
         summaries = list()
-
-        # Number of rows to synthesize
-        self.num_rows = tf.compat.v1.placeholder(dtype=tf.int64, shape=(), name='num_rows')
 
         # Prior p'(z)
         prior = Distribution.get_prior(distribution=self.distribution, size=self.latent_size)
@@ -190,7 +188,7 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Loss summaries
         for name, loss in self.losses.items():
-            summaries.append(tf.contrib.summary.scalar(name=name, tensor=loss))
+            summaries.append(tf.summary.scalar(name=name, data=loss))
 
         # Make sure summary operations are executed
         with tf.control_dependencies(control_inputs=summaries):
@@ -204,7 +202,7 @@ class ScenarioSynthesizer(Synthesizer):
             self.optimized = self.global_step.assign_add(delta=1)
 
     def learn(
-        self, num_iterations: int, num_samples=1024,
+        self, df_train: pd.DataFrame = None, num_iterations: Optional[int] = None,
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
         callback_freq: int = 0
     ) -> None:
@@ -213,6 +211,7 @@ class ScenarioSynthesizer(Synthesizer):
         Repeated calls continue training the model, possibly on different data.
 
         Args:
+            df_train: The training data, not used for ScenarioSynthesizer.
             num_iterations: The number of training iterations (not epochs).
             num_samples: The number of samples for which the loss is computed.
             callback: A callback function, e.g. for logging purposes. Takes the synthesizer
@@ -221,9 +220,12 @@ class ScenarioSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
+        if num_iterations is None:
+            raise NotImplementedError
+
         fetches = self.optimized
         callback_fetches = (self.optimized, self.losses)
-        feed_dict = {self.num_rows: num_samples}
+        feed_dict = {self.num_rows: np.array(self.batch_size)}
 
         for iteration in range(1, num_iterations + 1):
             if callback is not None and callback_freq > 0 and (
@@ -235,16 +237,10 @@ class ScenarioSynthesizer(Synthesizer):
             else:
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
-        """Generate the given number of new data rows.
-
-        Args:
-            num_rows: The number of rows to generate.
-
-        Returns:
-            The generated data.
-
-        """
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
+    ) -> pd.DataFrame:
         columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
             df_synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))

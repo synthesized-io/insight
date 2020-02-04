@@ -1,5 +1,5 @@
 import datetime
-import json
+import simplejson
 from collections import OrderedDict
 
 import numpy as np
@@ -26,9 +26,10 @@ class Evaluation:
         else:
             evaluation_metrics[key] = [value]
 
-    def write_metrics(self):
+    def write_metrics(self, append=True):
         timestamp = datetime.datetime.now().isoformat()
-        with open(self.metrics_file, 'a') as f:
+        write_mode = 'a' if append else 'w'
+        with open(self.metrics_file, write_mode) as f:
             for evaluation, evaluation_metrics in self.metrics.items():
                 data = OrderedDict()
                 data['group'] = self.group
@@ -37,10 +38,10 @@ class Evaluation:
                 data['revision'] = self.revision
                 data['timestamp'] = timestamp
                 if evaluation in self.configs:
-                    data['config'] = json.dumps(self.configs[evaluation])
+                    data['config'] = simplejson.dumps(self.configs[evaluation], separators=(',', ':'), ignore_nan=True)
                 for name, vals in evaluation_metrics.items():
                     data[name + '_mean'] = np.mean(vals)
                     data[name + '_std'] = np.std(vals)
                     data[name + '_count'] = len(vals)
-                json.dump(data, f)
+                simplejson.dump(data, f, separators=(',', ':'), ignore_nan=True)
                 f.write('\n')

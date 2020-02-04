@@ -3,66 +3,62 @@ from math import log
 import tensorflow as tf
 
 from .transformation import Transformation
-from ..module import tensorflow_name_scoped
 from .. import util
+from ..module import tensorflow_name_scoped
 
 
 class DenseTransformation(Transformation):
 
     def __init__(
-        self, name, input_size, output_size, bias=True, batchnorm=True, activation='relu',
-        weight_decay=0.0
+        self, name, input_size, output_size, bias=True, batchnorm=True, activation='relu'
     ):
-        super().__init__(name=name, input_size=input_size, output_size=output_size)
+        super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
 
         self.bias = bias
         self.batchnorm = batchnorm
         self.activation = activation
-        self.weight_decay = weight_decay
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            bias=self.bias, batchnorm=self.batchnorm, activation=self.activation,
-            weight_decay=self.weight_decay
+            bias=self.bias, batchnorm=self.batchnorm, activation=self.activation
         )
         return spec
 
-    def module_initialize(self):
-        super().module_initialize()
-
+    @tensorflow_name_scoped
+    def build(self, input_shape):
         shape = (self.input_size, self.output_size)
-        initializer = util.get_initializer(initializer='normal')
-        regularizer = util.get_regularizer(regularizer='l2', weight=self.weight_decay)
-        self.weight = tf.compat.v1.get_variable(
-            name='weight', shape=shape, dtype=tf.float32, initializer=initializer,
-            regularizer=regularizer, trainable=True
+        initializer = util.get_initializer(initializer='glorot-normal')
+        self.weight = self.add_weight(
+            name='weight', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
         )
+        self.add_regularization_weights(self.weight)
 
         shape = (self.output_size,)
         initializer = util.get_initializer(initializer='zeros')
         if self.bias:
-            self.bias = tf.compat.v1.get_variable(
-                name='bias', shape=shape, dtype=tf.float32, initializer=initializer,
-                regularizer=regularizer, trainable=True
+            self.bias = self.add_weight(
+                name='bias', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
             )
+            self.add_regularization_weights(self.bias)
         else:
             self.bias = None
 
         if self.batchnorm:
-            self.offset = tf.compat.v1.get_variable(
+            self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )
-            self.scale = tf.compat.v1.get_variable(
+            self.scale = self.add_weight(
                 name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True
             )
 
-    @tensorflow_name_scoped
-    def transform(self, x):
+        self.built = True
+
+    def call(self, inputs, **kwargs):
         x = tf.matmul(
-            a=x, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,
+            a=inputs, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,
             adjoint_b=False, a_is_sparse=False, b_is_sparse=False
         )
 
@@ -70,7 +66,7 @@ class DenseTransformation(Transformation):
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
         if self.batchnorm:
-            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keep_dims=False)
+            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keepdims=False)
             x = tf.nn.batch_normalization(
                 x=x, mean=mean, variance=variance, offset=self.offset,
                 scale=tf.nn.softplus(features=self.scale), variance_epsilon=1e-6
@@ -88,5 +84,6 @@ class DenseTransformation(Transformation):
         else:
             raise NotImplementedError
 
-        # dropout
+        self._output = x
+
         return x

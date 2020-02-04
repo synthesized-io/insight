@@ -130,85 +130,72 @@ class ContinuousValue(Value):
         # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
 
         if df[self.name].dtype.kind not in ('f', 'i'):
-            df.loc[:, self.name] = self.pd_cast(df[self.name])
+            df[self.name] = self.pd_cast(df[self.name])
 
-        df.loc[:, self.name] = df[self.name].astype(dtype='float32')
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.distribution == 'dirac':
             return df
 
-        if self.positive or self.nonnegative:
-            if self.nonnegative and not self.positive:
-                df.loc[:, self.name] = np.maximum(df[self.name], 0.001)
-            # df.loc[:, self.name] = np.maximum(df[self.name], 0.0) + np.log(
-            #     np.sign(df[self.name]) * (1.0 - np.exp(-np.abs(df[self.name])))
-            # )
+        if self.nonnegative and not self.positive:
+            df[self.name] = np.maximum(df[self.name], 0.001)
 
         if self.distribution == 'normal':
             assert self.distribution_params is not None
             mean, stddev = self.distribution_params
-            df.loc[:, self.name] = (df[self.name] - mean) / stddev
+            df[self.name] = (df[self.name] - mean) / stddev
 
         elif self.distribution is not None:
-            df.loc[:, self.name] = norm.ppf(
+            df[self.name] = norm.ppf(
                 DISTRIBUTIONS[self.distribution][0].cdf(df[self.name], *self.distribution_params)
             )
             df = df[(df[self.name] != float('inf')) & (df[self.name] != float('-inf'))]
         elif self.transformer:
-            column = df[self.name].values
             if self.transformer_noise:
-                column += np.random.normal(scale=self.transformer_noise, size=len(column))
-            df.loc[:, self.name] = self.transformer.transform(column.reshape(-1, 1))
+                df[self.name] += np.random.normal(scale=self.transformer_noise, size=len(df[self.name]))
+            df[self.name] = self.transformer.transform(df[self.name].values.reshape(-1, 1))
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
+        df[self.name] = df[self.name].astype(np.float32)
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.distribution == 'dirac':
             assert self.distribution_params is not None
-            df.loc[:, self.name] = self.distribution_params[0]
+            df[self.name] = self.distribution_params[0]
+
         else:
             if self.distribution == 'normal':
                 assert self.distribution_params is not None
                 mean, stddev = self.distribution_params
-                df.loc[:, self.name] = df[self.name] * stddev + mean
+                df[self.name] = df[self.name] * stddev + mean
             elif self.distribution is not None:
-                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                df[self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
                     norm.cdf(df[self.name]), *self.distribution_params
                 )
             elif self.transformer:
-                df.loc[:, self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
+                df[self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
 
-            if self.positive or self.nonnegative:
-                # df.loc[:, self.name] = np.log(1 + np.exp(-np.abs(df[self.name]))) + \
-                #                        np.maximum(df[self.name], 0.0)
-                if self.nonnegative and not self.positive:
-                    zeros = np.zeros_like(df[self.name])
-                    df.loc[:, self.name] = np.where(
-                        (df[self.name] >= 0.001), df[self.name], zeros
-                    )
+            if self.nonnegative and not self.positive:
+                df.loc[(df[self.name] < 0.001), self.name] = 0
 
         assert not df[self.name].isna().any()
         assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
 
         if self.integer:
-            df.loc[:, self.name] = df[self.name].astype(dtype='int32')
+            df[self.name] = df[self.name].astype(dtype='int32')
 
-        if self.float:
-            df.loc[:, self.name] = df[self.name].astype(dtype='float32')
+        if self.float and df[self.name].dtype != 'float32':
+            df[self.name] = df[self.name].astype(dtype='float32')
 
         return df
 
     def module_initialize(self) -> None:
         super().module_initialize()
-
-        # Input placeholder for value
-        self.placeholder_initialize(dtype=tf.float32, shape=(None,))
 
     @tensorflow_name_scoped
     def input_tensors(self) -> List[tf.Tensor]:
@@ -239,6 +226,7 @@ class ContinuousValue(Value):
         # loss = tf.nn.l2_loss(t=(target - x))
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     @tensorflow_name_scoped
@@ -301,15 +289,15 @@ class ContinuousValue(Value):
         else:
             assert False
 
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
         normal_distribution = tfd.Normal(loc=0.0, scale=1.0)
         samples = normal_distribution.quantile(value=samples)
-        samples = tf.boolean_mask(tensor=samples, mask=tf.is_finite(x=samples))
-        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.is_nan(x=samples)))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.is_finite(x=samples))
+        samples = tf.boolean_mask(tensor=samples, mask=tf.math.logical_not(x=tf.math.is_nan(x=samples)))
 
         mean, variance = tf.nn.moments(x=samples, axes=0)
-        mean_loss = tf.squared_difference(x=mean, y=0.0)
-        variance_loss = tf.squared_difference(x=variance, y=1.0)
+        mean_loss = tf.math.squared_difference(x=mean, y=0.0)
+        variance_loss = tf.math.squared_difference(x=variance, y=1.0)
 
         mean = tf.stop_gradient(input=tf.reduce_mean(input_tensor=samples, axis=0))
         difference = samples - mean
@@ -323,7 +311,7 @@ class ContinuousValue(Value):
         # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
         #     0.25 * tf.square(x=(kurtosis - 3.0)))
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
-        jarque_bera_loss = tf.squared_difference(x=jarque_bera, y=0.0)
+        jarque_bera_loss = tf.math.squared_difference(x=jarque_bera, y=0.0)
         loss = mean_loss + variance_loss + jarque_bera_loss
 
         return loss
