@@ -1,10 +1,10 @@
 from .encoding import Encoding
-from .rnn_variational import RnnVariationalEncoding
 from .variational import VariationalEncoding
+from .rnn_variational import RnnVariationalEncoding
 from ..module import register
 
 
-register(name='rnn_variational', module=RnnVariationalEncoding)
 register(name='variational', module=VariationalEncoding)
+register(name='rnn_variational', module=RnnVariationalEncoding)
 
-__all__ = ['Encoding']
+__all__ = ['Encoding', 'VariationalEncoding', 'RnnVariationalEncoding']
