@@ -57,9 +57,9 @@ class IdentifierValue(Value):
         super().extract(df=df)
 
         if self.identifiers is None:
-            self.identifiers = sorted(df[self.name].unique())
+            self.identifiers = sorted(df.loc[:, self.name].unique())
             self.num_identifiers = len(self.identifiers)
-        elif sorted(df[self.name].unique()) != self.identifiers:
+        elif sorted(df.loc[:, self.name].unique()) != self.identifiers:
             raise NotImplementedError
 
         self.identifier2idx = {k: i for i, k in enumerate(self.identifiers)}
@@ -83,14 +83,14 @@ class IdentifierValue(Value):
         self.built = True
 
     def preprocess(self, df: pd.DataFrame):
-        df.loc[:, self.name] = df[self.name].map(self.identifier2idx)
-        if df[self.name].dtype != 'int64':
-            df.loc[:, self.name] = df[self.name].astype(dtype='int64')
+        df.loc[:, self.name] = df.loc[:, self.name].map(self.identifier2idx)
+        if df.loc[:, self.name].dtype != 'int64':
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
         return super().preprocess(df)
 
     def postprocess(self, df: pd.DataFrame):
         df = super().postprocess(df=df)
-        df.loc[:, self.name] = df[self.name].map(self.idx2identifier)
+        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2identifier)
         return df
 
     @tensorflow_name_scoped

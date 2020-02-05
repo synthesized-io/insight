@@ -54,7 +54,7 @@ class RnnVariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, condition=()):
+    def call(self, inputs, condition=(), return_encoding=False):
         hx = self.lstm_encoder(inputs)
         hx = tf.expand_dims(hx, axis=0)
         mean = self.mean(hx)
@@ -82,19 +82,23 @@ class RnnVariationalEncoding(Encoding):
             data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
 
-        return y
+        if return_encoding:
+            return y, encoding_x
+        else:
+            return y
 
+    @tf.function
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
+        # TODO: This loop can be optimized.
 
         encoding = tf.random.normal(shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
-        y = []
-        state = tf.zeros(shape=(2 * self.encoding_size))
-        for i in range(n):
-            state, encoding = self.lstm_decoder(inputs=encoding, state=state)
-            y.append(encoding)
 
-        y = tf.concat(y, axis=0)
+        y = tf.zeros(shape=(n, self.encoding_size))
+        state = tf.zeros(shape=(2 * self.encoding_size))
+        for _ in tf.range(n):
+            state, encoding = self.lstm_decoder(inputs=encoding, state=state)
+            y = tf.concat((y[1:], encoding), axis=0)
 
         return y
 

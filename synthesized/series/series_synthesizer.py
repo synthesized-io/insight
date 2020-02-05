@@ -1,6 +1,7 @@
-from typing import Callable, List, Union, Dict, Iterable, Optional
+from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -224,6 +225,10 @@ class SeriesSynthesizer(Synthesizer):
 
         df_conditions = self.value_factory.preprocess_conditions(conditions=conditions)
         columns = self.value_factory.get_column_names()
+        if self.value_factory.identifier_value:
+            num_identifiers = self.value_factory.identifier_value.num_identifiers
+        else:
+            num_identifiers = 1
 
         feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
@@ -232,7 +237,7 @@ class SeriesSynthesizer(Synthesizer):
             for i in range(num_series):
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
                 if self.value_factory.identifier_label:
-                    other[self.value_factory.identifier_label] = [i for _ in range(series_length)]
+                    other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -243,7 +248,7 @@ class SeriesSynthesizer(Synthesizer):
             for i, series_length in enumerate(series_lengths):
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
                 if self.value_factory.identifier_label:
-                    other[self.value_factory.identifier_label] = [i for _ in range(series_length)]
+                    other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -254,3 +259,55 @@ class SeriesSynthesizer(Synthesizer):
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
         return df_synthesized
+
+    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
+            -> Tuple[pd.DataFrame, pd.DataFrame]:
+
+        if conditions is not None:
+            raise NotImplementedError
+
+        columns = self.value_factory.get_column_names()
+        df_encode = df_encode.copy()
+        df_encode = self.value_factory.preprocess(df_encode)
+
+        groups, num_data = self.value_factory.get_groups_feed_dict(df_encode)
+
+        encoded, decoded = None, None
+
+        for i in range(len(groups)):
+            feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, group=i)
+            identifier = feed_dict[self.value_factory.identifier_label][0]
+            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
+            if self.value_factory.identifier_label:
+                decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
+            if not encoded or not decoded:
+                encoded, decoded = encoded_i, decoded_i
+            else:
+                for k in encoded.keys():
+                    encoded[k] = tf.concat((encoded[k], encoded_i[k]), axis=0)
+                for k in decoded.keys():
+                    decoded[k] = tf.concat((decoded[k], decoded_i[k]), axis=0)
+
+        if not decoded or not encoded:
+            return pd.DataFrame(), pd.DataFrame()
+
+        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
+        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
+
+        assert len(df_synthesized.columns) == len(columns)
+        df_synthesized = df_synthesized[columns]
+
+        # print(encoded)
+        if self.lstm_mode == 1:
+            latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
+        else:
+            len_sample = encoded['sample'].shape[0]
+            latent = np.concatenate((
+                encoded['sample'],
+                tf.tile(encoded['mean'], [len_sample, 1]),
+                tf.tile(encoded['std'], [len_sample, 1]),
+            ), axis=1)
+        df_encoded = pd.DataFrame.from_records(
+            latent, columns=[f"{ls}_{n}" for ls in 'lms' for n in range(encoded['sample'].shape[1])])
+
+        return df_encoded,  df_synthesized

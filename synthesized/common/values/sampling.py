@@ -25,7 +25,7 @@ class SamplingValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        self.categories = df[self.name].value_counts(normalize=True, sort=True, dropna=False)
+        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=False)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
 

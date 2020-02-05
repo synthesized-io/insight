@@ -672,14 +672,15 @@ class UtilityTesting:
 
         return pacf_dist_max, pacf_dist_avg
 
-    def show_series(self, num_series=10, figsize: Tuple[float, float] = None):
+    def show_series(self, num_series=10, figsize: Tuple[float, float] = None, share_axis=False):
 
         if not figsize:
             figsize = (14, 10 * len(self.display_types))
 
         if self.identifier:
-            identifiers_orig = np.random.choice(self.unique_ids_orig, num_series)
-            identifiers_synth = np.random.choice(self.unique_ids_synth, num_series)
+            num_series = min(num_series, len(np.unique(self.unique_ids_orig)), len(np.unique(self.unique_ids_synth)))
+            identifiers_orig = np.random.choice(self.unique_ids_orig, num_series, replace=False)
+            identifiers_synth = np.random.choice(self.unique_ids_synth, num_series, replace=False)
 
         fig = plt.figure(figsize=figsize)
         for i in range(len(self.continuous_cols)):
@@ -702,7 +703,10 @@ class UtilityTesting:
             ax.set_title(col + ' (Original)')
 
             # Synthesized
-            ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2)
+            if share_axis:
+                ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2, sharex=ax, sharey=ax)
+            else:
+                ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2)
             if self.identifier:
                 for idf in identifiers_synth:
                     x = self.df_synth.loc[self.df_synth[self.identifier] == idf, col].dropna().values

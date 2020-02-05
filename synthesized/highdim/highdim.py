@@ -385,9 +385,7 @@ class HighDimSynthesizer(Synthesizer):
             for name in value.learned_output_columns()
         ]
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-
-        for value in (self.values + self.conditions):
-            df_synthesized = value.postprocess(df=df_synthesized)
+        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
         # aliases:
         for alias, col in self.column_aliases.items():
@@ -397,7 +395,7 @@ class HighDimSynthesizer(Synthesizer):
         df_synthesized = df_synthesized[self.columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
-        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{l}_{n}" for l in 'lms'
+        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
                                                                 for n in range(encoded['sample'].shape[1])])
 
         return df_encoded, df_synthesized

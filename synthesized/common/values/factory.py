@@ -237,22 +237,17 @@ class ValueFactory(tf.Module):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: tf.constant(df[name].to_numpy()) for value in self.values_conditions_identifier
+                    value.name: tf.constant(groups[n][name].to_numpy()) for value in self.values_conditions_identifier
                     for name in value.learned_input_columns()
                 }
 
         return groups, num_data
 
-    def get_group_feed_dict(self, groups, num_data, max_seq_len):
-        group = randrange(len(num_data))
+    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None):
+        group = group if group is not None else randrange(len(num_data))
         data = groups[group]
 
-        # data = {
-        #     name: tf.constant(data_dict[name], dtype=value.dtype) for value in self.values_conditions_identifier
-        #     for name in value.learned_input_columns()
-        # }
-
-        if num_data[group] > max_seq_len:
+        if max_seq_len and num_data[group] > max_seq_len:
             start = randrange(num_data[group] - max_seq_len)
             batch = tf.range(start, start + max_seq_len)
         else:

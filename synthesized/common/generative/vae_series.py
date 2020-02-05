@@ -128,7 +128,7 @@ class SeriesVAE(Generative):
             return dict(), tf.no_op()
 
         x = self.unified_inputs(self.xs)
-        if self.identifier_label:
+        if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
 
         #################################
@@ -187,6 +187,39 @@ class SeriesVAE(Generative):
 
         return
 
+    @tf.function
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+        if len(self.xs) == 0:
+            return dict(), tf.no_op()
+
+        x = self.unified_inputs(xs)
+        if self.identifier_label and self.identifier_value:
+            identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
+
+        #################################
+        x = self.linear_input(inputs=x)
+        x = self.encoder(inputs=x)
+
+        if self.lstm_mode == 1 and self.lstm is not None:
+            latent_space = self.encoding(inputs=x)
+            if self.identifier_label is None:
+                x = self.lstm(inputs=latent_space)
+            else:
+                x = self.lstm(inputs=latent_space, state=identifier)
+        else:
+            x, latent_space = self.encoding(inputs=x, return_encoding=True)
+
+        mean = self.encoding.mean.output
+        std = self.encoding.stddev.output
+        x = self.add_conditions(x, conditions=cs)
+        x = self.decoder(inputs=x)
+        y = self.linear_output(inputs=x)
+        synthesized = self.value_outputs(y=y, conditions=cs)
+        #################################
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         y, identifier = self._synthesize(n=n, cs=cs)
@@ -196,7 +229,7 @@ class SeriesVAE(Generative):
 
     @tf.function
     def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) \
-            -> Tuple[Dict[str, tf.Tensor], Optional[tf.Tensor]]:
+            -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         x = self.encoding.sample(n=n)
         x = self.add_conditions(x=x, conditions=cs)

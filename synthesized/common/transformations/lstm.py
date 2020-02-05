@@ -32,12 +32,15 @@ class LstmTransformation(Transformation):
         self.lstm.build(input_shape=(None, None, self.input_size))
 
     @tensorflow_name_scoped
-    def call(self, inputs, state=None):
+    def call(self, inputs, ground_truth=None, state=None):
 
         expand_squeeze = True if inputs.shape.ndims == 2 else False
 
         if expand_squeeze:
             inputs = tf.expand_dims(input=inputs, axis=0)
+
+        if ground_truth is not None:
+            inputs[1:] = ground_truth[1:]
 
         if state is None:
             initial_state = None
@@ -49,9 +52,9 @@ class LstmTransformation(Transformation):
                 h0 = tf.expand_dims(input=h0, axis=0)
                 c0 = tf.expand_dims(input=c0, axis=0)
 
-            initial_state = tf.map_fn(lambda s: s, [h0, c0])
+            initial_state = [h0, c0]
 
-        inputs, h, c = self.lstm(inputs=inputs, initial_state=initial_state)
+        outputs, h, c = self.lstm(inputs=inputs, initial_state=initial_state)
 
         if self.return_state:
             state = tf.concat(values=(h, c), axis=1)
@@ -64,11 +67,11 @@ class LstmTransformation(Transformation):
             state = tf.concat(values=(h, c), axis=1)
 
             if expand_squeeze:
-                inputs = tf.squeeze(input=inputs, axis=0)
+                outputs = tf.squeeze(input=outputs, axis=0)
                 state = tf.squeeze(input=state, axis=0)
-            return state, inputs
+            return state, outputs
 
         else:
             if expand_squeeze:
-                inputs = tf.squeeze(input=inputs, axis=0)
-            return inputs
+                outputs = tf.squeeze(input=outputs, axis=0)
+            return outputs
