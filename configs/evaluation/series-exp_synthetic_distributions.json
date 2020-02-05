@@ -2,7 +2,7 @@
   "source": "evaluation/synthetic_distributions_timeseries.ipynb",
   "instances": {
     "synthetic": {
-      "num_iterations": 10000,
+      "num_iterations": 2500,
       "params": {
       },
       "synthesizer_class": "SeriesSynthesizer"
