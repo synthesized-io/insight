@@ -60,7 +60,7 @@ class HighDimSynthesizer(Synthesizer):
         postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
         street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
         address_label: str = None, postcode_regex: str = None,
-        # Identifier
+        # Identifier label
         identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
