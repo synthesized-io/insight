@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from tensorflow import keras
 
 from .encoding import Encoding
@@ -16,14 +17,18 @@ class RecurrentDSSMEncoding(Encoding):
 
         # -- Prior
         # --- LSTM history encoder
-        self.init_state = (tf.get_variable("init_h", [], dtype=tf.float32),
-                           tf.get_variable("init_c", [], dtype=tf.float32))
+        self.init_state = (
+            tf.Variable(initial_value=np.zeros(shape=[self.encoding_size,], dtype=np.float32),
+                        name="init_h", dtype=tf.float32, trainable=True),
+            tf.Variable(initial_value=np.zeros(shape=[self.encoding_size,], dtype=np.float32),
+                name="init_c", dtype=tf.float32, trainable=True)
+        )
         self.prior_encoder_cell = keras.layers.LSTMCell(units=self.lstm_size)
         self.prior_encoder = keras.layers.RNN(self.prior_encoder_cell, return_sequences=True, return_state=False)
 
         # --- Transition distribution
-        self.transition_mean = keras.layers.Dense(self.encoding_size)
-        self.transition_stddev = keras.Sequential([keras.layers.Dense(self.encoding_size),
+        self.transition_mean = keras.layers.Dense(units=self.encoding_size)
+        self.transition_stddev = keras.Sequential([keras.layers.Dense(units=self.encoding_size),
                                                    keras.layers.Activation("softplus")])
 
         # -- Variational Posterior
@@ -33,14 +38,23 @@ class RecurrentDSSMEncoding(Encoding):
 
         # --- Variational distribution
         self.posterior_mean = keras.layers.Dense(self.encoding_size)
-        self.posterior_stddev = keras.Sequential([keras.layers.Dense(self.encoding_size),
+        self.posterior_stddev = keras.Sequential([keras.layers.Dense(units=self.encoding_size),
                                                   keras.layers.Activation("softplus")])
 
-    def module_initialize(self):
-        super().module_initialize()
+    def build(self, input_shape):
+
         self.prior_encoder_cell.build(input_shape=(None, self.input_size))
         self.prior_encoder.build(input_shape=(None, None, self.input_size))
+
+        self.transition_mean.build((None, self.encoding_size))
+        self.transition_stddev.build((None, self.encoding_size))
+
         self.posterior_encoder.build(input_shape=(None, None, self.input_size))
+
+        self.posterior_mean.build((None, self.lstm_size*2))
+        self.posterior_stddev.build((None, self.lstm_size*2))
+
+        self.built = True
 
     def specification(self):
         spec = super().specification()
@@ -66,7 +80,7 @@ class RecurrentDSSMEncoding(Encoding):
                                                 axis=1), axis=0)
 
     @tensorflow_name_scoped
-    def encode(self, x, encoding_loss=False, condition=(), encoding_plus_loss=False):
+    def call(self, x, encoding_loss=False, condition=(), encoding_plus_loss=False):
         inputs = x
         expanded_inputs = tf.expand_dims(inputs, 0)
 

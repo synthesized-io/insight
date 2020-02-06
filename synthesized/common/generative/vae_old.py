@@ -6,7 +6,7 @@ from .generative import Generative
 from ..values import Value, ContinuousValue, CategoricalValue
 from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import DenseTransformation
-from ..encodings import VariationalEncoding
+from ..encodings import VariationalEncoding, FeedForwardDSSMEncoding
 from ..optimizers import Optimizer
 
 
@@ -25,25 +25,27 @@ class VAEOld(Generative):
         self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
         distribution: str, latent_size: int,
-        # Encoder and decoder network
-        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
-        activation: str,
         # Optimizer
         optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
-        initial_boost: int, clip_gradients: float,
+        initial_boost: int, clip_gradients: Optional[float],
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
         weight_decay: float,
+        # Encoder and decoder network
+        network: str, capacity: int, num_layers: int = None, residual_depths: Union[int, List[int]] = None,
+        batchnorm: bool = None,
+        activation: str = None, lstm_size: int = None,
         summarize: bool = False, summarize_gradient_norms: bool = False
     ):
-        super().__init__(name=name, values=values, conditions=conditions)
+        super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
         self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
+        self.built = False
 
         # Total input and output size of all values
         input_size = 0
@@ -51,6 +53,9 @@ class VAEOld(Generative):
         for value in self.values:
             input_size += value.learned_input_size()
             output_size += value.learned_output_size()
+
+        self.input_size = input_size
+        self.capacity = capacity
 
         # Total condition size
         condition_size = 0
@@ -64,29 +69,33 @@ class VAEOld(Generative):
             input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
-        kwargs = dict(
-            name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
-            layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
-        )
-        for k in list(kwargs.keys()):
-            if kwargs[k] is None:
-                del kwargs[k]
-        self.encoder = module_registry[network](**kwargs)
+        # kwargs = dict(
+        #     name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
+        #     layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
+        #     output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm,
+        #     lstm_size=lstm_size
+        # )
+        # for k in list(kwargs.keys()):
+        #     if kwargs[k] is None:
+        #         del kwargs[k]
+        # self.encoder = module_registry[network](**kwargs)
 
-        self.encoding = VariationalEncoding(
-            name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
+        # self.encoding = VariationalEncoding(
+        #     name='encoding',
+        #     input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
+        # )
+        self.encoding = FeedForwardDSSMEncoding(
+            name='encoding', input_size=self.capacity, lstm_size=8, encoding_size=latent_size, beta=beta
         )
 
         self.modulation = None
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + condition_size)
-        self.decoder = module_registry[network](**kwargs)
+        # kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + condition_size)
+        # self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=output_size, batchnorm=False, activation='none'
+            input_size=self.latent_size, output_size=output_size, batchnorm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -103,6 +112,15 @@ class VAEOld(Generative):
         )
         return spec
 
+    def build(self):
+        if not self.built:
+            self.linear_input.build(self.input_size)
+            # self.encoder.build(self.capacity)
+            self.encoding.build(self.capacity)
+            # self.decoder.build(self.latent_size)
+            self.linear_output.build(self.capacity)
+            self.built = True
+
     def loss(self):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
@@ -111,10 +129,10 @@ class VAEOld(Generative):
 
         #################################
         x = self.linear_input(x)
-        x = self.encoder(x)
+        # x = self.encoder(x)
         z = self.encoding(x)
         x = self.add_conditions(z, conditions=self.xs)
-        x = self.decoder(x)
+        # x = self.decoder(x)
         y = self.linear_output(x)
         #################################
 
@@ -233,6 +251,6 @@ class VAEOld(Generative):
     def regularization_losses(self):
         return [
             loss
-            for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
+            for module in [self.linear_input, self.encoding, self.linear_output]+self.values
             for loss in module.regularization_losses
         ]

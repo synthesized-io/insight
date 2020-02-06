@@ -1,5 +1,7 @@
 import tensorflow as tf
+
 from .encoding import Encoding
+from ..transformations import DenseTransformation, LstmTransformation
 from ..module import tensorflow_name_scoped
 
 
@@ -12,27 +14,24 @@ class RnnVariationalEncoding(Encoding):
         )
         self.beta = beta
 
-        self.lstm_encoder = self.add_module(
-            module='lstm', name='lstm', input_size=self.input_size,
-            output_size=self.encoding_size, return_state=True
+        self.lstm_encoder = LstmTransformation(
+            name='lstm', input_size=self.input_size, output_size=self.encoding_size, return_state=True
         )
-        self.mean = self.add_module(
-            module='dense', name='mean',
-            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
+        self.mean = DenseTransformation(
+            name='mean', input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='none'
         )
-        self.stddev = self.add_module(
-            module='dense', name='stddev',
-            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
+        self.stddev = DenseTransformation(
+            name='stddev', input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
             activation='softplus'
         )
-        self.initial_input = self.add_module(
-            module='dense', name='initial-input',
+        self.initial_input = DenseTransformation(
+            name='initial-input',
             input_size=(self.encoding_size + self.condition_size), output_size=self.encoding_size,
             batchnorm=False, activation='none'
         )
-        self.initial_state = self.add_module(
-            module='dense', name='initial-state',
+        self.initial_state = DenseTransformation(
+            name='initial-state',
             input_size=(self.encoding_size + self.condition_size),
             output_size=(2 * self.encoding_size), batchnorm=False, activation='none'
         )
@@ -114,25 +113,25 @@ class RnnVariationalEncoding(Encoding):
         return x
 
 
-class RnnEncodingHelper(tf.contrib.seq2seq.CustomHelper):
-
-    def __init__(self, encoding_size, initial_input):
-        self.initial_input = initial_input
-
-        super().__init__(
-            initialize_fn=self.initialize_fn, sample_fn=self.sample_fn,
-            next_inputs_fn=self.next_inputs_fn, sample_ids_shape=(encoding_size,),
-            sample_ids_dtype=tf.float32
-        )
-
-    def initialize_fn(self):
-        # finished, next_inputs
-        return tf.zeros(shape=(1,), dtype=tf.bool), self.initial_input
-
-    def sample_fn(self, time, outputs, state):
-        # sample_ids
-        return outputs
-
-    def next_inputs_fn(self, time, outputs, state, sample_ids):
-        # finished, next_inputs, next_state
-        return tf.zeros(shape=(1,), dtype=tf.bool), sample_ids, state
+# class RnnEncodingHelper(tf.contrib.seq2seq.CustomHelper):
+#
+#     def __init__(self, encoding_size, initial_input):
+#         self.initial_input = initial_input
+#
+#         super().__init__(
+#             initialize_fn=self.initialize_fn, sample_fn=self.sample_fn,
+#             next_inputs_fn=self.next_inputs_fn, sample_ids_shape=(encoding_size,),
+#             sample_ids_dtype=tf.float32
+#         )
+#
+#     def initialize_fn(self):
+#         # finished, next_inputs
+#         return tf.zeros(shape=(1,), dtype=tf.bool), self.initial_input
+#
+#     def sample_fn(self, time, outputs, state):
+#         # sample_ids
+#         return outputs
+#
+#     def next_inputs_fn(self, time, outputs, state, sample_ids):
+#         # finished, next_inputs, next_state
+#         return tf.zeros(shape=(1,), dtype=tf.bool), sample_ids, state
