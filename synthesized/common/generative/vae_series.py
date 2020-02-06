@@ -5,8 +5,8 @@ import tensorflow as tf
 
 from .generative import Generative
 from ..module import tensorflow_name_scoped, module_registry
-from ..transformations import DenseTransformation, LstmTransformation
-from ..encodings import VariationalEncoding, RnnVariationalEncoding
+from ..transformations import DenseTransformation
+from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding
 from ..values import Value, IdentifierValue
 from ..optimizers import Optimizer
 
@@ -19,7 +19,7 @@ class SeriesVAE(Generative):
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batchnorm: bool, activation: str,
+            batchnorm: bool, activation: str, dropout: Optional[float],
             # Optimizer
             optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
             initial_boost: int, clip_gradients: float,
@@ -40,6 +40,7 @@ class SeriesVAE(Generative):
         self.num_layers = num_layers
         self.batchnorm = batchnorm
         self.activation = activation
+        self.dropout = dropout
         self.encoding_size = capacity
 
         self.learning_rate = learning_rate
@@ -76,31 +77,20 @@ class SeriesVAE(Generative):
         self.encoder = module_registry[network](**kwargs)
 
         if self.lstm_mode == 1:
-            self.encoding = VariationalEncoding(
+            self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
+                beta=self.beta, dropout=dropout
             )
 
-            self.lstm: Optional[LstmTransformation] = LstmTransformation(
-                name='lstm',
-                input_size=self.encoding.size(), output_size=self.capacity
-            )
-
-            decoder_input_size = self.lstm.size()
-
-        else:
-            self.lstm = None
-
-            self.encoding = RnnVariationalEncoding(
+        elif self.lstm_mode == 2:
+            self.encoding = VariationalRecurrentEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
+                beta=self.beta, dropout=dropout
             )
 
-            decoder_input_size = self.encoding.size()
-
-        kwargs['name'], kwargs['input_size'] = 'decoder', decoder_input_size
+        kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
         self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
@@ -130,23 +120,16 @@ class SeriesVAE(Generative):
         x = self.unified_inputs(self.xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
+        else:
+            identifier = None
 
         #################################
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.add_conditions(x, conditions=self.xs)
-
-        if self.lstm_mode == 1:
-            encoding = self.encoding(inputs=x)
-            if self.identifier_label is None:
-                x = self.lstm(inputs=encoding)
-            else:
-                x = self.lstm(inputs=encoding, state=identifier)
-        else:
-            x = self.encoding(inputs=x)
+        x = self.encoding(inputs=x, identifier=identifier)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-
         #################################
 
         # Losses
@@ -235,16 +218,9 @@ class SeriesVAE(Generative):
         x = self.add_conditions(x=x, conditions=cs)
         identifier = None
 
-        if self.lstm_mode == 2 and self.identifier_value is not None:
+        if self.identifier_value is not None:
             identifier = self.identifier_value.next_identifier()
             identifier = tf.tile(input=identifier, multiples=(n,))
-
-        elif self.lstm_mode == 1 and self.lstm:
-            if self.identifier_value is None:
-                x = self.lstm(inputs=x)
-            else:
-                identifier, state = self.identifier_value.next_identifier_embedding()
-                x = self.lstm(inputs=x, state=state)
 
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)

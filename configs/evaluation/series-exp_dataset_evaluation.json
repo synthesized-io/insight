@@ -4,7 +4,7 @@
     "standard_and_poors500_lstm1": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "Name",
@@ -16,7 +16,7 @@
     "standard_and_poors500_lstm2": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "Name",
@@ -38,7 +38,7 @@
     "air-quality": {
       "data": "data/time-series/air-quality.csv",
       "ignore_columns": ["Date", "Time"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": null,
@@ -50,7 +50,7 @@
     "bitcoin-price": {
       "data": "data/time-series/bitcoin_price.csv",
       "ignore_columns": ["Date"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": null,
@@ -62,7 +62,7 @@
     "brent-oil-prices": {
       "data": "data/time-series/brent-oil-prices.csv",
       "ignore_columns": ["Date"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": null,
@@ -74,7 +74,7 @@
     "fraud": {
       "data": "data/time-series/fraud-time-series.csv",
       "ignore_columns": ["step"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "customer",
@@ -86,7 +86,7 @@
     "household_power_consumption": {
       "data": "data/time-series/household_power_consumption_small.csv",
       "ignore_columns": ["DateTime"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": null,
@@ -98,7 +98,7 @@
     "temperature_motor": {
       "data": "data/time-series/temp.csv",
       "ignore_columns": [],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "profile_id",
@@ -110,7 +110,7 @@
     "invoice": {
       "data": "data/time-series/time_series_basic.csv",
       "ignore_columns": ["InvoiceDate"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "CustomerID",
@@ -122,7 +122,7 @@
     "transactions": {
       "data": "data/time-series/transactions_clean.csv",
       "ignore_columns": ["trans_id", "date"],
-      "num_iterations": 2500,
+      "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "account_id",

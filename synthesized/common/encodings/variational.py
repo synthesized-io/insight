@@ -58,10 +58,10 @@ class VariationalEncoding(Encoding):
 
     @tensorflow_name_scoped
     def sample(self, n, condition=()):
-        x = tf.random.normal(
+        z = tf.random.normal(
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
-        return x
+        return z
 
     @property
     def regularization_losses(self):
