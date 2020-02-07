@@ -26,7 +26,7 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = 6,
-        batchnorm: bool = True, activation: str = 'relu', dropout: Optional[float] = 0.4,
+        batchnorm: bool = True, activation: str = 'relu', dropout: Optional[float] = 0.2,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
@@ -101,8 +101,11 @@ class SeriesSynthesizer(Synthesizer):
         self.vae = SeriesVAE(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
-            lstm_mode=self.lstm_mode, latent_size=latent_size, network=network, capacity=capacity,
-            num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
+            lstm_mode=self.lstm_mode, latent_size=latent_size,
+            # network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
+            # batchnorm=batchnorm, activation=activation,
+            network='mlp', capacity=capacity, num_layers=1, residual_depths=None,
+            batchnorm=False, activation='linear',
             dropout=dropout, optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
             beta=beta, weight_decay=weight_decay, summarize=(summarizer_dir is not None)
@@ -151,6 +154,8 @@ class SeriesSynthesizer(Synthesizer):
 
         groups, num_data = self.value_factory.get_groups_feed_dict(df_train)
 
+        import time
+        t_start = time.perf_counter()
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
@@ -176,6 +181,7 @@ class SeriesSynthesizer(Synthesizer):
 
                 if iteration % print_status_freq == 0:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
+                    print(time.perf_counter() - t_start)
 
                 # Increment iteration number, and check if we reached max num_iterations
                 iteration += 1

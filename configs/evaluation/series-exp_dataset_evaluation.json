@@ -33,7 +33,7 @@
       "params": {
       },
       "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
+      "synthesizer_class": "HighdimSynthesizer"
     },
     "air-quality": {
       "data": "data/time-series/air-quality.csv",

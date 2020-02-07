@@ -81,6 +81,8 @@ class DenseTransformation(Transformation):
             x = tf.nn.softplus(features=x) / log(2.0)
         elif self.activation == 'tanh':
             x = tf.tanh(x=x)
+        elif self.activation == 'linear':
+            pass
         else:
             raise NotImplementedError
 

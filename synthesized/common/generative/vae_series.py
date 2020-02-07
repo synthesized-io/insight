@@ -52,8 +52,6 @@ class SeriesVAE(Generative):
         self.identifier_label = identifier_label
         self.identifier_value = identifier_value
 
-        self.encoding_type = 'variational'
-
         # Total input and output size of all values
         input_size = 0
         output_size = 0
@@ -146,16 +144,15 @@ class SeriesVAE(Generative):
             inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
         )
         self.losses['reconstruction-loss'] = reconstruction_loss
-        self.losses['regularization-loss'] = regularization_loss
         self.losses['kl-loss'] = kl_loss
+        self.losses['regularization-loss'] = regularization_loss
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        if self.summarize:
-            tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
-            tf.summary.scalar(name='kl-loss', data=kl_loss)
-            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-            tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
+        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 
