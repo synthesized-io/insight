@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, norm, uniform, weibull_min
-from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
@@ -29,6 +29,7 @@ class ContinuousValue(Value):
         # Scenario
         integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
+        use_quantile_transformation: bool = True,
         transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
@@ -45,9 +46,10 @@ class ContinuousValue(Value):
         self.distribution_params = distribution_params
 
         # transformer is fitted in `extract`
+        self.use_quantile_transformation = use_quantile_transformation
         self.transformer_n_quantiles = transformer_n_quantiles
         self.transformer_noise = transformer_noise
-        self.transformer: Optional[QuantileTransformer] = None
+        self.transformer: Optional[QuantileTransformer, StandardScaler] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
@@ -122,7 +124,10 @@ class ContinuousValue(Value):
         if self.transformer_noise:
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
-        self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles, output_distribution='normal')
+        if self.use_quantile_transformation:
+            self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles, output_distribution='normal')
+        else:
+            self.transformer = StandardScaler()
         self.transformer.fit(column.reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -215,7 +220,6 @@ class ContinuousValue(Value):
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         if self.distribution == 'dirac':
             return tf.constant(value=0.0, dtype=tf.float32)
-
         assert len(xs) == 1
         target = xs[0]
         target = tf.expand_dims(input=target, axis=1)

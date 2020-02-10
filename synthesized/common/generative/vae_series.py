@@ -78,14 +78,14 @@ class SeriesVAE(Generative):
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, dropout=dropout
+                beta=self.beta
             )
 
         elif self.lstm_mode == 2:
             self.encoding = VariationalRecurrentEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, dropout=dropout
+                beta=self.beta
             )
 
         kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
@@ -125,7 +125,7 @@ class SeriesVAE(Generative):
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.add_conditions(x, conditions=self.xs)
-        x = self.encoding(inputs=x, identifier=identifier)
+        x = self.encoding(inputs=x, identifier=identifier, dropout=self.dropout)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
         #################################
@@ -176,23 +176,16 @@ class SeriesVAE(Generative):
         x = self.unified_inputs(xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
+        else:
+            identifier = None
 
         #################################
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
-
-        if self.lstm_mode == 1 and self.lstm is not None:
-            latent_space = self.encoding(inputs=x)
-            if self.identifier_label is None:
-                x = self.lstm(inputs=latent_space)
-            else:
-                x = self.lstm(inputs=latent_space, state=identifier)
-        else:
-            x, latent_space = self.encoding(inputs=x, return_encoding=True)
-
+        x = self.add_conditions(x, conditions=cs)
+        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
-        x = self.add_conditions(x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
         synthesized = self.value_outputs(y=y, conditions=cs)

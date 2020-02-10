@@ -10,10 +10,9 @@ from ..module import tensorflow_name_scoped
 
 class VariationalLSTMEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=1.0, dropout=None):
+    def __init__(self, name, input_size, encoding_size, beta=1.0):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
-        self.dropout = dropout
 
         self.mean = DenseTransformation(
             name='mean', input_size=self.input_size,
@@ -39,7 +38,8 @@ class VariationalLSTMEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False) \
+    @tensorflow_name_scoped
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False, dropout=0.) \
             -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
         mean = self.mean(inputs)
         stddev = self.stddev(inputs)
@@ -54,9 +54,9 @@ class VariationalLSTMEncoding(Encoding):
             c0 = tf.expand_dims(input=c0, axis=0)
             identifier = [h0, c0]
 
-        if self.dropout:
-            encoding = tf.nn.dropout(encoding, rate=self.dropout)
-        y = self.lstm(tf.expand_dims(encoding, axis=0), initial_state=identifier)
+        if dropout > 0:
+            encoding = tf.nn.dropout(encoding, rate=dropout)
+        y = self.lstm(tf.expand_dims(tf.nn.dropout(encoding, rate=dropout), axis=0), initial_state=identifier)
         y = tf.squeeze(y, axis=0)
 
         kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5

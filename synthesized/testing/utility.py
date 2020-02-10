@@ -26,6 +26,7 @@ from statsmodels.tsa.stattools import acf, pacf
 
 from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue
+from ..common.values import DecomposedContinuousValue
 from ..common.values import DateValue
 from ..common.values import SamplingValue
 from ..common.values import NanValue
@@ -85,7 +86,7 @@ class UtilityTesting:
                 self.df_test[value.name] = pd.to_datetime(self.df_test[value.name])
                 self.df_synth[value.name] = pd.to_datetime(self.df_synth[value.name])
                 self.date_cols.append(value.name)
-            elif isinstance(value, ContinuousValue):
+            elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
                 self.display_types[value.name] = DisplayType.CONTINUOUS
                 self.continuous_cols.append(value.name)
             elif isinstance(value, CategoricalValue):
@@ -672,7 +673,7 @@ class UtilityTesting:
 
         return pacf_dist_max, pacf_dist_avg
 
-    def show_series(self, num_series=10, figsize: Tuple[float, float] = None, share_axis=False):
+    def show_series(self, num_series=10, figsize: Tuple[float, float] = None, share_axis=False, share_ids=False):
 
         if not figsize:
             figsize = (14, 10 * len(self.display_types))
@@ -680,7 +681,10 @@ class UtilityTesting:
         if self.identifier:
             num_series = min(num_series, len(np.unique(self.unique_ids_orig)), len(np.unique(self.unique_ids_synth)))
             identifiers_orig = np.random.choice(self.unique_ids_orig, num_series, replace=False)
-            identifiers_synth = np.random.choice(self.unique_ids_synth, num_series, replace=False)
+            if share_ids:
+                identifiers_synth = identifiers_orig
+            else:
+                identifiers_synth = np.random.choice(self.unique_ids_synth, num_series, replace=False)
 
         fig = plt.figure(figsize=figsize)
         for i in range(len(self.continuous_cols)):

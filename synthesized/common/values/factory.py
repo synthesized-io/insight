@@ -12,6 +12,7 @@ from .address import AddressValue
 from .categorical import CategoricalValue
 from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue
+from .decomposed_continuous import DecomposedContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
 from .identifier import IdentifierValue
@@ -39,7 +40,8 @@ class ValueFactory(tf.Module):
     """A Mix-In that you extend to be able to create various values."""
 
     def __init__(
-        self, df: pd.DataFrame, capacity: int = 128, continuous_weight: float = 1.0,
+        self, df: pd.DataFrame, capacity: int = 128,
+        continuous_weight: float = 1.0, decompose_continuous_values: bool = False,
         categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, nan_weight: float = 1.0,
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
@@ -78,6 +80,8 @@ class ValueFactory(tf.Module):
         self.categorical_kwargs = categorical_kwargs
         self.continuous_kwargs = continuous_kwargs
         self.nan_kwargs = nan_kwargs
+
+        self.decompose_continuous_values = decompose_continuous_values
 
         if find_rules is None:
             self.find_rules: Union[str, List[str]] = []
@@ -228,7 +232,7 @@ class ValueFactory(tf.Module):
         if self.identifier_label is None:
             num_data = [len(df)]
             groups = [{
-                value.name: df[name].to_numpy() for value in self.values_conditions_identifier
+                name: df[name].to_numpy() for value in self.values_conditions_identifier
                 for name in value.learned_input_columns()
             }]
 
@@ -237,7 +241,7 @@ class ValueFactory(tf.Module):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: tf.constant(groups[n][name].to_numpy()) for value in self.values_conditions_identifier
+                    name: tf.constant(groups[n][name].to_numpy()) for value in self.values_conditions_identifier
                     for name in value.learned_input_columns()
                 }
 
@@ -344,11 +348,14 @@ class ValueFactory(tf.Module):
         categorical_kwargs.update(kwargs)
         return CategoricalValue(name=name, **categorical_kwargs)
 
-    def create_continuous(self, name: str, **kwargs) -> ContinuousValue:
+    def create_continuous(self, name: str, **kwargs) -> Union[ContinuousValue, DecomposedContinuousValue]:
         """Create ContinuousValue."""
         continuous_kwargs = dict(self.continuous_kwargs)
         continuous_kwargs.update(kwargs)
-        return ContinuousValue(name=name, **continuous_kwargs)
+        if self.decompose_continuous_values:
+            return DecomposedContinuousValue(name=name, **continuous_kwargs)
+        else:
+            return ContinuousValue(name=name, **continuous_kwargs)
 
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""

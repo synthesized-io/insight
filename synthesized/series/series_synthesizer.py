@@ -22,22 +22,22 @@ class SeriesSynthesizer(Synthesizer):
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
         # VAE latent space
-        latent_size: int = 32,
+        latent_size: int = 128,
         # Network
         network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = 6,
-        batchnorm: bool = True, activation: str = 'relu', dropout: Optional[float] = 0.2,
+        batchnorm: bool = True, activation: str = 'relu', dropout: float = 0.4,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
         batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
         # Losses
-        beta: float = 1.0, weight_decay: float = 1e-6,
+        beta: float = 1., weight_decay: float = 1e-6,
         # Categorical
         categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
         # Continuous
-        continuous_weight: float = 5.0,
+        continuous_weight: float = 5.0, decompose_continuous_values: bool = True,
         # Nan
         nan_weight: float = 1.0,
         # Conditions
@@ -57,9 +57,8 @@ class SeriesSynthesizer(Synthesizer):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
-        encoding: str = 'variational',
         lstm_mode: int = 1,
-        max_seq_len: int = 1024,
+        max_seq_len: int = 16384,
         condition_labels: List[str] = []
     ):
         super(SeriesSynthesizer, self).__init__(
@@ -68,7 +67,8 @@ class SeriesSynthesizer(Synthesizer):
         self.value_factory = ValueFactory(
             name='value_factory', df=df,
             capacity=capacity,
-            continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
+            continuous_weight=continuous_weight, decompose_continuous_values=decompose_continuous_values,
+            categorical_weight=categorical_weight, temperature=temperature,
             moving_average=moving_average, nan_weight=nan_weight,
             type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
             condition_columns=condition_columns, find_rules=find_rules,
@@ -86,7 +86,6 @@ class SeriesSynthesizer(Synthesizer):
             # Identifier
             identifier_label=identifier_label,
         )
-        self.encoding_type = encoding
         if lstm_mode not in (1, 2):
             raise NotImplementedError
         self.lstm_mode = lstm_mode
@@ -144,7 +143,7 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, print_status_freq: int = 25
+        callback_freq: int = 10, print_status_freq: int = 25
     ) -> None:
 
         assert num_iterations is not None and num_iterations > 0
@@ -174,14 +173,13 @@ class SeriesSynthesizer(Synthesizer):
                     else:
                         self.vae.learn(xs=feed_dict)
 
-                    if callback(self, iteration, self.vae.losses) is True:
-                        return
+                    # if callback(self, iteration, self.vae.losses) is True:
+                    #     return
                 else:
                     self.vae.learn(xs=feed_dict)
 
-                if iteration % print_status_freq == 0:
+                if print_status_freq > 0 and iteration % print_status_freq == 0:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
-                    print(time.perf_counter() - t_start)
 
                 # Increment iteration number, and check if we reached max num_iterations
                 iteration += 1
@@ -284,6 +282,8 @@ class SeriesSynthesizer(Synthesizer):
             feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, group=i)
             identifier = feed_dict[self.value_factory.identifier_label][0]
             encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
+            if len(encoded_i['sample'].shape) == 1:
+                encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
             if self.value_factory.identifier_label:
                 decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
             if not encoded or not decoded:
@@ -303,19 +303,9 @@ class SeriesSynthesizer(Synthesizer):
         assert len(df_synthesized.columns) == len(columns)
         df_synthesized = df_synthesized[columns]
 
-        # print(encoded)
-        if self.lstm_mode == 1:
-            latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
-        else:
-            print(encoded)
-            len_sample = encoded['sample'].shape[0]
-            # print(len_sample)
-            latent = np.concatenate((
-                encoded['sample'],
-                tf.tile(encoded['mean'], [len_sample, 1]),
-                tf.tile(encoded['std'], [len_sample, 1]),
-            ), axis=1)
+        latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
+
         df_encoded = pd.DataFrame.from_records(
-            latent, columns=[f"{ls}_{n}" for ls in 'lms' for n in range(encoded['sample'].shape[1])])
+            latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
 
         return df_encoded,  df_synthesized
