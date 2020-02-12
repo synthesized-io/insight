@@ -7,7 +7,23 @@ from ..values import ValueFactory
 
 
 class BaseStateSpaceModel(tf.Module):
-    """The base class for state space models"""
+    """The base class for state space models
+
+    Networks:
+        ϴ: emission
+        Γ: transmission
+        ϕ: inference
+        Κ: initialize
+
+
+    Dimensions:
+        b: batch size
+        i: input size
+        l: latent size
+        c: capacity
+        t: time length
+
+    """
     def __init__(self, df, input_size, capacity, latent_size, name='state_space_model'):
         super(BaseStateSpaceModel, self).__init__(name=name)
         self.input_size = input_size
@@ -29,11 +45,11 @@ class BaseStateSpaceModel(tf.Module):
             p_θ(x_t | z_t)
 
         Args:
-            z_t:
+            z_t: [b, t, l]
 
         Returns:
             # σ_θt
-            μ_θt:
+            μ_θt: [b, t, i]
         """
         pass
 
@@ -44,12 +60,12 @@ class BaseStateSpaceModel(tf.Module):
             p_γ(z_t | z_p, u_t)
 
         Args:
-            z_p:
-            u_t:
+            z_p: [b, t, l]
+            u_t: [b, t, i]
 
         Returns:
-            σ_γt
-            μ_γt
+            σ_γt: [b, t, l]
+            μ_γt: [b, t, l]
         """
         pass
 
@@ -60,13 +76,13 @@ class BaseStateSpaceModel(tf.Module):
             q_φ(z_t | z_p, u_t, x_t)
 
         Args:
-            z_p:
-            u_t:
-            x_t:
+            z_p: [b, t, l]
+            u_t: [b, t, i]
+            x_t: [b, t, i]
 
         Returns:
-            σ_φt:
-            μ_φt:
+            σ_φt: [b, t, l]
+            μ_φt: [b, t, l]
 
         """
         pass
@@ -78,10 +94,11 @@ class BaseStateSpaceModel(tf.Module):
             p_κ(z_0 | x_1)
 
         Args:
+            x_1: [b, 1, i]
 
         Returns:
-            σ_κ0:
-            μ_κ0:
+            σ_κ0: [b, 1, l]
+            μ_κ0: [b, 1, l]
         """
         pass
 
@@ -89,7 +106,7 @@ class BaseStateSpaceModel(tf.Module):
         """Samples the initial latent state from a multivariate gauss ball.
 
         Returns:
-            z_0:
+            z_0: [b, 1, l]
         """
         return tf.random.normal(shape=(1, self.latent_size), dtype=tf.float32)
 
@@ -97,14 +114,14 @@ class BaseStateSpaceModel(tf.Module):
         """Starting with a given state, infers all subsequent states from u, x using the inference network.
 
         Args:
-            u:
-            x:
-            z_0:
+            u: [b, t, i]
+            x: [b, t, i]
+            z_0: [b, 1, l]
 
         Returns:
-            z:
-            σ_φ:
-            μ_φ:
+            z: [b, t, l]
+            σ_φ: [b, t, l]
+            μ_φ: [b, t, l]
 
 
         """
@@ -114,13 +131,13 @@ class BaseStateSpaceModel(tf.Module):
         """Starting with a given state, generates n subsequent states using the transition network.
 
         Args:
-            n:
-            z_0:
+            n: []
+            z_0: [b, 1, l]
 
         Returns:
-            z:
-            σ_γ:
-            μ_γ:
+            z: [b, t, l]
+            σ_γ: [b, t, l]
+            μ_γ: [b, t, l]
 
         """
         pass
@@ -165,10 +182,4 @@ class BaseStateSpaceModel(tf.Module):
 
     @property
     def regularization_losses(self):
-        return [
-            loss
-            for module in [self.emission_network, self.emission_mean,
-                      self.transition_network, self.transition_mean, self.transition_stddev,
-                      self.inference_network, self.inference_mean, self.inference_stddev] + self.values
-            for loss in module.regularization_losses
-        ]
+        raise NotImplementedError
