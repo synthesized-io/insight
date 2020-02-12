@@ -28,7 +28,7 @@ class Encoding(Transformation):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def sample(self, n, condition=()):
+    def sample(self, n, condition=(), identifier=None):
         raise NotImplementedError
 
     @tf.function

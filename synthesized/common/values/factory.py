@@ -353,7 +353,7 @@ class ValueFactory(tf.Module):
         continuous_kwargs = dict(self.continuous_kwargs)
         continuous_kwargs.update(kwargs)
         if self.decompose_continuous_values:
-            return DecomposedContinuousValue(name=name, **continuous_kwargs)
+            return DecomposedContinuousValue(name=name, identifier=self.identifier_label, **continuous_kwargs)
         else:
             return ContinuousValue(name=name, **continuous_kwargs)
 

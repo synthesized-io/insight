@@ -9,6 +9,7 @@ from ..common import Value, ValueFactory, TypeOverride
 from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
 from ..common import Synthesizer
 from ..common.generative import SeriesVAE
+from ..common.learning_manager import LearningManager
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -24,8 +25,8 @@ class SeriesSynthesizer(Synthesizer):
         # VAE latent space
         latent_size: int = 128,
         # Network
-        network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
-        residual_depths: Union[None, int, List[int]] = 6,
+        network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
+        residual_depths: Union[None, int, List[int]] = None,
         batchnorm: bool = True, activation: str = 'relu', dropout: float = 0.4,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
@@ -58,8 +59,10 @@ class SeriesSynthesizer(Synthesizer):
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
         lstm_mode: int = 1,
-        max_seq_len: int = 16384,
-        condition_labels: List[str] = []
+        max_seq_len: int = 8192,
+        condition_labels: List[str] = [],
+        # Evaluation conditions
+        learning_manager: bool = False
     ):
         super(SeriesSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
@@ -101,10 +104,10 @@ class SeriesSynthesizer(Synthesizer):
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
             lstm_mode=self.lstm_mode, latent_size=latent_size,
-            # network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
-            # batchnorm=batchnorm, activation=activation,
-            network='mlp', capacity=capacity, num_layers=1, residual_depths=None,
-            batchnorm=False, activation='linear',
+            network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
+            batchnorm=batchnorm, activation=activation,
+            # network='mlp', capacity=capacity, num_layers=1, residual_depths=None,
+            # batchnorm=False, activation='linear',
             dropout=dropout, optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
             beta=beta, weight_decay=weight_decay, summarize=(summarizer_dir is not None)
@@ -115,6 +118,14 @@ class SeriesSynthesizer(Synthesizer):
 
         # Output DF
         self.synthesized: Optional[Dict[str, tf.Tensor]] = None
+
+        # Learning Manager
+        self.learning_manager: Optional[LearningManager] = None
+        if learning_manager:
+            self.use_vae_loss = True
+            self.learning_manager = LearningManager()
+            self.learning_manager.set_check_frequency(self.batch_size)
+            raise NotImplementedError
 
     def get_values(self) -> List[Value]:
         return self.value_factory.get_values()
@@ -146,7 +157,7 @@ class SeriesSynthesizer(Synthesizer):
         callback_freq: int = 10, print_status_freq: int = 25
     ) -> None:
 
-        assert num_iterations is not None and num_iterations > 0
+        assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
         df_train = self.value_factory.preprocess(df_train)
@@ -240,8 +251,8 @@ class SeriesSynthesizer(Synthesizer):
         if num_series is not None and series_length is not None:
             for i in range(num_series):
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                if self.value_factory.identifier_label:
-                    other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
+                # if self.value_factory.identifier_label:
+                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -251,8 +262,8 @@ class SeriesSynthesizer(Synthesizer):
         elif series_lengths is not None:
             for i, series_length in enumerate(series_lengths):
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                if self.value_factory.identifier_label:
-                    other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
+                # if self.value_factory.identifier_label:
+                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other

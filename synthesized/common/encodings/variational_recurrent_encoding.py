@@ -10,7 +10,7 @@ from ..module import tensorflow_name_scoped
 
 class VariationalRecurrentEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=None):
+    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
@@ -48,7 +48,9 @@ class VariationalRecurrentEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False, dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False,
+             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+
         inputs = tf.expand_dims(input=inputs, axis=0)
         if dropout > 0.:
             inputs = tf.nn.dropout(inputs, rate=dropout)
@@ -65,9 +67,12 @@ class VariationalRecurrentEncoding(Encoding):
         # input_decoder = tf.concat((tf.zeros((1, 1, self.encoding_size)), inputs[:, 1:-1, :]), axis=1)
         # input_decoder = tf.nn.dropout(input_decoder, rate=self.dropout)
 
+        # input_decoder = tf.expand_dims(tf.tile(encoding_h, [tf.shape(inputs)[1], 1]), axis=0)
+        # encoding = None
         input_decoder = tf.zeros(tf.shape(inputs))
-        if dropout > 0.:
-            input_decoder = tf.nn.dropout(input_decoder, rate=dropout)
+        # if dropout > 0.:
+        #     input_decoder = tf.nn.dropout(input_decoder, rate=dropout)
+
         y, _, _ = self.lstm_decoder(input_decoder, initial_state=encoding)
 
         # y = self.lstm_loop(n=tf.shape(inputs)[1], h_i=encoding_h)
@@ -118,13 +123,16 @@ class VariationalRecurrentEncoding(Encoding):
 
     @tf.function
     @tensorflow_name_scoped
-    def sample(self, n, condition=()):
+    def sample(self, n, condition=(), identifier=None):
 
         h_i = tf.random.normal(shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
         c_i = tf.zeros(shape=(1, self.encoding_size))
 
         input_decoder = tf.zeros(shape=(1, n, self.encoding_size))
         y, _, _ = self.lstm_decoder(input_decoder, initial_state=[h_i, c_i])
+
+        # input_decoder = tf.expand_dims(tf.tile(h_i, [n, 1]), axis=0)
+        # y, _, _ = self.lstm_decoder(input_decoder, initial_state=None)
 
         return tf.squeeze(y, axis=0)
 

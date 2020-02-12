@@ -57,7 +57,7 @@ class VariationalEncoding(Encoding):
         return x
 
     @tensorflow_name_scoped
-    def sample(self, n, condition=()):
+    def sample(self, n, condition=(), identifier=None):
         z = tf.random.normal(
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )

@@ -78,7 +78,7 @@ class SeriesVAE(Generative):
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
+                beta=self.beta, lstm_layers=2
             )
 
         elif self.lstm_mode == 2:
@@ -204,14 +204,15 @@ class SeriesVAE(Generative):
     def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) \
             -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
-        x = self.encoding.sample(n=n)
-        x = self.add_conditions(x=x, conditions=cs)
-        identifier = None
-
         if self.identifier_value is not None:
-            identifier = self.identifier_value.next_identifier()
+            identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
+            identifier_embedding = tf.squeeze(identifier_embedding)
             identifier = tf.tile(input=identifier, multiples=(n,))
+        else:
+            identifier, identifier_embedding = None, None
 
+        x = self.encoding.sample(n=n, identifier=identifier_embedding)
+        x = self.add_conditions(x=x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
 

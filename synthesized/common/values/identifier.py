@@ -51,7 +51,8 @@ class IdentifierValue(Value):
         return self.embedding_size
 
     def learned_output_size(self) -> int:
-        return 1
+        assert self.num_identifiers is not None
+        return self.num_identifiers
 
     def extract(self, df):
         super().extract(df=df)
@@ -70,7 +71,7 @@ class IdentifierValue(Value):
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
-            initializer = util.get_initializer(initializer='normal-large')
+            initializer = util.get_initializer(initializer='glorot-normal')
             shape = (self.num_identifiers, self.embedding_size)
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
@@ -113,12 +114,30 @@ class IdentifierValue(Value):
         return self.next_identifier(), x
 
     @tensorflow_name_scoped
-    def random_value(self, n):
+    def random_value(self):
         identifier = tf.random.uniform(
-            shape=(n,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
+            shape=(1,), minval=0, maxval=self.num_identifiers, dtype=tf.int32, seed=None
         )
-        x = tf.nn.embedding_lookup(
-            params=self.embeddings, ids=identifier,
-            max_norm=None
+        identifier_embedding = tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
+        return identifier, identifier_embedding
+
+    @tensorflow_name_scoped
+    def random_value_from_normal(self):
+        identifier_embedding = tf.random.normal(
+            shape=(self.embedding_size, 1), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
-        return identifier, x
+        identifier = tf.argmax(tf.linalg.matmul(self.embeddings, identifier_embedding))
+
+        return identifier, identifier_embedding
+
+    # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    #     target = tf.one_hot(
+    #         indices=xs[0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
+    #         dtype=tf.float32
+    #     )
+    #
+    #     loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
+    #     loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
+    #     tf.summary.scalar(name=self.name, data=loss)
+    #     return loss
+
