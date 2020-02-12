@@ -227,7 +227,7 @@ class HighDimSynthesizer(Synthesizer):
         df_train_orig = df_train.copy()
         df_train = self.value_factory.preprocess(df_train)
 
-        data = self.value_factory.get_data_feed_dict(df_train)
+        data = self.get_data_feed_dict(df_train)
         num_data = len(df_train)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -302,13 +302,13 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ]*num_rows)
 
-        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, num_rows)
+        feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
         synthesized = self.vae.synthesize(tf.constant(num_rows % 1024, dtype=tf.int64), cs=feed_dict)
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, 1024)
+        feed_dict = self.get_conditions_feed_dict(df_conditions, 1024)
         n_batches = num_rows // 1024
-        data = self.value_factory.get_conditions_data(df_conditions)
+        data = self.get_conditions_data(df_conditions)
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
@@ -346,9 +346,7 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
-        df_encode = df_encode.copy()
-        for value in (self.values + self.conditions):
-            df_encode = value.preprocess(df=df_encode)
+        df_encode = self.value_factory.preprocess(df=df_encode)
 
         num_rows = len(df_encode)
         feed_dict = {

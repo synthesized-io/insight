@@ -9,6 +9,7 @@ from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import DenseTransformation
 from ..encodings import VariationalEncoding
 from ..optimizers import Optimizer
+from ..value_layer import ValueLayer
 
 
 class VAEOld(Generative):
@@ -46,23 +47,11 @@ class VAEOld(Generative):
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
-        # Total input and output size of all values
-        input_size = 0
-        output_size = 0
-        for value in self.values:
-            input_size += value.learned_input_size()
-            output_size += value.learned_output_size()
-
-        # Total condition size
-        condition_size = 0
-        for value in self.conditions:
-            assert value.learned_input_size() > 0
-            assert value.learned_input_columns() == value.learned_output_columns()
-            condition_size += value.learned_input_size()
+        self.value_layer = ValueLayer(values=values, conditions=conditions)
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_layer.input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
         kwargs = dict(
@@ -82,12 +71,12 @@ class VAEOld(Generative):
 
         self.modulation = None
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + condition_size)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_layer.condition_size)
         self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_layer.output_size, batchnorm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -108,7 +97,7 @@ class VAEOld(Generative):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.unified_inputs(self.xs)
+        x = self.value_layer.unified_inputs(self.xs)
 
         #################################
         x = self.linear_input(x)
@@ -122,7 +111,8 @@ class VAEOld(Generative):
         # Losses
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
-        reconstruction_loss = tf.identity(self.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+        reconstruction_loss = tf.identity(
+            self.value_layer.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
@@ -183,7 +173,7 @@ class VAEOld(Generative):
             return tf.no_op(), dict()
 
         #################################
-        x = self.unified_inputs(xs)
+        x = self.value_layer.unified_inputs(xs)
         x = self.linear_input(x)
         x = self.encoder(x)
 
@@ -194,7 +184,7 @@ class VAEOld(Generative):
         x = self.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
-        synthesized = self.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
         #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
@@ -212,7 +202,7 @@ class VAEOld(Generative):
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
@@ -229,7 +219,7 @@ class VAEOld(Generative):
 
         """
         x = self.encoding.sample(n=n)
-        x = self.add_conditions(x=x, conditions=cs)
+        x = self.value_layer.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 

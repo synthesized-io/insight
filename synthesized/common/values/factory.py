@@ -169,30 +169,33 @@ class ValueFactory(tf.Module):
             else:
                 self.values.append(value)
 
-        self.values_conditions_identifier = (self.values + self.conditions)
-        if self.identifier_value:
-            self.values_conditions_identifier = (self.values_conditions_identifier + [self.identifier_value])
-
         # Automatic extraction of specification parameters
         df = df.copy()
-        for value in self.values_conditions_identifier:
+        for value in self.a:
             value.extract(df=df)
 
         # Identify deterministic rules
         #  import ipdb; ipdb.set_trace()
         self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
 
+    @property
+    def all_values(self):
+        if self.identifier_value:
+            return self.values + self.conditions + [self.identifier_value]
+        else:
+            return self.values + self.conditions
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         """Returns a preprocessed copy of the input DataFrame"""
         df_copy = df.copy()
-        for value in self.values_conditions_identifier:
+        for value in self.all_values:
             df_copy = value.preprocess(df=df_copy)
 
         return df_copy
 
     def postprocess(self,  df: pd.DataFrame) -> pd.DataFrame:
         """Post-processes the input DataFrame"""
-        for value in self.values_conditions_identifier:
+        for value in self.all_values:
             df = value.postprocess(df=df)
 
         # aliases:
@@ -221,18 +224,11 @@ class ValueFactory(tf.Module):
 
         return df_conditions
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
-        data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.values_conditions_identifier
-            for name in value.learned_input_columns()
-        }
-        return data
-
     def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
         if self.identifier_label is None:
             num_data = [len(df)]
             groups = [{
-                name: df[name].to_numpy() for value in self.values_conditions_identifier
+                name: df[name].to_numpy() for value in self.all_values
                 for name in value.learned_input_columns()
             }]
 
@@ -241,7 +237,7 @@ class ValueFactory(tf.Module):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    name: tf.constant(groups[n][name].to_numpy()) for value in self.values_conditions_identifier
+                    name: tf.constant(groups[n][name].to_numpy()) for value in self.all_values
                     for name in value.learned_input_columns()
                 }
 
@@ -262,47 +258,6 @@ class ValueFactory(tf.Module):
 
         return feed_dict
 
-    def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
-        data = {
-            name: df[name].to_numpy() for value in (self.conditions)
-            for name in value.learned_input_columns()
-        }
-        return data
-
-    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = 1024):
-        feed_dict = dict()
-
-        if not batch_size:
-            # Add conditions to 'feed_dict'
-            for value in self.conditions:
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition
-                    else:
-                        raise NotImplementedError
-
-        elif (num_rows % batch_size) != 0:
-            for value in self.conditions:
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows % batch_size,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition[-num_rows % batch_size:]
-                    else:
-                        raise NotImplementedError
-        else:
-            for value in self.conditions:
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (batch_size,))
-
-        return feed_dict
-
     def get_values(self) -> List[Value]:
         return self.values
 
@@ -311,7 +266,7 @@ class ValueFactory(tf.Module):
 
     def get_column_names(self) -> List[str]:
         columns = [
-            name for value in self.values_conditions_identifier
+            name for value in self.all_values
             for name in value.learned_output_columns()
         ]
         return columns

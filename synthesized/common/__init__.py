@@ -10,10 +10,11 @@ from .optimizers import Optimizer
 from .sanitizer import Sanitizer
 from .transformations import Transformation
 from .values import identify_rules, Value, ValueFactory, TypeOverride
+from .value_layer import ValueLayer
 
 
 __all__ = [
     'Synthesizer', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
     'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value',
-    'ValueFactory', 'TypeOverride'
+    'ValueFactory', 'TypeOverride', 'ValueLayer'
 ]

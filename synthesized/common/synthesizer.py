@@ -1,9 +1,11 @@
 """This module implements the Synthesizer base class."""
+from abc import abstractmethod
 import base64
 from datetime import datetime
 import os
-from typing import Callable, Union, List, Optional
+from typing import Callable, Dict, Union, List, Optional
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -70,11 +72,64 @@ class Synthesizer(tf.Module):
 
             self.writer = tf.summary.create_file_writer(self.logdir)
 
+    @abstractmethod
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
+    @abstractmethod
     def get_conditions(self) -> List[Value]:
         raise NotImplementedError()
+
+    def get_all_values(self) -> List[Value]:
+        return self.get_values() + self.get_conditions()
+
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
+        data = {
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_all_values()
+            for name in value.learned_input_columns()
+        }
+        return data
+
+    def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
+        data = {
+            name: df[name].to_numpy() for value in self.get_conditions()
+            for name in value.learned_input_columns()
+        }
+        return data
+
+    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = 1024):
+        feed_dict = dict()
+
+        if not batch_size:
+            # Add conditions to 'feed_dict'
+            for value in self.get_conditions():
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (num_rows,))
+                    elif condition.shape == (num_rows,):
+                        feed_dict[name] = condition
+                    else:
+                        raise NotImplementedError
+
+        elif (num_rows % batch_size) != 0:
+            for value in self.get_conditions():
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (num_rows % batch_size,))
+                    elif condition.shape == (num_rows,):
+                        feed_dict[name] = condition[-num_rows % batch_size:]
+                    else:
+                        raise NotImplementedError
+        else:
+            for value in self.get_conditions():
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (batch_size,))
+
+        return feed_dict
 
     def get_losses(self, data) -> tf.Tensor:
         raise NotImplementedError()
