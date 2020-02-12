@@ -70,9 +70,9 @@ class DateValue(ContinuousValue):
         return super().learned_output_size()
 
     def extract(self, df):
-        column = df[self.name]
+        column = df.loc[:, self.name]
 
-        self.original_dtype = type(df[self.name].iloc[0])
+        self.original_dtype = type(df.loc[:, self.name].iloc[0])
         if column.dtype.kind != 'M':
             column = self.to_datetime(column)
 
@@ -96,30 +96,30 @@ class DateValue(ContinuousValue):
         super().extract(df=pd.DataFrame.from_dict({self.name: column}))
 
     def preprocess(self, df):
-        if df[self.name].dtype.kind != 'M':
-            df[self.name] = self.to_datetime(df[self.name])
+        if df.loc[:, self.name].dtype.kind != 'M':
+            df.loc[:, self.name] = self.to_datetime(df.loc[:, self.name])
 
-        df[self.name + '-hour'] = df[self.name].dt.hour
-        df[self.name + '-dow'] = df[self.name].dt.weekday
-        df[self.name + '-day'] = df[self.name].dt.day - 1
-        df[self.name + '-month'] = df[self.name].dt.month - 1
+        df[self.name + '-hour'] = df.loc[:, self.name].dt.hour
+        df[self.name + '-dow'] = df.loc[:, self.name].dt.weekday
+        df[self.name + '-day'] = df.loc[:, self.name].dt.day - 1
+        df[self.name + '-month'] = df.loc[:, self.name].dt.month - 1
         if self.min_date is None:
-            previous_date = df[self.name].copy()
+            previous_date = df.loc[:, self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]
-            df[self.name] = (df[self.name] - previous_date).dt.total_seconds() / 86400
+            df.loc[:, self.name] = (df.loc[:, self.name] - previous_date).dt.total_seconds() / 86400
         else:
-            df[self.name] = (df[self.name] - self.min_date).dt.total_seconds() / 86400
+            df.loc[:, self.name] = (df.loc[:, self.name] - self.min_date).dt.total_seconds() / 86400
         return super().preprocess(df=df)
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
-        df[self.name] = pd.to_timedelta(arg=df[self.name], unit='D')
+        df.loc[:, self.name] = pd.to_timedelta(arg=df.loc[:, self.name], unit='D')
         if self.start_date is not None:
-            df[self.name] = self.start_date + df[self.name].cumsum(axis=0)
+            df.loc[:, self.name] = self.start_date + df.loc[:, self.name].cumsum(axis=0)
         else:
-            df[self.name] += self.min_date
-        df[self.name] = self.from_datetime(df[self.name])
+            df.loc[:, self.name] += self.min_date
+        df.loc[:, self.name] = self.from_datetime(df.loc[:, self.name])
         return df
 
     def to_datetime(self, col: pd.Series) -> pd.Series:

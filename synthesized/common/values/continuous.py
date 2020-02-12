@@ -1,11 +1,11 @@
 from math import log
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, norm, uniform, weibull_min
-from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
@@ -29,6 +29,7 @@ class ContinuousValue(Value):
         # Scenario
         integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
+        use_quantile_transformation: bool = True,
         transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
@@ -45,9 +46,10 @@ class ContinuousValue(Value):
         self.distribution_params = distribution_params
 
         # transformer is fitted in `extract`
+        self.use_quantile_transformation = use_quantile_transformation
         self.transformer_n_quantiles = transformer_n_quantiles
         self.transformer_noise = transformer_noise
-        self.transformer: Optional[QuantileTransformer] = None
+        self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
@@ -83,7 +85,7 @@ class ContinuousValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        column = df[self.name]
+        column = df.loc[:, self.name]
 
         # we allow extraction only if distribution hasn't been set
         assert self.distribution is None
@@ -122,75 +124,79 @@ class ContinuousValue(Value):
         if self.transformer_noise:
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
-        self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles, output_distribution='normal')
+        if self.use_quantile_transformation:
+            self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles,
+                                                   output_distribution='normal')
+        else:
+            self.transformer = StandardScaler()
         self.transformer.fit(column.reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required
         # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
 
-        if df[self.name].dtype.kind not in ('f', 'i'):
-            df[self.name] = self.pd_cast(df[self.name])
+        if df.loc[:, self.name].dtype.kind not in ('f', 'i'):
+            df.loc[:, self.name] = self.pd_cast(df.loc[:, self.name])
 
-        assert not df[self.name].isna().any()
-        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
+        assert not df.loc[:, self.name].isna().any()
+        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
 
         if self.distribution == 'dirac':
             return df
 
         if self.nonnegative and not self.positive:
-            df[self.name] = np.maximum(df[self.name], 0.001)
+            df.loc[:, self.name] = np.maximum(df.loc[:, self.name], 0.001)
 
         if self.distribution == 'normal':
             assert self.distribution_params is not None
             mean, stddev = self.distribution_params
-            df[self.name] = (df[self.name] - mean) / stddev
+            df.loc[:, self.name] = (df.loc[:, self.name] - mean) / stddev
 
         elif self.distribution is not None:
-            df[self.name] = norm.ppf(
-                DISTRIBUTIONS[self.distribution][0].cdf(df[self.name], *self.distribution_params)
+            df.loc[:, self.name] = norm.ppf(
+                DISTRIBUTIONS[self.distribution][0].cdf(df.loc[:, self.name], *self.distribution_params)
             )
-            df = df[(df[self.name] != float('inf')) & (df[self.name] != float('-inf'))]
+            df = df[(df.loc[:, self.name] != float('inf')) & (df.loc[:, self.name] != float('-inf'))]
         elif self.transformer:
             if self.transformer_noise:
-                df[self.name] += np.random.normal(scale=self.transformer_noise, size=len(df[self.name]))
-            df[self.name] = self.transformer.transform(df[self.name].values.reshape(-1, 1))
+                df.loc[:, self.name] += np.random.normal(scale=self.transformer_noise, size=len(df.loc[:, self.name]))
+            df.loc[:, self.name] = self.transformer.transform(df.loc[:, self.name].values.reshape(-1, 1))
 
-        assert not df[self.name].isna().any()
-        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
+        assert not df.loc[:, self.name].isna().any()
+        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
 
-        df[self.name] = df[self.name].astype(np.float32)
+        df.loc[:, self.name] = df.loc[:, self.name].astype(np.float32)
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.distribution == 'dirac':
             assert self.distribution_params is not None
-            df[self.name] = self.distribution_params[0]
+            df.loc[:, self.name] = self.distribution_params[0]
 
         else:
             if self.distribution == 'normal':
                 assert self.distribution_params is not None
                 mean, stddev = self.distribution_params
-                df[self.name] = df[self.name] * stddev + mean
+                df.loc[:, self.name] = df.loc[:, self.name] * stddev + mean
             elif self.distribution is not None:
-                df[self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
-                    norm.cdf(df[self.name]), *self.distribution_params
+                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                    norm.cdf(df.loc[:, self.name]), *self.distribution_params
                 )
             elif self.transformer:
-                df[self.name] = self.transformer.inverse_transform(df[self.name].values.reshape(-1, 1))
+                df.loc[:, self.name] = self.transformer.inverse_transform(df.loc[:, self.name].values.reshape(-1, 1))
 
             if self.nonnegative and not self.positive:
-                df.loc[(df[self.name] < 0.001), self.name] = 0
+                df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
 
-        assert not df[self.name].isna().any()
-        assert (df[self.name] != float('inf')).all() and (df[self.name] != float('-inf')).all()
+        assert not df.loc[:, self.name].isna().any()
+        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
 
         if self.integer:
-            df[self.name] = df[self.name].astype(dtype='int32')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int32')
 
-        if self.float and df[self.name].dtype != 'float32':
-            df[self.name] = df[self.name].astype(dtype='float32')
+        if self.float and df.loc[:, self.name].dtype != 'float32':
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
 
         return df
 
@@ -215,7 +221,6 @@ class ContinuousValue(Value):
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         if self.distribution == 'dirac':
             return tf.constant(value=0.0, dtype=tf.float32)
-
         assert len(xs) == 1
         target = xs[0]
         target = tf.expand_dims(input=target, axis=1)

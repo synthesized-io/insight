@@ -88,7 +88,7 @@ class CategoricalValue(Value):
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
 
-        unique_values = df[self.name].unique().tolist()
+        unique_values = df.loc[:, self.name].unique().tolist()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
@@ -124,18 +124,18 @@ class CategoricalValue(Value):
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
-            df[self.name] = df[self.name].map(self.category2idx)
-        if df[self.name].dtype != 'int64':
-            df[self.name] = df[self.name].astype(dtype='int64')
+            df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
+        if df.loc[:, self.name].dtype != 'int64':
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if not isinstance(self.categories, int):
             assert isinstance(self.categories, list)
-            df[self.name] = df[self.name].map(self.idx2category)
+            df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.pandas_category:
-            df[self.name] = df[self.name].astype(dtype='category')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
         return df
 
     @tensorflow_name_scoped

@@ -47,7 +47,6 @@ class VariationalEncoding(Encoding):
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-        tf.summary.scalar(name='kl-loss', data=kl_loss)
         tf.summary.histogram(name='mean', data=self.mean.output),
         tf.summary.histogram(name='stddev', data=self.stddev.output),
         tf.summary.histogram(name='posterior_distribution', data=x),
@@ -58,11 +57,11 @@ class VariationalEncoding(Encoding):
         return x
 
     @tensorflow_name_scoped
-    def sample(self, n, condition=()):
-        x = tf.random.normal(
+    def sample(self, n, condition=(), identifier=None):
+        z = tf.random.normal(
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
-        return x
+        return z
 
     @property
     def regularization_losses(self):

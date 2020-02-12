@@ -75,7 +75,7 @@ class Generative(tf.Module):
         return x
 
     @tensorflow_name_scoped
-    def value_losses(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -91,12 +91,13 @@ class Generative(tf.Module):
             )
 
         # Reconstruction loss
-        losses['reconstruction-loss'] = tf.add_n(inputs=list(losses.values()), name='reconstruction_loss')
+        reconstruction_loss = tf.add_n(inputs=list(losses.values()), name='reconstruction_loss')
 
-        return losses
+        return reconstruction_loss
 
     @tensorflow_name_scoped
-    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, tf.Tensor],
+                      identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -105,6 +106,10 @@ class Generative(tf.Module):
 
         # Output tensors per value
         synthesized: Dict[str, tf.Tensor] = OrderedDict()
+
+        if identifier is not None:
+            synthesized[self.identifier_label] = identifier
+
         for value, y in zip(self.values, ys):
             synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
 

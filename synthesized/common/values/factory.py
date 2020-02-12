@@ -1,7 +1,8 @@
 """Utilities that help you create Value objects."""
 import enum
 from math import log, sqrt
-from typing import Dict, Any, Optional, Union, Iterable, List, Set
+from typing import Dict, Any, Optional, Union, Iterable, List, Set, Tuple
+from random import randrange
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from .address import AddressValue
 from .categorical import CategoricalValue
 from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue
+from .decomposed_continuous import DecomposedContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
 from .identifier import IdentifierValue
@@ -38,7 +40,8 @@ class ValueFactory(tf.Module):
     """A Mix-In that you extend to be able to create various values."""
 
     def __init__(
-        self, df: pd.DataFrame, capacity: int = 128, continuous_weight: float = 1.0,
+        self, df: pd.DataFrame, capacity: int = 128,
+        continuous_weight: float = 1.0, decompose_continuous_values: bool = False,
         categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, nan_weight: float = 1.0,
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
@@ -77,6 +80,8 @@ class ValueFactory(tf.Module):
         self.categorical_kwargs = categorical_kwargs
         self.continuous_kwargs = continuous_kwargs
         self.nan_kwargs = nan_kwargs
+
+        self.decompose_continuous_values = decompose_continuous_values
 
         if find_rules is None:
             self.find_rules: Union[str, List[str]] = []
@@ -159,12 +164,18 @@ class ValueFactory(tf.Module):
                 value = identified_value
             if name in self.condition_columns:
                 self.conditions.append(value)
+            elif name == self.identifier_label:
+                self.identifier_value = value
             else:
                 self.values.append(value)
 
+        self.values_conditions_identifier = (self.values + self.conditions)
+        if self.identifier_value:
+            self.values_conditions_identifier = (self.values_conditions_identifier + [self.identifier_value])
+
         # Automatic extraction of specification parameters
         df = df.copy()
-        for value in (self.values + self.conditions):
+        for value in self.values_conditions_identifier:
             value.extract(df=df)
 
         # Identify deterministic rules
@@ -174,14 +185,14 @@ class ValueFactory(tf.Module):
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         """Returns a preprocessed copy of the input DataFrame"""
         df_copy = df.copy()
-        for value in (self.values + self.conditions):
+        for value in self.values_conditions_identifier:
             df_copy = value.preprocess(df=df_copy)
 
         return df_copy
 
     def postprocess(self,  df: pd.DataFrame) -> pd.DataFrame:
         """Post-processes the input DataFrame"""
-        for value in (self.values + self.conditions):
+        for value in self.values_conditions_identifier:
             df = value.postprocess(df=df)
 
         # aliases:
@@ -212,10 +223,44 @@ class ValueFactory(tf.Module):
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
         data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in (self.values + self.conditions)
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.values_conditions_identifier
             for name in value.learned_input_columns()
         }
         return data
+
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
+        if self.identifier_label is None:
+            num_data = [len(df)]
+            groups = [{
+                name: df[name].to_numpy() for value in self.values_conditions_identifier
+                for name in value.learned_input_columns()
+            }]
+
+        else:
+            groups = [group[1] for group in df.groupby(by=self.identifier_label)]
+            num_data = [len(group) for group in groups]
+            for n in range(len(groups)):
+                groups[n] = {
+                    name: tf.constant(groups[n][name].to_numpy()) for value in self.values_conditions_identifier
+                    for name in value.learned_input_columns()
+                }
+
+        return groups, num_data
+
+    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None):
+        group = group if group is not None else randrange(len(num_data))
+        data = groups[group]
+
+        if max_seq_len and num_data[group] > max_seq_len:
+            start = randrange(num_data[group] - max_seq_len)
+            batch = tf.range(start, start + max_seq_len)
+        else:
+            batch = tf.range(num_data[group])
+
+        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
+                     for name, value_data in data.items()}
+
+        return feed_dict
 
     def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
         data = {
@@ -224,17 +269,29 @@ class ValueFactory(tf.Module):
         }
         return data
 
-    def get_conditions_feed_dict(self, df_conditions, num_rows):
+    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = 1024):
         feed_dict = dict()
 
-        if (num_rows % 1024) != 0:
+        if not batch_size:
+            # Add conditions to 'feed_dict'
             for value in self.conditions:
                 for name in value.learned_input_columns():
                     condition = df_conditions[name].values
                     if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows % 1024,))
+                        feed_dict[name] = np.tile(condition, (num_rows,))
                     elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition[-num_rows % 1024:]
+                        feed_dict[name] = condition
+                    else:
+                        raise NotImplementedError
+
+        elif (num_rows % batch_size) != 0:
+            for value in self.conditions:
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (num_rows % batch_size,))
+                    elif condition.shape == (num_rows,):
+                        feed_dict[name] = condition[-num_rows % batch_size:]
                     else:
                         raise NotImplementedError
         else:
@@ -242,7 +299,7 @@ class ValueFactory(tf.Module):
                 for name in value.learned_input_columns():
                     condition = df_conditions[name].values
                     if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (1024,))
+                        feed_dict[name] = np.tile(condition, (batch_size,))
 
         return feed_dict
 
@@ -254,7 +311,7 @@ class ValueFactory(tf.Module):
 
     def get_column_names(self) -> List[str]:
         columns = [
-            name for value in (self.values + self.conditions)
+            name for value in self.values_conditions_identifier
             for name in value.learned_output_columns()
         ]
         return columns
@@ -291,11 +348,14 @@ class ValueFactory(tf.Module):
         categorical_kwargs.update(kwargs)
         return CategoricalValue(name=name, **categorical_kwargs)
 
-    def create_continuous(self, name: str, **kwargs) -> ContinuousValue:
+    def create_continuous(self, name: str, **kwargs) -> Union[ContinuousValue, DecomposedContinuousValue]:
         """Create ContinuousValue."""
         continuous_kwargs = dict(self.continuous_kwargs)
         continuous_kwargs.update(kwargs)
-        return ContinuousValue(name=name, **continuous_kwargs)
+        if self.decompose_continuous_values:
+            return DecomposedContinuousValue(name=name, identifier=self.identifier_label, **continuous_kwargs)
+        else:
+            return ContinuousValue(name=name, **continuous_kwargs)
 
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""

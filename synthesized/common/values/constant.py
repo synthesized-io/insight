@@ -16,7 +16,7 @@ class ConstantValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        unique_values = df[self.name].unique()
+        unique_values = df.loc[:, self.name].unique()
         assert len(unique_values) == 1
         self.constant_value = unique_values[0]
 
@@ -26,7 +26,7 @@ class ConstantValue(Value):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
-        df[self.name] = self.constant_value
+        df.loc[:, self.name] = self.constant_value
         return df
 
     def learned_input_size(self) -> int:
