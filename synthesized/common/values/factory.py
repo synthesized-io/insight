@@ -171,7 +171,7 @@ class ValueFactory(tf.Module):
 
         # Automatic extraction of specification parameters
         df = df.copy()
-        for value in self.a:
+        for value in self.all_values:
             value.extract(df=df)
 
         # Identify deterministic rules
