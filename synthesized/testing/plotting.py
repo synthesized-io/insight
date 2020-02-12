@@ -165,13 +165,14 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
-    loss_history: List[dict] = list()
 
     def callback(synth, iteration, losses):
-        if len(loss_history) == 0:
-            loss_history.append(losses)
-        else:
-            loss_history.append({local_name: losses[local_name] for local_name in loss_history[0]})
+        if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
+            if len(synth.loss_history) == 0:
+                synth.loss_history.append({n: l.numpy() for n, l in losses.items()})
+            else:
+                synth.loss_history.append({local_name: losses[local_name].numpy()
+                                           for local_name in synth.loss_history[0]})
         return False
 
     evaluation.record_config(evaluation=name, config=config)
@@ -215,7 +216,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
         if plot_losses:
             display(Markdown("## Show loss history"))
-            pd.DataFrame.from_records(loss_history).plot(figsize=(15, 7))
+            pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
             plt.show()
         if plot_distances:
             display(Markdown("## Show average distances"))
@@ -224,35 +225,27 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if show_distribution_distances:
             display(Markdown("## Show distribution distances"))
             testing.show_distribution_distances()
-            plt.show()
         if show_distributions:
             display(Markdown("## Show distributions"))
             testing.show_distributions(remove_outliers=0.01)
-            plt.show()
         if show_correlation_distances:
             display(Markdown("## Show correlation distances"))
             testing.show_corr_distances()
-            plt.show()
         if show_correlation_matrix:
             display(Markdown("## Show correlation matrices"))
             testing.show_corr_matrices()
-            plt.show()
         if show_emd_distances:
             display(Markdown("## Show EMD distances"))
             testing.show_emd_distances()
-            plt.show()
         if show_pw_mi_distances:
             display(Markdown("## Show Pairwise Mutual Information distances"))
             testing.show_mutual_information()
-            plt.show()
         if show_anova:
             display(Markdown("## Show ANOVA"))
             testing.show_anova()
-            plt.show()
         if show_cat_rsquared:
             display(Markdown("## Show categorical R^2"))
             testing.show_categorical_rsquared()
-            plt.show()
         return testing
 
 

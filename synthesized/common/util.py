@@ -1,16 +1,32 @@
 import simplejson
 import re
+from collections import namedtuple
 
 import tensorflow as tf
 from tensorflow.python.client import timeline
-from collections import namedtuple
+from tensorflow.python.eager import context
 import numpy as np
 from pyemd import emd
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
-RE_END = re.compile(r"[^A-Za-z0-9_.\-/]")
+RE_END = re.compile(r"[^A-Za-z0-9.]")
 
 ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
+
+
+def record_summaries_every_n_global_steps(n: int, global_step: tf.Variable):
+    """Sets the should_record_summaries Tensor to true if global_step % n == 0."""
+    with tf.device("cpu:0"):
+        if n != 0:
+            def should():
+                return tf.math.equal(global_step % tf.constant(n, dtype=tf.int64), 0)
+
+            if not context.executing_eagerly():
+                should = should()
+        else:
+            should = tf.constant(False, dtype=tf.bool)
+
+    return tf.summary.record_if(should)
 
 
 class Profiler:
@@ -28,8 +44,8 @@ class Profiler:
 
     @staticmethod
     def get_options_and_metadata():
-        options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
+        options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+        run_metadata = tf.compat.v1.RunMetadata()
         return options, run_metadata
 
     def read_trace(self, run_metadata):
@@ -46,21 +62,21 @@ class Profiler:
 
 def get_initializer(initializer):
     if initializer == 'normal':
-        return tf.random_normal_initializer(mean=0.0, stddev=1e-2)
+        return tf.initializers.RandomNormal(mean=0.0, stddev=1e-2)
     elif initializer == 'normal-small':
-        return tf.random_normal_initializer(mean=0.0, stddev=1e-3)
+        return tf.initializers.RandomNormal(mean=0.0, stddev=1e-3)
     elif initializer == 'normal-large':
-        return tf.random_normal_initializer(mean=0.0, stddev=1.0)
+        return tf.initializers.RandomNormal(mean=0.0, stddev=1.0)
     elif initializer == 'glorot-normal':
-        return tf.glorot_normal_initializer()
+        return tf.initializers.glorot_normal()
     elif initializer == 'orthogonal':
-        return tf.orthogonal_initializer(gain=1.0)
+        return tf.initializers.orthogonal(gain=1.0)
     elif initializer == 'orthogonal-small':
-        return tf.orthogonal_initializer(gain=1e-2)
+        return tf.initializers.orthogonal(gain=1e-2)
     elif initializer == 'ones':
-        return tf.ones_initializer()
+        return tf.initializers.ones()
     elif initializer == 'zeros':
-        return tf.zeros_initializer()
+        return tf.initializers.zeros()
 
     else:
         raise NotImplementedError
@@ -71,7 +87,7 @@ def get_regularizer(regularizer, weight):
     if regularizer == 'none' or weight == 0.0:
         return tf.compat.v1.no_regularizer
     elif regularizer == 'l2':
-        return tf.contrib.layers.l2_regularizer(scale=weight, scope=None)
+        return tf.keras.regularizers.l2(0.5 * (weight))
     else:
         raise NotImplementedError
 

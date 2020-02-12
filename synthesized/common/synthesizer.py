@@ -7,7 +7,6 @@ from typing import Callable, Union, List, Optional
 import pandas as pd
 import tensorflow as tf
 
-from .module import Module
 from .values import Value
 
 
@@ -50,14 +49,34 @@ if not _check_license():
     raise Exception('Failed to load license key')
 
 
-class Synthesizer(Module):
+class Synthesizer(tf.Module):
+    def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
+        super(Synthesizer, self).__init__(name=name)
+
+        self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
+        tf.summary.experimental.set_step(self.global_step)
+
+        self.logdir = None
+        self.loss_history: List[dict] = list()
+        self.writer: Optional[tf.summary.SummaryWriter] = None
+
+        # Set up logging.
+        if summarizer_dir is not None:
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            if summarizer_name is not None:
+                self.logdir = f"{summarizer_dir}/{summarizer_name}_{stamp}"
+            else:
+                self.logdir = f"{summarizer_dir}/{stamp}"
+
+            self.writer = tf.summary.create_file_writer(self.logdir)
+
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
     def get_conditions(self) -> List[Value]:
         raise NotImplementedError()
 
-    def get_losses(self) -> tf.Tensor:
+    def get_losses(self, data) -> tf.Tensor:
         raise NotImplementedError()
 
     def preprocess(self, df):
@@ -102,3 +121,12 @@ class Synthesizer(Module):
 
         """
         raise NotImplementedError
+
+    def __enter__(self):
+        if self.writer is not None:
+            self.writer.set_as_default()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if self.writer is not None:
+            self.writer.close()

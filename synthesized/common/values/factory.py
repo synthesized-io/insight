@@ -1,9 +1,11 @@
 """Utilities that help you create Value objects."""
-
+import enum
 from math import log, sqrt
-from typing import Dict, Any, Optional, cast
+from typing import Dict, Any, Optional, Union, Iterable, List, Set
 
+import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from .address import AddressValue
 from .categorical import CategoricalValue
@@ -12,127 +14,354 @@ from .continuous import ContinuousValue
 from .date import DateValue
 from .enumeration import EnumerationValue
 from .identifier import IdentifierValue
+from .identify_rules import identify_rules
 from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
 from .bank_number import BankNumberValue
 from .constant import ConstantValue
-from .value import Module
 from .value import Value
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
-class ValueFactory(Module):
+class TypeOverride(enum.Enum):
+    ID = 'ID'
+    DATE = 'DATE'
+    CATEGORICAL = 'CATEGORICAL'
+    CONTINUOUS = 'CONTINUOUS'
+    ENUMERATION = 'ENUMERATION'
+
+
+class ValueFactory(tf.Module):
     """A Mix-In that you extend to be able to create various values."""
 
-    def __init__(self):
-        """Init ValueFactory."""
-        # type hack to allow dynamic access to properties
-        self.module = cast(Any, self)
+    def __init__(
+        self, df: pd.DataFrame, capacity: int = 128, continuous_weight: float = 1.0,
+        categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, nan_weight: float = 1.0,
+        name: str = 'value_factory',
+        type_overrides: Dict[str, TypeOverride] = None,
+        produce_nans_for: Union[bool, Iterable[str], None] = None,
+        column_aliases: Dict[str, str] = None, condition_columns: List[str] = None,
+        find_rules: Union[str, List[str]] = None,
+        # Person
+        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
+        lastname_label: str = None, email_label: str = None,
+        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        # Bank
+        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
+        # Address
+        postcode_label: str = None, county_label: str = None, city_label: str = None,
+        district_label: str = None,
+        street_label: str = None, house_number_label: str = None, flat_label: str = None,
+        house_name_label: str = None,
+        address_label: str = None, postcode_regex: str = None,
+        # Identifier
+        identifier_label: str = None,
+    ):
 
+        super(ValueFactory, self).__init__(name=name)
+        """Init ValueFactory."""
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
         nan_kwargs: Dict[str, Any] = dict()
-        categorical_kwargs['capacity'] = self.module.capacity
-        nan_kwargs['capacity'] = self.module.capacity
-        categorical_kwargs['weight_decay'] = self.module.weight_decay
-        nan_kwargs['weight_decay'] = self.module.weight_decay
-        categorical_kwargs['weight'] = self.module.categorical_weight
-        nan_kwargs['weight'] = self.module.nan_weight
-        continuous_kwargs['weight'] = self.module.continuous_weight
-        categorical_kwargs['temperature'] = self.module.temperature
-        categorical_kwargs['moving_average'] = self.module.moving_average
+        categorical_kwargs['capacity'] = capacity
+        nan_kwargs['capacity'] = capacity
+        categorical_kwargs['weight'] = categorical_weight
+        nan_kwargs['weight'] = nan_weight
+        continuous_kwargs['weight'] = continuous_weight
+        categorical_kwargs['temperature'] = temperature
+        categorical_kwargs['moving_average'] = moving_average
 
         self.categorical_kwargs = categorical_kwargs
         self.continuous_kwargs = continuous_kwargs
         self.nan_kwargs = nan_kwargs
 
+        if find_rules is None:
+            self.find_rules: Union[str, List[str]] = []
+        else:
+            self.find_rules = find_rules
+
+        # Values
+        self.columns = list(df.columns)
+        self.values: List[Value] = list()
+        self.conditions: List[Value] = list()
+
+        self.capacity = capacity
+
+        # Person
+        self.person_value: Optional[Value] = None
+        self.bank_value: Optional[Value] = None
+        self.title_label = title_label
+        self.gender_label = gender_label
+        self.name_label = name_label
+        self.firstname_label = firstname_label
+        self.lastname_label = lastname_label
+        self.email_label = email_label
+        self.mobile_number_label = mobile_number_label
+        self.home_number_label = home_number_label
+        self.work_number_label = work_number_label
+        self.bic_label = bic_label
+        self.sort_code_label = sort_code_label
+        self.account_label = account_label
+        # Address
+        self.address_value: Optional[Value] = None
+        self.postcode_label = postcode_label
+        self.county_label = county_label
+        self.city_label = city_label
+        self.district_label = district_label
+        self.street_label = street_label
+        self.house_number_label = house_number_label
+        self.flat_label = flat_label
+        self.house_name_label = house_name_label
+        self.address_label = address_label
+        self.postcode_regex = postcode_regex
+        # Identifier
+        self.identifier_value: Optional[Value] = None
+        self.identifier_label = identifier_label
+        # Date
+        self.date_value: Optional[Value] = None
+
+        if type_overrides is None:
+            self.type_overrides: Dict[str, TypeOverride] = dict()
+        else:
+            self.type_overrides = type_overrides
+
+        if isinstance(produce_nans_for, Iterable):
+            self.produce_nans_for: Set[str] = set(produce_nans_for)
+        elif produce_nans_for:
+            self.produce_nans_for = set(df.columns)
+        else:
+            self.produce_nans_for = set()
+
+        if column_aliases is None:
+            self.column_aliases: Dict[str, str] = {}
+        else:
+            self.column_aliases = column_aliases
+
+        if condition_columns is None:
+            self.condition_columns: List[str] = []
+        else:
+            self.condition_columns = condition_columns
+
+        for name in df.columns:
+            # we are skipping aliases
+            if name in self.column_aliases:
+                continue
+            if name in self.type_overrides:
+                value = self._apply_type_overrides(df, name)
+            else:
+                identified_value = self.identify_value(col=df[name], name=name)
+                # None means the value has already been detected:
+                if identified_value is None:
+                    continue
+                value = identified_value
+            if name in self.condition_columns:
+                self.conditions.append(value)
+            else:
+                self.values.append(value)
+
+        # Automatic extraction of specification parameters
+        df = df.copy()
+        for value in (self.values + self.conditions):
+            value.extract(df=df)
+
+        # Identify deterministic rules
+        #  import ipdb; ipdb.set_trace()
+        self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
+
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Returns a preprocessed copy of the input DataFrame"""
+        df_copy = df.copy()
+        for value in (self.values + self.conditions):
+            df_copy = value.preprocess(df=df_copy)
+
+        return df_copy
+
+    def postprocess(self,  df: pd.DataFrame) -> pd.DataFrame:
+        """Post-processes the input DataFrame"""
+        for value in (self.values + self.conditions):
+            df = value.postprocess(df=df)
+
+        # aliases:
+        for alias, col in self.column_aliases.items():
+            df[alias] = df[col]
+
+        assert len(df.columns) == len(self.columns)
+        df = df[self.columns]
+
+        return df
+
+    def preprocess_conditions(self, conditions: Union[pd.DataFrame, None]) -> Union[pd.DataFrame, None]:
+        """Returns a preprocessed copy of the input conditions dataframe"""
+        if conditions is not None:
+            if isinstance(conditions, dict):
+                df_conditions = pd.DataFrame.from_dict(
+                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
+                )
+            else:
+                df_conditions = conditions.copy()
+
+            for value in self.conditions:
+                df_conditions = value.preprocess(df=df_conditions)
+        else:
+            df_conditions = None
+
+        return df_conditions
+
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
+        data = {
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in (self.values + self.conditions)
+            for name in value.learned_input_columns()
+        }
+        return data
+
+    def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
+        data = {
+            name: df[name].to_numpy() for value in (self.conditions)
+            for name in value.learned_input_columns()
+        }
+        return data
+
+    def get_conditions_feed_dict(self, df_conditions, num_rows):
+        feed_dict = dict()
+
+        if (num_rows % 1024) != 0:
+            for value in self.conditions:
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (num_rows % 1024,))
+                    elif condition.shape == (num_rows,):
+                        feed_dict[name] = condition[-num_rows % 1024:]
+                    else:
+                        raise NotImplementedError
+        else:
+            for value in self.conditions:
+                for name in value.learned_input_columns():
+                    condition = df_conditions[name].values
+                    if condition.shape == (1,):
+                        feed_dict[name] = np.tile(condition, (1024,))
+
+        return feed_dict
+
+    def get_values(self) -> List[Value]:
+        return self.values
+
+    def get_conditions(self) -> List[Value]:
+        return self.conditions
+
+    def get_column_names(self) -> List[str]:
+        columns = [
+            name for value in (self.values + self.conditions)
+            for name in value.learned_output_columns()
+        ]
+        return columns
+
+    def _apply_type_overrides(self, df, name) -> Value:
+        assert name in self.type_overrides
+        forced_type = self.type_overrides[name]
+        if forced_type == TypeOverride.ID:
+            value: Value = self.create_identifier(name)
+            self.identifier_value = value
+        elif forced_type == TypeOverride.CATEGORICAL:
+            value = self.create_categorical(name)
+        elif forced_type == TypeOverride.CONTINUOUS:
+            value = self.create_continuous(name)
+        elif forced_type == TypeOverride.DATE:
+            value = self.create_date(name)
+        elif forced_type == TypeOverride.ENUMERATION:
+            value = self.create_enumeration(name)
+        else:
+            assert False
+        is_nan = df[name].isna().any()
+        if is_nan and isinstance(value, ContinuousValue):
+            value = self.create_nan(name, value)
+        return value
+
     def create_identifier(self, name: str) -> IdentifierValue:
         """Create IdentifierValue."""
-        return self.add_module(
-            module='identifier', name=name, capacity=self.module.capacity
-        )
+        return IdentifierValue(name=name, capacity=self.capacity)
 
     def create_categorical(self, name: str, **kwargs) -> CategoricalValue:
         """Create CategoricalValue."""
         categorical_kwargs = dict(self.categorical_kwargs)
-        categorical_kwargs['produce_nans'] = True if name in self.module.produce_nans_for else False
+        categorical_kwargs['produce_nans'] = True if name in self.produce_nans_for else False
         categorical_kwargs.update(kwargs)
-        return self.add_module(module='categorical', name=name, **categorical_kwargs)
+        return CategoricalValue(name=name, **categorical_kwargs)
 
     def create_continuous(self, name: str, **kwargs) -> ContinuousValue:
         """Create ContinuousValue."""
         continuous_kwargs = dict(self.continuous_kwargs)
         continuous_kwargs.update(kwargs)
-        return self.add_module(module='continuous', name=name, **continuous_kwargs)
+        return ContinuousValue(name=name, **continuous_kwargs)
 
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""
-        return self.add_module(
-            module='date', name=name, categorical_kwargs=self.categorical_kwargs,
+        return DateValue(
+            name=name, categorical_kwargs=self.categorical_kwargs,
             **self.continuous_kwargs
         )
 
     def create_nan(self, name: str, value: Value) -> NanValue:
         """Create NanValue."""
         nan_kwargs = dict(self.nan_kwargs)
-        nan_kwargs['produce_nans'] = True if name in self.module.produce_nans_for else False
-        return self.add_module(module='nan', name=name, value=value, **nan_kwargs)
+        nan_kwargs['produce_nans'] = True if name in self.produce_nans_for else False
+        return NanValue(name=name, value=value, **nan_kwargs)
 
     def create_person(self) -> PersonValue:
         """Create PersonValue."""
-        return self.add_module(
-            module='person', name='person', title_label=self.module.title_label,
-            gender_label=self.module.gender_label,
-            name_label=self.module.name_label, firstname_label=self.module.firstname_label,
-            lastname_label=self.module.lastname_label, email_label=self.module.email_label,
-            mobile_number_label=self.module.mobile_number_label,
-            home_number_label=self.module.home_number_label,
-            work_number_label=self.module.work_number_label,
+        return PersonValue(
+            name='person', title_label=self.title_label,
+            gender_label=self.gender_label,
+            name_label=self.name_label, firstname_label=self.firstname_label,
+            lastname_label=self.lastname_label, email_label=self.email_label,
+            mobile_number_label=self.mobile_number_label,
+            home_number_label=self.home_number_label,
+            work_number_label=self.work_number_label,
             categorical_kwargs=self.categorical_kwargs
         )
 
     def create_bank(self) -> BankNumberValue:
         """Create BankNumberValue."""
-        return self.module.add_module(
-            module='bank', name='bank',
-            bic_label=self.module.bic_label,
-            sort_code_label=self.module.sort_code_label,
-            account_label=self.module.account_label
+        return BankNumberValue(
+            name='bank',
+            bic_label=self.bic_label,
+            sort_code_label=self.sort_code_label,
+            account_label=self.account_label
         )
 
     def create_compound_address(self) -> CompoundAddressValue:
         """Create CompoundAddressValue."""
-        return self.add_module(
-            module='compound_address', name='address', postcode_level=1,
-            address_label=self.module.address_label, postcode_regex=self.module.postcode_regex,
-            capacity=self.module.capacity, weight_decay=self.module.weight_decay
+        return CompoundAddressValue(
+            name='address', postcode_level=1,
+            address_label=self.address_label, postcode_regex=self.postcode_regex,
+            capacity=self.capacity
         )
 
     def create_address(self) -> AddressValue:
         """Create AddressValue."""
-        return self.add_module(
-            module='address', name='address', postcode_level=0,
-            postcode_label=self.module.postcode_label, county_label=self.module.county_label,
-            city_label=self.module.city_label, district_label=self.module.district_label,
-            street_label=self.module.street_label, house_number_label=self.module.house_number_label,
-            flat_label=self.module.flat_label, house_name_label=self.module.house_name_label,
+        return AddressValue(
+            name='address', postcode_level=0,
+            postcode_label=self.postcode_label, county_label=self.county_label,
+            city_label=self.city_label, district_label=self.district_label,
+            street_label=self.street_label, house_number_label=self.house_number_label,
+            flat_label=self.flat_label, house_name_label=self.house_name_label,
             categorical_kwargs=self.categorical_kwargs
         )
 
     def create_enumeration(self, name: str) -> EnumerationValue:
         """Create EnumerationValue."""
-        return self.add_module(module='enumeration', name=name)
+        return EnumerationValue(name=name)
 
     def create_sampling(self, name: str) -> SamplingValue:
         """Create SamplingValue."""
-        return self.module.add_module(module='sampling', name=name)
+        return SamplingValue(name=name)
 
     def create_constant(self, name: str) -> ConstantValue:
         """Create ConstantValue."""
-        return self.module.add_module(module='constant', name=name)
+        return ConstantValue(name=name)
 
     def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
         """Autodetect the type of a column and assign a name.
@@ -149,59 +378,44 @@ class ValueFactory(Module):
         # ========== Pre-configured values ==========
 
         # Person value
-        if name == getattr(self.module, 'title_label', None) or \
-                name == getattr(self.module, 'gender_label', None) or \
-                name == getattr(self.module, 'name_label', None) or \
-                name == getattr(self.module, 'firstname_label', None) or \
-                name == getattr(self.module, 'lastname_label', None) or \
-                name == getattr(self.module, 'email_label', None) or \
-                name == getattr(self.module, 'mobile_number_label', None) or \
-                name == getattr(self.module, 'home_number_label', None) or \
-                name == getattr(self.module, 'work_number_label', None):
-            if self.module.person_value is None:
+        if name in [self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
+                    self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label]:
+            if self.person_value is None:
                 value = self.create_person()
-                self.module.person_value = value
+                self.person_value = value
             else:
                 return None
 
         # Bank value
-        elif name == getattr(self.module, 'bic_label', None) or \
-                name == getattr(self.module, 'sort_code_label', None) or \
-                name == getattr(self.module, 'account_label', None):
-            if self.module.bank_value is None:
+        elif name in [self.bic_label, self.sort_code_label, self.account_label]:
+            if self.bank_value is None:
                 value = self.create_bank()
-                self.module.bank_value = value
+                self.bank_value = value
             else:
                 return None
 
         # Address value
-        elif name == getattr(self.module, 'postcode_label', None) or \
-                name == getattr(self.module, 'county_label', None) or \
-                name == getattr(self.module, 'city_label', None) or \
-                name == getattr(self.module, 'district_label', None) or \
-                name == getattr(self.module, 'street_label', None) or \
-                name == getattr(self.module, 'house_number_label', None) or \
-                name == getattr(self.module, 'flat_label', None) or \
-                name == getattr(self.module, 'house_name_label', None):
-            if self.module.address_value is None:
+        elif name in [self.postcode_label, self.county_label, self.city_label, self.district_label, self.street_label,
+                      self.house_number_label, self.flat_label, self.house_name_label]:
+            if self.address_value is None:
                 value = self.create_address()
-                self.module.address_value = value
+                self.address_value = value
             else:
                 return None
 
         # Compound address value
-        elif name == getattr(self.module, 'address_label', None):
-            if self.module.address_value is None:
+        elif name == self.address_label:
+            if self.address_value is None:
                 value = self.create_compound_address()
-                self.module.address_value = value
+                self.address_value = value
             else:
                 return None
 
         # Identifier value
-        elif name == getattr(self.module, 'identifier_label', None):
-            if self.module.identifier_value is None:
+        elif name == self.identifier_label:
+            if self.identifier_value is None:
                 value = self.create_identifier(name)
-                self.module.identifier_value = value
+                self.identifier_value = value
             else:
                 return None
 

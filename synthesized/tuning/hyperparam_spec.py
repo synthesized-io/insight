@@ -97,7 +97,8 @@ class HyperparamSpec(object):
                     hyperparams[spec['name']] = parameter
                     yield hyperparams
 
-        yield from recursive_grid(specification=list(self.specification))
+        for grid in recursive_grid(specification=list(self.specification)):
+            yield grid
 
     def parse(self, hyperparams):
         # hyperparams = np.asarray(hyperparams)

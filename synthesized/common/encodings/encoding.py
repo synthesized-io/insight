@@ -1,16 +1,18 @@
-from ..module import Module, tensorflow_name_scoped
+import tensorflow as tf
+from ..module import tensorflow_name_scoped
+from ..transformations import Transformation
 
 
-class Encoding(Module):
+class Encoding(Transformation):
 
     def __init__(self, name, input_size, encoding_size, condition_size=0):
-        super().__init__(name=name)
+        super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
         self.input_size = input_size
         self.encoding_size = encoding_size
         self.condition_size = condition_size
 
     def specification(self):
-        spec = super().specification()
+        spec = dict()
         spec.update(
             input_size=self.input_size, encoding_size=self.encoding_size,
             condition_size=self.condition_size
@@ -21,7 +23,7 @@ class Encoding(Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def encode(self, x, condition=(), encoding_plus_loss=False):
+    def call(self, x, condition=()):
         raise NotImplementedError
 
     @tensorflow_name_scoped

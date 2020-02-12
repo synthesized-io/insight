@@ -23,8 +23,8 @@ class CompoundAddressValue(Value):
         self.postcode_regex = postcode_regex
 
         self.postcodes = None
-        self.postcode = self.add_module(
-            module=CategoricalValue, name=address_label, categories=self.postcodes,
+        self.postcode = CategoricalValue(
+            name=address_label, categories=self.postcodes,
             capacity=capacity
         )
         self.faker = Faker(locale='en_GB')
@@ -116,10 +116,6 @@ class CompoundAddressValue(Value):
 
         df[self.address_label] = postcode.apply(expand_address)
         return df
-
-    @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        return self.postcode.input_tensors()
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
