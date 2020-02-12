@@ -103,7 +103,7 @@ class VAEOld(Generative):
         x = self.linear_input(x)
         x = self.encoder(x)
         z = self.encoding(x)
-        x = self.add_conditions(z, conditions=self.xs)
+        x = self.value_layer.add_conditions(z, conditions=self.xs)
         x = self.decoder(x)
         y = self.linear_output(x)
         #################################
@@ -181,7 +181,7 @@ class VAEOld(Generative):
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
-        x = self.add_conditions(x=latent_space, conditions=cs)
+        x = self.value_layer.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
         synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
