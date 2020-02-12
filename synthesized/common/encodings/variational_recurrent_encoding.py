@@ -9,6 +9,10 @@ from ..module import tensorflow_name_scoped
 
 
 class VariationalRecurrentEncoding(Encoding):
+    """Encoding for LSTM mode 2
+
+    Original paper: https://arxiv.org/pdf/1412.6581.pdf
+    """
 
     def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.):
         super().__init__(
@@ -79,7 +83,7 @@ class VariationalRecurrentEncoding(Encoding):
 
         kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
         kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
-        # kl_loss *= self.get_beta(beta_end=self.beta, t_start=250, t_end=350)
+        # kl_loss *= self.beta * self.increase_beta_multiplier(t_start=250, t_end=350)
         kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)

@@ -106,8 +106,6 @@ class SeriesSynthesizer(Synthesizer):
             lstm_mode=self.lstm_mode, latent_size=latent_size,
             network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
             batchnorm=batchnorm, activation=activation,
-            # network='mlp', capacity=capacity, num_layers=1, residual_depths=None,
-            # batchnorm=False, activation='linear',
             dropout=dropout, optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
             beta=beta, weight_decay=weight_decay, summarize=(summarizer_dir is not None)
@@ -138,7 +136,7 @@ class SeriesSynthesizer(Synthesizer):
         self.vae.loss()
         return self.vae.losses
 
-    def specification(self):
+    def specification(self) -> dict:
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
@@ -147,7 +145,7 @@ class SeriesSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df):
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.value_factory.preprocess(df)
         return df
 

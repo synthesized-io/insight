@@ -33,16 +33,22 @@ class Encoding(Transformation):
 
     @tf.function
     @tensorflow_name_scoped
-    def get_beta(self, beta_start=0., beta_end=1., t_start=0, t_end=500):
-        assert beta_start <= beta_end and t_start <= t_end
+    def increase_beta_multiplier(self, t_start: tf.Tensor = 0, t_end: tf.Tensor = 500):
+        """Multiply beta by this to obtain a linear increase from zero to beta.
+
+        Example:
+            >>> beta = beta * self.increase_beta_multiplier()
+
+        """
+        assert tf.less(t_start, t_end)
         global_step = tf.cast(self.global_step, dtype=tf.float32)
 
         if global_step <= t_start:
-            beta = beta_start
+            beta = 0.
         elif global_step <= t_end:
-            beta = (beta_end - beta_start) / (t_end - t_start) * (global_step - t_end) + beta_end
+            beta = (global_step - t_start) / (t_end - t_start)
         else:
-            beta = beta_end
+            beta = 1.
 
         tf.summary.scalar(name='beta', data=beta)
         return beta

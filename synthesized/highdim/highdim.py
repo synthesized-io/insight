@@ -187,7 +187,7 @@ class HighDimSynthesizer(Synthesizer):
         self.vae.loss()
         return self.vae.losses
 
-    def specification(self):
+    def specification(self) -> dict:
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
@@ -196,7 +196,7 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df):
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.value_factory.preprocess(df)
         return df
 

@@ -1,5 +1,7 @@
 """Generic metrics for various types/combinations of values."""
 import logging
+from typing import List, Union, Optional, Dict, Any, Tuple
+from itertools import chain
 
 import numpy as np
 import pandas as pd
@@ -7,8 +9,6 @@ import statsmodels.api as sm
 from scipy.stats import ks_2samp, spearmanr, kendalltau
 from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
-from itertools import chain
-from typing import List, Union, Optional, Dict
 from statsmodels.formula.api import mnlogit
 
 from .util import categorical_emd
@@ -206,7 +206,7 @@ def rolling_mse_asof(sd, time_unit=None):
     return mse_function
 
 
-def transition_matrix(transitions, val2idx=None):
+def transition_matrix(transitions: np.array, val2idx: Dict[int, Any] = None) -> Tuple[np.array, Dict[int, Any]]:
     if not val2idx:
         val2idx = {v: i for i, v in enumerate(np.unique(transitions))}
 

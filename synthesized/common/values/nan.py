@@ -71,19 +71,19 @@ class NanValue(Value):
         self.add_regularization_weight(self.embeddings)
 
     def preprocess(self, df):
-        if df[self.value.name].dtype.kind not in self.value.pd_types:
-            df.loc[:, self.value.name] = self.value.pd_cast(df[self.value.name])
+        if df.loc[:, self.value.name].dtype.kind not in self.value.pd_types:
+            df.loc[:, self.value.name] = self.value.pd_cast(df.loc[:, self.value.name])
 
-        nan = df[self.value.name].isna()
+        nan = df.loc[:, self.value.name].isna()
         df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
-        df[self.value.name] = df[self.value.name].astype(np.float32)
+        df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
 
         return super().preprocess(df=df)
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
 
-        nan = df[self.value.name].isna()
+        nan = df.loc[:, self.value.name].isna()
         df.loc[~nan, :] = self.value.postprocess(df=df.loc[~nan, :])
 
         return df
