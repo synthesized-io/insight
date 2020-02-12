@@ -140,4 +140,3 @@ class IdentifierValue(Value):
     #     loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
     #     tf.summary.scalar(name=self.name, data=loss)
     #     return loss
-

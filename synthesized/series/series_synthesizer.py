@@ -164,8 +164,6 @@ class SeriesSynthesizer(Synthesizer):
 
         groups, num_data = self.value_factory.get_groups_feed_dict(df_train)
 
-        import time
-        t_start = time.perf_counter()
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
@@ -240,10 +238,6 @@ class SeriesSynthesizer(Synthesizer):
 
         df_conditions = self.value_factory.preprocess_conditions(conditions=conditions)
         columns = self.value_factory.get_column_names()
-        if self.value_factory.identifier_value:
-            num_identifiers = self.value_factory.identifier_value.num_identifiers
-        else:
-            num_identifiers = 1
 
         feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None

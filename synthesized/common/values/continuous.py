@@ -1,5 +1,5 @@
 from math import log
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -49,7 +49,7 @@ class ContinuousValue(Value):
         self.use_quantile_transformation = use_quantile_transformation
         self.transformer_n_quantiles = transformer_n_quantiles
         self.transformer_noise = transformer_noise
-        self.transformer: Optional[QuantileTransformer, StandardScaler] = None
+        self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
         self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
@@ -125,7 +125,8 @@ class ContinuousValue(Value):
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
         if self.use_quantile_transformation:
-            self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles, output_distribution='normal')
+            self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles,
+                                                   output_distribution='normal')
         else:
             self.transformer = StandardScaler()
         self.transformer.fit(column.reshape(-1, 1))

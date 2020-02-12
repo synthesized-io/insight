@@ -18,9 +18,7 @@ class DecomposedContinuousValue(Value):
         integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
         use_quantile_transformation: bool = False,
-        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
-        A: float = 0, B: float = 0, C: float = 0
-        # A: float = None, B: float = None, C: float = None
+        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
 
@@ -28,11 +26,6 @@ class DecomposedContinuousValue(Value):
         self.identifier = identifier
         self.low_freq_weight = 2.
         self.high_freq_weight = 1.
-
-        assert (A is None and B is None and C is None) or (A is not None and B is not None and C is not None)
-        self.A = A
-        self.B = B
-        self.C = C
 
         self.weight = weight
         self.integer = integer
@@ -43,7 +36,7 @@ class DecomposedContinuousValue(Value):
         self.transformer_n_quantiles = transformer_n_quantiles
         self.transformer_noise = transformer_noise
 
-        continuous_kwargs = dict()
+        continuous_kwargs: Dict[str, Any] = dict()
         continuous_kwargs['weight'] = weight
         continuous_kwargs['use_quantile_transformation'] = use_quantile_transformation
         continuous_kwargs['transformer_n_quantiles'] = transformer_n_quantiles
@@ -142,9 +135,8 @@ class DecomposedContinuousValue(Value):
 
         y_low = np.array(df[self.low_freq_value.name])
         y_high = np.array(df[self.high_freq_value.name])
-        x = np.array(range(len(df)))
 
-        df[self.name] = self.A * (x ** 2) + self.B * x + self.C + y_low + y_high
+        df[self.name] = y_low + y_high
         df.drop([self.low_freq_value.name, self.high_freq_value.name], axis=1, inplace=True)
 
         if self.nonnegative and not self.positive:
