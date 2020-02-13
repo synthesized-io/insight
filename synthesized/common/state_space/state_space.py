@@ -1,12 +1,13 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import tensorflow as tf
 
 from ..optimizers import Optimizer
 from ..values import ValueFactory
+from ..transformations import Transformation
 
 
-class BaseStateSpaceModel(tf.Module):
+class StateSpaceModel(tf.Module):
     """The base class for state space models
 
     Networks:
@@ -24,9 +25,8 @@ class BaseStateSpaceModel(tf.Module):
         t: time length
 
     """
-    def __init__(self, df, input_size, capacity, latent_size, name='state_space_model'):
-        super(BaseStateSpaceModel, self).__init__(name=name)
-        self.input_size = input_size
+    def __init__(self, df, capacity, latent_size, name='state_space_model'):
+        super(StateSpaceModel, self).__init__(name=name)
         self.capacity = capacity
         self.latent_size = latent_size
         self._trainable_variables = None
@@ -34,6 +34,12 @@ class BaseStateSpaceModel(tf.Module):
         self.value_factory = ValueFactory(df, capacity=capacity)
         self.optimizer = Optimizer(name='optimizer', optimizer='adam', clip_gradients=1.0,
                                    learning_rate=tf.constant(3e-3, dtype=tf.float32))
+
+        self.emission_network: Optional[Transformation] = None
+        self.transition_network: Optional[Transformation] = None
+        self.inference_network: Optional[Transformation] = None
+        self.initial_network: Optional[Transformation] = None
+        self.built = False
 
     def build(self, input_shape):
         pass
@@ -51,7 +57,9 @@ class BaseStateSpaceModel(tf.Module):
             # σ_θt
             μ_θt: [b, t, i]
         """
-        pass
+        mu = self.emission_network(z_t)
+
+        return mu
 
     def transition(self, z_p: tf.Tensor, u_t: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
@@ -67,7 +75,10 @@ class BaseStateSpaceModel(tf.Module):
             σ_γt: [b, t, l]
             μ_γt: [b, t, l]
         """
-        pass
+        inputs = tf.concat([z_p, u_t], axis=-1)
+        mu, sigma = self.transition_network(inputs)
+
+        return mu, sigma
 
     def inference(self, z_p: tf.Tensor, u_t: tf.Tensor, x_t: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
@@ -85,9 +96,12 @@ class BaseStateSpaceModel(tf.Module):
             μ_φt: [b, t, l]
 
         """
-        pass
+        inputs = tf.concat([z_p, u_t, x_t], axis=-1)
+        mu, sigma = self.inference_network(inputs)
 
-    def get_initial_state(self, x_1: tf.Tensor) -> tf.Tensor:
+        return mu, sigma
+
+    def initial(self, x_1: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
         The network z_0 = Κ(x_1)
         defines the initial latent state using the first observed output.
@@ -100,6 +114,20 @@ class BaseStateSpaceModel(tf.Module):
             σ_κ0: [b, 1, l]
             μ_κ0: [b, 1, l]
         """
+        mu, sigma = self.initial_network(x_1)
+
+        return mu, sigma
+
+    def get_initial_state(self, x_1: tf.Tensor) -> tf.Tensor:
+        """
+
+        Args:
+            x_1:
+
+        Returns:
+            z_0: [b, 1, l]
+
+        """
         pass
 
     def sample_initial_state(self) -> tf.Tensor:
@@ -107,6 +135,7 @@ class BaseStateSpaceModel(tf.Module):
 
         Returns:
             z_0: [b, 1, l]
+
         """
         return tf.random.normal(shape=(1, self.latent_size), dtype=tf.float32)
 
@@ -122,7 +151,6 @@ class BaseStateSpaceModel(tf.Module):
             z: [b, t, l]
             σ_φ: [b, t, l]
             μ_φ: [b, t, l]
-
 
         """
         pass
