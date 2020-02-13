@@ -1,5 +1,5 @@
-from typing import Dict, List, Tuple, Union, Optional
 from collections import OrderedDict
+from typing import Dict, List, Tuple, Union, Optional
 
 import tensorflow as tf
 

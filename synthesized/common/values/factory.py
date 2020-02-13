@@ -224,40 +224,6 @@ class ValueFactory(tf.Module):
 
         return df_conditions
 
-    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
-        if self.identifier_label is None:
-            num_data = [len(df)]
-            groups = [{
-                name: df[name].to_numpy() for value in self.all_values
-                for name in value.learned_input_columns()
-            }]
-
-        else:
-            groups = [group[1] for group in df.groupby(by=self.identifier_label)]
-            num_data = [len(group) for group in groups]
-            for n in range(len(groups)):
-                groups[n] = {
-                    name: tf.constant(groups[n][name].to_numpy()) for value in self.all_values
-                    for name in value.learned_input_columns()
-                }
-
-        return groups, num_data
-
-    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None):
-        group = group if group is not None else randrange(len(num_data))
-        data = groups[group]
-
-        if max_seq_len and num_data[group] > max_seq_len:
-            start = randrange(num_data[group] - max_seq_len)
-            batch = tf.range(start, start + max_seq_len)
-        else:
-            batch = tf.range(num_data[group])
-
-        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
-                     for name, value_data in data.items()}
-
-        return feed_dict
-
     def get_values(self) -> List[Value]:
         return self.values
 
