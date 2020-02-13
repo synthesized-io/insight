@@ -60,7 +60,7 @@ class SeriesSynthesizer(Synthesizer):
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
         lstm_mode: int = 1,
-        max_seq_len: int = 8192,
+        max_seq_len: int = 4096,
         condition_labels: List[str] = [],
         # Evaluation conditions
         learning_manager: bool = False

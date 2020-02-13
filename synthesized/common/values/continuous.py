@@ -186,7 +186,7 @@ class ContinuousValue(Value):
             elif self.transformer:
                 df.loc[:, self.name] = self.transformer.inverse_transform(df.loc[:, self.name].values.reshape(-1, 1))
 
-            if self.nonnegative and not self.positive:
+            if self.nonnegative:
                 df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
 
         assert not df.loc[:, self.name].isna().any()

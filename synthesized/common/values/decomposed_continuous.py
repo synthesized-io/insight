@@ -89,28 +89,28 @@ class DecomposedContinuousValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        column = df.loc[:, self.name]
 
-        if column.dtype.kind not in ('f', 'i'):
-            column = self.pd_cast(column)
+        if df.loc[:, self.name].dtype.kind not in ('f', 'i'):
+            df.loc[:, self.name] = self.pd_cast(df.loc[:, self.name])
 
-        self.float = (column.dtype.kind == 'f')
+        self.float = (df.loc[:, self.name].dtype.kind == 'f')
 
         if self.integer is None:
-            self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
-        elif self.integer and column.dtype.kind != 'i':
+            self.integer = (df.loc[:, self.name].dtype.kind == 'i') or \
+                           df.loc[:, self.name].apply(lambda x: x.is_integer()).all()
+        elif self.integer and df.loc[:, self.name].dtype.kind != 'i':
             raise NotImplementedError
 
-        column = column.astype(dtype='float32')
+        df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
 
         if self.positive is None:
-            self.positive = (column > 0.0).all()
-        elif self.positive and (column <= 0.0).all():
+            self.positive = (df.loc[:, self.name] > 0.0).all()
+        elif self.positive and (df.loc[:, self.name] <= 0.0).all():
             raise NotImplementedError
 
         if self.nonnegative is None:
-            self.nonnegative = (column >= 0.0).all()
-        elif self.nonnegative and (column < 0.0).all():
+            self.nonnegative = (df.loc[:, self.name] >= 0.0).all()
+        elif self.nonnegative and (df.loc[:, self.name] < 0.0).all():
             raise NotImplementedError
 
         df = _decompose_df(df, column_name=self.name, identifier=self.identifier)
@@ -119,14 +119,21 @@ class DecomposedContinuousValue(Value):
         self.high_freq_value.extract(df)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+
+        if df.loc[:, self.name].dtype.kind not in ('f', 'i'):
+            df.loc[:, self.name] = self.pd_cast(df.loc[:, self.name])
+
+        assert not df.loc[:, self.name].isna().any()
+        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
+
+        df.loc[:, self.name] = df.loc[:, self.name].astype(np.float32)
+
         df = _decompose_df(df, column_name=self.name, identifier=self.identifier)
 
         self.low_freq_value.preprocess(df)
         self.high_freq_value.preprocess(df)
 
         return df.drop([self.name], axis=1)
-
-        # return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
@@ -139,7 +146,7 @@ class DecomposedContinuousValue(Value):
         df[self.name] = y_low + y_high
         df.drop([self.low_freq_value.name, self.high_freq_value.name], axis=1, inplace=True)
 
-        if self.nonnegative and not self.positive:
+        if self.nonnegative:
             df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
 
         assert not df.loc[:, self.name].isna().any()
@@ -208,8 +215,8 @@ def _decompose_df(df, column_name, identifier=None):
             return d
         df = df.groupby(identifier).apply(decompose_signal_df)
     else:
-        df[column_name + '-low-freq'] = _decompose_signal(df[column_name])
-    df[column_name + '-high-freq'] = df.loc[:, column_name] - df.loc[:, column_name + '-low-freq']
+        df.loc[:, column_name + '-low-freq'] = _decompose_signal(df.loc[:, column_name])
+    df.loc[:, column_name + '-high-freq'] = df.loc[:, column_name] - df.loc[:, column_name + '-low-freq']
     return df
 
 
@@ -219,6 +226,8 @@ def _decompose_signal(y):
     b_n = int(max(np.ceil(len(y) / 100), 2))
     b = [1. / b_n] * b_n
     a = 1
-    y_low = filtfilt(b, a, y)
-
-    return y_low
+    pad_len = 3 * len(b)
+    if len(y) > pad_len:
+        return filtfilt(b, a, y)
+    else:
+        return np.zeros(len(y))

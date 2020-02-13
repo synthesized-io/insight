@@ -209,6 +209,9 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
             print('took', training_time, 's')
 
+    else:
+        raise NotImplementedError("Given 'synthesizer_class={}' not supported.".format(config['synthesizer_class']))
+
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
     print("Metrics:")
     for key, metric in metrics.items():
