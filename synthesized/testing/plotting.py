@@ -14,6 +14,7 @@ from statsmodels.tsa.stattools import acf, pacf
 from IPython.display import Markdown, display
 
 from ..highdim import HighDimSynthesizer
+from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
 from ..testing.evaluation import Evaluation
 from .metrics import calculate_evaluation_metrics
@@ -160,11 +161,14 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                         plot_distances: bool = False, show_distribution_distances: bool = False,
                         show_distributions: bool = False, show_correlation_distances: bool = False,
                         show_correlation_matrix: bool = False, show_emd_distances: bool = False,
-                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False):
+                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False,
+                        show_acf_distances: bool = False,  show_pacf_distances: bool = False,
+                        show_transition_distances: bool = False, show_series: bool = False):
     """
-    Synthesize and plot data from a `HighDimSynthesizer` trained on the dataframe `data`.
+    Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
+    len_eval_data = len(eval_data)
 
     def callback(synth, iteration, losses):
         if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
@@ -177,76 +181,127 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
 
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
-    with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback, callback_freq=100)
-        training_time = time.time() - start
-        synthesized = synthesizer.synthesize(num_rows=len(eval_data))
-        print('took', training_time, 's')
-        evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
-        print("Metrics:")
-        for key, metric in metrics.items():
-            value = metric(orig=data, synth=synthesized)
-            evaluation.record_metric(evaluation=name, key=key, value=value)
-            print(f"{key}: {value}")
-        if plot_basic:
-            if time_series:
-                display(Markdown("## Plot time-series data"))
-                fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
-                fig.tight_layout()
-                original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
-                synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
-                t_orig = np.arange(0, data.shape[0])
-                plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
-                axes[0, 0].set_title("Original")
-                t_synth = np.arange(0, synthesized.shape[0])
-                plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
-                axes[0, 1].set_title("Synthetic")
-                plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
-            elif data.shape[1] <= 3:
-                display(Markdown("## Plot data"))
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
-                ax1.set_title('orig')
-                ax2.set_title('synth')
-                plot_data(data, ax=ax1)
-                plot_data(synthesized, ax=ax2)
-            else:
-                display(Markdown("## Plot data"))
-                fig, ax = plt.subplots(figsize=(15, 5))
-                plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
-        testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
-        if plot_losses:
-            display(Markdown("## Show loss history"))
-            pd.DataFrame.from_records(synthesizer.loss_history).plot(figsize=(15, 7))
-            plt.show()
-        if plot_distances:
-            display(Markdown("## Show average distances"))
-            plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
-            plt.show()
-        if show_distribution_distances:
-            display(Markdown("## Show distribution distances"))
-            testing.show_distribution_distances()
-        if show_distributions:
-            display(Markdown("## Show distributions"))
-            testing.show_distributions(remove_outliers=0.01)
-        if show_correlation_distances:
-            display(Markdown("## Show correlation distances"))
-            testing.show_corr_distances()
-        if show_correlation_matrix:
-            display(Markdown("## Show correlation matrices"))
-            testing.show_corr_matrices()
-        if show_emd_distances:
-            display(Markdown("## Show EMD distances"))
-            testing.show_emd_distances()
-        if show_pw_mi_distances:
-            display(Markdown("## Show Pairwise Mutual Information distances"))
-            testing.show_mutual_information()
-        if show_anova:
-            display(Markdown("## Show ANOVA"))
-            testing.show_anova()
-        if show_cat_rsquared:
-            display(Markdown("## Show categorical R^2"))
-            testing.show_categorical_rsquared()
-        return testing
+    identifier_label = None
+
+    if config['synthesizer_class'] == 'HighDimSynthesizer':
+
+        with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
+            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+                              callback_freq=100)
+            training_time = time.time() - start
+            synthesized = synthesizer.synthesize(num_rows=len_eval_data)
+            print('took', training_time, 's')
+
+    elif config['synthesizer_class'] == 'SeriesSynthesizer':
+
+        if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
+            identifier_label = config['params']['identifier_label']
+            num_series = eval_data[identifier_label].nunique()
+            series_length = int(len_eval_data / num_series)
+        else:
+            num_series = 1
+            series_length = len_eval_data
+
+        with SeriesSynthesizer(df=data, **config['params']) as synthesizer:
+            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+                              callback_freq=100)
+            training_time = time.time() - start
+            synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
+            print('took', training_time, 's')
+
+    evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
+    print("Metrics:")
+    for key, metric in metrics.items():
+        value = metric(orig=data, synth=synthesized)
+        evaluation.record_metric(evaluation=name, key=key, value=value)
+        print(f"{key}: {value}")
+
+    if plot_basic:
+        if time_series:
+            display(Markdown("## Plot time-series data"))
+            fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
+            fig.tight_layout()
+            original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
+            synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
+            t_orig = np.arange(0, data.shape[0])
+            plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
+            axes[0, 0].set_title("Original")
+            t_synth = np.arange(0, synthesized.shape[0])
+            plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
+            axes[0, 1].set_title("Synthetic")
+            plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
+        elif data.shape[1] <= 3:
+            display(Markdown("## Plot data"))
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
+            ax1.set_title('orig')
+            ax2.set_title('synth')
+            plot_data(data, ax=ax1)
+            plot_data(synthesized, ax=ax2)
+        else:
+            display(Markdown("## Plot data"))
+            fig, ax = plt.subplots(figsize=(15, 5))
+            plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
+
+    testing = UtilityTesting(synthesizer, data, eval_data, synthesized, identifier=identifier_label)
+
+    if plot_losses:
+        display(Markdown("## Show loss history"))
+        df_losses = pd.DataFrame.from_records(synthesizer.loss_history)
+        if len(df_losses) > 0:
+            df_losses.plot(figsize=(15, 7))
+        plt.show()
+    if plot_distances:
+        display(Markdown("## Show average distances"))
+        plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
+        plt.show()
+
+    if show_distribution_distances:
+        display(Markdown("## Show distribution distances"))
+        testing.show_distribution_distances()
+    if show_distributions:
+        display(Markdown("## Show distributions"))
+        testing.show_distributions(remove_outliers=0.01)
+    if show_correlation_distances:
+        display(Markdown("## Show correlation distances"))
+        testing.show_corr_distances()
+    if show_correlation_matrix:
+        display(Markdown("## Show correlation matrices"))
+        testing.show_corr_matrices()
+    if show_emd_distances:
+        display(Markdown("## Show EMD distances"))
+        testing.show_emd_distances()
+    if show_pw_mi_distances:
+        display(Markdown("## Show Pairwise Mutual Information distances"))
+        testing.show_mutual_information()
+    if show_anova:
+        display(Markdown("## Show ANOVA"))
+        testing.show_anova()
+    if show_cat_rsquared:
+        display(Markdown("## Show categorical R^2"))
+        testing.show_categorical_rsquared()
+
+    # TIME SERIES
+    if show_acf_distances:
+        display(Markdown("## Show Auto-correaltion Distances"))
+        acf_dist_max, acf_dist_avg = testing.show_autocorrelation_distances()
+        evaluation.record_metric(evaluation=name, key='acf_dist_max', value=acf_dist_max)
+        evaluation.record_metric(evaluation=name, key='acf_dist_avg', value=acf_dist_avg)
+        plt.show()
+    if show_pacf_distances:
+        display(Markdown("## Show Partial Auto-correlation Distances"))
+        testing.show_partial_autocorrelation_distances()
+        plt.show()
+    if show_transition_distances:
+        display(Markdown("## Show Transition Distances"))
+        trans_dist_max, trans_dist_avg = testing.show_transition_distances()
+        evaluation.record_metric(evaluation=name, key='trans_dist_max', value=trans_dist_max)
+        evaluation.record_metric(evaluation=name, key='trans_dist_avg', value=trans_dist_avg)
+        plt.show()
+    if show_series:
+        display(Markdown("## Show Series Sample"))
+        testing.show_series()
+        plt.show()
+    return testing
 
 
 # -- Measures of association for different pairs of data types

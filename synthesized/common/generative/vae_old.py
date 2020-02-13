@@ -1,12 +1,13 @@
+from collections import OrderedDict
 from typing import Dict, List, Tuple, Union, Optional
 
 import tensorflow as tf
 
 from .generative import Generative
-from ..values import Value, ContinuousValue, CategoricalValue
+from ..values import Value, ValueOps
 from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import DenseTransformation
-from ..encodings import VariationalEncoding, FeedForwardDSSMEncoding
+from ..encodings import VariationalEncoding
 from ..optimizers import Optimizer
 
 
@@ -25,17 +26,16 @@ class VAEOld(Generative):
         self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
         distribution: str, latent_size: int,
+        # Encoder and decoder network
+        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
+        activation: str,
         # Optimizer
         optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
-        initial_boost: int, clip_gradients: Optional[float],
+        initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
         weight_decay: float,
-        # Encoder and decoder network
-        network: str, capacity: int, num_layers: int = None, residual_depths: Union[int, List[int]] = None,
-        batchnorm: bool = None,
-        activation: str = None, lstm_size: int = None,
         summarize: bool = False, summarize_gradient_norms: bool = False
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
@@ -45,57 +45,37 @@ class VAEOld(Generative):
         self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
-        self.built = False
 
-        # Total input and output size of all values
-        input_size = 0
-        output_size = 0
-        for value in self.values:
-            input_size += value.learned_input_size()
-            output_size += value.learned_output_size()
-
-        self.input_size = input_size
-        self.capacity = capacity
-
-        # Total condition size
-        condition_size = 0
-        for value in self.conditions:
-            assert value.learned_input_size() > 0
-            assert value.learned_input_columns() == value.learned_output_columns()
-            condition_size += value.learned_input_size()
+        self.value_ops = ValueOps(values=values, conditions=conditions)
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
-        # kwargs = dict(
-        #     name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
-        #     layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-        #     output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm,
-        #     lstm_size=lstm_size
-        # )
-        # for k in list(kwargs.keys()):
-        #     if kwargs[k] is None:
-        #         del kwargs[k]
-        # self.encoder = module_registry[network](**kwargs)
+        kwargs = dict(
+            name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
+            layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
+            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+        )
+        for k in list(kwargs.keys()):
+            if kwargs[k] is None:
+                del kwargs[k]
+        self.encoder = module_registry[network](**kwargs)
 
-        # self.encoding = VariationalEncoding(
-        #     name='encoding',
-        #     input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
-        # )
-        self.encoding = FeedForwardDSSMEncoding(
-            name='encoding', input_size=self.capacity, lstm_size=8, encoding_size=latent_size, beta=beta
+        self.encoding = VariationalEncoding(
+            name='encoding',
+            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
         )
 
         self.modulation = None
 
-        # kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + condition_size)
-        # self.decoder = module_registry[network](**kwargs)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_ops.condition_size)
+        self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.latent_size, output_size=output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -112,49 +92,45 @@ class VAEOld(Generative):
         )
         return spec
 
-    def build(self):
-        if not self.built:
-            self.linear_input.build(self.input_size)
-            # self.encoder.build(self.capacity)
-            self.encoding.build(self.capacity)
-            # self.decoder.build(self.latent_size)
-            self.linear_output.build(self.capacity)
-            self.built = True
-
     def loss(self):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(self.xs)
 
         #################################
         x = self.linear_input(x)
-        # x = self.encoder(x)
+        x = self.encoder(x)
         z = self.encoding(x)
-        x = self.add_conditions(z, conditions=self.xs)
-        # x = self.decoder(x)
+        x = self.value_ops.add_conditions(z, conditions=self.xs)
+        x = self.decoder(x)
         y = self.linear_output(x)
         #################################
 
         # Losses
-        self.losses = self.value_losses(y=y, inputs=self.xs)
+        self.losses: Dict[str, tf.Tensor] = OrderedDict()
+
+        reconstruction_loss = tf.identity(
+            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
-        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'
         )
 
         total_loss = tf.add_n(
-            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
+            inputs=[reconstruction_loss, kl_loss, regularization_loss], name='total_loss'
         )
+        self.losses['reconstruction-loss'] = reconstruction_loss
         self.losses['regularization-loss'] = regularization_loss
         self.losses['kl-loss'] = kl_loss
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
         tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 
@@ -196,7 +172,7 @@ class VAEOld(Generative):
             return tf.no_op(), dict()
 
         #################################
-        x = self.unified_inputs(xs)
+        x = self.value_ops.unified_inputs(xs)
         x = self.linear_input(x)
         x = self.encoder(x)
 
@@ -204,10 +180,10 @@ class VAEOld(Generative):
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
-        x = self.add_conditions(x=latent_space, conditions=cs)
+        x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
-        synthesized = self.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
         #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
@@ -222,9 +198,10 @@ class VAEOld(Generative):
 
         Returns:
             Output tensor per column.
+
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
@@ -241,7 +218,7 @@ class VAEOld(Generative):
 
         """
         x = self.encoding.sample(n=n)
-        x = self.add_conditions(x=x, conditions=cs)
+        x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 
@@ -251,6 +228,6 @@ class VAEOld(Generative):
     def regularization_losses(self):
         return [
             loss
-            for module in [self.linear_input, self.encoding, self.linear_output]+self.values
+            for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
             for loss in module.regularization_losses
         ]

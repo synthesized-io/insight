@@ -1,0 +1,135 @@
+{
+  "source": "evaluation/dataset_evaluation_timeseries.ipynb",
+  "instances": {
+    "standard_and_poors500_lstm1": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_lstm2": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": 2
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_highdim": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 5000,
+      "num_passes": 1,
+      "params": {
+      },
+      "target": null,
+      "synthesizer_class": "HighdimSynthesizer"
+    },
+    "air-quality": {
+      "data": "data/time-series/air-quality.csv",
+      "ignore_columns": ["Date", "Time"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": null,
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "bitcoin-price": {
+      "data": "data/time-series/bitcoin_price.csv",
+      "ignore_columns": ["Date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": null,
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "brent-oil-prices": {
+      "data": "data/time-series/brent-oil-prices.csv",
+      "ignore_columns": ["Date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": null,
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "fraud": {
+      "data": "data/time-series/fraud-time-series.csv",
+      "ignore_columns": ["step"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "customer",
+        "lstm_mode": 2
+      },
+      "target": "fraud",
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "household_power_consumption": {
+      "data": "data/time-series/household_power_consumption_small.csv",
+      "ignore_columns": ["DateTime"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": null,
+        "lstm_mode": 1
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "temperature_motor": {
+      "data": "data/time-series/temp.csv",
+      "ignore_columns": [],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "profile_id",
+        "lstm_mode": 2
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "invoice": {
+      "data": "data/time-series/time_series_basic.csv",
+      "ignore_columns": ["InvoiceDate"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "CustomerID",
+        "lstm_mode": 2
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "transactions": {
+      "data": "data/time-series/transactions_clean.csv",
+      "ignore_columns": ["trans_id", "date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "account_id",
+        "lstm_mode": 2
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    }
+  }
+}

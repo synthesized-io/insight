@@ -60,7 +60,7 @@ class HighDimSynthesizer(Synthesizer):
         postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
         street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
         address_label: str = None, postcode_regex: str = None,
-        # Identifier
+        # Identifier label
         identifier_label: str = None,
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
@@ -187,7 +187,7 @@ class HighDimSynthesizer(Synthesizer):
         self.vae.loss()
         return self.vae.losses
 
-    def specification(self):
+    def specification(self) -> dict:
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
@@ -196,7 +196,7 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df):
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.value_factory.preprocess(df)
         return df
 
@@ -220,10 +220,14 @@ class HighDimSynthesizer(Synthesizer):
         """
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
-        df_train_orig = df_train
-        df_train = self.value_factory.preprocess(df_train)
-        data = self.value_factory.get_data_feed_dict(df_train)
+        if self.learning_manager:
+            self.learning_manager.restart_learning_manager()
 
+        df_train = df_train.copy()
+        df_train_orig = df_train.copy()
+        df_train = self.value_factory.preprocess(df_train)
+
+        data = self.get_data_feed_dict(df_train)
         num_data = len(df_train)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -298,21 +302,21 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ]*num_rows)
 
-        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, num_rows)
+        feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
         synthesized = self.vae.synthesize(tf.constant(num_rows % 1024, dtype=tf.int64), cs=feed_dict)
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, 1024)
+        feed_dict = self.get_conditions_feed_dict(df_conditions, 1024)
         n_batches = num_rows // 1024
-        data = self.value_factory.get_conditions_data(df_conditions)
+        data = self.get_conditions_data(df_conditions)
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
 
         for k in range(n_batches):
             feed_dict.update({
-                placeholder: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
-                for placeholder, condition_data in data.items()
+                name: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
+                for name, condition_data in data.items()
                 if condition_data.shape == (num_rows,)
             })
             other = self.vae.synthesize(tf.constant(1024, dtype=tf.int64), cs=feed_dict)
@@ -342,9 +346,7 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
-        df_encode = df_encode.copy()
-        for value in (self.values + self.conditions):
-            df_encode = value.preprocess(df=df_encode)
+        df_encode = self.value_factory.preprocess(df=df_encode)
 
         num_rows = len(df_encode)
         feed_dict = {
@@ -381,9 +383,7 @@ class HighDimSynthesizer(Synthesizer):
             for name in value.learned_output_columns()
         ]
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-
-        for value in (self.values + self.conditions):
-            df_synthesized = value.postprocess(df=df_synthesized)
+        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
         # aliases:
         for alias, col in self.column_aliases.items():
@@ -393,7 +393,7 @@ class HighDimSynthesizer(Synthesizer):
         df_synthesized = df_synthesized[self.columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
-        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{l}_{n}" for l in 'lms'
+        df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
                                                                 for n in range(encoded['sample'].shape[1])])
 
         return df_encoded, df_synthesized
