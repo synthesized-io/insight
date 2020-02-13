@@ -1,27 +1,26 @@
 cluster_name: tune-default
 provider: {type: aws, region: eu-west-1}
-auth: {ssh_user: ubuntu}
+auth: {ssh_user: ec2-user}
 min_workers: 9
 max_workers: 9
 # Deep Learning AMI (Ubuntu) Version 21.0
-head_node: {InstanceType: c5.xlarge, ImageId: ami-02a5e4cbf357f9fa6}
-worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-02a5e4cbf357f9fa6, InstanceMarketOptions: {MarketType: spot}}
+head_node: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355}
+worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355, InstanceMarketOptions: {MarketType: spot}}
 
 file_mounts: {
-    "/home/ubuntu/synthesized": "synthesized",
-    "/home/ubuntu/requirements.txt": "requirements.txt",
-    "/home/ubuntu/data": "data",
+    "~/synthesized": "synthesized",
+    "~/requirements.txt": "requirements.txt",
+    "~/data": "data",
 }
 
 setup_commands: # Set up each node.
     - echo 'export LC_ALL=C.UTF-8' >> ~/.bashrc
     - echo 'LANG=C.UTF-8' >> ~/.bashrc
     - echo 'alias python=python3' >> ~/.bashrc
-    - time (while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done) && sudo apt-get update && sudo apt-get install -y python3.6
     - sudo python3 -m pip install --upgrade pip
     - python3 -m pip install --user 'ray[tune]' ax-platform aiohttp psutil setproctitle grpcio
     - mkdir -p ~/.synthesized && echo 'EE6B-6720-67A2-32F3-32F3-2D31-322D-B531' > ~/.synthesized/key
-    - python3 -m pip install --user -r /home/ubuntu/requirements.txt
+    - python3 -m pip install --user -r ~/requirements.txt
 
 head_setup_commands:
     - python3 -m pip install --user boto3==1.4.8

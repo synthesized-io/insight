@@ -22,19 +22,16 @@ ax.create_experiment(
 
 
 def train_evaluate(parameterization):
-    try:
-        with HighDimSynthesizer(df=data, **parameterization) as synthesizer:
-            synthesizer.learn(data, num_iterations=None)
-            data_ = synthesizer.value_factory.preprocess(data)
-            feed_dict = synthesizer.value_factory.get_data_feed_dict(data_)
-            losses = synthesizer.get_losses(data=feed_dict)
-            loss = losses['kl-loss'] + losses['reconstruction-loss']
-            loss = loss.numpy().item()
+    with HighDimSynthesizer(df=data, **parameterization) as synthesizer:
+        synthesizer.learn(data, num_iterations=None)
+        data_ = synthesizer.preprocess(data)
+        feed_dict = synthesizer.get_data_feed_dict(data_)
+        losses = synthesizer.get_losses(data=feed_dict)
+        loss = losses['kl-loss'] + losses['reconstruction-loss']
+        loss = loss.numpy().item()
         track.log(
             mean_loss=loss,
         )
-    except Exception as e:
-        print(e)
 
 
 ray.init(address='auto', redis_password='5241590000000000')
@@ -46,7 +43,7 @@ tune.run(
     verbose=0,  # Set this level to 1 to see status updates and to 2 to also see trial results.
     # To use GPU, specify: resources_per_trial={"gpu": 1}.
     resources_per_trial={"cpu": 2},
-    max_failures=5
+    max_failures=3
 )
 
 best_parameters, values = ax.get_best_parameters()

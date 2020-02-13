@@ -9,7 +9,7 @@ if [[ -z "${SCRIPT}" ]]; then
     exit 1
 fi
 
-ROOT_DIR="$(cd "$(dirname $(dirname "$0"))" ; pwd -P )"
+ROOT_DIR="$(cd "$(dirname "$(dirname "$0")")" ; pwd -P )"
 cd "${ROOT_DIR}"
 
-ray submit tune/tune-default.yaml ${SCRIPT} --start
+ray submit tune/tune-default.yaml "${SCRIPT}"
