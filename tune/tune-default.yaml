@@ -1,6 +1,6 @@
 cluster_name: tune-default
 provider: {type: aws, region: eu-west-1}
-auth: {ssh_user: ubuntu}
+auth: {ssh_user: ec2-user}
 min_workers: 9
 max_workers: 9
 # Deep Learning AMI (Ubuntu) Version 21.0
