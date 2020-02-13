@@ -1,0 +1,36 @@
+cluster_name: tune-default
+provider: {type: aws, region: eu-west-1}
+auth: {ssh_user: ubuntu}
+min_workers: 9
+max_workers: 9
+# Deep Learning AMI (Ubuntu) Version 21.0
+head_node: {InstanceType: c5.xlarge, ImageId: ami-02a5e4cbf357f9fa6}
+worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-02a5e4cbf357f9fa6, InstanceMarketOptions: {MarketType: spot}}
+
+file_mounts: {
+    "/home/ubuntu/synthesized": "/Users/denis/IdeaProjects/synthesized/synthesized",
+    "/home/ubuntu/requirements.txt": "/Users/denis/IdeaProjects/synthesized/requirements.txt",
+    "/home/ubuntu/data": "/Users/denis/IdeaProjects/synthesized/data",
+}
+
+setup_commands: # Set up each node.
+    - echo 'export LC_ALL=C.UTF-8' >> ~/.bashrc
+    - echo 'LANG=C.UTF-8' >> ~/.bashrc
+    - time (while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done) && sudo apt-get update && sudo apt-get install -y python3.6
+    - sudo python3 -m pip install --upgrade pip
+    - python3 -m pip install --user 'ray[tune]' ax-platform aiohttp psutil setproctitle grpcio
+    - mkdir -p ~/.synthesized && echo 'EE6B-6720-67A2-32F3-32F3-2D31-322D-B531' > ~/.synthesized/key
+    - python3 -m pip install --user -r /home/ubuntu/requirements.txt
+
+head_setup_commands:
+    - python3 -m pip install --user boto3==1.4.8
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    - ray start --head --redis-port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
