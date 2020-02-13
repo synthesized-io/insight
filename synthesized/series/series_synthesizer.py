@@ -1,5 +1,6 @@
 from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
+from random import randrange
 
 import numpy as np
 import pandas as pd
@@ -136,7 +137,7 @@ class SeriesSynthesizer(Synthesizer):
         self.vae.loss()
         return self.vae.losses
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
         if self.identifier_label is None:
             num_data = [len(df)]
             groups = [{
@@ -194,7 +195,7 @@ class SeriesSynthesizer(Synthesizer):
         df_train = df_train.copy()
         df_train = self.value_factory.preprocess(df_train)
 
-        groups, num_data = self.get_data_feed_dict(df_train)
+        groups, num_data = self.get_groups_feed_dict(df_train)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
@@ -311,7 +312,7 @@ class SeriesSynthesizer(Synthesizer):
         df_encode = df_encode.copy()
         df_encode = self.value_factory.preprocess(df_encode)
 
-        groups, num_data = self.get_data_feed_dict(df_encode)
+        groups, num_data = self.get_groups_feed_dict(df_encode)
 
         encoded, decoded = None, None
 
