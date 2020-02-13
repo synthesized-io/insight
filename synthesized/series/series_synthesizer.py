@@ -1,5 +1,6 @@
 from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
+from random import randrange
 
 import numpy as np
 import pandas as pd
@@ -131,10 +132,47 @@ class SeriesSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def get_all_values(self) -> List[Value]:
+        return self.value_factory.all_values
+
+    def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         self.vae.xs = data
         self.vae.loss()
         return self.vae.losses
+
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
+        if self.identifier_label is None:
+            num_data = [len(df)]
+            groups = [{
+                name: df[name].to_numpy() for value in self.get_all_values()
+                for name in value.learned_input_columns()
+            }]
+
+        else:
+            groups = [group[1] for group in df.groupby(by=self.identifier_label)]
+            num_data = [len(group) for group in groups]
+            for n in range(len(groups)):
+                groups[n] = {
+                    name: tf.constant(groups[n][name].to_numpy()) for value in self.get_all_values()
+                    for name in value.learned_input_columns()
+                }
+
+        return groups, num_data
+
+    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None):
+        group = group if group is not None else randrange(len(num_data))
+        data = groups[group]
+
+        if max_seq_len and num_data[group] > max_seq_len:
+            start = randrange(num_data[group] - max_seq_len)
+            batch = tf.range(start, start + max_seq_len)
+        else:
+            batch = tf.range(num_data[group])
+
+        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
+                     for name, value_data in data.items()}
+
+        return feed_dict
 
     def specification(self) -> dict:
         spec = super().specification()
@@ -160,14 +198,14 @@ class SeriesSynthesizer(Synthesizer):
         df_train = df_train.copy()
         df_train = self.value_factory.preprocess(df_train)
 
-        groups, num_data = self.value_factory.get_groups_feed_dict(df_train)
+        groups, num_data = self.get_groups_feed_dict(df_train)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
 
-                feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
+                feed_dict = self.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
@@ -237,7 +275,7 @@ class SeriesSynthesizer(Synthesizer):
         df_conditions = self.value_factory.preprocess_conditions(conditions=conditions)
         columns = self.value_factory.get_column_names()
 
-        feed_dict = self.value_factory.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
+        feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
 
         if num_series is not None and series_length is not None:
@@ -277,12 +315,12 @@ class SeriesSynthesizer(Synthesizer):
         df_encode = df_encode.copy()
         df_encode = self.value_factory.preprocess(df_encode)
 
-        groups, num_data = self.value_factory.get_groups_feed_dict(df_encode)
+        groups, num_data = self.get_groups_feed_dict(df_encode)
 
         encoded, decoded = None, None
 
         for i in range(len(groups)):
-            feed_dict = self.value_factory.get_group_feed_dict(groups, num_data, group=i)
+            feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
             identifier = feed_dict[self.value_factory.identifier_label][0]
             encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
             if len(encoded_i['sample'].shape) == 1:

@@ -72,9 +72,9 @@ class UtilityTesting:
         self.df_test_encoded = synthesizer.preprocess(df=df_test)
         self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
 
-        self.date_cols = []
-        self.continuous_cols = []
-        self.categorical_cols = []
+        self.date_cols: List[str] = []
+        self.continuous_cols: List[str] = []
+        self.categorical_cols: List[str] = []
 
         self.display_types: Dict[str, DisplayType] = {}
         for value in synthesizer.get_values():
