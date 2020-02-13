@@ -9,11 +9,13 @@ from synthesized.common.values import Value
 
 class ValueOps(tf.Module):
     """Layer that handles all of the Value related TensorFlow functions"""
-    def __init__(self, values: List[Value], conditions: List[Value], name: str = 'value_ops'):
+    def __init__(self, values: List[Value], conditions: List[Value], identifier: Value = None, name: str = 'value_ops'):
         super(ValueOps, self).__init__(name=name)
 
         self.values = values
         self.conditions = conditions
+        self.identifier_value = identifier
+        self.identifier_label = None if identifier is None else identifier.name
 
         # Total input and output size of all values
         self.input_size = 0

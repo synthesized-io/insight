@@ -52,7 +52,7 @@ class SeriesVAE(Generative):
         self.identifier_label = identifier_label
         self.identifier_value = identifier_value
 
-        self.value_ops = ValueOps(values=values, conditions=conditions)
+        self.value_ops = ValueOps(values=values, conditions=conditions, identifier=identifier_value)
 
         self.linear_input = DenseTransformation(
             name='linear-input',

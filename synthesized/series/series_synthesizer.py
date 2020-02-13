@@ -132,6 +132,9 @@ class SeriesSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
+    def get_all_values(self) -> List[Value]:
+        return self.value_factory.all_values
+
     def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         self.vae.xs = data
         self.vae.loss()
@@ -141,7 +144,7 @@ class SeriesSynthesizer(Synthesizer):
         if self.identifier_label is None:
             num_data = [len(df)]
             groups = [{
-                name: df[name].to_numpy() for value in self.all_values
+                name: df[name].to_numpy() for value in self.get_all_values()
                 for name in value.learned_input_columns()
             }]
 
@@ -150,7 +153,7 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    name: tf.constant(groups[n][name].to_numpy()) for value in self.all_values
+                    name: tf.constant(groups[n][name].to_numpy()) for value in self.get_all_values()
                     for name in value.learned_input_columns()
                 }
 
