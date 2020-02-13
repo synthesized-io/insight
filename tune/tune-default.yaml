@@ -8,9 +8,9 @@ head_node: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355}
 worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355, InstanceMarketOptions: {MarketType: spot}}
 
 file_mounts: {
-    "/home/ubuntu/synthesized": "synthesized",
-    "/home/ubuntu/requirements.txt": "requirements.txt",
-    "/home/ubuntu/data": "data",
+    "~/synthesized": "synthesized",
+    "~/requirements.txt": "requirements.txt",
+    "~/data": "data",
 }
 
 setup_commands: # Set up each node.
