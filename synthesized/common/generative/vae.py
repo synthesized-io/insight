@@ -5,8 +5,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .generative import Generative
-from ..values import Value
-from ..value_layer import ValueLayer
+from ..values import Value, ValueOps
 from ..module import tensorflow_name_scoped, module_registry
 from ..distributions import Distribution
 from ..optimizers import Optimizer
@@ -48,10 +47,10 @@ class VAE(Generative):
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
         # Total input and output size of all values
-        self.value_layer = ValueLayer(values=values, conditions=conditions)
+        self.value_ops = ValueOps(values=values, conditions=conditions)
 
         kwargs = dict(
-            name='encoder', input_size=self.value_layer.input_size, depths=residual_depths,
+            name='encoder', input_size=self.value_ops.input_size, depths=residual_depths,
             layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
             output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
         )
@@ -66,12 +65,12 @@ class VAE(Generative):
         )
 
         # Decoder: parametrized distribution p(y|z,c)
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_layer.condition_size)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_ops.condition_size)
         self.decoder = module_registry[network](**kwargs)
 
         self.decoding = Distribution(
             name='decoding',
-            input_size=self.decoder.size(), output_size=self.value_layer.output_size,
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size,
             distribution='deterministic', beta=beta, encode=False
         )
 
@@ -93,13 +92,13 @@ class VAE(Generative):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_layer.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(self.xs)
 
         #################################
         x = self.encoder(x)
         q = self.encoding(x)
         z = q.sample()
-        x = self.value_layer.add_conditions(x=z, conditions=self.xs)
+        x = self.value_ops.add_conditions(x=z, conditions=self.xs)
         x = self.decoder(x)
         p = self.decoding(x)
         y = p.sample()
@@ -109,7 +108,7 @@ class VAE(Generative):
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_layer.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
         regularization_loss = tf.add_n(
@@ -174,7 +173,7 @@ class VAE(Generative):
             return tf.no_op(), dict()
 
         #################################
-        x = self.value_layer.unified_inputs(xs)
+        x = self.value_ops.unified_inputs(xs)
         x = self.encoder(x)
         q = self.encoding(x)
 
@@ -182,11 +181,11 @@ class VAE(Generative):
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
-        x = self.value_layer.add_conditions(x=latent_space, conditions=cs)
+        x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         p = self.decoding(x)
         y = p.sample()
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
         #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
@@ -204,7 +203,7 @@ class VAE(Generative):
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
@@ -222,7 +221,7 @@ class VAE(Generative):
         """
         prior = self.encoding.prior()
         z = prior.sample(sample_shape=(n,))
-        z = self.value_layer.add_conditions(x=z, conditions=cs)
+        z = self.value_ops.add_conditions(x=z, conditions=cs)
         x = self.decoder(z)
         p = self.decoding(x)
         y = p.sample()

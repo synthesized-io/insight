@@ -14,10 +14,11 @@ from .rule import RuleValue
 from .sampling import SamplingValue
 from .constant import ConstantValue
 from .value import Value
+from .value_operations import ValueOps
 from .factory import ValueFactory, TypeOverride
 
 
 __all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
            'DecomposedContinuousValue',
            'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
-           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride']
+           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride', 'ValueOps']

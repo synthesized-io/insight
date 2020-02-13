@@ -3,14 +3,14 @@ from typing import Dict, List
 
 import tensorflow as tf
 
-from .module import tensorflow_name_scoped
-from .values import Value
+from synthesized.common.module import tensorflow_name_scoped
+from synthesized.common.values import Value
 
 
-class ValueLayer(tf.Module):
+class ValueOps(tf.Module):
     """Layer that handles all of the Value related TensorFlow functions"""
-    def __init__(self, values: List[Value], conditions: List[Value], name: str = 'value_layer'):
-        super(ValueLayer, self).__init__(name=name)
+    def __init__(self, values: List[Value], conditions: List[Value], name: str = 'value_ops'):
+        super(ValueOps, self).__init__(name=name)
 
         self.values = values
         self.conditions = conditions

@@ -4,12 +4,11 @@ from typing import Dict, List, Tuple, Union, Optional
 import tensorflow as tf
 
 from .generative import Generative
-from ..values import Value
+from ..values import Value, ValueOps
 from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import DenseTransformation
 from ..encodings import VariationalEncoding
 from ..optimizers import Optimizer
-from ..value_layer import ValueLayer
 
 
 class VAEOld(Generative):
@@ -47,11 +46,11 @@ class VAEOld(Generative):
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
-        self.value_layer = ValueLayer(values=values, conditions=conditions)
+        self.value_ops = ValueOps(values=values, conditions=conditions)
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_layer.input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
         kwargs = dict(
@@ -71,12 +70,12 @@ class VAEOld(Generative):
 
         self.modulation = None
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_layer.condition_size)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_ops.condition_size)
         self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_layer.output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -97,13 +96,13 @@ class VAEOld(Generative):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_layer.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(self.xs)
 
         #################################
         x = self.linear_input(x)
         x = self.encoder(x)
         z = self.encoding(x)
-        x = self.value_layer.add_conditions(z, conditions=self.xs)
+        x = self.value_ops.add_conditions(z, conditions=self.xs)
         x = self.decoder(x)
         y = self.linear_output(x)
         #################################
@@ -112,7 +111,7 @@ class VAEOld(Generative):
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_layer.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
@@ -173,7 +172,7 @@ class VAEOld(Generative):
             return tf.no_op(), dict()
 
         #################################
-        x = self.value_layer.unified_inputs(xs)
+        x = self.value_ops.unified_inputs(xs)
         x = self.linear_input(x)
         x = self.encoder(x)
 
@@ -181,10 +180,10 @@ class VAEOld(Generative):
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
 
-        x = self.value_layer.add_conditions(x=latent_space, conditions=cs)
+        x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
         #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
@@ -202,7 +201,7 @@ class VAEOld(Generative):
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
@@ -219,7 +218,7 @@ class VAEOld(Generative):
 
         """
         x = self.encoding.sample(n=n)
-        x = self.value_layer.add_conditions(x=x, conditions=cs)
+        x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 

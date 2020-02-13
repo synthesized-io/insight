@@ -7,8 +7,7 @@ from .generative import Generative
 from ..module import tensorflow_name_scoped, module_registry
 from ..transformations import DenseTransformation
 from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding
-from ..values import Value, IdentifierValue
-from ..value_layer import ValueLayer
+from ..values import Value, IdentifierValue, ValueOps
 from ..optimizers import Optimizer
 
 
@@ -53,11 +52,11 @@ class SeriesVAE(Generative):
         self.identifier_label = identifier_label
         self.identifier_value = identifier_value
 
-        self.value_layer = ValueLayer(values=values, conditions=conditions)
+        self.value_ops = ValueOps(values=values, conditions=conditions)
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_layer.input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
         )
 
         kwargs = dict(
@@ -89,7 +88,7 @@ class SeriesVAE(Generative):
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_layer.output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -111,7 +110,7 @@ class SeriesVAE(Generative):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_layer.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(self.xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
         else:
@@ -120,7 +119,7 @@ class SeriesVAE(Generative):
         #################################
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
-        x = self.value_layer.add_conditions(x, conditions=self.xs)
+        x = self.value_ops.add_conditions(x, conditions=self.xs)
         x = self.encoding(inputs=x, identifier=identifier, dropout=self.dropout)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
@@ -130,7 +129,7 @@ class SeriesVAE(Generative):
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_layer.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
@@ -170,7 +169,7 @@ class SeriesVAE(Generative):
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_layer.unified_inputs(xs)
+        x = self.value_ops.unified_inputs(xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
         else:
@@ -179,13 +178,13 @@ class SeriesVAE(Generative):
         #################################
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
-        x = self.value_layer.add_conditions(x, conditions=cs)
+        x = self.value_ops.add_conditions(x, conditions=cs)
         x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
         #################################
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
@@ -193,7 +192,7 @@ class SeriesVAE(Generative):
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         y, identifier = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_layer.value_outputs(y=y, conditions=cs, identifier=identifier)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
 
         return synthesized
 
@@ -209,7 +208,7 @@ class SeriesVAE(Generative):
             identifier, identifier_embedding = None, None
 
         x = self.encoding.sample(n=n, identifier=identifier_embedding)
-        x = self.value_layer.add_conditions(x=x, conditions=cs)
+        x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
 
