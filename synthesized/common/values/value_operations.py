@@ -88,7 +88,7 @@ class ValueOps(tf.Module):
         # Output tensors per value
         synthesized: Dict[str, tf.Tensor] = OrderedDict()
 
-        if identifier is not None:
+        if identifier is not None and self.identifier_label is not None:
             synthesized[self.identifier_label] = identifier
 
         for value, y in zip(self.values, ys):
