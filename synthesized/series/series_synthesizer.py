@@ -249,7 +249,7 @@ class SeriesSynthesizer(Synthesizer):
             )
         ))
 
-    def synthesize(self, series_length: int,
+    def synthesize(self, series_length: int = None,
                    conditions: Union[dict, pd.DataFrame] = None,
                    progress_callback: Callable[[int], None] = None,
                    num_series: int = None, series_lengths: List[int] = None
