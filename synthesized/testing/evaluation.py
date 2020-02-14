@@ -9,7 +9,6 @@ import numpy as np
 class Evaluation:
     def __init__(self, branch: str, revision: str, group: str, name: str = 'metrics'):
 
-
         self.branch = branch
         self.revision = revision
         self.group = group
@@ -19,7 +18,7 @@ class Evaluation:
         if server_mode:
             self.metrics_file: str = '../history/metrics/{}-{}.jsonl'.format(name, server_mode)
         else:
-            self.metrics_file: str = '../history/metrics/{}.jsonl'.format(name)
+            self.metrics_file = '../history/metrics/{}.jsonl'.format(name)
 
         self.metrics: OrderedDict = OrderedDict()
         self.configs: OrderedDict = OrderedDict()
