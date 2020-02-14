@@ -1,10 +1,13 @@
+from collections import OrderedDict
 from typing import Tuple, Dict, Optional
 
 import tensorflow as tf
+import pandas as pd
 
 from ..optimizers import Optimizer
-from ..values import ValueFactory
-from ..transformations import Transformation
+from ..values import ValueFactory, ValueOps
+from ..transformations import Transformation, MlpTransformation, DenseTransformation
+from ..module import tensorflow_name_scoped
 
 
 class StateSpaceModel(tf.Module):
@@ -25,14 +28,17 @@ class StateSpaceModel(tf.Module):
         t: time length
 
     """
-    def __init__(self, df, capacity, latent_size, name='state_space_model'):
+    def __init__(self, df, capacity: int, latent_size: int, name='state_space_model'):
         super(StateSpaceModel, self).__init__(name=name)
         self.capacity = capacity
         self.latent_size = latent_size
         self._trainable_variables = None
 
-        self.value_factory = ValueFactory(df, capacity=capacity)
-        self.optimizer = Optimizer(name='optimizer', optimizer='adam', clip_gradients=1.0,
+        self.value_factory = ValueFactory(df=df, capacity=capacity)
+        self.value_ops = ValueOps(
+            values=self.value_factory.get_values(), conditions=self.value_factory.get_conditions()
+        )
+        self.optimizer = Optimizer(name='optimizer', optimizer='adam',
                                    learning_rate=tf.constant(3e-3, dtype=tf.float32))
 
         self.emission_network: Optional[Transformation] = None
@@ -44,7 +50,7 @@ class StateSpaceModel(tf.Module):
     def build(self, input_shape):
         pass
 
-    def emission(self, z_t: tf.Tensor) -> tf.Tensor:
+    def emission(self, z_t: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
         The network x_t = ϴ(z_t)
         defines the output distribution
@@ -54,12 +60,12 @@ class StateSpaceModel(tf.Module):
             z_t: [b, t, l]
 
         Returns:
-            # σ_θt
+            σ_θt
             μ_θt: [b, t, i]
         """
-        mu = self.emission_network(z_t)
+        mu, sigma = self.emission_network(z_t)
 
-        return mu
+        return mu, sigma
 
     def transition(self, z_p: tf.Tensor, u_t: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
@@ -122,22 +128,34 @@ class StateSpaceModel(tf.Module):
         """
 
         Args:
-            x_1:
+            x_1: [b, 1, i]
 
         Returns:
             z_0: [b, 1, l]
 
         """
-        pass
+        mu, sigma = self.initial(x_1)
+        e = self.sample_state(bs=x_1.shape[0])
 
-    def sample_initial_state(self) -> tf.Tensor:
-        """Samples the initial latent state from a multivariate gauss ball.
+        return mu + e*sigma
+
+    def sample_state(self, bs: tf.Tensor = tf.constant(1, dtype=tf.int64)) -> tf.Tensor:
+        """Samples the latent state from a multivariate gauss ball.
 
         Returns:
-            z_0: [b, 1, l]
+            e: [b, 1, l]
 
         """
-        return tf.random.normal(shape=(1, self.latent_size), dtype=tf.float32)
+        return tf.random.normal(shape=(bs, 1, self.latent_size), dtype=tf.float32)
+
+    def sample_output(self, bs: tf.Tensor = tf.constant(1, dtype=tf.int64)) -> tf.Tensor:
+        """Samples the latent state from a multivariate gauss ball.
+
+        Returns:
+            e: [b, 1, l]
+
+        """
+        return tf.random.normal(shape=(bs, 1, self.value_ops.output_size), dtype=tf.float32)
 
     def inference_loop(self, u: tf.Tensor, x: tf.Tensor, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
         """Starting with a given state, infers all subsequent states from u, x using the inference network.
@@ -153,9 +171,24 @@ class StateSpaceModel(tf.Module):
             μ_φ: [b, t, l]
 
         """
-        pass
+        z = [z_0,]
+        mu, sigma = [], []
 
-    def transition_loop(self, n: int, z_0: tf.Tensor) -> tf.Tensor:
+        for i in range(u.shape[1]):
+            mask = tf.cast(tf.random.uniform(minval=0, maxval=1, dtype=tf.int64, shape=[1,]), dtype=tf.float32)
+            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=mask*x[:, i:i+1, :])
+            e = self.sample_state(bs=u.shape[0])
+            z.append(mu_t + sigma_t*e)
+            mu.append(mu_t)
+            sigma.append(sigma_t)
+
+        z_f = tf.concat(values=z[1:], axis=1, name='z_phi')
+        mu_f = tf.concat(values=mu, axis=1, name='mu_phi')
+        sigma_f = tf.concat(values=sigma, axis=1, name='sigma_phi')
+
+        return z_f, mu_f, sigma_f
+
+    def transition_loop(self, n: int, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Starting with a given state, generates n subsequent states using the transition network.
 
         Args:
@@ -164,16 +197,33 @@ class StateSpaceModel(tf.Module):
 
         Returns:
             z: [b, t, l]
-            σ_γ: [b, t, l]
-            μ_γ: [b, t, l]
+            x: [b, t, i]
 
         """
-        pass
+        mu_theta_1, sigma_theta_1 = self.emission(z_0)
+        x_0 = mu_theta_1 + sigma_theta_1 * self.sample_output(bs=z_0.shape[0])
+
+        z, x = [z_0], [x_0]
+
+        for i in range(n):
+            mu_t, sigma_t = self.transition(z_p=z[i], u_t=x[i])
+            z_t = mu_t + sigma_t*self.sample_state(bs=z_0.shape[0])
+
+            mu_theta_t, sigma_theta_t = self.emission(z_t)
+            x_t = mu_theta_t + sigma_theta_t*self.sample_output(bs=z_0.shape[0])
+
+            z.append(z_t)
+            x.append(x_t)
+
+        z_f = tf.concat(values=z[1:], axis=1, name='z_gamma')
+        x_f = tf.concat(values=x[1:], axis=1, name='x_gamma')
+
+        return z_f, x_f
 
     def loss(self) -> tf.Tensor:
         pass
 
-    @tf.function
+    # @tf.function
     def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
 
@@ -192,6 +242,17 @@ class StateSpaceModel(tf.Module):
 
         return
 
+    def synthesize(self, n: int):
+        z_0 = self.sample_state(bs=1)
+        z, y = self.transition_loop(n=n, z_0=z_0)
+
+        x = self.value_ops.value_outputs(y=y, conditions={})
+
+        syn_df = pd.DataFrame(x)
+        syn_df = self.value_factory.postprocess(df=syn_df)
+        return syn_df
+
+
     @staticmethod
     def diagonal_normal_kl_divergence(mu_1: tf.Tensor, stddev_1: tf.Tensor, mu_2: tf.Tensor, stddev_2: tf.Tensor):
         cov_1 = tf.square(stddev_1)
@@ -204,10 +265,16 @@ class StateSpaceModel(tf.Module):
         )
 
     def get_trainable_variables(self):
-        if self._trainable_variables is None:
-            self._trainable_variables = self.trainable_variables
+        self._trainable_variables = self.trainable_variables
         return self._trainable_variables
 
     @property
     def regularization_losses(self):
         raise NotImplementedError
+
+    def get_training_data(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
+        data = {
+            name: tf.constant([df[name].to_numpy()], dtype=value.dtype) for value in self.get_all_values()
+            for name in value.learned_input_columns()
+        }
+        return data
