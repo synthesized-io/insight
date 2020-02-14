@@ -19,4 +19,5 @@ Advanced
 --------
 
 Update cluster:
+
     $  ray up tune/tune-default.yaml
