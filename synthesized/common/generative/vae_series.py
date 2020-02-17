@@ -190,22 +190,27 @@ class SeriesVAE(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
-        y, identifier = self._synthesize(n=n, cs=cs)
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+        y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
 
         return synthesized
 
     @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) \
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) \
             -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:
-            identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
+            if identifier is not None:
+                identifier_embedding = self.identifier_value.get_embedding(identifier)
+            else:
+                identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
             identifier_embedding = tf.squeeze(identifier_embedding)
             identifier = tf.tile(input=identifier, multiples=(n,))
         else:
             identifier, identifier_embedding = None, None
+
+        print('*********** _snythesized')
 
         x = self.encoding.sample(n=n, identifier=identifier_embedding)
         x = self.value_ops.add_conditions(x=x, conditions=cs)

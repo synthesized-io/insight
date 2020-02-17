@@ -161,11 +161,11 @@ class DecomposedContinuousValue(Value):
         return df
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: List[tf.Tensor], axis=1) -> tf.Tensor:
         self.build()
-        xs[0] = self.low_freq_value.unify_inputs(xs=xs[0:1])
-        xs[1] = self.high_freq_value.unify_inputs(xs=xs[1:2])
-        return tf.concat(values=xs, axis=1)
+        xs[0] = self.low_freq_value.unify_inputs(xs=xs[0:1], axis=axis)
+        xs[1] = self.high_freq_value.unify_inputs(xs=xs[1:2], axis=axis)
+        return tf.concat(values=xs, axis=axis)
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:

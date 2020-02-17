@@ -130,6 +130,10 @@ class IdentifierValue(Value):
 
         return identifier, identifier_embedding
 
+    @tensorflow_name_scoped
+    def get_embedding(self, identifier: tf.Tensor):
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
+
     # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
     #     target = tf.one_hot(
     #         indices=xs[0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,

@@ -1,5 +1,6 @@
 from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
+import random
 import time
 from random import randrange
 
@@ -284,11 +285,16 @@ class SeriesSynthesizer(Synthesizer):
         feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
 
+        identifiers = self.get_identifiers(num_series=num_series, series_length=series_length,
+                                           series_lengths=series_lengths)
+        print(identifiers)
+        print(num_series, series_length, series_length)
+
         if num_series is not None and series_length is not None:
-            for i in range(num_series):
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                # if self.value_factory.identifier_label:
-                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
+            for identifier in identifiers:
+                tf_identifier = tf.constant([identifier]) if identifier else None
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                            identifier=tf_identifier)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -296,10 +302,11 @@ class SeriesSynthesizer(Synthesizer):
                     synthesized = synthesized.append(other, ignore_index=True)
 
         elif series_lengths is not None:
-            for i, series_length in enumerate(series_lengths):
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                # if self.value_factory.identifier_label:
-                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
+            for identifier in identifiers:
+                series_length = series_lengths[identifier]
+                tf_identifier = tf.constant([identifier]) if identifier else None
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                            identifier=tf_identifier)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -356,3 +363,28 @@ class SeriesSynthesizer(Synthesizer):
             latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
 
         return df_encoded,  df_synthesized
+
+    def get_identifiers(self, series_length: int = None, num_series: int = None,
+                        series_lengths: List[int] = None) -> Iterable:
+
+        if self.value_factory.identifier_value:
+            num_identifiers = self.value_factory.identifier_value.num_identifiers
+        else:
+            num_identifiers = None
+
+        if num_series is not None and series_length is not None:
+            if num_identifiers:
+                assert num_identifiers >= num_series
+                identifiers = random.sample(range(num_identifiers), num_series)
+            else:
+                identifiers = range(num_series)
+
+        else:
+            assert series_lengths is not None
+            if num_identifiers:
+                assert num_identifiers >= len(series_lengths)
+                identifiers = random.sample(range(len(series_lengths)), len(series_lengths))
+            else:
+                identifiers = range(len(series_lengths))
+
+        return identifiers
