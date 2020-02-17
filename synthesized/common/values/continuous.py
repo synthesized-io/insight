@@ -210,11 +210,11 @@ class ContinuousValue(Value):
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 1
-        return tf.expand_dims(input=xs[0], axis=1)
+        return xs[0]
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        y = tf.squeeze(input=y, axis=1)
+        y = tf.squeeze(input=y)
         return [y]
 
     @tensorflow_name_scoped
@@ -223,14 +223,14 @@ class ContinuousValue(Value):
             return tf.constant(value=0.0, dtype=tf.float32)
         assert len(xs) == 1
         target = xs[0]
-        target = tf.expand_dims(input=target, axis=1)
+        target = tf.expand_dims(input=target, axis=-1)
         # target = self.input_tensors(xs=xs)[:, :1]  # first value since date adds more information
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
             y = tf.boolean_mask(tensor=y, mask=mask)
         # loss = tf.nn.l2_loss(t=(target - x))
-        loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=1)
-        loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
+        loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=-1)
+        loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=None)
         tf.summary.scalar(name=self.name, data=loss)
         return loss
 

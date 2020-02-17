@@ -38,7 +38,7 @@ class StateSpaceModel(tf.Module):
         self.value_ops = ValueOps(
             values=self.value_factory.get_values(), conditions=self.value_factory.get_conditions()
         )
-        self.optimizer = Optimizer(name='optimizer', optimizer='adam',
+        self.optimizer = Optimizer(name='optimizer', optimizer='adam', clip_gradients=1.0,
                                    learning_rate=tf.constant(3e-3, dtype=tf.float32))
 
         self.emission_network: Optional[Transformation] = None
@@ -175,8 +175,8 @@ class StateSpaceModel(tf.Module):
         mu, sigma = [], []
 
         for i in range(u.shape[1]):
-            mask = tf.cast(tf.random.uniform(minval=0, maxval=1, dtype=tf.int64, shape=[1,]), dtype=tf.float32)
-            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=mask*x[:, i:i+1, :])
+
+            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=x[:, i:i+1, :])
             e = self.sample_state(bs=u.shape[0])
             z.append(mu_t + sigma_t*e)
             mu.append(mu_t)
@@ -252,7 +252,6 @@ class StateSpaceModel(tf.Module):
         syn_df = self.value_factory.postprocess(df=syn_df)
         return syn_df
 
-
     @staticmethod
     def diagonal_normal_kl_divergence(mu_1: tf.Tensor, stddev_1: tf.Tensor, mu_2: tf.Tensor, stddev_2: tf.Tensor):
         cov_1 = tf.square(stddev_1)
@@ -274,7 +273,7 @@ class StateSpaceModel(tf.Module):
 
     def get_training_data(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
-            name: tf.constant([df[name].to_numpy()], dtype=value.dtype) for value in self.get_all_values()
+            name: tf.expand_dims(tf.constant(df[name].to_numpy(), dtype=value.dtype), axis=0) for value in self.get_all_values()
             for name in value.learned_input_columns()
         }
         return data

@@ -14,19 +14,19 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         self.emission_network = GaussianEncoder(
             input_size=latent_size, output_size=self.value_ops.output_size, capacity=capacity,
-            num_layers=1
+            num_layers=1, name='emission'
         )
         self.transition_network = GaussianEncoder(
             input_size=latent_size+self.value_ops.output_size, output_size=latent_size, capacity=capacity,
-            num_layers=4
+            num_layers=3, name='transition'
         )
         self.inference_network = GaussianEncoder(
             input_size=latent_size + 2*self.value_ops.output_size, output_size=latent_size, capacity=capacity,
-            num_layers=4
+            num_layers=3, name='inference'
         )
         self.initial_network = GaussianEncoder(
             input_size=self.value_ops.input_size, output_size=latent_size, capacity=capacity,
-            num_layers=1
+            num_layers=1, name='initial'
         )
 
     def build(self, input_shape):
@@ -42,6 +42,9 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
     def loss(self) -> tf.Tensor:
         x = self.value_ops.unified_inputs(inputs=self.xs)
+        mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=0.4)
+
+        x = mask*x
 
         z_0 = self.get_initial_state(x_1=x[:, 0:1, :])
 
@@ -51,7 +54,6 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
         u = tf.concat((u_1, x[:,:-1,:]), axis=1, name='u')
 
         z, mu_phi, sigma_phi = self.inference_loop(u=u, x=x, z_0=z_0)
-
         z_p = tf.concat((z_0, z[:, :-1, :]), axis=1, name='z_p')
 
         mu_gamma, sigma_gamma = self.transition(z_p=z_p, u_t=u)
@@ -108,35 +110,39 @@ class GaussianEncoder(Transformation):
         self.built = True
 
     def call(self, inputs, **kwargs):
-        z = self.network(inputs)
-        mu, sigma = self.mean(z), self.stddev(z)
-
+        z = self.network(inputs, **kwargs)
+        mu, sigma = self.mean(z, **kwargs), self.stddev(z, **kwargs)
+        tf.summary.histogram(name='mean', data=mu)
+        tf.summary.histogram(name='stddev', data=sigma)
         return mu, sigma
 
 
 if __name__ == '__main__':
+    """Testing the FFSSM on simple sinusoidal data."""
     import warnings
     from datetime import datetime
     import matplotlib.pyplot as plt
     import seaborn as sns
+    import numpy as np
+
+    from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
-    df = pd.read_csv(open('data/time-series/air-quality.csv', 'r')).dropna()
-    del(df['Date'])
-    del(df['Time'])
+    df = pd.DataFrame(dict(
+        a=np.sin(np.linspace(0, 200, 3000)),
+        b=-np.sin(np.linspace(0, 200, 3000))
+    ))
 
-    ffssm = FeedForwardStateSpaceModel(df=df, capacity=8, latent_size=8)
+    ffssm = FeedForwardStateSpaceModel(df=df, capacity=8, latent_size=4)
 
-    fig = plt.figure(figsize=(16,6))
+    fig = plt.figure(figsize=(16, 6))
     ax = fig.gca()
     sns.lineplot(data=df.loc[:200, :], axes=ax, dashes=False)
     plt.savefig('logs/ffdssm/original.png', dpi=100)
     plt.close(fig)
 
     df_train = ffssm.value_factory.preprocess(df)
-
     data = ffssm.get_training_data(df_train)
-    data = {k: v[:200] for k, v in data.items()}
 
     global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
     tf.summary.experimental.set_step(global_step)
@@ -146,14 +152,16 @@ if __name__ == '__main__':
     writer = tf.summary.create_file_writer(logdir)
     writer.set_as_default()
     ffssm.build(None)
-    for i in range(20):
-        for i in range(20):
-            ffssm.learn(xs=data)
-            global_step.assign_add(1)
-            writer.flush()
+    with record_summaries_every_n_global_steps(5, global_step=global_step):
+        for i in range(50):
+            for i in range(10):
+                indices = [np.random.randint(0, len(df) - 200) for _ in range(20)]
+                data2 = {k: np.array([v[:, idx:idx + 200] for idx in indices]) for k, v in data.items()}
+                ffssm.learn(xs=data2)
+                global_step.assign_add(1)
+                writer.flush()
 
             syn = ffssm.synthesize(200)
-
             fig = plt.figure(figsize=(16, 6))
             ax = fig.gca()
             sns.lineplot(data=syn, axes=ax, dashes=False)
