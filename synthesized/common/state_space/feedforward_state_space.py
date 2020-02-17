@@ -42,9 +42,6 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
     def loss(self) -> tf.Tensor:
         x = self.value_ops.unified_inputs(inputs=self.xs)
-        mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=0.4)
-
-        x = mask*x
 
         z_0 = self.get_initial_state(x_1=x[:, 0:1, :])
 
