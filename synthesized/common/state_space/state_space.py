@@ -1,13 +1,9 @@
-from collections import OrderedDict
-from typing import Tuple, Dict, Optional
-
+from typing import Tuple, Dict
 import tensorflow as tf
 import pandas as pd
 
 from ..optimizers import Optimizer
 from ..values import ValueFactory, ValueOps
-from ..transformations import Transformation, MlpTransformation, DenseTransformation
-from ..module import tensorflow_name_scoped
 
 
 class StateSpaceModel(tf.Module):
@@ -41,10 +37,6 @@ class StateSpaceModel(tf.Module):
         self.optimizer = Optimizer(name='optimizer', optimizer='adam', clip_gradients=1.0,
                                    learning_rate=tf.constant(3e-3, dtype=tf.float32))
 
-        self.emission_network: Optional[Transformation] = None
-        self.transition_network: Optional[Transformation] = None
-        self.inference_network: Optional[Transformation] = None
-        self.initial_network: Optional[Transformation] = None
         self.built = False
 
     def build(self, input_shape):
@@ -171,7 +163,7 @@ class StateSpaceModel(tf.Module):
             μ_φ: [b, t, l]
 
         """
-        z = [z_0,]
+        z = [z_0, ]
         mu, sigma = [], []
 
         for i in range(u.shape[1]):
@@ -273,7 +265,8 @@ class StateSpaceModel(tf.Module):
 
     def get_training_data(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
-            name: tf.expand_dims(tf.constant(df[name].to_numpy(), dtype=value.dtype), axis=0) for value in self.get_all_values()
+            name: tf.expand_dims(tf.constant(df[name].to_numpy(), dtype=value.dtype), axis=0)
+            for value in self.get_all_values()
             for name in value.learned_input_columns()
         }
         return data

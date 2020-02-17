@@ -2,7 +2,6 @@ import pandas as pd
 import tensorflow as tf
 
 from .state_space import StateSpaceModel
-from ..values import ValueFactory, ValueOps
 from ..transformations import Transformation, MlpTransformation, DenseTransformation
 
 
@@ -48,7 +47,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
         mu_theta_0, sigma_theta_0 = self.emission(z_t=z_0)
         u_1 = mu_theta_0 + sigma_theta_0 * self.sample_output(bs=z_0.shape[0])
 
-        u = tf.concat((u_1, x[:,:-1,:]), axis=1, name='u')
+        u = tf.concat((u_1, x[:, :-1, :]), axis=1, name='u')
 
         z, mu_phi, sigma_phi = self.inference_loop(u=u, x=x, z_0=z_0)
         z_p = tf.concat((z_0, z[:, :-1, :]), axis=1, name='z_p')
@@ -57,7 +56,13 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi,
                                                      mu_2=mu_gamma, stddev_2=sigma_gamma)
+        normal_kl_loss = self.diagonal_normal_kl_divergence(
+            mu_1=mu_phi, stddev_1=sigma_phi, mu_2=tf.zeros(shape=mu_phi.shape, dtype=tf.float32),
+            stddev_2=tf.ones(shape=sigma_phi.shape, dtype=tf.float32)
+        )
+
         tf.summary.scalar(name='kl_loss', data=kl_loss)
+        tf.summary.scalar(name='normal_kl_loss', data=normal_kl_loss)
 
         init_kl_loss = self.diagonal_normal_kl_divergence(
             mu_1=mu_theta_0, stddev_1=sigma_theta_0, mu_2=tf.zeros(shape=mu_theta_0.shape, dtype=tf.float32),
@@ -70,7 +75,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
         tf.summary.scalar(name='reconstruction_loss', data=reconstruction_loss)
-        loss = tf.add_n((kl_loss, init_kl_loss, reconstruction_loss), name='total_loss')
+        loss = tf.add_n((kl_loss, init_kl_loss, reconstruction_loss, normal_kl_loss), name='total_loss')
         tf.summary.scalar(name='total_loss', data=loss)
         return loss
 
@@ -152,7 +157,7 @@ if __name__ == '__main__':
     with record_summaries_every_n_global_steps(5, global_step=global_step):
         for i in range(50):
             for i in range(10):
-                indices = [np.random.randint(0, len(df) - 200) for _ in range(20)]
+                indices = [np.random.randint(0, len(df) - 200) for _ in range(64)]
                 data2 = {k: np.array([v[:, idx:idx + 200] for idx in indices]) for k, v in data.items()}
                 ffssm.learn(xs=data2)
                 global_step.assign_add(1)
