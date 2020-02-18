@@ -60,15 +60,14 @@ class VariationalLSTMEncoding(Encoding):
         encoding = mean + stddev * e
 
         if identifier is not None:
-            h0, c0 = tf.split(identifier, [self.input_size, self.input_size], axis=0)
-            h0 = tf.expand_dims(input=h0, axis=0)
-            c0 = tf.expand_dims(input=c0, axis=0)
+            h0 = tf.expand_dims(input=identifier, axis=0)
+            c0 = tf.zeros(shape=tf.shape(h0))
             identifier = [h0, c0]
 
         if dropout > 0:
             encoding = tf.nn.dropout(encoding, rate=dropout)
         y = self.lstm_i(
-            self.lstm_0(tf.expand_dims(tf.nn.dropout(encoding, rate=dropout), axis=0), initial_state=identifier)
+            self.lstm_0(tf.expand_dims(encoding, axis=0), initial_state=identifier)
         )
         y = tf.squeeze(y, axis=0)
 
@@ -95,8 +94,9 @@ class VariationalLSTMEncoding(Encoding):
     @tensorflow_name_scoped
     def sample(self, n, condition=(), identifier=None):
         if identifier is not None:
-            h0, c0 = tf.split(identifier, [self.input_size, self.input_size], axis=0)
-            identifier = [tf.expand_dims(input=h0, axis=0), tf.expand_dims(input=c0, axis=0)]
+            h0 = tf.expand_dims(input=identifier, axis=0)
+            c0 = tf.zeros(shape=tf.shape(h0))
+            identifier = [h0, c0]
 
         e = tf.random.normal(
             shape=(1, n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None

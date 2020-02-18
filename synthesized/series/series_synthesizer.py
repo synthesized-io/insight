@@ -1,5 +1,6 @@
 from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
+import time
 from random import randrange
 
 import numpy as np
@@ -190,8 +191,10 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 10, print_status_freq: int = 25
+        callback_freq: int = 10, print_status_freq: int = 25, timeout: int = 3000
     ) -> None:
+
+        t_start = time.time()
 
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
@@ -232,6 +235,9 @@ class SeriesSynthesizer(Synthesizer):
                     keep_learning = iteration < num_iterations
 
                 self.global_step.assign_add(1)
+
+                if time.time() - t_start >= timeout:
+                    break
 
         # return [value_data[batch] for value_data in data.values()], synth
 

@@ -28,7 +28,7 @@ class IdentifierValue(Value):
         self.capacity = capacity
         self.embedding_size = embedding_size
         if embedding_size is None:
-            self.embedding_size = 2 * self.capacity
+            self.embedding_size = self.capacity
         else:
             self.embedding_size = embedding_size
 
