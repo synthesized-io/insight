@@ -141,7 +141,7 @@ class SeriesSynthesizer(Synthesizer):
         return self.vae.losses
 
     def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
-        if self.identifier_label is None:
+        if self.value_factory.identifier_label is None:
             num_data = [len(df)]
             groups = [{
                 name: df[name].to_numpy() for value in self.get_all_values()
@@ -149,7 +149,7 @@ class SeriesSynthesizer(Synthesizer):
             }]
 
         else:
-            groups = [group[1] for group in df.groupby(by=self.identifier_label)]
+            groups = [group[1] for group in df.groupby(by=self.value_factory.identifier_label)]
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
