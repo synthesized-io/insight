@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import pandas as pd
 import tensorflow as tf
 
@@ -39,11 +41,73 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
             self.initial_network.build(self.value_ops.input_size)
         self.built = True
 
+    def inference_loop(self, u: tf.Tensor, x: tf.Tensor, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+        """Starting with a given state, infers all subsequent states from u, x using the inference network.
+
+                Args:
+                    u: [b, t, i]
+                    x: [b, t, i]
+                    z_0: [b, 1, l]
+
+                Returns:
+                    z: [b, t, l]
+                    σ_φ: [b, t, l]
+                    μ_φ: [b, t, l]
+
+        """
+        z = [z_0, ]
+        mu, sigma = [], []
+
+        for i in range(u.shape[1]):
+
+            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=x[:, i:i+1, :])
+            e = self.sample_state(bs=u.shape[0])
+            z.append(mu_t + sigma_t*e)
+            mu.append(mu_t)
+            sigma.append(sigma_t)
+
+        z_f = tf.concat(values=z[1:], axis=1, name='z_phi')
+        mu_f = tf.concat(values=mu, axis=1, name='mu_phi')
+        sigma_f = tf.concat(values=sigma, axis=1, name='sigma_phi')
+
+        return z_f, mu_f, sigma_f
+
+    def transition_loop(self, n: int, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Starting with a given state, generates n subsequent states using the transition network.
+
+                Args:
+                    n: []
+                    z_0: [b, 1, l]
+
+                Returns:
+                    z: [b, t, l]
+                    x: [b, t, i]
+
+        """
+        mu_theta_1, sigma_theta_1 = self.emission(z_0)
+        x_0 = mu_theta_1 + sigma_theta_1 * self.sample_output(bs=z_0.shape[0])
+
+        z, x = [z_0], [x_0]
+
+        for i in range(n):
+            mu_t, sigma_t = self.transition(z_p=z[i], u_t=x[i])
+            z_t = mu_t + sigma_t*self.sample_state(bs=z_0.shape[0])
+
+            mu_theta_t, sigma_theta_t = self.emission(z_t)
+            x_t = mu_theta_t + sigma_theta_t*self.sample_output(bs=z_0.shape[0])
+
+            z.append(z_t)
+            x.append(x_t)
+
+        z_f = tf.concat(values=z[1:], axis=1, name='z_gamma')
+        x_f = tf.concat(values=x[1:], axis=1, name='x_gamma')
+
+        return z_f, x_f
+
     def loss(self) -> tf.Tensor:
         x = self.value_ops.unified_inputs(inputs=self.xs)
 
         z_0 = self.get_initial_state(x_1=x[:, 0:1, :])
-
         mu_theta_0, sigma_theta_0 = self.emission(z_t=z_0)
         u_1 = mu_theta_0 + sigma_theta_0 * self.sample_output(bs=z_0.shape[0])
 
@@ -53,34 +117,30 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
         z_p = tf.concat((z_0, z[:, :-1, :]), axis=1, name='z_p')
 
         mu_gamma, sigma_gamma = self.transition(z_p=z_p, u_t=u)
+        mu_theta, sigma_theta = self.emission(z_t=z)
 
+        y = mu_theta + sigma_theta * tf.random.normal(shape=mu_theta.shape)
+
+        # Losses: kl, reconstruction and total
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi,
                                                      mu_2=mu_gamma, stddev_2=sigma_gamma)
         normal_kl_loss = self.diagonal_normal_kl_divergence(
             mu_1=mu_phi, stddev_1=sigma_phi, mu_2=tf.zeros(shape=mu_phi.shape, dtype=tf.float32),
             stddev_2=tf.ones(shape=sigma_phi.shape, dtype=tf.float32)
         )
-
-        tf.summary.scalar(name='kl_loss', data=kl_loss)
-        tf.summary.scalar(name='normal_kl_loss', data=normal_kl_loss)
-
         init_kl_loss = self.diagonal_normal_kl_divergence(
             mu_1=mu_theta_0, stddev_1=sigma_theta_0, mu_2=tf.zeros(shape=mu_theta_0.shape, dtype=tf.float32),
             stddev_2=tf.ones(shape=sigma_theta_0.shape, dtype=tf.float32)
         )
-        tf.summary.scalar(name='init_kl_loss', data=init_kl_loss)
-
-        mu_theta, sigma_theta = self.emission(z_t=z)
-        y = mu_theta + sigma_theta * tf.random.normal(shape=mu_theta.shape)
-
         reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
-        tf.summary.scalar(name='reconstruction_loss', data=reconstruction_loss)
         loss = tf.add_n((kl_loss, init_kl_loss, reconstruction_loss, normal_kl_loss), name='total_loss')
+
+        tf.summary.scalar(name='kl_loss', data=kl_loss)
+        tf.summary.scalar(name='normal_kl_loss', data=normal_kl_loss)
+        tf.summary.scalar(name='init_kl_loss', data=init_kl_loss)
+        tf.summary.scalar(name='reconstruction_loss', data=reconstruction_loss)
         tf.summary.scalar(name='total_loss', data=loss)
         return loss
-
-    def get_all_values(self):
-        return self.value_factory.get_values()
 
     def regularization_losses(self):
         pass

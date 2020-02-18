@@ -149,72 +149,6 @@ class StateSpaceModel(tf.Module):
         """
         return tf.random.normal(shape=(bs, 1, self.value_ops.output_size), dtype=tf.float32)
 
-    def inference_loop(self, u: tf.Tensor, x: tf.Tensor, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
-        """Starting with a given state, infers all subsequent states from u, x using the inference network.
-
-        Args:
-            u: [b, t, i]
-            x: [b, t, i]
-            z_0: [b, 1, l]
-
-        Returns:
-            z: [b, t, l]
-            σ_φ: [b, t, l]
-            μ_φ: [b, t, l]
-
-        """
-        z = [z_0, ]
-        mu, sigma = [], []
-
-        for i in range(u.shape[1]):
-
-            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=x[:, i:i+1, :])
-            e = self.sample_state(bs=u.shape[0])
-            z.append(mu_t + sigma_t*e)
-            mu.append(mu_t)
-            sigma.append(sigma_t)
-
-        z_f = tf.concat(values=z[1:], axis=1, name='z_phi')
-        mu_f = tf.concat(values=mu, axis=1, name='mu_phi')
-        sigma_f = tf.concat(values=sigma, axis=1, name='sigma_phi')
-
-        return z_f, mu_f, sigma_f
-
-    def transition_loop(self, n: int, z_0: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-        """Starting with a given state, generates n subsequent states using the transition network.
-
-        Args:
-            n: []
-            z_0: [b, 1, l]
-
-        Returns:
-            z: [b, t, l]
-            x: [b, t, i]
-
-        """
-        mu_theta_1, sigma_theta_1 = self.emission(z_0)
-        x_0 = mu_theta_1 + sigma_theta_1 * self.sample_output(bs=z_0.shape[0])
-
-        z, x = [z_0], [x_0]
-
-        for i in range(n):
-            mu_t, sigma_t = self.transition(z_p=z[i], u_t=x[i])
-            z_t = mu_t + sigma_t*self.sample_state(bs=z_0.shape[0])
-
-            mu_theta_t, sigma_theta_t = self.emission(z_t)
-            x_t = mu_theta_t + sigma_theta_t*self.sample_output(bs=z_0.shape[0])
-
-            z.append(z_t)
-            x.append(x_t)
-
-        z_f = tf.concat(values=z[1:], axis=1, name='z_gamma')
-        x_f = tf.concat(values=x[1:], axis=1, name='x_gamma')
-
-        return z_f, x_f
-
-    def loss(self) -> tf.Tensor:
-        pass
-
     # @tf.function
     def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
@@ -262,6 +196,9 @@ class StateSpaceModel(tf.Module):
     @property
     def regularization_losses(self):
         raise NotImplementedError
+
+    def get_all_values(self):
+        return self.value_factory.get_values()
 
     def get_training_data(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
