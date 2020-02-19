@@ -2,7 +2,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .state_space import StateSpaceModel
-from .feedforward_state_space import GaussianEncoder
+from .feed_forward_state_space import GaussianEncoder
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):

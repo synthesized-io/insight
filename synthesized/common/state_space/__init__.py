@@ -1,4 +1,9 @@
 from .state_space import StateSpaceModel
-from .feedforward_state_space import FeedForwardStateSpaceModel
+from .feed_forward_state_space import FeedForwardStateSpaceModel
+from .recurrent_state_space import RecurrentStateSpaceModel
+from ..module import register
 
-__all__ = ['StateSpaceModel', 'FeedForwardStateSpaceModel']
+register('feed_forward_state_space', FeedForwardStateSpaceModel)
+register('recurrent_state_space', RecurrentStateSpaceModel)
+
+__all__ = ['StateSpaceModel', 'FeedForwardStateSpaceModel', 'RecurrentStateSpaceModel']
