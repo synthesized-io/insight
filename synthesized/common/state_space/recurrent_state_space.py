@@ -30,15 +30,6 @@ class RecurrentStateSpaceModel(StateSpaceModel):
             num_layers=1, name='inference'
         )
 
-        self.initialize_rnn = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units=capacity//2, return_sequences=False)
-        )
-        self.initialize_network = GaussianEncoder(
-            input_size=capacity, output_size=capacity, capacity=capacity,
-            num_layers=1, name='initialize'
-        )
-
-
     def build(self, input_shape):
         with tf.name_scope('emission'):
             self.emission_network.build(self.latent_size)
@@ -46,8 +37,6 @@ class RecurrentStateSpaceModel(StateSpaceModel):
             self.transition_network.build(self.capacity)
         with tf.name_scope('inference'):
             self.inference_network.build(self.capacity)
-        with tf.name_scope('initialize'):
-            self.initialize_network.build(self.capacity)
         self.built = True
 
     @property
@@ -66,21 +55,13 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         h_0 = self.transition_rnn.get_initial_state(trn_x)
 
-        kappa = self.initialize_rnn(x)
-        mu_kappa, sigma_kappa = self.initialize_network(kappa)
-        e_kappa = tf.random.normal(shape=sigma_kappa.shape, dtype=tf.float32)
-
-        h_0 = (mu_kappa + e_kappa*sigma_kappa, tf.zeros(shape=mu_kappa.shape, dtype=tf.float32))
-
-        init_kl_loss = 0.01*self.diagonal_normal_kl_divergence(mu_1=mu_kappa, stddev_1=sigma_kappa,
-                                                          mu_2=tf.zeros(shape=mu_kappa.shape),
-                                                          stddev_2=tf.ones(shape=mu_kappa.shape))
         prior_hs, state1, state2 = self.transition_rnn(inputs=mask*trn_x, initial_state=h_0)
 
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)
 
         inf_x = tf.concat([x, prior_hs], axis=2)
-        inf_h_0 = self.inference_rnn.forward_layer.get_initial_state(inf_x)+self.inference_rnn.backward_layer.get_initial_state(inf_x)
+        inf_h_0 = self.inference_rnn.forward_layer.get_initial_state(inf_x) + \
+            self.inference_rnn.backward_layer.get_initial_state(inf_x)
         posterior_hs = self.inference_rnn(inf_x, initial_state=inf_h_0)
 
         mu_phi, sigma_phi = self.inference_network(posterior_hs)
@@ -98,7 +79,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         y = mu_theta + e_y*sigma_theta
 
-        x = self.value_ops.value_outputs(y=y[0,:,:], conditions={})
+        x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
         syn_df = pd.DataFrame(x)
         syn_df = self.value_factory.postprocess(df=syn_df)
         fig = plt.figure(figsize=(16, 6))
@@ -108,10 +89,9 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         plt.close(fig)
 
         reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
-        loss = tf.add_n((init_kl_loss, kl_loss, reconstruction_loss), name='total_loss')
+        loss = tf.add_n((kl_loss, reconstruction_loss), name='total_loss')
 
         tf.summary.scalar(name='kl_loss', data=kl_loss)
-        tf.summary.scalar(name='init_kl_loss', data=init_kl_loss)
         tf.summary.scalar(name='reconstruction_loss', data=reconstruction_loss)
         tf.summary.scalar(name='total_loss', data=loss)
         return loss
@@ -166,7 +146,6 @@ if __name__ == '__main__':
     from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
-
     def plot_to_image(figure):
         """Converts the matplotlib plot specified by 'figure' to a PNG image and
         returns it. The supplied figure is closed and inaccessible after this call."""
@@ -183,17 +162,16 @@ if __name__ == '__main__':
         image = tf.expand_dims(image, 0)
         return image
 
-
-    value = np.concatenate([np.sin(np.linspace(0, 2**k, 200)) for k in range(8)], axis=0)
+    value = np.sin(np.linspace(0, 20, 200))
     df = pd.DataFrame(dict(
         a=value,
         b=-value
     ))
 
-    ffssm = RecurrentStateSpaceModel(df=df, capacity=8, latent_size=4)
+    rssm = RecurrentStateSpaceModel(df=df, capacity=8, latent_size=4)
 
-    df_train = ffssm.value_factory.preprocess(df)
-    data = ffssm.get_training_data(df_train)
+    df_train = rssm.value_factory.preprocess(df)
+    data = rssm.get_training_data(df_train)
 
     global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
     tf.summary.experimental.set_step(global_step)
@@ -202,7 +180,7 @@ if __name__ == '__main__':
 
     writer = tf.summary.create_file_writer(logdir)
     writer.set_as_default()
-    ffssm.build(None)
+    rssm.build(None)
     with record_summaries_every_n_global_steps(5, global_step=global_step):
         for j in range(50):
             for i in range(10):
@@ -210,14 +188,14 @@ if __name__ == '__main__':
                     tf.summary.trace_on(graph=True, profiler=False)
                 indices = [np.random.randint(0, 8) for _ in range(8)]
                 data2 = {k: np.array([v[:, idx*200:(idx+1)*200] for idx in indices]) for k, v in data.items()}
-                ffssm.learn(xs=data2)
+                rssm.learn(xs=data2)
                 global_step.assign_add(1)
                 writer.flush()
                 if j == i == 0:
                     tf.summary.trace_export(name="Learn", step=global_step)
                     tf.summary.trace_off()
 
-            syn = ffssm.synthesize(200)
+            syn = rssm.synthesize(200)
             fig = plt.figure(figsize=(16, 6))
             ax = fig.gca()
             sns.lineplot(data=syn, axes=ax, dashes=False)
