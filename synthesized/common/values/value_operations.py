@@ -37,9 +37,7 @@ class ValueOps(tf.Module):
         x = tf.concat(values=[
             value.unify_inputs(xs=[inputs[name] for name in value.learned_input_columns()])
             for value in self.values if value.learned_input_size() > 0
-        ], axis=1)
-
-        x = tf.transpose(x, perm=[0, 2, 1])
+        ], axis=-1)
 
         return x
 

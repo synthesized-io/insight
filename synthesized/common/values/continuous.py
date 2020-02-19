@@ -210,7 +210,7 @@ class ContinuousValue(Value):
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 1
-        return xs[0]
+        return tf.expand_dims(input=xs[0], axis=-1)
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:

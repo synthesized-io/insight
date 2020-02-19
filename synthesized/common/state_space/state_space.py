@@ -202,7 +202,7 @@ class StateSpaceModel(tf.Module):
 
     def get_training_data(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
-            name: tf.expand_dims(tf.constant(df[name].to_numpy(), dtype=value.dtype), axis=0)
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype)
             for value in self.get_all_values()
             for name in value.learned_input_columns()
         }

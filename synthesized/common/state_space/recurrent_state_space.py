@@ -78,8 +78,8 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         e_y = tf.random.normal(shape=sigma_theta.shape, dtype=tf.float32)
 
         y = mu_theta + e_y*sigma_theta
-
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
+
         syn_df = pd.DataFrame(x)
         syn_df = self.value_factory.postprocess(df=syn_df)
         fig = plt.figure(figsize=(16, 6))
@@ -187,7 +187,10 @@ if __name__ == '__main__':
                 if j == i == 0:
                     tf.summary.trace_on(graph=True, profiler=False)
                 indices = [np.random.randint(0, 8) for _ in range(8)]
-                data2 = {k: np.array([v[:, idx*200:(idx+1)*200] for idx in indices]) for k, v in data.items()}
+                data2 = {
+                    k: tf.constant(np.stack([v[:200] for idx in indices]), dtype=tf.float32)
+                    for k, v in data.items()
+                }
                 rssm.learn(xs=data2)
                 global_step.assign_add(1)
                 writer.flush()
