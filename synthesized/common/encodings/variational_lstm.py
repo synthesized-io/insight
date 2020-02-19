@@ -60,16 +60,17 @@ class VariationalLSTMEncoding(Encoding):
         encoding = mean + stddev * e
 
         if identifier is not None:
-            h0 = tf.expand_dims(input=identifier, axis=0)
-            c0 = tf.zeros(shape=tf.shape(h0))
-            identifier = [h0, c0]
+            c0 = tf.zeros(shape=tf.shape(identifier))
+            identifier = [identifier, c0]
 
         if dropout > 0:
             encoding = tf.nn.dropout(encoding, rate=dropout)
         y = self.lstm_i(
-            self.lstm_0(tf.expand_dims(encoding, axis=0), initial_state=identifier)
+            self.lstm_0(encoding, initial_state=identifier)
         )
-        y = tf.squeeze(y, axis=0)
+
+        mean = tf.reshape(mean, shape=(-1, self.encoding_size))
+        stddev = tf.reshape(stddev, shape=(-1, self.encoding_size))
 
         kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
         kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
@@ -81,7 +82,7 @@ class VariationalLSTMEncoding(Encoding):
         tf.summary.histogram(name='posterior_distribution', data=encoding),
         tf.summary.image(
             name='latent_space_correlation',
-            data=tf.abs(tf.reshape(tfp.stats.correlation(encoding),
+            data=tf.abs(tf.reshape(tfp.stats.correlation(tf.reduce_mean(encoding, axis=0)),
                                    shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
 

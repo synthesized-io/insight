@@ -112,7 +112,7 @@ class SeriesVAE(Generative):
 
         x = self.value_ops.unified_inputs(self.xs)
         if self.identifier_label and self.identifier_value:
-            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
+            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][:, 0]])
         else:
             identifier = None
 
@@ -136,9 +136,8 @@ class SeriesVAE(Generative):
             name='regularization_loss'
         )
 
-        total_loss = tf.add_n(
-            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
-        )
+        total_loss = tf.add_n(inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss')
+
         self.losses['reconstruction-loss'] = reconstruction_loss
         self.losses['kl-loss'] = kl_loss
         self.losses['regularization-loss'] = regularization_loss
@@ -209,8 +208,6 @@ class SeriesVAE(Generative):
             identifier = tf.tile(input=identifier, multiples=(n,))
         else:
             identifier, identifier_embedding = None, None
-
-        print('*********** _snythesized')
 
         x = self.encoding.sample(n=n, identifier=identifier_embedding)
         x = self.value_ops.add_conditions(x=x, conditions=cs)
