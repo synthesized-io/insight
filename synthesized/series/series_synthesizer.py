@@ -362,4 +362,3 @@ class SeriesSynthesizer(Synthesizer):
             latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
 
         return df_encoded,  df_synthesized
-

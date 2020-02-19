@@ -1,7 +1,7 @@
 from typing import Tuple, Union
 
 import tensorflow as tf
-import tensorflow_probability as tfp
+# import tensorflow_probability as tfp
 
 from .encoding import Encoding
 from ..transformations import DenseTransformation
