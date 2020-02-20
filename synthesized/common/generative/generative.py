@@ -10,7 +10,7 @@ class Generative(tf.Module):
     """Base class for generative models."""
 
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
-        super().__init__(name=name)
+        super(Generative, self).__init__(name=name)
 
         self.values = values
         self.conditions = conditions

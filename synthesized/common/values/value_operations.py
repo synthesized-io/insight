@@ -37,7 +37,7 @@ class ValueOps(tf.Module):
         x = tf.concat(values=[
             value.unify_inputs(xs=[inputs[name] for name in value.learned_input_columns()])
             for value in self.values if value.learned_input_size() > 0
-        ], axis=1)
+        ], axis=-1)
 
         return x
 
@@ -60,7 +60,7 @@ class ValueOps(tf.Module):
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
+            axis=-1
         )
 
         losses: Dict[str, tf.Tensor] = OrderedDict()
@@ -82,7 +82,7 @@ class ValueOps(tf.Module):
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
-            axis=1
+            axis=-1
         )
 
         # Output tensors per value

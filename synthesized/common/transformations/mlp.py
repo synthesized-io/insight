@@ -32,7 +32,7 @@ class MlpTransformation(Transformation):
 
     def call(self, inputs, **kwargs):
         for layer in self.layers:
-            inputs = layer(inputs=inputs)
+            inputs = layer(inputs=inputs, **kwargs)
 
         return inputs
 

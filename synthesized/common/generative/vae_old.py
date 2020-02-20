@@ -38,7 +38,7 @@ class VAEOld(Generative):
         weight_decay: float,
         summarize: bool = False, summarize_gradient_norms: bool = False
     ):
-        super().__init__(name=name, values=values, conditions=conditions)
+        super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
         self.summarize = summarize
