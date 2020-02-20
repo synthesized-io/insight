@@ -53,10 +53,10 @@ class VariationalRecurrentEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
-        if dropout > 0.:
-            inputs = tf.nn.dropout(inputs, rate=dropout)
+        if series_dropout > 0.:
+            inputs = tf.nn.dropout(inputs, rate=series_dropout)
         _, h_out, _ = self.lstm_encoder(inputs)
 
         mean = self.mean(h_out)

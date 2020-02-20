@@ -51,7 +51,7 @@ class VariationalLSTMEncoding(Encoding):
 
     @tensorflow_name_scoped
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
         mean = self.mean(inputs)
         stddev = self.stddev(inputs)
         e = tf.random.normal(
@@ -63,8 +63,8 @@ class VariationalLSTMEncoding(Encoding):
             c0 = tf.zeros(shape=tf.shape(identifier))
             identifier = [identifier, c0]
 
-        if dropout > 0:
-            encoding = tf.nn.dropout(encoding, rate=dropout)
+        if series_dropout > 0:
+            encoding = tf.nn.dropout(encoding, rate=series_dropout)
         y = self.lstm_i(
             self.lstm_0(encoding, initial_state=identifier)
         )

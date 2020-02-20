@@ -19,7 +19,7 @@ class SeriesVAE(Generative):
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batchnorm: bool, activation: str, dropout: Optional[float],
+            batchnorm: bool, activation: str, series_dropout: Optional[float],
             # Optimizer
             optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
             initial_boost: int, clip_gradients: float,
@@ -40,7 +40,7 @@ class SeriesVAE(Generative):
         self.num_layers = num_layers
         self.batchnorm = batchnorm
         self.activation = activation
-        self.dropout = dropout
+        self.series_dropout = series_dropout
         self.encoding_size = capacity
 
         self.learning_rate = learning_rate
@@ -120,7 +120,7 @@ class SeriesVAE(Generative):
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.value_ops.add_conditions(x, conditions=self.xs)
-        x = self.encoding(inputs=x, identifier=identifier, dropout=self.dropout)
+        x = self.encoding(inputs=x, identifier=identifier, series_dropout=self.series_dropout)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
         #################################
