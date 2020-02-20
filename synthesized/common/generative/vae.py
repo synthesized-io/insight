@@ -108,9 +108,9 @@ class VAE(Generative):
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y=y, inputs=self.xs, summarize=self.summarize),
+            name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
-        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'

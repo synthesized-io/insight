@@ -118,14 +118,14 @@ class RuleValue(Value):
         return ys
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         losses = list()
         index = 0
         for value, y in zip(self.values[:self.num_learned], y):
             num = len(value.learned_output_columns())
-            losses.append(value.loss(y=y, xs=xs[index: index + num]))
+            losses.append(value.loss(y=y, xs=xs[index: index + num], summarize=summarize))
             index += num
         return tf.math.add_n(inputs=losses)
 

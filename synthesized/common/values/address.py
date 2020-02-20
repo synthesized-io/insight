@@ -240,11 +240,11 @@ class AddressValue(Value):
             return self.postcode.output_tensors(y=y)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
         if self.postcode is None:
-            return super().loss(y=y, xs=xs)
+            return super().loss(y=y, xs=xs, summarize=summarize)
         else:
-            return self.postcode.loss(y=y, xs=xs)
+            return self.postcode.loss(y=y, xs=xs, summarize=summarize)
 
     @tensorflow_name_scoped
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
