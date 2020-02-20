@@ -1,6 +1,33 @@
 {
   "source": "evaluation/dataset_evaluation.ipynb",
   "instances": {
+    "atlas_higgs_boson_detection_data_set": {
+      "data": "data/templates/atlas_higgs_detection.csv",
+      "ignore_columns": ["Unnamed: 0", "EventId"],
+      "num_iterations": null,
+      "num_passes": 1,
+      "params": {},
+      "target": "Label",
+      "synthesizer_class": "HighDimSynthesizer"
+    },
+    "business_property_insurance_risk": {
+      "data": "data/templates/fire-peril.csv",
+      "ignore_columns": ["Unnamed: 0","id"],
+      "num_iterations": null,
+      "num_passes": 1,
+      "params": {},
+      "target": "target",
+      "synthesizer_class": "HighDimSynthesizer"
+    },
+    "housing_prices": {
+      "data": "data/templates/price_paid_household.csv",
+      "ignore_columns": ["Row_ID", "Household_ID"],
+      "num_iterations": null,
+      "num_passes": 1,
+      "params": {},
+      "target": "Old/New",
+      "synthesizer_class": "HighDimSynthesizer"
+    },
     "james": {
       "data": "data/credit_with_categoricals.csv",
       "ignore_columns": [],
@@ -10,78 +37,49 @@
       "target": "SeriousDlqin2yrs",
       "synthesizer_class": "HighDimSynthesizer"
     },
-    "sweden_motor_insurance": {
-      "data": "data/insurance/sweden_motor_insurance/sweden_motor_insurance.csv",
+    "medical_appointment_no_shows": {
+      "data": "data/templates/noshowappointments.csv",
+      "ignore_columns": ["PatientId", "AppointmentID"],
+      "num_iterations": null,
+      "num_passes": 1,
+      "params": {},
+      "target": "No-show",
+      "synthesizer_class": "HighDimSynthesizer"
+    },
+    "occupancy_detection": {
+      "data": "data/templates/occupancy-data.csv",
       "ignore_columns": [],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
-      "target": "Payment",
+      "target": "Occupancy",
       "synthesizer_class": "HighDimSynthesizer"
     },
-    "arx": {
-      "data": "data/arx_adult.csv",
+    "prediction_of_electric_motor_temperature": {
+      "data": "data/templates/temp.csv",
       "ignore_columns": [],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
-      "target": "salary-class",
+      "target": "ambient",
       "synthesizer_class": "HighDimSynthesizer"
     },
-    "uci_creditcard_default": {
-      "data": "data/uci/creditcard_default.csv",
-      "ignore_columns": [
-        "ID"
-      ],
+    "telecom_customer_churn": {
+      "data": "data/templates/telecom-churn.csv",
+      "ignore_columns": ["customerID"],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
-      "target": "default payment next month",
+      "target": "Churn",
       "synthesizer_class": "HighDimSynthesizer"
     },
-    "sales_pipeline": {
-      "data": "data/templates/sales_pipeline.csv",
-      "ignore_columns": [],
+    "vehicle_insurance_claim_prediction": {
+      "data": "data/templates/vehicle-insurance.csv",
+      "ignore_columns": ["Row_ID", "Household_ID"],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
-      "target": "Opportunity Result",
-      "synthesizer_class": "HighDimSynthesizer"
-    },
-    "segmentation_analysis": {
-      "data": "data/templates/segmentation_analysis.csv",
-      "ignore_columns": [],
-      "num_iterations": null,
-      "num_passes": 1,
-      "params": {},
-      "target": "income",
-      "synthesizer_class": "HighDimSynthesizer"
-    },
-    "vitor": {
-      "data": "data/vitor.csv",
-      "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": null,
-      "num_passes": 1,
-      "params": {},
-      "target": "treatment",
-      "synthesizer_class": "HighDimSynthesizer"
-    },
-    "fraud_detection": {
-      "data": "data/fraud_detection_mini.csv",
-      "ignore_columns": [],
-      "num_iterations": null,
-      "num_passes": 1,
-      "params": {},
-      "target": "fraud",
-      "synthesizer_class": "HighDimSynthesizer"
-    },
-    "housing_prices": {
-      "data": "data/templates/price_paid_household.csv",
-      "ignore_columns": ["Unnamed: 0"],
-      "num_iterations": null,
-      "num_passes": 1,
-      "params": {},
-      "target": "Old/New",
+      "target": "Claim_Amount",
       "synthesizer_class": "HighDimSynthesizer"
     }
   }
