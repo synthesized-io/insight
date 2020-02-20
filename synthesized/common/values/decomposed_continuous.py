@@ -18,14 +18,15 @@ class DecomposedContinuousValue(Value):
         integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
         use_quantile_transformation: bool = False,
-        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
+        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
+        low_freq_weight: float = 1., high_freq_weight: float = 1.
     ):
         super().__init__(name=name)
 
         self.weight = weight
         self.identifier = identifier
-        self.low_freq_weight = 2.
-        self.high_freq_weight = 1.
+        self.low_freq_weight = tf.constant(low_freq_weight, dtype=tf.float32)
+        self.high_freq_weight = tf.constant(high_freq_weight, dtype=tf.float32)
 
         self.weight = weight
         self.integer = integer
@@ -176,33 +177,20 @@ class DecomposedContinuousValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
-        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y[:, 0], axis=1), xs=xs[0:1])
-        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y[:, 1], axis=1), xs=xs[1:2])
+
+        if len(y.shape) == 2:
+            y_low_freq = y[:, 0]
+            y_high_freq = y[:, 1]
+        elif len(y.shape) == 3:
+            y_low_freq = y[:, :, 0]
+            y_high_freq = y[:, :, 1]
+        else:
+            raise NotImplementedError
+
+        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[0:1])
+        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[1:2])
 
         return self.low_freq_weight * loss_low_freq + self.high_freq_weight * loss_high_freq
-
-
-# def _decompose_signal(y, A=None, B=None, C=None):
-#     y = np.array(y)
-#     len_y = len(y)
-#
-#     x = np.array(range(len_y))
-#     x_2 = x ** 2
-#
-#     if A is None or B is None or C is None:
-#         assert A is None and B is None and C is None
-#         xx = np.vstack([x_2, x, np.ones(len_y)]).T
-#         A, B, C = np.linalg.lstsq(xx, y, rcond=None)[0]
-#
-#     y1 = y - (A * x_2 + B * x + C)
-#
-#     b_n = int(len(y) / 100)
-#     b = [1. / b_n] * b_n
-#     a = 1
-#     y_low = lfilter(b, a, y1)
-#     y_high = y1 - y_low
-#
-#     return A, B, C, y_low, y_high
 
 
 def _decompose_df(df, column_name, identifier=None):

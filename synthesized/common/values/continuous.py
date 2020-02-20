@@ -224,11 +224,11 @@ class ContinuousValue(Value):
         assert len(xs) == 1
         target = xs[0]
         target = tf.expand_dims(input=target, axis=-1)
-        # target = self.input_tensors(xs=xs)[:, :1]  # first value since date adds more information
+
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
             y = tf.boolean_mask(tensor=y, mask=mask)
-        # loss = tf.nn.l2_loss(t=(target - x))
+
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=-1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=None)
         tf.summary.scalar(name=self.name, data=loss)
