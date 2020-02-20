@@ -42,8 +42,7 @@ class VariationalEncoding(Encoding):
         )
         x = mean + stddev * x
 
-        kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-        kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
+        kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
