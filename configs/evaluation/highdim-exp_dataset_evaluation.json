@@ -3,7 +3,7 @@
   "instances": {
     "atlas_higgs_boson_detection_data_set": {
       "data": "data/templates/atlas_higgs_detection.csv",
-      "ignore_columns": ["Unnamed: 0", "EventId"],
+      "ignore_columns": ["EventId"],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
@@ -21,7 +21,7 @@
     },
     "housing_prices": {
       "data": "data/templates/price_paid_household.csv",
-      "ignore_columns": ["Row_ID", "Household_ID"],
+      "ignore_columns": ["Unnamed: 0"],
       "num_iterations": null,
       "num_passes": 1,
       "params": {},
