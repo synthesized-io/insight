@@ -12,12 +12,13 @@ class VariationalLSTMEncoding(Encoding):
     """Encoding for LSTM mode 1
 
     """
-    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=1):
+    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.0, summarize=False, lstm_layers=2):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
         )
         self.beta = beta
+        self.summarize = summarize
         self.lstm_layers = lstm_layers
 
         self.mean = DenseTransformation(
@@ -77,14 +78,16 @@ class VariationalLSTMEncoding(Encoding):
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
-        tf.summary.histogram(name='posterior_distribution', data=encoding),
-        tf.summary.image(
-            name='latent_space_correlation',
-            data=tf.abs(tf.reshape(tfp.stats.correlation(tf.reduce_mean(encoding, axis=0)),
-                                   shape=(1, self.encoding_size, self.encoding_size, 1)))
-        )
+
+        if self.summarize:
+            tf.summary.histogram(name='mean', data=self.mean.output),
+            tf.summary.histogram(name='stddev', data=self.stddev.output),
+            tf.summary.histogram(name='posterior_distribution', data=encoding),
+            tf.summary.image(
+                name='latent_space_correlation',
+                data=tf.abs(tf.reshape(tfp.stats.correlation(tf.reduce_mean(encoding, axis=0)),
+                                       shape=(1, self.encoding_size, self.encoding_size, 1)))
+            )
 
         if return_encoding:
             return y, encoding

@@ -73,14 +73,14 @@ class SeriesVAE(Generative):
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, lstm_layers=2
+                beta=self.beta, summarize=self.summarize
             )
 
         elif self.lstm_mode == 2:
             self.encoding = VariationalRecurrentEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
+                beta=self.beta, summarize=self.summarize
             )
 
         kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
@@ -144,10 +144,11 @@ class SeriesVAE(Generative):
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
-        tf.summary.scalar(name='kl-loss', data=kl_loss)
-        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-        tf.summary.scalar(name='total-loss', data=total_loss)
+        if self.summarize:
+            tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+            tf.summary.scalar(name='kl-loss', data=kl_loss)
+            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+            tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 

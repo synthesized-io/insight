@@ -124,14 +124,15 @@ class VAE(Generative):
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        tf.summary.scalar(name='total-loss', data=total_loss)
-        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        if self.summarize:
+            tf.summary.scalar(name='total-loss', data=total_loss)
+            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
 
-        tf.summary.image(
-            name='latent_space_correlation',
-            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
-        )
-        tf.summary.histogram(name='posterior', data=z)
+            tf.summary.image(
+                name='latent_space_correlation',
+                data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
+            )
+            tf.summary.histogram(name='posterior', data=z)
 
         return total_loss
 

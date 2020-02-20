@@ -8,9 +8,10 @@ from ..module import tensorflow_name_scoped
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=1.0):
+    def __init__(self, name, input_size, encoding_size, beta=1.0, summarize=False):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
+        self.summarize = summarize
 
         self.mean = DenseTransformation(
             name='mean', input_size=self.input_size,
@@ -47,13 +48,16 @@ class VariationalEncoding(Encoding):
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
-        tf.summary.histogram(name='posterior_distribution', data=x),
-        tf.summary.image(
-            name='latent_space_correlation',
-            data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.encoding_size, self.encoding_size, 1)))
-        )
+
+        if self.summarize:
+            tf.summary.histogram(name='mean', data=self.mean.output),
+            tf.summary.histogram(name='stddev', data=self.stddev.output),
+            tf.summary.histogram(name='posterior_distribution', data=x),
+            tf.summary.image(
+                name='latent_space_correlation',
+                data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.encoding_size, self.encoding_size, 1)))
+            )
+
         return x
 
     @tensorflow_name_scoped

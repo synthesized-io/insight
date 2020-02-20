@@ -127,10 +127,11 @@ class VAEOld(Generative):
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
-        tf.summary.scalar(name='kl-loss', data=kl_loss)
-        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-        tf.summary.scalar(name='total-loss', data=total_loss)
+        if self.summarize:
+            tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+            tf.summary.scalar(name='kl-loss', data=kl_loss)
+            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+            tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 
