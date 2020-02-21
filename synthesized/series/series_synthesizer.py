@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Value, ValueFactory, TypeOverride
-from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
+from ..common.util import record_summaries_every_n_global_steps
 from ..common import Synthesizer
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager
@@ -19,7 +19,6 @@ logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=
 class SeriesSynthesizer(Synthesizer):
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
-        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,

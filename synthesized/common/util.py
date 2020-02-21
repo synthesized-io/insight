@@ -1,17 +1,14 @@
-import simplejson
+import io
 import re
-from collections import namedtuple
 
-import tensorflow as tf
-from tensorflow.python.client import timeline
-from tensorflow.python.eager import context
 import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
 from pyemd import emd
+from tensorflow.python.eager import context
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
 RE_END = re.compile(r"[^A-Za-z0-9.]")
-
-ProfilerArgs = namedtuple("ProfilerArgs", "filepath period")
 
 
 def record_summaries_every_n_global_steps(n: int, global_step: tf.Variable):
@@ -29,35 +26,21 @@ def record_summaries_every_n_global_steps(n: int, global_step: tf.Variable):
     return tf.summary.record_if(should)
 
 
-class Profiler:
-    def __init__(self, filepath: str = "", period: int = 1, step: int = 0, traces: list = list()):
-        self.filepath = filepath
-        self.period = period
-        self.step = step
-        self.traces = traces
-
-    def is_trace_step(self):
-        return self.step % self.period == 0
-
-    def increment(self):
-        self.step += 1
-
-    @staticmethod
-    def get_options_and_metadata():
-        options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
-        run_metadata = tf.compat.v1.RunMetadata()
-        return options, run_metadata
-
-    def read_trace(self, run_metadata):
-        fetched_timeline = timeline.Timeline(run_metadata.step_stats)
-        chrome_trace = fetched_timeline.generate_chrome_trace_format()
-        trace_events = simplejson.loads(chrome_trace)
-        trace_events["step"] = self.step
-        self.traces.append(trace_events)
-
-    def write_traces(self):
-        with open(self.filepath, 'w') as out_file:
-            simplejson.dump(self.traces, out_file, ignore_nan=True)
+def plot_to_tf_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100)
+    # Closing the figure prevents it from being displayed directly inside
+    # the notebook.
+    plt.close(figure)
+    buf.seek(0)
+    # Convert PNG buffer to TF image
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    # Add the batch dimension
+    image = tf.expand_dims(image, 0)
+    return image
 
 
 def get_initializer(initializer):
