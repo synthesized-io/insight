@@ -82,6 +82,7 @@ class VariationalLSTMEncoding(Encoding):
         else:
             return y
 
+    @tf.function
     @tensorflow_name_scoped
     def sample(self, n, condition=(), identifier=None):
         if identifier is not None:
