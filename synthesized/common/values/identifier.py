@@ -134,7 +134,7 @@ class IdentifierValue(Value):
     def get_embedding(self, identifier: tf.Tensor):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
 
-    # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    # def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
     #     target = tf.one_hot(
     #         indices=xs[0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
     #         dtype=tf.float32
@@ -142,5 +142,6 @@ class IdentifierValue(Value):
     #
     #     loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
     #     loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
-    #     tf.summary.scalar(name=self.name, data=loss)
+    #     if summarize:
+    #         tf.summary.scalar(name=self.name, data=loss)
     #     return loss

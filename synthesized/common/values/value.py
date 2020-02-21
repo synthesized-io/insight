@@ -160,6 +160,7 @@ class Value(tf.Module):
         Args:
             y: Output embedding, of size `learned_output_size()`.
             xs: Input tensors, one per `learned_input_columns()`, usually from `input_tensors()`.
+            summarize: Whether to add the loss to tensorboard.
 
         Returns:
             Loss.
