@@ -2,28 +2,20 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .encoding import Encoding
-from ..transformations import DenseTransformation
+from ..transformations import GaussianTransformation
 from ..module import tensorflow_name_scoped
 
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=1.0):
+    def __init__(self, input_size, encoding_size, beta=1.0, name='variational_encoding'):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 
-        self.mean = DenseTransformation(
-            name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none'
-        )
-        self.stddev = DenseTransformation(
-            name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'
-        )
+        self.gaussian = GaussianTransformation(input_size=input_size, output_size=encoding_size)
 
     def build(self, input_shape):
-        self.mean.build(input_shape)
-        self.stddev.build(input_shape)
+        self.gaussian.build(input_shape)
         self.built = True
 
     def specification(self):
@@ -35,8 +27,8 @@ class VariationalEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, condition=()) -> tf.Tensor:
-        mean = self.mean(inputs)
-        stddev = self.stddev(inputs)
+        mean, stddev = self.gaussian(inputs)
+
         x = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )

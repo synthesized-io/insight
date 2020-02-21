@@ -10,3 +10,10 @@ register(name='variational_lstm', module=VariationalLSTMEncoding)
 register(name='vrae', module=VariationalRecurrentEncoding)
 
 __all__ = ['Encoding', 'VariationalEncoding', 'VariationalLSTMEncoding', 'VariationalRecurrentEncoding']
+
+Encodings = {
+    'encoding': Encoding,
+    'variational_encoding': VariationalEncoding,
+    'VariationalLSTMEncoding': VariationalLSTMEncoding,
+    'VariationalRecurrentEncoding': VariationalRecurrentEncoding
+}

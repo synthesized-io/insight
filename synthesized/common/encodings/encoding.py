@@ -5,7 +5,7 @@ from ..transformations import Transformation
 
 class Encoding(Transformation):
 
-    def __init__(self, name, input_size, encoding_size, condition_size=0):
+    def __init__(self, input_size, encoding_size, condition_size=0, name='encoding'):
         super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
         self.input_size = input_size
         self.encoding_size = encoding_size

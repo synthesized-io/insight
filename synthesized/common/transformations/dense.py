@@ -3,7 +3,8 @@ from math import log
 import tensorflow as tf
 
 from .transformation import Transformation
-from .. import util
+from .batch_norm import BatchNorm
+from ..util import get_initializer
 from ..module import tensorflow_name_scoped
 
 
@@ -15,8 +16,8 @@ class DenseTransformation(Transformation):
         super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
 
         self.bias = bias
-        self.batchnorm = batchnorm
         self.activation = activation
+        self.batchnorm = BatchNorm(input_size=output_size) if batchnorm else False
 
     def specification(self):
         spec = super().specification()
@@ -28,14 +29,14 @@ class DenseTransformation(Transformation):
     @tensorflow_name_scoped
     def build(self, input_shape):
         shape = (self.input_size, self.output_size)
-        initializer = util.get_initializer(initializer='glorot-normal')
+        initializer = get_initializer(initializer='glorot-normal')
         self.weight = self.add_weight(
             name='weight', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
         )
         self.add_regularization_weights(self.weight)
 
         shape = (self.output_size,)
-        initializer = util.get_initializer(initializer='zeros')
+        initializer = get_initializer(initializer='zeros')
         if self.bias:
             self.bias = self.add_weight(
                 name='bias', shape=shape, dtype=tf.float32, initializer=initializer, trainable=True
@@ -45,14 +46,7 @@ class DenseTransformation(Transformation):
             self.bias = None
 
         if self.batchnorm:
-            self.offset = self.add_weight(
-                name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
-                trainable=True
-            )
-            self.scale = self.add_weight(
-                name='scale', shape=shape, dtype=tf.float32, initializer=initializer,
-                trainable=True
-            )
+            self.batchnorm.build(input_shape=shape)
 
         self.built = True
 
@@ -66,11 +60,7 @@ class DenseTransformation(Transformation):
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
         if self.batchnorm:
-            mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keepdims=False)
-            x = tf.nn.batch_normalization(
-                x=x, mean=mean, variance=variance, offset=self.offset,
-                scale=tf.nn.softplus(features=self.scale), variance_epsilon=1e-6
-            )
+            x = self.batchnorm(x)
 
         if self.activation == 'none':
             pass
