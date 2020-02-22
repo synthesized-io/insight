@@ -28,3 +28,7 @@ class GaussianTransformation(Transformation):
         tf.summary.histogram(name='mean', data=mu)
         tf.summary.histogram(name='stddev', data=sigma)
         return mu, sigma
+
+    @property
+    def regularization_losses(self):
+        return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]

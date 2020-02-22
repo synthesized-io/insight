@@ -56,4 +56,4 @@ class VariationalEncoding(Encoding):
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]
+        return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]
