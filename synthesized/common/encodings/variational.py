@@ -38,8 +38,8 @@ class VariationalEncoding(Encoding):
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='mean', data=mean),
+        tf.summary.histogram(name='stddev', data=stddev),
         tf.summary.histogram(name='posterior_distribution', data=x),
         tf.summary.image(
             name='latent_space_correlation',
