@@ -521,14 +521,14 @@ def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:
     return not col.dropna().apply(_is_not_integer_float).any()
 
 
-def _is_not_integer_float(x: float) -> bool:
+def _is_not_integer_float(x) -> bool:
     """
     Returns whether 'x' is a float and is not integer.
         e.g.:
             _is_not_integer_float(3.0) = False
             _is_not_integer_float(3.2) = True
 
-    :param x: input float
+    :param x: input
     :return: bool
     """
 
