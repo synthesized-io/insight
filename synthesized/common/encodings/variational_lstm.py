@@ -9,9 +9,7 @@ from ..module import tensorflow_name_scoped
 
 
 class VariationalLSTMEncoding(Encoding):
-    """Encoding for LSTM mode 1
-
-    """
+    """Encoding for LSTM mode 1"""
     def __init__(self, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=1,
                  name='variational_lstm_encoding'):
         super().__init__(
