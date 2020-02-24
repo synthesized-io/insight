@@ -3,7 +3,8 @@ import tensorflow as tf
 
 # TensorFlow optimizer implementations
 tf_optimizers = dict(
-    adam=tf.keras.optimizers.Adam
+    adam=tf.keras.optimizers.Adam,
+    adadelta=tf.keras.optimizers.Adadelta
 )
 
 
