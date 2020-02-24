@@ -1,4 +1,3 @@
-import os
 import datetime
 import simplejson
 from collections import OrderedDict
@@ -7,18 +6,12 @@ import numpy as np
 
 
 class Evaluation:
-    def __init__(self, branch: str, revision: str, group: str, name: str = 'metrics'):
+    def __init__(self, branch: str, revision: str, group: str, metrics_file: str):
 
         self.branch = branch
         self.revision = revision
         self.group = group
-
-        server_mode = os.environ.get('SERVER_MODE')
-        assert len(name) > 0
-        if server_mode:
-            self.metrics_file: str = '../history/metrics/{}-{}.jsonl'.format(name, server_mode)
-        else:
-            self.metrics_file = '../history/metrics/{}.jsonl'.format(name)
+        self.metrics_file = metrics_file
 
         self.metrics: OrderedDict = OrderedDict()
         self.configs: OrderedDict = OrderedDict()
