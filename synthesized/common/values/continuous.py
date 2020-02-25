@@ -218,7 +218,7 @@ class ContinuousValue(Value):
         return [y]
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None, summarize: bool = False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         if self.distribution == 'dirac':
             return tf.constant(value=0.0, dtype=tf.float32)
         assert len(xs) == 1
@@ -231,8 +231,7 @@ class ContinuousValue(Value):
 
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=-1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=None)
-        if summarize:
-            tf.summary.scalar(name=self.name, data=loss)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     @tensorflow_name_scoped

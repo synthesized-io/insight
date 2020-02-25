@@ -160,7 +160,7 @@ class CategoricalValue(Value):
         return [y]
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize=False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None
@@ -192,8 +192,7 @@ class CategoricalValue(Value):
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
-        if summarize:
-            tf.summary.scalar(name=self.name, data=loss)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
 
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:

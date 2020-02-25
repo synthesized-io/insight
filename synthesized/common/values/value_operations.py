@@ -56,8 +56,7 @@ class ValueOps(tf.Module):
         return x
 
     @tensorflow_name_scoped
-    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor],
-                            summarize: bool = False) -> Dict[str, tf.Tensor]:
+    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -69,7 +68,7 @@ class ValueOps(tf.Module):
         # Reconstruction loss per value
         for value, y in zip(self.values, ys):
             losses[value.name + '-loss'] = value.loss(
-                y=y, xs=[inputs[name] for name in value.learned_output_columns()], summarize=summarize
+                y=y, xs=[inputs[name] for name in value.learned_output_columns()]
             )
 
         # Reconstruction loss

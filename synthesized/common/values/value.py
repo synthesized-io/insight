@@ -154,7 +154,7 @@ class Value(tf.Module):
         return list()
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
         """Computes the reconstruction loss of an output embedding and corresponding input tensors.
 
         Args:

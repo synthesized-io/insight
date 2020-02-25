@@ -149,11 +149,11 @@ class PersonValue(Value):
             return self.gender.output_tensors(y=y)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
         if self.gender is None:
-            return super().loss(y=y, xs=xs, summarize=summarize)
+            return super().loss(y=y, xs=xs)
         else:
-            return self.gender.loss(y=y, xs=xs, summarize=summarize)
+            return self.gender.loss(y=y, xs=xs)
 
     @tensorflow_name_scoped
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:

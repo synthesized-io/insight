@@ -126,8 +126,8 @@ class CompoundAddressValue(Value):
         return self.postcode.output_tensors(y=y)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
-        return self.postcode.loss(y=y, xs=xs, summarize=summarize)
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+        return self.postcode.loss(y=y, xs=xs)
 
     @tensorflow_name_scoped
     def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
