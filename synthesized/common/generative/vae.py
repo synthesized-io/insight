@@ -35,14 +35,11 @@ class VAE(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float,
-        summarize: bool = False, summarize_gradient_norms: bool = False
+        weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
-        self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
@@ -124,15 +121,13 @@ class VAE(Generative):
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        if self.summarize:
-            tf.summary.scalar(name='total-loss', data=total_loss)
-            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-
-            tf.summary.image(
-                name='latent_space_correlation',
-                data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
-            )
-            tf.summary.histogram(name='posterior', data=z)
+        tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        tf.summary.image(
+            name='latent_space_correlation',
+            data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))
+        )
+        tf.summary.histogram(name='posterior', data=z)
 
         return total_loss
 

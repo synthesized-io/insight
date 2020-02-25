@@ -116,7 +116,7 @@ class SeriesSynthesizer(Synthesizer):
             batchnorm=batchnorm, activation=activation, series_dropout=series_dropout,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
-            beta=beta, weight_decay=weight_decay, summarize=(summarizer_dir is not None)
+            beta=beta, weight_decay=weight_decay
         )
 
         # Input argument placeholder for num_rows

@@ -26,15 +26,13 @@ class SeriesVAE(Generative):
             # Beta KL loss coefficient
             beta: float,
             # Weight decay
-            weight_decay: float,
-            summarize: bool = False
+            weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
         self.lstm_mode = lstm_mode
 
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
         self.network = network
         self.capacity = capacity
         self.num_layers = num_layers
@@ -73,14 +71,14 @@ class SeriesVAE(Generative):
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, summarize=self.summarize
+                beta=self.beta
             )
 
         elif self.lstm_mode == 2:
             self.encoding = VariationalRecurrentEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, summarize=self.summarize
+                beta=self.beta
             )
 
         kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
@@ -144,11 +142,10 @@ class SeriesVAE(Generative):
         self.losses['total-loss'] = total_loss
 
         # Summaries
-        if self.summarize:
-            tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
-            tf.summary.scalar(name='kl-loss', data=kl_loss)
-            tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-            tf.summary.scalar(name='total-loss', data=total_loss)
+        tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
+        tf.summary.scalar(name='regularization-loss', data=regularization_loss)
+        tf.summary.scalar(name='total-loss', data=total_loss)
 
         return total_loss
 

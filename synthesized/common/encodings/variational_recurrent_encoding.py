@@ -14,13 +14,12 @@ class VariationalRecurrentEncoding(Encoding):
     Original paper: https://arxiv.org/pdf/1412.6581.pdf
     """
 
-    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1., summarize=False):
+    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
         )
         self.beta = beta
-        self.summarize = summarize
 
         self.lstm_encoder = tf.keras.layers.LSTM(units=encoding_size, return_state=True)
 
@@ -91,16 +90,15 @@ class VariationalRecurrentEncoding(Encoding):
 
         self.add_loss(kl_loss, inputs=inputs)
 
-        if self.summarize:
-            tf.summary.scalar(name='kl-loss', data=kl_loss)
-            tf.summary.histogram(name='mean', data=self.mean.output),
-            tf.summary.histogram(name='stddev', data=self.stddev.output),
-            tf.summary.histogram(name='posterior_distribution', data=encoding_h),
-            tf.summary.image(
-                name='latent_space_correlation',
-                data=tf.abs(tf.reshape(tfp.stats.correlation(encoding_h),
-                                       shape=(1, self.encoding_size, self.encoding_size, 1)))
-            )
+        tf.summary.scalar(name='kl-loss', data=kl_loss)
+        tf.summary.histogram(name='mean', data=self.mean.output),
+        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='posterior_distribution', data=encoding_h),
+        tf.summary.image(
+            name='latent_space_correlation',
+            data=tf.abs(tf.reshape(tfp.stats.correlation(encoding_h),
+                                   shape=(1, self.encoding_size, self.encoding_size, 1)))
+        )
 
         if return_encoding:
             return y, encoding_h
