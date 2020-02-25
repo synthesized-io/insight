@@ -61,3 +61,10 @@ jobs:
       - store_artifacts:
           path: dist
           destination: dist
+
+      - run:
+          name: Publish artifacts
+          command: |
+            for f in dist/*; do
+              curl -F package=@"${f}" https://zP633-TnSbKd9iseuT7wXj5kwgUowG8@push.fury.io/synthesized/
+            done;
