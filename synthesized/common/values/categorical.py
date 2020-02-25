@@ -160,7 +160,7 @@ class CategoricalValue(Value):
         return [y]
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize=False) -> tf.Tensor:
         target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None

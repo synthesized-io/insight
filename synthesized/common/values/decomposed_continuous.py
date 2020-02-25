@@ -176,7 +176,7 @@ class DecomposedContinuousValue(Value):
         ), axis=0)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
 
         if len(y.shape) == 2:
             y_low_freq = y[:, 0]
@@ -187,10 +187,8 @@ class DecomposedContinuousValue(Value):
         else:
             raise NotImplementedError
 
-        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[0:1],
-                                                 summarize=summarize)
-        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[1:2],
-                                                   summarize=summarize)
+        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[0:1])
+        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[1:2])
 
         return self.low_freq_weight * loss_low_freq + self.high_freq_weight * loss_high_freq
 

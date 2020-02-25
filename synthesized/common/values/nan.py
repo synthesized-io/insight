@@ -133,7 +133,7 @@ class NanValue(Value):
         return ys
 
     @tensorflow_name_scoped
-    def loss(self, y, xs: List[tf.Tensor], summarize: bool = False) -> tf.Tensor:
+    def loss(self, y, xs: List[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
         target_nan = tf.math.is_nan(x=target)
         target_embedding = tf.one_hot(
@@ -145,6 +145,5 @@ class NanValue(Value):
         )
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
         loss += self.value.loss(y=y[:, 2:], xs=xs, mask=tf.math.logical_not(x=target_nan))
-        if summarize:
-            tf.summary.scalar(name=self.name, data=loss)
+        tf.summary.scalar(name=self.name, data=loss)
         return loss
