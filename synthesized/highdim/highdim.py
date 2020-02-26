@@ -347,50 +347,17 @@ class HighDimSynthesizer(Synthesizer):
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
         df_encode = self.value_factory.preprocess(df=df_encode)
+        df_conditions = self.value_factory.preprocess_conditions(conditions)
 
         num_rows = len(df_encode)
-        feed_dict = {
-            name: df_encode[name].to_numpy() for value in (self.values + self.conditions)
-            for name in value.learned_input_columns()
-        }
-        feed_dict[self.num_rows] = num_rows
+        data = self.get_data_feed_dict(df_encode)
+        conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
 
-        if conditions is not None:
-            if isinstance(conditions, dict):
-                df_conditions = pd.DataFrame.from_dict(
-                    {name: np.reshape(condition, (-1,)) for name, condition in conditions.items()}
-                )
-            else:
-                df_conditions = conditions.copy()
-        else:
-            df_conditions = None
+        encoded, decoded = self.vae.encode(xs=data, cs=conditions_data)
 
-        for value in self.conditions:
-            df_conditions = value.preprocess(df=df_conditions)
-            for name in value.learned_input_columns():
-                condition = df_conditions[name].values
-                if condition.shape == (1,):
-                    feed_dict[name] = np.tile(condition, (num_rows,))
-                elif condition.shape == (num_rows,):
-                    feed_dict[name] = condition[-num_rows:]
-                else:
-                    raise NotImplementedError
-
-        encoded, decoded = self.run(fetches=(self.xs_latent_space, self.xs_synthesized), feed_dict=feed_dict)
-
-        columns = [
-            name for value in (self.values + self.conditions)
-            for name in value.learned_output_columns()
-        ]
+        columns = self.value_factory.get_column_names()
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
-
-        # aliases:
-        for alias, col in self.column_aliases.items():
-            df_synthesized[alias] = df_synthesized[col]
-
-        assert len(df_synthesized.columns) == len(self.columns)
-        df_synthesized = df_synthesized[self.columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
         df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
