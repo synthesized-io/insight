@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Union, Iterable, List, Set
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 from .address import AddressValue
 from .categorical import CategoricalValue
@@ -35,7 +34,7 @@ class TypeOverride(enum.Enum):
     ENUMERATION = 'ENUMERATION'
 
 
-class ValueFactory(tf.Module):
+class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
 
     def __init__(
@@ -63,7 +62,6 @@ class ValueFactory(tf.Module):
         identifier_label: str = None,
     ):
 
-        super(ValueFactory, self).__init__(name=name)
         """Init ValueFactory."""
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
