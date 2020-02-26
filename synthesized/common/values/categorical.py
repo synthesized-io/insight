@@ -58,6 +58,7 @@ class CategoricalValue(Value):
         self.temperature = temperature
         self.pandas_category = pandas_category
         self.produce_nans = produce_nans
+        self.is_string = False
         self.dtype = tf.int64
 
     def __str__(self) -> str:
@@ -87,6 +88,10 @@ class CategoricalValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
+
+        if df.loc[:, self.name].dtype.kind == 'O':
+            self.is_string = True
+            df.loc[:, self.name].fillna('nan')
 
         unique_values = df.loc[:, self.name].unique().tolist()
         self._set_categories(unique_values)
@@ -122,18 +127,23 @@ class CategoricalValue(Value):
         self.built = True
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not isinstance(self.categories, int):
-            assert isinstance(self.categories, list)
-            df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
+        if self.is_string:
+            df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
+
+        assert isinstance(self.categories, list)
+        df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
+
         if df.loc[:, self.name].dtype != 'int64':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
-        if not isinstance(self.categories, int):
-            assert isinstance(self.categories, list)
-            df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
+        assert isinstance(self.categories, list)
+        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
+        if self.is_string:
+            df.loc[:, self.name] = df.loc[:, self.name].map({'nan': np.nan})
+
         if self.pandas_category:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
         return df
@@ -225,7 +235,10 @@ class CategoricalValue(Value):
 
         categories = np.sort(categories).tolist()
         if found is not None:
-            categories.insert(0, found)
+            if self.is_string:
+                categories.insert(0, 'nan')
+            else:
+                categories.insert(0, np.nan)
 
         # If categories are not set
         if self.categories is None:
