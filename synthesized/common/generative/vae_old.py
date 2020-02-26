@@ -35,14 +35,11 @@ class VAEOld(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float,
-        summarize: bool = False, summarize_gradient_norms: bool = False
+        weight_decay: float
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
-        self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 

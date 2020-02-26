@@ -40,11 +40,10 @@ class VariationalRecurrentEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
-        inputs = tf.expand_dims(input=inputs, axis=0)
-        if dropout > 0.:
-            inputs = tf.nn.dropout(inputs, rate=dropout)
+        if series_dropout > 0.:
+            inputs = tf.nn.dropout(inputs, rate=series_dropout)
         _, h_out, _ = self.lstm_encoder(inputs)
 
         mean, stddev = self.gaussian(h_out)
@@ -72,6 +71,7 @@ class VariationalRecurrentEncoding(Encoding):
         kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)
+
         tf.summary.scalar(name='kl-loss', data=kl_loss)
         tf.summary.histogram(name='mean', data=mean),
         tf.summary.histogram(name='stddev', data=stddev),
@@ -81,9 +81,6 @@ class VariationalRecurrentEncoding(Encoding):
             data=tf.abs(tf.reshape(tfp.stats.correlation(encoding_h),
                                    shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
-
-        y = tf.squeeze(input=y, axis=0)
-        encoding_h = tf.squeeze(input=encoding_h, axis=0)
 
         if return_encoding:
             return y, encoding_h

@@ -9,9 +9,7 @@ from ..module import tensorflow_name_scoped
 
 
 class VariationalLSTMEncoding(Encoding):
-    """Encoding for LSTM mode 1
-
-    """
+    """Encoding for LSTM mode 1"""
     def __init__(self, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=1,
                  name='variational_lstm_encoding'):
         super().__init__(
@@ -43,7 +41,7 @@ class VariationalLSTMEncoding(Encoding):
 
     @tensorflow_name_scoped
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
         mean, stddev = self.gaussian(inputs)
 
         e = tf.random.normal(
@@ -52,17 +50,15 @@ class VariationalLSTMEncoding(Encoding):
         encoding = mean + stddev * e
 
         if identifier is not None:
-            h0, c0 = tf.split(identifier, [self.input_size, self.input_size], axis=0)
-            h0 = tf.expand_dims(input=h0, axis=0)
-            c0 = tf.expand_dims(input=c0, axis=0)
-            identifier = [h0, c0]
+            c0 = tf.zeros(shape=tf.shape(identifier))
+            identifier = [identifier, c0]
 
-        if dropout > 0:
-            encoding = tf.nn.dropout(encoding, rate=dropout)
+        if series_dropout > 0:
+            encoding = tf.nn.dropout(encoding, rate=series_dropout)
         y = self.lstm_i(
-            self.lstm_0(tf.expand_dims(tf.nn.dropout(encoding, rate=dropout), axis=0), initial_state=identifier)
+            self.lstm_0(encoding, initial_state=identifier)
         )
-        y = tf.squeeze(y, axis=0)
+
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
@@ -73,7 +69,7 @@ class VariationalLSTMEncoding(Encoding):
         tf.summary.histogram(name='posterior_distribution', data=encoding),
         tf.summary.image(
             name='latent_space_correlation',
-            data=tf.abs(tf.reshape(tfp.stats.correlation(encoding),
+            data=tf.abs(tf.reshape(tfp.stats.correlation(tf.reduce_mean(encoding, axis=0)),
                                    shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
 
@@ -86,8 +82,9 @@ class VariationalLSTMEncoding(Encoding):
     @tensorflow_name_scoped
     def sample(self, n, condition=(), identifier=None):
         if identifier is not None:
-            h0, c0 = tf.split(identifier, [self.input_size, self.input_size], axis=0)
-            identifier = [tf.expand_dims(input=h0, axis=0), tf.expand_dims(input=c0, axis=0)]
+            h0 = tf.expand_dims(input=identifier, axis=0)
+            c0 = tf.zeros(shape=tf.shape(h0))
+            identifier = [h0, c0]
 
         e = tf.random.normal(
             shape=(1, n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None

@@ -45,6 +45,7 @@ class VariationalEncoding(Encoding):
             name='latent_space_correlation',
             data=tf.abs(tf.reshape(tfp.stats.correlation(x), shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
+
         return x
 
     @tensorflow_name_scoped

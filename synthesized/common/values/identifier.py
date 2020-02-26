@@ -28,7 +28,7 @@ class IdentifierValue(Value):
         self.capacity = capacity
         self.embedding_size = embedding_size
         if embedding_size is None:
-            self.embedding_size = 2 * self.capacity
+            self.embedding_size = self.capacity
         else:
             self.embedding_size = embedding_size
 
@@ -129,6 +129,10 @@ class IdentifierValue(Value):
         identifier = tf.argmax(tf.linalg.matmul(self.embeddings, identifier_embedding))
 
         return identifier, identifier_embedding
+
+    @tensorflow_name_scoped
+    def get_embedding(self, identifier: tf.Tensor):
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
 
     # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
     #     target = tf.one_hot(
