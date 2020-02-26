@@ -1,5 +1,7 @@
 from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
+import random
+import time
 from random import randrange
 
 import numpy as np
@@ -28,12 +30,12 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = None,
-        batchnorm: bool = True, activation: str = 'relu', dropout: float = 0.4,
+        batchnorm: bool = True, activation: str = 'relu', series_dropout: float = 0.2,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
-        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
+        batch_size: int = 32, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = None,
         # Losses
         beta: float = 1., weight_decay: float = 1e-6,
         # Categorical
@@ -60,7 +62,7 @@ class SeriesSynthesizer(Synthesizer):
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
         lstm_mode: int = 1,
-        max_seq_len: int = 8192,
+        max_seq_len: int = 1024,
         condition_labels: List[str] = [],
         # Evaluation conditions
         learning_manager: bool = False
@@ -93,6 +95,11 @@ class SeriesSynthesizer(Synthesizer):
         if lstm_mode not in (1, 2):
             raise NotImplementedError
         self.lstm_mode = lstm_mode
+
+        if identifier_label:
+            min_len = df.groupby(identifier_label).count().min().values[0]
+            max_seq_len = min(max_seq_len, min_len)
+
         self.max_seq_len = max_seq_len
 
         self.batch_size = batch_size
@@ -106,10 +113,10 @@ class SeriesSynthesizer(Synthesizer):
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
             lstm_mode=self.lstm_mode, latent_size=latent_size,
             network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
-            batchnorm=batchnorm, activation=activation,
-            dropout=dropout, optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
+            batchnorm=batchnorm, activation=activation, series_dropout=series_dropout,
+            optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
-            beta=beta, weight_decay=weight_decay, summarize=(summarizer_dir is not None)
+            beta=beta, weight_decay=weight_decay
         )
 
         # Input argument placeholder for num_rows
@@ -190,8 +197,10 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 10, print_status_freq: int = 25
+        callback_freq: int = 0, print_status_freq: int = 50, timeout: int = 2500
     ) -> None:
+
+        t_start = time.time()
 
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
@@ -205,7 +214,13 @@ class SeriesSynthesizer(Synthesizer):
             iteration = 1
             while keep_learning:
 
-                feed_dict = self.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
+                feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
+                              for _ in range(self.batch_size)]
+
+                # TODO: Code below will fail if sequences don't have same shape.
+                feed_dict = {name: tf.stack([fd[name] for fd in feed_dicts], axis=0)
+                             for value in self.get_all_values()
+                             for name in value.learned_input_columns()}
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
@@ -233,6 +248,9 @@ class SeriesSynthesizer(Synthesizer):
 
                 self.global_step.assign_add(1)
 
+                if time.time() - t_start >= timeout:
+                    break
+
         # return [value_data[batch] for value_data in data.values()], synth
 
     def _print_learn_stats(self, fetched, iteration):
@@ -243,7 +261,7 @@ class SeriesSynthesizer(Synthesizer):
             )
         ))
 
-    def synthesize(self, series_length: int,
+    def synthesize(self, series_length: int = None,
                    conditions: Union[dict, pd.DataFrame] = None,
                    progress_callback: Callable[[int], None] = None,
                    num_series: int = None, series_lengths: List[int] = None
@@ -261,16 +279,17 @@ class SeriesSynthesizer(Synthesizer):
             assert series_length is not None, "If 'num_series' is given, 'series_length' must be defined."
             assert series_lengths is None, "Parameter 'series_lengths' is incompatible with 'num_series'."
 
+            series_lengths = [series_length] * num_series
+
         elif series_lengths is not None:
             assert series_length is None, "Parameter 'series_length' is incompatible with 'series_lengths'."
             assert num_series is None or num_series == len(series_lengths)
 
+            num_series = len(series_lengths)
+
         else:
             raise ValueError("Both 'num_series' and 'series_lengths' are None. One or the other is require to"
                              "synthesize data.")
-
-        if self.lstm_mode == 0:
-            raise NotImplementedError
 
         df_conditions = self.value_factory.preprocess_conditions(conditions=conditions)
         columns = self.value_factory.get_column_names()
@@ -278,27 +297,20 @@ class SeriesSynthesizer(Synthesizer):
         feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
 
-        if num_series is not None and series_length is not None:
-            for i in range(num_series):
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                # if self.value_factory.identifier_label:
-                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
-                other = pd.DataFrame.from_dict(other)[columns]
-                if synthesized is None:
-                    synthesized = other
-                else:
-                    synthesized = synthesized.append(other, ignore_index=True)
+        # Get identifiers to iterate
+        if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
+            raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
-        elif series_lengths is not None:
-            for i, series_length in enumerate(series_lengths):
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict)
-                # if self.value_factory.identifier_label:
-                #     other[self.value_factory.identifier_label] = tf.tile([i % num_identifiers], [series_length])
-                other = pd.DataFrame.from_dict(other)[columns]
-                if synthesized is None:
-                    synthesized = other
-                else:
-                    synthesized = synthesized.append(other, ignore_index=True)
+        for identifier in random.sample(range(num_series), num_series):
+            series_length = series_lengths[identifier]
+            tf_identifier = tf.constant([identifier])
+            other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                        identifier=tf_identifier)
+            other = pd.DataFrame.from_dict(other)[columns]
+            if synthesized is None:
+                synthesized = other
+            else:
+                synthesized = synthesized.append(other, ignore_index=True)
 
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)

@@ -163,7 +163,7 @@ class HighDimSynthesizer(Synthesizer):
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
             decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
-            weight_decay=weight_decay, summarize=(summarizer_dir is not None)
+            weight_decay=weight_decay
         )
 
         # Input argument placeholder for num_rows
