@@ -31,7 +31,7 @@ class CategoricalValue(Value):
         if categories is None:
             self.num_categories: Optional[int] = None
         else:
-            unique_values = list(np.unique(categories))
+            unique_values = pd.Series(categories).unique().tolist()
             self._set_categories(unique_values)
 
         self.probabilities = probabilities
