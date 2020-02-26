@@ -66,5 +66,5 @@ jobs:
           name: Publish artifacts
           command: |
             for f in dist/*; do
-              curl -F package=@"${f}" https://zP633-TnSbKd9iseuT7wXj5kwgUowG8@push.fury.io/synthesized/
+              curl -F package=@"${f}" https://${FURY_PUSH_TOKEN}@push.fury.io/synthesized/
             done;

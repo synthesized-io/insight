@@ -64,5 +64,6 @@ setup(
     packages=packages,
     install_requires=install_requires,
     ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
-    cmdclass={'build_ext': build_ext}
+    cmdclass={'build_ext': build_ext},
+    python_requires='>=3.6'
 )
