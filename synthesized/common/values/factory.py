@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Union, Iterable, List, Set
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 from .address import AddressValue
 from .categorical import CategoricalValue
