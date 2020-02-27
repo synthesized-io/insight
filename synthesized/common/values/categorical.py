@@ -91,7 +91,7 @@ class CategoricalValue(Value):
 
         if df.loc[:, self.name].dtype.kind == 'O':
             self.is_string = True
-            df.loc[:, self.name].fillna('nan')
+            df.loc[:, self.name].fillna('nan', inplace=True)
 
         unique_values = df.loc[:, self.name].unique().tolist()
         self._set_categories(unique_values)
@@ -142,7 +142,7 @@ class CategoricalValue(Value):
         assert isinstance(self.categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].map({'nan': np.nan})
+            df.loc[df[self.name] == 'nan', self.name] = np.nan
 
         if self.pandas_category:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
