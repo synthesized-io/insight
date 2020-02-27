@@ -142,7 +142,7 @@ class CategoricalValue(Value):
         assert isinstance(self.categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].map({'nan': np.nan})
+            df.loc[:, self.name] = df.loc[:, self.name].map({'nan': np.nan}, na_action='ignore')
 
         if self.pandas_category:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
