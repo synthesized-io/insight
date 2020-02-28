@@ -4,11 +4,11 @@ from typing import Dict, List, Tuple, Union, Optional
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped, module_registry
-from ..transformations import DenseTransformation
 from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding
-from ..values import Value, IdentifierValue, ValueOps
+from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
+from ..transformations import DenseTransformation
+from ..values import Value, IdentifierValue, ValueOps
 
 
 class SeriesVAE(Generative):

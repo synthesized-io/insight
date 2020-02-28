@@ -1,10 +1,10 @@
 import tensorflow as tf
 
+from .dense import DenseTransformation
+from .linear import LinearTransformation
 from .transformation import Transformation
 from .. import util
 from ..module import tensorflow_name_scoped
-from .dense import DenseTransformation
-from .linear import LinearTransformation
 
 
 class ResidualTransformation(Transformation):

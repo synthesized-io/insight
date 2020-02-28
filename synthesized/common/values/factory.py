@@ -7,19 +7,19 @@ import numpy as np
 import pandas as pd
 
 from .address import AddressValue
+from .bank_number import BankNumberValue
 from .categorical import CategoricalValue
 from .compound_address import CompoundAddressValue
+from .constant import ConstantValue
 from .continuous import ContinuousValue
-from .decomposed_continuous import DecomposedContinuousValue
 from .date import DateValue
+from .decomposed_continuous import DecomposedContinuousValue
 from .enumeration import EnumerationValue
 from .identifier import IdentifierValue
 from .identify_rules import identify_rules
 from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
-from .bank_number import BankNumberValue
-from .constant import ConstantValue
 from .value import Value
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5

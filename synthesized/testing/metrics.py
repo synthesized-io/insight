@@ -1,15 +1,15 @@
 """Generic metrics for various types/combinations of values."""
 import logging
-from typing import List, Union, Optional, Dict, Any, Tuple
 from itertools import chain
+from typing import List, Union, Optional, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import ks_2samp, spearmanr, kendalltau
+from statsmodels.formula.api import mnlogit
 from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
-from statsmodels.formula.api import mnlogit
 
 from .util import categorical_emd
 

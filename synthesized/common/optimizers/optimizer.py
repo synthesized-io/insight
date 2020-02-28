@@ -1,4 +1,5 @@
 from typing import Callable, List
+
 import tensorflow as tf
 
 # TensorFlow optimizer implementations

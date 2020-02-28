@@ -1,5 +1,6 @@
-import simplejson
 from random import choice, random
+
+import simplejson
 
 
 class HyperparamSpec(object):

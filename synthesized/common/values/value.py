@@ -1,5 +1,5 @@
-from typing import List, Optional
 import re
+from typing import List, Optional
 
 import pandas as pd
 import tensorflow as tf

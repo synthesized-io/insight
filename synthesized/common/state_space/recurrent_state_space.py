@@ -1,8 +1,8 @@
 import pandas as pd
 import tensorflow as tf
 
-from .state_space import StateSpaceModel
 from .feed_forward_state_space import GaussianEncoder
+from .state_space import StateSpaceModel
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):

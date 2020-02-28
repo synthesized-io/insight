@@ -1,24 +1,23 @@
+import logging
 import time
 from typing import Optional, List, Tuple
-import logging
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from IPython.display import Markdown, display
 from matplotlib import cm
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp, spearmanr
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
-from IPython.display import Markdown, display
 
+from .metrics import calculate_evaluation_metrics
 from ..highdim import HighDimSynthesizer
 from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
 from ..testing.evaluation import Evaluation
-from .metrics import calculate_evaluation_metrics
-
 
 logger = logging.getLogger(__name__)
 

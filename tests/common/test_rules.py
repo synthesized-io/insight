@@ -1,12 +1,14 @@
+import os
+import time
+
 import numpy as np
 import pandas as pd
-from synthesized.highdim import HighDimSynthesizer
-from synthesized.common.values.identify_rules import PairwiseRuleFactory
-from synthesized.common.values.rule import RuleValue
-from synthesized.common.values.identify_rules import identify_rules
-import os
 import pytest
-import time
+
+from synthesized.common.values.identify_rules import PairwiseRuleFactory
+from synthesized.common.values.identify_rules import identify_rules
+from synthesized.common.values.rule import RuleValue
+from synthesized.highdim import HighDimSynthesizer
 
 BASEDIR = os.path.dirname(__file__)
 # There will be some error from setting the threshold to halfway between the boundaries of sets.
