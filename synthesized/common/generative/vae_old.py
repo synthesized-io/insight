@@ -156,8 +156,8 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(self, xs: Dict[str, tf.Tensor],
+               cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """Encoding Step for VAE.
 
         Args:
