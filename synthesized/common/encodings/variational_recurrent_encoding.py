@@ -14,7 +14,7 @@ class VariationalRecurrentEncoding(Encoding):
     Original paper: https://arxiv.org/pdf/1412.6581.pdf
     """
 
-    def __init__(self, input_size, encoding_size, condition_size=0, beta=1., name='variational_lstm2_encoding'):
+    def __init__(self, input_size, encoding_size, condition_size=0, beta=1., name='vrae'):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
