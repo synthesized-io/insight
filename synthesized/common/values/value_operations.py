@@ -41,6 +41,7 @@ class ValueOps(tf.Module):
 
         return x
 
+    @tf.function
     @tensorflow_name_scoped
     def add_conditions(self, x: tf.Tensor, conditions: Dict[str, tf.Tensor]) -> tf.Tensor:
         if len(self.conditions) > 0:

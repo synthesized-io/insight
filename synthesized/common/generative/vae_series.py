@@ -175,6 +175,8 @@ class SeriesVAE(Generative):
             return dict(), tf.no_op()
 
         x = self.value_ops.unified_inputs(xs)
+        x = tf.expand_dims(x, axis=0)
+
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
         else:

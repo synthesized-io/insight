@@ -334,18 +334,16 @@ class SeriesSynthesizer(Synthesizer):
         encoded, decoded = None, None
 
         for i in range(len(groups)):
+
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            feed_dict = {
-                name: tf.expand_dims(feed_dict[name], axis=0)
-                for value in self.get_all_values()
-                for name in value.learned_input_columns()
-            }
             encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
+
             if self.value_factory.identifier_label:
                 identifier = feed_dict[self.value_factory.identifier_label][0]
                 decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
+
             if not encoded or not decoded:
                 encoded, decoded = encoded_i, decoded_i
             else:
@@ -360,8 +358,8 @@ class SeriesSynthesizer(Synthesizer):
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
-        assert len(df_synthesized.columns) == len(columns)
-        df_synthesized = df_synthesized[columns]
+        # assert len(df_synthesized.columns) == len(columns)
+        # df_synthesized = df_synthesized[columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
 
