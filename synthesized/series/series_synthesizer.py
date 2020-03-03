@@ -60,8 +60,8 @@ class SeriesSynthesizer(Synthesizer):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
-        lstm_mode: int = 1,
-        max_seq_len: int = 1024,
+        lstm_mode: str = 'rdssm',
+        max_seq_len: int = 512,
         condition_labels: List[str] = [],
         # Evaluation conditions
         learning_manager: bool = False
@@ -91,7 +91,7 @@ class SeriesSynthesizer(Synthesizer):
             # Identifier
             identifier_label=identifier_label,
         )
-        if lstm_mode not in (1, 2):
+        if lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
         self.lstm_mode = lstm_mode
 
@@ -110,7 +110,7 @@ class SeriesSynthesizer(Synthesizer):
         self.vae = SeriesVAE(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
-            lstm_mode=self.lstm_mode, latent_size=latent_size,
+            encoding=self.lstm_mode, latent_size=latent_size,
             network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
             batchnorm=batchnorm, activation=activation, series_dropout=series_dropout,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),

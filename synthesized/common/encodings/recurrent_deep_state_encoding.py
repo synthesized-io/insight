@@ -1,3 +1,5 @@
+from typing import Callable
+
 import tensorflow as tf
 
 from .encoding import Encoding
@@ -7,11 +9,13 @@ from ..module import tensorflow_name_scoped
 
 class RecurrentDSSEncoding(Encoding):
     """An encoder based of recurrent deep state space models."""
-    def __init__(self, input_size: int, encoding_size: int, beta: float = 1.0, name='recurrent_dss_encoding'):
+    def __init__(self, input_size: int, encoding_size: int, emission_function: Callable[[tf.Tensor], tf.Tensor],
+                 beta: float = 1.0, name='recurrent_dss_encoding'):
         super(RecurrentDSSEncoding, self).__init__(input_size=input_size, encoding_size=encoding_size, name=name)
 
         self.beta = beta
         self.capacity = input_size
+        self.emission = emission_function
 
         self.transition_rnn = tf.keras.layers.LSTM(
             units=self.capacity, return_sequences=True, return_state=True
@@ -43,10 +47,10 @@ class RecurrentDSSEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False, dropout=0.):
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.):
         x = inputs  # shape: [bs, t, c]
         h_0 = self.transition_rnn.get_initial_state(x)  # shape: [bs, c]
-        mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=dropout)
+        mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=series_dropout)
 
         transition_inputs = tf.concat([x[:, 0:1, :], x[:, 0:-1, :]], axis=1)  # shape: [bs, t, c]
         prior_hs, state1, state2 = self.transition_rnn(inputs=mask * transition_inputs, initial_state=h_0)
@@ -55,6 +59,8 @@ class RecurrentDSSEncoding(Encoding):
         inference_inputs = tf.concat([x, prior_hs], axis=2)   # shape: [bs, t, 2*c]
         posterior_hs = self.inference_rnn(inference_inputs)
         mu_phi, sigma_phi = self.inference_network(posterior_hs)  # shape: ([bs, t, e], [bs, t, e])
+
+
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi,
                                                      mu_2=mu_gamma, stddev_2=sigma_gamma)
@@ -66,10 +72,44 @@ class RecurrentDSSEncoding(Encoding):
 
         return z
 
+    def sample_state(self, bs: int = 1) -> tf.Tensor:
+        """Samples the latent state from a multivariate gauss ball.
+
+        Returns:
+            e: [b, 1, l]
+
+        """
+        return tf.zeros(shape=(bs, 1, self.encoding_size), dtype=tf.float32)
+
+    def transition_loop(self, n: int, z_0):
+        z = []
+        y = []
+        y_t = self.emission(z_0)
+        h_t, state1, state2 = self.transition_rnn(
+            y_t,
+            initial_state=(tf.random.normal(shape=(1, self.capacity), dtype=tf.float32),
+                           tf.zeros(shape=(1, self.capacity), dtype=tf.float32))
+        )
+
+        for _ in range(n):
+            mu_gamma, sigma_gamma = self.transition_network(h_t)
+            e_z = tf.random.normal(shape=sigma_gamma.shape, dtype=tf.float32)
+            z_t = mu_gamma + e_z * sigma_gamma
+            y_t = self.emission(z_t)
+            h_t, state1, state2 = self.transition_rnn(y_t, initial_state=(state1, state2))
+
+            z.append(z_t)
+            y.append(y_t)
+
+        return tf.concat(z, axis=1), tf.concat(y, axis=1)
+
     @tensorflow_name_scoped
     def sample(self, n, condition=(), identifier=None):
-        pass
+        z_0 = identifier if identifier is not None else self.sample_state(bs=1)
+        z, y = self.transition_loop(n=n, z_0=z_0)
+
+        return z
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]
+        return [loss for layer in [self.transition_network, self.inference_network] for loss in layer.regularization_losses]

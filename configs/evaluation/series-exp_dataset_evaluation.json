@@ -1,26 +1,13 @@
 {
   "source": "evaluation/dataset_evaluation_timeseries.ipynb",
   "instances": {
-    "standard_and_poors500_lstm1": {
+    "standard_and_poors500": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": "Name",
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "standard_and_poors500_lstm2": {
-      "data": "data/time-series/sandp500_5yr.csv",
-      "ignore_columns": ["date"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": "Name",
-        "lstm_mode": 2
+        "identifier_label": "Name"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -41,8 +28,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
+        "identifier_label": null
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -53,8 +39,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
+        "identifier_label": null
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -65,8 +50,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
+        "identifier_label": null
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -75,10 +59,8 @@
       "data": "data/time-series/fraud-time-series.csv",
       "ignore_columns": ["step"],
       "num_iterations": 1000,
-      "num_passes": 1,
       "params": {
-        "identifier_label": "customer",
-        "lstm_mode": 2
+        "identifier_label": "customer"
       },
       "target": "fraud",
       "synthesizer_class": "SeriesSynthesizer"
@@ -89,8 +71,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
+        "identifier_label": null
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -101,8 +82,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": "profile_id",
-        "lstm_mode": 2
+        "identifier_label": "profile_id"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -113,8 +93,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": "CustomerID",
-        "lstm_mode": 2
+        "identifier_label": "CustomerID"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -125,8 +104,7 @@
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": "account_id",
-        "lstm_mode": 2
+        "identifier_label": "account_id"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
