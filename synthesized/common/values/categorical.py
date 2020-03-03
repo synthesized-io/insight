@@ -151,11 +151,15 @@ class CategoricalValue(Value):
             self.produce_nans = True
 
         # Choose argmax class
+        y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
+
         if self.nans_valid is False or self.produce_nans:
-            y = tf.squeeze(tf.random.categorical(logits=y, num_samples=1, dtype=tf.int64))
+            y_flat = tf.random.categorical(logits=y_flat, num_samples=1, dtype=tf.int64)
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y = tf.squeeze(tf.random.categorical(logits=y[:, 1:], num_samples=1, dtype=tf.int64)) + 1
+            y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
+
+        y = tf.squeeze(tf.reshape(y_flat, shape=y.shape[0:-1]))
 
         return [y]
 
@@ -165,7 +169,8 @@ class CategoricalValue(Value):
         if self.moving_average is not None:
             assert self.num_categories is not None
             assert self.frequency is not None
-            frequency = tf.concat(values=(np.array(range(self.num_categories)), target), axis=0)
+            flattened_target = tf.reshape(target, shape=(-1,))
+            frequency = tf.concat(values=(np.array(range(self.num_categories)), flattened_target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
             frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
             frequency = tf.cast(frequency - 1, dtype=tf.float32)
@@ -174,11 +179,12 @@ class CategoricalValue(Value):
                 self.moving_average.apply(var_list=[self.frequency, ])
                 frequency = self.moving_average.average(var=self.frequency)
                 frequency = tf.nn.embedding_lookup(
-                    params=frequency, ids=target, max_norm=None,
+                    params=frequency, ids=flattened_target, max_norm=None,
                     name='frequency'
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
+                weights = tf.reshape(weights, shape=xs[0].shape)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
         else:
             weights = 1.0
@@ -187,11 +193,11 @@ class CategoricalValue(Value):
         assert self.num_categories is not None
 
         target = tf.one_hot(
-            indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=1,
+            indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
             dtype=tf.float32
         )
-        loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=1)
-        loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=0)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=-1)
+        loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=None)
         tf.summary.scalar(name=self.name, data=loss)
         return loss
 
