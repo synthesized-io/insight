@@ -1,13 +1,25 @@
 {
   "source": "evaluation/dataset_evaluation_timeseries.ipynb",
   "instances": {
-    "standard_and_poors500": {
+    "standard_and_poors500_lstm1": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
         "identifier_label": "Name"
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_lstm2": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": "vrae"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
