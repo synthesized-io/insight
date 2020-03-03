@@ -1,10 +1,10 @@
+import logging
 from math import isnan, log
 from typing import Any, Dict, List, Optional
-import logging
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
-import numpy as np
 
 from .value import Value
 from .. import util

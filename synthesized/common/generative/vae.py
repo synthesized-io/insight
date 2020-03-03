@@ -5,10 +5,10 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .generative import Generative
-from ..values import Value, ValueOps
-from ..module import tensorflow_name_scoped, module_registry
 from ..distributions import Distribution
+from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
+from ..values import Value, ValueOps
 
 
 class VAE(Generative):

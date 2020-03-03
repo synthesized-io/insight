@@ -1,8 +1,8 @@
 """This module implements the Synthesizer base class."""
-from abc import abstractmethod
 import base64
-from datetime import datetime
 import os
+from abc import abstractmethod
+from datetime import datetime
 from typing import Callable, Dict, Union, List, Optional
 
 import numpy as np

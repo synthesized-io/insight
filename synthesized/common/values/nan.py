@@ -3,9 +3,9 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 
-from .value import Value
-from .continuous import ContinuousValue
 from .categorical import compute_embedding_size
+from .continuous import ContinuousValue
+from .value import Value
 from .. import util
 from ..module import tensorflow_name_scoped
 

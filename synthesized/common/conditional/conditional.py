@@ -7,8 +7,8 @@ from typing import Any, Dict, Tuple, Union, Callable, List, Optional
 import numpy as np
 import pandas as pd
 
-from ..values import ContinuousValue, CategoricalValue, NanValue
 from ..synthesizer import Synthesizer
+from ..values import ContinuousValue, CategoricalValue, NanValue
 
 
 class ConditionalSampler(Synthesizer):

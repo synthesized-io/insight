@@ -1,8 +1,8 @@
 import datetime
-import simplejson
 from collections import OrderedDict
 
 import numpy as np
+import simplejson
 
 
 class Evaluation:

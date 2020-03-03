@@ -2,10 +2,10 @@ from typing import List, Union, Optional, cast
 
 import pandas as pd
 
-from .value import Value
-from .rule import RuleValue
-from .continuous import ContinuousValue
 from .categorical import CategoricalValue
+from .continuous import ContinuousValue
+from .rule import RuleValue
+from .value import Value
 
 # When finding separable values, want to limit the maximum number of groups to search over. A categorical variable with
 # many categories will likely split continuous variables neatly.
