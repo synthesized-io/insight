@@ -60,8 +60,6 @@ class RecurrentDSSEncoding(Encoding):
         posterior_hs = self.inference_rnn(inference_inputs)
         mu_phi, sigma_phi = self.inference_network(posterior_hs)  # shape: ([bs, t, e], [bs, t, e])
 
-
-
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi,
                                                      mu_2=mu_gamma, stddev_2=sigma_gamma)
         tf.summary.scalar(name='kl_loss', data=kl_loss)
@@ -112,4 +110,6 @@ class RecurrentDSSEncoding(Encoding):
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.transition_network, self.inference_network] for loss in layer.regularization_losses]
+        return [
+            loss for layer in [self.transition_network, self.inference_network] for loss in layer.regularization_losses
+        ]

@@ -59,7 +59,6 @@ class VariationalLSTMEncoding(Encoding):
             self.lstm_0(encoding, initial_state=identifier)
         )
 
-
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
 

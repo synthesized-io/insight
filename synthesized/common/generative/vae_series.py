@@ -201,7 +201,9 @@ class SeriesVAE(Generative):
 
         return synthesized
 
-    def _synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
+    def _synthesize(
+            self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
+    ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:
             if identifier is not None:
