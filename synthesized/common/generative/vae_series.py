@@ -169,7 +169,7 @@ class SeriesVAE(Generative):
 
         return
 
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor], n_forecast: int = 0) -> \
             Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         if len(self.xs) == 0:
             return dict(), tf.no_op()
@@ -177,24 +177,32 @@ class SeriesVAE(Generative):
         x = self.value_ops.unified_inputs(xs)
         x = tf.expand_dims(x, axis=0)
 
+        # Get identifier
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
+            identifier = tf.expand_dims(identifier, axis=0)
         else:
             identifier = None
 
-        #################################
+        latent_space, mean, std, y = self._encode(x, cs, identifier, tf.constant(n_forecast))
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+
+    @tf.function
+    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: Optional[tf.Tensor],
+                n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
+
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.value_ops.add_conditions(x, conditions=cs)
-        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True)
+        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True, n_forecast=n_forecast)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
-        #################################
-
-        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+        y = tf.squeeze(y, axis=0)  # We can only encode one series per iteration for now
+        return latent_space, mean, std, y
 
     def synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
@@ -202,6 +210,7 @@ class SeriesVAE(Generative):
 
         return synthesized
 
+    @tf.function
     def _synthesize(
             self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
@@ -220,7 +229,6 @@ class SeriesVAE(Generative):
         x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-
         return y, identifier
 
     @property

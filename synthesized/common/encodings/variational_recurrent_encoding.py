@@ -39,8 +39,8 @@ class VariationalRecurrentEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
+             n_forecast=None) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
         # if series_dropout > 0.:
         #     inputs = tf.nn.dropout(inputs, rate=series_dropout)
@@ -88,7 +88,7 @@ class VariationalRecurrentEncoding(Encoding):
 
         y = self.lstm_loop(h_0=encoding_h, c_0=c_0, n=n)
 
-        return y
+        return tf.squeeze(y, axis=0)
 
     @tf.function
     @tensorflow_name_scoped

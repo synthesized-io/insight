@@ -66,6 +66,8 @@ class DenseTransformation(Transformation):
             pass
         elif self.activation == 'relu':
             x = tf.nn.relu(features=x)
+        elif self.activation == 'leaky_relu':
+            x = tf.nn.leaky_relu(features=x)
         elif self.activation == 'softplus':
             # division so that 0.0 is mapped to 1.0, as expected for instance when used for stddev
             x = tf.nn.softplus(features=x) / log(2.0)
@@ -73,6 +75,9 @@ class DenseTransformation(Transformation):
             x = tf.tanh(x=x)
         else:
             raise NotImplementedError
+
+        tf.summary.histogram(name='weight', data=self.weight)
+        tf.summary.histogram(name='bias', data=self.bias)
 
         self._output = x
 

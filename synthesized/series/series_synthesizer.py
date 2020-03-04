@@ -29,7 +29,7 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = None,
-        batchnorm: bool = True, activation: str = 'relu', series_dropout: float = 0.2,
+        batchnorm: bool = False, activation: str = 'leaky_relu', series_dropout: float = 0.2,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
@@ -198,7 +198,7 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, print_status_freq: int = 50, timeout: int = 2500
+        callback_freq: int = 0, print_status_freq: int = 20, timeout: int = 2500
     ) -> None:
 
         t_start = time.time()
@@ -210,7 +210,7 @@ class SeriesSynthesizer(Synthesizer):
 
         groups, num_data = self.get_groups_feed_dict(df_train)
 
-        with record_summaries_every_n_global_steps(callback_freq, self.global_step):
+        with record_summaries_every_n_global_steps(print_status_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
@@ -319,8 +319,8 @@ class SeriesSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
-            -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None,
+               n_forecast: int = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         if conditions is not None:
             raise NotImplementedError
@@ -336,13 +336,13 @@ class SeriesSynthesizer(Synthesizer):
         for i in range(len(groups)):
 
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
+            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
 
             if self.value_factory.identifier_label:
                 identifier = feed_dict[self.value_factory.identifier_label][0]
-                decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
+                decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i] + n_forecast])
 
             if not encoded or not decoded:
                 encoded, decoded = encoded_i, decoded_i

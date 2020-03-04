@@ -40,10 +40,10 @@ class VariationalLSTMEncoding(Encoding):
         return self.encoding_size
 
     @tensorflow_name_scoped
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
-        mean, stddev = self.gaussian(inputs)
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
+             n_forecast=0) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
+        mean, stddev = self.gaussian(inputs)
         e = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
@@ -53,10 +53,16 @@ class VariationalLSTMEncoding(Encoding):
             c0 = tf.zeros(shape=tf.shape(identifier))
             identifier = [identifier, c0]
 
+        lstm_input = encoding
         if series_dropout > 0:
-            encoding = tf.nn.dropout(encoding, rate=series_dropout)
+            lstm_input = tf.nn.dropout(lstm_input, rate=series_dropout)
+
+        if n_forecast > 0:
+            e = tf.random.normal(shape=(1, n_forecast, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
+            lstm_input = tf.concat((lstm_input, e), axis=1)
+
         y = self.lstm_i(
-            self.lstm_0(encoding, initial_state=identifier)
+            self.lstm_0(lstm_input, initial_state=identifier)
         )
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
@@ -90,7 +96,7 @@ class VariationalLSTMEncoding(Encoding):
         )
         z = self.lstm_i(self.lstm_0(e, initial_state=identifier))
 
-        return z
+        return tf.squeeze(z, axis=0)
 
     @property
     def regularization_losses(self):
