@@ -40,7 +40,7 @@ class VariationalRecurrentEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
-             n_forecast=None) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             n_forecast=0) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
         # if series_dropout > 0.:
         #     inputs = tf.nn.dropout(inputs, rate=series_dropout)
@@ -56,7 +56,11 @@ class VariationalRecurrentEncoding(Encoding):
         input_decoder = tf.concat((tf.expand_dims(encoding_h, axis=1), inputs[:, :-1, :]), axis=1)
         if series_dropout > 0.:
             input_decoder = tf.nn.dropout(input_decoder, rate=series_dropout)
-        y, _, _ = self.lstm_decoder(input_decoder, initial_state=[encoding_h, c_0])
+        y, h, c = self.lstm_decoder(input_decoder, initial_state=[encoding_h, c_0])
+
+        if n_forecast > 0:
+            y_forecast = self.lstm_loop(h_0=h, c_0=c, n=n_forecast)
+            y = tf.concat((y, y_forecast), axis=1)
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         # kl_loss *= self.beta * self.increase_beta_multiplier(t_start=250, t_end=350)

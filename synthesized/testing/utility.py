@@ -105,6 +105,8 @@ class UtilityTesting:
             self.unique_ids_orig = []
             self.unique_ids_synth = []
 
+        self.sample_size = 10_000
+
         # Set the style of plots
         plt.style.use('seaborn')
         mpl.rcParams["axes.facecolor"] = 'w'
@@ -123,6 +125,7 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
+
         def show_corr_matrix(df, title=None, ax=None):
             sns.set(style='white')
 
@@ -231,13 +234,13 @@ class UtilityTesting:
             for i_cont, cont_name in enumerate(continuous):
                 df_orig = df[df['source'] == 'orig']
                 orig = ols(f"{cont_name} ~ C({cat_name})", data=df_orig).fit()
-                orig_anovas[i_cat,  i_cont] = orig.rsquared
+                orig_anovas[i_cat, i_cont] = orig.rsquared
 
                 df_synth = df[df['source'] == 'synth']
                 synth = ols(f"{cont_name} ~ C({cat_name})", data=df_synth).fit()
                 synth_anovas[i_cat, i_cont] = synth.rsquared
-        orig_anovas = pd.DataFrame(orig_anovas, index=categorical,  columns=continuous)
-        synth_anovas = pd.DataFrame(synth_anovas, index=categorical,  columns=continuous)
+        orig_anovas = pd.DataFrame(orig_anovas, index=categorical, columns=continuous)
+        synth_anovas = pd.DataFrame(synth_anovas, index=categorical, columns=continuous)
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
         cmap = sns.diverging_palette(220, 10, as_cmap=True)
 
@@ -260,7 +263,7 @@ class UtilityTesting:
             figsize: width, height in inches.
         """
         categorical, _ = self._filter_column_data_types()
-        source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
+        source = pd.DataFrame({'source': len(self.df_test) * ['orig'] + len(self.df_synth) * ['synth']}).reset_index()
         orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
         df = pd.concat([orig_synth, source], axis=1)
         orig_anovas = np.zeros((len(categorical), len(categorical)))
@@ -337,8 +340,9 @@ class UtilityTesting:
                 title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
-                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna()
-                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna()
+                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna().sample(self.sample_size)
+                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna().sample(
+                    self.sample_size)
                 if len(col_test) == 0 or len(col_synth) == 0:
                     continue
 
@@ -360,10 +364,14 @@ class UtilityTesting:
                 else:
                     kde = True
                     kde_kws = {'clip': (start, end)}
-                sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
-                             hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
-                             hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+
+                try:
+                    sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
+                                 hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
+                    sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
+                                 hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+                except Exception as e:
+                    print('ERROR :: Column {} cant be shown :: {}'.format(col, e))
 
                 ks_distance = ks_2samp(col_test, col_synth)[0]
                 title += ' (KS Dist={:.3f})'.format(ks_distance)
@@ -377,7 +385,7 @@ class UtilityTesting:
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
-            n = list(range(1, max_order+1))
+            n = list(range(1, max_order + 1))
             original_auto = eval_metrics.calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
             synth_auto = eval_metrics.calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
             ax.stem(n, original_auto, 'b', markerfmt='bo', label="Original")
@@ -400,6 +408,7 @@ class UtilityTesting:
 
         Returns: Utility score.
         """
+
         def skip_sampling(df):
             for col in df.columns:
                 if col not in self.value_by_name or isinstance(self.value_by_name[col], SamplingValue):
@@ -454,6 +463,7 @@ class UtilityTesting:
         Args:
             max_lag: A max lag
         """
+
         # for synthetic data at the moment, TODO for real data
         # how do we detect time column?
         def autocorrelation(h, data, mean, n, c0):
@@ -510,7 +520,6 @@ class UtilityTesting:
         result = []
 
         for col in self.categorical_cols:
-
             emd_distance = categorical_emd(self.df_test[col], self.df_synth[col])
             result.append({'column': col, 'emd_distance': emd_distance})
 

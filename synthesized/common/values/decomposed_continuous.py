@@ -17,7 +17,7 @@ class DecomposedContinuousValue(Value):
         # Scenario
         integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
         distribution: str = None, distribution_params: Tuple[Any, ...] = None,
-        use_quantile_transformation: bool = True,
+        use_quantile_transformation: bool = False,
         transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
         low_freq_weight: float = 1., high_freq_weight: float = 1.
     ):
