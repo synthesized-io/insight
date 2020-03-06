@@ -356,7 +356,7 @@ class UtilityTesting:
                 # workaround for kde failing on datasets with only one value
                 if col_test.nunique() < 2 or col_synth.nunique() < 2:
                     kde = False
-                    kde_kws = {}
+                    kde_kws = None
                 else:
                     kde = True
                     kde_kws = {'clip': (start, end)}
