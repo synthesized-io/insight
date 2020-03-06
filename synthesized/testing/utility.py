@@ -356,11 +356,13 @@ class UtilityTesting:
                 # workaround for kde failing on datasets with only one value
                 if col_test.nunique() < 2 or col_synth.nunique() < 2:
                     kde = False
+                    kde_kws = None
                 else:
                     kde = True
-                sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws={'clip': (start, end)},
+                    kde_kws = {'clip': (start, end)}
+                sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
                              hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws={'clip': (start, end)},
+                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
                              hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
 
                 ks_distance = ks_2samp(col_test, col_synth)[0]

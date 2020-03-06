@@ -8,18 +8,22 @@ from ..module import tensorflow_name_scoped
 
 
 class RecurrentDSSEncoding(Encoding):
-    """An encoder based of recurrent deep state space models."""
+    """An encoder based on recurrent deep state space models."""
     def __init__(self, input_size: int, encoding_size: int, emission_function: Callable[[tf.Tensor], tf.Tensor],
-                 beta: float = 1.0, name='recurrent_dss_encoding'):
+                 beta: float = 1.0, num_transition_layers: int = 2, name='recurrent_dss_encoding'):
         super(RecurrentDSSEncoding, self).__init__(input_size=input_size, encoding_size=encoding_size, name=name)
 
         self.beta = beta
         self.capacity = input_size
         self.emission = emission_function
+        self.num_transition_layers = num_transition_layers
 
-        self.transition_rnn = tf.keras.layers.LSTM(
-            units=self.capacity, return_sequences=True, return_state=True
-        )
+        cells = [
+            tf.keras.layers.LSTMCell(units=self.capacity) for _ in range(self.num_transition_layers)
+        ]
+
+        self.transition_rnn = tf.keras.layers.RNN(cell=cells, return_sequences=True, return_state=True)
+
         self.transition_network = GaussianTransformation(
             input_size=self.capacity, output_size=self.encoding_size, name='transition_distribution'
         )
@@ -47,13 +51,18 @@ class RecurrentDSSEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.):
+    def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
+             n_forcast=0):
         x = inputs  # shape: [bs, t, c]
-        h_0 = self.transition_rnn.get_initial_state(x)  # shape: [bs, c]
+        h_0 = self.transition_rnn.get_initial_state(x)  # shape: ( ([bs, c], [bs, c]), ([bs, c], [bs, c]]) )
+
         mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=series_dropout)
 
         transition_inputs = tf.concat([x[:, 0:1, :], x[:, 0:-1, :]], axis=1)  # shape: [bs, t, c]
-        prior_hs, state1, state2 = self.transition_rnn(inputs=mask * transition_inputs, initial_state=h_0)
+        outputs = self.transition_rnn(inputs=mask * transition_inputs, initial_state=h_0)
+        prior_hs = outputs[0]
+        state = outputs[1:]
+
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)  # shape: ([bs, t, e], [bs, t, e])
 
         inference_inputs = tf.concat([x, prior_hs], axis=2)   # shape: [bs, t, 2*c]
@@ -62,11 +71,21 @@ class RecurrentDSSEncoding(Encoding):
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi,
                                                      mu_2=mu_gamma, stddev_2=sigma_gamma)
+        transition_regularization = self.diagonal_normal_kl_divergence(mu_1=mu_phi, stddev_1=sigma_phi)
+
         tf.summary.scalar(name='kl_loss', data=kl_loss)
+        tf.summary.scalar(name='transition_regularization', data=transition_regularization)
+
+        kl_loss = kl_loss+0.005*transition_regularization
+
         self.add_loss(kl_loss)
 
         e_z = tf.random.normal(shape=sigma_phi.shape, dtype=tf.float32)
         z = mu_phi + e_z * sigma_phi  # shape: [bs, t, e]
+
+        if n_forcast > 0:
+            z_fc, y_fc = self.transition_loop(n=n_forcast, z_0=z[:, -1:, :], initial_state=state)
+            z = tf.concat((z, z_fc), axis=1)
 
         return z
 
@@ -79,22 +98,29 @@ class RecurrentDSSEncoding(Encoding):
         """
         return tf.zeros(shape=(bs, 1, self.encoding_size), dtype=tf.float32)
 
-    def transition_loop(self, n: int, z_0):
+    def transition_loop(self, n: int, z_0, initial_state=None):
         z = []
         y = []
+        if initial_state is None:
+            initial_state = [(
+                tf.random.normal(shape=(1, self.capacity), dtype=tf.float32),
+                tf.zeros(shape=(1, self.capacity), dtype=tf.float32)
+            ) for _ in range(self.num_transition_layers)]
+
         y_t = self.emission(z_0)
-        h_t, state1, state2 = self.transition_rnn(
-            y_t,
-            initial_state=(tf.random.normal(shape=(1, self.capacity), dtype=tf.float32),
-                           tf.zeros(shape=(1, self.capacity), dtype=tf.float32))
-        )
+        outputs = self.transition_rnn(y_t, initial_state=initial_state)
+
+        h_t = outputs[0]
+        state = outputs[1:]
 
         for _ in range(n):
             mu_gamma, sigma_gamma = self.transition_network(h_t)
             e_z = tf.random.normal(shape=sigma_gamma.shape, dtype=tf.float32)
             z_t = mu_gamma + e_z * sigma_gamma
             y_t = self.emission(z_t)
-            h_t, state1, state2 = self.transition_rnn(y_t, initial_state=(state1, state2))
+            outputs = self.transition_rnn(y_t, initial_state=state)
+            h_t = outputs[0]
+            state = outputs[1:]
 
             z.append(z_t)
             y.append(y_t)
