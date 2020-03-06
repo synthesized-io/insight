@@ -2,8 +2,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .encoding import Encoding
-from ..transformations import GaussianTransformation
 from ..module import tensorflow_name_scoped
+from ..transformations import GaussianTransformation
 
 
 class VariationalEncoding(Encoding):

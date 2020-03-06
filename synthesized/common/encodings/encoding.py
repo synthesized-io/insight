@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 from ..module import tensorflow_name_scoped
 from ..transformations import Transformation
 

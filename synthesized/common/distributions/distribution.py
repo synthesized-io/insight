@@ -3,7 +3,6 @@ from tensorflow_probability import distributions as tfd
 
 from ..transformations.linear import LinearTransformation
 
-
 # TensorFlow distribution implementations
 tf_distributions = dict(
     deterministic=tfd.Deterministic,

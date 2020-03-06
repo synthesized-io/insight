@@ -24,16 +24,16 @@ from sklearn.metrics import roc_auc_score
 from statsmodels.formula.api import ols, mnlogit
 from statsmodels.tsa.stattools import acf, pacf
 
+from ..common.synthesizer import Synthesizer
 from ..common.values import CategoricalValue
 from ..common.values import ContinuousValue
-from ..common.values import DecomposedContinuousValue
 from ..common.values import DateValue
-from ..common.values import SamplingValue
+from ..common.values import DecomposedContinuousValue
 from ..common.values import NanValue
+from ..common.values import SamplingValue
 from ..common.values import Value
-from ..common.synthesizer import Synthesizer
-from ..testing.util import categorical_emd
 from ..testing import metrics as eval_metrics
+from ..testing.util import categorical_emd
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'

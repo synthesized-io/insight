@@ -1,8 +1,8 @@
+from math import inf
 from typing import Dict, Callable, Optional, List
 
 import pandas as pd
 import tensorflow as tf
-from math import inf
 
 from .value import Value
 from ..module import tensorflow_name_scoped

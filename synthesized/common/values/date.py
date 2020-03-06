@@ -1,8 +1,8 @@
+from datetime import datetime
 from typing import List, Optional
 
 import pandas as pd
 import tensorflow as tf
-from datetime import datetime
 
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue

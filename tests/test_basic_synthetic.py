@@ -1,7 +1,6 @@
-import pytest
-
 import numpy as np
 import pandas as pd
+import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer

@@ -2,11 +2,11 @@ from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
-from scipy.signal import filtfilt
 import tensorflow as tf
+from scipy.signal import filtfilt
 
-from .value import Value
 from . import ContinuousValue
+from .value import Value
 from ..module import tensorflow_name_scoped
 
 

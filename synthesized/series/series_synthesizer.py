@@ -1,18 +1,18 @@
-from typing import Callable, List, Union, Dict, Iterable, Optional,  Tuple
 import logging
 import random
 import time
 from random import randrange
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Value, ValueFactory, TypeOverride
-from ..common.util import record_summaries_every_n_global_steps
 from ..common import Synthesizer
+from ..common import Value, ValueFactory, TypeOverride
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager
+from ..common.util import record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)

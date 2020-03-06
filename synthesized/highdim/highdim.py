@@ -1,16 +1,16 @@
 """This module implements the BasicSynthesizer class."""
-from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 import logging
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common import Value, ValueFactory, TypeOverride
-from ..common.learning_manager import LearningManager
-from ..common.util import record_summaries_every_n_global_steps
 from ..common.generative import VAEOld
+from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
+from ..common.util import record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
