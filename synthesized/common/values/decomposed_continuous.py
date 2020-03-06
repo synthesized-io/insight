@@ -170,7 +170,16 @@ class DecomposedContinuousValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        return self.low_freq_value.output_tensors(y=y[:, :, 0]) + self.high_freq_value.output_tensors(y=y[:, :, 1])
+        if len(y.shape) == 2:
+            y_low_freq = y[:, 0]
+            y_high_freq = y[:, 1]
+        elif len(y.shape) == 3:
+            y_low_freq = y[:, :, 0]
+            y_high_freq = y[:, :, 1]
+        else:
+            raise NotImplementedError
+
+        return self.low_freq_value.output_tensors(y=y_low_freq) + self.high_freq_value.output_tensors(y=y_high_freq)
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
