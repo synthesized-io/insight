@@ -52,7 +52,7 @@ class RecurrentDSSEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
-             n_forcast=0):
+             n_forecast=0):
         x = inputs  # shape: [bs, t, c]
         h_0 = self.transition_rnn.get_initial_state(x)  # shape: ( ([bs, c], [bs, c]), ([bs, c], [bs, c]]) )
 
@@ -83,8 +83,8 @@ class RecurrentDSSEncoding(Encoding):
         e_z = tf.random.normal(shape=sigma_phi.shape, dtype=tf.float32)
         z = mu_phi + e_z * sigma_phi  # shape: [bs, t, e]
 
-        if n_forcast > 0:
-            z_fc, y_fc = self.transition_loop(n=n_forcast, z_0=z[:, -1:, :], initial_state=state)
+        if n_forecast > 0:
+            z_fc, y_fc = self.transition_loop(n=n_forecast, z_0=z[:, -1:, :], initial_state=state)
             z = tf.concat((z, z_fc), axis=1)
 
         return z

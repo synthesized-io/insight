@@ -60,7 +60,6 @@ class Synthesizer(tf.Module):
 
         self.logdir = None
         self.loss_history: List[dict] = list()
-        self.writer: Optional[tf.summary.SummaryWriter] = None
 
         # Set up logging.
         if summarizer_dir is not None:
@@ -71,6 +70,8 @@ class Synthesizer(tf.Module):
                 self.logdir = f"{summarizer_dir}/{stamp}"
 
             self.writer = tf.summary.create_file_writer(self.logdir)
+        else:
+            self.writer = tf.summary.create_noop_writer()
 
     @abstractmethod
     def get_values(self) -> List[Value]:
