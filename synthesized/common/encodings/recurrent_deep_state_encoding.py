@@ -129,7 +129,10 @@ class RecurrentDSSEncoding(Encoding):
 
     @tensorflow_name_scoped
     def sample(self, n, condition=(), identifier=None):
-        z_0 = identifier if identifier is not None else self.sample_state(bs=1)
+        if identifier is not None:
+            z_0 = tf.broadcast_to(identifier, shape=(1, 1, self.capacity))
+        else:
+            z_0 = self.sample_state(bs=1)
         z, y = self.transition_loop(n=n, z_0=z_0)
 
         return z
