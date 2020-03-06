@@ -63,11 +63,11 @@ def test_series_basic_vrae():
 
 
 @pytest.mark.integration
-def test_series_rdss():
+def test_series_rdssm():
     r = np.random.normal(loc=0, scale=1, size=1000)
     c = np.random.choice([1, 2, 3], 1000)
     df_original = pd.DataFrame({'r': r, 's': c})
-    with SeriesSynthesizer(df=df_original, lstm_mode='rdss', identifier_label='s') as synthesizer:
+    with SeriesSynthesizer(df=df_original, lstm_mode='rdssm', identifier_label='s') as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
