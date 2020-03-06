@@ -300,16 +300,17 @@ class SeriesSynthesizer(Synthesizer):
         if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
             raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
-        for identifier in random.sample(range(num_series), num_series):
-            series_length = series_lengths[identifier]
-            tf_identifier = tf.constant([identifier])
-            other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
-                                        identifier=tf_identifier)
-            other = pd.DataFrame.from_dict(other)[columns]
-            if synthesized is None:
-                synthesized = other
-            else:
-                synthesized = synthesized.append(other, ignore_index=True)
+        with record_summaries_every_n_global_steps(0, self.global_step):
+            for identifier in random.sample(range(num_series), num_series):
+                series_length = series_lengths[identifier]
+                tf_identifier = tf.constant([identifier])
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                            identifier=tf_identifier)
+                other = pd.DataFrame.from_dict(other)[columns]
+                if synthesized is None:
+                    synthesized = other
+                else:
+                    synthesized = synthesized.append(other, ignore_index=True)
 
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
