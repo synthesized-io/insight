@@ -96,10 +96,10 @@ class RecurrentDSSEncoding(Encoding):
         y_t = self.emission(z_0)
         outputs = self.transition_rnn(
             y_t,
-            initial_state=([
+            initial_state=[(
                 tf.random.normal(shape=(1, self.capacity), dtype=tf.float32),
                 tf.zeros(shape=(1, self.capacity), dtype=tf.float32)
-            ] for _ in range(self.num_transition_layers))
+            ) for _ in range(self.num_transition_layers)]
         )
 
         h_t = outputs[0]
