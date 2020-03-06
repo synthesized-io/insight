@@ -105,8 +105,6 @@ class UtilityTesting:
             self.unique_ids_orig = []
             self.unique_ids_synth = []
 
-        self.sample_size = 10_000
-
         # Set the style of plots
         plt.style.use('seaborn')
         mpl.rcParams["axes.facecolor"] = 'w'
@@ -301,7 +299,7 @@ class UtilityTesting:
     def show_distributions(self,
                            remove_outliers: float = 0.0,
                            figsize: Tuple[float, float] = None,
-                           cols: int = 2) -> None:
+                           cols: int = 2, sample_size: int = 10_000) -> None:
         """Plot comparison plots of all variables in the original and synthetic datasets.
 
         Args:
@@ -327,7 +325,8 @@ class UtilityTesting:
                 df_col_test = pd.DataFrame(col_test)
                 df_col_synth = pd.DataFrame(col_synth)
 
-                sample_size = min(len(col_test), len(col_synth))
+                # We sample orig and synth them so that they have the same size to make the plots more comprehensive
+                sample_size = min(sample_size, len(col_test), len(col_synth))
                 concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
                                           df_col_synth.assign(dataset='synth').sample(sample_size)])
 
@@ -340,9 +339,12 @@ class UtilityTesting:
                 title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
-                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna().sample(self.sample_size)
-                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna().sample(
-                    self.sample_size)
+                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna()
+                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna()
+
+                col_test = col_test.sample(min(sample_size, len(col_test)))
+                col_synth = col_synth.sample(min(sample_size, len(col_synth)))
+
                 if len(col_test) == 0 or len(col_synth) == 0:
                     continue
 

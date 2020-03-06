@@ -80,7 +80,7 @@
     "household_power_consumption": {
       "data": "data/time-series/household_power_consumption_small.csv",
       "ignore_columns": ["DateTime"],
-      "num_iterations": 1000,
+      "num_iterations": 200,
       "num_passes": 1,
       "params": {
         "identifier_label": null
