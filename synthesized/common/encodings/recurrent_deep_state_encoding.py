@@ -18,9 +18,9 @@ class RecurrentDSSEncoding(Encoding):
         self.emission = emission_function
         self.num_transition_layers = num_transition_layers
 
-        cells = (
+        cells = [
             tf.keras.layers.LSTMCell(units=self.capacity) for _ in range(self.num_transition_layers)
-        )
+        ]
 
         self.transition_rnn = tf.keras.layers.RNN(cell=cells, return_sequences=True, return_state=True)
 
@@ -96,10 +96,10 @@ class RecurrentDSSEncoding(Encoding):
         y_t = self.emission(z_0)
         outputs = self.transition_rnn(
             y_t,
-            initial_state=((
+            initial_state=([
                 tf.random.normal(shape=(1, self.capacity), dtype=tf.float32),
                 tf.zeros(shape=(1, self.capacity), dtype=tf.float32)
-            ) for _ in range(self.num_transition_layers))
+            ] for _ in range(self.num_transition_layers))
         )
 
         h_t = outputs[0]
