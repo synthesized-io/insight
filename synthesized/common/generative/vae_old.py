@@ -4,11 +4,11 @@ from typing import Dict, List, Tuple, Union, Optional
 import tensorflow as tf
 
 from .generative import Generative
-from ..values import Value, ValueOps
-from ..module import tensorflow_name_scoped, module_registry
-from ..transformations import DenseTransformation
 from ..encodings import VariationalEncoding
+from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
+from ..transformations import DenseTransformation
+from ..values import Value, ValueOps
 
 
 class VAEOld(Generative):
@@ -35,14 +35,11 @@ class VAEOld(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float,
-        summarize: bool = False, summarize_gradient_norms: bool = False
+        weight_decay: float
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
-        self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 

@@ -1,6 +1,7 @@
 from typing import Tuple, Dict
-import tensorflow as tf
+
 import pandas as pd
+import tensorflow as tf
 
 from ..optimizers import Optimizer
 from ..values import ValueFactory, ValueOps

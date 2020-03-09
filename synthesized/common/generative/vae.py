@@ -5,10 +5,10 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .generative import Generative
-from ..values import Value, ValueOps
-from ..module import tensorflow_name_scoped, module_registry
 from ..distributions import Distribution
+from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
+from ..values import Value, ValueOps
 
 
 class VAE(Generative):
@@ -35,14 +35,11 @@ class VAE(Generative):
         # Beta KL loss coefficient
         beta: float,
         # Weight decay
-        weight_decay: float,
-        summarize: bool = False, summarize_gradient_norms: bool = False
+        weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
-        self.summarize_gradient_norms = summarize_gradient_norms
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
@@ -126,7 +123,6 @@ class VAE(Generative):
         # Summaries
         tf.summary.scalar(name='total-loss', data=total_loss)
         tf.summary.scalar(name='regularization-loss', data=regularization_loss)
-
         tf.summary.image(
             name='latent_space_correlation',
             data=tf.reshape(tf.abs(tfp.stats.correlation(z)), shape=(1, self.latent_size, self.latent_size, 1))

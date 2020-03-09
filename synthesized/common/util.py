@@ -1,12 +1,12 @@
-import simplejson
 import re
 from collections import namedtuple
 
+import numpy as np
+import simplejson
 import tensorflow as tf
+from pyemd import emd
 from tensorflow.python.client import timeline
 from tensorflow.python.eager import context
-import numpy as np
-from pyemd import emd
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
 RE_END = re.compile(r"[^A-Za-z0-9.]")

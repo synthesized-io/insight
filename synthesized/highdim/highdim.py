@@ -1,16 +1,16 @@
 """This module implements the BasicSynthesizer class."""
-from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 import logging
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common import Value, ValueFactory, TypeOverride
-from ..common.learning_manager import LearningManager
-from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
 from ..common.generative import VAEOld
+from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
+from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -163,7 +163,7 @@ class HighDimSynthesizer(Synthesizer):
             num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
             decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
-            weight_decay=weight_decay, summarize=(summarizer_dir is not None)
+            weight_decay=weight_decay
         )
 
         # Input argument placeholder for num_rows

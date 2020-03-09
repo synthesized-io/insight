@@ -1,10 +1,10 @@
-import time
 import os
-import simplejson
+import time
 
+import matplotlib.pylab as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pylab as plt
+import simplejson
 from scipy.stats import ks_2samp
 from sklearn.preprocessing import QuantileTransformer, StandardScaler, LabelEncoder
 

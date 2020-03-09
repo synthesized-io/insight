@@ -1,5 +1,5 @@
-from .transformation import Transformation
 from .residual import ResidualTransformation
+from .transformation import Transformation
 from ..module import tensorflow_name_scoped
 
 

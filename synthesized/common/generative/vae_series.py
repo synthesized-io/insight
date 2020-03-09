@@ -4,11 +4,11 @@ from typing import Dict, List, Tuple, Union, Optional
 import tensorflow as tf
 
 from .generative import Generative
-from ..module import tensorflow_name_scoped, module_registry
-from ..transformations import DenseTransformation
 from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding
-from ..values import Value, IdentifierValue, ValueOps
+from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
+from ..transformations import DenseTransformation
+from ..values import Value, IdentifierValue, ValueOps
 
 
 class SeriesVAE(Generative):
@@ -19,28 +19,26 @@ class SeriesVAE(Generative):
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batchnorm: bool, activation: str, dropout: Optional[float],
+            batchnorm: bool, activation: str, series_dropout: Optional[float],
             # Optimizer
             optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
             initial_boost: int, clip_gradients: float,
             # Beta KL loss coefficient
             beta: float,
             # Weight decay
-            weight_decay: float,
-            summarize: bool = False
+            weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
         self.lstm_mode = lstm_mode
 
         self.latent_size = latent_size
         self.beta = beta
-        self.summarize = summarize
         self.network = network
         self.capacity = capacity
         self.num_layers = num_layers
         self.batchnorm = batchnorm
         self.activation = activation
-        self.dropout = dropout
+        self.series_dropout = series_dropout
         self.encoding_size = capacity
 
         self.learning_rate = learning_rate
@@ -73,7 +71,7 @@ class SeriesVAE(Generative):
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
                 input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta, lstm_layers=2
+                beta=self.beta
             )
 
         elif self.lstm_mode == 2:
@@ -112,7 +110,7 @@ class SeriesVAE(Generative):
 
         x = self.value_ops.unified_inputs(self.xs)
         if self.identifier_label and self.identifier_value:
-            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][0]])
+            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][:, 0]])
         else:
             identifier = None
 
@@ -120,7 +118,7 @@ class SeriesVAE(Generative):
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.value_ops.add_conditions(x, conditions=self.xs)
-        x = self.encoding(inputs=x, identifier=identifier, dropout=self.dropout)
+        x = self.encoding(inputs=x, identifier=identifier, series_dropout=self.series_dropout)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
         #################################
@@ -136,9 +134,8 @@ class SeriesVAE(Generative):
             name='regularization_loss'
         )
 
-        total_loss = tf.add_n(
-            inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
-        )
+        total_loss = tf.add_n(inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss')
+
         self.losses['reconstruction-loss'] = reconstruction_loss
         self.losses['kl-loss'] = kl_loss
         self.losses['regularization-loss'] = regularization_loss
@@ -190,18 +187,21 @@ class SeriesVAE(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
-        y, identifier = self._synthesize(n=n, cs=cs)
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+        y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
 
         return synthesized
 
     @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) \
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) \
             -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:
-            identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
+            if identifier is not None:
+                identifier_embedding = self.identifier_value.get_embedding(identifier)
+            else:
+                identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
             identifier_embedding = tf.squeeze(identifier_embedding)
             identifier = tf.tile(input=identifier, multiples=(n,))
         else:

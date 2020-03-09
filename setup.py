@@ -1,5 +1,6 @@
 from codecs import open
 from os import path, listdir
+import pathlib
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -10,6 +11,22 @@ __version__ = ''
 exec(open('synthesized/version.py').read())
 
 here = path.abspath(path.dirname(__file__))
+
+
+def get_git_revision(base_path):
+    git_dir = pathlib.Path(base_path) / '.git'
+    if not git_dir.exists():
+        return ''
+    with (git_dir / 'HEAD').open('r') as head:
+        ref = head.readline().split(' ')[-1].strip()
+    with (git_dir / ref).open('r') as git_hash:
+        return git_hash.readline().strip()[:7]
+
+
+git_revision = get_git_revision(here)
+
+if git_revision:
+    __version__ += '-' + git_revision
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -47,5 +64,6 @@ setup(
     packages=packages,
     install_requires=install_requires,
     ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
-    cmdclass={'build_ext': build_ext}
+    cmdclass={'build_ext': build_ext},
+    python_requires='>=3.6'
 )

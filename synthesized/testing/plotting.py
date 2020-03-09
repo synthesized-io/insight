@@ -1,24 +1,23 @@
+import logging
 import time
 from typing import Optional, List, Tuple
-import logging
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from IPython.display import Markdown, display
 from matplotlib import cm
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp, spearmanr
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
-from IPython.display import Markdown, display
 
+from .metrics import calculate_evaluation_metrics
 from ..highdim import HighDimSynthesizer
 from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
 from ..testing.evaluation import Evaluation
-from .metrics import calculate_evaluation_metrics
-
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +207,9 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
             training_time = time.time() - start
             synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
             print('took', training_time, 's')
+
+    else:
+        raise NotImplementedError("Given 'synthesizer_class={}' not supported.".format(config['synthesizer_class']))
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
     print("Metrics:")

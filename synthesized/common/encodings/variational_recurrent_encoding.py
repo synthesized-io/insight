@@ -4,8 +4,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from .encoding import Encoding
-from ..transformations import DenseTransformation
 from ..module import tensorflow_name_scoped
+from ..transformations import DenseTransformation
 
 
 class VariationalRecurrentEncoding(Encoding):
@@ -53,11 +53,10 @@ class VariationalRecurrentEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
-             dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
+             series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
-        inputs = tf.expand_dims(input=inputs, axis=0)
-        if dropout > 0.:
-            inputs = tf.nn.dropout(inputs, rate=dropout)
+        if series_dropout > 0.:
+            inputs = tf.nn.dropout(inputs, rate=series_dropout)
         _, h_out, _ = self.lstm_encoder(inputs)
 
         mean = self.mean(h_out)
@@ -81,12 +80,16 @@ class VariationalRecurrentEncoding(Encoding):
 
         # y = self.lstm_loop(n=tf.shape(inputs)[1], h_i=encoding_h)
 
+        mean = tf.reshape(mean, shape=(-1, self.encoding_size))
+        stddev = tf.reshape(stddev, shape=(-1, self.encoding_size))
+
         kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
         kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
         # kl_loss *= self.beta * self.increase_beta_multiplier(t_start=250, t_end=350)
         kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)
+
         tf.summary.scalar(name='kl-loss', data=kl_loss)
         tf.summary.histogram(name='mean', data=self.mean.output),
         tf.summary.histogram(name='stddev', data=self.stddev.output),
@@ -96,9 +99,6 @@ class VariationalRecurrentEncoding(Encoding):
             data=tf.abs(tf.reshape(tfp.stats.correlation(encoding_h),
                                    shape=(1, self.encoding_size, self.encoding_size, 1)))
         )
-
-        y = tf.squeeze(input=y, axis=0)
-        encoding_h = tf.squeeze(input=encoding_h, axis=0)
 
         if return_encoding:
             return y, encoding_h

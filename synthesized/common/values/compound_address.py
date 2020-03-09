@@ -1,13 +1,13 @@
-import numpy as np
-import pandas as pd
 import re
 from typing import List
 
-from faker import Faker
+import numpy as np
+import pandas as pd
 import tensorflow as tf
+from faker import Faker
 
-from .value import Value
 from .categorical import CategoricalValue
+from .value import Value
 from ..module import tensorflow_name_scoped
 
 
