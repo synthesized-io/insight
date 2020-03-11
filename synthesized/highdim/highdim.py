@@ -282,7 +282,8 @@ class HighDimSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            progress_callback: Callable[[int], None] = None,
+            batch_size: Optional[int] = 1024
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
@@ -290,11 +291,15 @@ class HighDimSynthesizer(Synthesizer):
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
+            batch_size: Synthesis batch size.
 
         Returns:
             The generated data.
 
         """
+
+        if num_rows <= 0:
+            raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
         df_conditions = self.value_factory.preprocess_conditions(conditions)
         columns = self.value_factory.get_column_names()
@@ -302,30 +307,38 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ]*num_rows)
 
-        feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-        synthesized = self.vae.synthesize(tf.constant(num_rows % 1024, dtype=tf.int64), cs=feed_dict)
-        df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
-
-        feed_dict = self.get_conditions_feed_dict(df_conditions, 1024)
-        n_batches = num_rows // 1024
-        data = self.get_conditions_data(df_conditions)
-
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
 
-        for k in range(n_batches):
-            feed_dict.update({
-                name: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
-                for name, condition_data in data.items()
-                if condition_data.shape == (num_rows,)
-            })
-            other = self.vae.synthesize(tf.constant(1024, dtype=tf.int64), cs=feed_dict)
-            df_synthesized = df_synthesized.append(
-                pd.DataFrame.from_dict(other)[columns], ignore_index=True
-            )
+        if batch_size is None:
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
+            synthesized = self.vae.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             if progress_callback is not None:
-                # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                progress_callback(round((k + 1) * 98.0 / n_batches))
+                progress_callback(98)
+
+        else:
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
+            synthesized = self.vae.synthesize(tf.constant(num_rows % batch_size, dtype=tf.int64), cs=feed_dict)
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+
+            feed_dict = self.get_conditions_feed_dict(df_conditions, batch_size)
+            n_batches = num_rows // batch_size
+            data = self.get_conditions_data(df_conditions)
+
+            for k in range(n_batches):
+                feed_dict.update({
+                    name: tf.constant(condition_data[k * batch_size: (k + 1) * batch_size], dtype=tf.float32)
+                    for name, condition_data in data.items()
+                    if condition_data.shape == (num_rows,)
+                })
+                other = self.vae.synthesize(tf.constant(batch_size, dtype=tf.int64), cs=feed_dict)
+                df_synthesized = df_synthesized.append(
+                    pd.DataFrame.from_dict(other)[columns], ignore_index=True
+                )
+                if progress_callback is not None:
+                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                    progress_callback(round((k + 1) * 98.0 / n_batches))
 
         df_synthesized = self.value_factory.postprocess(df_synthesized)
 

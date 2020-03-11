@@ -1,5 +1,5 @@
 import logging
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 
 import pandas as pd
 
@@ -42,14 +42,15 @@ class Sanitizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            progress_callback: Callable[[int], None] = None,
+            batch_size: Optional[int] = 1024
     ) -> pd.DataFrame:
 
         if progress_callback is not None:
             progress_callback(0)
 
         df_synthesized = self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions,
-                                                     progress_callback=progress_callback)
+                                                     progress_callback=progress_callback, batch_size=batch_size)
 
         if progress_callback is not None:
             progress_callback(99)
@@ -73,7 +74,8 @@ class Sanitizer(Synthesizer):
             n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * Sanitizer.OVERSYNTHESIS_RATIO)
 
             # synthesis + dropping
-            df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions)
+            df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions,
+                                                        batch_size=batch_size)
             df_additional = self._sanitize(df_additional)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 

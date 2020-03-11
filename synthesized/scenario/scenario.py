@@ -239,24 +239,31 @@ class ScenarioSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            progress_callback: Callable[[int], None] = None,
+            batch_size: Optional[int] = 1024
     ) -> pd.DataFrame:
+
         columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
-            df_synthesized = pd.DataFrame(dict(_sentinel=np.zeros((num_rows,))))
+            return pd.DataFrame([[], ]*num_rows)
 
-        else:
-            fetches = self.synthesized
-            feed_dict = {self.num_rows: (num_rows % 1024)}
+        fetches = self.synthesized
+
+        if batch_size:
+            feed_dict = {self.num_rows: (num_rows % batch_size)}
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = {self.num_rows: 1024}
-            for k in range(num_rows // 1024):
+            feed_dict = {self.num_rows: batch_size}
+            for k in range(num_rows // batch_size):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True
                 )
+        else:
+            feed_dict = {self.num_rows: num_rows}
+            synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
         for value in self.values:
             df_synthesized = value.postprocess(df=df_synthesized)

@@ -164,13 +164,16 @@ class Synthesizer(tf.Module):
 
     def synthesize(self, num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                   progress_callback: Callable[[int], None] = None,
+                   batch_size: Optional[int] = 1024) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
             progress_callback: A callback that receives current percentage of the progress.
+            batch_size: Synthesis batch size.
+
         Returns:
             The generated data.
 
