@@ -29,7 +29,7 @@ class ScenarioSynthesizer(Synthesizer):
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
         decay_rate: float = 0.5, initial_boost: bool = True, clip_gradients: float = 1.0,
         # Batch size
-        batch_size: int = 1024,
+        batch_size: int = 1024, synthesis_batch_size: Optional[int] = 1024,
         # Losses
         categorical_weight: float = 1.0, continuous_weight: float = 1.0, weight_decay: float = 0.0
     ):
@@ -96,6 +96,7 @@ class ScenarioSynthesizer(Synthesizer):
         self.distribution = distribution
         self.latent_size = latent_size
         self.batch_size = batch_size
+        self.synthesis_batch_size = synthesis_batch_size
 
         # Decoder: parametrized distribution p(y|z)
         parametrization = dict(
@@ -239,8 +240,7 @@ class ScenarioSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None,
-            batch_size: Optional[int] = 1024
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
 
         columns = [label for value in self.values for label in value.learned_output_columns()]
@@ -249,13 +249,13 @@ class ScenarioSynthesizer(Synthesizer):
 
         fetches = self.synthesized
 
-        if batch_size:
-            feed_dict = {self.num_rows: (num_rows % batch_size)}
+        if self.synthesis_batch_size:
+            feed_dict = {self.num_rows: (num_rows % self.synthesis_batch_size)}
             synthesized = self.run(fetches=fetches, feed_dict=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = {self.num_rows: batch_size}
-            for k in range(num_rows // batch_size):
+            feed_dict = {self.num_rows: self.synthesis_batch_size}
+            for k in range(num_rows // self.synthesis_batch_size):
                 other = self.run(fetches=fetches, feed_dict=feed_dict)
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True

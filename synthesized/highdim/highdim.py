@@ -40,6 +40,7 @@ class HighDimSynthesizer(Synthesizer):
         initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
         batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
+        synthesis_batch_size: Optional[int] = 1024,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
@@ -155,6 +156,7 @@ class HighDimSynthesizer(Synthesizer):
         self.tf_batch_size = tf.Variable(initial_value=batch_size, dtype=tf.int64)
         self.increase_batch_size_every = increase_batch_size_every
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
+        self.synthesis_batch_size = synthesis_batch_size
 
         # VAE
         self.vae = VAEOld(
@@ -282,8 +284,7 @@ class HighDimSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None,
-            batch_size: Optional[int] = 1024
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
@@ -291,7 +292,6 @@ class HighDimSynthesizer(Synthesizer):
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
-            batch_size: Synthesis batch size.
 
         Returns:
             The generated data.
@@ -310,7 +310,7 @@ class HighDimSynthesizer(Synthesizer):
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
 
-        if batch_size is None:
+        if self.synthesis_batch_size is None:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
             synthesized = self.vae.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
@@ -319,20 +319,23 @@ class HighDimSynthesizer(Synthesizer):
 
         else:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-            synthesized = self.vae.synthesize(tf.constant(num_rows % batch_size, dtype=tf.int64), cs=feed_dict)
+            synthesized = self.vae.synthesize(tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64),
+                                              cs=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
-            feed_dict = self.get_conditions_feed_dict(df_conditions, batch_size)
-            n_batches = num_rows // batch_size
+            feed_dict = self.get_conditions_feed_dict(df_conditions, self.synthesis_batch_size)
+            n_batches = num_rows // self.synthesis_batch_size
             data = self.get_conditions_data(df_conditions)
 
             for k in range(n_batches):
                 feed_dict.update({
-                    name: tf.constant(condition_data[k * batch_size: (k + 1) * batch_size], dtype=tf.float32)
+                    name: tf.constant(
+                        condition_data[k * self.synthesis_batch_size: (k + 1) * self.synthesis_batch_size],
+                        dtype=tf.float32)
                     for name, condition_data in data.items()
                     if condition_data.shape == (num_rows,)
                 })
-                other = self.vae.synthesize(tf.constant(batch_size, dtype=tf.int64), cs=feed_dict)
+                other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True
                 )

@@ -24,7 +24,8 @@ class ConditionalSampler(Synthesizer):
     def __init__(self,
                  synthesizer: Synthesizer,
                  *explicit_marginals: Tuple[str, Dict[Any, float]],
-                 min_sampled_ratio: float = 0.001):
+                 min_sampled_ratio: float = 0.001,
+                 synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
 
         Args:
@@ -43,7 +44,7 @@ class ConditionalSampler(Synthesizer):
             self.explicit_marginals[col] = cond
 
         self.conditional_columns: List[str] = []
-        self.all_columns: List[str] = synthesizer.value_factory.get_column_names()
+        self.all_columns: List[str] = synthesizer.value_factory.columns
         # Let's compute cartesian product of all probs for each column
         # to get probs for the joined distribution:
         category_probs = []
@@ -57,6 +58,7 @@ class ConditionalSampler(Synthesizer):
         ]
         self.joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         self.min_sampled_ratio = min_sampled_ratio
+        self.synthesis_batch_size = synthesis_batch_size
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
@@ -67,8 +69,7 @@ class ConditionalSampler(Synthesizer):
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None,
-                   batch_size: Optional[int] = 16384):
+                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
 
         if progress_callback is not None:
             progress_callback(0)
@@ -91,8 +92,8 @@ class ConditionalSampler(Synthesizer):
 
             # Estimate how many rows we need so after filtering we have enough:
             n_prefetch = round(n_missing / sampled_ratio)
-            if batch_size:
-                n_prefetch = min(n_prefetch, batch_size)
+            if self.synthesis_batch_size:
+                n_prefetch = min(n_prefetch, self.synthesis_batch_size)
             n_prefetch = min(n_prefetch, int(1e6))
 
             # Synthesis:
@@ -126,6 +127,7 @@ class ConditionalSampler(Synthesizer):
 
         if progress_callback is not None:
             progress_callback(100)
+
         return pd.DataFrame.from_records(result, columns=self.all_columns)
 
     def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
