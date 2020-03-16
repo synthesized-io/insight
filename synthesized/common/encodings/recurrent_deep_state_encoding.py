@@ -9,14 +9,18 @@ from ..module import tensorflow_name_scoped
 
 class RecurrentDSSEncoding(Encoding):
     """An encoder based on recurrent deep state space models."""
-    def __init__(self, input_size: int, encoding_size: int, emission_function: Callable[[tf.Tensor], tf.Tensor],
-                 beta: float = 1.0, num_transition_layers: int = 2, name='recurrent_dss_encoding'):
+    def __init__(
+            self, input_size: int, encoding_size: int, emission_function: Callable[[tf.Tensor], tf.Tensor],
+            beta: float = 1.0, num_transition_layers: int = 2, transition_regularization: float = 0.005,
+            name: str = 'recurrent_dss_encoding'
+    ):
         super(RecurrentDSSEncoding, self).__init__(input_size=input_size, encoding_size=encoding_size, name=name)
 
         self.beta = beta
         self.capacity = input_size
         self.emission = emission_function
         self.num_transition_layers = num_transition_layers
+        self.transition_regularization = transition_regularization
 
         cells = [
             tf.keras.layers.LSTMCell(units=self.capacity) for _ in range(self.num_transition_layers)
@@ -45,7 +49,7 @@ class RecurrentDSSEncoding(Encoding):
 
     def specification(self):
         spec = super().specification()
-        spec.update(beta=self.beta)
+        spec.update(beta=self.beta, transition_regularization=self.transition_regularization)
         return spec
 
     def size(self):
@@ -76,7 +80,7 @@ class RecurrentDSSEncoding(Encoding):
         tf.summary.scalar(name='kl_loss', data=kl_loss)
         tf.summary.scalar(name='transition_regularization', data=transition_regularization)
 
-        kl_loss = kl_loss+0.005*transition_regularization
+        kl_loss = kl_loss + self.transition_regularization*transition_regularization
 
         self.add_loss(kl_loss)
 
