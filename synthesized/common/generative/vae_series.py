@@ -66,6 +66,14 @@ class SeriesVAE(Generative):
                 del kwargs[k]
         self.encoder = module_registry[network](**kwargs)
 
+        kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
+        self.decoder = module_registry[network](**kwargs)
+
+        self.linear_output = DenseTransformation(
+            name='linear-output',
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
+        )
+
         if encoding == 'lstm':
             self.encoding = VariationalLSTMEncoding(
                 name='encoding',
@@ -80,15 +88,7 @@ class SeriesVAE(Generative):
                 beta=self.beta
             )
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
-        self.decoder = module_registry[network](**kwargs)
-
-        self.linear_output = DenseTransformation(
-            name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
-        )
-
-        if encoding == 'rdssm':
+        elif encoding == 'rdssm':
             def emission_function(z: tf.Tensor):
                 y = self.decoder(inputs=z)
                 return y
