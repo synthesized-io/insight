@@ -11,8 +11,8 @@ class RecurrentDSSEncoding(Encoding):
     """An encoder based on recurrent deep state space models."""
     def __init__(
             self, input_size: int, encoding_size: int, emission_function: Callable[[tf.Tensor], tf.Tensor],
-            beta: float = 1.0, num_transition_layers: int = 2, transition_regularization: float = 0.005,
-            name: str = 'recurrent_dss_encoding'
+            beta: float = 1.0, num_transition_layers: int = 2, transition_regularization: float = 0.0,
+            name: str = 'rdss_encoding'
     ):
         super(RecurrentDSSEncoding, self).__init__(input_size=input_size, encoding_size=encoding_size, name=name)
 
