@@ -4,7 +4,7 @@ auth: {ssh_user: ec2-user}
 min_workers: 9
 max_workers: 9
 # Deep Learning AMI (Ubuntu) Version 21.0
-head_node: {}
+head_node: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355}
 worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355, InstanceMarketOptions: {MarketType: spot}}
 
 file_mounts: {
