@@ -3,27 +3,19 @@ import tensorflow_probability as tfp
 
 from .encoding import Encoding
 from ..module import tensorflow_name_scoped
-from ..transformations import DenseTransformation
+from ..transformations import GaussianTransformation
 
 
 class VariationalEncoding(Encoding):
 
-    def __init__(self, name, input_size, encoding_size, beta=1.0):
+    def __init__(self, input_size, encoding_size, beta=1.0, name='variational_encoding'):
         super().__init__(name=name, input_size=input_size, encoding_size=encoding_size)
         self.beta = beta
 
-        self.mean = DenseTransformation(
-            name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none'
-        )
-        self.stddev = DenseTransformation(
-            name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'
-        )
+        self.gaussian = GaussianTransformation(input_size=input_size, output_size=encoding_size)
 
     def build(self, input_shape):
-        self.mean.build(input_shape)
-        self.stddev.build(input_shape)
+        self.gaussian.build(input_shape)
         self.built = True
 
     def specification(self):
@@ -35,21 +27,19 @@ class VariationalEncoding(Encoding):
         return self.encoding_size
 
     def call(self, inputs, condition=()) -> tf.Tensor:
-        mean = self.mean(inputs)
-        stddev = self.stddev(inputs)
+        mean, stddev = self.gaussian(inputs)
+
         x = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         x = mean + stddev * x
 
-        kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-        kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
+        kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='mean', data=mean),
+        tf.summary.histogram(name='stddev', data=stddev),
         tf.summary.histogram(name='posterior_distribution', data=x),
         tf.summary.image(
             name='latent_space_correlation',
@@ -67,4 +57,4 @@ class VariationalEncoding(Encoding):
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]
+        return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]

@@ -161,7 +161,7 @@ class DateValue(ContinuousValue):
         xs[2] = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
         xs[3] = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
         xs[4] = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
-        return tf.concat(values=xs, axis=1)
+        return tf.concat(values=xs, axis=-1)
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):

@@ -10,7 +10,7 @@ from ..common import Value, ValueFactory, TypeOverride
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
-from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
+from ..common.util import record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -25,7 +25,6 @@ class HighDimSynthesizer(Synthesizer):
 
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
-        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
@@ -40,6 +39,7 @@ class HighDimSynthesizer(Synthesizer):
         initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
         batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
+        synthesis_batch_size: Optional[int] = 1024,
         # Losses
         beta: float = 1.0, weight_decay: float = 1e-3,
         # Categorical
@@ -74,7 +74,6 @@ class HighDimSynthesizer(Synthesizer):
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
             summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
-            profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
             produce_nans_for: A list containing the columns for which nans will be synthesized. If None or False, no
                 column will generate nulls, if True all columns generate nulls (if it applies).
@@ -155,6 +154,7 @@ class HighDimSynthesizer(Synthesizer):
         self.tf_batch_size = tf.Variable(initial_value=batch_size, dtype=tf.int64)
         self.increase_batch_size_every = increase_batch_size_every
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
+        self.synthesis_batch_size = synthesis_batch_size
 
         # VAE
         self.vae = VAEOld(
@@ -296,36 +296,50 @@ class HighDimSynthesizer(Synthesizer):
 
         """
 
+        if num_rows <= 0:
+            raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
+
         df_conditions = self.value_factory.preprocess_conditions(conditions)
         columns = self.value_factory.get_column_names()
 
         if len(columns) == 0:
             return pd.DataFrame([[], ]*num_rows)
 
-        feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-        synthesized = self.vae.synthesize(tf.constant(num_rows % 1024, dtype=tf.int64), cs=feed_dict)
-        df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
-
-        feed_dict = self.get_conditions_feed_dict(df_conditions, 1024)
-        n_batches = num_rows // 1024
-        data = self.get_conditions_data(df_conditions)
-
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
 
-        for k in range(n_batches):
-            feed_dict.update({
-                name: tf.constant(condition_data[k * 1024: (k + 1) * 1024], dtype=tf.float32)
-                for name, condition_data in data.items()
-                if condition_data.shape == (num_rows,)
-            })
-            other = self.vae.synthesize(tf.constant(1024, dtype=tf.int64), cs=feed_dict)
-            df_synthesized = df_synthesized.append(
-                pd.DataFrame.from_dict(other)[columns], ignore_index=True
-            )
+        if self.synthesis_batch_size is None:
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
+            synthesized = self.vae.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             if progress_callback is not None:
-                # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                progress_callback(round((k + 1) * 98.0 / n_batches))
+                progress_callback(98)
+
+        else:
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
+            synthesized = self.vae.synthesize(tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64),
+                                              cs=feed_dict)
+            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+
+            feed_dict = self.get_conditions_feed_dict(df_conditions, self.synthesis_batch_size)
+            n_batches = num_rows // self.synthesis_batch_size
+            data = self.get_conditions_data(df_conditions)
+
+            for k in range(n_batches):
+                feed_dict.update({
+                    name: tf.constant(
+                        condition_data[k * self.synthesis_batch_size: (k + 1) * self.synthesis_batch_size],
+                        dtype=tf.float32)
+                    for name, condition_data in data.items()
+                    if condition_data.shape == (num_rows,)
+                })
+                other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
+                df_synthesized = df_synthesized.append(
+                    pd.DataFrame.from_dict(other)[columns], ignore_index=True
+                )
+                if progress_callback is not None:
+                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                    progress_callback(round((k + 1) * 98.0 / n_batches))
 
         df_synthesized = self.value_factory.postprocess(df_synthesized)
 

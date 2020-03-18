@@ -3,6 +3,7 @@ from abc import ABC
 from collections import Counter
 from itertools import product
 from typing import Any, Dict, Tuple, Union, Callable, List, Optional
+import gc
 
 import numpy as np
 import pandas as pd
@@ -23,7 +24,8 @@ class ConditionalSampler(Synthesizer):
     def __init__(self,
                  synthesizer: Synthesizer,
                  *explicit_marginals: Tuple[str, Dict[Any, float]],
-                 min_sampled_ratio: float = 0.001):
+                 min_sampled_ratio: float = 0.001,
+                 synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
 
         Args:
@@ -42,6 +44,7 @@ class ConditionalSampler(Synthesizer):
             self.explicit_marginals[col] = cond
 
         self.conditional_columns: List[str] = []
+        self.all_columns: List[str] = synthesizer.value_factory.columns
         # Let's compute cartesian product of all probs for each column
         # to get probs for the joined distribution:
         category_probs = []
@@ -55,6 +58,7 @@ class ConditionalSampler(Synthesizer):
         ]
         self.joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         self.min_sampled_ratio = min_sampled_ratio
+        self.synthesis_batch_size = synthesis_batch_size
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
@@ -65,7 +69,8 @@ class ConditionalSampler(Synthesizer):
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None):
+                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
         if progress_callback is not None:
             progress_callback(0)
         # For the sake of performance we will not really sample from "condition" distribution,
@@ -81,13 +86,14 @@ class ConditionalSampler(Synthesizer):
         # The result is a list of result arrays
         result = []
 
-        sampled_ratio = 1.0
-        all_columns = None
+        sampled_ratio = 1.01
         while sum(marginal_counts.values()) > 0 and sampled_ratio >= self.min_sampled_ratio:
             n_missing = sum(marginal_counts.values())
 
             # Estimate how many rows we need so after filtering we have enough:
-            n_prefetch = round(n_missing / sampled_ratio * 1.1)
+            n_prefetch = round(n_missing / sampled_ratio)
+            if self.synthesis_batch_size:
+                n_prefetch = min(n_prefetch, self.synthesis_batch_size)
             n_prefetch = min(n_prefetch, int(1e6))
 
             # Synthesis:
@@ -98,7 +104,6 @@ class ConditionalSampler(Synthesizer):
             df_key = self._map_continuous_columns(df_key)
             df_key = df_key.astype(str)
 
-            all_columns = df_synthesized.columns
             n_added = 0
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
                 key = tuple(key_row)
@@ -107,16 +112,23 @@ class ConditionalSampler(Synthesizer):
                     result.append(row)
                     n_added += 1
                     marginal_counts[key] -= 1
+
             if n_added == 0:
                 # In case if we couldn't sample anything this time:
                 sampled_ratio = 1.0 / n_prefetch
             else:
                 sampled_ratio = float(n_added) / n_prefetch
+
             if progress_callback is not None:
                 progress_callback(round(len(result) * 100.0 / num_rows))
+
+            del df_key, df_synthesized
+            gc.collect()
+
         if progress_callback is not None:
             progress_callback(100)
-        return pd.DataFrame.from_records(result, columns=all_columns)
+
+        return pd.DataFrame.from_records(result, columns=self.all_columns)
 
     def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Looks for continuous columns and map values into bins that are defined in `self.conditions`.
@@ -131,8 +143,8 @@ class ConditionalSampler(Synthesizer):
         df = df.copy()
 
         mapping = {}
-        continuous_columns = {v.name for v in self.synthesizer.get_values() if (isinstance(v, ContinuousValue) or
-                              isinstance(v, NanValue))}
+        continuous_columns = {v.name for v in self.synthesizer.get_values()
+                              if (isinstance(v, ContinuousValue) or isinstance(v, NanValue))}
         for col in continuous_columns:
             if col in self.explicit_marginals:
                 intervals = []

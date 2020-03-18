@@ -5,7 +5,7 @@ import tensorflow_probability as tfp
 
 from .encoding import Encoding
 from ..module import tensorflow_name_scoped
-from ..transformations import DenseTransformation
+from ..transformations import GaussianTransformation
 
 
 class VariationalRecurrentEncoding(Encoding):
@@ -14,7 +14,7 @@ class VariationalRecurrentEncoding(Encoding):
     Original paper: https://arxiv.org/pdf/1412.6581.pdf
     """
 
-    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.):
+    def __init__(self, input_size, encoding_size, condition_size=0, beta=1., name='vrae'):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
@@ -22,25 +22,12 @@ class VariationalRecurrentEncoding(Encoding):
         self.beta = beta
 
         self.lstm_encoder = tf.keras.layers.LSTM(units=encoding_size, return_state=True)
-
-        self.mean = DenseTransformation(
-            name='mean',
-            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
-            activation='none'
-        )
-
-        self.stddev = DenseTransformation(
-            name='stddev',
-            input_size=self.encoding_size, output_size=self.encoding_size, batchnorm=False,
-            activation='softplus'
-        )
-
+        self.gaussian = GaussianTransformation(input_size=self.encoding_size, output_size=self.encoding_size)
         self.lstm_decoder = tf.keras.layers.LSTM(units=encoding_size, return_sequences=True, return_state=True)
 
     def build(self, input_shape):
         self.lstm_encoder.build(input_shape=(None, None, self.input_size))
-        self.mean.build(self.encoding_size)
-        self.stddev.build(self.encoding_size)
+        self.gaussian.build(input_shape=(None, self.encoding_size))
         self.lstm_decoder.build(input_shape=(None, None, self.encoding_size))
         self.built = True
 
@@ -59,8 +46,7 @@ class VariationalRecurrentEncoding(Encoding):
             inputs = tf.nn.dropout(inputs, rate=series_dropout)
         _, h_out, _ = self.lstm_encoder(inputs)
 
-        mean = self.mean(h_out)
-        stddev = self.stddev(h_out)
+        mean, stddev = self.gaussian(h_out)
         e_h = tf.random.normal(shape=tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32)
         encoding_h = mean + stddev * e_h
 
@@ -80,19 +66,15 @@ class VariationalRecurrentEncoding(Encoding):
 
         # y = self.lstm_loop(n=tf.shape(inputs)[1], h_i=encoding_h)
 
-        mean = tf.reshape(mean, shape=(-1, self.encoding_size))
-        stddev = tf.reshape(stddev, shape=(-1, self.encoding_size))
-
-        kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-        kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
+        kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         # kl_loss *= self.beta * self.increase_beta_multiplier(t_start=250, t_end=350)
         kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)
 
         tf.summary.scalar(name='kl-loss', data=kl_loss)
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='mean', data=mean),
+        tf.summary.histogram(name='stddev', data=stddev),
         tf.summary.histogram(name='posterior_distribution', data=encoding_h),
         tf.summary.image(
             name='latent_space_correlation',
@@ -159,4 +141,4 @@ class VariationalRecurrentEncoding(Encoding):
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]
+        return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]

@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Union, Optional
 import tensorflow as tf
 
 from .generative import Generative
-from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding
+from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding, RecurrentDSSEncoding
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
@@ -14,7 +14,7 @@ from ..values import Value, IdentifierValue, ValueOps
 class SeriesVAE(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
-            lstm_mode: int, identifier_label: Optional[str], identifier_value: Optional[IdentifierValue],
+            encoding: str, identifier_label: Optional[str], identifier_value: Optional[IdentifierValue],
             # Latent space
             latent_size: int,
             # Encoder and decoder network
@@ -29,7 +29,6 @@ class SeriesVAE(Generative):
             weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
-        self.lstm_mode = lstm_mode
 
         self.latent_size = latent_size
         self.beta = beta
@@ -67,20 +66,6 @@ class SeriesVAE(Generative):
                 del kwargs[k]
         self.encoder = module_registry[network](**kwargs)
 
-        if self.lstm_mode == 1:
-            self.encoding = VariationalLSTMEncoding(
-                name='encoding',
-                input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
-            )
-
-        elif self.lstm_mode == 2:
-            self.encoding = VariationalRecurrentEncoding(
-                name='encoding',
-                input_size=self.encoder.size(), encoding_size=self.encoding_size,
-                beta=self.beta
-            )
-
         kwargs['name'], kwargs['input_size'] = 'decoder', self.encoding_size
         self.decoder = module_registry[network](**kwargs)
 
@@ -88,6 +73,30 @@ class SeriesVAE(Generative):
             name='linear-output',
             input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
         )
+
+        if encoding == 'lstm':
+            self.encoding = VariationalLSTMEncoding(
+                name='encoding',
+                input_size=self.encoder.size(), encoding_size=self.encoding_size,
+                beta=self.beta
+            )
+
+        elif encoding == 'vrae':
+            self.encoding = VariationalRecurrentEncoding(
+                name='encoding',
+                input_size=self.encoder.size(), encoding_size=self.encoding_size,
+                beta=self.beta
+            )
+
+        elif encoding == 'rdssm':
+            def emission_function(z: tf.Tensor):
+                y = self.decoder(inputs=z)
+                return y
+
+            self.encoding = RecurrentDSSEncoding(
+                name='encoding', input_size=self.encoder.size(), encoding_size=self.encoding_size, beta=self.beta,
+                emission_function=emission_function
+            )
 
         self.optimizer = Optimizer(
             name='optimizer', optimizer=optimizer,
@@ -160,7 +169,6 @@ class SeriesVAE(Generative):
 
         return
 
-    @tf.function
     def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
             Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         if len(self.xs) == 0:
@@ -186,16 +194,15 @@ class SeriesVAE(Generative):
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
-    @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
 
         return synthesized
 
-    @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) \
-            -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
+    def _synthesize(
+            self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
+    ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:
             if identifier is not None:

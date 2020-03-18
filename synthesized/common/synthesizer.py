@@ -171,6 +171,7 @@ class Synthesizer(tf.Module):
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
             progress_callback: A callback that receives current percentage of the progress.
+
         Returns:
             The generated data.
 
