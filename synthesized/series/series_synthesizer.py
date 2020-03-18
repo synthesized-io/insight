@@ -12,7 +12,7 @@ from ..common import Synthesizer
 from ..common import Value, ValueFactory, TypeOverride
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager
-from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
+from ..common.util import record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -21,7 +21,6 @@ logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=
 class SeriesSynthesizer(Synthesizer):
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
-        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
@@ -61,8 +60,8 @@ class SeriesSynthesizer(Synthesizer):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # SeriesSynthesizer
-        lstm_mode: int = 1,
-        max_seq_len: int = 1024,
+        lstm_mode: str = 'rdssm',
+        max_seq_len: int = 512,
         condition_labels: List[str] = [],
         # Evaluation conditions
         learning_manager: bool = False
@@ -92,7 +91,7 @@ class SeriesSynthesizer(Synthesizer):
             # Identifier
             identifier_label=identifier_label,
         )
-        if lstm_mode not in (1, 2):
+        if lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
         self.lstm_mode = lstm_mode
 
@@ -111,7 +110,7 @@ class SeriesSynthesizer(Synthesizer):
         self.vae = SeriesVAE(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
-            lstm_mode=self.lstm_mode, latent_size=latent_size,
+            encoding=self.lstm_mode, latent_size=latent_size,
             network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
             batchnorm=batchnorm, activation=activation, series_dropout=series_dropout,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
@@ -301,16 +300,17 @@ class SeriesSynthesizer(Synthesizer):
         if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
             raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
-        for identifier in random.sample(range(num_series), num_series):
-            series_length = series_lengths[identifier]
-            tf_identifier = tf.constant([identifier])
-            other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
-                                        identifier=tf_identifier)
-            other = pd.DataFrame.from_dict(other)[columns]
-            if synthesized is None:
-                synthesized = other
-            else:
-                synthesized = synthesized.append(other, ignore_index=True)
+        with record_summaries_every_n_global_steps(0, self.global_step):
+            for identifier in random.sample(range(num_series), num_series):
+                series_length = series_lengths[identifier]
+                tf_identifier = tf.constant([identifier])
+                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                            identifier=tf_identifier)
+                other = pd.DataFrame.from_dict(other)[columns]
+                if synthesized is None:
+                    synthesized = other
+                else:
+                    synthesized = synthesized.append(other, ignore_index=True)
 
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
@@ -333,11 +333,16 @@ class SeriesSynthesizer(Synthesizer):
 
         for i in range(len(groups)):
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            identifier = feed_dict[self.value_factory.identifier_label][0]
+            feed_dict = {
+                name: tf.expand_dims(feed_dict[name], axis=0)
+                for value in self.get_all_values()
+                for name in value.learned_input_columns()
+            }
             encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
             if self.value_factory.identifier_label:
+                identifier = feed_dict[self.value_factory.identifier_label][0]
                 decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
             if not encoded or not decoded:
                 encoded, decoded = encoded_i, decoded_i

@@ -10,7 +10,7 @@ from ..common import Value, ValueFactory, TypeOverride
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
-from ..common.util import ProfilerArgs, record_summaries_every_n_global_steps
+from ..common.util import record_summaries_every_n_global_steps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -25,7 +25,6 @@ class HighDimSynthesizer(Synthesizer):
 
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
-        profiler_args: ProfilerArgs = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
@@ -75,7 +74,6 @@ class HighDimSynthesizer(Synthesizer):
                 fine to just use the training data here. Generally, it should exhibit all relevant
                 characteristics, so for instance all values a discrete-value column can take.
             summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
-            profiler_args: A ProfilerArgs object.
             type_overrides: A dict of type overrides per column.
             produce_nans_for: A list containing the columns for which nans will be synthesized. If None or False, no
                 column will generate nulls, if True all columns generate nulls (if it applies).

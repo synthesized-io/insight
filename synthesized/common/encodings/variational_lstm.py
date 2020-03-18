@@ -5,12 +5,13 @@ import tensorflow_probability as tfp
 
 from .encoding import Encoding
 from ..module import tensorflow_name_scoped
-from ..transformations import DenseTransformation
+from ..transformations import GaussianTransformation
 
 
 class VariationalLSTMEncoding(Encoding):
     """Encoding for LSTM mode 1"""
-    def __init__(self, name, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=2):
+    def __init__(self, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=1,
+                 name='variational_lstm_encoding'):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
@@ -18,23 +19,14 @@ class VariationalLSTMEncoding(Encoding):
         self.beta = beta
         self.lstm_layers = lstm_layers
 
-        self.mean = DenseTransformation(
-            name='mean', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='none'
-        )
-        self.stddev = DenseTransformation(
-            name='stddev', input_size=self.input_size,
-            output_size=self.encoding_size, batchnorm=False, activation='softplus'
-        )
-
+        self.gaussian = GaussianTransformation(input_size=self.input_size,  output_size=self.encoding_size)
         self.lstm_0 = tf.keras.layers.LSTM(units=self.encoding_size, return_sequences=True)
         self.lstm_i = tf.keras.models.Sequential()
         for _ in range(1, self.lstm_layers):
             self.lstm_i.add(tf.keras.layers.LSTM(units=self.encoding_size, return_sequences=True))
 
     def build(self, input_shape):
-        self.mean.build(input_shape)
-        self.stddev.build(input_shape)
+        self.gaussian.build(input_shape)
         self.lstm_0.build((None, None, self.encoding_size))
         self.lstm_i.build((None, None, self.encoding_size))
         self.built = True
@@ -50,8 +42,8 @@ class VariationalLSTMEncoding(Encoding):
     @tensorflow_name_scoped
     def call(self, inputs, identifier=None, condition=(), return_encoding=False,
              series_dropout=0.) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
-        mean = self.mean(inputs)
-        stddev = self.stddev(inputs)
+        mean, stddev = self.gaussian(inputs)
+
         e = tf.random.normal(
             shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
@@ -67,17 +59,12 @@ class VariationalLSTMEncoding(Encoding):
             self.lstm_0(encoding, initial_state=identifier)
         )
 
-        mean = tf.reshape(mean, shape=(-1, self.encoding_size))
-        stddev = tf.reshape(stddev, shape=(-1, self.encoding_size))
-
-        kl_loss = 0.5 * (tf.square(x=mean) + tf.square(x=stddev)) - tf.math.log(x=tf.maximum(x=stddev, y=1e-6)) - 0.5
-        kl_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=kl_loss, axis=1), axis=0)
+        kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
 
         self.add_loss(kl_loss, inputs=inputs)
-
-        tf.summary.histogram(name='mean', data=self.mean.output),
-        tf.summary.histogram(name='stddev', data=self.stddev.output),
+        tf.summary.histogram(name='mean', data=mean),
+        tf.summary.histogram(name='stddev', data=stddev),
         tf.summary.histogram(name='posterior_distribution', data=encoding),
         tf.summary.image(
             name='latent_space_correlation',
@@ -107,4 +94,4 @@ class VariationalLSTMEncoding(Encoding):
 
     @property
     def regularization_losses(self):
-        return [loss for layer in [self.mean, self.stddev] for loss in layer.regularization_losses]
+        return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]

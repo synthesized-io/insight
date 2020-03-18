@@ -193,7 +193,7 @@ class ContinuousValue(Value):
         assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
 
         if self.integer:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int32')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
 
         if self.float and df.loc[:, self.name].dtype != 'float32':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
