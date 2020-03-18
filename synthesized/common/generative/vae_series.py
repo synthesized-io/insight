@@ -169,7 +169,6 @@ class SeriesVAE(Generative):
 
         return
 
-    @tf.function
     def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
             Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         if len(self.xs) == 0:
