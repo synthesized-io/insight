@@ -1,8 +1,33 @@
 from itertools import chain
 
 import pandas as pd
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC, LinearSVC
 
 from ..common import ValueFactory
+
+
+METRICS = {
+    'precision': precision_score,
+    'recall': recall_score,
+    'f1': f1_score,
+    'roc_auc': roc_auc_score
+}
+
+CLASSIFICATION_MODELS = {
+    'LogisticRegression': LogisticRegression,
+    'GradientBoosting': GradientBoostingClassifier,
+    'RandomForest': RandomForestClassifier,
+    'MLP': MLPClassifier,
+    'SVC': SVC,
+    'LinearSVC': LinearSVC
+}
+"""Dict[str, Union[LogisticRegression, GradientBoostingClassifier,
+   RandomForestClassifier, MLPClassifier, SVC, LinearSVC]]: A dictionary of sklearn models with fit/predict methods."""
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,3 +52,29 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     df_values = pd.DataFrame.from_records(value_spec)
 
     return df_values
+
+
+def classification_score(df: pd.DataFrame, label: str, model: str) -> pd.DataFrame:
+    if model not in CLASSIFICATION_MODELS:
+        raise ValueError
+
+    vf = ValueFactory(df=df)
+    df = vf.preprocess(df)
+    clf = CLASSIFICATION_MODELS[model]
+
+    test, train = train_test_split(df, test_size=0.2)
+
+    train_label = train.pop(label).to_numpy()
+    train_features = train.to_numpy()
+    test_label = test.pop(label).to_numpy()
+    test_features = test.to_numpy()
+
+    clf.fit(X=train_features, y=train_label)
+    predicted_label = clf.predict(X=test_features)
+
+    df_metrics = pd.DataFrame({
+        name: metric(test_label, predicted_label)
+        for name, metric in METRICS.items()
+    })
+
+    return df_metrics
