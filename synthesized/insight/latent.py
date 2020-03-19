@@ -22,9 +22,9 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
 
 def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> pd.DataFrame:
     if usage_type == 'stddev':
-        ldu = df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(2).to_numpy()
+        ldu = df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(3).to_numpy()
     elif usage_type == 'mean':
-        ldu = df_latent.filter(like='m', axis='columns').describe().loc['std'].round(2).to_numpy()
+        ldu = df_latent.filter(like='m', axis='columns').describe().loc['std'].round(3).to_numpy()
     else:
         raise ValueError
 
@@ -39,8 +39,10 @@ def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev'
     ldu = latent_dimension_usage(df_latent=df_latent, usage_type=usage_type)
 
     if usage_type == 'stddev':
-        pass
+        usage = round(float(np.sum(1.0-ldu['usage'].to_numpy())), ndigits=3)
     elif usage_type == 'mean':
-        pass
+        usage = round(float(np.sum(ldu['usage'].to_numpy())), ndigits=3)
     else:
         raise ValueError
+
+    return usage
