@@ -1,6 +1,8 @@
 from itertools import chain
+from typing import Dict, Callable, Type, Union
 
 import pandas as pd
+import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -11,14 +13,17 @@ from sklearn.svm import SVC, LinearSVC
 from ..common import ValueFactory
 
 
-METRICS = {
+METRICS: Dict[str, Callable[[np.ndarray, np.ndarray], float]] = {
     'precision': precision_score,
     'recall': recall_score,
     'f1': f1_score,
     'roc_auc': roc_auc_score
 }
 
-CLASSIFICATION_MODELS = {
+CLASSIFICATION_MODELS: Dict[
+    str,
+    Type[Union[LogisticRegression, GradientBoostingClassifier, RandomForestClassifier, MLPClassifier, SVC, LinearSVC]]
+] = {
     'LogisticRegression': LogisticRegression,
     'GradientBoosting': GradientBoostingClassifier,
     'RandomForest': RandomForestClassifier,
@@ -26,8 +31,7 @@ CLASSIFICATION_MODELS = {
     'SVC': SVC,
     'LinearSVC': LinearSVC
 }
-"""Dict[str, Union[LogisticRegression, GradientBoostingClassifier,
-   RandomForestClassifier, MLPClassifier, SVC, LinearSVC]]: A dictionary of sklearn models with fit/predict methods."""
+"""A dictionary of sklearn classifiers with fit/predict methods."""
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
