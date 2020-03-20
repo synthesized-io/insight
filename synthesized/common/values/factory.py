@@ -41,6 +41,7 @@ class ValueFactory:
         self, df: pd.DataFrame, capacity: int = 128,
         continuous_weight: float = 1.0, decompose_continuous_values: bool = False,
         categorical_weight: float = 1.0, temperature: float = 1.0, moving_average: bool = True, nan_weight: float = 1.0,
+        keep_monotonic_dates: bool = False,
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
@@ -63,6 +64,8 @@ class ValueFactory:
     ):
 
         """Init ValueFactory."""
+        self.name = name
+
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
         nan_kwargs: Dict[str, Any] = dict()
@@ -79,6 +82,7 @@ class ValueFactory:
         self.nan_kwargs = nan_kwargs
 
         self.decompose_continuous_values = decompose_continuous_values
+        self.keep_monotonic_dates = keep_monotonic_dates
 
         if find_rules is None:
             self.find_rules: Union[str, List[str]] = []
@@ -278,7 +282,7 @@ class ValueFactory:
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""
         return DateValue(
-            name=name, categorical_kwargs=self.categorical_kwargs,
+            name=name, categorical_kwargs=self.categorical_kwargs, keep_order=self.keep_monotonic_dates
             **self.continuous_kwargs
         )
 

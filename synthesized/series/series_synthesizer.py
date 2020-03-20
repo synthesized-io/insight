@@ -43,6 +43,8 @@ class SeriesSynthesizer(Synthesizer):
         continuous_weight: float = 5.0, decompose_continuous_values: bool = True,
         # Nan
         nan_weight: float = 1.0,
+        # Date
+        keep_monotonic_dates: bool = True,
         # Conditions
         condition_columns: List[str] = None,
         # Person
@@ -74,7 +76,7 @@ class SeriesSynthesizer(Synthesizer):
             capacity=capacity,
             continuous_weight=continuous_weight, decompose_continuous_values=decompose_continuous_values,
             categorical_weight=categorical_weight, temperature=temperature,
-            moving_average=moving_average, nan_weight=nan_weight,
+            moving_average=moving_average, nan_weight=nan_weight, keep_monotonic_dates=keep_monotonic_dates,
             type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
             condition_columns=condition_columns, find_rules=find_rules,
             # Person

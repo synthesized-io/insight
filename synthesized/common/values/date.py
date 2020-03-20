@@ -12,13 +12,15 @@ from ..module import tensorflow_name_scoped
 class DateValue(ContinuousValue):
 
     def __init__(
-        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None, **continuous_kwargs
+        self, name: str, weight: float, categorical_kwargs: dict, start_date=None, min_date=None,
+        keep_order: bool = False, **continuous_kwargs
     ):
         super().__init__(name=name, weight=weight, **continuous_kwargs)
 
         assert start_date is None or min_date is None
         self.start_date = start_date
         self.min_date = min_date
+        self.keep_order = keep_order
 
         self.pd_types = ('M',)
         self.date_format: Optional[str] = None
@@ -48,6 +50,7 @@ class DateValue(ContinuousValue):
     def specification(self):
         spec = super().specification()
         spec.update(
+            keep_order=self.keep_order,
             hour=self.hour.specification(), dow=self.dow.specification(),
             day=self.day.specification(), month=self.month.specification()
         )
@@ -76,7 +79,7 @@ class DateValue(ContinuousValue):
         if column.dtype.kind != 'M':
             column = self.to_datetime(column)
 
-        if column.is_monotonic:
+        if column.is_monotonic and self.keep_order:
             if self.start_date is None:
                 self.start_date = column.values[0] - (column.values[1:] - column.values[:-1]).mean()
             elif column[0] < self.start_date:
