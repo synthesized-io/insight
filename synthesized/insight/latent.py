@@ -22,7 +22,7 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
 
 def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> pd.DataFrame:
     if usage_type == 'stddev':
-        ldu = df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(3).to_numpy()
+        ldu = 1.0 - df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(3).to_numpy()
     elif usage_type == 'mean':
         ldu = df_latent.filter(like='m', axis='columns').describe().loc['std'].round(3).to_numpy()
     else:
