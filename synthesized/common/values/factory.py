@@ -69,20 +69,23 @@ class ValueFactory:
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
         nan_kwargs: Dict[str, Any] = dict()
-        categorical_kwargs['capacity'] = capacity
-        nan_kwargs['capacity'] = capacity
-        categorical_kwargs['weight'] = categorical_weight
-        nan_kwargs['weight'] = nan_weight
+        date_kwargs: Dict[str, Any] = dict()
+
         continuous_kwargs['weight'] = continuous_weight
+        categorical_kwargs['capacity'] = capacity
+        categorical_kwargs['weight'] = categorical_weight
         categorical_kwargs['temperature'] = temperature
         categorical_kwargs['moving_average'] = moving_average
+        nan_kwargs['capacity'] = capacity
+        nan_kwargs['weight'] = nan_weight
+        date_kwargs['keep_monotonic'] = keep_monotonic_dates
 
         self.categorical_kwargs = categorical_kwargs
         self.continuous_kwargs = continuous_kwargs
         self.nan_kwargs = nan_kwargs
+        self.date_kwargs = date_kwargs
 
         self.decompose_continuous_values = decompose_continuous_values
-        self.keep_monotonic_dates = keep_monotonic_dates
 
         if find_rules is None:
             self.find_rules: Union[str, List[str]] = []
@@ -282,8 +285,8 @@ class ValueFactory:
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""
         return DateValue(
-            name=name, categorical_kwargs=self.categorical_kwargs, keep_order=self.keep_monotonic_dates
-            **self.continuous_kwargs
+            name=name, categorical_kwargs=self.categorical_kwargs, continuous_kwargs=self.continuous_kwargs,
+            **self.date_kwargs
         )
 
     def create_nan(self, name: str, value: Value) -> NanValue:
