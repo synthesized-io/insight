@@ -172,8 +172,8 @@ class DecomposedContinuousValue(Value):
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
         y_low_freq, y_high_freq = tf.split(value=y,
                                            num_or_size_splits=[
-                                               self.high_freq_value.learned_output_size(),
-                                               self.low_freq_value.learned_output_size()],
+                                               self.low_freq_value.learned_output_size(),
+                                               self.high_freq_value.learned_output_size()],
                                            axis=-1)
 
         return self.low_freq_value.output_tensors(y=y_low_freq) + self.high_freq_value.output_tensors(y=y_high_freq)
