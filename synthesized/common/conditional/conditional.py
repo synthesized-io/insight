@@ -128,7 +128,7 @@ class ConditionalSampler(Synthesizer):
         if progress_callback is not None:
             progress_callback(100)
 
-        return pd.DataFrame.from_records(result, columns=self.all_columns)
+        return pd.DataFrame.from_records(result, columns=self.all_columns).sample(frac=1).reset_index(drop=True)
 
     def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Looks for continuous columns and map values into bins that are defined in `self.conditions`.
