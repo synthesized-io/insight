@@ -92,7 +92,7 @@ class Synthesizer(tf.Module):
 
     def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
         data = {
-            name: df[name].to_numpy() for value in self.get_conditions()
+            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_conditions()
             for name in value.learned_input_columns()
         }
         return data

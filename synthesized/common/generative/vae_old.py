@@ -153,8 +153,8 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(self, xs: Dict[str, tf.Tensor],
+               cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """Encoding Step for VAE.
 
         Args:
@@ -174,8 +174,8 @@ class VAEOld(Generative):
         x = self.encoder(x)
 
         latent_space = self.encoding(x)
-        mean = self.encoding.mean.output
-        std = self.encoding.stddev.output
+        mean = self.encoding.gaussian.mean.output
+        std = self.encoding.gaussian.stddev.output
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
