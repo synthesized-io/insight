@@ -168,7 +168,7 @@ class CategoricalValue(Value):
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
             y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
 
-        y = tf.squeeze(tf.reshape(y_flat, shape=y.shape[0:-1]))
+        y = tf.reshape(y_flat, shape=y.shape[0:-1])
 
         return [y]
 

@@ -214,7 +214,7 @@ class ContinuousValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        y = tf.squeeze(input=y)
+        y = tf.reshape(y, shape=(-1, ))
         return [y]
 
     @tensorflow_name_scoped

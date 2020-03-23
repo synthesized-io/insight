@@ -170,14 +170,11 @@ class DecomposedContinuousValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        if len(y.shape) == 2:
-            y_low_freq = y[:, 0]
-            y_high_freq = y[:, 1]
-        elif len(y.shape) == 3:
-            y_low_freq = y[:, :, 0]
-            y_high_freq = y[:, :, 1]
-        else:
-            raise NotImplementedError
+        y_low_freq, y_high_freq = tf.split(value=y,
+                                           num_or_size_splits=[
+                                               self.low_freq_value.learned_output_size(),
+                                               self.high_freq_value.learned_output_size()],
+                                           axis=-1)
 
         return self.low_freq_value.output_tensors(y=y_low_freq) + self.high_freq_value.output_tensors(y=y_high_freq)
 
