@@ -134,7 +134,7 @@ class LearningManager:
                     logger.info(
                         "LearningManager :: The model has reached the maximum training time ({2:.2f}s). "
                         "Restoring model from iteration {0} with stop_metric={1:.4f}".format(
-                            self.best_iteration, self.best_stop_metric, self.max_training_time
+                            self.best_iteration, self.best_stop_metric or 0, self.max_training_time
                         )
                     )
                     # Restore best model and stop learning.
