@@ -1,5 +1,5 @@
 cluster_name: tune-default
-provider: {type: aws, region: eu-west-1}
+provider: {type: aws, region: eu-west-1, cache_stopped_nodes: False}
 auth: {ssh_user: ec2-user}
 min_workers: 9
 max_workers: 9
@@ -10,8 +10,9 @@ worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355, Instance
 file_mounts: {
     "~/synthesized": "synthesized",
     "~/requirements.txt": "requirements.txt",
-    "~/data": "data",
-    "~/tune_highdim.ipynb": "tune/tune_highdim.ipynb"
+    "~/data/credit_with_categoricals.csv": "data/credit_with_categoricals.csv",
+    "~/tune_highdim.ipynb": "tune/tune_highdim.ipynb",
+    "~/tune_utils.py": "tune/tune_utils.py"
 }
 
 setup_commands: # Set up each node.
@@ -24,7 +25,7 @@ setup_commands: # Set up each node.
     - python3 -m pip install --user -r ~/requirements.txt
 
 head_setup_commands:
-    - python3 -m pip install --user boto3==1.4.8 jupyter
+    - python3 -m pip install --user boto3==1.4.8 jupyter SQLAcademy
     - sudo yum install screen
 
 # Command to start ray on the head node. You don't need to change this.
