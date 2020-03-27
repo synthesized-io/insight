@@ -20,12 +20,12 @@ setup_commands: # Set up each node.
     - echo 'LANG=C.UTF-8' >> ~/.bashrc
     - echo 'alias python=python3' >> ~/.bashrc
     - sudo python3 -m pip install --upgrade pip
-    - python3 -m pip install --user 'ray[tune]' ax-platform aiohttp psutil setproctitle grpcio
+    - python3 -m pip install --user 'ray[tune]==0.8.3' aiohttp psutil setproctitle grpcio
     - mkdir -p ~/.synthesized && echo 'EE6B-6720-67A2-32F3-32F3-2D31-322D-B531' > ~/.synthesized/key
     - python3 -m pip install --user -r ~/requirements.txt
 
 head_setup_commands:
-    - python3 -m pip install --user boto3==1.4.8 jupyter SQLAcademy
+    - python3 -m pip install --user boto3==1.4.8 jupyter ax-platform==0.1.10 SQLAlchemy
     - sudo yum install screen
 
 # Command to start ray on the head node. You don't need to change this.
