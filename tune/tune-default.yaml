@@ -1,5 +1,5 @@
 cluster_name: tune-default
-provider: {type: aws, region: eu-west-1}
+provider: {type: aws, region: eu-west-1, cache_stopped_nodes: False}
 auth: {ssh_user: ec2-user}
 min_workers: 9
 max_workers: 9
@@ -10,7 +10,9 @@ worker_nodes: {InstanceType: c5.xlarge, ImageId: ami-05b87ea908e4dd355, Instance
 file_mounts: {
     "~/synthesized": "synthesized",
     "~/requirements.txt": "requirements.txt",
-    "~/data": "data",
+    "~/data/credit_with_categoricals.csv": "data/credit_with_categoricals.csv",
+    "~/tune_highdim.ipynb": "tune/tune_highdim.ipynb",
+    "~/tune_utils.py": "tune/tune_utils.py"
 }
 
 setup_commands: # Set up each node.
@@ -18,17 +20,19 @@ setup_commands: # Set up each node.
     - echo 'LANG=C.UTF-8' >> ~/.bashrc
     - echo 'alias python=python3' >> ~/.bashrc
     - sudo python3 -m pip install --upgrade pip
-    - python3 -m pip install --user 'ray[tune]' ax-platform aiohttp psutil setproctitle grpcio
+    - python3 -m pip install --user 'ray[tune]==0.8.3' aiohttp psutil setproctitle grpcio
     - mkdir -p ~/.synthesized && echo 'EE6B-6720-67A2-32F3-32F3-2D31-322D-B531' > ~/.synthesized/key
     - python3 -m pip install --user -r ~/requirements.txt
 
 head_setup_commands:
-    - python3 -m pip install --user boto3==1.4.8
+    - python3 -m pip install --user boto3==1.4.8 jupyter ax-platform==0.1.10 SQLAlchemy
+    - sudo yum install screen
 
 # Command to start ray on the head node. You don't need to change this.
 head_start_ray_commands:
     - ray stop
     - ray start --head --redis-port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml
+    - screen -A -m -d -S jupyterscreen jupyter notebook --port=8889 --NotebookApp.token=synthesized123 --no-browser
 
 # Command to start ray on worker nodes. You don't need to change this.
 worker_start_ray_commands:

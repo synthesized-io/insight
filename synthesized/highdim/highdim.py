@@ -65,7 +65,7 @@ class HighDimSynthesizer(Synthesizer):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # Evaluation conditions
-        learning_manager: bool = True
+        learning_manager: bool = True, max_training_time: float = None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -173,7 +173,7 @@ class HighDimSynthesizer(Synthesizer):
         self.learning_manager: Optional[LearningManager] = None
         if learning_manager:
             self.use_vae_loss = True
-            self.learning_manager = LearningManager()
+            self.learning_manager = LearningManager(max_training_time=max_training_time)
             self.learning_manager.set_check_frequency(self.batch_size)
 
     def get_values(self) -> List[Value]:

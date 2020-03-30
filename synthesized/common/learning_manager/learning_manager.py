@@ -1,5 +1,6 @@
 import logging
 import tempfile
+import time
 from typing import Optional, Dict, List, Union
 
 import numpy as np
@@ -30,7 +31,7 @@ class LearningManager:
 
     """
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
-                 checkpoint_path: str = None,
+                 checkpoint_path: str = None, max_training_time: float = None,
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
                  tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
                  stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000):
@@ -77,11 +78,13 @@ class LearningManager:
                                      .format(stop_metric_name, allowed_stop_metric_names))
         self.stop_metric_name = stop_metric_name
         self.sample_size = sample_size
+        self.max_training_time = max_training_time
 
         self.count_no_improvement: int = 0
         self.best_stop_metric: Optional[float] = None
         self.best_checkpoint: Optional[str] = None
         self.best_iteration: int = 0
+        self.start_time: Optional[float] = None
 
         if self.use_checkpointing:
             self.checkpoint = tf.train.Checkpoint()
@@ -116,6 +119,39 @@ class LearningManager:
         if np.isnan(total_stop_metric):
             logger.error("LearningManager :: Total 'stop_metric' is NaN")
             return False
+
+        if self.max_training_time is not None and self.start_time is not None:
+            if time.time() - self.start_time > self.max_training_time:
+                if self.use_checkpointing:
+                    if not self.best_stop_metric or total_stop_metric < self.best_stop_metric:
+                        self.best_stop_metric = total_stop_metric
+                        self.best_iteration = iteration
+                        self.count_no_improvement = 0
+                        current_checkpoint = self.checkpoint_manager.save()
+                        self.best_checkpoint = current_checkpoint
+                        logger.info(
+                            "LearningManager :: The model has reached the maximum training time ({2:.2f}s). "
+                            "and lowest stop_metric={1:.4f} at iteration {0}".format(
+                                self.best_iteration, self.best_stop_metric or 0, self.max_training_time
+                            )
+                        )
+                        return True
+
+                    if self.best_checkpoint is not None:
+                        logger.info(
+                            "LearningManager :: The model has reached the maximum training time ({2:.2f}s). "
+                            "Restoring model from iteration {0} with stop_metric={1:.4f}".format(
+                                self.best_iteration, self.best_stop_metric or 0, self.max_training_time
+                            )
+                        )
+                        # Restore best model and stop learning.
+                        self.checkpoint.restore(self.best_checkpoint)
+                        return True
+
+                else:
+                    logger.info("LearningManager :: The model has reached maximum training time ({0:.2f}s). Stopping "
+                                "learning procedure".format(self.max_training_time))
+                    return True
 
         logger.debug("LearningManager :: Iteration {}. Current stop_metric={:.4f}".format(iteration, total_stop_metric))
 
@@ -257,3 +293,4 @@ class LearningManager:
         self.best_stop_metric: Optional[float] = None
         self.best_checkpoint: Optional[str] = None
         self.best_iteration: int = 0
+        self.start_time: float = time.time()
