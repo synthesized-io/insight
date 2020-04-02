@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Callable
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ from ..synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
+# logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class LearningManager:
@@ -34,13 +34,16 @@ class LearningManager:
                  checkpoint_path: str = None, max_training_time: float = None,
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
                  tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
-                 stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000):
+                 stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
+                 use_vae_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+                 ):
         """Initialize LearningManager.
 
         Args:
             check_frequency: Frequency to perform checks.
             use_checkpointing: Whether to store checkpoints each 'check_frequency'.
             checkpoint_path: Directory where checkpoints will be saved.
+            max_training_time: Maximum training time.
             n_checks_no_improvement: If the LearningManager checks performance for 'no_learn_iterations' times without
                 improvement, will return True and stop learning.
             max_to_keep: Defines the number of previous checkpoints stored.
@@ -51,6 +54,9 @@ class LearningManager:
                 still improving.
             stop_metric_name: Which 'stop_metric' will be evaluated in each iteration. If None, all 'stop_metric'es will
                 be used, otherwise a str for a single 'stop_metric' or a list of str for more than one.
+            sample_size: Sample size
+            use_vae_loss: Whether to use the VAE learning loss or evaluation metrics.
+            custom_stop_metric: If given, use this callable to compute stop metric.
         """
 
         self.check_frequency = check_frequency
@@ -79,6 +85,8 @@ class LearningManager:
         self.stop_metric_name = stop_metric_name
         self.sample_size = sample_size
         self.max_training_time = max_training_time
+        self.use_vae_loss = use_vae_loss
+        self.custom_stop_metric = custom_stop_metric
 
         self.count_no_improvement: int = 0
         self.best_stop_metric: Optional[float] = None
@@ -93,14 +101,15 @@ class LearningManager:
 
     def set_check_frequency(self, batch_size: int):
         self.check_frequency = int(1e3 / np.sqrt(batch_size))
-        logger.info("LearningManager :: check_frequency updated to {}".format(self.check_frequency))
+        logger.debug("LearningManager :: check_frequency updated to {}".format(self.check_frequency))
 
-    def stop_learning_check_metric(self, iteration: int, stop_metric: Dict[str, List[float]]) -> bool:
+    def stop_learning_check_metric(self, iteration: int, stop_metric: Union[Dict[str, List[float]], float]
+                                   ) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
 
         Args:
             iteration: Iteration number.
-            stop_metric: OrderedDict containing all stop_metrics.
+            stop_metric: OrderedDict containing all stop_metrics, or float.
 
         Returns
             bool: True if criteria are met to stop learning.
@@ -108,13 +117,20 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        if self.stop_metric_name:
-            if isinstance(self.stop_metric_name, str):
-                stop_metric = {self.stop_metric_name: stop_metric[self.stop_metric_name]}
-            if isinstance(self.stop_metric_name, list):
-                stop_metric = {k: v for k, v in stop_metric.items() if k in self.stop_metric_name}
+        if isinstance(stop_metric, dict):
+            if self.stop_metric_name:
+                if isinstance(self.stop_metric_name, str):
+                    stop_metric = {self.stop_metric_name: stop_metric[self.stop_metric_name]}
+                if isinstance(self.stop_metric_name, list):
+                    stop_metric = {k: v for k, v in stop_metric.items() if k in self.stop_metric_name}
 
-        total_stop_metric = np.nanmean(np.concatenate(list(stop_metric.values())))
+            total_stop_metric = np.nanmean(np.concatenate(list(stop_metric.values())))
+
+        elif isinstance(stop_metric, float):
+            total_stop_metric = stop_metric
+
+        else:
+            raise TypeError("Given 'stop_metric' type not supported.")
 
         if np.isnan(total_stop_metric):
             logger.error("LearningManager :: Total 'stop_metric' is NaN")
@@ -163,9 +179,9 @@ class LearningManager:
             return True
 
         if not self.best_stop_metric or total_stop_metric < self.best_stop_metric - self.tol:
-            logger.info("LearningManager :: New stop_metric minimum {:.4f} found at iteration {} after {}/{} checks "
-                        "without improvement"
-                        .format(total_stop_metric, iteration, self.count_no_improvement, self.n_checks_no_improvement))
+            logger.debug("LearningManager :: New stop_metric minimum {:.4f} found at iteration {} after {}/{} checks "
+                         "without improvement"
+                         .format(total_stop_metric, iteration, self.count_no_improvement, self.n_checks_no_improvement))
             self.best_stop_metric = total_stop_metric
             self.best_iteration = iteration
             self.count_no_improvement = 0
@@ -206,7 +222,12 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        stop_metrics = calculate_evaluation_metrics(df_orig=df_orig, df_synth=df_synth, column_names=column_names)
+        if self.custom_stop_metric is None:
+            stop_metrics: Union[Dict[str, List[float]], float] \
+                = calculate_evaluation_metrics(df_orig=df_orig, df_synth=df_synth, column_names=column_names)
+        else:
+            stop_metrics = self.custom_stop_metric(df_orig, df_synth)
+
         return self.stop_learning_check_metric(iteration=iteration, stop_metric=stop_metrics)
 
     def stop_learning_synthesizer(self, iteration: int, synthesizer: Synthesizer, df_train_orig: pd.DataFrame) -> bool:
@@ -236,7 +257,7 @@ class LearningManager:
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
                                              column_names=column_names)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]):
+    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -261,16 +282,16 @@ class LearningManager:
         losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
         return self.stop_learning_check_metric(iteration, losses)
 
-    def stop_learning(self, iteration: int, synthesizer: Synthesizer, use_vae_loss: bool = True,
+    def stop_learning(self, iteration: int, synthesizer: Synthesizer,
                       data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
-                      df_train_orig: pd.DataFrame = None):
+                      df_train_orig: pd.DataFrame = None
+                      ) -> bool:
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return
         accordingly.
 
         Args
             iteration: Iteration number.
             synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
-            use_vae_loss: Whether to use VAE loss or Evaluation Metrics.
             data_dict: Dictionary containing tensors and arrays to be used in 'feed_dict' after sampling it down.
             num_data: Validation batch size.
             df_train: Preprocessed DataFrame.
@@ -281,7 +302,7 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        if use_vae_loss:
+        if self.use_vae_loss:
             assert data_dict is not None and num_data is not None
             return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
         else:
