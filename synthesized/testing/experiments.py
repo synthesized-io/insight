@@ -44,8 +44,7 @@ class ExperimentalEstimator:
         if len(self.oh_encoders) == 0:
             for c in data.columns:
                 column = data[c]
-                if column.dtype.kind not in ('f', 'i'):
-                    # or column.nunique() <= 3:
+                if column.dtype.kind not in ('f', 'i') or column.nunique() <= 2:
                     # print("Converting '{}' to One-Hot encoding".format(c))
                     if column.nunique() > 1:
                         oh = OneHotEncoder(drop='first')
