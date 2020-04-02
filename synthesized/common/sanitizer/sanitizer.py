@@ -1,3 +1,4 @@
+from itertools import combinations
 import logging
 from typing import Union, Callable
 
@@ -11,25 +12,30 @@ logger = logging.getLogger(__name__)
 class Sanitizer(Synthesizer):
     """The default implementation. Drops duplicates. Floats are rounded."""
 
-    FLOAT_DECIMAL = 5
-    OVERSYNTHESIS_RATIO = 1.1
-    MAX_SYNTHESIS_ATTEMPTS = 3
-
     def __init__(self,
                  synthesizer: Synthesizer,
                  df_original: pd.DataFrame) -> None:
 
         self.synthesizer = synthesizer
-        self.df_original = df_original
+        self.df_original = df_original.copy()
 
-    def _sanitize(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
+        self.float_decimal = 5
+        self.oversynthesis_ratio = 1.1
+        self.max_synthesis_attempts = 3
+
+        self.learned_columns = []
+        for v in self.synthesizer.get_values():
+            if v.learned_output_size() > 0:
+                self.learned_columns.append(v.name)
+
+    def _sanitize_all(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
         """Drop rows in df_synthesized that are present in df_original."""
 
         def normalize_tuple(nt):
             res = []
             for field in nt:
                 if isinstance(field, float):
-                    field = round(field, Sanitizer.FLOAT_DECIMAL)
+                    field = round(field, self.float_decimal)
                 res.append(field)
             return tuple(res)
 
@@ -38,7 +44,51 @@ class Sanitizer(Synthesizer):
         for i, row in enumerate(df_synthesized.itertuples(index=False)):
             if normalize_tuple(row) in original_rows:
                 to_drop.append(i)
-        return df_synthesized.drop(to_drop)
+
+        return df_synthesized.reset_index(drop=True).drop(to_drop)
+
+    def _sanitize(self, df_synthesized: pd.DataFrame, n_cols: int = None) -> pd.DataFrame:
+        """Drop rows in df_synthesized that are present in df_original."""
+
+        df_synthesized = df_synthesized.copy()
+        if n_cols and n_cols > len(df_synthesized.columns):
+            raise ValueError("Given n_cols can't be larger than the number of columnsin the dataframe, given {}".format(n_cols))
+
+        n_dropped = 0
+        initial_len = len(df_synthesized)
+
+        if n_cols is None or n_cols >= len(self.learned_columns):
+            df_synthesized = self._sanitize_all(df_synthesized)
+            n_dropped = initial_len - len(df_synthesized)
+            logger.debug('Total num. of dropped samples: {} / {} ({:.2f}%)'.format(n_dropped, initial_len,
+                                                                                   n_dropped / initial_len * 100))
+            return df_synthesized
+
+        df_original = self.df_original[self.learned_columns].drop_duplicates()
+
+        for c in self.learned_columns:
+            if df_original[c].dtype.kind == 'f':
+                df_original.loc[:, c] = df_original.loc[:, c].apply(lambda x: round(x, self.float_decimal))
+                df_synthesized.loc[:, c] = df_synthesized.loc[:, c].apply(lambda x: round(x, self.float_decimal))
+
+        for cols in combinations(self.learned_columns, n_cols):
+            cols = list(cols)
+            original_rows = {row for row in df_original[cols].itertuples(index=False)}
+
+            to_drop = []
+
+            for i, row in enumerate(df_synthesized[cols].itertuples(index=False)):
+                if row in original_rows:
+                    to_drop.append(i)
+
+            if len(to_drop) > 0:
+                n_dropped += len(to_drop)
+                df_synthesized.reset_index(drop=True, inplace=True)
+                df_synthesized.drop(to_drop, inplace=True)
+
+        logger.debug('Total num. of dropped samples: {} / {} ({:.2f}%)'.format(n_dropped, initial_len,
+                                                                               n_dropped / initial_len * 100))
+        return df_synthesized
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
@@ -70,7 +120,7 @@ class Sanitizer(Synthesizer):
 
             # we computer how many rows are missing and use fill_ratio to predict how many we will synthesize
             # also, we slightly increase this number by OVERSYNTHESIS_RATIO to get the result quicker
-            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * Sanitizer.OVERSYNTHESIS_RATIO)
+            n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * self.oversynthesis_ratio)
 
             # synthesis + dropping
             df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions)
@@ -78,7 +128,7 @@ class Sanitizer(Synthesizer):
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
             # we give up after some number of attempts
-            if attempt >= Sanitizer.MAX_SYNTHESIS_ATTEMPTS:
+            if attempt >= self.max_synthesis_attempts:
                 break
 
         if progress_callback is not None:
