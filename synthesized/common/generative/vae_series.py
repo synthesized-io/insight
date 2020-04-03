@@ -210,7 +210,7 @@ class SeriesVAE(Generative):
 
         return synthesized
 
-    @tf.function
+    # @tf.function
     def _synthesize(
             self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
@@ -229,6 +229,8 @@ class SeriesVAE(Generative):
         x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
+        # Remove third dimension, as we synthesize one series per step
+        y = tf.squeeze(y, axis=0)
         return y, identifier
 
     @property

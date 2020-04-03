@@ -92,7 +92,7 @@ class VariationalRecurrentEncoding(Encoding):
 
         y = self.lstm_loop(h_0=encoding_h, c_0=c_0, n=n)
 
-        return tf.squeeze(y, axis=0)
+        return y
 
     @tf.function
     @tensorflow_name_scoped

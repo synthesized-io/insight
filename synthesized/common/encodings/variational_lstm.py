@@ -96,7 +96,7 @@ class VariationalLSTMEncoding(Encoding):
         )
         z = self.lstm_i(self.lstm_0(e, initial_state=identifier))
 
-        return tf.squeeze(z, axis=0)
+        return z
 
     @property
     def regularization_losses(self):

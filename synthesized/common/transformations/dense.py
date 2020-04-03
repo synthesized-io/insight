@@ -76,9 +76,6 @@ class DenseTransformation(Transformation):
         else:
             raise NotImplementedError
 
-        tf.summary.histogram(name='weight', data=self.weight)
-        tf.summary.histogram(name='bias', data=self.bias)
-
         self._output = x
 
         return x

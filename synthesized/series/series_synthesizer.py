@@ -198,7 +198,7 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, print_status_freq: int = 20, timeout: int = 2500
+        callback_freq: int = 0, print_status_freq: int = 50, timeout: int = 2500
     ) -> None:
 
         t_start = time.time()
@@ -210,7 +210,7 @@ class SeriesSynthesizer(Synthesizer):
 
         groups, num_data = self.get_groups_feed_dict(df_train)
 
-        with record_summaries_every_n_global_steps(print_status_freq, self.global_step):
+        with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
