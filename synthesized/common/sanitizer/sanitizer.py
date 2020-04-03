@@ -27,6 +27,7 @@ class Sanitizer(Synthesizer):
         for v in self.synthesizer.get_values():
             if v.learned_output_size() > 0:
                 self.learned_columns.append(v.name)
+        self.n_learned_columns = len(self.learned_columns)
 
     def _sanitize_all(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
         """Drop rows in df_synthesized that are present in df_original."""
@@ -51,13 +52,14 @@ class Sanitizer(Synthesizer):
         """Drop rows in df_synthesized that are present in df_original."""
 
         df_synthesized = df_synthesized.copy()
-        if n_cols and n_cols > len(df_synthesized.columns):
-            raise ValueError("Given n_cols can't be larger than the number of columnsin the dataframe, given {}".format(n_cols))
+        if n_cols and n_cols > self.n_learned_columns:
+            raise ValueError("Given n_cols can't be larger than the number of learned columns ({}), "
+                             "given {}".format(self.n_learned_columns, n_cols))
 
         n_dropped = 0
         initial_len = len(df_synthesized)
 
-        if n_cols is None or n_cols >= len(self.learned_columns):
+        if n_cols is None or n_cols >= self.n_learned_columns:
             df_synthesized = self._sanitize_all(df_synthesized)
             n_dropped = initial_len - len(df_synthesized)
             logger.debug('Total num. of dropped samples: {} / {} ({:.2f}%)'.format(n_dropped, initial_len,
@@ -72,12 +74,11 @@ class Sanitizer(Synthesizer):
                 df_synthesized.loc[:, c] = df_synthesized.loc[:, c].apply(lambda x: round(x, self.float_decimal))
 
         for cols in combinations(self.learned_columns, n_cols):
-            cols = list(cols)
-            original_rows = {row for row in df_original[cols].itertuples(index=False)}
+            original_rows = {row for row in df_original[list(cols)].itertuples(index=False)}
 
             to_drop = []
 
-            for i, row in enumerate(df_synthesized[cols].itertuples(index=False)):
+            for i, row in enumerate(df_synthesized[list(cols)].itertuples(index=False)):
                 if row in original_rows:
                     to_drop.append(i)
 
@@ -92,7 +93,7 @@ class Sanitizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            progress_callback: Callable[[int], None] = None, n_columns_intersect: int = None
     ) -> pd.DataFrame:
 
         if progress_callback is not None:
@@ -105,7 +106,7 @@ class Sanitizer(Synthesizer):
             progress_callback(99)
 
         # the first drop of duplicates
-        df_synthesized = self._sanitize(df_synthesized)
+        df_synthesized = self._sanitize(df_synthesized, n_cols=n_columns_intersect)
 
         # we will use fill_ratio to predict how many more records we need
         fill_ratio = len(df_synthesized) / float(num_rows)
@@ -124,7 +125,7 @@ class Sanitizer(Synthesizer):
 
             # synthesis + dropping
             df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions)
-            df_additional = self._sanitize(df_additional)
+            df_additional = self._sanitize(df_additional, n_cols=n_columns_intersect)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
             # we give up after some number of attempts
