@@ -11,7 +11,7 @@ from ..synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
-# logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class LearningManager:
