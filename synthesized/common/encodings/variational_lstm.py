@@ -10,8 +10,8 @@ from ..transformations import GaussianTransformation
 
 class VariationalLSTMEncoding(Encoding):
     """Encoding for LSTM mode 1"""
-    def __init__(self, input_size, encoding_size, condition_size=0, beta=1.0, lstm_layers=1,
-                 name='variational_lstm_encoding'):
+    def __init__(self, input_size: int, encoding_size: int, condition_size: int = 0, beta: float = 1.0,
+                 lstm_layers: int = 2, name: str = 'lstm'):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
@@ -20,15 +20,14 @@ class VariationalLSTMEncoding(Encoding):
         self.lstm_layers = lstm_layers
 
         self.gaussian = GaussianTransformation(input_size=self.input_size,  output_size=self.encoding_size)
-        self.lstm_0 = tf.keras.layers.LSTM(units=self.encoding_size, return_sequences=True)
-        self.lstm_i = tf.keras.models.Sequential()
-        for _ in range(1, self.lstm_layers):
-            self.lstm_i.add(tf.keras.layers.LSTM(units=self.encoding_size, return_sequences=True))
+
+        self.lstm = tf.keras.layers.RNN(
+            cell=[tf.keras.layers.LSTMCell(units=self.encoding_size) for _ in range(self.lstm_layers)],
+            return_sequences=True, return_state=False)
 
     def build(self, input_shape):
         self.gaussian.build(input_shape)
-        self.lstm_0.build((None, None, self.encoding_size))
-        self.lstm_i.build((None, None, self.encoding_size))
+        self.lstm.build((None, None, self.encoding_size))
         self.built = True
 
     def specification(self):
@@ -51,7 +50,7 @@ class VariationalLSTMEncoding(Encoding):
 
         if identifier is not None:
             c0 = tf.zeros(shape=tf.shape(identifier))
-            identifier = [identifier, c0]
+            identifier = [[identifier, c0]] * self.lstm_layers
 
         lstm_input = encoding
         if series_dropout > 0:
@@ -61,9 +60,7 @@ class VariationalLSTMEncoding(Encoding):
             e = tf.random.normal(shape=(1, n_forecast, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
             lstm_input = tf.concat((lstm_input, e), axis=1)
 
-        y = self.lstm_i(
-            self.lstm_0(lstm_input, initial_state=identifier)
-        )
+        y = self.lstm(lstm_input, initial_state=identifier)
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
         kl_loss = self.beta * kl_loss
@@ -89,12 +86,12 @@ class VariationalLSTMEncoding(Encoding):
         if identifier is not None:
             h0 = tf.expand_dims(input=identifier, axis=0)
             c0 = tf.zeros(shape=tf.shape(h0))
-            identifier = [h0, c0]
+            identifier = [[h0, c0]] * self.lstm_layers
 
         e = tf.random.normal(
             shape=(1, n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
-        z = self.lstm_i(self.lstm_0(e, initial_state=identifier))
+        z = self.lstm(e, initial_state=identifier)
 
         return z
 

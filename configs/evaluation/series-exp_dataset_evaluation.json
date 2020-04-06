@@ -1,18 +1,31 @@
 {
   "source": "evaluation/dataset_evaluation_timeseries.ipynb",
   "instances": {
-    "standard_and_poors500_lstm1": {
+    "standard_and_poors500_dss": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": "Name"
+        "identifier_label": "Name",
+        "lstm_mode": "rdssm"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
     },
-    "standard_and_poors500_lstm2": {
+    "standard_and_poors500_lstm": {
+      "data": "data/time-series/sandp500_5yr.csv",
+      "ignore_columns": ["date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": "Name",
+        "lstm_mode": "lstm"
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "standard_and_poors500_vrae": {
       "data": "data/time-series/sandp500_5yr.csv",
       "ignore_columns": ["date"],
       "num_iterations": 1000,
@@ -117,126 +130,6 @@
       "num_passes": 1,
       "params": {
         "identifier_label": "account_id"
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "trend_lstm_1": {
-      "data": "data/time-series/synthetic/continuous-trend.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "trend_lstm_2": {
-      "data": "data/time-series/synthetic/continuous-trend.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 2
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "cyclical_lstm_1": {
-      "data": "data/time-series/synthetic/continuous-cyclical.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "cyclical_lstm_2": {
-      "data": "data/time-series/synthetic/continuous-cyclical.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 2
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "continuous_autoregressive_lstm_1": {
-      "data": "data/time-series/synthetic/continuous-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "continuous_autoregressive_lstm_2": {
-      "data": "data/time-series/synthetic/continuous-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 2
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "categorical_multiple_autoregressive_lstm_1": {
-      "data": "data/time-series/synthetic/categorical-multiple-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": "id",
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "categorical_multiple_autoregressive_lstm_2": {
-      "data": "data/time-series/synthetic/categorical-multiple-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 2
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "categorical_autoregressive_lstm_1": {
-      "data": "data/time-series/synthetic/categorical-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 1
-      },
-      "target": null,
-      "synthesizer_class": "SeriesSynthesizer"
-    },
-    "categorical_autoregressive_lstm_2": {
-      "data": "data/time-series/synthetic/categorical-autoregressive.csv",
-      "ignore_columns": ["t"],
-      "num_iterations": 1000,
-      "num_passes": 1,
-      "params": {
-        "identifier_label": null,
-        "lstm_mode": 2
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"

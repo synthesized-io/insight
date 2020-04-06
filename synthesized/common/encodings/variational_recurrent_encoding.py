@@ -14,16 +14,24 @@ class VariationalRecurrentEncoding(Encoding):
     Original paper: https://arxiv.org/pdf/1412.6581.pdf
     """
 
-    def __init__(self, input_size, encoding_size, condition_size=0, beta=1., name='vrae'):
+    def __init__(self, input_size: int, encoding_size: int, condition_size: int = 0, beta: float = 1.0,
+                 lstm_layers: int = 2, name: str = 'vrae'):
         super().__init__(
             name=name, input_size=input_size, encoding_size=encoding_size,
             condition_size=condition_size
         )
         self.beta = beta
+        self.lstm_layers = lstm_layers
 
-        self.lstm_encoder = tf.keras.layers.LSTM(units=encoding_size, return_state=True)
+        self.lstm_encoder = tf.keras.layers.RNN(
+            cell=[tf.keras.layers.LSTMCell(units=self.encoding_size) for _ in range(self.lstm_layers)],
+            return_sequences=False, return_state=False)
+
+        self.lstm_decoder = tf.keras.layers.RNN(
+            cell=[tf.keras.layers.LSTMCell(units=self.encoding_size) for _ in range(self.lstm_layers)],
+            return_sequences=True, return_state=True)
+
         self.gaussian = GaussianTransformation(input_size=self.encoding_size, output_size=self.encoding_size)
-        self.lstm_decoder = tf.keras.layers.LSTM(units=encoding_size, return_sequences=True, return_state=True)
 
     def build(self, input_shape):
         self.lstm_encoder.build(input_shape=(None, None, self.input_size))
@@ -42,24 +50,25 @@ class VariationalRecurrentEncoding(Encoding):
     def call(self, inputs, identifier=None, condition=(), return_encoding=False, series_dropout=0.,
              n_forecast=0) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
 
-        # if series_dropout > 0.:
-        #     inputs = tf.nn.dropout(inputs, rate=series_dropout)
-        _, h_out, _ = self.lstm_encoder(inputs)
+        h_out = self.lstm_encoder(inputs)
 
         mean, stddev = self.gaussian(h_out)
         e_h = tf.random.normal(shape=tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32)
         encoding_h = mean + stddev * e_h
 
         c_0 = tf.zeros(shape=tf.shape(encoding_h), dtype=tf.float32)
-        # y = self.lstm_loop(h_0=encoding_h, c_0=c_0, n=tf.shape(inputs)[1])
+        initial_state = [[encoding_h, c_0]] * self.lstm_layers
 
         input_decoder = tf.concat((tf.expand_dims(encoding_h, axis=1), inputs[:, :-1, :]), axis=1)
         if series_dropout > 0.:
             input_decoder = tf.nn.dropout(input_decoder, rate=series_dropout)
-        y, h, c = self.lstm_decoder(input_decoder, initial_state=[encoding_h, c_0])
+
+        decoder_output = self.lstm_decoder(input_decoder, initial_state=initial_state)
+        y = decoder_output[0]
+        decoder_state = decoder_output[1:]
 
         if n_forecast > 0:
-            y_forecast = self.lstm_loop(h_0=h, c_0=c, n=n_forecast)
+            y_forecast = self.lstm_loop(y_0=y, initial_state=decoder_state, n=n_forecast)
             y = tf.concat((y, y_forecast), axis=1)
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
@@ -89,25 +98,28 @@ class VariationalRecurrentEncoding(Encoding):
 
         encoding_h = tf.random.normal(shape=(1, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32)
         c_0 = tf.zeros(shape=(1, self.encoding_size))
+        initial_state = [[encoding_h, c_0]] * self.lstm_layers
 
-        y = self.lstm_loop(h_0=encoding_h, c_0=c_0, n=n)
+        y = self.lstm_loop(y_0=tf.expand_dims(encoding_h, axis=0), initial_state=initial_state, n=n)
 
         return y
 
     @tf.function
     @tensorflow_name_scoped
-    def lstm_loop(self, h_0, c_0, n):
-
-        h_i, c_i = h_0, c_0
-        y_i = tf.expand_dims(h_i, axis=1)
+    def lstm_loop(self, y_0, initial_state, n):
+        y_i = y_0
+        state_i = initial_state
         n = tf.cast(n, dtype=tf.int32)
         y = tf.TensorArray(dtype=tf.float32, size=n, clear_after_read=True)
 
         for i in tf.range(n):
-            y_i, h_i, c_i = self.lstm_decoder(y_i, initial_state=[h_i, c_i])
-            y = y.write(i, h_i)
+            lstm_output = self.lstm_decoder(y_i, initial_state=state_i)
+            y_i = lstm_output[0]
+            state_i = lstm_output[1:]
 
-        z = tf.transpose(y.stack(), perm=(1, 0, 2))
+            y = y.write(i, y_i)
+
+        z = tf.reshape(y.stack(), shape=(1, -1, self.encoding_size))
         return z
 
     @property

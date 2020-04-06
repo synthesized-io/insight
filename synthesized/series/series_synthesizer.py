@@ -29,7 +29,7 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = None,
-        batchnorm: bool = False, activation: str = 'leaky_relu', series_dropout: float = 0.3,
+        batchnorm: bool = False, activation: str = 'relu', series_dropout: float = 0.3,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
