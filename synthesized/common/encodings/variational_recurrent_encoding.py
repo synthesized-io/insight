@@ -32,6 +32,8 @@ class VariationalRecurrentEncoding(Encoding):
             return_sequences=True, return_state=True)
 
         self.gaussian = GaussianTransformation(input_size=self.encoding_size, output_size=self.encoding_size)
+        self.mean = self.gaussian.mean
+        self.stddev = self.gaussian.stddev
 
     def build(self, input_shape):
         self.lstm_encoder.build(input_shape=(None, None, self.input_size))
@@ -68,7 +70,7 @@ class VariationalRecurrentEncoding(Encoding):
         decoder_state = decoder_output[1:]
 
         if n_forecast > 0:
-            y_forecast = self.lstm_loop(y_0=y, initial_state=decoder_state, n=n_forecast)
+            y_forecast = self.lstm_loop(y_0=y[:, -1:, :], initial_state=decoder_state, n=n_forecast)
             y = tf.concat((y, y_forecast), axis=1)
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)

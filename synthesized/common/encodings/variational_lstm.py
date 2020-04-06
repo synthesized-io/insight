@@ -20,6 +20,8 @@ class VariationalLSTMEncoding(Encoding):
         self.lstm_layers = lstm_layers
 
         self.gaussian = GaussianTransformation(input_size=self.input_size,  output_size=self.encoding_size)
+        self.mean = self.gaussian.mean
+        self.stddev = self.gaussian.stddev
 
         self.lstm = tf.keras.layers.RNN(
             cell=[tf.keras.layers.LSTMCell(units=self.encoding_size) for _ in range(self.lstm_layers)],

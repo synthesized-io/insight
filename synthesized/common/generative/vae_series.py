@@ -201,7 +201,8 @@ class SeriesVAE(Generative):
         std = self.encoding.stddev.output
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-        y = tf.squeeze(y, axis=0)  # We can only encode one series per iteration for now
+        # Remove third dimension, as we synthesize one series per step
+        y = tf.squeeze(y, axis=0)
         return latent_space, mean, std, y
 
     def synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
