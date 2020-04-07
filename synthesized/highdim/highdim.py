@@ -65,7 +65,8 @@ class HighDimSynthesizer(Synthesizer):
         # Rules to look for
         find_rules: Union[str, List[str]] = None,
         # Evaluation conditions
-        learning_manager: bool = True, max_training_time: float = None
+        learning_manager: bool = True, max_training_time: float = None,
+        custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -125,6 +126,8 @@ class HighDimSynthesizer(Synthesizer):
             find_rules: List of rules to check for 'all' finds all rules. See
                 synthesized.common.values.PairwiseRuleFactory for more examples.
             learning_manager: Whether to use LearningManager.
+            max_training_time: Maximum training time in seconds (LearningManager)
+            custom_stop_metric: Custom stop metric for LearningManager.
         """
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
@@ -172,8 +175,9 @@ class HighDimSynthesizer(Synthesizer):
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
         if learning_manager:
-            self.use_vae_loss = True
-            self.learning_manager = LearningManager(max_training_time=max_training_time)
+            use_vae_loss = False if custom_stop_metric else True
+            self.learning_manager = LearningManager(max_training_time=max_training_time, use_vae_loss=use_vae_loss,
+                                                    custom_stop_metric=custom_stop_metric)
             self.learning_manager.set_check_frequency(self.batch_size)
 
     def get_values(self) -> List[Value]:
@@ -254,7 +258,7 @@ class HighDimSynthesizer(Synthesizer):
                     self.vae.learn(xs=feed_dict)
 
                 if self.learning_manager:
-                    if self.learning_manager.stop_learning(iteration, synthesizer=self, use_vae_loss=self.use_vae_loss,
+                    if self.learning_manager.stop_learning(iteration, synthesizer=self,
                                                            data_dict=data, num_data=num_data,
                                                            df_train_orig=df_train_orig):
                         break
