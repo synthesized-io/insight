@@ -358,9 +358,6 @@ class SeriesSynthesizer(Synthesizer):
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
 
-        # assert len(df_synthesized.columns) == len(columns)
-        # df_synthesized = df_synthesized[columns]
-
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
 
         df_encoded = pd.DataFrame.from_records(
