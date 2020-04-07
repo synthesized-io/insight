@@ -6,12 +6,12 @@ import pandas as pd
 from ..highdim import HighDimSynthesizer
 
 
-def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
+def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:
     logger = logging.getLogger()
     log_level = logger.level
     logger.setLevel(50)
 
-    with HighDimSynthesizer(df=df, learning_manager=False) as synthesizer:
+    with HighDimSynthesizer(df=df, learning_manager=False, **kwargs) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=num_iterations)
         df_latent, df_synthesized = synthesizer.encode(df_encode=df)
 
@@ -39,7 +39,7 @@ def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev'
     ldu = latent_dimension_usage(df_latent=df_latent, usage_type=usage_type)
 
     if usage_type == 'stddev':
-        usage = round(float(np.sum(1.0-ldu['usage'].to_numpy())), ndigits=3)
+        usage = round(float(np.sum(ldu['usage'].to_numpy())), ndigits=3)
     elif usage_type == 'mean':
         usage = round(float(np.sum(ldu['usage'].to_numpy())), ndigits=3)
     else:
