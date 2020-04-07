@@ -491,7 +491,7 @@ class UtilityTesting:
         sns.lineplot(data=data, palette=[COLOR_SYNTH, COLOR_ORIG], linewidth=2.5)
         return mean_squared_error(y_orig, y_synth)
 
-    def show_distribution_distances(self):
+    def show_distribution_distances(self) -> Tuple[float, float]:
         """Plot a barplot with KS-distances between original and synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
@@ -501,6 +501,10 @@ class UtilityTesting:
                 continue
             distance = ks_2samp(col_test, col_synth)[0]
             result.append({'column': col, 'distance': distance})
+
+        if len(result) == 0:
+            return 0., 0.
+
         df = pd.DataFrame.from_records(result)
 
         ks_dist_max = df['distance'].max()
@@ -753,7 +757,7 @@ class UtilityTesting:
                 t_orig /= k
             else:
                 t_orig += eval_metrics.transition_matrix(
-                    self.df_test.loc[col], val2idx=val2idx)[0]
+                    self.df_test[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
             t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_test[col])))
