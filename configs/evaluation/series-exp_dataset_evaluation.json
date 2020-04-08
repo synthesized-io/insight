@@ -58,13 +58,26 @@
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
     },
-    "bitcoin-price": {
+    "bitcoin-price-dss": {
       "data": "data/time-series/bitcoin_price.csv",
       "ignore_columns": ["Date"],
       "num_iterations": 1000,
       "num_passes": 1,
       "params": {
-        "identifier_label": null
+        "identifier_label": null,
+        "lstm_mode": "rdssm"
+      },
+      "target": null,
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "bitcoin-price-lstm": {
+      "data": "data/time-series/bitcoin_price.csv",
+      "ignore_columns": ["Date"],
+      "num_iterations": 1000,
+      "num_passes": 1,
+      "params": {
+        "identifier_label": null,
+        "lstm_mode": "lstm"
       },
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
@@ -80,12 +93,24 @@
       "target": null,
       "synthesizer_class": "SeriesSynthesizer"
     },
-    "fraud": {
+    "fraud-dss": {
       "data": "data/time-series/fraud-time-series.csv",
       "ignore_columns": ["step"],
       "num_iterations": 250,
       "params": {
-        "identifier_label": "customer"
+        "identifier_label": "customer",
+        "lstm_mode": "rdssm"
+      },
+      "target": "fraud",
+      "synthesizer_class": "SeriesSynthesizer"
+    },
+    "fraud-vrae": {
+      "data": "data/time-series/fraud-time-series.csv",
+      "ignore_columns": ["step"],
+      "num_iterations": 250,
+      "params": {
+        "identifier_label": "customer",
+        "lstm_mode": "vrae"
       },
       "target": "fraud",
       "synthesizer_class": "SeriesSynthesizer"
