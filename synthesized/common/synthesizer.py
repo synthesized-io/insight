@@ -97,7 +97,7 @@ class Synthesizer(tf.Module):
         }
         return data
 
-    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = 1024):
+    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = None):
         feed_dict = dict()
 
         if not batch_size:
