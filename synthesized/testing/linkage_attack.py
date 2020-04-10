@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pyemd import emd_samples
 
-from .util import categorical_emd
+from .metrics import categorical_emd
 
 NEAREST_NEIGHBOUR_MULT = 0.5
 ENLARGED_NEIGHBOUR_MULT = 2.0
