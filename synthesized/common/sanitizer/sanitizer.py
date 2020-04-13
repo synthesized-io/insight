@@ -1,10 +1,12 @@
 from itertools import combinations
 import logging
-from typing import Union, Callable
+from typing import Union, Callable, Dict
 
 import pandas as pd
+import numpy as np
 
 from ..synthesizer import Synthesizer
+from ..values import ContinuousValue, CategoricalValue
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +16,43 @@ class Sanitizer(Synthesizer):
 
     def __init__(self,
                  synthesizer: Synthesizer,
-                 df_original: pd.DataFrame) -> None:
+                 df_original: pd.DataFrame,
+                 distance_step: float = 1e-3) -> None:
 
         self.synthesizer = synthesizer
         self.df_original = df_original.copy()
+        assert 0 < distance_step < 1
+        self.distance_step = distance_step
 
         self.float_decimal = 5
         self.oversynthesis_ratio = 1.1
         self.max_synthesis_attempts = 3
+        remove_outliers = 0.05
 
         self.learned_columns = []
+        self.categorical_values = []
+        self.distances: Dict[str, Union[float, None]] = dict()
         for v in self.synthesizer.get_values():
             if v.learned_output_size() > 0:
                 self.learned_columns.append(v.name)
+
+                if isinstance(v, ContinuousValue):
+                    column = pd.to_numeric(df_original[v.name], errors='coerce').dropna()
+
+                    # Remove outliers for distance computation
+                    percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+                    start, end = np.percentile(column, percentiles)
+                    if start == end:
+                        start, end = min(column), max(column)
+                    if start == end:
+                        self.distances[v.name] = None
+
+                    self.distances[v.name] = (end - start) * self.distance_step
+                else:
+                    if isinstance(v, CategoricalValue):
+                        self.categorical_values.append(v.name)
+                    self.distances[v.name] = None
+
         self.n_learned_columns = len(self.learned_columns)
 
     def _sanitize_all(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
@@ -34,9 +60,11 @@ class Sanitizer(Synthesizer):
 
         def normalize_tuple(nt):
             res = []
-            for field in nt:
-                if isinstance(field, float):
-                    field = round(field, self.float_decimal)
+            distances = list(self.distances.values())
+            for i, field in enumerate(nt):
+                if distances[i] is not None:
+                    distance = distances[i]
+                    field = round(field / distance) * distance
                 res.append(field)
             return tuple(res)
 
@@ -48,32 +76,38 @@ class Sanitizer(Synthesizer):
 
         return df_synthesized.reset_index(drop=True).drop(to_drop)
 
-    def _sanitize(self, df_synthesized: pd.DataFrame, n_cols: int = None) -> pd.DataFrame:
+    def _sanitize(self, df_synthesized: pd.DataFrame, n_cols: int = None,
+                  skip_categorical: bool = True) -> pd.DataFrame:
         """Drop rows in df_synthesized that are present in df_original."""
 
+        if n_cols is None:
+            n_cols = self.n_learned_columns
+
         df_synthesized = df_synthesized.copy()
-        if n_cols and n_cols > self.n_learned_columns:
+        if n_cols > self.n_learned_columns:
             raise ValueError("Given n_cols can't be larger than the number of learned columns ({}), "
                              "given {}".format(self.n_learned_columns, n_cols))
+
+        if n_cols <= len(self.categorical_values):
+            logger.warning("{}/{} columns are categorical or have few unique values. For given 'n_cols={}' there "
+                           "may be strong overlap between original and synthetic data-sets"
+                           .format(len(self.categorical_values), self.learned_columns, n_cols))
 
         n_dropped = 0
         initial_len = len(df_synthesized)
 
-        if n_cols is None or n_cols >= self.n_learned_columns:
-            df_synthesized = self._sanitize_all(df_synthesized)
-            n_dropped = initial_len - len(df_synthesized)
-            logger.debug('Total num. of dropped samples: {} / {} ({:.2f}%)'.format(n_dropped, initial_len,
-                                                                                   n_dropped / initial_len * 100))
-            return df_synthesized
-
         df_original = self.df_original[self.learned_columns].drop_duplicates()
 
         for c in self.learned_columns:
-            if df_original[c].dtype.kind == 'f':
-                df_original.loc[:, c] = df_original.loc[:, c].apply(lambda x: round(x, self.float_decimal))
-                df_synthesized.loc[:, c] = df_synthesized.loc[:, c].apply(lambda x: round(x, self.float_decimal))
+            distance = self.distances[c]
+            if distance is not None:
+                df_original.loc[:, c] = df_original.loc[:, c].apply(lambda x: round(x / distance) * distance)
+                df_synthesized.loc[:, c] = df_synthesized.loc[:, c].apply(lambda x: round(x / distance) * distance)
 
         for cols in combinations(self.learned_columns, n_cols):
+            if skip_categorical and all([c in self.categorical_values for c in cols]):
+                logger.debug("Skipping combination {} as it only contains categorical values".format(cols))
+                continue
             original_rows = {row for row in df_original[list(cols)].itertuples(index=False)}
 
             to_drop = []

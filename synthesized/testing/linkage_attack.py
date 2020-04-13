@@ -11,6 +11,8 @@ NEAREST_NEIGHBOUR_MULT = 0.5
 ENLARGED_NEIGHBOUR_MULT = 2.0
 T_CLOSENESS_DEFAULT = 0.3
 K_DISTANCE_DEFAULT = 0.02
+MIN_GROUP_SIZE = 250
+MAX_SAMPLE_SIZE = 5_000
 
 
 class Column:
@@ -191,31 +193,39 @@ def t_closeness_check(df, schema, threshold=0.2):
     to find equivalence classes which do not satisfy t-closeness requirement
 
     """
+    df_bin = df.copy()
+    for c in df_bin.columns:
+        if not schema[c].categorical:
+            df_bin[c] = pd.cut(df_bin[c], bins=100)
+    df_small = df.sample(min(len(df), MAX_SAMPLE_SIZE))
 
-    def is_t_close(group, columns):
+    def is_not_t_close(group, columns):
+        if len(group) == 0 or len(group) > MIN_GROUP_SIZE:
+            return False
         for column in columns:
-            a = df[column]
-            b = group[column]
+            a = df_small[column]
+            b = df.loc[group.index, column]
             if schema[column].categorical:
                 emd_function = categorical_emd
             else:
                 emd_function = partial(emd_samples, bins='rice')  # doane can be better
             if emd_function(a, b) > threshold:
-                return False
-        return True
+                return True
+        return False
 
     result = []
-    columns = set(schema.keys())
-    all_key_columns = set(filter(lambda column: schema[column].key_attribute, columns))
-    all_sensitive_columns = set(filter(lambda column: schema[column].sensitive, columns))
+    columns = list(schema.keys())
+    all_key_columns = list(filter(lambda column: schema[column].key_attribute, columns))
+    all_sensitive_columns = list(filter(lambda column: schema[column].sensitive, columns))
     for i in range(1, len(all_key_columns) + 1):
         for key_columns in combinations(all_key_columns, i):
-            sensitive_columns = all_sensitive_columns - set(key_columns)
+            key_columns = list(key_columns)
+            sensitive_columns = list(filter(lambda column: column not in key_columns, all_sensitive_columns))
             if len(sensitive_columns) == 0:
                 continue
-            vulnerable_rows = df.groupby(by=list(key_columns)).filter(
-                lambda g: not is_t_close(g, columns=sensitive_columns))
-            key_attributes = vulnerable_rows[list(key_columns)].drop_duplicates()
+            vulnerable_rows = df_bin.groupby(by=key_columns).filter(
+                lambda g: is_not_t_close(g, columns=sensitive_columns))
+            key_attributes = df.loc[vulnerable_rows.index, key_columns]
             if not key_attributes.empty:
                 result.extend(key_attributes.to_dict('records'))
     return result
