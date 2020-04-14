@@ -118,10 +118,9 @@ class VariationalRecurrentEncoding(Encoding):
             lstm_output = self.lstm_decoder(y_i, initial_state=state_i)
             y_i = lstm_output[0]
             state_i = lstm_output[1:]
+            y = y.write(i, tf.squeeze(y_i, axis=0))
 
-            y = y.write(i, y_i)
-
-        z = tf.reshape(y.stack(), shape=(1, -1, self.encoding_size))
+        z = tf.transpose(y.stack(), perm=(1, 0, 2))
         return z
 
     @property
