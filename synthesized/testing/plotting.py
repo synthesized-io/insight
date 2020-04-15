@@ -107,14 +107,17 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
     avg_ks_distance, max_ks_distance = calculate_mean_max(metrics['ks_distances'])
     avg_corr_distance, max_corr_distance = calculate_mean_max(metrics['corr_distances'])
     avg_emd_distance, max_emd_distance = calculate_mean_max(metrics['emd_distances'])
+    avg_cramers_v_distance, max_cramers_v_distance = calculate_mean_max(metrics['cramers_v_distances'])
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
         'ks_distance_max': max_ks_distance,
+        'emd_categ_avg': avg_emd_distance,
+        'emd_categ_max': max_emd_distance,
         'corr_dist_avg': avg_corr_distance,
         'corr_dist_max': max_corr_distance,
-        'emd_categ_avg': avg_emd_distance,
-        'emd_categ_max': max_emd_distance
+        'cramers_v_max': avg_cramers_v_distance,
+        'cramers_v_avg': max_cramers_v_distance
     }
 
     print_line = ''
@@ -157,9 +160,10 @@ def sequence_line_plot(x, t, ax):
 def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
                         test_data: Optional[pd.DataFrame] = None, time_series: bool = False,
                         col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
-                        plot_distances: bool = False, show_distribution_distances: bool = False,
-                        show_distributions: bool = False, show_correlation_distances: bool = False,
-                        show_correlation_matrix: bool = False, show_emd_distances: bool = False,
+                        plot_distances: bool = False, show_distributions: bool = False,
+                        show_distribution_distances: bool = False, show_emd_distances: bool = False,
+                        show_correlation_distances: bool = False, show_correlation_matrix: bool = False,
+                        show_cramers_v_distances: bool = False, show_cramers_v_matrix: bool = False,
                         show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False,
                         show_acf_distances: bool = False,  show_pacf_distances: bool = False,
                         show_transition_distances: bool = False, show_series: bool = False):
@@ -257,21 +261,31 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
         plt.show()
 
-    if show_distribution_distances:
-        display(Markdown("## Show distribution distances"))
-        testing.show_distribution_distances()
     if show_distributions:
         display(Markdown("## Show distributions"))
         testing.show_distributions(remove_outliers=0.01)
+
+    # First order metrics
+    if show_distribution_distances:
+        display(Markdown("## Show distribution distances"))
+        testing.show_distribution_distances()
+    if show_emd_distances:
+        display(Markdown("## Show EMD distances"))
+        testing.show_emd_distances()
+
+    # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
         testing.show_corr_distances()
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
         testing.show_corr_matrices()
-    if show_emd_distances:
-        display(Markdown("## Show EMD distances"))
-        testing.show_emd_distances()
+    if show_cramers_v_distances:
+        display(Markdown("## Show Cramer's V distances"))
+        testing.show_cramers_v_distances()
+    if show_cramers_v_matrix:
+        display(Markdown("## Show Cramer's V matrices"))
+        testing.show_cramers_v_matrices()
     if show_pw_mi_distances:
         display(Markdown("## Show Pairwise Mutual Information distances"))
         testing.show_mutual_information()

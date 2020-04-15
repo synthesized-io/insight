@@ -60,6 +60,21 @@ def cramers_v(x: list, y: list) -> float:
     return v
 
 
+def get_cramers_v_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute Cramer's V between all the columns in a given DataFrame and write result to a matrix"""
+    columns = df.columns
+    cramers_v_matrix = pd.DataFrame(np.ones((len(columns), len(columns))), columns=columns)
+    cramers_v_matrix.index = columns
+
+    for i1 in range(len(columns)):
+        c1 = columns[i1]
+        for i2 in range(i1 + 1, len(columns)):
+            c2 = columns[i2]
+            cramers_v_matrix[c1][c2] = cramers_v_matrix[c2][c1] = cramers_v(df[c1], df[c2])
+
+    return cramers_v_matrix
+
+
 def normalized_contingency_residuals(x: list, y: list) -> pd.DataFrame:
     """Returns the associations between two categorical variables for a data set."""
     xcats = np.sort(list(set(x))).tolist()
@@ -250,7 +265,9 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
     ks_distances = []
     emd_distances = []
     corr_distances = []
+
     numerical_columns = []
+    categorical_columns = []
 
     len_test = len(df_orig)
     for col in column_names_df:
@@ -271,6 +288,7 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                     "Column '{}' treated as categorical with {} categories".format(col, df_orig[col].nunique()))
                 emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
                 emd_distances.append(emd_distance)
+                categorical_columns.append(col)
 
             else:
                 col_test_clean = df_orig[col].dropna()
@@ -299,7 +317,9 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                 emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
                 if not np.isnan(emd_distance):
                     emd_distances.append(emd_distance)
+                categorical_columns.append(col)
 
+    # Compute correlation distances
     for i in range(len(numerical_columns)):
         col_i = numerical_columns[i]
         for j in range(i + 1, len(numerical_columns)):
@@ -314,10 +334,17 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                 if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
                     corr_distances.append(abs(corr_orig - corr_synth))
 
+    # Compute Cramer's V distances
+    cramers_v_matrix_distances = (get_cramers_v_matrix(df_orig[categorical_columns]) -
+                                  get_cramers_v_matrix(df_synth[categorical_columns])).abs()
+
+    cramers_v_distances = np.ndarray.flatten(get_cramers_v_matrix(cramers_v_matrix_distances).to_numpy())
+
     stop_metrics = {
         'ks_distances': ks_distances,
+        'emd_distances': emd_distances,
         'corr_distances': corr_distances,
-        'emd_distances': emd_distances
+        'cramers_v_distances': cramers_v_distances
     }
 
     return stop_metrics
