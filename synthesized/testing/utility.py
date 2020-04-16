@@ -203,6 +203,79 @@ class UtilityTesting:
 
         return corr_dist_max, corr_dist_avg
 
+    def show_cramers_v_matrices(self, figsize: Tuple[float, float] = (15, 11)) -> None:
+        """Plot two correlations matrices: one for the original data and one for the synthetic one.
+
+        Args:
+            figsize: width, height in inches.
+        """
+        def show_cramers_v_matrix(df, title=None, ax=None):
+            sns.set(style='white')
+
+            cramers_v_matrix = eval_metrics.get_cramers_v_matrix(df)
+
+            # Generate a mask for the upper triangle
+            mask = np.zeros_like(cramers_v_matrix, dtype=np.bool)
+            mask[np.triu_indices_from(mask)] = True
+
+            # Generate a custom diverging colormap
+            cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+            # Draw the heatmap with the mask and correct aspect ratio
+            hm = sns.heatmap(cramers_v_matrix, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                             square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax, annot=True, fmt='.2f')
+
+            if ax:
+                ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+            if title:
+                hm.set_title(title)
+
+        # Set up the matplotlib figure
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
+        plt.title("Cramer's V Matrices")
+
+        show_cramers_v_matrix(self.df_test[self.categorical_cols], title='Original', ax=ax1)
+        show_cramers_v_matrix(self.df_synth[self.categorical_cols], title='Synthetic', ax=ax2)
+        plt.show()
+
+    def show_cramers_v_distances(self, figsize: Tuple[float, float] = None) -> Tuple[float, float]:
+        """Plot a barplot with correlation diffs between original anf synthetic columns.
+
+        Args:
+            figsize: width, height in inches.
+        """
+        distances = (eval_metrics.get_cramers_v_matrix(self.df_test[self.categorical_cols]) -
+                     eval_metrics.get_cramers_v_matrix(self.df_synth[self.categorical_cols])).abs()
+
+        result = []
+        for i in range(distances.shape[0]):
+            for j in range(distances.shape[1]):
+                if i < j:
+                    row_name = distances.index[i]
+                    col_name = distances.iloc[:, j].name
+                    result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+
+        if not result:
+            return 0., 0.
+
+        df = pd.DataFrame.from_records(result)
+        if figsize is None:
+            figsize = (10, len(df) // 6 + 2)
+
+        corr_dist_max = df['distance'].max()
+        corr_dist_avg = df['distance'].mean()
+
+        print("Max Cramer's V distance:", corr_dist_max)
+        print("Average Cramer's V distance:", corr_dist_avg)
+
+        plt.figure(figsize=figsize)
+        plt.title("Cramer's V Distances")
+        g = sns.barplot(y='column', x='distance', data=df)
+        g.set_xlim(0.0, 1.0)
+        plt.show()
+
+        return corr_dist_max, corr_dist_avg
+
     def _filter_column_data_types(self):
         categorical, continuous = [], []
         for name, dtype in self.display_types.items():
