@@ -41,7 +41,6 @@ class Encoding(Transformation):
             >>> beta = beta * self.increase_beta_multiplier()
 
         """
-        assert tf.less(t_start, t_end)
         global_step = tf.cast(self.global_step, dtype=tf.float32)
 
         if global_step <= t_start:

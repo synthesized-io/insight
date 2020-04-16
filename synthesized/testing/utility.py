@@ -122,6 +122,7 @@ class UtilityTesting:
         Args:
             figsize: width, height in inches.
         """
+
         def show_corr_matrix(df, title=None, ax=None):
             sns.set(style='white')
 
@@ -303,13 +304,13 @@ class UtilityTesting:
             for i_cont, cont_name in enumerate(continuous):
                 df_orig = df[df['source'] == 'orig']
                 orig = ols(f"{cont_name} ~ C({cat_name})", data=df_orig).fit()
-                orig_anovas[i_cat,  i_cont] = orig.rsquared
+                orig_anovas[i_cat, i_cont] = orig.rsquared
 
                 df_synth = df[df['source'] == 'synth']
                 synth = ols(f"{cont_name} ~ C({cat_name})", data=df_synth).fit()
                 synth_anovas[i_cat, i_cont] = synth.rsquared
-        orig_anovas = pd.DataFrame(orig_anovas, index=categorical,  columns=continuous)
-        synth_anovas = pd.DataFrame(synth_anovas, index=categorical,  columns=continuous)
+        orig_anovas = pd.DataFrame(orig_anovas, index=categorical, columns=continuous)
+        synth_anovas = pd.DataFrame(synth_anovas, index=categorical, columns=continuous)
         f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
         cmap = sns.diverging_palette(220, 10, as_cmap=True)
 
@@ -332,7 +333,7 @@ class UtilityTesting:
             figsize: width, height in inches.
         """
         categorical, _ = self._filter_column_data_types()
-        source = pd.DataFrame({'source': len(self.df_test)*['orig'] + len(self.df_synth)*['synth']}).reset_index()
+        source = pd.DataFrame({'source': len(self.df_test) * ['orig'] + len(self.df_synth) * ['synth']}).reset_index()
         orig_synth = pd.concat([self.df_test, self.df_synth]).reset_index(inplace=False)
         df = pd.concat([orig_synth, source], axis=1)
         orig_anovas = np.zeros((len(categorical), len(categorical)))
@@ -370,7 +371,7 @@ class UtilityTesting:
     def show_distributions(self,
                            remove_outliers: float = 0.0,
                            figsize: Tuple[float, float] = None,
-                           cols: int = 2) -> None:
+                           cols: int = 2, sample_size: int = 10_000) -> None:
         """Plot comparison plots of all variables in the original and synthetic datasets.
 
         Args:
@@ -396,7 +397,8 @@ class UtilityTesting:
                 df_col_test = pd.DataFrame(col_test)
                 df_col_synth = pd.DataFrame(col_synth)
 
-                sample_size = min(len(col_test), len(col_synth))
+                # We sample orig and synth them so that they have the same size to make the plots more comprehensive
+                sample_size = min(sample_size, len(col_test), len(col_synth))
                 concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
                                           df_col_synth.assign(dataset='synth').sample(sample_size)])
 
@@ -411,6 +413,10 @@ class UtilityTesting:
             elif dtype == DisplayType.CONTINUOUS:
                 col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna()
                 col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna()
+
+                col_test = col_test.sample(min(sample_size, len(col_test)))
+                col_synth = col_synth.sample(min(sample_size, len(col_synth)))
+
                 if len(col_test) == 0 or len(col_synth) == 0:
                     continue
 
@@ -432,10 +438,14 @@ class UtilityTesting:
                 else:
                     kde = True
                     kde_kws = {'clip': (start, end)}
-                sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
-                             hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
-                             hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+
+                try:
+                    sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
+                                 hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
+                    sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
+                                 hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+                except Exception as e:
+                    print('ERROR :: Column {} cant be shown :: {}'.format(col, e))
 
                 ks_distance = ks_2samp(col_test, col_synth)[0]
                 title += ' (KS Dist={:.3f})'.format(ks_distance)
@@ -449,7 +459,7 @@ class UtilityTesting:
         fig = plt.figure(figsize=figsize)
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
-            n = list(range(1, max_order+1))
+            n = list(range(1, max_order + 1))
             original_auto = eval_metrics.calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
             synth_auto = eval_metrics.calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
             ax.stem(n, original_auto, 'b', markerfmt='bo', label="Original")
@@ -472,6 +482,7 @@ class UtilityTesting:
 
         Returns: Utility score.
         """
+
         def skip_sampling(df):
             for col in df.columns:
                 if col not in self.value_by_name or isinstance(self.value_by_name[col], SamplingValue):
@@ -526,6 +537,7 @@ class UtilityTesting:
         Args:
             max_lag: A max lag
         """
+
         # for synthetic data at the moment, TODO for real data
         # how do we detect time column?
         def autocorrelation(h, data, mean, n, c0):
@@ -551,7 +563,7 @@ class UtilityTesting:
         sns.lineplot(data=data, palette=[COLOR_SYNTH, COLOR_ORIG], linewidth=2.5)
         return mean_squared_error(y_orig, y_synth)
 
-    def show_distribution_distances(self):
+    def show_distribution_distances(self) -> Tuple[float, float]:
         """Plot a barplot with KS-distances between original and synthetic columns."""
         result = []
         for col in self.df_test.columns.values:
@@ -561,6 +573,10 @@ class UtilityTesting:
                 continue
             distance = ks_2samp(col_test, col_synth)[0]
             result.append({'column': col, 'distance': distance})
+
+        if len(result) == 0:
+            return 0., 0.
+
         df = pd.DataFrame.from_records(result)
 
         ks_dist_max = df['distance'].max()
@@ -582,7 +598,6 @@ class UtilityTesting:
         result = []
 
         for col in self.categorical_cols:
-
             emd_distance = eval_metrics.categorical_emd(self.df_test[col], self.df_synth[col])
             result.append({'column': col, 'emd_distance': emd_distance})
 
@@ -814,7 +829,7 @@ class UtilityTesting:
                 t_orig /= k
             else:
                 t_orig += eval_metrics.transition_matrix(
-                    self.df_test.loc[col], val2idx=val2idx)[0]
+                    self.df_test[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
             t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_test[col])))
