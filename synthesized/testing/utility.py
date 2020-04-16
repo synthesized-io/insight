@@ -33,7 +33,6 @@ from ..common.values import NanValue
 from ..common.values import SamplingValue
 from ..common.values import Value
 from ..testing import metrics as eval_metrics
-from ..testing.util import categorical_emd
 
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'
@@ -408,7 +407,7 @@ class UtilityTesting:
 
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
 
-                emd_distance = categorical_emd(col_test, col_synth)
+                emd_distance = eval_metrics.categorical_emd(col_test, col_synth)
                 title += ' (EMD Dist={:.3f})'.format(emd_distance)
 
             elif dtype == DisplayType.CONTINUOUS:
@@ -599,7 +598,7 @@ class UtilityTesting:
         result = []
 
         for col in self.categorical_cols:
-            emd_distance = categorical_emd(self.df_test[col], self.df_synth[col])
+            emd_distance = eval_metrics.categorical_emd(self.df_test[col], self.df_synth[col])
             result.append({'column': col, 'emd_distance': emd_distance})
 
         if len(result) == 0:
