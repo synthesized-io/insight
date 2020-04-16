@@ -29,14 +29,14 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = None,
-        batchnorm: bool = True, activation: str = 'relu', series_dropout: float = 0.2,
+        batchnorm: bool = False, activation: str = 'leaky_relu', series_dropout: float = 0.5,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
         # Batch size
         batch_size: int = 32, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = None,
         # Losses
-        beta: float = 1., weight_decay: float = 1e-6,
+        beta: float = 0.01, weight_decay: float = 1e-6,
         # Categorical
         categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
         # Continuous
@@ -319,8 +319,8 @@ class SeriesSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
-            -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None,
+               n_forecast: int = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         if conditions is not None:
             raise NotImplementedError
@@ -334,18 +334,16 @@ class SeriesSynthesizer(Synthesizer):
         encoded, decoded = None, None
 
         for i in range(len(groups)):
+
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            feed_dict = {
-                name: tf.expand_dims(feed_dict[name], axis=0)
-                for value in self.get_all_values()
-                for name in value.learned_input_columns()
-            }
-            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict())
+            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
+
             if self.value_factory.identifier_label:
                 identifier = feed_dict[self.value_factory.identifier_label][0]
-                decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i]])
+                decoded_i[self.value_factory.identifier_label] = tf.tile([identifier], [num_data[i] + n_forecast])
+
             if not encoded or not decoded:
                 encoded, decoded = encoded_i, decoded_i
             else:
@@ -359,9 +357,6 @@ class SeriesSynthesizer(Synthesizer):
 
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.value_factory.postprocess(df=df_synthesized)
-
-        assert len(df_synthesized.columns) == len(columns)
-        df_synthesized = df_synthesized[columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
 
