@@ -81,19 +81,29 @@ def cramers_v(x: list, y: list) -> float:
     return v
 
 
-def get_cramers_v_matrix(df: pd.DataFrame) -> pd.DataFrame:
+def get_cramers_v_matrix(df: pd.DataFrame, flattened: bool = False) -> Union[pd.DataFrame, np.array]:
     """Compute Cramer's V between all the columns in a given DataFrame and write result to a matrix"""
     columns = df.columns
-    cramers_v_matrix = pd.DataFrame(np.ones((len(columns), len(columns))), columns=columns)
-    cramers_v_matrix.index = columns
+    if flattened:
+        cramers_v_matrix: Union[pd.DataFrame, np.array] = []
+    else:
+        cramers_v_matrix = pd.DataFrame(np.ones((len(columns), len(columns))), columns=columns)
+        cramers_v_matrix.index = columns
 
     for i1 in range(len(columns)):
         c1 = columns[i1]
         for i2 in range(i1 + 1, len(columns)):
             c2 = columns[i2]
-            cramers_v_matrix[c1][c2] = cramers_v_matrix[c2][c1] = cramers_v(df[c1], df[c2])
+            cv = cramers_v(df[c1], df[c2])
+            if flattened:
+                cramers_v_matrix.append(cv)
+            else:
+                cramers_v_matrix[c1][c2] = cramers_v_matrix[c2][c1] = cramers_v(df[c1], df[c2])
 
-    return cramers_v_matrix
+    if flattened:
+        return np.array(cramers_v_matrix)
+    else:
+        return cramers_v_matrix
 
 
 def normalized_contingency_residuals(x: list, y: list) -> pd.DataFrame:
@@ -356,10 +366,8 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                     corr_distances.append(abs(corr_orig - corr_synth))
 
     # Compute Cramer's V distances
-    cramers_v_matrix_distances = (get_cramers_v_matrix(df_orig[categorical_columns]) -
-                                  get_cramers_v_matrix(df_synth[categorical_columns])).abs()
-
-    cramers_v_distances = np.ndarray.flatten(get_cramers_v_matrix(cramers_v_matrix_distances).to_numpy())
+    cramers_v_distances = np.abs(get_cramers_v_matrix(df_orig[categorical_columns], flattened=True) -
+                                 get_cramers_v_matrix(df_synth[categorical_columns], flattened=True))
 
     stop_metrics = {
         'ks_distances': ks_distances,
