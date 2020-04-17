@@ -67,7 +67,7 @@ def get_cramers_v_matrix(df: pd.DataFrame, flattened: bool = False) -> Union[pd.
         cramers_v_matrix: Union[pd.DataFrame, np.array] = []
     else:
         cramers_v_matrix = pd.DataFrame(np.ones((len(columns), len(columns))), columns=columns)
-        cramers_v_matrix.set_index(columns, inplace=True)
+        cramers_v_matrix.index = columns
 
     for i1 in range(len(columns)):
         c1 = columns[i1]
