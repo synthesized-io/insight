@@ -1,6 +1,7 @@
 from itertools import combinations
 import logging
 from typing import Union, Callable, Dict
+from collections import OrderedDict
 
 import pandas as pd
 import numpy as np
@@ -31,7 +32,7 @@ class Sanitizer(Synthesizer):
 
         self.learned_columns = []
         self.categorical_values = []
-        self.distances: Dict[str, Union[float, None]] = dict()
+        self.distances: Dict[str, Union[float, None]] = OrderedDict()
         for v in self.synthesizer.get_values():
             if v.learned_output_size() > 0:
                 self.learned_columns.append(v.name)
