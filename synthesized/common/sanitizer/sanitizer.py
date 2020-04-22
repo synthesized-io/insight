@@ -58,19 +58,21 @@ class Sanitizer(Synthesizer):
     def _sanitize_all(self, df_synthesized: pd.DataFrame) -> pd.DataFrame:
         """Drop rows in df_synthesized that are present in df_original."""
 
+        sorted_columns = list(self.distances.keys())
+        sorted_distances = list(self.distances.values())
+
         def normalize_tuple(nt):
             res = []
-            distances = list(self.distances.values())
             for i, field in enumerate(nt):
-                if distances[i] is not None:
-                    distance = distances[i]
+                if sorted_distances[i] is not None:
+                    distance = sorted_distances[i]
                     field = round(field / distance) * distance
                 res.append(field)
             return tuple(res)
 
-        original_rows = {normalize_tuple(row) for row in self.df_original.itertuples(index=False)}
+        original_rows = {normalize_tuple(row) for row in self.df_original[sorted_columns].itertuples(index=False)}
         to_drop = []
-        for i, row in enumerate(df_synthesized.itertuples(index=False)):
+        for i, row in enumerate(df_synthesized[sorted_columns].itertuples(index=False)):
             if normalize_tuple(row) in original_rows:
                 to_drop.append(i)
 
