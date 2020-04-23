@@ -5,6 +5,7 @@ import faker
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import simplejson
 
 from .categorical import CategoricalValue
 from .value import Value
@@ -38,10 +39,11 @@ class AddressRecord:
 class AddressValue(Value):
     postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
 
-    def __init__(self, name, categorical_kwargs: dict, postcode_level=0, postcode_label=None, county_label=None,
-                 city_label=None, district_label=None, street_label=None, house_number_label=None, flat_label=None,
-                 house_name_label=None,
-                 fake=True):
+    def __init__(self, name, categorical_kwargs: dict, postcode_level: int = 0, postcode_label: str = None,
+                 county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
+                 house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
+                 fake: bool = False, postcodes_file: str = 'configs/postcodes/postcodes.jsonl'):
+
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -59,7 +61,11 @@ class AddressValue(Value):
         self.fake = fake
         self.fkr = faker.Faker(locale='en_GB')
 
-        self.postcodes: Dict[str, List[AddressRecord]] = {}
+        self.postcodes_file = postcodes_file
+        if self.postcodes_file:
+            self.postcodes: Dict[str, List[AddressRecord]] = self._load_postcodes_dict()
+        else:
+            self.postcodes = {}
 
         assert postcode_label is not None
 
@@ -70,6 +76,7 @@ class AddressValue(Value):
                 name=postcode_label,
                 **categorical_kwargs
             )
+        self.dtype = tf.int64
 
     def learned_input_columns(self) -> List[str]:
         if self.postcode is None:
@@ -98,6 +105,7 @@ class AddressValue(Value):
     def extract(self, df: pd.DataFrame) -> None:
         if self.fake:
             return
+        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
         for n, row in df.iterrows():
             postcode = row[self.postcode_label]
             postcode_key = self._get_postcode_key(postcode)
@@ -132,6 +140,7 @@ class AddressValue(Value):
             self.postcode.extract(df=postcode_data)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
         if self.fake:
             return super().preprocess(df=df)
         postcodes = []
@@ -148,6 +157,9 @@ class AddressValue(Value):
         return super().preprocess(df=df)
 
     def _get_postcode_key(self, postcode: str):
+        if postcode == 'NaN':
+            return 'NaN'
+
         if not AddressValue.postcode_regex.match(postcode):
             raise ValueError(postcode)
         if self.postcode_level == 0:  # 1-2 letters
@@ -159,6 +171,28 @@ class AddressValue(Value):
         else:
             raise ValueError(self.postcode_level)
         return postcode[:index]
+
+    def _load_postcodes_dict(self) -> Dict[str, List[AddressRecord]]:
+
+        d: Dict[str, List[AddressRecord]] = dict()
+
+        with open(self.postcodes_file) as f:
+            for line in f:
+                js = simplejson.loads(line.rstrip())
+                addresses = []
+                for js_i in js['addresses']:
+                    addresses.append(AddressRecord(
+                        postcode=js['postcode'],
+                        county=js_i['county'],
+                        city=js_i['town_or_city'],
+                        district=js_i['district'],
+                        street=js_i['thoroughfare'],
+                        house_number=js_i['building_number'],
+                        flat=js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name'],
+                        house_name=js_i['building_name']
+                    ))
+                d[self._get_postcode_key(js['postcode'])] = addresses
+        return d
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)

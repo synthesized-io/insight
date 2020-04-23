@@ -48,6 +48,7 @@ class PersonValue(Value):
             self.gender = CategoricalValue(
                 name=gender_label, **categorical_kwargs
             )
+        self.dtype = tf.int64
 
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
