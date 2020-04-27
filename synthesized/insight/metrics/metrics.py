@@ -7,7 +7,7 @@ from pyemd import emd
 from scipy.stats import kendalltau, spearmanr, ks_2samp
 
 from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison
-from ..modelling import r2_regression_score, roc_auc_classification_score
+from ..modelling import r2_regression_score, roc_auc_classification_score, logistic_regression_r2
 
 
 class StandardDeviation(ColumnMetric):
@@ -64,6 +64,17 @@ class CramersV(TwoColumnMetric):
         v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
 
         return v
+
+
+class CategoricalLogisticR2(TwoColumnMetric):
+    name = "Categorical logistic correlation"
+    tags = ["nominal"]
+
+    @staticmethod
+    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+        r2 = logistic_regression_r2(df, y_label=col_a_name, x_labels=[col_b_name])
+
+        return r2
 
 
 class KolmogorovSmirnovDistance(ColumnComparison):

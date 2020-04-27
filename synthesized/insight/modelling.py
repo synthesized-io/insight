@@ -110,6 +110,27 @@ def roc_auc_classification_score(train: pd.DataFrame, test: pd.DataFrame, classi
         return roc_auc_score(y_test, y_pred_test, multi_class='ovo')
 
 
+def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
+    rg = CLASSIFIERS['Logistic']()
+    rg.fit(df[x_labels].to_numpy().reshape((-1, 1)), df[y_label])
+
+    labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
+    oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
+
+    lp = rg.predict_log_proba(df['y'].to_numpy().reshape((-1, 1)))
+    llf = np.sum(oh_labels * lp)
+
+    rg = LogisticRegression()
+    rg.fit(np.ones(df[x_labels].to_numpy().reshape((-1, 1)).shape), df[y_label])
+
+    lp = rg.predict_log_proba(df[x_labels].to_numpy().reshape((-1, 1)))
+    llnull = np.sum(oh_labels * lp)
+
+    psuedo_r2 = 1 - (llf / llnull)
+
+    return psuedo_r2
+
+
 def _preprocess_x(x_train: pd.DataFrame, x_test: pd.DataFrame) -> Tuple[np.array, np.array]:
     columns_categorical = []
     columns_numeric = []
