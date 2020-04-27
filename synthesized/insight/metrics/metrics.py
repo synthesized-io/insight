@@ -7,6 +7,7 @@ from pyemd import emd
 from scipy.stats import kendalltau, spearmanr, ks_2samp
 
 from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison
+from ..modelling import r2_regression_score, roc_auc_classification_score
 
 
 class StandardDeviation(ColumnMetric):
@@ -105,3 +106,29 @@ class EarthMoversDistance(ColumnComparison):
         distances = 1 - np.eye(len(space))
 
         return emd(p, q, distances)
+
+
+class R2RegressionScore(DataFrameMetric):
+    name = "R2 Regression Score"
+    tags = ["modelling"]
+
+    @staticmethod
+    def compute(df: pd.DataFrame, df_test: pd.DataFrame = None, regressor: str = None,
+                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+        if regressor is None or y_label is None:
+            raise ValueError
+        else:
+            return r2_regression_score(df, df_test, regressor, y_label, x_labels)
+
+
+class ROCAUCClassificationScore(DataFrameMetric):
+    name = "ROC AUC Classification Score"
+    tags = ["modelling"]
+
+    @staticmethod
+    def compute(df: pd.DataFrame, df_test: pd.DataFrame = None, classifier: str = None,
+                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+        if classifier is None or y_label is None:
+            raise ValueError
+        else:
+            return roc_auc_classification_score(df, df_test, classifier, y_label, x_labels)
