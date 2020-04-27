@@ -81,7 +81,8 @@ class ColumnMetric(_Metric):
             return sum(values)/len(values) if len(values) > 0 else None
 
         @staticmethod
-        def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
+        def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame,
+                         col_name: str, **kwargs) -> Union[int, float, None]:
             value_old = cls(df_old, col_name, **kwargs).value
             value_new = cls(df_new, col_name, **kwargs).value
             if value_old is None or value_new is None:
