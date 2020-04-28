@@ -1,8 +1,8 @@
 import re
 import os
 from typing import List, Dict
-import zlib
-from base64 import b64decode
+import gzip
+import logging
 
 import faker
 import numpy as np
@@ -13,6 +13,8 @@ import simplejson
 from .categorical import CategoricalValue
 from .value import Value
 from ..module import tensorflow_name_scoped
+
+logger = logging.getLogger(__name__)
 
 
 class AddressRecord:
@@ -45,7 +47,7 @@ class AddressValue(Value):
     def __init__(self, name, categorical_kwargs: dict, postcode_level: int = 0, postcode_label: str = None,
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
-                 fake: bool = False, postcodes_file: str = 'configs/postcodes/postcodes.zlib'):
+                 addresses_file: str = None):
 
         super().__init__(name=name)
 
@@ -61,24 +63,24 @@ class AddressValue(Value):
         self.house_number_label = house_number_label
         self.flat_label = flat_label
         self.house_name_label = house_name_label
-        self.fake = fake
-        self.fkr = faker.Faker(locale='en_GB')
 
-        self.postcodes_file = postcodes_file
-        if self.postcodes_file:
-            self.postcodes: Dict[str, List[AddressRecord]] = self._load_postcodes_dict()
-        else:
-            self.postcodes = {}
-
-        assert postcode_label is not None
-
-        if self.fake:
+        if addresses_file is None or not os.path.exists(addresses_file):
+            self.fake = True
+            self.fkr = faker.Faker(locale='en_GB')
+            self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
+
+            if addresses_file is not None and not os.path.exists(addresses_file):
+                logger.warning("Given address file '{}' does not exist, using fake addresses".format(addresses_file))
+
         else:
-            self.postcode = CategoricalValue(
-                name=postcode_label,
-                **categorical_kwargs
-            )
+            self.fake = False
+            logger.info("Loading address dictionary from '{}'".format(addresses_file))
+            self.postcodes = self._load_postcodes_dict(addresses_file)
+
+            assert postcode_label is not None
+            self.postcode = CategoricalValue(name=postcode_label, **categorical_kwargs)
+
         self.dtype = tf.int64
 
     def learned_input_columns(self) -> List[str]:
@@ -175,32 +177,33 @@ class AddressValue(Value):
             raise ValueError(self.postcode_level)
         return postcode[:index]
 
-    def _load_postcodes_dict(self) -> Dict[str, List[AddressRecord]]:
+    def _load_postcodes_dict(self, addresses_file) -> Dict[str, List[AddressRecord]]:
 
         d: Dict[str, List[AddressRecord]] = dict()
 
-        synthesized_path = '/'.join(__file__.split('/')[:-4])
-        print('synthesized_path', synthesized_path)
-        assert synthesized_path[-11:] == 'synthesized'
+        if os.path.exists(addresses_file):
+            with gzip.open(os.path.join(addresses_file), 'r') as f:
+                for line in f:
+                    js = simplejson.loads(line)
 
-        with open(os.path.join(synthesized_path, self.postcodes_file), 'br') as f:
-            for line in f:
-                js = simplejson.loads(
-                    zlib.decompress(b64decode(line)).decode('utf-8')
-                )
-                addresses = []
-                for js_i in js['addresses']:
-                    addresses.append(AddressRecord(
-                        postcode=js['postcode'],
-                        county=js_i['county'],
-                        city=js_i['town_or_city'],
-                        district=js_i['district'],
-                        street=js_i['thoroughfare'],
-                        house_number=js_i['building_number'],
-                        flat=js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name'],
-                        house_name=js_i['building_name']
-                    ))
-                d[self._get_postcode_key(js['postcode'])] = addresses
+                    addresses = []
+                    for js_i in js['addresses']:
+                        addresses.append(AddressRecord(
+                            postcode=js['postcode'],
+                            county=js_i['county'],
+                            city=js_i['town_or_city'],
+                            district=js_i['district'],
+                            street=js_i['thoroughfare'],
+                            house_number=js_i['building_number'],
+                            flat=js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name'],
+                            house_name=js_i['building_name']
+                        ))
+                    postcode_key = self._get_postcode_key(js['postcode'])
+                    if postcode_key not in d.keys():
+                        d[self._get_postcode_key(js['postcode'])] = addresses
+                    else:
+                        d[self._get_postcode_key(js['postcode'])].extend(addresses)
+
         return d
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:

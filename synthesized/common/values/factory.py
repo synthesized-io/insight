@@ -61,6 +61,7 @@ class ValueFactory:
         city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
         street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
         flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
+        addresses_file: str = None,
         # Compound Address
         address_label: str = None, postcode_regex: str = None,
         # Identifier
@@ -141,6 +142,7 @@ class ValueFactory:
         self.house_number_label = _get_formated_label(house_number_label)
         self.flat_label = _get_formated_label(flat_label)
         self.house_name_label = _get_formated_label(house_name_label)
+        self.addresses_file = addresses_file
 
         address_labels = [
             self.postcode_label, self.county_label, self.city_label, self.district_label, self.street_label,
@@ -369,7 +371,7 @@ class ValueFactory:
             house_number_label=self.house_number_label[i] if self.house_number_label else None,
             flat_label=self.flat_label[i] if self.flat_label else None,
             house_name_label=self.house_name_label[i] if self.house_name_label else None,
-            categorical_kwargs=self.categorical_kwargs
+            addresses_file=self.addresses_file, categorical_kwargs=self.categorical_kwargs
         )
 
     def create_enumeration(self, name: str) -> EnumerationValue:

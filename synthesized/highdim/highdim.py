@@ -51,14 +51,21 @@ class HighDimSynthesizer(Synthesizer):
         # Conditions
         condition_columns: List[str] = None,
         # Person
-        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
-        lastname_label: str = None, email_label: str = None,
-        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
+        name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
+        lastname_label: Union[str, List[str]] = None, email_label: Union[str, List[str]] = None,
+        mobile_number_label: Union[str, List[str]] = None, home_number_label: Union[str, List[str]] = None,
+        work_number_label: Union[str, List[str]] = None,
         # Bank
-        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
+        bic_label: Union[str, List[str]] = None, sort_code_label: Union[str, List[str]] = None,
+        account_label: Union[str, List[str]] = None,
         # Address
-        postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
-        street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
+        postcode_label: Union[str, List[str]] = None, county_label: Union[str, List[str]] = None,
+        city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
+        street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
+        flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
+        addresses_file: str = 'data/addresses.jsonl.gz',
+        # Compound Address
         address_label: str = None, postcode_regex: str = None,
         # Identifier label
         identifier_label: str = None,
@@ -148,8 +155,9 @@ class HighDimSynthesizer(Synthesizer):
             # Address
             postcode_label=postcode_label, county_label=county_label, city_label=city_label,
             district_label=district_label, street_label=street_label, house_number_label=house_number_label,
-            flat_label=flat_label, house_name_label=house_name_label, address_label=address_label,
-            postcode_regex=postcode_regex,
+            flat_label=flat_label, house_name_label=house_name_label, addresses_file=addresses_file,
+            # Compound Address
+            address_label=address_label, postcode_regex=postcode_regex,
             # Identifier
             identifier_label=identifier_label,
         )
