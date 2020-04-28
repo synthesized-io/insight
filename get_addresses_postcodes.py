@@ -1,8 +1,7 @@
 import os
+import sys
 import requests
 import gzip
-from base64 import b64encode, b64decode
-import zlib
 
 import numpy as np
 import pandas as pd
@@ -38,7 +37,8 @@ def _get_postcode_key(postcode: str, postcode_level: int = 0):
 
 if __name__ == '__main__':
 
-    synth_path = '/Users/tonbadal/PycharmProjects/synthesized/'
+    synth_path = sys.argv[1]
+    assert os.path.exists(synth_path + 'data/addresses.jsonl.gz')
 
     stored_postcodes = []
     f_out = gzip.open(synth_path + 'data/addresses_out.jsonl.gz', 'w')
@@ -101,6 +101,6 @@ if __name__ == '__main__':
                     break
 
     f_out.close()
-    os.rename(synth_path + 'configs/postcodes/postcodes_out.zlib',
-              synth_path + 'configs/postcodes/postcodes.zlib')
+    os.rename(synth_path + 'data/addresses_out.jsonl.gz',
+              synth_path + 'data/addresses.jsonl.gz')
 

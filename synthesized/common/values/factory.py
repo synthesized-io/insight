@@ -120,8 +120,7 @@ class ValueFactory:
             self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
         ]
         self.person_labels = _get_labels_matrix(person_labels)
-        self.person_values: Optional[List[Optional[Value]]] = \
-            [None] * len(self.person_labels) if self.person_labels is not None else None
+        self.person_values: List[Optional[Value]] = [None] * len(self.person_labels)
 
         # Bank Number
         self.bic_label = _get_formated_label(bic_label)
@@ -130,8 +129,7 @@ class ValueFactory:
 
         bank_labels = [self.bic_label, self.sort_code_label, self.account_label]
         self.bank_labels = _get_labels_matrix(bank_labels)
-        self.bank_values: Optional[List[Optional[Value]]] = \
-            [None] * len(self.bank_labels) if self.bank_labels is not None else None
+        self.bank_values: List[Optional[Value]] = [None] * len(self.bank_labels)
 
         # Address
         self.postcode_label = _get_formated_label(postcode_label)
@@ -149,8 +147,7 @@ class ValueFactory:
             self.house_number_label, self.flat_label, self.house_name_label
         ]
         self.address_labels = _get_labels_matrix(address_labels)
-        self.address_values: Optional[List[Optional[Value]]] = \
-            [None] * len(self.address_labels) if self.address_labels is not None else None
+        self.address_values: List[Optional[Value]] = [None] * len(self.address_labels)
 
         # Compound Address
         self.address_value: Optional[Value] = None
@@ -401,30 +398,30 @@ class ValueFactory:
         # ========== Pre-configured values ==========
 
         # Person value
-        if self.person_labels is not None and name in np.concatenate(self.person_labels):
+        if len(self.person_labels) > 0 and name in np.concatenate(self.person_labels):
             for i, person in enumerate(self.person_labels):
                 if name in person:
-                    if self.person_values is not None and self.person_values[i] is None:
+                    if self.person_values[i] is None:
                         value = self.create_person(i)
                         self.person_values[i] = value
                     else:
                         return None
 
         # Bank value
-        elif self.bank_labels is not None and name in np.concatenate(self.bank_labels):
+        elif len(self.bank_labels) > 0 and name in np.concatenate(self.bank_labels):
             for i, bank in enumerate(self.bank_labels):
                 if name in bank:
-                    if self.bank_values is not None and self.bank_values[i] is None:
+                    if self.bank_values[i] is None:
                         value = self.create_bank(i)
                         self.bank_values[i] = value
                     else:
                         return None
 
         # Address value
-        elif self.address_labels is not None and name in np.concatenate(self.address_labels):
+        elif len(self.address_labels) > 0 and name in np.concatenate(self.address_labels):
             for i, address in enumerate(self.address_labels):
                 if name in address:
-                    if self.address_values is not None and self.address_values[i] is None:
+                    if self.address_values[i] is None:
                         value = self.create_address(i)
                         self.address_values[i] = value
                     else:
@@ -593,7 +590,7 @@ def _get_formated_label(label: Union[str, List[str], None]) -> Union[List[str], 
         return label
 
 
-def _get_labels_matrix(labels: List[Optional[List[str]]]) -> Optional[np.array]:
+def _get_labels_matrix(labels: List[Optional[List[str]]]) -> np.array:
     """From a list of labels, check if the sizes are consistent and return the matrix of labels,
     with shape (num_values, num_labels).
 
@@ -615,4 +612,4 @@ def _get_labels_matrix(labels: List[Optional[List[str]]]) -> Optional[np.array]:
     if len(out_labels) > 0:
         return np.transpose(out_labels)
     else:
-        return None
+        return np.array([])
