@@ -454,7 +454,7 @@ class ValueFactory:
         num_unique = col.nunique()
         is_nan = False
 
-        if num_unique == 1:
+        if num_unique <= 1:
             return self.create_constant(name)
 
         # Categorical value if small number of distinct values

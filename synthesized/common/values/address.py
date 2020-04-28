@@ -1,5 +1,8 @@
 import re
+import os
 from typing import List, Dict
+import zlib
+from base64 import b64decode
 
 import faker
 import numpy as np
@@ -42,7 +45,7 @@ class AddressValue(Value):
     def __init__(self, name, categorical_kwargs: dict, postcode_level: int = 0, postcode_label: str = None,
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
-                 fake: bool = False, postcodes_file: str = 'configs/postcodes/postcodes.jsonl'):
+                 fake: bool = False, postcodes_file: str = 'configs/postcodes/postcodes.zlib'):
 
         super().__init__(name=name)
 
@@ -176,9 +179,15 @@ class AddressValue(Value):
 
         d: Dict[str, List[AddressRecord]] = dict()
 
-        with open(self.postcodes_file) as f:
+        synthesized_path = '/'.join(__file__.split('/')[:-4])
+        print('synthesized_path', synthesized_path)
+        assert synthesized_path[-11:] == 'synthesized'
+
+        with open(os.path.join(synthesized_path, self.postcodes_file), 'br') as f:
             for line in f:
-                js = simplejson.loads(line.rstrip())
+                js = simplejson.loads(
+                    zlib.decompress(b64decode(line)).decode('utf-8')
+                )
                 addresses = []
                 for js_i in js['addresses']:
                     addresses.append(AddressRecord(
