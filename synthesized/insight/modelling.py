@@ -53,7 +53,7 @@ def r2_regression_score(df_train: pd.DataFrame, df_test: pd.DataFrame, regressor
     X_train, y_train = train[x_columns], train[y_column].values
     X_test, y_test = test[x_columns], test[y_column].values
 
-    rgr = REGRESSORS[regressor]
+    rgr = REGRESSORS[regressor]()
     rgr.fit(X_train, y_train)
 
     f_test = rgr.predict(X_test)
