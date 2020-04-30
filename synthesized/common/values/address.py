@@ -65,13 +65,16 @@ class AddressValue(Value):
         self.house_name_label = house_name_label
 
         if addresses_file is None or not os.path.exists(addresses_file):
+            if os.path.exists('~/.synthesized/addresses.jsonl.gz'):
+                addresses_file = '~/.synthesized/addresses.jsonl.gz'
+            else:
+                addresses_file = None
+
+        if addresses_file is None:
             self.fake = True
             self.fkr = faker.Faker(locale='en_GB')
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
-
-            if addresses_file is not None and not os.path.exists(addresses_file):
-                logger.warning("Given address file '{}' does not exist, using fake addresses".format(addresses_file))
 
         else:
             self.fake = False
