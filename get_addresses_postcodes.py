@@ -36,20 +36,19 @@ def _get_postcode_key(postcode: str, postcode_level: int = 0):
 
 
 if __name__ == '__main__':
-
-    synth_path = sys.argv[1]
-    assert os.path.exists(synth_path + 'data/addresses.jsonl.gz')
+    synth_path = sys.argv[1] if len(sys.argv) > 1 else ''
+    assert os.path.exists(os.path.join(synth_path, 'data/addresses.jsonl.gz'))
 
     stored_postcodes = []
-    f_out = gzip.open(synth_path + 'data/addresses_out.jsonl.gz', 'w')
-    with gzip.open(synth_path + 'data/addresses.jsonl.gz', 'r') as f:
+    f_out = gzip.open(os.path.join(synth_path, 'data/addresses_out.jsonl.gz'), 'w')
+    with gzip.open(os.path.join(synth_path, 'data/addresses.jsonl.gz'), 'r') as f:
         for line in f:
             f_out.write(line)
             js = simplejson.loads(line)
             stored_postcodes.append(js['postcode'])
 
-    if os.path.exists(synth_path + 'Postcode_Estimates_Table_1.csv'):
-        df = pd.read_csv(synth_path + 'Postcode_Estimates_Table_1.csv')
+    if os.path.exists(os.path.join(synth_path, 'Postcode_Estimates_Table_1.csv')):
+        df = pd.read_csv(os.path.join(synth_path, 'Postcode_Estimates_Table_1.csv'))
         print('Total num. postcodes', len(df))
         df = df[df['Postcode'].apply(lambda pc: False if pc in stored_postcodes else True)]
         print('Num. postcodes cleaned', len(df))
@@ -101,6 +100,6 @@ if __name__ == '__main__':
                     break
 
     f_out.close()
-    os.rename(synth_path + 'data/addresses_out.jsonl.gz',
-              synth_path + 'data/addresses.jsonl.gz')
+    os.rename(os.path.join(synth_path, 'data/addresses_out.jsonl.gz'),
+              os.path.join(synth_path, 'data/addresses.jsonl.gz'))
 

@@ -182,7 +182,7 @@ class AddressValue(Value):
         d: Dict[str, List[AddressRecord]] = dict()
 
         if os.path.exists(addresses_file):
-            with gzip.open(os.path.join(addresses_file), 'r') as f:
+            with gzip.open(addresses_file, 'r') as f:
                 for line in f:
                     js = simplejson.loads(line)
 
