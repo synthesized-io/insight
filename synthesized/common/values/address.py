@@ -108,7 +108,7 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        if self.fake:
+        if self.fake or len(self.postcodes) > 0:
             return
         df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
         for n, row in df.iterrows():
