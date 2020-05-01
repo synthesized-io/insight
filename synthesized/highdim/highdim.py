@@ -215,7 +215,7 @@ class HighDimSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, low_memory: bool = True
+        callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
 
