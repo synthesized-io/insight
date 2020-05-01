@@ -538,13 +538,8 @@ class ValueFactory:
 
         # ========== Fallback values ==========
 
-        # Enumeration value if strictly increasing
-        if col.dtype.kind != 'f' and num_unique == num_data and col.is_monotonic_increasing:
-            value = self.create_enumeration(name)
-
         # Sampling value otherwise
-        else:
-            value = self.create_sampling(name)
+        value = self.create_sampling(name)
 
         assert value is not None
         return value
