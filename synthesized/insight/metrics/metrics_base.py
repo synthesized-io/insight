@@ -35,7 +35,7 @@ class _Metric(ABC):
             compute_fn: The compute function of the new class.
 
         """
-        composite_cls: Type[new_cls] = type(
+        composite_cls: Type = type(
             f"{prefix}{cls.__name__}",
             (new_cls,),
             {"compute": compute_fn, "name": f"{prefix} {cls.__name__}"}
@@ -62,7 +62,7 @@ class ColumnMetric(_Metric):
 
     @classmethod
     def min_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_min(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df.columns:
@@ -75,7 +75,7 @@ class ColumnMetric(_Metric):
 
     @classmethod
     def max_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df.columns:
@@ -88,7 +88,7 @@ class ColumnMetric(_Metric):
 
     @classmethod
     def avg_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_avg(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df.columns:
@@ -101,7 +101,7 @@ class ColumnMetric(_Metric):
 
     @classmethod
     def diff_column_metric(cls) -> Type['ColumnComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame,
                          col_name: str, **kwargs) -> Union[int, float, None]:
 
@@ -138,7 +138,7 @@ class TwoColumnMetric(_Metric):
 
     @classmethod
     def min_two_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_min(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df.columns, 2):
@@ -151,7 +151,7 @@ class TwoColumnMetric(_Metric):
 
     @classmethod
     def max_two_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df.columns, 2):
@@ -164,7 +164,7 @@ class TwoColumnMetric(_Metric):
 
     @classmethod
     def avg_two_column_metric(cls) -> Type['DataFrameMetric']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_avg(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df.columns, 2):
@@ -177,7 +177,7 @@ class TwoColumnMetric(_Metric):
 
     @classmethod
     def diff_two_column_metric(cls) -> Type['TwoColumnComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame,
                          col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
             value_old = cls(df_old, col_a_name, col_b_name, **kwargs).value
@@ -209,7 +209,7 @@ class DataFrameMetric(_Metric):
 
     @classmethod
     def diff_data_frame_metric(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             value_old = cls(df_old, **kwargs).value
             value_new = cls(df_new, **kwargs).value
@@ -242,7 +242,7 @@ class ColumnComparison(_Metric):
 
     @classmethod
     def min_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_min(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df_old.columns:
@@ -255,7 +255,7 @@ class ColumnComparison(_Metric):
 
     @classmethod
     def max_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df_old.columns:
@@ -268,7 +268,7 @@ class ColumnComparison(_Metric):
 
     @classmethod
     def avg_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_avg(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col in df_old.columns:
@@ -302,7 +302,7 @@ class TwoColumnComparison(_Metric):
 
     @classmethod
     def min_two_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_min(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df_old.columns, 2):
@@ -315,7 +315,7 @@ class TwoColumnComparison(_Metric):
 
     @classmethod
     def max_two_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df_old.columns, 2):
@@ -328,7 +328,7 @@ class TwoColumnComparison(_Metric):
 
     @classmethod
     def avg_two_column_comparison(cls) -> Type['DataFrameComparison']:
-        @staticmethod
+        @staticmethod  # type: ignore
         def compute_avg(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
             for col_a, col_b in combinations(df_old.columns, 2):
