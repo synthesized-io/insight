@@ -1,6 +1,6 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Type, Union
+from typing import Callable, List, Type, Union
 from itertools import combinations
 
 import pandas as pd
@@ -24,22 +24,24 @@ class _Metric(ABC):
         return self._value
 
     @classmethod
-    def create_composite_metric(cls, prefix: str, compute_fn):
-        if prefix in ['Max', 'Min', 'Avg']:
-            metric_base = POOLING_METRIC_MAP.get(cls.__base__, None)
-        elif prefix in ['Diff']:
-            metric_base = DIFF_METRIC_MAP.get(cls.__base__, None)
-        else:
-            metric_base = None
+    def create_composite_metric(cls, new_cls: Type, prefix: str, compute_fn: Callable):
+        """Dynamically creates a new metric class with parent type new_cls and compute function, compute_fn.
 
-        if metric_base is None:
-            raise ValueError
+        Note that this method creates new classes and NOT new instances of classes.
 
-        return type(
+        Args:
+            new_cls: The newly created class is a subclass of this.
+            prefix: The newly created class name is prefixed with this.
+            compute_fn: The compute function of the new class.
+
+        """
+        composite_cls: Type[new_cls] = type(
             f"{prefix}{cls.__name__}",
-            (metric_base,),
+            (new_cls,),
             {"compute": compute_fn, "name": f"{prefix} {cls.__name__}"}
         )
+
+        return composite_cls
 
 
 class ColumnMetric(_Metric):
@@ -53,15 +55,13 @@ class ColumnMetric(_Metric):
         super().__init_subclass__(**kwargs)
         _register(cls, ColumnMetric.ALL)
 
-        @staticmethod
-        def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-            values: List[Union[int, float]] = []
-            for col in df.columns:
-                value = cls(df, col, **kwargs).value
-                if value is not None:
-                    values.append(value)
-            return max(values) if len(values) > 0 else None
+        cls.max_column_metric()
+        cls.min_column_metric()
+        cls.avg_column_metric()
+        cls.diff_column_metric()
 
+    @classmethod
+    def min_column_metric(cls) -> Type['DataFrameMetric']:
         @staticmethod
         def compute_min(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -71,6 +71,23 @@ class ColumnMetric(_Metric):
                     values.append(value)
             return min(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameMetric, "Min", compute_min)
+
+    @classmethod
+    def max_column_metric(cls) -> Type['DataFrameMetric']:
+        @staticmethod
+        def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+            values: List[Union[int, float]] = []
+            for col in df.columns:
+                value = cls(df, col, **kwargs).value
+                if value is not None:
+                    values.append(value)
+            return max(values) if len(values) > 0 else None
+
+        return cls.create_composite_metric(DataFrameMetric, "Max", compute_max)
+
+    @classmethod
+    def avg_column_metric(cls) -> Type['DataFrameMetric']:
         @staticmethod
         def compute_avg(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -78,11 +95,16 @@ class ColumnMetric(_Metric):
                 value = cls(df, col, **kwargs).value
                 if value is not None:
                     values.append(value)
-            return sum(values)/len(values) if len(values) > 0 else None
+            return sum(values) / len(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameMetric, "Avg", compute_avg)
+
+    @classmethod
+    def diff_column_metric(cls) -> Type['ColumnComparison']:
         @staticmethod
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame,
                          col_name: str, **kwargs) -> Union[int, float, None]:
+
             value_old = cls(df_old, col_name, **kwargs).value
             value_new = cls(df_new, col_name, **kwargs).value
             if value_old is None or value_new is None:
@@ -90,10 +112,7 @@ class ColumnMetric(_Metric):
             else:
                 return value_new - value_old
 
-        cls.create_composite_metric("Max", compute_max)
-        cls.create_composite_metric("Min", compute_min)
-        cls.create_composite_metric("Avg", compute_avg)
-        cls.create_composite_metric("Diff", compute_diff)
+        return cls.create_composite_metric(ColumnComparison, "Diff", compute_diff)
 
     @staticmethod
     @abstractmethod
@@ -112,15 +131,13 @@ class TwoColumnMetric(_Metric):
         super().__init_subclass__(**kwargs)
         _register(cls, TwoColumnMetric.ALL)
 
-        @staticmethod
-        def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-            values: List[Union[int, float]] = []
-            for col_a, col_b in combinations(df.columns, 2):
-                value = cls(df, col_a, col_b, **kwargs).value
-                if value is not None:
-                    values.append(value)
-            return max(values) if len(values) > 0 else None
+        cls.min_two_column_metric()
+        cls.max_two_column_metric()
+        cls.avg_two_column_metric()
+        cls.diff_two_column_metric()
 
+    @classmethod
+    def min_two_column_metric(cls) -> Type['DataFrameMetric']:
         @staticmethod
         def compute_min(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -130,6 +147,23 @@ class TwoColumnMetric(_Metric):
                     values.append(value)
             return min(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameMetric, "Min", compute_min)
+
+    @classmethod
+    def max_two_column_metric(cls) -> Type['DataFrameMetric']:
+        @staticmethod
+        def compute_max(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+            values: List[Union[int, float]] = []
+            for col_a, col_b in combinations(df.columns, 2):
+                value = cls(df, col_a, col_b, **kwargs).value
+                if value is not None:
+                    values.append(value)
+            return max(values) if len(values) > 0 else None
+
+        return cls.create_composite_metric(DataFrameMetric, "Max", compute_max)
+
+    @classmethod
+    def avg_two_column_metric(cls) -> Type['DataFrameMetric']:
         @staticmethod
         def compute_avg(df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -139,6 +173,10 @@ class TwoColumnMetric(_Metric):
                     values.append(value)
             return sum(values) / len(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameMetric, "Avg", compute_avg)
+
+    @classmethod
+    def diff_two_column_metric(cls) -> Type['TwoColumnComparison']:
         @staticmethod
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame,
                          col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
@@ -149,10 +187,7 @@ class TwoColumnMetric(_Metric):
             else:
                 return value_new - value_old
 
-        cls.create_composite_metric("Max", compute_max)
-        cls.create_composite_metric("Min", compute_min)
-        cls.create_composite_metric("Avg", compute_avg)
-        cls.create_composite_metric("Diff", compute_diff)
+        return cls.create_composite_metric(TwoColumnComparison, "Diff", compute_diff)
 
     @staticmethod
     @abstractmethod
@@ -170,6 +205,10 @@ class DataFrameMetric(_Metric):
         super().__init_subclass__(**kwargs)
         _register(cls, DataFrameMetric.ALL)
 
+        cls.diff_data_frame_metric()
+
+    @classmethod
+    def diff_data_frame_metric(cls) -> Type['DataFrameComparison']:
         @staticmethod
         def compute_diff(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             value_old = cls(df_old, **kwargs).value
@@ -179,7 +218,7 @@ class DataFrameMetric(_Metric):
             else:
                 return value_new - value_old
 
-        cls.create_composite_metric("Diff", compute_diff)
+        return cls.create_composite_metric(DataFrameComparison, "Diff", compute_diff)
 
     @staticmethod
     @abstractmethod
@@ -197,15 +236,12 @@ class ColumnComparison(_Metric):
         super().__init_subclass__(**kwargs)
         _register(cls, ColumnComparison.ALL)
 
-        @staticmethod
-        def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-            values: List[Union[int, float]] = []
-            for col in df_old.columns:
-                value = cls(df_old, df_new, col).value
-                if value is not None:
-                    values.append(value)
-            return max(values) if len(values) > 0 else None
+        cls.min_column_comparison()
+        cls.max_column_comparison()
+        cls.avg_column_comparison()
 
+    @classmethod
+    def min_column_comparison(cls) -> Type['DataFrameComparison']:
         @staticmethod
         def compute_min(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -215,6 +251,23 @@ class ColumnComparison(_Metric):
                     values.append(value)
             return min(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameComparison, "Min", compute_min)
+
+    @classmethod
+    def max_column_comparison(cls) -> Type['DataFrameComparison']:
+        @staticmethod
+        def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+            values: List[Union[int, float]] = []
+            for col in df_old.columns:
+                value = cls(df_old, df_new, col).value
+                if value is not None:
+                    values.append(value)
+            return max(values) if len(values) > 0 else None
+
+        return cls.create_composite_metric(DataFrameComparison, "Max", compute_max)
+
+    @classmethod
+    def avg_column_comparison(cls) -> Type['DataFrameComparison']:
         @staticmethod
         def compute_avg(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -222,11 +275,9 @@ class ColumnComparison(_Metric):
                 value = cls(df_old, df_new, col).value
                 if value is not None:
                     values.append(value)
-            return sum(values)/len(values) if len(values) > 0 else None
+            return sum(values) / len(values) if len(values) > 0 else None
 
-        cls.create_composite_metric("Max", compute_max)
-        cls.create_composite_metric("Min", compute_min)
-        cls.create_composite_metric("Avg", compute_avg)
+        return cls.create_composite_metric(DataFrameComparison, "Avg", compute_avg)
 
     @staticmethod
     @abstractmethod
@@ -245,15 +296,12 @@ class TwoColumnComparison(_Metric):
         super().__init_subclass__(**kwargs)
         _register(cls, TwoColumnComparison.ALL)
 
-        @staticmethod
-        def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-            values: List[Union[int, float]] = []
-            for col_a, col_b in combinations(df_old.columns, 2):
-                value = cls(df_old, df_new, col_a, col_b).value
-                if value is not None:
-                    values.append(value)
-            return max(values) if len(values) > 0 else None
+        cls.min_two_column_comparison()
+        cls.max_two_column_comparison()
+        cls.avg_two_column_comparison()
 
+    @classmethod
+    def min_two_column_comparison(cls) -> Type['DataFrameComparison']:
         @staticmethod
         def compute_min(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -263,6 +311,23 @@ class TwoColumnComparison(_Metric):
                     values.append(value)
             return min(values) if len(values) > 0 else None
 
+        return cls.create_composite_metric(DataFrameComparison, "Min", compute_min)
+
+    @classmethod
+    def max_two_column_comparison(cls) -> Type['DataFrameComparison']:
+        @staticmethod
+        def compute_max(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+            values: List[Union[int, float]] = []
+            for col_a, col_b in combinations(df_old.columns, 2):
+                value = cls(df_old, df_new, col_a, col_b).value
+                if value is not None:
+                    values.append(value)
+            return max(values) if len(values) > 0 else None
+
+        return cls.create_composite_metric(DataFrameComparison, "Max", compute_max)
+
+    @classmethod
+    def avg_two_column_comparison(cls) -> Type['DataFrameComparison']:
         @staticmethod
         def compute_avg(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
             values: List[Union[int, float]] = []
@@ -272,9 +337,7 @@ class TwoColumnComparison(_Metric):
                     values.append(value)
             return sum(values) / len(values) if len(values) > 0 else None
 
-        cls.create_composite_metric("Max", compute_max)
-        cls.create_composite_metric("Min", compute_min)
-        cls.create_composite_metric("Avg", compute_avg)
+        return cls.create_composite_metric(DataFrameComparison, "Avg", compute_avg)
 
     @staticmethod
     @abstractmethod
@@ -297,17 +360,3 @@ class DataFrameComparison(_Metric):
     @abstractmethod
     def compute(df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         pass
-
-
-POOLING_METRIC_MAP: Dict[Type, Type[_Metric]] = {
-    ColumnMetric: DataFrameMetric,
-    TwoColumnMetric: DataFrameMetric,
-    ColumnComparison: DataFrameComparison,
-    TwoColumnComparison: DataFrameComparison
-}
-
-DIFF_METRIC_MAP: Dict[Type, Type[_Metric]] = {
-    ColumnMetric: ColumnComparison,
-    TwoColumnMetric: TwoColumnComparison,
-    DataFrameMetric: DataFrameComparison
-}
