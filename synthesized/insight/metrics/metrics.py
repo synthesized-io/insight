@@ -7,7 +7,7 @@ from pyemd import emd
 from scipy.stats import kendalltau, spearmanr, ks_2samp
 
 from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison
-from ..modelling import r2_regression_score, roc_auc_classification_score
+from ..modelling import predictive_modelling_score, logistic_regression_r2
 
 
 class StandardDeviation(ColumnMetric):
@@ -66,6 +66,17 @@ class CramersV(TwoColumnMetric):
         return v
 
 
+class CategoricalLogisticR2(TwoColumnMetric):
+    name = "Categorical logistic correlation"
+    tags = ["nominal"]
+
+    @staticmethod
+    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+        r2 = logistic_regression_r2(df, y_label=col_a_name, x_labels=[col_b_name])
+
+        return r2
+
+
 class KolmogorovSmirnovDistance(ColumnComparison):
     name = "KS Distance"
     tags = ["continuous"]
@@ -108,27 +119,18 @@ class EarthMoversDistance(ColumnComparison):
         return emd(p, q, distances)
 
 
-class R2RegressionScore(DataFrameMetric):
-    name = "R2 Regression Score"
+class PredictiveModellingScore(DataFrameMetric):
+    name = "PredictiveModellingScore"
     tags = ["modelling"]
 
     @staticmethod
-    def compute(df: pd.DataFrame, df_test: pd.DataFrame = None, regressor: str = None,
+    def compute(df: pd.DataFrame, model: str = None,
                 y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
-        if regressor is None or y_label is None:
+        if len(df.columns) < 2:
             raise ValueError
-        else:
-            return r2_regression_score(df, df_test, regressor, y_label, x_labels)
+        model = model or 'Linear'
+        y_label = y_label or df.columns[-1]
+        x_labels = x_labels if x_labels is not None else df.columns[:-1]
 
-
-class ROCAUCClassificationScore(DataFrameMetric):
-    name = "ROC AUC Classification Score"
-    tags = ["modelling"]
-
-    @staticmethod
-    def compute(df: pd.DataFrame, df_test: pd.DataFrame = None, classifier: str = None,
-                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
-        if classifier is None or y_label is None:
-            raise ValueError
-        else:
-            return roc_auc_classification_score(df, df_test, classifier, y_label, x_labels)
+        score, metric = predictive_modelling_score(df, y_label, x_labels, model)
+        return score
