@@ -422,9 +422,9 @@ class ValueFactory:
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
-                    value = self.create_categorical(name, similarity_based=True)
+                    value = self.create_categorical(name, similarity_based=True, true_categorical=True)
                 else:
-                    value = self.create_categorical(name)
+                    value = self.create_categorical(name, true_categorical=True)
 
         # Date value
         elif col.dtype.kind == 'M':  # 'm' timedelta
@@ -434,7 +434,7 @@ class ValueFactory:
         # Boolean value
         elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
-            value = self.create_categorical(name, categories=[False, True])
+            value = self.create_categorical(name, categories=[False, True], true_categorical=True)
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
         elif col.dtype.kind == 'i':
@@ -445,9 +445,10 @@ class ValueFactory:
             # is_nan = df.isna().any()
             if num_unique > 2:
                 value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
-                                                similarity_based=True)
+                                                similarity_based=True, true_categorical=True)
             else:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
+                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
+                                                true_categorical=True)
 
         # Date value if object type can be parsed
         elif col.dtype.kind == 'O':
@@ -465,9 +466,9 @@ class ValueFactory:
         elif num_unique <= sqrt(num_data):
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
-                    value = self.create_categorical(name, similarity_based=True)
+                    value = self.create_categorical(name, similarity_based=True, true_categorical=False)
                 else:
-                    value = self.create_categorical(name)
+                    value = self.create_categorical(name, true_categorical=True)
 
         # Return non-numeric value and handle NaNs if necessary
         if value is not None:

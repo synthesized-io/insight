@@ -1,8 +1,9 @@
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, Optional, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
 
 from sklearn.metrics import r2_score
 from sklearn.metrics import roc_auc_score
@@ -23,6 +24,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
 from ..common import ValueFactory
+from .dataset import categorical_or_continuous_values
 
 
 CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
@@ -44,86 +46,166 @@ REGRESSORS: Dict[str, Type[RegressorMixin]] = {
 }
 """A dictionary of sklearn regressors with fit/predict methods."""
 
-
-def r2_regression_score(df_train: pd.DataFrame, df_test: pd.DataFrame, regressor: str,
-                        y_column: str, x_columns: List[str] = None) -> float:
-    vf = ValueFactory(df=pd.concat((df_train, df_test), axis='index'))
-    train, test = vf.preprocess(df_train).dropna(), vf.preprocess(df_test).dropna()
-
-    X_train, y_train = train[x_columns], train[y_column].values
-    X_test, y_test = test[x_columns], test[y_column].values
-
-    rgr = REGRESSORS[regressor]
-    rgr.fit(X_train, y_train)
-
-    f_test = rgr.predict(X_test)
-
-    y_val = [val for val in vf.values if val.name == y_column][0]
-
-    y_test = y_val.postprocess(pd.DataFrame({y_column: y_test})).values
-    f_test = y_val.postprocess(pd.DataFrame({y_column: f_test})).values
-
-    return r2_score(y_test, f_test)
+MAX_ANALYSIS_SAMPLE_SIZE = 10_000
+RANDOM_SEED = 42
 
 
-def roc_auc_classification_score(train: pd.DataFrame, test: pd.DataFrame, classifier: str,
-                                 y_column: str, x_columns: List[str] = None) -> float:
+def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
+    score, metric = None, None
 
-    # If a target group is in test but not in train, it will have problems with shapes (OH.shape != CLF.shape).
-    train_unique = train[y_column].unique()
-    target_in_train = test[y_column].apply(lambda y: True if y in train_unique else False)
-    test = test[target_in_train]
+    available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
+    if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
+        raise ValueError('Response variable not in DataFrame.')
 
-    train = train.dropna()
-    test = test.dropna()
+    data = data[available_columns]
+    vf = ValueFactory(df=data)
 
-    x_train, y_train = train[x_columns], train[y_column].values
-    x_test, y_test = test[x_columns], test[y_column].values
+    categorical, continuous = categorical_or_continuous_values(vf)
+    available_columns = categorical+continuous
+
+    vf.values = list(filter(lambda val: val.name in available_columns, vf.values))
+    vf.columns = available_columns
+    data = data[available_columns]
+    x_labels = list(filter(lambda v: v in available_columns, x_labels))
+
+    if y_label not in available_columns:
+        raise ValueError('Response variable type not handled.')
+    elif len(x_labels) == 0:
+        raise ValueError('No explanatory variables with acceptable type.')
+    elif y_label in categorical and model not in CLASSIFIERS:
+        raise KeyError(f'Selected model ({model}) not available for classification.')
+    elif y_label in continuous and model not in REGRESSORS:
+        raise KeyError(f'Selected model ({model}) not available for regression.')
+
+    sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
+    x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
+
+    if y_label in continuous:
+        metric = 'r2'
+        y_val = [val for val in vf.values if val.name == y_label][0]
+        score = regressor_score(x_train, y_train, x_test, y_test, model, y_val)
+
+    elif y_label in categorical:
+        metric = 'roc_auc'
+        score = classifier_score(x_train, y_train, x_test, y_test, model)
+
+    return score, metric
+
+
+def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
+                                    y_label: str, x_labels: List[str], model: str):
+    score, synth_score, metric = None, None, None
+
+    available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
+    if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
+        raise ValueError('Response variable not in DataFrame.')
+
+    data = data[available_columns]
+    vf = ValueFactory(df=data)
+
+    categorical, continuous = categorical_or_continuous_values(vf)
+    available_columns = categorical+continuous
+
+    vf.values = list(filter(lambda val: val.name in available_columns, vf.values))
+    vf.columns = available_columns
+    data = data[available_columns]
+    synth_data = synth_data[available_columns]
+
+    x_labels = list(filter(lambda v: v in available_columns, x_labels))
+
+    if y_label not in available_columns:
+        raise ValueError('Response variable type not handled.')
+    elif len(x_labels) == 0:
+        raise ValueError('No explanatory variables with acceptable type.')
+    elif y_label in categorical and model not in CLASSIFIERS:
+        raise KeyError('Selected model not available.')
+    elif y_label in continuous and model not in REGRESSORS:
+        raise KeyError('Selected model not available.')
+
+    sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data), len(synth_data))
+    x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
+    x_synth, y_synth = _preprocess_data(synth_data, vf, y_label, x_labels, 0.8*sample_size)
+
+    if y_label in continuous:
+        metric = 'r2'
+        y_val = [val for val in vf.values if val.name == y_label][0]
+        score = regressor_score(x_train, y_train, x_test, y_test, model, y_val)
+        synth_score = regressor_score(x_synth, y_synth, x_test, y_test, model, y_val)
+
+    elif y_label in categorical:
+        metric = 'roc_auc'
+        score = classifier_score(x_train, y_train, x_test, y_test, model)
+        synth_score = classifier_score(x_synth, y_synth, x_test, y_test, model)
+
+    return score, synth_score, metric
+
+
+def classifier_score(x_train, y_train, x_test, y_test, model) -> float:
 
     if len(np.unique(y_train)) == 1:
         return 1.
 
-    x_train, x_test = _preprocess_x(x_train, x_test)
-    clf = CLASSIFIERS[classifier]()
-    clf.fit(x_train, y_train)
-
-    # Two classes classification
-    if len(np.unique(y_train)) == 2:
-        if hasattr(clf, 'predict_proba'):
-            y_pred_test = clf.predict_proba(x_test).T[1]
-        else:
-            y_pred_test = clf.predict(x_test)
-        return roc_auc_score(y_test, y_pred_test)
-
-    # Multi-class classification
     else:
-        oh = OneHotEncoder()
-        oh.fit(np.concatenate((y_train, y_test)).reshape(-1, 1))
-        y_test = oh.transform(y_test.reshape(-1, 1)).toarray()
+        clf = CLASSIFIERS[model]()
+        clf.fit(x_train, y_train)
 
-        if hasattr(clf, 'predict_proba'):
-            y_pred_test = clf.predict_proba(x_test)
+        # Two classes classification
+        if len(np.unique(y_train)) == 2:
+            if hasattr(clf, 'predict_proba'):
+                y_pred_test = clf.predict_proba(x_test).T[1]
+            else:
+                y_pred_test = clf.predict(x_test)
+
+            return roc_auc_score(y_test, y_pred_test)
+
+        # Multi-class classification
         else:
-            y_pred_test = oh.transform(clf.predict(x_test).reshape(-1, 1)).toarray()
+            oh = OneHotEncoder()
+            oh.fit(np.concatenate((y_train, y_test)).reshape(-1, 1))
+            y_test = oh.transform(y_test.reshape(-1, 1)).toarray()
 
-        y_test, y_pred_test = _remove_zero_column(y_test, y_pred_test)
-        return roc_auc_score(y_test, y_pred_test, multi_class='ovo')
+            if hasattr(clf, 'predict_proba'):
+                y_pred_test = clf.predict_proba(x_test)
+            else:
+                y_pred_test = oh.transform(clf.predict(x_test).reshape(-1, 1)).toarray()
+
+            y_test, y_pred_test = _remove_zero_column(y_test, y_pred_test)
+            return roc_auc_score(y_test, y_pred_test, multi_class='ovo')
+
+
+def regressor_score(x_train, y_train, x_test, y_test, model, y_val):
+    rgr = REGRESSORS[model]()
+    rgr.fit(x_train, y_train)
+
+    f_test = rgr.predict(x_test)
+
+    y_test = y_val.postprocess(pd.DataFrame({y_val.name: y_test})).values
+    f_test = y_val.postprocess(pd.DataFrame({y_val.name: f_test})).values
+
+    return r2_score(y_test, f_test)
 
 
 def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
-    rg = CLASSIFIERS['Logistic']()
-    rg.fit(df[x_labels].to_numpy().reshape((-1, 1)), df[y_label])
+    vf = ValueFactory(df=df)
+    categorical, continuous = categorical_or_continuous_values(vf)
+
+    rg = LogisticRegression()
+
+    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, categorical)
+    y_array = df[y_label].values
+
+    rg.fit(x_array, y_array)
 
     labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
     oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
 
-    lp = rg.predict_log_proba(df['y'].to_numpy().reshape((-1, 1)))
+    lp = rg.predict_log_proba(x_array)
     llf = np.sum(oh_labels * lp)
 
     rg = LogisticRegression()
-    rg.fit(np.ones(df[x_labels].to_numpy().reshape((-1, 1)).shape), df[y_label])
+    rg.fit(np.ones(x_array.shape), y_array)
 
-    lp = rg.predict_log_proba(df[x_labels].to_numpy().reshape((-1, 1)))
+    lp = rg.predict_log_proba(x_array)
     llnull = np.sum(oh_labels * lp)
 
     psuedo_r2 = 1 - (llf / llnull)
@@ -131,34 +213,46 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
     return psuedo_r2
 
 
-def _preprocess_x(x_train: pd.DataFrame, x_test: pd.DataFrame) -> Tuple[np.array, np.array]:
-    columns_categorical = []
-    columns_numeric = []
-    vf = ValueFactory(df=pd.concat((x_train, x_test), axis='index'))
+def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_size):
+    data = vf.preprocess(data)
+    data = data.dropna()
+    sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    plot_type_by_columns = {val.name: type(val).__name__ for val in vf.values}
-    for column in x_train.columns.values:
-        if plot_type_by_columns[column] == 'CategoricalValue':
-            columns_categorical.append(column)
+    categorical, continuous = categorical_or_continuous_values(vf)
+
+    df_x, y = data[explanatory_variables], data[response_variable].values
+    x = _preprocess_x2(df_x, None, [v for v in explanatory_variables if v in categorical])
+
+    return x, y
+
+
+def _preprocess_split_data(data, vf, response_variable, explanatory_variables, sample_size):
+    data = vf.preprocess(data)
+    data = data.dropna()
+    sample = data.sample(sample_size, random_state=RANDOM_SEED)
+
+    categorical, continuous = categorical_or_continuous_values(vf)
+
+    if response_variable in categorical:
+        if all(sample[response_variable].value_counts().values > 1):
+            df_train, df_test = train_test_split(sample, test_size=0.2, stratify=sample[response_variable],
+                                                 random_state=RANDOM_SEED)
         else:
-            columns_numeric.append(column)
+            df_train, df_test = train_test_split(sample, test_size=0.2, random_state=RANDOM_SEED)
 
-    pt = StandardScaler()
-    oh = OneHotEncoder(categories='auto', sparse=False)
+            train_unique = df_train[response_variable].unique()
+            target_in_train = df_test[response_variable].apply(lambda y: True if y in train_unique else False)
+            df_test = df_test[target_in_train]
 
-    train_result = []
-    test_result = []
-    if len(columns_numeric) > 0:
-        pt.fit(np.concatenate([x_train[columns_numeric], x_test[columns_numeric]]))
-        train_result.append(pt.transform(x_train[columns_numeric]))
-        test_result.append(pt.transform(x_test[columns_numeric]))
+    else:
+        df_train, df_test = train_test_split(sample, test_size=0.2, random_state=RANDOM_SEED)
 
-    if len(columns_categorical) > 0:
-        oh.fit(np.concatenate([x_train[columns_categorical], x_test[columns_categorical]]))
-        train_result.append(oh.transform(x_train[columns_categorical]))
-        test_result.append(oh.transform(x_test[columns_categorical]))
+    df_x_train, y_train = df_train[explanatory_variables], df_train[response_variable].values
+    df_x_test, y_test = df_test[explanatory_variables], df_test[response_variable].values
+    x_train, x_test = _preprocess_x2(df_x_train, df_x_test,
+                                     [v for v in explanatory_variables if v in categorical])
 
-    return np.concatenate(train_result, axis=1), np.concatenate(test_result, axis=1)
+    return x_train, y_train, x_test, y_test
 
 
 def _remove_zero_column(y1, y2):
@@ -181,3 +275,28 @@ def _remove_zero_column(y1, y2):
     y2 = np.delete(y2, delete_index, axis=1)
 
     return y1, y2
+
+
+def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], columns_categorical: List[str]):
+    x_all = pd.concat((x_train, x_test), axis='index') if x_test is not None else x_train
+    train_result = []
+    test_result = []
+
+    columns_numeric = [col for col in x_train if col not in columns_categorical]
+
+    if len(columns_numeric) > 0:
+        train_result.append(x_train[columns_numeric])
+        if x_test is not None:
+            test_result.append(x_test[columns_numeric])
+
+    if len(columns_categorical) > 0:
+        oh = OneHotEncoder(categories='auto', sparse=False)
+        oh.fit(x_all[columns_categorical])
+        train_result.append(oh.transform(x_train[columns_categorical]))
+        if x_test is not None:
+            test_result.append(oh.transform(x_test[columns_categorical]))
+
+    if x_test is not None:
+        return np.concatenate(train_result, axis=1), np.concatenate(test_result, axis=1)
+    else:
+        return np.concatenate(train_result, axis=1)

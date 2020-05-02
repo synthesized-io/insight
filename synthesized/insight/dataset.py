@@ -1,8 +1,10 @@
 from itertools import chain
+from typing import List, Tuple, Union
 
 import pandas as pd
 
 from ..common import ValueFactory
+from ..common.values import ContinuousValue, CategoricalValue, NanValue
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,6 +29,24 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     df_values = pd.DataFrame.from_records(value_spec)
 
     return df_values
+
+
+def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]) -> Tuple[List[str], List[str]]:
+    vf = ValueFactory(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
+
+    values = vf.get_values()
+    categorical, continuous = [], []
+
+    for value in values:
+        if isinstance(value, CategoricalValue):
+            if value.true_categorical:
+                categorical.append(value.name)
+            else:
+                continuous.append(value.name)
+        elif isinstance(value, ContinuousValue) or isinstance(value, NanValue):
+            continuous.append(value.name)
+
+    return categorical, continuous
 
 
 def describe_dataset(df: pd.DataFrame) -> pd.DataFrame:
