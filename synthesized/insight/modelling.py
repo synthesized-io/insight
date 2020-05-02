@@ -33,7 +33,7 @@ CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
     'GradientBoosting': GradientBoostingClassifier,
     'RandomForest': RandomForestClassifier,
     'MLP': MLPClassifier,
-    'LinearSVC': LinearSVC
+    'LinearSVM': LinearSVC
 }
 """A dictionary of sklearn classifiers with fit/predict methods."""
 
@@ -42,7 +42,7 @@ REGRESSORS: Dict[str, Type[RegressorMixin]] = {
     'GradientBoosting': GradientBoostingRegressor,
     'RandomForest': RandomForestRegressor,
     'MLP': MLPRegressor,
-    'LinearSVC': LinearSVR
+    'LinearSVM': LinearSVR
 }
 """A dictionary of sklearn regressors with fit/predict methods."""
 
@@ -108,8 +108,8 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
 
     vf.values = list(filter(lambda val: val.name in available_columns, vf.values))
     vf.columns = available_columns
-    data = data[available_columns]
-    synth_data = synth_data[available_columns]
+    data = data[available_columns].dropna()
+    synth_data = synth_data[available_columns].dropna()
 
     x_labels = list(filter(lambda v: v in available_columns, x_labels))
 
@@ -124,7 +124,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data), len(synth_data))
     x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
-    x_synth, y_synth = _preprocess_data(synth_data, vf, y_label, x_labels, 0.8*sample_size)
+    x_synth, y_synth = _preprocess_data(synth_data, vf, y_label, x_labels, int(0.8*sample_size))
 
     if y_label in continuous:
         metric = 'r2'
@@ -133,7 +133,8 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
         synth_score = regressor_score(x_synth, y_synth, x_test, y_test, model, y_val)
 
     elif y_label in categorical:
-        metric = 'roc_auc'
+        num_classes = len(np.unique(y_train))
+        metric = 'roc_auc (binary)' if num_classes == 2 else f'roc_auc (multi-class [{num_classes}])'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
         synth_score = classifier_score(x_synth, y_synth, x_test, y_test, model)
 
@@ -191,7 +192,7 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
 
     rg = LogisticRegression()
 
-    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, categorical)
+    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, [v for v in vf.values if v.name in x_labels and v.name in categorical])
     y_array = df[y_label].values
 
     rg.fit(x_array, y_array)
@@ -215,20 +216,18 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
 
 def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_size):
     data = vf.preprocess(data)
-    data = data.dropna()
     sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
     categorical, continuous = categorical_or_continuous_values(vf)
 
     df_x, y = data[explanatory_variables], data[response_variable].values
-    x = _preprocess_x2(df_x, None, [v for v in explanatory_variables if v in categorical])
+    x = _preprocess_x2(df_x, None, [v for v in vf.values if v.name in explanatory_variables and v.name in categorical])
 
     return x, y
 
 
 def _preprocess_split_data(data, vf, response_variable, explanatory_variables, sample_size):
     data = vf.preprocess(data)
-    data = data.dropna()
     sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
     categorical, continuous = categorical_or_continuous_values(vf)
@@ -250,7 +249,7 @@ def _preprocess_split_data(data, vf, response_variable, explanatory_variables, s
     df_x_train, y_train = df_train[explanatory_variables], df_train[response_variable].values
     df_x_test, y_test = df_test[explanatory_variables], df_test[response_variable].values
     x_train, x_test = _preprocess_x2(df_x_train, df_x_test,
-                                     [v for v in explanatory_variables if v in categorical])
+                                     [v for v in vf.values if v.name in explanatory_variables and v.name in categorical])
 
     return x_train, y_train, x_test, y_test
 
@@ -277,11 +276,12 @@ def _remove_zero_column(y1, y2):
     return y1, y2
 
 
-def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], columns_categorical: List[str]):
+def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values_categorical: List):
     x_all = pd.concat((x_train, x_test), axis='index') if x_test is not None else x_train
     train_result = []
     test_result = []
 
+    columns_categorical = [v if type(v) is str else v.name for v in values_categorical]
     columns_numeric = [col for col in x_train if col not in columns_categorical]
 
     if len(columns_numeric) > 0:
@@ -290,7 +290,7 @@ def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], column
             test_result.append(x_test[columns_numeric])
 
     if len(columns_categorical) > 0:
-        oh = OneHotEncoder(categories='auto', sparse=False)
+        oh = OneHotEncoder(categories=[list(range(v.num_categories)) for v in values_categorical], sparse=False)
         oh.fit(x_all[columns_categorical])
         train_result.append(oh.transform(x_train[columns_categorical]))
         if x_test is not None:
