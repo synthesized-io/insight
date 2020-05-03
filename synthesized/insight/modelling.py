@@ -51,6 +51,21 @@ RANDOM_SEED = 42
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
+    """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
+
+    This function will fit a regressor or classifier depending on the datatype of the y_label. All necessary
+    preprocessing (standard scaling, one-hot encoding) is done in the function.
+
+    Args:
+        data: The input dataset.
+        y_label: The name of the target variable column/response variable.
+        x_labels: A list of the input column names/explanatory variables.
+        model: One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP', 'LinearSVM', or 'Logistic'. Note that
+            'Logistic' only applies to categorical response variables.
+
+    Returns:
+        The score, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
+    """
     score, metric, task = None, None, None
 
     available_columns = list(set(data.columns).intersection(set(x_labels+[y_label])))
@@ -181,7 +196,7 @@ def classifier_score(x_train, y_train, x_test, y_test, model) -> float:
             return roc_auc_score(y_test, y_pred_test, multi_class='ovo')
 
 
-def regressor_score(x_train, y_train, x_test, y_test, model, y_val):
+def regressor_score(x_train, y_train, x_test, y_test, model, y_val) -> float:
     rgr = REGRESSORS[model]()
     rgr.fit(x_train, y_train)
 
@@ -193,7 +208,7 @@ def regressor_score(x_train, y_train, x_test, y_test, model, y_val):
     return r2_score(y_test, f_test)
 
 
-def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
+def logistic_regression_r2(df, y_label: str, x_labels: List[str]) -> float:
     vf = ValueFactory(df=df)
     categorical, continuous = categorical_or_continuous_values(vf)
 
