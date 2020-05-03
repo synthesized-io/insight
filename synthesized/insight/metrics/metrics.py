@@ -6,8 +6,8 @@ import pandas as pd
 from pyemd import emd
 from scipy.stats import kendalltau, spearmanr, ks_2samp
 
-from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison
-from ..modelling import predictive_modelling_score, logistic_regression_r2
+from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison, DataFrameComparison
+from ..modelling import predictive_modelling_score, predictive_modelling_comparison, logistic_regression_r2
 
 
 class StandardDeviation(ColumnMetric):
@@ -132,5 +132,22 @@ class PredictiveModellingScore(DataFrameMetric):
         y_label = y_label or df.columns[-1]
         x_labels = x_labels if x_labels is not None else df.columns[:-1]
 
-        score, metric = predictive_modelling_score(df, y_label, x_labels, model)
+        score, metric, task = predictive_modelling_score(df, y_label, x_labels, model)
+        return score
+
+
+class PredictiveModellingComparison(DataFrameComparison):
+    name = "PredictiveModellingComparison"
+    tags = ["modelling"]
+
+    @staticmethod
+    def compute(df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None,
+                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+        if len(df_old.columns) < 2:
+            raise ValueError
+        model = model or 'Linear'
+        y_label = y_label or df_old.columns[-1]
+        x_labels = x_labels if x_labels is not None else df_old.columns[:-1]
+
+        score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
         return score
