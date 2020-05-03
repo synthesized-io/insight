@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Type, Optional, Union
+from typing import Dict, List, Type, Optional
 
 import numpy as np
 import pandas as pd
@@ -51,9 +51,9 @@ RANDOM_SEED = 42
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
-    score, metri, task = None, None, None
+    score, metric, task = None, None, None
 
-    available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
+    available_columns = list(set(data.columns).intersection(set(x_labels+[y_label])))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
         raise ValueError('Response variable not in DataFrame.')
 
@@ -100,7 +100,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
                                     y_label: str, x_labels: List[str], model: str):
     score, synth_score, metric, task = None, None, None, None
 
-    available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
+    available_columns = list(set(data.columns).intersection(set(x_labels+[y_label])))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
         raise ValueError('Response variable not in DataFrame.')
 
@@ -227,7 +227,7 @@ def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_
 
     categorical, continuous = categorical_or_continuous_values(vf)
 
-    df_x, y = data[explanatory_variables], data[response_variable].values
+    df_x, y = sample[explanatory_variables], sample[response_variable].values
     x = _preprocess_x2(df_x, None, [v for v in categorical if v.name in explanatory_variables])
 
     return x, y
