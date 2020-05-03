@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 import pandas as pd
 
 from ..common import ValueFactory
-from ..common.values import ContinuousValue, CategoricalValue, NanValue
+from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -31,7 +31,8 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     return df_values
 
 
-def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]) -> Tuple[List[str], List[str]]:
+def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]) \
+        -> Tuple[List[Value], List[Value]]:
     vf = ValueFactory(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
 
     values = vf.get_values()
@@ -40,11 +41,11 @@ def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]
     for value in values:
         if isinstance(value, CategoricalValue):
             if value.true_categorical:
-                categorical.append(value.name)
+                categorical.append(value)
             else:
-                continuous.append(value.name)
+                continuous.append(value)
         elif isinstance(value, ContinuousValue) or isinstance(value, NanValue):
-            continuous.append(value.name)
+            continuous.append(value)
 
     return categorical, continuous
 

@@ -23,7 +23,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
-from ..common import ValueFactory
+from ..common import ValueFactory, Value
 from .dataset import categorical_or_continuous_values
 
 
@@ -51,7 +51,7 @@ RANDOM_SEED = 42
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
-    score, metric = None, None
+    score, metri, task = None, None, None
 
     available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
@@ -61,9 +61,9 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
     vf = ValueFactory(df=data)
 
     categorical, continuous = categorical_or_continuous_values(vf)
-    available_columns = categorical+continuous
+    available_columns = [v.name for v in categorical+continuous]
 
-    vf.values = list(filter(lambda val: val.name in available_columns, vf.values))
+    vf.values = categorical+continuous
     vf.columns = available_columns
     data = data[available_columns]
     x_labels = list(filter(lambda v: v in available_columns, x_labels))
@@ -72,29 +72,33 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
         raise ValueError('Response variable type not handled.')
     elif len(x_labels) == 0:
         raise ValueError('No explanatory variables with acceptable type.')
-    elif y_label in categorical and model not in CLASSIFIERS:
+    elif y_label in [v.name for v in categorical] and model not in CLASSIFIERS:
         raise KeyError(f'Selected model ({model}) not available for classification.')
-    elif y_label in continuous and model not in REGRESSORS:
+    elif y_label in [v.name for v in continuous] and model not in REGRESSORS:
         raise KeyError(f'Selected model ({model}) not available for regression.')
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
     x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
 
-    if y_label in continuous:
+    if y_label in [v.name for v in continuous]:
         metric = 'r2'
-        y_val = [val for val in vf.values if val.name == y_label][0]
+        task = 'regression'
+        y_val = [val for val in continuous if val.name == y_label][0]
         score = regressor_score(x_train, y_train, x_test, y_test, model, y_val)
 
-    elif y_label in categorical:
+    elif y_label in [v.name for v in categorical]:
+        y_val = [val for val in categorical if val.name == y_label][0]
+        num_classes = y_val.num_categories
         metric = 'roc_auc'
+        task = 'binary' if num_classes == 2 else f'multinomial [{num_classes}]'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
 
-    return score, metric
+    return score, metric, task
 
 
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
                                     y_label: str, x_labels: List[str], model: str):
-    score, synth_score, metric = None, None, None
+    score, synth_score, metric, task = None, None, None, None
 
     available_columns = set(data.columns).intersection(set(x_labels+[y_label]))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
@@ -104,9 +108,9 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
     vf = ValueFactory(df=data)
 
     categorical, continuous = categorical_or_continuous_values(vf)
-    available_columns = categorical+continuous
+    available_columns = [v.name for v in categorical + continuous]
 
-    vf.values = list(filter(lambda val: val.name in available_columns, vf.values))
+    vf.values = categorical + continuous
     vf.columns = available_columns
     data = data[available_columns].dropna()
     synth_data = synth_data[available_columns].dropna()
@@ -117,28 +121,31 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
         raise ValueError('Response variable type not handled.')
     elif len(x_labels) == 0:
         raise ValueError('No explanatory variables with acceptable type.')
-    elif y_label in categorical and model not in CLASSIFIERS:
-        raise KeyError('Selected model not available.')
-    elif y_label in continuous and model not in REGRESSORS:
-        raise KeyError('Selected model not available.')
+    elif y_label in [v.name for v in categorical] and model not in CLASSIFIERS:
+        raise KeyError(f'Selected model ({model}) not available for classification.')
+    elif y_label in [v.name for v in continuous] and model not in REGRESSORS:
+        raise KeyError(f'Selected model ({model}) not available for regression.')
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data), len(synth_data))
     x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
     x_synth, y_synth = _preprocess_data(synth_data, vf, y_label, x_labels, int(0.8*sample_size))
 
-    if y_label in continuous:
+    if y_label in [v.name for v in continuous]:
         metric = 'r2'
-        y_val = [val for val in vf.values if val.name == y_label][0]
+        task = 'regression'
+        y_val = [val for val in continuous if val.name == y_label][0]
         score = regressor_score(x_train, y_train, x_test, y_test, model, y_val)
         synth_score = regressor_score(x_synth, y_synth, x_test, y_test, model, y_val)
 
-    elif y_label in categorical:
-        num_classes = len(np.unique(y_train))
-        metric = 'roc_auc (binary)' if num_classes == 2 else f'roc_auc (multi-class [{num_classes}])'
+    elif y_label in [v.name for v in categorical]:
+        y_val = [val for val in categorical if val.name == y_label][0]
+        num_classes = y_val.num_categories
+        metric = 'roc_auc'
+        task = 'binary' if num_classes == 2 else f'multinomial [{num_classes}]'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
         synth_score = classifier_score(x_synth, y_synth, x_test, y_test, model)
 
-    return score, synth_score, metric
+    return score, synth_score, metric, task
 
 
 def classifier_score(x_train, y_train, x_test, y_test, model) -> float:
@@ -192,7 +199,7 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str]):
 
     rg = LogisticRegression()
 
-    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, [v for v in vf.values if v.name in x_labels and v.name in categorical])
+    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, [v for v in categorical if v.name in x_labels])
     y_array = df[y_label].values
 
     rg.fit(x_array, y_array)
@@ -221,7 +228,7 @@ def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_
     categorical, continuous = categorical_or_continuous_values(vf)
 
     df_x, y = data[explanatory_variables], data[response_variable].values
-    x = _preprocess_x2(df_x, None, [v for v in vf.values if v.name in explanatory_variables and v.name in categorical])
+    x = _preprocess_x2(df_x, None, [v for v in categorical if v.name in explanatory_variables])
 
     return x, y
 
@@ -232,7 +239,7 @@ def _preprocess_split_data(data, vf, response_variable, explanatory_variables, s
 
     categorical, continuous = categorical_or_continuous_values(vf)
 
-    if response_variable in categorical:
+    if response_variable in [v.name for v in categorical]:
         if all(sample[response_variable].value_counts().values > 1):
             df_train, df_test = train_test_split(sample, test_size=0.2, stratify=sample[response_variable],
                                                  random_state=RANDOM_SEED)
@@ -248,8 +255,7 @@ def _preprocess_split_data(data, vf, response_variable, explanatory_variables, s
 
     df_x_train, y_train = df_train[explanatory_variables], df_train[response_variable].values
     df_x_test, y_test = df_test[explanatory_variables], df_test[response_variable].values
-    x_train, x_test = _preprocess_x2(df_x_train, df_x_test,
-                                     [v for v in vf.values if v.name in explanatory_variables and v.name in categorical])
+    x_train, x_test = _preprocess_x2(df_x_train, df_x_test, [v for v in categorical if v.name in explanatory_variables])
 
     return x_train, y_train, x_test, y_test
 
@@ -276,12 +282,12 @@ def _remove_zero_column(y1, y2):
     return y1, y2
 
 
-def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values_categorical: List):
+def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values_categorical: List[Value]):
     x_all = pd.concat((x_train, x_test), axis='index') if x_test is not None else x_train
     train_result = []
     test_result = []
 
-    columns_categorical = [v if type(v) is str else v.name for v in values_categorical]
+    columns_categorical = [v.name for v in values_categorical]
     columns_numeric = [col for col in x_train if col not in columns_categorical]
 
     if len(columns_numeric) > 0:
