@@ -91,8 +91,9 @@ class CategoricalValue(Value):
 
         if df.loc[:, self.name].dtype.kind == 'O':
             self.is_string = True
-
-        unique_values = df.loc[:, self.name].unique().tolist()
+            unique_values = df.loc[:, self.name].apply(str).unique().tolist()
+        else:
+            unique_values = df.loc[:, self.name].unique().tolist()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
@@ -127,7 +128,7 @@ class CategoricalValue(Value):
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
 
         assert isinstance(self.categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
@@ -238,7 +239,11 @@ class CategoricalValue(Value):
                 self.nans_valid = True
                 break
 
-        categories = list(np.sort(categories))
+        try:
+            categories = list(np.sort(categories))
+        except TypeError:
+            pass  # Don't sort the categories if it's not possible.
+
         if found is not None:
             if self.is_string:
                 categories.insert(0, 'nan')
@@ -251,10 +256,12 @@ class CategoricalValue(Value):
             self.num_categories = len(self.categories)
             self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
+
         # If categories have been set and are different to the given
-        elif isinstance(self.categories, list) and \
-                categories[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
-            raise NotImplementedError
+        elif isinstance(self.categories, list):
+            for category in categories[int(self.nans_valid):]:
+                if category not in self.categories[int(self.nans_valid):]:
+                    raise NotImplementedError
 
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:

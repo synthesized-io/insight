@@ -393,6 +393,9 @@ class ValueFactory:
         Returns: Detected value or None which means that the value has already been detected before.
 
         """
+        if str(col.dtype.category) == 'category':
+            col = col.astype(object).infer_objects()
+
         value: Optional[Value] = None
 
         # ========== Pre-configured values ==========
@@ -473,7 +476,7 @@ class ValueFactory:
         # Boolean value
         elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
-            value = self.create_categorical(name, categories=[False, True])
+            value = self.create_categorical(name)
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
         elif col.dtype.kind == 'i':
@@ -483,10 +486,9 @@ class ValueFactory:
         elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
             if num_unique > 2:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
-                                                similarity_based=True)
+                value = self.create_categorical(name, pandas_category=True, similarity_based=True)
             else:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
+                value = self.create_categorical(name, pandas_category=True)
 
         # Date value if object type can be parsed
         elif col.dtype.kind == 'O':
