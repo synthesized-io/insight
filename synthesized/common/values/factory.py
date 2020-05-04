@@ -393,7 +393,7 @@ class ValueFactory:
         Returns: Detected value or None which means that the value has already been detected before.
 
         """
-        if str(col.dtype.category) == 'category':
+        if str(pd.Series(col).dtype.category) == 'category':
             col = col.astype(object).infer_objects()
 
         value: Optional[Value] = None
