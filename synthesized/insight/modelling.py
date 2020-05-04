@@ -1,3 +1,13 @@
+"""This module contains functions for quickly evaluating the modelling capabilities of a dataset.
+
+The main two functions are:
+    - predictive_modelling_score(df, y_label, x_labels, model)
+    - predictive_modelling_comparison(df, synth_df, y_label, x_labels, model)
+
+The functions handle Categorical and Continuous values. When the y_label is a continuous value the functions compute
+an R^2 value for a regression task; And when the y_label is a categorical value, the functions compute a ROC AUC value
+for a binary/multinomial classification task.
+"""
 from typing import Dict, List, Type, Optional
 
 import numpy as np
@@ -104,7 +114,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
     elif y_label in [v.name for v in categorical]:
         y_val = [val for val in categorical if val.name == y_label][0]
         num_classes = y_val.num_categories
-        metric = 'roc_auc'
+        metric = 'roc_auc' if num_classes == 2 else 'macro roc_auc'
         task = 'binary' if num_classes == 2 else f'multinomial [{num_classes}]'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
 
@@ -155,7 +165,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
     elif y_label in [v.name for v in categorical]:
         y_val = [val for val in categorical if val.name == y_label][0]
         num_classes = y_val.num_categories
-        metric = 'roc_auc'
+        metric = 'roc_auc' if num_classes == 2 else f'macro roc_auc'
         task = 'binary' if num_classes == 2 else f'multinomial [{num_classes}]'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
         synth_score = classifier_score(x_synth, y_synth, x_test, y_test, model)
