@@ -64,15 +64,19 @@ class AddressValue(Value):
         self.flat_label = flat_label
         self.house_name_label = house_name_label
 
-        if addresses_file is None or not os.path.exists(addresses_file):
+        # Check if given 'addresses_file' exist, otherwise set to None.
+        if addresses_file is not None:
+            if not os.path.exists(os.path.expanduser(addresses_file)):
+                logger.warning("Given address file '{}' does not exist, using fake addresses".format(addresses_file))
+                addresses_file = None
+            else:
+                addresses_file = os.path.expanduser(addresses_file)
+
+        if addresses_file is None:
             self.fake = True
             self.fkr = faker.Faker(locale='en_GB')
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
-
-            if addresses_file is not None and not os.path.exists(addresses_file):
-                logger.warning("Given address file '{}' does not exist, using fake addresses".format(addresses_file))
-
         else:
             self.fake = False
             logger.info("Loading address dictionary from '{}'".format(addresses_file))
@@ -108,33 +112,35 @@ class AddressValue(Value):
             return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
-        if self.fake or len(self.postcodes) > 0:
+        if self.fake:
             return
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
-        for n, row in df.iterrows():
-            postcode = row[self.postcode_label]
-            postcode_key = self._get_postcode_key(postcode)
 
-            county = row[self.county_label] if self.county_label else None
-            city = row[self.city_label] if self.city_label else None
-            district = row[self.district_label] if self.district_label else None
-            street = row[self.street_label] if self.street_label else None
-            house_number = row[self.house_number_label] if self.house_number_label else None
-            flat = row[self.flat_label] if self.flat_label else None
-            house_name = row[self.house_name_label] if self.house_name_label else None
+        if len(self.postcodes) > 0:
+            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
+            for n, row in df.iterrows():
+                postcode = row[self.postcode_label]
+                postcode_key = self._get_postcode_key(postcode)
 
-            if postcode_key not in self.postcodes:
-                self.postcodes[postcode_key] = []
-            self.postcodes[postcode_key].append(AddressRecord(
-                postcode=postcode,
-                county=county,
-                city=city,
-                district=district,
-                street=street,
-                house_number=house_number,
-                flat=flat,
-                house_name=house_name)
-            )
+                county = row[self.county_label] if self.county_label else None
+                city = row[self.city_label] if self.city_label else None
+                district = row[self.district_label] if self.district_label else None
+                street = row[self.street_label] if self.street_label else None
+                house_number = row[self.house_number_label] if self.house_number_label else None
+                flat = row[self.flat_label] if self.flat_label else None
+                house_name = row[self.house_name_label] if self.house_name_label else None
+
+                if postcode_key not in self.postcodes:
+                    self.postcodes[postcode_key] = []
+                self.postcodes[postcode_key].append(AddressRecord(
+                    postcode=postcode,
+                    county=county,
+                    city=city,
+                    district=district,
+                    street=street,
+                    house_number=house_number,
+                    flat=flat,
+                    house_name=house_name)
+                )
 
         # convert list to ndarray for better performance
         for key, postcode in self.postcodes.items():
