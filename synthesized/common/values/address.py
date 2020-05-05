@@ -162,7 +162,10 @@ class AddressValue(Value):
 
         df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
         df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
-        df = self.postcode.preprocess(df=df)
+
+        if self.postcode:
+            df = self.postcode.preprocess(df=df)
+
         return super().preprocess(df=df)
 
     def _get_postcode_key(self, postcode: str):
