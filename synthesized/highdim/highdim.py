@@ -64,7 +64,7 @@ class HighDimSynthesizer(Synthesizer):
         city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
         street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
         flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
-        addresses_file: str = '~/.synthesized/addresses.jsonl.gz',
+        addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz',
         # Compound Address
         address_label: str = None, postcode_regex: str = None,
         # Identifier label
