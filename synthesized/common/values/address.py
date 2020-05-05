@@ -86,6 +86,7 @@ class AddressValue(Value):
             self.postcode = CategoricalValue(name=postcode_label, **categorical_kwargs)
 
         self.dtype = tf.int64
+        assert self.fake or self.postcode
 
     def learned_input_columns(self) -> List[str]:
         if self.postcode is None:
@@ -115,9 +116,10 @@ class AddressValue(Value):
         if self.fake:
             return
 
-        if len(self.postcodes) > 0:
-            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
-            for n, row in df.iterrows():
+        contains_nans = (df.loc[:, self.postcode_label].isna().sum() > 0)
+
+        if len(self.postcodes) == 0:
+            for n, row in df.dropna().iterrows():
                 postcode = row[self.postcode_label]
                 postcode_key = self._get_postcode_key(postcode)
 
@@ -147,29 +149,25 @@ class AddressValue(Value):
             self.postcodes[key] = np.array(self.postcodes[key])
 
         if self.postcode is not None:
-            postcode_data = pd.DataFrame({self.postcode_label: list(self.postcodes.keys())})
+            unique_postcodes = list(self.postcodes.keys())
+            if contains_nans:
+                unique_postcodes.append(np.nan)
+
+            postcode_data = pd.DataFrame({self.postcode_label: unique_postcodes})
             self.postcode.extract(df=postcode_data)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('NaN')
         if self.fake:
             return super().preprocess(df=df)
-        postcodes = []
-        for n, row in df.iterrows():
-            postcode = row[self.postcode_label]
-            postcode_key = self._get_postcode_key(postcode)
-            postcodes.append(postcode_key)
 
-        df[self.postcode_label] = postcodes
-
-        if self.postcode is not None:
-            df = self.postcode.preprocess(df=df)
-
+        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
+        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
+        df = self.postcode.preprocess(df=df)
         return super().preprocess(df=df)
 
     def _get_postcode_key(self, postcode: str):
-        if postcode == 'NaN':
-            return 'NaN'
+        if postcode == 'nan':
+            return 'nan'
 
         if not AddressValue.postcode_regex.match(postcode):
             raise ValueError(postcode)
