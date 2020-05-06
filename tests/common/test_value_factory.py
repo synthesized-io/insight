@@ -40,7 +40,7 @@ def test_vf_floats(df):
 
 
 @given(df=data_frames(
-    [column('A', elements=st.datetimes(), fill=st.nothing())],
+    [column('A', elements=st.datetimes(allow_imaginary=False), fill=st.nothing())],
     index=range_indexes(min_size=2, max_size=500)
 ))
 def test_vf_datetimes(df):
