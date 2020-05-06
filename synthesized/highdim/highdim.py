@@ -215,7 +215,7 @@ class HighDimSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0
+        callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -228,6 +228,8 @@ class HighDimSynthesizer(Synthesizer):
                 instance, the iteration number, and a dictionary of values (usually the losses) as
                 arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
+            low_memory: If set to true, each batch will be preprocessed in each iteration, otherwise a copy of
+                df_train will be preprocessed at once at the start.
 
         """
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
@@ -235,20 +237,26 @@ class HighDimSynthesizer(Synthesizer):
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
 
-        df_train = df_train.copy()
-        df_train_orig = df_train.copy()
-        df_train = self.value_factory.preprocess(df_train)
-
-        data = self.get_data_feed_dict(df_train)
         num_data = len(df_train)
+
+        if not low_memory:
+            df_train = df_train.copy()
+            df_train_pre = self.value_factory.preprocess(df_train.copy())
+        else:
+            sample_size_lm = min(self.learning_manager.sample_size,
+                                 num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
-                batch = tf.random.uniform(shape=(self.batch_size,), maxval=len(df_train), dtype=tf.int64)
-                feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
-                             for name, value_data in data.items()}
+                batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
+
+                if low_memory:
+                    feed_dict = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                else:
+                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch].copy())
+
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                 ):
@@ -266,10 +274,19 @@ class HighDimSynthesizer(Synthesizer):
                     self.vae.learn(xs=feed_dict)
 
                 if self.learning_manager:
-                    if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                           data_dict=data, num_data=num_data,
-                                                           df_train_orig=df_train_orig):
-                        break
+                    if low_memory:
+                        batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
+                        data = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
+                                                               data_dict=data, num_data=num_data,
+                                                               df_train_orig=df_train.sample(sample_size_lm)):
+                            break
+                    else:
+                        data = self.get_data_feed_dict(df_train_pre)
+                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
+                                                               data_dict=data, num_data=num_data,
+                                                               df_train_orig=df_train):
+                            break
 
                 # Increase batch size
                 tf.summary.scalar(name='batch_size', data=self.tf_batch_size)
