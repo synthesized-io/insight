@@ -266,7 +266,7 @@ class CategoricalValue(Value):
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
 
             if found is not None:
-                self.category2idx = Categories(**{self.categories[i]: i for i in range(len(self.categories))})
+                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
             else:
                 self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
 
