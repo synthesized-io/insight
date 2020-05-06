@@ -467,7 +467,7 @@ class ValueFactory:
         # ========== Non-numeric values ==========
 
         num_data = len(col)
-        num_unique = col.nunique()
+        num_unique = col.nunique(dropna=False)
         is_nan = False
 
         if num_unique <= 1:
