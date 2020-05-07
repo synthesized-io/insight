@@ -7,6 +7,7 @@ from hypothesis import given, event
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.common import ValueFactory
+from synthesized.common.values.factory import PARSING_NAN_FRACTION_THRESHOLD
 from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
 
 
@@ -139,7 +140,7 @@ def test_vf_na_int(df):
         assert value.integer
     elif isinstance(value, SamplingValue):
         for v in value.categories:
-            assert v in [pd.NaT, np.NaN] or sum(df[value.name].isna())/len(df) < 0.75
+            assert v in [pd.NaT, np.NaN] or sum(df[value.name].isna())/len(df) < PARSING_NAN_FRACTION_THRESHOLD
     else:
         assert isinstance(value, ConstantValue) or isinstance(value, CategoricalValue)
 
