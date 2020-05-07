@@ -1,5 +1,4 @@
-import logging
-import warnings
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -8,12 +7,7 @@ from hypothesis import given, event
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.common import ValueFactory
-from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue
-
-
-logger = logging.getLogger()
-logger.setLevel(logging.WARNING)
-warnings.filterwarnings('ignore', module='sklearn')
+from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
 
 
 @given(df=data_frames(
@@ -40,7 +34,15 @@ def test_vf_floats(df):
 
 
 @given(df=data_frames(
-    [column('A', elements=st.datetimes(allow_imaginary=False), fill=st.nothing())],
+    [column(
+        'A',
+        elements=st.datetimes(
+            min_value=datetime.datetime(2000, 1, 1),
+            max_value=datetime.datetime(2020, 3, 1),
+            allow_imaginary=False,
+            timezones=st.just(datetime.timezone.utc)
+        ),
+        fill=st.nothing())],
     index=range_indexes(min_size=2, max_size=500)
 ))
 def test_vf_datetimes(df):
@@ -65,7 +67,7 @@ def test_vf_datetimes(df):
 @given(
     df=data_frames([column(
         'A',
-        elements=st.text(alphabet=st.characters(whitelist_categories=['Lu', 'Nd']), max_size=20),
+        elements=st.text(alphabet=st.characters(whitelist_categories=['Lu', 'Nd']), max_size=15),
         fill=st.nothing()
     )], index=range_indexes(min_size=2, max_size=500))
 )
@@ -91,7 +93,8 @@ def test_vf_text(df):
 @given(df=data_frames(
     [column(
         'A',
-        elements=st.one_of(st.floats(width=32, allow_infinity=False), st.text(max_size=10)),
+        elements=st.one_of(st.floats(width=32, allow_infinity=False),
+                           st.text(alphabet=st.characters(whitelist_categories=['Lu', 'Nd']), max_size=10)),
         fill=st.nothing()
     )],
     index=range_indexes(min_size=2, max_size=500)
@@ -133,6 +136,12 @@ def test_vf_na_int(df):
 
     if isinstance(value, ContinuousValue):
         value_name += '(int)' if value.integer else '(float)'
+        assert value.integer
+    elif isinstance(value, SamplingValue):
+        for v in value.categories:
+            assert v in [pd.NaT, np.NaN] or sum(df[value.name].isna())/len(df) < 0.75
+    else:
+        assert isinstance(value, ConstantValue) or isinstance(value, CategoricalValue)
 
     event(value_name)
     df_p = vf.preprocess(df=df)

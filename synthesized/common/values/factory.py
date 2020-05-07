@@ -470,6 +470,8 @@ class ValueFactory:
         num_unique = col.nunique(dropna=False)
         is_nan = False
 
+        excl_nan_dtype = col[col.notna()].infer_objects().dtype
+
         if num_unique <= 1:
             return self.create_constant(name), "num_unique <= 1. "
 
@@ -512,7 +514,7 @@ class ValueFactory:
                 reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
 
         # Date value if object type can be parsed
-        elif col.dtype.kind == 'O':
+        elif col.dtype.kind == 'O' and excl_nan_dtype.kind not in ['f', 'i']:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
@@ -558,7 +560,8 @@ class ValueFactory:
         # Return numeric value and handle NaNs if necessary
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
-            reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
+            reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
+                     f"rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
             if is_nan:
                 value = self.create_nan(name, value)
                 reason += " And contains NaNs. "
