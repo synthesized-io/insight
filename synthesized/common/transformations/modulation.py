@@ -58,5 +58,5 @@ class ModulationTransformation(Transformation):
         if not self.built:
             self.build(self.input_size)
 
-        self.offset.assign(variables['offset'])
-        self.scale.assign(variables['scale'])
+        self.offset.set_variables(variables['offset'])
+        self.scale.set_variables(variables['scale'])
