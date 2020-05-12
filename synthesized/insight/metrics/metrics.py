@@ -11,11 +11,10 @@ from ..modelling import predictive_modelling_score, predictive_modelling_compari
 
 
 class StandardDeviation(ColumnMetric):
-    name = "Standard Deviation"
+    name = "standard_deviation"
     tags = ["ordinal"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
         column = df[col_name]
         stddev = float(np.var(column.values)**0.5)
 
@@ -23,11 +22,10 @@ class StandardDeviation(ColumnMetric):
 
 
 class KendellTauCorrelation(TwoColumnMetric):
-    name = "Kendell's Tau correlation"
+    name = "kendell_tau_correlation"
     tags = ["ordinal", "symmetric"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
         column_a = df[col_a_name]
         column_b = df[col_b_name]
         corr, p_value = kendalltau(column_a.values, column_b.values)
@@ -36,11 +34,10 @@ class KendellTauCorrelation(TwoColumnMetric):
 
 
 class SpearmanRhoCorrelation(TwoColumnMetric):
-    name = "Spearman's Rho correlation"
+    name = "spearman_rho_correlation"
     tags = ["ordinal", "symmetric"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
         column_a = df[col_a_name]
         column_b = df[col_b_name]
         corr, p_value = spearmanr(column_a.values, column_b.values)
@@ -49,11 +46,10 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
 
 
 class CramersV(TwoColumnMetric):
-    name = "Cramer's V"
+    name = "cramers_v"
     tags = ["nominal", "symmetric"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
         column_a = df[col_a_name]
         column_b = df[col_b_name]
         table = pd.crosstab(column_a, column_b)
@@ -67,22 +63,20 @@ class CramersV(TwoColumnMetric):
 
 
 class CategoricalLogisticR2(TwoColumnMetric):
-    name = "Categorical logistic correlation"
+    name = "categorical_logistic_correlation"
     tags = ["nominal"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
         r2 = logistic_regression_r2(df, y_label=col_a_name, x_labels=[col_b_name])
 
         return r2
 
 
 class KolmogorovSmirnovDistance(ColumnComparison):
-    name = "KS Distance"
+    name = "kolmogorov_smirnov_distance"
     tags = ["continuous"]
 
-    @staticmethod
-    def compute(df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
         column_old_clean = df_old[col_name].dropna()
         column_new_clean = df_new[col_name].dropna()
         ks_distance, p_value = ks_2samp(column_old_clean, column_new_clean)
@@ -90,11 +84,10 @@ class KolmogorovSmirnovDistance(ColumnComparison):
 
 
 class EarthMoversDistance(ColumnComparison):
-    name = "EM Distance"
+    name = "earth_movers_distance"
     tags = ["categorical"]
 
-    @staticmethod
-    def compute(df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
         old = df_old[col_name].to_numpy()
         new = df_new[col_name].to_numpy()
 
@@ -120,12 +113,11 @@ class EarthMoversDistance(ColumnComparison):
 
 
 class PredictiveModellingScore(DataFrameMetric):
-    name = "PredictiveModellingScore"
+    name = "predictive_modelling_score"
     tags = ["modelling"]
 
-    @staticmethod
-    def compute(df: pd.DataFrame, model: str = None,
-                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, model: str = None, y_label: str = None,
+                 x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
         if len(df.columns) < 2:
             raise ValueError
         model = model or 'Linear'
@@ -137,12 +129,11 @@ class PredictiveModellingScore(DataFrameMetric):
 
 
 class PredictiveModellingComparison(DataFrameComparison):
-    name = "PredictiveModellingComparison"
+    name = "predictive_modelling_comparison"
     tags = ["modelling"]
 
-    @staticmethod
-    def compute(df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None,
-                y_label: str = None, x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None, y_label: str = None,
+                 x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
         if len(df_old.columns) < 2:
             raise ValueError
         model = model or 'Linear'

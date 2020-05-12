@@ -1,37 +1,43 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Mapping, Type, Union
 from itertools import combinations
 
 import pandas as pd
 
 
-def _register(metric, registry):
+def _register(metric, cls):
+    registry = cls.ALL
+    # print(f'Registering metric: {metric.name} in {cls.__name__} registry. ')
     if metric.name is None:
         raise ValueError("Metric 'name' not specified.")
+    if metric.name in registry:
+        raise ValueError("Metric 'name' already exists.")
     registry[metric.name] = metric
 
 
 class _Metric(ABC):
-    ALL: Dict[str,  Type['_Metric']] = {}
+    ALL: Mapping[str,  Type['_Metric']] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 
     def __init__(self):
-        _register(self, _Metric.ALL)
+        _register(self, _Metric)
+        super(_Metric, self).__init__()
 
 
 class ColumnMetric(_Metric):
     ALL: Dict[str, Type['ColumnMetric']] = {}
 
     def __init__(self):
-        super(ColumnMetric, self).__init__()
-        _register(self, ColumnMetric.ALL)
+        _register(self, ColumnMetric)
 
         AllColumnMetricAdapter(self, 'min')
         AllColumnMetricAdapter(self, 'max')
         AllColumnMetricAdapter(self, 'avg')
         DiffColumnMetricAdapter(self)
+
+        super(ColumnMetric, self).__init__()
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
@@ -42,13 +48,14 @@ class TwoColumnMetric(_Metric):
     ALL: Dict[str, Type['TwoColumnMetric']] = {}
 
     def __init__(self):
-        super(_Metric, self).__init__()
-        _register(self, TwoColumnMetric.ALL)
+        _register(self, TwoColumnMetric)
 
         AllTwoColumnMetricAdapter(self, 'min')
         AllTwoColumnMetricAdapter(self, 'max')
         AllTwoColumnMetricAdapter(self, 'avg')
         DiffTwoColumnMetricAdapter(self)
+
+        super(TwoColumnMetric, self).__init__()
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
@@ -59,10 +66,11 @@ class DataFrameMetric(_Metric):
     ALL: Dict[str, Type['DataFrameMetric']] = {}
 
     def __init__(self):
-        super(_Metric, self).__init__()
-        _register(self, DataFrameMetric.ALL)
+        _register(self, DataFrameMetric)
 
         DiffDataFrameMetricAdapter(self)
+
+        super(DataFrameMetric, self).__init__()
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
@@ -73,12 +81,13 @@ class ColumnComparison(_Metric):
     ALL: Dict[str, Type['ColumnComparison']] = {}
 
     def __init__(self):
-        super(_Metric, self).__init__()
-        _register(self, ColumnComparison.ALL)
+        _register(self, ColumnComparison)
 
         AllColumnComparisonAdapter(self, 'min')
         AllColumnComparisonAdapter(self, 'max')
         AllColumnComparisonAdapter(self, 'avg')
+
+        super(ColumnComparison, self).__init__()
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
@@ -89,12 +98,13 @@ class TwoColumnComparison(_Metric):
     ALL: Dict[str, Type['TwoColumnComparison']] = {}
 
     def __init__(self):
-        super(_Metric, self).__init__()
-        _register(self, TwoColumnComparison.ALL)
+        _register(self, TwoColumnComparison)
 
         AllTwoColumnComparisonAdapter(self, 'min')
         AllTwoColumnComparisonAdapter(self, 'max')
         AllTwoColumnComparisonAdapter(self, 'avg')
+
+        super(TwoColumnComparison, self).__init__()
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
@@ -106,8 +116,9 @@ class DataFrameComparison(_Metric):
     ALL: Dict[str, Type['DataFrameComparison']] = {}
 
     def __init__(self):
-        super(_Metric, self).__init__()
-        _register(self, DataFrameComparison.ALL)
+        _register(self, DataFrameComparison)
+
+        super(DataFrameComparison, self).__init__()
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
@@ -123,8 +134,8 @@ class AllColumnMetricAdapter(DataFrameMetric):
             raise ValueError
         self.summary_type = summary_type
         self.metric = metric
-        self.name = f'{summary_type}_{self.name}'
-        super(DataFrameMetric, self).__init__()
+        self.name = f'{summary_type}_{metric.name}'
+        super(AllColumnMetricAdapter, self).__init__()
 
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
@@ -145,8 +156,8 @@ class AllColumnMetricAdapter(DataFrameMetric):
 class DiffColumnMetricAdapter(ColumnComparison):
     def __init__(self, metric: ColumnMetric):
         self.metric = metric
-        self.name = f'diff_{self.name}'
-        super(ColumnComparison, self).__init__()
+        self.name = f'diff_{metric.name}'
+        super(DiffColumnMetricAdapter, self).__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
         value_old = self.metric(df_old, col_name, **kwargs)
@@ -163,8 +174,8 @@ class AllTwoColumnMetricAdapter(DataFrameMetric):
             raise ValueError
         self.summary_type = summary_type
         self.metric = metric
-        self.name = f'{summary_type}_{self.name}'
-        super(DataFrameMetric, self).__init__()
+        self.name = f'{summary_type}_{metric.name}'
+        super(AllTwoColumnMetricAdapter, self).__init__()
 
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
@@ -185,8 +196,8 @@ class AllTwoColumnMetricAdapter(DataFrameMetric):
 class DiffTwoColumnMetricAdapter(TwoColumnComparison):
     def __init__(self, metric: TwoColumnMetric):
         self.metric = metric
-        self.name = f'diff_{self.name}'
-        super(TwoColumnComparison, self).__init__()
+        self.name = f'diff_{metric.name}'
+        super(DiffTwoColumnMetricAdapter, self).__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
                  col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
@@ -201,8 +212,8 @@ class DiffTwoColumnMetricAdapter(TwoColumnComparison):
 class DiffDataFrameMetricAdapter(DataFrameComparison):
     def __init__(self, metric: DataFrameMetric):
         self.metric = metric
-        self.name = f'diff_{self.name}'
-        super(DataFrameComparison, self).__init__()
+        self.name = f'diff_{metric.name}'
+        super(DiffDataFrameMetricAdapter, self).__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         value_old = self.metric(df_old, **kwargs)
@@ -219,8 +230,8 @@ class AllColumnComparisonAdapter(DataFrameComparison):
             raise ValueError
         self.summary_type = summary_type
         self.metric = metric
-        self.name = f'{summary_type}_{self.name}'
-        super(DataFrameComparison, self).__init__()
+        self.name = f'{summary_type}_{metric.name}'
+        super(AllColumnComparisonAdapter, self).__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
@@ -243,8 +254,8 @@ class AllTwoColumnComparisonAdapter(DataFrameComparison):
             raise ValueError
         self.summary_type = summary_type
         self.metric = metric
-        self.name = f'{summary_type}_{self.name}'
-        super(DataFrameComparison, self).__init__()
+        self.name = f'{summary_type}_{metric.name}'
+        super(AllTwoColumnComparisonAdapter, self).__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
