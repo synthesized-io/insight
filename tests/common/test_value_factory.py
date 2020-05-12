@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import hypothesis.strategies as st
-from hypothesis import given, event, settings
+from hypothesis import given, event, settings, HealthCheck
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.common import ValueFactory
@@ -92,6 +92,7 @@ def test_vf_text(df):
     vf.postprocess(df=df_p)
 
 
+@settings(suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
         'A',
