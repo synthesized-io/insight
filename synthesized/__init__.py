@@ -1,9 +1,10 @@
 import os
 import warnings
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-for module in ['numpy', 'pandas', 'sklearn', 'tensorflow']:
-    warnings.filterwarnings('ignore', module=module, append=True)
+if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    for module in ['numpy', 'pandas', 'sklearn', 'tensorflow']:
+        warnings.filterwarnings('ignore', module=module, append=True)
 
 from .common.synthesizer import Synthesizer  # noqa: F402
 from .highdim import HighDimSynthesizer  # noqa: F402
