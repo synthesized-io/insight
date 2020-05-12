@@ -145,7 +145,6 @@ class IdentifierValue(Value):
     #     tf.summary.scalar(name=self.name, data=loss)
     #     return loss
 
-
     def get_variables(self) -> Dict[str, Any]:
         raise NotImplementedError
 
