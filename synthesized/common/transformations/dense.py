@@ -52,7 +52,6 @@ class DenseTransformation(Transformation):
 
         self.built = True
 
-    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
     def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
         x = tf.matmul(
             a=inputs, b=self.weight, transpose_a=False, transpose_b=False, adjoint_a=False,

@@ -29,8 +29,7 @@ class VariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
-    def call(self, inputs, **kwargs) -> tf.Tensor:
+    def call(self, inputs, condition=()) -> tf.Tensor:
         mean, stddev = self.gaussian(inputs)
 
         x = tf.random.normal(
@@ -38,7 +37,7 @@ class VariationalEncoding(Encoding):
         )
         x = mean + stddev * x
 
-        kl_loss = self.diagonal_normal_kl_divergence_single_dist(mean, stddev)
+        kl_loss = self.diagonal_normal_kl_divergence(mean, stddev)
         # kl_loss = tf.multiply(self.beta, kl_loss)
         kl_loss = self.beta * kl_loss
 
@@ -54,7 +53,6 @@ class VariationalEncoding(Encoding):
 
         return x
 
-    @tf.function(input_signature=[tf.TensorSpec(name='n', shape=(), dtype=tf.int64)])
     @tensorflow_name_scoped
     def sample(self, n) -> tf.Tensor:
         z = tf.random.normal(

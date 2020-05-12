@@ -56,25 +56,20 @@ class Encoding(Transformation):
         return beta
 
     @staticmethod
-    @tf.function
-    def diagonal_normal_kl_divergence_single_dist(mu_1: tf.Tensor, stddev_1: tf.Tensor) -> tf.Tensor:
-        return 0.5 * tf.reduce_mean(
-            tf.reduce_sum(
-                - tf.math.log(tf.maximum(x=tf.square(stddev_1), y=1e-6)) + tf.square(mu_1) + tf.square(stddev_1) - 1,
-                axis=-1
-            )
-        )
-
-    @staticmethod
-    @tf.function
     def diagonal_normal_kl_divergence(mu_1: tf.Tensor, stddev_1: tf.Tensor,
-                                      mu_2: tf.Tensor, stddev_2: tf.Tensor) -> tf.Tensor:
+                                      mu_2: tf.Tensor = None, stddev_2: tf.Tensor = None):
+        if mu_2 is None:
+            mu_2 = tf.zeros(shape=mu_1.shape, dtype=tf.float32)
+
+        if stddev_2 is None:
+            stddev_2 = tf.ones(shape=stddev_1.shape, dtype=tf.float32)
 
         cov_1 = tf.maximum(x=tf.square(stddev_1), y=1e-6)
         cov_2 = tf.maximum(x=tf.square(stddev_2), y=1e-6)
 
         return 0.5 * tf.reduce_mean(
             tf.reduce_sum(
+                tf.math.log(cov_2/cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
                 tf.math.log(cov_2 / cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
                 axis=-1
             )
