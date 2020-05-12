@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 import pandas as pd
 import tensorflow as tf
@@ -193,3 +193,9 @@ class DateValue(ContinuousValue):
             self.day.build()
             self.month.build()
             self.built = True
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_values(self, variables: Dict[str, Any]):
+        raise NotImplementedError

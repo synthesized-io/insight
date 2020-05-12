@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Dict, Any
 
 import tensorflow as tf
 
@@ -35,6 +35,7 @@ class Optimizer(tf.Module):
 
         # Gradient clipping
         self.clip_gradients = clip_gradients
+        self.optimizer_name = optimizer
         if optimizer not in tf_optimizers:
             raise NotImplementedError
         if self.clip_gradients is not None:
@@ -70,7 +71,7 @@ class Optimizer(tf.Module):
             # Exponentially decaying learning rate
             if self.decay_rate is None:
                 raise NotImplementedError
-            lr = lr * tf.math.pow(self.decay_rate, self.global_step/self.decay_steps)
+            lr = lr * tf.math.pow(self.decay_rate, self.global_step / self.decay_steps)
 
         tf.summary.scalar(name='learning_rate', data=lr)
 
@@ -93,3 +94,26 @@ class Optimizer(tf.Module):
         # Trainable variables
         self.optimizer.minimize(loss=loss, var_list=variables)
         return
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            clip_gradients=self.clip_gradients,
+            optimizer_name=self.optimizer_name,
+            learning_rate=self._learning_rate.numpy(),
+            global_step=self.global_step.numpy(),
+            decay_steps=self.decay_steps,
+            decay_rate=self.decay_rate,
+            initial_boost=self.initial_boost,
+        )
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert self.name == variables['name']
+        assert self.clip_gradients == variables['clip_gradients']
+        assert self.optimizer_name == variables['optimizer_name']
+        assert self._learning_rate.numpy() == variables['learning_rate']
+
+        self.global_step.assign(variables['global_step'])
+        self.decay_steps = variables['decay_steps']
+        self.decay_rate = variables['decay_rate']
+        self.initial_boost = variables['initial_boost']

@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict, Any
 
 import tensorflow as tf
 
@@ -146,3 +146,9 @@ class RecurrentDSSEncoding(Encoding):
         return [
             loss for layer in [self.transition_network, self.inference_network] for loss in layer.regularization_losses
         ]
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_values(self, variables: Dict[str, Any]):
+        raise NotImplementedError

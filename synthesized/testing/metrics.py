@@ -17,7 +17,6 @@ logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=
 
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
-MAX_PVAL = 0.05
 NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
@@ -306,6 +305,9 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
         if df_orig[col].dtype.kind == 'f':
             col_test_clean = df_orig[col].dropna()
             col_synth_clean = df_synth[col].dropna()
+            if len(col_test_clean) == 0 or len(col_synth_clean) == 0:
+                continue
+
             if len(col_test_clean) < len_test:
                 logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
                              .format(col, len(col_test_clean), len_test))
@@ -362,8 +364,7 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                 corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
                 corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
 
-                if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
-                    corr_distances.append(abs(corr_orig - corr_synth))
+                corr_distances.append(abs(corr_orig - corr_synth))
 
     # Compute Cramer's V distances
     cramers_v_distances = np.abs(get_cramers_v_matrix(df_orig[categorical_columns], flattened=True) -

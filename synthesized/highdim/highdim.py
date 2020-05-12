@@ -33,7 +33,7 @@ class HighDimSynthesizer(Synthesizer):
         # Network
         network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = 6,
-        batchnorm: bool = True, activation: str = 'relu',
+        batch_norm: bool = True, activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
@@ -91,7 +91,7 @@ class HighDimSynthesizer(Synthesizer):
             capacity: Architecture capacity.
             num_layers: Architecture depth.
             residual_depths: The depth(s) of each individual residual layer.
-            batchnorm: Whether to use batch normalization.
+            batch_norm: Whether to use batch normalization.
             activation: Activation function.
             optimizer: Optimizer.
             learning_rate: Learning rate.
@@ -171,7 +171,7 @@ class HighDimSynthesizer(Synthesizer):
         self.vae = VAEOld(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
-            num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
+            num_layers=num_layers, residual_depths=residual_depths, batch_norm=batch_norm, activation=activation,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
             decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay
@@ -339,7 +339,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-            synthesized = self.vae.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
+            synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             if progress_callback is not None:
                 progress_callback(98)

@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 import pandas as pd
 import tensorflow as tf
@@ -144,3 +144,10 @@ class IdentifierValue(Value):
     #     loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
     #     tf.summary.scalar(name=self.name, data=loss)
     #     return loss
+
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_values(self, variables: Dict[str, Any]):
+        raise NotImplementedError

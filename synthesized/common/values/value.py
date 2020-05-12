@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 import pandas as pd
 import tensorflow as tf
@@ -191,3 +191,9 @@ class Value(tf.Module):
     def add_regularization_weight(self, variable: tf.Variable):
         self._regularization_losses.append(variable)
         return variable
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_values(self, variables: Dict[str, Any]):
+        raise NotImplementedError

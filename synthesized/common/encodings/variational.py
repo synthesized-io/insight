@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -14,6 +16,7 @@ class VariationalEncoding(Encoding):
 
         self.gaussian = GaussianTransformation(input_size=input_size, output_size=encoding_size)
 
+    @tensorflow_name_scoped
     def build(self, input_shape):
         self.gaussian.build(input_shape)
         self.built = True
@@ -26,17 +29,20 @@ class VariationalEncoding(Encoding):
     def size(self):
         return self.encoding_size
 
-    def call(self, inputs, condition=()) -> tf.Tensor:
+    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
+    def call(self, inputs, **kwargs) -> tf.Tensor:
         mean, stddev = self.gaussian(inputs)
 
         x = tf.random.normal(
-            shape=tf.shape(input=mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
+            shape=tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
         x = mean + stddev * x
 
-        kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
+        kl_loss = self.diagonal_normal_kl_divergence_single_dist(mean, stddev)
+        # kl_loss = tf.multiply(self.beta, kl_loss)
         kl_loss = self.beta * kl_loss
 
+        # self.add_loss(lambda: kl_loss, inputs=inputs)
         self.add_loss(kl_loss, inputs=inputs)
         tf.summary.histogram(name='mean', data=mean),
         tf.summary.histogram(name='stddev', data=stddev),
@@ -48,8 +54,9 @@ class VariationalEncoding(Encoding):
 
         return x
 
+    @tf.function(input_signature=[tf.TensorSpec(name='n', shape=(), dtype=tf.int64)])
     @tensorflow_name_scoped
-    def sample(self, n, condition=(), identifier=None):
+    def sample(self, n) -> tf.Tensor:
         z = tf.random.normal(
             shape=(n, self.encoding_size), mean=0.0, stddev=1.0, dtype=tf.float32, seed=None
         )
@@ -58,3 +65,23 @@ class VariationalEncoding(Encoding):
     @property
     def regularization_losses(self):
         return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]
+
+    def get_variables(self) -> Dict[str, Any]:
+        if not self.built:
+            raise ValueError(self.name + " hasn't been built yet. ")
+
+        variables = super().get_variables()
+        variables.update(
+            beta=self.beta,
+            gaussian=self.gaussian.get_variables()
+        )
+        return variables
+
+    def set_values(self, variables: Dict[str, Any]):
+        super().set_variables(variables)
+
+        if not self.built:
+            self.build(self.input_size)
+
+        self.beta = variables['beta']
+        self.gaussian.set_variables(variables['gaussian'])

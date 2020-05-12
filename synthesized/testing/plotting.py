@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +13,7 @@ from scipy.stats import ks_2samp, spearmanr
 from statsmodels.formula.api import mnlogit, ols
 from statsmodels.tsa.stattools import acf, pacf
 
-from .metrics import calculate_evaluation_metrics
+from .metrics import calculate_evaluation_metrics, categorical_emd
 from ..highdim import HighDimSynthesizer
 from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
@@ -97,7 +97,7 @@ def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
 
 def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
                        evaluation: Optional[Evaluation] = None, evaluation_name: Optional[str] = None,
-                       ax: Axes = None):
+                       ax: Axes = None) -> Dict[str, float]:
     test = test.copy()
     synthesized = synthesized.copy()
 
@@ -139,6 +139,8 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             tick.set_rotation(10)
     else:
         plt.xticks(rotation=10)
+
+    return current_result
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
@@ -445,3 +447,48 @@ def rolling_mse_asof(sd, time_unit=None):
 default_metrics = {"avg_distance": mean_ks_distance}
 association_dict = {"i": ordered_correlation, "f": continuous_correlation,
                     "O": categorical_logistic_rsquared}
+
+
+def plt_dist_orig_snyh(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, unique_threshold: int = 30,
+                       ax: plt.Axes = None) -> float:
+
+    COLOR_ORIG = '#00AB26'
+    COLOR_SYNTH = '#2794F3'
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    orig_vc = df_orig[key].value_counts().values
+    synth_vc = df_synth[key].value_counts().values
+
+    if len(np.unique(orig_vc)) > unique_threshold:
+        #     if True:
+        all_vc = np.concatenate((orig_vc, synth_vc))
+        remove_outliers = 0.02
+        percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+        start, end = np.percentile(all_vc, percentiles)
+        if start == end:
+            start, end = min(all_vc), max(all_vc)
+
+        orig_vc = orig_vc[(start <= orig_vc) & (orig_vc <= end)]
+        synth_vc = synth_vc[(start <= synth_vc) & (synth_vc <= end)]
+
+        sns.distplot(orig_vc, color=COLOR_ORIG, label='orig', ax=ax)
+        sns.distplot(synth_vc, color=COLOR_SYNTH, label='synth', ax=ax)
+        dist = ks_2samp(orig_vc, synth_vc)[0]
+
+    else:
+        df_orig_vc = pd.DataFrame(orig_vc, columns=[key])
+        df_synth_vc = pd.DataFrame(synth_vc, columns=[key])
+
+        # We sample orig and synth them so that they have the same size to make the plots more comprehensive
+        sample_size = min(len(orig_vc), len(synth_vc))
+        concatenated = pd.concat([df_orig_vc.assign(dataset='orig').sample(sample_size),
+                                  df_synth_vc.assign(dataset='synth').sample(sample_size)])
+
+        ax = sns.countplot(x=key, hue='dataset', data=concatenated,
+                           palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+        dist = categorical_emd(orig_vc, synth_vc)
+
+    ax.legend()
+    return dist

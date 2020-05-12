@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, Union, Tuple, Optional
+from typing import Dict, List, Union, Tuple, Optional, Any
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -27,7 +27,7 @@ class VAE(Generative):
         # Latent distribution
         distribution: str, latent_size: int,
         # Encoder and decoder network
-        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
+        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batch_norm: bool,
         activation: str,
         # Optimizer
         optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
@@ -49,7 +49,7 @@ class VAE(Generative):
         kwargs = dict(
             name='encoder', input_size=self.value_ops.input_size, depths=residual_depths,
             layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+            output_size=capacity if not num_layers else None, activation=activation, batch_norm=batch_norm
         )
         for k in list(kwargs.keys()):
             if kwargs[k] is None:
@@ -231,3 +231,9 @@ class VAE(Generative):
             for module in [self.encoder, self.encoding, self.decoder, self.decoding] + self.values
             for loss in module.regularization_losses
         ]
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_values(self, variables: Dict[str, Any]):
+        raise NotImplementedError
