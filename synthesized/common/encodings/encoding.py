@@ -69,7 +69,6 @@ class Encoding(Transformation):
 
         return 0.5 * tf.reduce_mean(
             tf.reduce_sum(
-                tf.math.log(cov_2/cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
                 tf.math.log(cov_2 / cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
                 axis=-1
             )
