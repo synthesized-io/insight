@@ -1,7 +1,8 @@
 """Utilities that help you create Value objects."""
 import enum
 from math import log, sqrt
-from typing import Dict, Any, Optional, Union, Iterable, List, Set
+from typing import Dict, Any, Optional, Union, Iterable, List, Set, Tuple
+import logging
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,9 @@ from .value import Value
 
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
+
+
+logger = logging.getLogger(__name__)
 
 
 class TypeOverride(enum.Enum):
@@ -189,10 +193,19 @@ class ValueFactory:
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
-                identified_value = self.identify_value(col=df[name], name=name)
-                # None means the value has already been detected:
-                if identified_value is None:
-                    continue
+                try:
+                    identified_value, reason = self.identify_value(col=df[name], name=name)
+                    # None means the value has already been detected:
+                    if identified_value is None:
+                        continue
+
+                    logger.debug("Identified column %s (%s:%s) as %s. Reason: %s", name, df[name].dtype,
+                                 df[name].dtype.kind, identified_value.__class__.__name__, reason)
+                except Exception as e:
+                    logger.error("Failed to identify column %s (%s:%s).", name, df[name].dtype,
+                                 df[name].dtype.kind)
+                    raise e
+
                 value = identified_value
             if name in self.condition_columns:
                 self.conditions.append(value)
@@ -383,7 +396,7 @@ class ValueFactory:
         """Create ConstantValue."""
         return ConstantValue(name=name)
 
-    def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
+    def identify_value(self, col: pd.Series, name: str) -> Tuple[Optional[Value], Optional[str]]:
         """Autodetect the type of a column and assign a name.
 
         Args:
@@ -393,7 +406,11 @@ class ValueFactory:
         Returns: Detected value or None which means that the value has already been detected before.
 
         """
+        if str(col.dtype) == 'category':
+            col = col.astype(object).infer_objects()
+
         value: Optional[Value] = None
+        reason: str = ""
 
         # ========== Pre-configured values ==========
 
@@ -405,7 +422,7 @@ class ValueFactory:
                         value = self.create_person(i)
                         self.person_values[i] = value
                     else:
-                        return None
+                        return None, None
 
         # Bank value
         elif len(self.bank_labels) > 0 and name in np.concatenate(self.bank_labels):
@@ -415,7 +432,7 @@ class ValueFactory:
                         value = self.create_bank(i)
                         self.bank_values[i] = value
                     else:
-                        return None
+                        return None, None
 
         # Address value
         elif len(self.address_labels) > 0 and name in np.concatenate(self.address_labels):
@@ -425,7 +442,7 @@ class ValueFactory:
                         value = self.create_address(i)
                         self.address_values[i] = value
                     else:
-                        return None
+                        return None, None
 
         # Compound address value
         elif name == self.address_label:
@@ -433,7 +450,7 @@ class ValueFactory:
                 value = self.create_compound_address()
                 self.address_value = value
             else:
-                return None
+                return None, None
 
         # Identifier value
         elif name == self.identifier_label:
@@ -441,20 +458,22 @@ class ValueFactory:
                 value = self.create_identifier(name)
                 self.identifier_value = value
             else:
-                return None
+                return None, None
 
         # Return pre-configured value
         if value is not None:
-            return value
+            return value, "Name matched preconfigured label. "
 
         # ========== Non-numeric values ==========
 
         num_data = len(col)
-        num_unique = col.nunique()
+        num_unique = col.nunique(dropna=False)
         is_nan = False
 
+        excl_nan_dtype = col[col.notna()].infer_objects().dtype
+
         if num_unique <= 1:
-            return self.create_constant(name)
+            return self.create_constant(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
         elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
@@ -462,57 +481,64 @@ class ValueFactory:
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
                     value = self.create_categorical(name, similarity_based=True)
+                    reason = "Small (< log(N)) number of distinct values. "
                 else:
                     value = self.create_categorical(name)
+                    reason = "Small (< log(N)) number of distinct values (= 2). "
 
         # Date value
         elif col.dtype.kind == 'M':  # 'm' timedelta
             is_nan = col.isna().any()
             value = self.create_date(name)
+            reason = "Column dtype kind is 'M'. "
 
         # Boolean value
         elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
-            value = self.create_categorical(name, categories=[False, True])
+            value = self.create_categorical(name)
+            reason = "Column dtype kind is 'b'. "
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-        elif col.dtype.kind == 'i':
+        elif col.dtype.kind in ['i', 'u']:
             value = self.create_continuous(name, integer=True)
+            reason = f"Column dtype kind is '{col.dtype.kind}'. "
 
         # Categorical value if object type has attribute 'categories'
         elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
             if num_unique > 2:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
-                                                similarity_based=True)
+                value = self.create_categorical(name, pandas_category=True, similarity_based=True)
+                reason = "Column dtype kind is 'O' and has 'categories' (> 2). "
             else:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories)
+                value = self.create_categorical(name, pandas_category=True)
+                reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
 
         # Date value if object type can be parsed
-        elif col.dtype.kind == 'O':
+        elif col.dtype.kind == 'O' and excl_nan_dtype.kind not in ['f', 'i']:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
                 if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
+                    reason = "Column dtype is 'O' and convertable to datetime. "
                     is_nan = num_nan > 0
             except (ValueError, TypeError, OverflowError):
                 pass
 
         # Similarity-based categorical value if not too many distinct values
-        elif num_unique <= sqrt(num_data):
+        elif num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
             if _column_does_not_contain_genuine_floats(col):
-                if num_unique > 2:
+                if num_unique > 2:  # note the alternative is never possible anyway.
                     value = self.create_categorical(name, similarity_based=True)
-                else:
-                    value = self.create_categorical(name)
+                    reason = "Small (< sqrt(N)) number of distinct values. "
 
         # Return non-numeric value and handle NaNs if necessary
         if value is not None:
             if is_nan:
                 value = self.create_nan(name, value)
-            return value
+                reason += "And contains NaNs. "
+            return value, reason
 
         # ========== Numeric value ==========
 
@@ -529,20 +555,26 @@ class ValueFactory:
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
             is_nan = col.isna().any()
+        else:
+            numeric_data = None
         # Return numeric value and handle NaNs if necessary
-        if numeric_data.dtype.kind in ('f', 'i'):
+        if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
+            reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
+                     f"rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
             if is_nan:
                 value = self.create_nan(name, value)
-            return value
+                reason += " And contains NaNs. "
+            return value, reason
 
         # ========== Fallback values ==========
 
         # Sampling value otherwise
         value = self.create_sampling(name)
+        reason = "No other criteria met. "
 
         assert value is not None
-        return value
+        return value, reason
 
 
 def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:

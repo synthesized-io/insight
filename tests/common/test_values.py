@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import pandas as pd
 
 from synthesized.common import Value
 from synthesized.common.values import CategoricalValue, ContinuousValue
@@ -33,8 +34,10 @@ def test_categorical():
         embedding_size=None, pandas_category=False, similarity_based=False,
         temperature=1.0, moving_average=False,
     )
+    cat_values = np.random.randint(low=0, high=8, size=(4,))
+    value.extract(pd.DataFrame({'categorical': cat_values}))
     _test_value(
-        value=value, x=np.random.randint(low=0, high=8, size=(4,)),
+        value=value, x=cat_values,
         y=np.random.randn(4, value.learned_output_size())
     )
 
@@ -45,8 +48,10 @@ def test_categorical_similarity():
         embedding_size=None, pandas_category=False, similarity_based=True,
         temperature=1.0, moving_average=True
     )
+    cat_values = np.random.randint(low=0, high=8, size=(4,))
+    value.extract(pd.DataFrame({'categorical': cat_values}))
     _test_value(
-        value=value, x=np.random.randint(low=0, high=8, size=(4,)),
+        value=value, x=cat_values,
         y=np.random.randn(4, value.learned_output_size())
     )
 

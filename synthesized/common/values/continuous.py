@@ -97,7 +97,7 @@ class ContinuousValue(Value):
 
         if self.integer is None:
             self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
-        elif self.integer and column.dtype.kind != 'i':
+        elif self.integer and column.dtype.kind not in ['i', 'u']:
             raise NotImplementedError
 
         column = column.astype(dtype='float32')

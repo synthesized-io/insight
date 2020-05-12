@@ -28,12 +28,9 @@ class CategoricalValue(Value):
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
-        if categories is None:
-            self.num_categories: Optional[int] = None
-        else:
-            unique_values = pd.Series(categories).unique().tolist()
-            self._set_categories(unique_values)
+        self.num_categories: Optional[int] = None
 
+        self.given_categories = categories
         self.probabilities = probabilities
         self.capacity = capacity
 
@@ -91,8 +88,9 @@ class CategoricalValue(Value):
 
         if df.loc[:, self.name].dtype.kind == 'O':
             self.is_string = True
-
-        unique_values = df.loc[:, self.name].unique().tolist()
+            unique_values = df.loc[:, self.name].astype(object).fillna('nan').apply(str).unique().tolist()
+        else:
+            unique_values = df.loc[:, self.name].fillna(np.nan).unique().tolist()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
@@ -127,7 +125,7 @@ class CategoricalValue(Value):
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
 
         assert isinstance(self.categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
@@ -231,30 +229,52 @@ class CategoricalValue(Value):
     def _set_categories(self, categories: list):
 
         found = None
-        # Put any nan at the position zero of the list
-        for n, x in enumerate(categories):
-            if isinstance(x, float) and isnan(x):
-                found = categories.pop(n)
-                self.nans_valid = True
-                break
 
-        categories = list(np.sort(categories))
+        if self.given_categories is None:
+            # Put any nan at the position zero of the list
+            for n, x in enumerate(categories):
+                if self.is_string and x == 'nan':
+                    found = categories.pop(n)
+                    self.nans_valid = True
+                    break
+                elif isinstance(x, float) and isnan(x):
+                    found = categories.pop(n)
+                    self.nans_valid = True
+                    break
+
+            try:
+                categories = list(np.sort(categories))
+            except TypeError:
+                pass  # Don't sort the categories if it's not possible.
+
+        else:
+            for x in categories:
+                if x not in self.given_categories:
+                    found = 'nan' if self.is_string else np.nan
+                    self.nans_valid = True
+                    break
+
+            categories = self.given_categories.copy()
+
         if found is not None:
-            if self.is_string:
-                categories.insert(0, 'nan')
-            else:
-                categories.insert(0, np.nan)
+            categories.insert(0, found)
 
         # If categories are not set
         if self.categories is None:
             self.categories = categories
             self.num_categories = len(self.categories)
-            self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
+
+            if found is not None:
+                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
+            else:
+                self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+
         # If categories have been set and are different to the given
-        elif isinstance(self.categories, list) and \
-                categories[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
-            raise NotImplementedError
+        elif isinstance(self.categories, list):
+            for category in categories[int(self.nans_valid):]:
+                if category not in self.categories[int(self.nans_valid):]:
+                    raise NotImplementedError
 
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:
@@ -262,3 +282,9 @@ def compute_embedding_size(num_categories: Optional[int], similarity_based: bool
         return int(log(num_categories + 1) * 2.0)
     else:
         return num_categories
+
+
+class Categories(dict):
+
+    def __missing__(self, key):
+        return 0
