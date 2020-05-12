@@ -96,12 +96,12 @@ class VAEOld(Generative):
         x = self.value_ops.unified_inputs(self.xs)
 
         #################################
-        x = self.linear_input(x, training=True)
-        x = self.encoder(x, training=True)
-        z = self.encoding(x, training=True)
+        x = self.linear_input(x)
+        x = self.encoder(x)
+        z = self.encoding(x)
         x = self.value_ops.add_conditions(z, conditions=self.xs)
-        x = self.decoder(x, training=True)
-        y = self.linear_output(x, training=True)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         #################################
 
         # Losses
@@ -170,16 +170,16 @@ class VAEOld(Generative):
 
         #################################
         x = self.value_ops.unified_inputs(xs)
-        x = self.linear_input(x, training=False)
-        x = self.encoder(x, training=False)
+        x = self.linear_input(x)
+        x = self.encoder(x)
 
-        latent_space = self.encoding(x, training=False)
+        latent_space = self.encoding(x)
         mean = self.encoding.gaussian.mean.output
         std = self.encoding.gaussian.stddev.output
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
-        x = self.decoder(x, training=False)
-        y = self.linear_output(x, training=False)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
         #################################
 
@@ -216,8 +216,8 @@ class VAEOld(Generative):
         """
         x = self.encoding.sample(n)
         x = self.value_ops.add_conditions(x=x, conditions=cs)
-        x = self.decoder(x, training=False)
-        y = self.linear_output(x, training=False)
+        x = self.decoder(x)
+        y = self.linear_output(x)
 
         return y
 
