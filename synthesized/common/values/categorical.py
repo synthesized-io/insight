@@ -1,3 +1,4 @@
+from collections.abc import MutableSequence
 import logging
 from math import isnan, log
 from typing import Any, Dict, List, Optional
@@ -24,7 +25,7 @@ class CategoricalValue(Value):
         categories: List = None, probabilities=None, embedding_size: int = None
     ):
         super().__init__(name=name)
-        self.categories: Optional[List] = None
+        self.categories: Optional[MutableSequence] = None
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
@@ -226,7 +227,7 @@ class CategoricalValue(Value):
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 
-    def _set_categories(self, categories: list):
+    def _set_categories(self, categories: MutableSequence):
 
         found = None
 
@@ -262,7 +263,7 @@ class CategoricalValue(Value):
         # If categories are not set
         if self.categories is None:
             self.categories = categories
-            self.num_categories = len(self.categories)
+            self.num_categories = len(categories)
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
 
             if found is not None:
