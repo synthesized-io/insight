@@ -34,7 +34,7 @@ def test_vf_floats(df):
     vf.postprocess(df=df_p)
 
 
-@settings(deadline=None)
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
         'A',
@@ -66,6 +66,7 @@ def test_vf_datetimes(df):
     vf.postprocess(df=df_p)
 
 
+@settings(suppress_health_check=[HealthCheck.too_slow])
 @given(
     df=data_frames([column(
         'A',
