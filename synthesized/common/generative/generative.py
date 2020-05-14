@@ -55,15 +55,7 @@ class Generative(tf.Module):
         return self._trainable_variables
 
     def get_variables(self) -> Dict[str, Any]:
-        variables = dict(name=self.name)
-        # for v in self.values:
-        #     values['value' + v.name] = v.get_values()
-        # for c in self.conditions:
-        #     values['condition' + c.name] = c.get_values()
-
-        return variables
+        return dict(name=self.name)
 
     def set_variables(self, variables: Dict[str, Any]):
         assert variables['name'] == self.name
-        # self.input_size = values['input_size']
-        # self.output_size = values['output_size']
