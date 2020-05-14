@@ -25,12 +25,12 @@ class VAEOld(Generative):
     def __init__(
         self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
-        distribution: str, latent_size: int,
+        latent_size: int,
         # Encoder and decoder network
         network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batch_norm: bool,
         activation: str,
         # Optimizer
-        optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
+        optimizer: str, learning_rate: float, decay_steps: Optional[int], decay_rate: Optional[float],
         initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
@@ -39,6 +39,18 @@ class VAEOld(Generative):
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
+        self.network = network
+        self.capacity = capacity
+        self.num_layers = num_layers
+        self.residual_depths = residual_depths
+        self.batch_norm = batch_norm
+        self.activation = activation
+        self.optimizer_name = optimizer
+        self.learning_rate = learning_rate
+        self.decay_steps = decay_steps
+        self.decay_rate = decay_rate
+        self.initial_boost = initial_boost
+        self.clip_gradients = clip_gradients
         self.beta = beta
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
@@ -248,8 +260,9 @@ class VAEOld(Generative):
         super().set_variables(variables)
 
         assert self.latent_size == variables['latent_size']
-        assert self.beta == variables['beta']
-        assert self.weight_decay == variables['weight_decay']
+
+        self.beta = variables['beta']
+        self.weight_decay = variables['weight_decay']
 
         self.linear_input.set_variables(variables['linear_input'])
         self.encoder.set_variables(variables['encoder'])

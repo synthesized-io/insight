@@ -278,12 +278,6 @@ class CategoricalValue(Value):
                 if category not in self.categories[int(self.nans_valid):]:
                     raise NotImplementedError
 
-    def get_variables(self) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    def set_values(self, variables: Dict[str, Any]):
-        raise NotImplementedError
-
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:
     if similarity_based and num_categories:

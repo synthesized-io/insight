@@ -1,5 +1,7 @@
 import re
 from typing import List, Optional, Dict, Any
+from base64 import b64encode, b64decode
+import pickle
 
 import pandas as pd
 import tensorflow as tf
@@ -193,7 +195,11 @@ class Value(tf.Module):
         return variable
 
     def get_variables(self) -> Dict[str, Any]:
-        raise NotImplementedError
+        return dict(
+            name=self.name,
+            pickle=b64encode(pickle.dumps(self)).decode('utf-8')
+        )
 
-    def set_values(self, variables: Dict[str, Any]):
-        raise NotImplementedError
+    @staticmethod
+    def set_variables(variables: Dict[str, Any]):
+        return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

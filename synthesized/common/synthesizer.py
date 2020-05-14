@@ -3,7 +3,7 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional
+from typing import Callable, Dict, Union, List, Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -186,3 +186,15 @@ class Synthesizer(tf.Module):
     def __exit__(self, type, value, traceback):
         if self.writer is not None:
             self.writer.close()
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            global_step=self.global_step.numpy()
+        )
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert self.name == variables['name']
+
+        self.global_step.assign(variables['global_step'])
+        tf.summary.experimental.set_step(self.global_step)

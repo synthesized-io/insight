@@ -319,9 +319,3 @@ class ContinuousValue(Value):
         loss = mean_loss + variance_loss + jarque_bera_loss
 
         return loss
-
-    def get_variables(self) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    def set_values(self, variables: Dict[str, Any]):
-        raise NotImplementedError

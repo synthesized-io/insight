@@ -17,7 +17,7 @@ class Optimizer(tf.Module):
         # Optimizer: "adam"
         optimizer: str,
         # Learning rate
-        learning_rate: tf.Tensor, decay_steps: int = None, decay_rate: float = None,
+        learning_rate: float, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0,
         # Gradient clipping by global norm
         clip_gradients: float = None
@@ -28,7 +28,7 @@ class Optimizer(tf.Module):
         self.global_step = tf.summary.experimental.get_step()
 
         # Learning rate
-        self._learning_rate = learning_rate
+        self._learning_rate = tf.constant(learning_rate, dtype=tf.float32)
         self.decay_steps = decay_steps
         self.decay_rate = decay_rate
         self.initial_boost = initial_boost

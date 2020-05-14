@@ -27,6 +27,9 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
         loss = loss_output
         assert loss.shape == ()
 
+        variables = value.get_variables()
+        value.set_variables(variables)
+
 
 def test_categorical():
     value = CategoricalValue(

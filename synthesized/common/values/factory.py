@@ -161,6 +161,7 @@ class ValueFactory:
         # Identifier
         self.identifier_value: Optional[Value] = None
         self.identifier_label = identifier_label
+
         # Date
         self.date_value: Optional[Value] = None
 
@@ -576,6 +577,49 @@ class ValueFactory:
 
         assert value is not None
         return value, reason
+
+    def get_variables(self) -> Dict[str, Any]:
+        variables: Dict[str, Any] = dict(
+            name=self.name,
+            columns=self.columns,
+            column_aliases=self.column_aliases,
+            identifier_label=self.identifier_label,
+            identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
+        )
+
+        variables['num_values'] = len(self.values)
+        for i, value in enumerate(self.values):
+            variables['value_{}'.format(i)] = value.get_variables()
+
+        variables['num_conditions'] = len(self.conditions)
+        for i, condition in enumerate(self.conditions):
+            variables['condition_{}'.format(i)] = condition.get_variables()
+
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert self.name == variables['name']
+
+        self.columns = variables['columns']
+        self.column_aliases = variables['column_aliases']
+        self.identifier_label = variables['identifier_label']
+
+        self.identifier_value = Value.set_variables(variables['identifier_value']) \
+            if variables['identifier_value'] is not None else None
+
+        self.values = []
+        for i in range(variables['num_values']):
+            self.values.append(Value.set_variables(variables['value_{}'.format(i)]))
+
+        self.conditions = []
+        for i in range(variables['num_conditions']):
+            self.values.append(Value.set_variables(variables['condition_{}'.format(i)]))
+
+
+class ValueFactoryWrapper(ValueFactory):
+    def __init__(self, name: str, variables: Dict[str, Any]):
+        self.name = name
+        self.set_variables(variables)
 
 
 def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:

@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -147,9 +147,3 @@ class NanValue(Value):
         loss += self.value.loss(y=y[:, 2:], xs=xs, mask=tf.math.logical_not(x=target_nan))
         tf.summary.scalar(name=self.name, data=loss)
         return loss
-
-    def get_variables(self) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    def set_values(self, variables: Dict[str, Any]):
-        raise NotImplementedError
