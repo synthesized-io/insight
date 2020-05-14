@@ -11,6 +11,7 @@ from synthesized.common.values.factory import PARSING_NAN_FRACTION_THRESHOLD
 from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
 
 
+@settings(deadline=None)
 @given(df=data_frames(
     [column('A', elements=st.floats(width=32, allow_infinity=False), fill=st.nothing())],
     index=range_indexes(min_size=2, max_size=500)
@@ -66,7 +67,7 @@ def test_vf_datetimes(df):
     vf.postprocess(df=df_p)
 
 
-@settings(suppress_health_check=[HealthCheck.too_slow])
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     df=data_frames([column(
         'A',
@@ -93,7 +94,7 @@ def test_vf_text(df):
     vf.postprocess(df=df_p)
 
 
-@settings(suppress_health_check=[HealthCheck.too_slow])
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
         'A',
@@ -122,6 +123,7 @@ def test_vf_text_floats(df):
     vf.postprocess(df=df_p)
 
 
+@settings(deadline=None)
 @given(
     df=data_frames([
         column('A', elements=st.one_of(st.integers(), st.sampled_from([np.NaN, pd.NaT, None])), fill=st.nothing())

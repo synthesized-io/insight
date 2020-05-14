@@ -22,7 +22,7 @@ class CategoricalValue(Value):
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
-        categories: List = None, probabilities=None, embedding_size: int = None
+        categories: List = None, probabilities=None, embedding_size: int = None, true_categorical: bool = True
     ):
         super().__init__(name=name)
         self.categories: Optional[MutableSequence] = None
@@ -56,6 +56,7 @@ class CategoricalValue(Value):
         self.temperature = temperature
         self.pandas_category = pandas_category
         self.produce_nans = produce_nans
+        self.true_categorical = true_categorical
         self.is_string = False
         self.dtype = tf.int64
 

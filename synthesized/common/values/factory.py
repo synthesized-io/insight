@@ -480,10 +480,10 @@ class ValueFactory:
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
-                    value = self.create_categorical(name, similarity_based=True)
+                    value = self.create_categorical(name, similarity_based=True, true_categorical=True)
                     reason = "Small (< log(N)) number of distinct values. "
                 else:
-                    value = self.create_categorical(name)
+                    value = self.create_categorical(name, true_categorical=True)
                     reason = "Small (< log(N)) number of distinct values (= 2). "
 
         # Date value
@@ -495,7 +495,7 @@ class ValueFactory:
         # Boolean value
         elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
-            value = self.create_categorical(name)
+            value = self.create_categorical(name, categories=[False, True], true_categorical=True)
             reason = "Column dtype kind is 'b'. "
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
@@ -507,10 +507,11 @@ class ValueFactory:
         elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
             if num_unique > 2:
-                value = self.create_categorical(name, pandas_category=True, similarity_based=True)
+                value = self.create_categorical(name, pandas_category=True, similarity_based=True,
+                                                true_categorical=True)
                 reason = "Column dtype kind is 'O' and has 'categories' (> 2). "
             else:
-                value = self.create_categorical(name, pandas_category=True)
+                value = self.create_categorical(name, pandas_category=True, true_categorical=True)
                 reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
 
         # Date value if object type can be parsed
@@ -530,7 +531,7 @@ class ValueFactory:
         elif num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:  # note the alternative is never possible anyway.
-                    value = self.create_categorical(name, similarity_based=True)
+                    value = self.create_categorical(name, similarity_based=True, true_categorical=False)
                     reason = "Small (< sqrt(N)) number of distinct values. "
 
         # Return non-numeric value and handle NaNs if necessary
