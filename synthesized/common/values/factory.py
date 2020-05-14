@@ -1,7 +1,8 @@
 """Utilities that help you create Value objects."""
 import enum
 from math import log, sqrt
-from typing import Dict, Any, Optional, Union, Iterable, List, Set
+from typing import Dict, Any, Optional, Union, Iterable, List, Set, Tuple
+import logging
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,9 @@ CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 PARSING_NAN_FRACTION_THRESHOLD = 0.25
 
 
+logger = logging.getLogger(__name__)
+
+
 class TypeOverride(enum.Enum):
     ID = 'ID'
     DATE = 'DATE'
@@ -48,16 +52,21 @@ class ValueFactory:
         column_aliases: Dict[str, str] = None, condition_columns: List[str] = None,
         find_rules: Union[str, List[str]] = None,
         # Person
-        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
-        lastname_label: str = None, email_label: str = None,
-        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
+        name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
+        lastname_label: Union[str, List[str]] = None, email_label: Union[str, List[str]] = None,
+        mobile_number_label: Union[str, List[str]] = None, home_number_label: Union[str, List[str]] = None,
+        work_number_label: Union[str, List[str]] = None,
         # Bank
-        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
+        bic_label: Union[str, List[str]] = None, sort_code_label: Union[str, List[str]] = None,
+        account_label: Union[str, List[str]] = None,
         # Address
-        postcode_label: str = None, county_label: str = None, city_label: str = None,
-        district_label: str = None,
-        street_label: str = None, house_number_label: str = None, flat_label: str = None,
-        house_name_label: str = None,
+        postcode_label: Union[str, List[str]] = None, county_label: Union[str, List[str]] = None,
+        city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
+        street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
+        flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
+        addresses_file: str = None,
+        # Compound Address
         address_label: str = None, postcode_regex: str = None,
         # Identifier
         identifier_label: str = None,
@@ -100,32 +109,55 @@ class ValueFactory:
         self.capacity = capacity
 
         # Person
-        self.person_value: Optional[Value] = None
-        self.bank_value: Optional[Value] = None
-        self.title_label = title_label
-        self.gender_label = gender_label
-        self.name_label = name_label
-        self.firstname_label = firstname_label
-        self.lastname_label = lastname_label
-        self.email_label = email_label
-        self.mobile_number_label = mobile_number_label
-        self.home_number_label = home_number_label
-        self.work_number_label = work_number_label
-        self.bic_label = bic_label
-        self.sort_code_label = sort_code_label
-        self.account_label = account_label
+        self.title_label = _get_formated_label(title_label)
+        self.gender_label = _get_formated_label(gender_label)
+        self.name_label = _get_formated_label(name_label)
+        self.firstname_label = _get_formated_label(firstname_label)
+        self.lastname_label = _get_formated_label(lastname_label)
+        self.email_label = _get_formated_label(email_label)
+        self.mobile_number_label = _get_formated_label(mobile_number_label)
+        self.home_number_label = _get_formated_label(home_number_label)
+        self.work_number_label = _get_formated_label(work_number_label)
+
+        person_labels = [
+            self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
+            self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
+        ]
+        self.person_labels = _get_labels_matrix(person_labels)
+        self.person_values: List[Optional[Value]] = [None] * len(self.person_labels)
+
+        # Bank Number
+        self.bic_label = _get_formated_label(bic_label)
+        self.sort_code_label = _get_formated_label(sort_code_label)
+        self.account_label = _get_formated_label(account_label)
+
+        bank_labels = [self.bic_label, self.sort_code_label, self.account_label]
+        self.bank_labels = _get_labels_matrix(bank_labels)
+        self.bank_values: List[Optional[Value]] = [None] * len(self.bank_labels)
+
         # Address
+        self.postcode_label = _get_formated_label(postcode_label)
+        self.county_label = _get_formated_label(county_label)
+        self.city_label = _get_formated_label(city_label)
+        self.district_label = _get_formated_label(district_label)
+        self.street_label = _get_formated_label(street_label)
+        self.house_number_label = _get_formated_label(house_number_label)
+        self.flat_label = _get_formated_label(flat_label)
+        self.house_name_label = _get_formated_label(house_name_label)
+        self.addresses_file = addresses_file
+
+        address_labels = [
+            self.postcode_label, self.county_label, self.city_label, self.district_label, self.street_label,
+            self.house_number_label, self.flat_label, self.house_name_label
+        ]
+        self.address_labels = _get_labels_matrix(address_labels)
+        self.address_values: List[Optional[Value]] = [None] * len(self.address_labels)
+
+        # Compound Address
         self.address_value: Optional[Value] = None
-        self.postcode_label = postcode_label
-        self.county_label = county_label
-        self.city_label = city_label
-        self.district_label = district_label
-        self.street_label = street_label
-        self.house_number_label = house_number_label
-        self.flat_label = flat_label
-        self.house_name_label = house_name_label
         self.address_label = address_label
         self.postcode_regex = postcode_regex
+
         # Identifier
         self.identifier_value: Optional[Value] = None
         self.identifier_label = identifier_label
@@ -161,10 +193,19 @@ class ValueFactory:
             if name in self.type_overrides:
                 value = self._apply_type_overrides(df, name)
             else:
-                identified_value = self.identify_value(col=df[name], name=name)
-                # None means the value has already been detected:
-                if identified_value is None:
-                    continue
+                try:
+                    identified_value, reason = self.identify_value(col=df[name], name=name)
+                    # None means the value has already been detected:
+                    if identified_value is None:
+                        continue
+
+                    logger.debug("Identified column %s (%s:%s) as %s. Reason: %s", name, df[name].dtype,
+                                 df[name].dtype.kind, identified_value.__class__.__name__, reason)
+                except Exception as e:
+                    logger.error("Failed to identify column %s (%s:%s).", name, df[name].dtype,
+                                 df[name].dtype.kind)
+                    raise e
+
                 value = identified_value
             if name in self.condition_columns:
                 self.conditions.append(value)
@@ -295,26 +336,29 @@ class ValueFactory:
         nan_kwargs['produce_nans'] = True if name in self.produce_nans_for else False
         return NanValue(name=name, value=value, **nan_kwargs)
 
-    def create_person(self) -> PersonValue:
+    def create_person(self, i: int) -> PersonValue:
         """Create PersonValue."""
         return PersonValue(
-            name='person', title_label=self.title_label,
-            gender_label=self.gender_label,
-            name_label=self.name_label, firstname_label=self.firstname_label,
-            lastname_label=self.lastname_label, email_label=self.email_label,
-            mobile_number_label=self.mobile_number_label,
-            home_number_label=self.home_number_label,
-            work_number_label=self.work_number_label,
+            name='person_{}'.format(i),
+            title_label=self.title_label[i] if self.title_label else None,
+            gender_label=self.gender_label[i] if self.gender_label else None,
+            name_label=self.name_label[i] if self.name_label else None,
+            firstname_label=self.firstname_label[i] if self.firstname_label else None,
+            lastname_label=self.lastname_label[i] if self.lastname_label else None,
+            email_label=self.email_label[i] if self.email_label else None,
+            mobile_number_label=self.mobile_number_label[i] if self.mobile_number_label else None,
+            home_number_label=self.home_number_label[i] if self.home_number_label else None,
+            work_number_label=self.work_number_label[i] if self.work_number_label else None,
             categorical_kwargs=self.categorical_kwargs
         )
 
-    def create_bank(self) -> BankNumberValue:
+    def create_bank(self, i: int) -> BankNumberValue:
         """Create BankNumberValue."""
         return BankNumberValue(
-            name='bank',
-            bic_label=self.bic_label,
-            sort_code_label=self.sort_code_label,
-            account_label=self.account_label
+            name='bank_{}'.format(i),
+            bic_label=self.bic_label[i] if self.bic_label else None,
+            sort_code_label=self.sort_code_label[i] if self.sort_code_label else None,
+            account_label=self.account_label[i] if self.account_label else None
         )
 
     def create_compound_address(self) -> CompoundAddressValue:
@@ -325,15 +369,19 @@ class ValueFactory:
             capacity=self.capacity
         )
 
-    def create_address(self) -> AddressValue:
+    def create_address(self, i: int) -> AddressValue:
         """Create AddressValue."""
         return AddressValue(
-            name='address', postcode_level=0,
-            postcode_label=self.postcode_label, county_label=self.county_label,
-            city_label=self.city_label, district_label=self.district_label,
-            street_label=self.street_label, house_number_label=self.house_number_label,
-            flat_label=self.flat_label, house_name_label=self.house_name_label,
-            categorical_kwargs=self.categorical_kwargs
+            name='address_{}'.format(i), postcode_level=0,
+            postcode_label=self.postcode_label[i] if self.postcode_label else None,
+            county_label=self.county_label[i] if self.county_label else None,
+            city_label=self.city_label[i] if self.city_label else None,
+            district_label=self.district_label[i] if self.district_label else None,
+            street_label=self.street_label[i] if self.street_label else None,
+            house_number_label=self.house_number_label[i] if self.house_number_label else None,
+            flat_label=self.flat_label[i] if self.flat_label else None,
+            house_name_label=self.house_name_label[i] if self.house_name_label else None,
+            addresses_file=self.addresses_file, categorical_kwargs=self.categorical_kwargs
         )
 
     def create_enumeration(self, name: str) -> EnumerationValue:
@@ -348,7 +396,7 @@ class ValueFactory:
         """Create ConstantValue."""
         return ConstantValue(name=name)
 
-    def identify_value(self, col: pd.Series, name: str) -> Optional[Value]:
+    def identify_value(self, col: pd.Series, name: str) -> Tuple[Optional[Value], Optional[str]]:
         """Autodetect the type of a column and assign a name.
 
         Args:
@@ -358,35 +406,43 @@ class ValueFactory:
         Returns: Detected value or None which means that the value has already been detected before.
 
         """
+        if str(col.dtype) == 'category':
+            col = col.astype(object).infer_objects()
+
         value: Optional[Value] = None
+        reason: str = ""
 
         # ========== Pre-configured values ==========
 
         # Person value
-        if name in [self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
-                    self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label]:
-            if self.person_value is None:
-                value = self.create_person()
-                self.person_value = value
-            else:
-                return None
+        if len(self.person_labels) > 0 and name in np.concatenate(self.person_labels):
+            for i, person in enumerate(self.person_labels):
+                if name in person:
+                    if self.person_values[i] is None:
+                        value = self.create_person(i)
+                        self.person_values[i] = value
+                    else:
+                        return None, None
 
         # Bank value
-        elif name in [self.bic_label, self.sort_code_label, self.account_label]:
-            if self.bank_value is None:
-                value = self.create_bank()
-                self.bank_value = value
-            else:
-                return None
+        elif len(self.bank_labels) > 0 and name in np.concatenate(self.bank_labels):
+            for i, bank in enumerate(self.bank_labels):
+                if name in bank:
+                    if self.bank_values[i] is None:
+                        value = self.create_bank(i)
+                        self.bank_values[i] = value
+                    else:
+                        return None, None
 
         # Address value
-        elif name in [self.postcode_label, self.county_label, self.city_label, self.district_label, self.street_label,
-                      self.house_number_label, self.flat_label, self.house_name_label]:
-            if self.address_value is None:
-                value = self.create_address()
-                self.address_value = value
-            else:
-                return None
+        elif len(self.address_labels) > 0 and name in np.concatenate(self.address_labels):
+            for i, address in enumerate(self.address_labels):
+                if name in address:
+                    if self.address_values[i] is None:
+                        value = self.create_address(i)
+                        self.address_values[i] = value
+                    else:
+                        return None, None
 
         # Compound address value
         elif name == self.address_label:
@@ -394,7 +450,7 @@ class ValueFactory:
                 value = self.create_compound_address()
                 self.address_value = value
             else:
-                return None
+                return None, None
 
         # Identifier value
         elif name == self.identifier_label:
@@ -402,20 +458,22 @@ class ValueFactory:
                 value = self.create_identifier(name)
                 self.identifier_value = value
             else:
-                return None
+                return None, None
 
         # Return pre-configured value
         if value is not None:
-            return value
+            return value, "Name matched preconfigured label. "
 
         # ========== Non-numeric values ==========
 
         num_data = len(col)
-        num_unique = col.nunique()
+        num_unique = col.nunique(dropna=False)
         is_nan = False
 
-        if num_unique == 1:
-            return self.create_constant(name)
+        excl_nan_dtype = col[col.notna()].infer_objects().dtype
+
+        if num_unique <= 1:
+            return self.create_constant(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
         elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
@@ -423,58 +481,65 @@ class ValueFactory:
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
                     value = self.create_categorical(name, similarity_based=True, true_categorical=True)
+                    reason = "Small (< log(N)) number of distinct values. "
                 else:
                     value = self.create_categorical(name, true_categorical=True)
+                    reason = "Small (< log(N)) number of distinct values (= 2). "
 
         # Date value
         elif col.dtype.kind == 'M':  # 'm' timedelta
             is_nan = col.isna().any()
             value = self.create_date(name)
+            reason = "Column dtype kind is 'M'. "
 
         # Boolean value
         elif col.dtype.kind == 'b':
             # is_nan = df.isna().any()
             value = self.create_categorical(name, categories=[False, True], true_categorical=True)
+            reason = "Column dtype kind is 'b'. "
 
         # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-        elif col.dtype.kind == 'i':
+        elif col.dtype.kind in ['i', 'u']:
             value = self.create_continuous(name, integer=True)
+            reason = f"Column dtype kind is '{col.dtype.kind}'. "
 
         # Categorical value if object type has attribute 'categories'
         elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
             # is_nan = df.isna().any()
             if num_unique > 2:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
-                                                similarity_based=True, true_categorical=True)
-            else:
-                value = self.create_categorical(name, pandas_category=True, categories=col.dtype.categories,
+                value = self.create_categorical(name, pandas_category=True, similarity_based=True,
                                                 true_categorical=True)
+                reason = "Column dtype kind is 'O' and has 'categories' (> 2). "
+            else:
+                value = self.create_categorical(name, pandas_category=True, true_categorical=True)
+                reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
 
         # Date value if object type can be parsed
-        elif col.dtype.kind == 'O':
+        elif col.dtype.kind == 'O' and excl_nan_dtype.kind not in ['f', 'i']:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
                 if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
+                    reason = "Column dtype is 'O' and convertable to datetime. "
                     is_nan = num_nan > 0
             except (ValueError, TypeError, OverflowError):
                 pass
 
         # Similarity-based categorical value if not too many distinct values
-        elif num_unique <= sqrt(num_data):
+        elif num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
             if _column_does_not_contain_genuine_floats(col):
-                if num_unique > 2:
+                if num_unique > 2:  # note the alternative is never possible anyway.
                     value = self.create_categorical(name, similarity_based=True, true_categorical=False)
-                else:
-                    value = self.create_categorical(name, true_categorical=True)
+                    reason = "Small (< sqrt(N)) number of distinct values. "
 
         # Return non-numeric value and handle NaNs if necessary
         if value is not None:
             if is_nan:
                 value = self.create_nan(name, value)
-            return value
+                reason += "And contains NaNs. "
+            return value, reason
 
         # ========== Numeric value ==========
 
@@ -491,30 +556,31 @@ class ValueFactory:
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
             is_nan = col.isna().any()
+        else:
+            numeric_data = None
         # Return numeric value and handle NaNs if necessary
-        if numeric_data.dtype.kind in ('f', 'i'):
+        if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
+            reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
+                     f"rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
             if is_nan:
                 value = self.create_nan(name, value)
-            return value
+                reason += " And contains NaNs. "
+            return value, reason
 
         # ========== Fallback values ==========
 
-        # Enumeration value if strictly increasing
-        if col.dtype.kind != 'f' and num_unique == num_data and col.is_monotonic_increasing:
-            value = self.create_enumeration(name)
-
         # Sampling value otherwise
-        else:
-            value = self.create_sampling(name)
+        value = self.create_sampling(name)
+        reason = "No other criteria met. "
 
         assert value is not None
-        return value
+        return value, reason
 
 
 def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:
-    """
-    Returns TRUE of the input column contains genuine floats, that would exclude integers with type float.
+    """Returns TRUE of the input column contains genuine floats, that would exclude integers with type float.
+
         e.g.:
             _column_does_not_contain_genuine_floats(['A', 'B', 'C']) returns True
             _column_does_not_contain_genuine_floats([1.0, 3.0, 2.0]) returns True
@@ -528,8 +594,8 @@ def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:
 
 
 def _is_not_integer_float(x) -> bool:
-    """
-    Returns whether 'x' is a float and is not integer.
+    """Returns whether 'x' is a float and is not integer.
+
         e.g.:
             _is_not_integer_float(3.0) = False
             _is_not_integer_float(3.2) = True
@@ -542,3 +608,36 @@ def _is_not_integer_float(x) -> bool:
         return not x.is_integer()
     else:
         return False
+
+
+def _get_formated_label(label: Union[str, List[str], None]) -> Union[List[str], None]:
+    """Change the format of a label, if its string return [string], otherwise return itself."""
+    if isinstance(label, str):
+        return [label]
+    else:
+        return label
+
+
+def _get_labels_matrix(labels: List[Optional[List[str]]]) -> np.array:
+    """From a list of labels, check if the sizes are consistent and return the matrix of labels,
+    with shape (num_values, num_labels).
+
+        e.g.: If we have 2 addresses with 5 labels the output shape will be (2, 5).
+
+    """
+
+    labels_len = None
+    out_labels = []
+
+    for label in labels:
+        if label:
+            if labels_len:
+                assert labels_len == len(label), 'All labels must have the same lenght'
+            else:
+                labels_len = len(label)
+            out_labels.append(label)
+
+    if len(out_labels) > 0:
+        return np.transpose(out_labels)
+    else:
+        return np.array([])

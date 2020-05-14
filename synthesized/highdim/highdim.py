@@ -51,14 +51,21 @@ class HighDimSynthesizer(Synthesizer):
         # Conditions
         condition_columns: List[str] = None,
         # Person
-        title_label: str = None, gender_label: str = None, name_label: str = None, firstname_label: str = None,
-        lastname_label: str = None, email_label: str = None,
-        mobile_number_label: str = None, home_number_label: str = None, work_number_label: str = None,
+        title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
+        name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
+        lastname_label: Union[str, List[str]] = None, email_label: Union[str, List[str]] = None,
+        mobile_number_label: Union[str, List[str]] = None, home_number_label: Union[str, List[str]] = None,
+        work_number_label: Union[str, List[str]] = None,
         # Bank
-        bic_label: str = None, sort_code_label: str = None, account_label: str = None,
+        bic_label: Union[str, List[str]] = None, sort_code_label: Union[str, List[str]] = None,
+        account_label: Union[str, List[str]] = None,
         # Address
-        postcode_label: str = None, county_label: str = None, city_label: str = None, district_label: str = None,
-        street_label: str = None, house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
+        postcode_label: Union[str, List[str]] = None, county_label: Union[str, List[str]] = None,
+        city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
+        street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
+        flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
+        addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz',
+        # Compound Address
         address_label: str = None, postcode_regex: str = None,
         # Identifier label
         identifier_label: str = None,
@@ -148,8 +155,9 @@ class HighDimSynthesizer(Synthesizer):
             # Address
             postcode_label=postcode_label, county_label=county_label, city_label=city_label,
             district_label=district_label, street_label=street_label, house_number_label=house_number_label,
-            flat_label=flat_label, house_name_label=house_name_label, address_label=address_label,
-            postcode_regex=postcode_regex,
+            flat_label=flat_label, house_name_label=house_name_label, addresses_file=addresses_file,
+            # Compound Address
+            address_label=address_label, postcode_regex=postcode_regex,
             # Identifier
             identifier_label=identifier_label,
         )
@@ -207,7 +215,7 @@ class HighDimSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0
+        callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -220,6 +228,8 @@ class HighDimSynthesizer(Synthesizer):
                 instance, the iteration number, and a dictionary of values (usually the losses) as
                 arguments. Aborts training if the return value is True.
             callback_freq: Callback frequency.
+            low_memory: If set to true, each batch will be preprocessed in each iteration, otherwise a copy of
+                df_train will be preprocessed at once at the start.
 
         """
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
@@ -227,20 +237,26 @@ class HighDimSynthesizer(Synthesizer):
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
 
-        df_train = df_train.copy()
-        df_train_orig = df_train.copy()
-        df_train = self.value_factory.preprocess(df_train)
-
-        data = self.get_data_feed_dict(df_train)
         num_data = len(df_train)
+
+        if not low_memory:
+            df_train = df_train.copy()
+            df_train_pre = self.value_factory.preprocess(df_train.copy())
+        else:
+            sample_size_lm = min(self.learning_manager.sample_size,
+                                 num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
-                batch = tf.random.uniform(shape=(self.batch_size,), maxval=len(df_train), dtype=tf.int64)
-                feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
-                             for name, value_data in data.items()}
+                batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
+
+                if low_memory:
+                    feed_dict = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                else:
+                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch].copy())
+
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                 ):
@@ -258,10 +274,19 @@ class HighDimSynthesizer(Synthesizer):
                     self.vae.learn(xs=feed_dict)
 
                 if self.learning_manager:
-                    if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                           data_dict=data, num_data=num_data,
-                                                           df_train_orig=df_train_orig):
-                        break
+                    if low_memory:
+                        batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
+                        data = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
+                                                               data_dict=data, num_data=num_data,
+                                                               df_train_orig=df_train.sample(sample_size_lm)):
+                            break
+                    else:
+                        data = self.get_data_feed_dict(df_train_pre)
+                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
+                                                               data_dict=data, num_data=num_data,
+                                                               df_train_orig=df_train):
+                            break
 
                 # Increase batch size
                 tf.summary.scalar(name='batch_size', data=self.tf_batch_size)
