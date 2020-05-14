@@ -145,7 +145,7 @@ def test_vf_na_int(df):
         assert value.integer
     elif isinstance(value, SamplingValue):
         for v in value.categories.index:
-            assert v in [pd.NaT, np.NaN] or sum(df[value.name].isna())/len(df) > PARSING_NAN_FRACTION_THRESHOLD
+            assert v in [pd.NaT, np.NaN] or sum(df[value.name].isna())/len(df) >= PARSING_NAN_FRACTION_THRESHOLD
     else:
         assert isinstance(value, ConstantValue) or isinstance(value, CategoricalValue)
 
