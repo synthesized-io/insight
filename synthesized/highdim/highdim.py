@@ -1,18 +1,18 @@
 """This module implements the BasicSynthesizer class."""
-import base64
 import logging
 from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple, Any
 
 import numpy as np
 import pandas as pd
-import simplejson
 import tensorflow as tf
 
 from ..common import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
+from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
-from ..common.util import record_summaries_every_n_global_steps, NumpyEncoder
+from ..common.util import record_summaries_every_n_global_steps
+from ..version import __version__
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -465,26 +465,27 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager = LearningManager()
             self.learning_manager.set_variables(variables['learning_manager'])
 
-    def export_model(self, file_name):
+    def export_model(self, file_name: Optional[str] = None) -> str:
         variables = self.get_variables()
-        js = simplejson.dumps(variables, cls=NumpyEncoder)
 
-        # minimal encription
-        s = base64.b32encode((self.name + js).encode('utf-8')).decode('utf-8')
-
-        with open(file_name, 'w') as f:
-            f.write(s)
+        model_binary = ModelBinary(
+            body=variables,
+            title='HighDimSynthesizer',
+            description=None,
+            author='SDK-v{}'.format(__version__)
+        )
+        return model_binary.serialize_to_file(file_name)
 
     @staticmethod
-    def import_model(file_name):
-        name = 'synthesizer'
-        with open(file_name) as f:
-            s = f.read()
-            s = base64.b32decode(s.encode('utf-8')).decode('utf-8')
-            assert s[:len(name)] == name
-            variables2 = simplejson.loads(s[len(name):])
+    def import_model(file_name: str):
+        model_binary = ModelBinary()
+        model_binary.deserialize_from_file(file_name)
+        assert model_binary.title == 'HighDimSynthesizer'
+        assert model_binary.author == 'SDK-v{}'.format(__version__)
 
-        return HighDimSynthesizerWrapper(variables2)
+        variables = model_binary.body
+
+        return HighDimSynthesizerWrapper(variables)
 
 
 class HighDimSynthesizerWrapper(HighDimSynthesizer):
@@ -502,10 +503,9 @@ class HighDimSynthesizerWrapper(HighDimSynthesizer):
             latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
             num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
             batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],
-            learning_rate=variables['learning_rate'],
-            decay_steps=variables['decay_steps'], decay_rate=variables['decay_rate'],
-            initial_boost=variables['initial_boost'], clip_gradients=variables['clip_gradients'],
-            beta=variables['beta'], weight_decay=variables['weight_decay']
+            learning_rate=variables['learning_rate'], decay_steps=variables['decay_steps'],
+            decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
+            clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
         )
         self.vae.set_variables(variables['vae'])
 

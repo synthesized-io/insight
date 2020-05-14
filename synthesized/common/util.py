@@ -1,10 +1,8 @@
 import io
 import re
 
-import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import simplejson
 from tensorflow.python.eager import context
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
@@ -77,15 +75,3 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
-
-
-class NumpyEncoder(simplejson.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        else:
-            return super(NumpyEncoder, self).default(obj)

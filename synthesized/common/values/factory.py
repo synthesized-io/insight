@@ -221,7 +221,6 @@ class ValueFactory:
             value.extract(df=df)
 
         # Identify deterministic rules
-        #  import ipdb; ipdb.set_trace()
         self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
 
     @property
