@@ -90,7 +90,7 @@ def test_deserialize_no_metadata():
     binary = pickle.dumps(binary_obj, 4)
 
     unknown_binary = Binary()
-    unknown_binary._deserialize(binary)
+    unknown_binary.deserialize(binary)
     assert unknown_binary.binary_type == body_type
     assert unknown_binary.body_compression == body_compression
     assert unknown_binary.body == body
