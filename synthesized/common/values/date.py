@@ -100,10 +100,10 @@ class DateValue(ContinuousValue):
         if df_date.loc[:, self.name].dtype.kind != 'M':
             df_date.loc[:, self.name] = self.to_datetime(df.loc[:, self.name])
 
-        df_date[self.name + '-hour'] = df.loc[:, self.name].dt.hour
-        df_date[self.name + '-dow'] = df.loc[:, self.name].dt.weekday
-        df_date[self.name + '-day'] = df.loc[:, self.name].dt.day - 1
-        df_date[self.name + '-month'] = df.loc[:, self.name].dt.month - 1
+        df_date[self.name + '-hour'] = df_date.loc[:, self.name].dt.hour
+        df_date[self.name + '-dow'] = df_date.loc[:, self.name].dt.weekday
+        df_date[self.name + '-day'] = df_date.loc[:, self.name].dt.day - 1
+        df_date[self.name + '-month'] = df_date.loc[:, self.name].dt.month - 1
         for val in [self.hour, self.dow, self.day, self.month]:
             val.extract(df_date)
 
