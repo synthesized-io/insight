@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ..util import make_tf_compatible, check_params_version
+from ..util import make_tf_compatible
 
 
 class Value(tf.Module):
@@ -203,7 +203,6 @@ class Value(tf.Module):
             pickle=b64encode(pickle.dumps(self)).decode('utf-8')
         )
 
-    def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
-
+    @staticmethod
+    def set_variables(variables: Dict[str, Any]):
         return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

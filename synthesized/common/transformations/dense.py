@@ -100,6 +100,8 @@ class DenseTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
         assert self.use_bias == variables['use_bias']
 

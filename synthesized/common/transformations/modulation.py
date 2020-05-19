@@ -5,6 +5,7 @@ from .transformation import Transformation
 from ..module import tensorflow_name_scoped
 from ..util import check_params_version
 
+
 class ModulationTransformation(Transformation):
 
     def __init__(self, name, input_size, condition_size):
