@@ -7,14 +7,15 @@ import pandas as pd
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ..util import make_tf_compatible
+from ..util import make_tf_compatible, check_params_version
 
 
 class Value(tf.Module):
+    params_version = '0.0'
+
     def __init__(self, name: str):
         super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
-        self.params_version = '0.0'
 
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
@@ -205,4 +206,6 @@ class Value(tf.Module):
 
     @staticmethod
     def set_variables(variables: Dict[str, Any]):
+        check_params_version(Value.params_version, variables['params_version'])
+
         return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

@@ -38,6 +38,9 @@ class TypeOverride(enum.Enum):
 
 class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
+    params_version = '0.0'
+    categorical_threshold_log_multiplier = 2.5
+    parsing_nan_fraction_threshold = 0.25
 
     def __init__(
         self, df: pd.DataFrame, capacity: int = 128,
@@ -72,10 +75,6 @@ class ValueFactory:
 
         """Init ValueFactory."""
         self.name = name
-        self.params_version = '0.0'
-
-        self.categorical_threshold_log_multiplier = 2.5
-        self.parsing_nan_fraction_threshold = 0.25
 
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
@@ -623,6 +622,7 @@ class ValueFactory:
 class ValueFactoryWrapper(ValueFactory):
     def __init__(self, name: str, variables: Dict[str, Any]):
         self.name = name
+        self.params_version = ValueFactory.params_version
         self.set_variables(variables)
 
 

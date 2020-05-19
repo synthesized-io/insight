@@ -10,12 +10,10 @@ from ..module import tensorflow_name_scoped
 
 
 class DenseTransformation(Transformation):
+    params_version = '0.0'
 
-    def __init__(
-        self, name, input_size, output_size, bias=True, batch_norm=True, activation='relu'
-    ):
+    def __init__(self, name, input_size, output_size, bias=True, batch_norm=True, activation='relu'):
         super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
-        self.params_version = '0.0'
 
         self.use_bias = bias
         self.activation = activation

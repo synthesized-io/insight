@@ -6,10 +6,10 @@ from ..util import check_params_version
 
 
 class Transformation(tf.keras.layers.Layer):
+    params_version = '0.0'
 
     def __init__(self, name, input_size, output_size, dtype=tf.float32):
         super(Transformation, self).__init__(name=name, dtype=dtype)
-        self.params_version = '0.0'
 
         self.input_size = input_size
         self.output_size = output_size

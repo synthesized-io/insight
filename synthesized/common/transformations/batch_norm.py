@@ -7,9 +7,10 @@ from ..util import get_initializer, check_params_version
 
 
 class BatchNorm(Transformation):
+    params_version = '0.0'
+
     def __init__(self, input_size: int, name='batch_norm'):
         super(BatchNorm, self).__init__(input_size=input_size, output_size=input_size, name=name)
-        self.params_version = '0.0'
 
         self.offset: Optional[tf.Tensor] = None
         self.scale: Optional[tf.Tensor] = None

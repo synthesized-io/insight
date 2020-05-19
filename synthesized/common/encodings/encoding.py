@@ -8,10 +8,10 @@ from ..util import check_params_version
 
 
 class Encoding(Transformation):
+    params_version = '0.0'
 
     def __init__(self, input_size, encoding_size, condition_size=0, name='encoding'):
         super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
-        self.params_version = '0.0'
 
         self.input_size = input_size
         self.encoding_size = encoding_size

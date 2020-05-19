@@ -13,11 +13,11 @@ tf_optimizers = dict(
 
 class Optimizer(tf.Module):
     """Optimizer."""
+    params_version = '0.0'
 
     def __init__(self, name: str, optimizer: str, learning_rate: float, decay_steps: int = None,
                  decay_rate: float = None, initial_boost: int = 0, clip_gradients: float = None):
         super().__init__(name=name)
-        self.params_version = '0.0'
 
         # Optimizer
         self.global_step = tf.summary.experimental.get_step()

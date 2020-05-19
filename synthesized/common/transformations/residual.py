@@ -10,10 +10,10 @@ from ..module import tensorflow_name_scoped
 
 
 class ResidualTransformation(Transformation):
+    params_version = '0.0'
 
     def __init__(self, name, input_size, output_size, depth=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
-        self.params_version = '0.0'
 
         self.depth = depth
         self.batch_norm = batch_norm

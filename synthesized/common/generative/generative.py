@@ -9,10 +9,10 @@ from ..util import check_params_version
 
 class Generative(tf.Module):
     """Base class for generative models."""
+    params_version = '0.0'
 
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
         super(Generative, self).__init__(name=name)
-        self.params_version = '0.0'
 
         self.values = values
         self.conditions = conditions

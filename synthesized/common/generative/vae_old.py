@@ -22,6 +22,7 @@ class VAEOld(Generative):
     are concatenated / split tensors per value. The encoder and decoder network use the same
     hyperparameters.
     """
+    params_version = '0.0'
 
     def __init__(
         self, name: str, values: List[Value], conditions: List[Value],
@@ -39,7 +40,6 @@ class VAEOld(Generative):
         weight_decay: float
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
-        self.params_version = '0.0'
 
         self.latent_size = latent_size
         self.network = network

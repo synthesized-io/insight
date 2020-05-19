@@ -24,16 +24,11 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500)
 
     with open(temp_fname, 'rb') as f:
         synthesizer2 = HighDimSynthesizer.import_model(f)
+
     df_synthesized2 = synthesizer2.synthesize(num_rows=len(df_original))
     shutil.rmtree(temp_dir)
 
     return df_synthesized, df_synthesized2
-
-    distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
-    distribution_distance2 = ks_2samp(df_original['r'], df_synthesized2['r'])[0]
-    assert distribution_distance2 < 0.3
-    assert np.isclose(distribution_distance, distribution_distance2, atol=0.02)
-
 
 
 @pytest.mark.integration

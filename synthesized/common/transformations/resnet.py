@@ -9,10 +9,10 @@ from ..util import check_params_version
 
 
 class ResnetTransformation(Transformation):
+    params_version = '0.0'
 
     def __init__(self, name, input_size, layer_sizes, depths=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
-        self.params_version = '0.0'
 
         self.layer_sizes = layer_sizes
         self.depths = depths

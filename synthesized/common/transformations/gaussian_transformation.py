@@ -9,11 +9,12 @@ from ..util import check_params_version
 
 
 class GaussianTransformation(Transformation):
+    params_version = '0.0'
+
     def __init__(
             self, input_size: int, output_size: int, name: str = 'gaussian-transformation'
     ):
         super(GaussianTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
-        self.params_version = '0.0'
 
         self.mean = DenseTransformation(
             name='mean', input_size=input_size, output_size=output_size, batch_norm=False, activation='none'

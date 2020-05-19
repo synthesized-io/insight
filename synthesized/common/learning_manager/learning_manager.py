@@ -30,6 +30,8 @@ class LearningManager:
         >>>         break
 
     """
+    params_version = '0.0'
+
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
                  checkpoint_path: str = None, max_training_time: float = None,
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
@@ -58,7 +60,6 @@ class LearningManager:
             use_vae_loss: Whether to use the VAE learning loss or evaluation metrics.
             custom_stop_metric: If given, use this callable to compute stop metric.
         """
-        self.params_version = '0.0'
 
         self.check_frequency = check_frequency
         self.use_checkpointing = use_checkpointing

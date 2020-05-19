@@ -7,10 +7,10 @@ from ..util import check_params_version
 
 
 class ModulationTransformation(Transformation):
+    params_version = '0.0'
 
     def __init__(self, name, input_size, condition_size):
         super().__init__(name=name, input_size=input_size, output_size=input_size)
-        self.params_version = '0.0'
 
         self.condition_size = condition_size
 

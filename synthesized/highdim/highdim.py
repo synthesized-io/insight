@@ -25,6 +25,7 @@ class HighDimSynthesizer(Synthesizer):
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
     is, no temporal or otherwise conditional relation between the rows.
     """
+    params_version = '0.0'
 
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
@@ -142,7 +143,6 @@ class HighDimSynthesizer(Synthesizer):
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
-        self.params_version = '0.0'
         self.value_factory = ValueFactory(
             name='value_factory', df=df,
             capacity=capacity,

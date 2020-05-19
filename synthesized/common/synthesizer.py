@@ -53,9 +53,10 @@ if not _check_license():
 
 
 class Synthesizer(tf.Module):
+    params_version = '0.0'
+
     def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
         super(Synthesizer, self).__init__(name=name)
-        self.params_version = '0.0'
 
         self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
         tf.summary.experimental.set_step(self.global_step)
