@@ -5,16 +5,15 @@ import tensorflow as tf
 from .dense import DenseTransformation
 from .linear import LinearTransformation
 from .transformation import Transformation
-from .. import util
+from ..util import get_initializer, check_params_version
 from ..module import tensorflow_name_scoped
 
 
 class ResidualTransformation(Transformation):
 
-    def __init__(
-        self, name, input_size, output_size, depth=2, batch_norm=True, activation='relu'
-    ):
+    def __init__(self, name, input_size, output_size, depth=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
+        self.params_version = '0.0'
 
         self.depth = depth
         self.batch_norm = batch_norm
@@ -54,7 +53,7 @@ class ResidualTransformation(Transformation):
     def build(self, input_shape):
         if self.batch_norm:
             shape = (self.output_size,)
-            initializer = util.get_initializer(initializer='zeros')
+            initializer = get_initializer(initializer='zeros')
             self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
@@ -121,6 +120,7 @@ class ResidualTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             depth=self.depth,
             batch_norm=self.batch_norm,
             activation=self.activation
@@ -138,6 +138,8 @@ class ResidualTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         assert self.depth == variables['depth']

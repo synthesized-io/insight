@@ -130,5 +130,5 @@ class VariationalRecurrentEncoding(Encoding):
     def get_variables(self) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def set_values(self, variables: Dict[str, Any]):
+    def set_variables(self, variables: Dict[str, Any]):
         raise NotImplementedError

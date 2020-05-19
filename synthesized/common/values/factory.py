@@ -22,9 +22,7 @@ from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
 from .value import Value
-
-CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
-PARSING_NAN_FRACTION_THRESHOLD = 0.25
+from ..util import check_params_version
 
 
 logger = logging.getLogger(__name__)
@@ -74,6 +72,10 @@ class ValueFactory:
 
         """Init ValueFactory."""
         self.name = name
+        self.params_version = '0.0'
+
+        self.categorical_threshold_log_multiplier = 2.5
+        self.parsing_nan_fraction_threshold = 0.25
 
         categorical_kwargs: Dict[str, Any] = dict()
         continuous_kwargs: Dict[str, Any] = dict()
@@ -476,7 +478,7 @@ class ValueFactory:
             return self.create_constant(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
-        elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
+        elif num_unique <= self.categorical_threshold_log_multiplier * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
@@ -519,7 +521,7 @@ class ValueFactory:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
-                if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+                if num_nan / num_data < self.parsing_nan_fraction_threshold:
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
                     reason = "Column dtype is 'O' and convertable to datetime. "
@@ -547,7 +549,7 @@ class ValueFactory:
         if col.dtype.kind == 'O':
             numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
-            if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+            if num_nan / num_data < self.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
                 is_nan = num_nan > 0
             else:
@@ -580,6 +582,7 @@ class ValueFactory:
     def get_variables(self) -> Dict[str, Any]:
         variables: Dict[str, Any] = dict(
             name=self.name,
+            params_version=self.params_version,
             columns=self.columns,
             column_aliases=self.column_aliases,
             identifier_label=self.identifier_label,
@@ -597,6 +600,8 @@ class ValueFactory:
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         assert self.name == variables['name']
 
         self.columns = variables['columns']

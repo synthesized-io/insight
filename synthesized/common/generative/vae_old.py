@@ -9,6 +9,7 @@ from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
 from ..values import Value, ValueOps
+from ..util import check_params_version
 
 
 class VAEOld(Generative):
@@ -38,6 +39,8 @@ class VAEOld(Generative):
         weight_decay: float
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
+        self.params_version = '0.0'
+
         self.latent_size = latent_size
         self.network = network
         self.capacity = capacity
@@ -244,6 +247,7 @@ class VAEOld(Generative):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             latent_size=self.latent_size,
             beta=self.beta,
             weight_decay=self.weight_decay,
@@ -257,6 +261,8 @@ class VAEOld(Generative):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         assert self.latent_size == variables['latent_size']

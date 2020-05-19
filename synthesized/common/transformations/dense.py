@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .transformation import Transformation
 from .batch_norm import BatchNorm
-from ..util import get_initializer
+from ..util import get_initializer, check_params_version
 from ..module import tensorflow_name_scoped
 
 
@@ -15,6 +15,7 @@ class DenseTransformation(Transformation):
         self, name, input_size, output_size, bias=True, batch_norm=True, activation='relu'
     ):
         super(DenseTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
+        self.params_version = '0.0'
 
         self.use_bias = bias
         self.activation = activation
@@ -89,6 +90,7 @@ class DenseTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             weight=self.weight.numpy(),
             use_bias=self.use_bias,
             bias=self.bias.numpy() if self.bias is not None else None,

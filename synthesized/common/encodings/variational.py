@@ -6,6 +6,7 @@ import tensorflow_probability as tfp
 from .encoding import Encoding
 from ..module import tensorflow_name_scoped
 from ..transformations import GaussianTransformation
+from ..util import check_params_version
 
 
 class VariationalEncoding(Encoding):
@@ -70,12 +71,15 @@ class VariationalEncoding(Encoding):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             beta=self.beta,
             gaussian=self.gaussian.get_variables()
         )
         return variables
 
-    def set_values(self, variables: Dict[str, Any]):
+    def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         if not self.built:

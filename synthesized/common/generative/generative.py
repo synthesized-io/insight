@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..values import Value
+from ..util import check_params_version
 
 
 class Generative(tf.Module):
@@ -11,6 +12,7 @@ class Generative(tf.Module):
 
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
         super(Generative, self).__init__(name=name)
+        self.params_version = '0.0'
 
         self.values = values
         self.conditions = conditions
@@ -55,7 +57,12 @@ class Generative(tf.Module):
         return self._trainable_variables
 
     def get_variables(self) -> Dict[str, Any]:
-        return dict(name=self.name)
+        return dict(
+            name=self.name,
+            params_version=self.params_version
+        )
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         assert variables['name'] == self.name

@@ -3,12 +3,14 @@ import tensorflow as tf
 
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
-from ..util import get_initializer
+from ..util import get_initializer, check_params_version
 
 
 class BatchNorm(Transformation):
     def __init__(self, input_size: int, name='batch_norm'):
         super(BatchNorm, self).__init__(input_size=input_size, output_size=input_size, name=name)
+        self.params_version = '0.0'
+
         self.offset: Optional[tf.Tensor] = None
         self.scale: Optional[tf.Tensor] = None
 
@@ -42,12 +44,15 @@ class BatchNorm(Transformation):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             offset=self.offset.numpy() if self.offset is not None else None,
             scale=self.scale.numpy() if self.scale is not None else None
         )
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         if not self.built:

@@ -5,6 +5,7 @@ import tensorflow as tf
 from .transformation import Transformation
 from .dense import DenseTransformation
 from ..module import tensorflow_name_scoped
+from ..util import check_params_version
 
 
 class GaussianTransformation(Transformation):
@@ -12,6 +13,7 @@ class GaussianTransformation(Transformation):
             self, input_size: int, output_size: int, name: str = 'gaussian-transformation'
     ):
         super(GaussianTransformation, self).__init__(name=name, input_size=input_size, output_size=output_size)
+        self.params_version = '0.0'
 
         self.mean = DenseTransformation(
             name='mean', input_size=input_size, output_size=output_size, batch_norm=False, activation='none'
@@ -44,12 +46,15 @@ class GaussianTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             mean=self.mean.get_variables(),
             stddev=self.stddev.get_variables()
         )
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         if not self.built:

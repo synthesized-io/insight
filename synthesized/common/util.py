@@ -1,9 +1,12 @@
 import io
+import logging
 import re
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.python.eager import context
+
+logger = logging.getLogger(__name__)
 
 RE_START = re.compile(r"^[^A-Za-z0-9.]")
 RE_END = re.compile(r"[^A-Za-z0-9.]")
@@ -75,3 +78,22 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
+
+
+def check_params_version(current_version, old_version):
+    try:
+        current_version = current_version.split('.', 1)
+        old_version = old_version.split('.', 1)
+
+        # Major version
+        if current_version[0] != old_version[0]:
+            logger.warning("There is a MAJOR incompatibility in the parameters version, "
+                           "this may cause unexpected behaviour.")
+
+        # Minor version
+        if current_version[1] != old_version[1]:
+            logger.warning("There is a minor incompatibility in the parameters version, "
+                           "this may cause unexpected behaviour.")
+
+    except Exception as e:
+        logger.warning("Couldn't ensure version compatibility. Message: {}".format(e))

@@ -12,7 +12,7 @@ from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
-from ..common.util import record_summaries_every_n_global_steps
+from ..common.util import record_summaries_every_n_global_steps, check_params_version
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
@@ -142,6 +142,7 @@ class HighDimSynthesizer(Synthesizer):
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
+        self.params_version = '0.0'
         self.value_factory = ValueFactory(
             name='value_factory', df=df,
             capacity=capacity,
@@ -413,6 +414,9 @@ class HighDimSynthesizer(Synthesizer):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
+
+            # Value Factory
             value_factory=self.value_factory.get_variables(),
 
             # VAE
@@ -446,7 +450,11 @@ class HighDimSynthesizer(Synthesizer):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
+        if self.params_version != variables['params_version']:
+            logger.warning("Current and given parameters version are different, this may cause unexpected behaviour.")
 
         # Value Factory
         self.value_factory.set_variables(variables['value_factory'])

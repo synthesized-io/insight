@@ -8,10 +8,10 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
+from ..util import check_params_version
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class LearningManager:
@@ -58,6 +58,7 @@ class LearningManager:
             use_vae_loss: Whether to use the VAE learning loss or evaluation metrics.
             custom_stop_metric: If given, use this callable to compute stop metric.
         """
+        self.params_version = '0.0'
 
         self.check_frequency = check_frequency
         self.use_checkpointing = use_checkpointing
@@ -318,12 +319,15 @@ class LearningManager:
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(
+            params_version=self.params_version,
             max_training_time=self.max_training_time,
             use_vae_loss=self.use_vae_loss,
             custom_stop_metric=self.custom_stop_metric
         )
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         self.max_training_time = variables['max_training_time']
         self.use_vae_loss = variables['use_vae_loss']
         self.custom_stop_metric = variables['custom_stop_metric']

@@ -2,11 +2,14 @@ from typing import Optional, List, Union, Dict, Any
 
 import tensorflow as tf
 
+from ..util import check_params_version
+
 
 class Transformation(tf.keras.layers.Layer):
 
     def __init__(self, name, input_size, output_size, dtype=tf.float32):
         super(Transformation, self).__init__(name=name, dtype=dtype)
+        self.params_version = '0.0'
 
         self.input_size = input_size
         self.output_size = output_size
@@ -50,11 +53,14 @@ class Transformation(tf.keras.layers.Layer):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
+            params_version=self.params_version,
             input_size=self.input_size,
             output_size=self.output_size
         )
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         assert self.name == variables['name']
         assert self.input_size == variables['input_size']
         assert self.output_size == variables['output_size']

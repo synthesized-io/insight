@@ -2,6 +2,8 @@ from typing import Callable, List, Dict, Any
 
 import tensorflow as tf
 
+from ..util import check_params_version
+
 # TensorFlow optimizer implementations
 tf_optimizers = dict(
     adam=tf.keras.optimizers.Adam,
@@ -12,17 +14,10 @@ tf_optimizers = dict(
 class Optimizer(tf.Module):
     """Optimizer."""
 
-    def __init__(
-        self, name: str,
-        # Optimizer: "adam"
-        optimizer: str,
-        # Learning rate
-        learning_rate: float, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: int = 0,
-        # Gradient clipping by global norm
-        clip_gradients: float = None
-    ):
+    def __init__(self, name: str, optimizer: str, learning_rate: float, decay_steps: int = None,
+                 decay_rate: float = None, initial_boost: int = 0, clip_gradients: float = None):
         super().__init__(name=name)
+        self.params_version = '0.0'
 
         # Optimizer
         self.global_step = tf.summary.experimental.get_step()
@@ -98,6 +93,7 @@ class Optimizer(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
+            params_version=self.params_version,
             clip_gradients=self.clip_gradients,
             optimizer_name=self.optimizer_name,
             learning_rate=self._learning_rate.numpy(),
@@ -108,6 +104,8 @@ class Optimizer(tf.Module):
         )
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         assert self.name == variables['name']
         assert self.clip_gradients == variables['clip_gradients']
         assert self.optimizer_name == variables['optimizer_name']

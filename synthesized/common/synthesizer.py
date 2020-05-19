@@ -10,6 +10,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .values import Value
+from .util import check_params_version
 
 
 def _check_license():
@@ -54,6 +55,7 @@ if not _check_license():
 class Synthesizer(tf.Module):
     def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
         super(Synthesizer, self).__init__(name=name)
+        self.params_version = '0.0'
 
         self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
         tf.summary.experimental.set_step(self.global_step)
@@ -190,10 +192,13 @@ class Synthesizer(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
+            params_version=self.params_version,
             global_step=self.global_step.numpy()
         )
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         assert self.name == variables['name']
 
         self.global_step.assign(variables['global_step'])

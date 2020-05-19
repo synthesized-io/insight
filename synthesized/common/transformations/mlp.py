@@ -2,14 +2,14 @@ from typing import Dict, Any
 
 from .dense import DenseTransformation
 from .transformation import Transformation
+from ..util import check_params_version
 
 
 class MlpTransformation(Transformation):
 
-    def __init__(
-        self, name, input_size, layer_sizes, batch_norm=True, activation='relu'
-    ):
+    def __init__(self, name, input_size, layer_sizes, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
+        self.params_version = '0.0'
 
         self.layers = list()
         self.layer_sizes = layer_sizes
@@ -53,6 +53,7 @@ class MlpTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
+            params_version=self.params_version,
             layer_sizes=self.layer_sizes,
             batch_norm=self.batch_norm,
             activation=self.activation
@@ -63,6 +64,8 @@ class MlpTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
+        check_params_version(self.params_version, variables['params_version'])
+
         super().set_variables(variables)
 
         assert self.layer_sizes == variables['layer_sizes']

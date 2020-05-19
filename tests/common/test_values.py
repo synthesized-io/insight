@@ -14,7 +14,7 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     n = len(x)
     with tf.summary.record_if(False):
         value.build()
-        input_tensor_output = [tf.constant(value=x, dtype=tf.float32)]
+        input_tensor_output = [tf.constant(value=x)]
         unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
         if y is None:
             output_tensors_output = value.output_tensors(y=unified_tensor_output)
@@ -81,7 +81,7 @@ def test_nan():
     n = 10
     x = np.random.randn(n)
     _test_value(value=value,
-                x=np.where(x > 0, x, np.nan),
+                x=np.where(x > 0, x, np.nan).astype(np.float32),
                 y=np.random.randn(n, value.learned_output_size())
                 )
 
