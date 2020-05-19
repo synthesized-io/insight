@@ -1,9 +1,10 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple, Any
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple, Any, BinaryIO
 
 import numpy as np
 import pandas as pd
+import pickle
 import tensorflow as tf
 
 from ..common import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
@@ -444,7 +445,7 @@ class HighDimSynthesizer(Synthesizer):
 
         return variables
 
-    def set_values(self, variables: Dict[str, Any]):
+    def set_variables(self, variables: Dict[str, Any]):
         super().set_variables(variables)
 
         # Value Factory
@@ -465,25 +466,27 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager = LearningManager()
             self.learning_manager.set_variables(variables['learning_manager'])
 
-    def export_model(self, file_name: Optional[str] = None) -> str:
+    def export_model(self, fp: BinaryIO):
         variables = self.get_variables()
 
         model_binary = ModelBinary(
-            body=variables,
+            body=pickle.dumps(variables),
             title='HighDimSynthesizer',
             description=None,
             author='SDK-v{}'.format(__version__)
         )
-        return model_binary.serialize_to_file(file_name)
+        model_binary.serialize(fp)
 
     @staticmethod
-    def import_model(file_name: str):
+    def import_model(fp: BinaryIO):
+
         model_binary = ModelBinary()
-        model_binary.deserialize_from_file(file_name)
+        model_binary.deserialize(fp)
+
         assert model_binary.title == 'HighDimSynthesizer'
         assert model_binary.author == 'SDK-v{}'.format(__version__)
 
-        variables = model_binary.body
+        variables = pickle.loads(model_binary.body)
 
         return HighDimSynthesizerWrapper(variables)
 
