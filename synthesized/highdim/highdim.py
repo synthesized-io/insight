@@ -486,7 +486,10 @@ class HighDimSynthesizer(Synthesizer):
         assert model_binary.title == 'HighDimSynthesizer'
         assert model_binary.author == 'SDK-v{}'.format(__version__)
 
-        variables = pickle.loads(model_binary.body)
+        body = model_binary.get_body()
+        if body is None:
+            raise ValueError("The body of the given Binary Model is empty")
+        variables = pickle.loads(model_binary.get_body())
 
         return HighDimSynthesizerWrapper(variables)
 

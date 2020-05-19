@@ -83,7 +83,7 @@ class Encoding(Transformation):
         )
         return variables
 
-    def set_values(self, variables: Dict[str, Any]):
+    def set_variables(self, variables: Dict[str, Any]):
         super().set_variables(variables)
         assert self.encoding_size == variables['encoding_size']
         assert self.condition_size == variables['condition_size']

@@ -106,7 +106,7 @@ class Binary:
             self.author = meta_data.get('author', None)
             self.creation_date = meta_data.get('creation_date', None)
 
-    def get_body(self):
+    def get_body(self) -> bytes:
         """Uncompress and retrieve body bytes of binary."""
         assert isinstance(self.body, bytes)
         if self.body_compression == CompressionType.GZIP:
