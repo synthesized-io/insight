@@ -82,7 +82,7 @@ def test_nan():
     x = np.random.randn(n)
     _test_value(value=value,
                 x=np.where(x > 0, x, np.nan).astype(np.float32),
-                y=np.random.randn(n, value.learned_output_size())
+                y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
                 )
 
 
