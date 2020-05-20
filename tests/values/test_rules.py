@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.common.values.identify_rules import PairwiseRuleFactory
-from synthesized.common.values.identify_rules import identify_rules
-from synthesized.common.values.rule import RuleValue
+from synthesized.values.identify_rules import PairwiseRuleFactory
+from synthesized.values.identify_rules import identify_rules
+from synthesized.values.rule import RuleValue
 from synthesized.highdim import HighDimSynthesizer
 
 BASEDIR = os.path.dirname(__file__)

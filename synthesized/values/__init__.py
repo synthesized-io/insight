@@ -17,7 +17,9 @@ from .sampling import SamplingValue
 from .value import Value
 from .value_operations import ValueOps
 
-__all__ = ['AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
-           'DecomposedContinuousValue',
-           'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue', 'BankNumberValue',
-           'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride', 'ValueOps']
+__all__ = [
+    'AddressValue', 'CategoricalValue', 'CompoundAddressValue', 'ContinuousValue', 'DateValue',
+    'DecomposedContinuousValue', 'EnumerationValue', 'IdentifierValue', 'identify_rules', 'NanValue', 'PersonValue',
+    'BankNumberValue', 'RuleValue', 'SamplingValue', 'ConstantValue',  'Value', 'ValueFactory', 'TypeOverride',
+    'ValueOps'
+]

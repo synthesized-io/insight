@@ -3,8 +3,8 @@ from typing import Dict, List
 
 import tensorflow as tf
 
-from synthesized.common.module import tensorflow_name_scoped
-from synthesized.common.values import Value
+from ..common.module import tensorflow_name_scoped
+from .value import Value
 
 
 class ValueOps(tf.Module):

@@ -3,8 +3,8 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..common import ValueFactory
-from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
+from ..values import ValueFactory
+from ..values import ContinuousValue, CategoricalValue, DecomposedContinuousValue, NanValue, Value
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:

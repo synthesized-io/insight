@@ -468,6 +468,9 @@ class ValueFactory:
 
         num_data = len(col)
         num_unique = col.nunique(dropna=False)
+        if name == "NumberRealEstateLoansOrLines":
+            logger.debug(f'num_data = {num_data}. num_unique = {num_unique}.')
+            logger.debug(f'unique_values: {col.unique()}.')
         is_nan = False
 
         excl_nan_dtype = col[col.notna()].infer_objects().dtype

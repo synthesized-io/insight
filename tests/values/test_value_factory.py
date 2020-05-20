@@ -6,9 +6,9 @@ import hypothesis.strategies as st
 from hypothesis import given, event, settings, HealthCheck
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
-from synthesized.common import ValueFactory
-from synthesized.common.values.factory import PARSING_NAN_FRACTION_THRESHOLD
-from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
+from synthesized.values import ValueFactory
+from synthesized.values.factory import PARSING_NAN_FRACTION_THRESHOLD
+from synthesized.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
 
 
 @settings(deadline=None)
