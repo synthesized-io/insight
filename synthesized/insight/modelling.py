@@ -8,7 +8,7 @@ The functions handle Categorical and Continuous values. When the y_label is a co
 an R^2 value for a regression task; And when the y_label is a categorical value, the functions compute a ROC AUC value
 for a binary/multinomial classification task.
 """
-from typing import Dict, List, Type, Optional
+from typing import Union, Dict, List, Type, Optional
 
 import numpy as np
 import pandas as pd
@@ -218,13 +218,18 @@ def regressor_score(x_train, y_train, x_test, y_test, model, y_val) -> float:
     return r2_score(y_test, f_test)
 
 
-def logistic_regression_r2(df, y_label: str, x_labels: List[str]) -> float:
-    vf = ValueFactory(df=df)
+def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> Union[None, float]:
+    vf = kwargs.get('vf', ValueFactory(df=df))
+    df = vf.preprocess(df)
     categorical, continuous = categorical_or_continuous_values(vf)
+    if y_label not in [v.name for v in categorical]:
+        return None
+    if len(x_labels) == 0:
+        return None
 
     rg = LogisticRegression()
 
-    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, [v for v in categorical if v.name in x_labels])
+    x_array = _preprocess_x2(df[x_labels], None, [v for v in categorical if v.name in x_labels])
     y_array = df[y_label].values
 
     rg.fit(x_array, y_array)
@@ -313,7 +318,7 @@ def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values
     test_result = []
 
     columns_categorical = [v.name for v in values_categorical]
-    columns_numeric = [col for col in x_train if col not in columns_categorical]
+    columns_numeric = [col for col in x_train.columns if col not in columns_categorical]
 
     if len(columns_numeric) > 0:
         train_result.append(x_train[columns_numeric])

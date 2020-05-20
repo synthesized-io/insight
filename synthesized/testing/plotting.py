@@ -18,6 +18,7 @@ from ..highdim import HighDimSynthesizer
 from ..series import SeriesSynthesizer
 from ..testing import UtilityTesting
 from ..testing.evaluation import Evaluation
+from ..insight import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
 
 def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
     if len(x) > 0:
-        return np.mean(x), np.max(x)
+        return np.nanmean(x), np.nanmax(x)
     else:
         return 0., 0.
 
@@ -102,12 +103,14 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
     synthesized = synthesized.copy()
 
     metrics = calculate_evaluation_metrics(df_orig=test, df_synth=synthesized)
+    print(metrics)
 
     # Compute summaries
     avg_ks_distance, max_ks_distance = calculate_mean_max(metrics['ks_distances'])
-    avg_corr_distance, max_corr_distance = calculate_mean_max(metrics['corr_distances'])
+    avg_corr_distance, max_corr_distance = calculate_mean_max(metrics['corr_distances'].values)
     avg_emd_distance, max_emd_distance = calculate_mean_max(metrics['emd_distances'])
-    avg_cramers_v_distance, max_cramers_v_distance = calculate_mean_max(metrics['cramers_v_distances'])
+    avg_cramers_v_distance, max_cramers_v_distance = calculate_mean_max(metrics['cramers_v_distances'].values)
+    avg_log_corr_distance, max_log_corr_distance = calculate_mean_max(metrics['logistic_corr_distances'].values)
 
     current_result = {
         'ks_distance_avg': avg_ks_distance,
@@ -116,9 +119,12 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
         'emd_categ_max': max_emd_distance,
         'corr_dist_avg': avg_corr_distance,
         'corr_dist_max': max_corr_distance,
-        'cramers_v_max': avg_cramers_v_distance,
-        'cramers_v_avg': max_cramers_v_distance
+        'cramers_v_avg': avg_cramers_v_distance,
+        'cramers_v_max': max_cramers_v_distance,
+        'logistic_corr_dist_avg': avg_log_corr_distance,
+        'logistic_corr_dist_max': max_log_corr_distance
     }
+    print(current_result)
 
     print_line = ''
     for k, v in current_result.items():
@@ -127,7 +133,7 @@ def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
             evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         print_line += '\n\t{}={:.4f}'.format(k, v)
 
-    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax)
+    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax, palette='Paired')
 
     values = list(current_result.values())
     for i in range(len(values)):
@@ -157,14 +163,14 @@ def sequence_line_plot(x, t, ax):
 
 
 # -- training functions
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metrics: dict,
+def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, eval_metrics: dict,
                         test_data: Optional[pd.DataFrame] = None, time_series: bool = False,
                         col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
                         plot_distances: bool = False, show_distributions: bool = False,
                         show_distribution_distances: bool = False, show_emd_distances: bool = False,
                         show_correlation_distances: bool = False, show_correlation_matrix: bool = False,
                         show_cramers_v_distances: bool = False, show_cramers_v_matrix: bool = False,
-                        show_pw_mi_distances: bool = False, show_anova: bool = False, show_cat_rsquared: bool = False,
+                        show_cat_rsquared: bool = False,
                         show_acf_distances: bool = False,  show_pacf_distances: bool = False,
                         show_transition_distances: bool = False, show_series: bool = False):
     """
@@ -193,6 +199,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                               callback_freq=100)
             training_time = time.time() - start
             synthesized = synthesizer.synthesize(num_rows=len_eval_data)
+            value_factory = synthesizer.value_factory
             print('took', training_time, 's')
 
     elif config['synthesizer_class'] == 'SeriesSynthesizer':
@@ -210,6 +217,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
                               callback_freq=100)
             training_time = time.time() - start
             synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
+            value_factory = synthesizer.value_factory
             print('took', training_time, 's')
 
     else:
@@ -217,7 +225,7 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
     print("Metrics:")
-    for key, metric in metrics.items():
+    for key, metric in eval_metrics.items():
         value = metric(orig=data, synth=synthesized)
         evaluation.record_metric(evaluation=name, key=key, value=value)
         print(f"{key}: {value}")
@@ -256,10 +264,40 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
         plt.show()
+
     if plot_distances:
         display(Markdown("## Show average distances"))
-        plot_avg_distances(test=eval_data, synthesized=synthesized, evaluation=evaluation, evaluation_name=name)
-        plt.show()
+
+        # Calculate 1st order metrics for categorical/continuous
+        avg_ks_distance, max_ks_distance = testing.metric_mean_max(metrics.kolmogorov_smirnov_distance)
+        avg_emd_distance, max_emd_distance = testing.metric_mean_max(metrics.earth_movers_distance)
+
+        # Calculate 2nd order metrics for categorical/continuous
+        avg_corr_distance, max_corr_distance = testing.metric_mean_max(metrics.kendell_tau_correlation, max_p_value=MAX_PVAL)
+        avg_cramers_v_distance, max_cramers_v_distance = testing.metric_mean_max(metrics.cramers_v)
+        avg_log_corr_distance, max_log_corr_distance = testing.metric_mean_max(metrics.categorical_logistic_correlation, continuous_input_only=True)
+
+        current_result = {
+            'ks_distance_avg': avg_ks_distance,
+            'ks_distance_max': max_ks_distance,
+            'emd_categ_avg': avg_emd_distance,
+            'emd_categ_max': max_emd_distance,
+            'corr_dist_avg': avg_corr_distance,
+            'corr_dist_max': max_corr_distance,
+            'cramers_v_avg': avg_cramers_v_distance,
+            'cramers_v_max': max_cramers_v_distance,
+            'logistic_corr_dist_avg': avg_log_corr_distance,
+            'logistic_corr_dist_max': max_log_corr_distance
+        }
+
+        print_line = ''
+        for k, v in current_result.items():
+            if evaluation:
+                assert name, 'If evaluation is given, evaluation_name must be given too.'
+                evaluation.record_metric(evaluation=name, key=k, value=v)
+            print_line += '\n\t{}={:.4f}'.format(k, v)
+
+        testing.show_results(current_result)
 
     if show_distributions:
         display(Markdown("## Show distributions"))
@@ -268,33 +306,27 @@ def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, metri
     # First order metrics
     if show_distribution_distances:
         display(Markdown("## Show distribution distances"))
-        testing.show_distribution_distances()
+        testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
     if show_emd_distances:
         display(Markdown("## Show EMD distances"))
-        testing.show_emd_distances()
+        testing.show_first_order_metric_distances(metrics.earth_movers_distance)
 
     # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
-        testing.show_corr_distances()
+        testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
-        testing.show_corr_matrices()
+        testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
     if show_cramers_v_distances:
         display(Markdown("## Show Cramer's V distances"))
-        testing.show_cramers_v_distances()
+        testing.show_second_order_metric_distances(metrics.diff_cramers_v)
     if show_cramers_v_matrix:
-        display(Markdown("## Show Cramer's V matrices"))
-        testing.show_cramers_v_matrices()
-    if show_pw_mi_distances:
-        display(Markdown("## Show Pairwise Mutual Information distances"))
-        testing.show_mutual_information()
-    if show_anova:
-        display(Markdown("## Show ANOVA"))
-        testing.show_anova()
+        display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
+        testing.show_second_order_metric_matrices(metrics.cramers_v)
     if show_cat_rsquared:
         display(Markdown("## Show categorical R^2"))
-        testing.show_categorical_rsquared()
+        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
 
     # TIME SERIES
     if show_acf_distances:
@@ -337,16 +369,8 @@ def continuous_correlation(x, y):
     return np.corrcoef(x, y)[0, 1]
 
 
-def continuous_rsquared(x, y):
-    return continuous_correlation(x, y)**2
-
-
 def ordered_correlation(x, y):
     return spearmanr(x, y).correlation
-
-
-def ordered_rsquared(x, y):
-    return ordered_correlation(x, y)**2
 
 
 # --- Association between categorical and categorical
@@ -354,25 +378,6 @@ def categorical_logistic_rsquared(x, y):
     temp_df = pd.DataFrame({"x": x, "y": y})
     model = mnlogit("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
     return model.prsquared
-
-
-# --- Association between continuous and categorical
-def continuous_logistic_rsquared(x, y):
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = mnlogit("y ~ x", data=temp_df).fit(method="cg", disp=0)
-    return model.prsquared
-
-
-# --- Association between categorical and continuous
-def anova_rsquared(x, y):
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = ols("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
-    return model.rsquared
-
-
-# -- Evaluation metrics
-def max_correlation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
 
 
 def max_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
@@ -406,11 +411,6 @@ def mean_squared_error_closure(col, baseline: float = 1):
     return mean_squared_error
 
 
-def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
-    return np.mean(distances)
-
-
 def rolling_mse_asof(sd, time_unit=None):
     """
     Calculate the mean-squared error between the "x" values of the original and synthetic
@@ -442,6 +442,5 @@ def rolling_mse_asof(sd, time_unit=None):
 
 
 # -- global constants
-default_metrics = {"avg_distance": mean_ks_distance}
 association_dict = {"i": ordered_correlation, "f": continuous_correlation,
                     "O": categorical_logistic_rsquared}

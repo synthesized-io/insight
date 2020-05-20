@@ -44,8 +44,11 @@ def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]
                 categorical.append(value)
             else:
                 continuous.append(value)
-        elif isinstance(value, ContinuousValue) or isinstance(value, NanValue):
+        elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
             continuous.append(value)
+        elif isinstance(value, NanValue):
+            if isinstance(value.value, ContinuousValue) or isinstance(value.value, DecomposedContinuousValue):
+                continuous.append(value)
 
     return categorical, continuous
 

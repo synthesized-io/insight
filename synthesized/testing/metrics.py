@@ -1,16 +1,14 @@
 """Generic metrics for various types/combinations of values."""
 import logging
-from itertools import chain
 from typing import List, Union, Optional, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from pyemd import emd
-from scipy.stats import ks_2samp, spearmanr, kendalltau
-from statsmodels.formula.api import mnlogit
-from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
+
+from ..values import ValueFactory
+from ..insight import metrics
+from ..insight.dataset import categorical_or_continuous_values
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -23,167 +21,28 @@ NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
 
-def categorical_emd(a: list, b: list) -> float:
-    space = set(a).union(set(b))
-    if len(space) > 1e4:
-        return np.nan
-
-    a_unique, counts = np.unique(a, return_counts=True)
-    a_counts = dict(zip(a_unique, counts))
-
-    b_unique, counts = np.unique(b, return_counts=True)
-    b_counts = dict(zip(b_unique, counts))
-
-    p = np.array([float(a_counts[x]) if x in a_counts else 0.0 for x in space])
-    q = np.array([float(b_counts[x]) if x in b_counts else 0.0 for x in space])
-
-    p /= np.sum(p)
-    q /= np.sum(q)
-
-    distances = 1 - np.eye(len(space))
-
-    return emd(p, q, distances)
-
-
-def continuous_correlation(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-    """Correlation coefficient between two continuous variables."""
-    return np.corrcoef(x, y)[0, 1]
-
-
-def continuous_rsquared(x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-    """Association between continuous and continuous"""
-    return continuous_correlation(x, y)**2
-
-
-def categorical_logistic_rsquared(x: list, y: list) -> float:
-    """Nominal association between categorical and categorical"""
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = mnlogit("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
-    return model.prsquared
-
-
-def contingency_table(x: list, y: list) -> sm.stats.Table:
-    """Returns the contingency table of two categorical variables."""
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    table = sm.stats.Table.from_data(temp_df)
-    return table
-
-
-def cramers_v(x: list, y: list) -> float:
-    """Nominal association between categorical and categorical"""
-    table = contingency_table(x, y)
-    expected = table.fittedvalues.to_numpy()
-    real = table.table
-    r, c = real.shape
-    n = np.sum(real)
-    v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
-
-    return v
-
-
-def get_cramers_v_matrix(df: pd.DataFrame, flattened: bool = False) -> Union[pd.DataFrame, np.array]:
-    """Compute Cramer's V between all the columns in a given DataFrame and write result to a matrix"""
-    columns = df.columns
-    if flattened:
-        cramers_v_matrix: Union[pd.DataFrame, np.array] = []
-    else:
-        cramers_v_matrix = pd.DataFrame(np.ones((len(columns), len(columns))), columns=columns)
-        cramers_v_matrix.index = columns
-
-    for i1 in range(len(columns)):
-        c1 = columns[i1]
-        for i2 in range(i1 + 1, len(columns)):
-            c2 = columns[i2]
-            cv = cramers_v(df[c1], df[c2])
-            if flattened:
-                cramers_v_matrix.append(cv)
-            else:
-                cramers_v_matrix[c1][c2] = cramers_v_matrix[c2][c1] = cramers_v(df[c1], df[c2])
-
-    if flattened:
-        return np.array(cramers_v_matrix)
-    else:
-        return cramers_v_matrix
-
-
-def normalized_contingency_residuals(x: list, y: list) -> pd.DataFrame:
-    """Returns the associations between two categorical variables for a data set."""
-    xcats = np.sort(list(set(x))).tolist()
-    ycats = np.sort(list(set(y))).tolist()
-
-    table = contingency_table(x, y)
-    expected = table.fittedvalues.to_numpy() + 1.0
-    real = table.table + 1.0
-
-    values = ((real - expected) / expected).flatten()
-    records = [(xcats[n // len(ycats)], ycats[n % len(ycats)], v) for n, v in enumerate(values)]
-    x, y, resids = zip(*records)
-    df = pd.DataFrame({'x': x, 'y': y, 'residuals': resids})
-    return df
-
-
-def normalized_contingency_residuals_diff(x1: list, y1: list, x2: list, y2: list) -> pd.DataFrame:
-    """Returns the differences in association between two categorical variables for two data sets."""
-    df1 = normalized_contingency_residuals(x1, y1)
-    df2 = normalized_contingency_residuals(x2, y2)
-
-    dict1 = {(df1['x'][n], df1['y'][n]): df1['residuals'][n] for n in range(len(df1))}
-    dict2 = {(df2['x'][n], df2['y'][n]): df2['residuals'][n] for n in range(len(df2))}
-
-    dict3 = {
-        k: np.abs(dict1.get(k, 0.0) - dict2.get(k, 0.0))
-        for k in set(chain(dict1.keys(), dict2.keys()))
-    }
-
-    xy, resids = zip(*dict3.items())
-    x, y = zip(*xy)
-    df = pd.DataFrame({'x': x, 'y': y, 'residuals': resids})
-    return df
-
-
-def max_contingency_residuals_diff(x1: list, y1: list, x2: list, y2: list) -> float:
-    """Returns the largest difference in association between two categorical variables for two data sets."""
-    return max(normalized_contingency_residuals_diff(x1, y1, x2, y2)['residuals'])
-
-
 # -- Measures of association for different pairs of data types
 def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
     variable = dataset[col].to_numpy()
-    association = association_dict[variable.dtype.kind]
+    categorical, continuous = categorical_or_continuous_values(dataset[col])
+
+    association: Optional[metrics.TwoColumnComparison] = None
+
+    if len(categorical) > 0:
+        association = metrics.earth_movers_distance
+    elif len(continuous) > 0:
+        association = metrics.kendell_tau_correlation
+
+    if association is None:
+        return None
+
     auto_associations = []
     for order in range(1, max_order+1):
         postfix = variable[order:]
         prefix = variable[:-order]
-        auto_associations.append(association(x=prefix, y=postfix))
+        df = pd.DataFrame({'prefix': prefix, 'postfix': postfix})
+        auto_associations.append(association(df, 'prefix', 'postfix'))
     return np.array(auto_associations)
-
-
-# --- Association between continuous and continuous
-def ordered_correlation(x, y):
-    return spearmanr(x, y).correlation
-
-
-def ordered_rsquared(x, y):
-    return ordered_correlation(x, y)**2
-
-
-# --- Association between continuous and categorical
-def continuous_logistic_rsquared(x, y):
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = mnlogit("y ~ x", data=temp_df).fit(method="cg", disp=0)
-    return model.prsquared
-
-
-# --- Association between categorical and continuous
-def anova_rsquared(x, y):
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = ols("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
-    return model.rsquared
-
-
-# -- Evaluation metrics
-def max_correlation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    return np.abs((orig.corr() - synth.corr()).to_numpy()).max()
 
 
 def max_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
@@ -215,11 +74,6 @@ def mean_squared_error_closure(col, baseline: float = 1):
     def mean_squared_error(orig: pd.DataFrame, synth: pd.DataFrame):
         return ((orig[col].to_numpy() - synth[col].to_numpy())**2).mean()/baseline
     return mean_squared_error
-
-
-def mean_ks_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    distances = [ks_2samp(orig[col], synth[col])[0] for col in orig.columns]
-    return np.mean(distances)
 
 
 def rolling_mse_asof(sd, time_unit=None):
@@ -270,7 +124,7 @@ def transition_matrix(transitions: np.array, val2idx: Dict[int, Any] = None) -> 
     return M, val2idx
 
 
-def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, value_factory: ValueFactory,
                                  column_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
     """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
     (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
@@ -284,102 +138,29 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
     Returns
         bool: True if criteria are met to stop learning.
     """
-    df_orig = df_orig.copy()
-    df_synth = df_synth.copy()
-
     if column_names is None:
         column_names_df: List[str] = df_orig.columns
     else:
         column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
 
-    # Calculate distances for all columns
-    ks_distances = []
-    emd_distances = []
-    corr_distances = []
+    df_orig = df_orig.loc[:, column_names_df].copy()
+    df_synth = df_synth.loc[:, column_names_df].copy()
 
-    numerical_columns = []
-    categorical_columns = []
+    # Calculate 1st order metrics for categorical/continuous
+    ks_distances = metrics.kolmogorov_smirnov_distance_vector(df_orig, df_synth, vf=value_factory)
+    emd_distances = metrics.earth_movers_distance_vector(df_orig, df_synth, vf=value_factory)
 
-    len_test = len(df_orig)
-    for col in column_names_df:
-
-        if df_orig[col].dtype.kind == 'f':
-            col_test_clean = df_orig[col].dropna()
-            col_synth_clean = df_synth[col].dropna()
-            if len(col_test_clean) < len_test:
-                logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
-                             .format(col, len(col_test_clean), len_test))
-            ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
-            ks_distances.append(ks_distance)
-            numerical_columns.append(col)
-
-        elif df_orig[col].dtype.kind == 'i':
-            if df_orig[col].nunique() < np.log(len(df_orig)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER:
-                logger.debug(
-                    "Column '{}' treated as categorical with {} categories".format(col, df_orig[col].nunique()))
-                emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
-                emd_distances.append(emd_distance)
-                categorical_columns.append(col)
-
-            else:
-                col_test_clean = df_orig[col].dropna()
-                col_synth_clean = df_synth[col].dropna()
-                if len(col_test_clean) < len_test:
-                    logger.debug("Column '{}' contains NaNs. Computing KS distance with {}/{} samples"
-                                 .format(col, len(col_test_clean), len_test))
-                ks_distance, _ = ks_2samp(col_test_clean, col_synth_clean)
-                ks_distances.append(ks_distance)
-
-            numerical_columns.append(col)
-
-        elif df_orig[col].dtype.kind in ('O', 'b'):
-
-            # Try to convert to numeric
-            col_num = pd.to_numeric(df_orig[col], errors='coerce')
-            if col_num.isna().sum() / len(col_num) < NAN_FRACTION_THRESHOLD:
-                df_orig[col] = col_num
-                df_synth[col] = pd.to_numeric(df_synth[col], errors='coerce')
-                numerical_columns.append(col)
-
-            # if (is not sampling) and (is not date):
-            elif (df_orig[col].nunique() <= np.log(len(df_orig)) * CATEGORICAL_THRESHOLD_LOG_MULTIPLIER) and \
-                    np.all(pd.to_datetime(df_orig[col].sample(min(len(df_orig), MAX_SAMPLE_DATES)),
-                                          errors='coerce').isna()):
-                emd_distance = categorical_emd(df_orig[col].dropna(), df_synth[col].dropna())
-                if not np.isnan(emd_distance):
-                    emd_distances.append(emd_distance)
-                categorical_columns.append(col)
-
-    # Compute correlation distances
-    for i in range(len(numerical_columns)):
-        col_i = numerical_columns[i]
-        for j in range(i + 1, len(numerical_columns)):
-            col_j = numerical_columns[j]
-            test_clean = df_orig[[col_i, col_j]].dropna()
-            synth_clean = df_synth[[col_i, col_j]].dropna()
-
-            if len(test_clean) > 0 and len(synth_clean) > 0:
-                corr_orig, pvalue_orig = kendalltau(test_clean[col_i].values, test_clean[col_j].values)
-                corr_synth, pvalue_synth = kendalltau(synth_clean[col_i].values, synth_clean[col_j].values)
-
-                if pvalue_orig <= MAX_PVAL or pvalue_synth <= MAX_PVAL:
-                    corr_distances.append(abs(corr_orig - corr_synth))
-
-    # Compute Cramer's V distances
-    cramers_v_distances = np.abs(get_cramers_v_matrix(df_orig[categorical_columns], flattened=True) -
-                                 get_cramers_v_matrix(df_synth[categorical_columns], flattened=True))
+    # Calculate 2nd order metrics for categorical/continuous
+    corr_distances = metrics.diff_kendell_tau_correlation_matrix(df_orig, df_synth, vf=value_factory, max_p_value=MAX_PVAL)
+    cramers_v_distances = np.abs(metrics.diff_cramers_v_matrix(df_orig, df_synth, vf=value_factory))
+    logistic_corr_distances = metrics.diff_categorical_logistic_correlation_matrix(df_orig, df_synth, vf=value_factory, acontinuous_input_only=True)
 
     stop_metrics = {
         'ks_distances': ks_distances,
         'emd_distances': emd_distances,
         'corr_distances': corr_distances,
-        'cramers_v_distances': cramers_v_distances
+        'cramers_v_distances': cramers_v_distances,
+        'logistic_corr_distances': logistic_corr_distances
     }
 
     return stop_metrics
-
-
-# -- global constants
-default_metrics = {"avg_distance": mean_ks_distance}
-association_dict = {"i": ordered_correlation, "f": continuous_correlation,
-                    "O": categorical_logistic_rsquared}
