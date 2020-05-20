@@ -11,11 +11,13 @@ from synthesized.common import TypeOverride
 from synthesized.common.values.continuous import ContinuousValue
 
 
-def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500):
+def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):
+    highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
+
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
 
-    with HighDimSynthesizer(df=df_original) as synthesizer:
+    with HighDimSynthesizer(df=df_original, **highdim_kwargs) as synthesizer:
         synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
 
@@ -74,7 +76,7 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
 
-    df_synthesized, df_synthesized2 = export_model_given_df(df_original)
+    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans_for=True))
 
     assert np.isnan(df_synthesized['r']).any()
     assert np.isclose(np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
