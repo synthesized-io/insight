@@ -29,7 +29,6 @@ class GaussianTransformation(Transformation):
         self.stddev.build(input_shape)
         self.built = True
 
-    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
     def call(self, inputs: tf.Tensor, **kwargs) -> Tuple[tf.Tensor, tf.Tensor]:
         mu = self.mean(inputs, **kwargs)
         sigma = self.stddev(inputs, **kwargs)

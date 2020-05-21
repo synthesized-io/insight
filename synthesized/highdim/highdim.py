@@ -474,14 +474,18 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager = LearningManager()
             self.learning_manager.set_variables(variables['learning_manager'])
 
-    def export_model(self, fp: BinaryIO):
+    def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
+        title = 'HighDimSynthesizer' if title is None else title
+        description = None if title is None else description
+        author = 'SDK-v{}'.format(__version__) if title is None else author
+
         variables = self.get_variables()
 
         model_binary = ModelBinary(
             body=pickle.dumps(variables),
-            title='HighDimSynthesizer',
-            description=None,
-            author='SDK-v{}'.format(__version__)
+            title=title,
+            description=description,
+            author=author
         )
         model_binary.serialize(fp)
 
@@ -490,9 +494,6 @@ class HighDimSynthesizer(Synthesizer):
 
         model_binary = ModelBinary()
         model_binary.deserialize(fp)
-
-        assert model_binary.title == 'HighDimSynthesizer'
-        assert model_binary.author == 'SDK-v{}'.format(__version__)
 
         body = model_binary.get_body()
         if body is None:

@@ -47,7 +47,6 @@ class ResnetTransformation(Transformation):
             input_shape = layer.compute_output_shape(input_shape)
         self.built = True
 
-    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
     def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
         for layer in self.layers:
             inputs = layer(inputs)

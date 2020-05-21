@@ -72,7 +72,6 @@ class ResidualTransformation(Transformation):
 
         self.built = True
 
-    @tf.function(input_signature=[tf.TensorSpec(name='inputs', shape=None, dtype=tf.float32)])
     def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
         residual = inputs
         for layer in self.layers:
