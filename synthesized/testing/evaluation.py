@@ -176,10 +176,11 @@ def synthesize_and_plot(
 
 # -- training functions
 def synthesize_and_plot_time_series(
-        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: dict, test_data: Optional[pd.DataFrame] = None,
-        col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
-        plot_distances: bool = False, show_distributions: bool = False, show_distribution_distances: bool = False,
-        show_emd_distances: bool = False, show_correlation_distances: bool = False,
+        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.DataFrameComparison],
+        test_data: Optional[pd.DataFrame] = None, col: str = "x", max_lag: int = 10, plot_basic: bool = True,
+        plot_losses: bool = False, plot_distances: bool = False, show_distributions: bool = False,
+        show_distribution_distances: bool = False, show_emd_distances: bool = False,
+        show_correlation_distances: bool = False,
         show_correlation_matrix: bool = False, show_cramers_v_distances: bool = False,
         show_cramers_v_matrix: bool = False, show_cat_rsquared: bool = False, show_acf_distances: bool = False,
         show_pacf_distances: bool = False, show_transition_distances: bool = False, show_series: bool = False
@@ -206,7 +207,8 @@ def synthesize_and_plot_time_series(
     if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
         identifier_label = config['params']['identifier_label']
         num_series = eval_data[identifier_label].nunique()
-        series_length = int(len_eval_data / num_series)
+        series_length = int(len_eval_data / num_series) // 5
+        num_series = min(num_series, 5)
     else:
         num_series = 1
         series_length = len_eval_data
@@ -215,6 +217,7 @@ def synthesize_and_plot_time_series(
         synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
                           callback_freq=100)
         training_time = time.time() - start
+
         synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
         value_factory = synthesizer.value_factory
         print('took', training_time, 's')
@@ -222,10 +225,10 @@ def synthesize_and_plot_time_series(
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
 
     print("Metrics:")
-    for key, metric in eval_metrics.items():
+    for metric in eval_metrics:
         value = metric(orig=data, synth=synthesized)
-        evaluation.record_metric(evaluation=name, key=key, value=value)
-        print(f"{key}: {value}")
+        evaluation.record_metric(evaluation=name, key=metric.name, value=value)
+        print(f"{metric.name}: {value}")
 
     if plot_basic:
         display(Markdown("## Plot time-series data"))
@@ -249,46 +252,46 @@ def synthesize_and_plot_time_series(
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
 
-    if plot_distances:
-        display(Markdown("## Show average distances"))
-        results = testing.show_standard_metrics()
+    # if plot_distances:
+    #     display(Markdown("## Show average distances"))
+    #     results = testing.show_standard_metrics()
+    #
+    #     print_line = ''
+    #     for k, v in results.items():
+    #         if evaluation:
+    #             assert name, 'If evaluation is given, evaluation_name must be given too.'
+    #             evaluation.record_metric(evaluation=name, key=k, value=v)
+    #         print_line += '\n\t{}={:.4f}'.format(k, v)
+    #     print(print_line)
 
-        print_line = ''
-        for k, v in results.items():
-            if evaluation:
-                assert name, 'If evaluation is given, evaluation_name must be given too.'
-                evaluation.record_metric(evaluation=name, key=k, value=v)
-            print_line += '\n\t{}={:.4f}'.format(k, v)
-        print(print_line)
+    # if show_distributions:
+    #     display(Markdown("## Show distributions"))
+    #     testing.show_distributions(remove_outliers=0.01)
 
-    if show_distributions:
-        display(Markdown("## Show distributions"))
-        testing.show_distributions(remove_outliers=0.01)
-
-    # First order metrics
-    if show_distribution_distances:
-        display(Markdown("## Show distribution distances"))
-        testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
-    if show_emd_distances:
-        display(Markdown("## Show EMD distances"))
-        testing.show_first_order_metric_distances(metrics.earth_movers_distance)
-
-    # Second order metrics
-    if show_correlation_distances:
-        display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
-    if show_correlation_matrix:
-        display(Markdown("## Show correlation matrices"))
-        testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
-    if show_cramers_v_distances:
-        display(Markdown("## Show Cramer's V distances"))
-        testing.show_second_order_metric_distances(metrics.diff_cramers_v)
-    if show_cramers_v_matrix:
-        display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
-        testing.show_second_order_metric_matrices(metrics.cramers_v)
-    if show_cat_rsquared:
-        display(Markdown("## Show categorical R^2"))
-        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
+    # # First order metrics
+    # if show_distribution_distances:
+    #     display(Markdown("## Show distribution distances"))
+    #     testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
+    # if show_emd_distances:
+    #     display(Markdown("## Show EMD distances"))
+    #     testing.show_first_order_metric_distances(metrics.earth_movers_distance)
+    #
+    # # Second order metrics
+    # if show_correlation_distances:
+    #     display(Markdown("## Show correlation distances"))
+    #     testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
+    # if show_correlation_matrix:
+    #     display(Markdown("## Show correlation matrices"))
+    #     testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
+    # if show_cramers_v_distances:
+    #     display(Markdown("## Show Cramer's V distances"))
+    #     testing.show_second_order_metric_distances(metrics.diff_cramers_v)
+    # if show_cramers_v_matrix:
+    #     display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
+    #     testing.show_second_order_metric_matrices(metrics.cramers_v)
+    # if show_cat_rsquared:
+    #     display(Markdown("## Show categorical R^2"))
+    #     testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
 
     # TIME SERIES
     if show_acf_distances:

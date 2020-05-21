@@ -10,7 +10,7 @@ from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
 
 from .utility import DisplayType
-from .plotting import COLOR_ORIG, COLOR_SYNTH
+from .plotting import COLOR_ORIG, COLOR_SYNTH, set_plotting_style
 from ..common.synthesizer import Synthesizer
 from ..values import CategoricalValue
 from ..values import ContinuousValue
@@ -81,17 +81,7 @@ class TimeSeriesUtilityTesting:
             self.unique_ids_orig = []
             self.unique_ids_synth = []
 
-        # Set the style of plots
-        plt.style.use('seaborn')
-        mpl.rcParams["axes.facecolor"] = 'w'
-        mpl.rcParams['grid.color'] = 'grey'
-        mpl.rcParams['grid.alpha'] = 0.1
-
-        mpl.rcParams['axes.linewidth'] = 0.3
-        mpl.rcParams['axes.edgecolor'] = 'grey'
-
-        mpl.rcParams['axes.spines.right'] = True
-        mpl.rcParams['axes.spines.top'] = True
+        set_plotting_style()
 
     def _filter_column_data_types(self):
         categorical, continuous = [], []
