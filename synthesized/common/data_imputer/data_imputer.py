@@ -10,8 +10,8 @@ from ...highdim import HighDimSynthesizer
 
 class DataImputer(Synthesizer):
 
-    def __init__(self, df: pd.DataFrame):
-        self.highdim = HighDimSynthesizer(df=df, produce_nans_for=False, beta=0.)
+    def __init__(self, synthesizer: Synthesizer):
+        self.synthesizer = synthesizer
         self.nan_columns = self.get_nan_columns()
 
     def learn(
@@ -24,7 +24,7 @@ class DataImputer(Synthesizer):
 
     def impute_nans(self, df):
         df = df.copy()
-        _, df_synthesized = self.highdim.encode(df)
+        _, df_synthesized = self.synthesizer.encode_deterministic(df)
 
         for c in self.nan_columns:
             nans = df.loc[:, c].isna()
