@@ -219,7 +219,9 @@ def regressor_score(x_train, y_train, x_test, y_test, model, y_val) -> float:
 
 
 def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> Union[None, float]:
-    vf = kwargs.get('vf', ValueFactory(df=df))
+    vf = kwargs.get('vf')
+    if vf is None:
+        vf = ValueFactory(df=df)
     df = vf.preprocess(df)
     categorical, continuous = categorical_or_continuous_values(vf)
     if y_label not in [v.name for v in categorical]:

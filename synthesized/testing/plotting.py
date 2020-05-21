@@ -2,35 +2,43 @@ import logging
 import time
 from typing import Optional, List, Tuple
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from IPython.display import Markdown, display
 from matplotlib import cm
 from matplotlib.axes import Axes
-from scipy.stats import ks_2samp, spearmanr
-from statsmodels.formula.api import mnlogit, ols
-from statsmodels.tsa.stattools import acf, pacf
 
-from .metrics import calculate_evaluation_metrics
-from ..highdim import HighDimSynthesizer
-from ..series import SeriesSynthesizer
-from ..testing import UtilityTesting
-from ..testing.evaluation import Evaluation
-from ..insight import metrics
+from ..insight.metrics import kolmogorov_smirnov_distance
+
 
 logger = logging.getLogger(__name__)
 
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
-MAX_PVAL = 0.05
 NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
+COLOR_ORIG = '#00AB26'
+COLOR_SYNTH = '#2794F3'
+
 
 # -- Plotting functions
+def set_plotting_style():
+    plt.style.use('seaborn')
+    mpl.rcParams["axes.facecolor"] = 'w'
+    mpl.rcParams['grid.color'] = 'grey'
+    mpl.rcParams['grid.alpha'] = 0.1
+
+    mpl.rcParams['axes.linewidth'] = 0.3
+    mpl.rcParams['axes.edgecolor'] = 'grey'
+
+    mpl.rcParams['axes.spines.right'] = True
+    mpl.rcParams['axes.spines.top'] = True
+
+
 def plot_data(data: pd.DataFrame, ax: Axes):
     """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
     if data.shape[1] == 1:
@@ -65,11 +73,143 @@ def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: A
     error_msg = "Original and synthetic data must have the same data types."
     assert (original.dtypes.values == synthetic.dtypes.values).all(), error_msg
     dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
-    distances = [ks_2samp(original[col], synthetic[col])[0] for col in original.columns]
+    distances = [kolmogorov_smirnov_distance(original, synthetic, col) for col in original.columns]
     plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
     plot.set_xticklabels(plot.get_xticklabels(), rotation=30)
     plot.set_title("KS distance by column")
     return plot
+
+
+def plot_first_order_metric_distances(result: pd.Series, metric_name: str):
+    if len(result) == 0:
+        return
+
+    df = pd.DataFrame(result.dropna()).reset_index()
+
+    plt.figure(figsize=(8, int(len(df) / 2) + 2))
+    g = sns.barplot(y='index', x=metric_name, data=df)
+    g.set_xlim(0.0, 1.0)
+    plt.title(f'{metric_name}s')
+    plt.show()
+
+
+def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str, ax=None):
+    # Generate a mask for the upper triangle
+    mask = np.zeros_like(matrix, dtype=np.bool)
+    mask[np.triu_indices_from(mask)] = True
+
+    sns.set(style='white')
+    # Generate a custom diverging colormap
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    # Draw the heatmap with the mask and correct aspect ratio
+    hm = sns.heatmap(matrix, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                     square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax, annot=True, fmt='.2f')
+
+    if ax:
+        ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+    if title:
+        hm.set_title(title)
+
+
+def plot_second_order_metric_matrices(
+        matrix_test: pd.DataFrame, matrix_synth: pd.DataFrame,
+        metric_name: str, figsize: Tuple[float, float] = (15, 11)
+):
+    # Set up the matplotlib figure
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
+    plt.title(f"{metric_name} Matrices")
+    plot_second_order_metric_matrix(matrix_test, title=f'Original {metric_name}', ax=ax1)
+    plot_second_order_metric_matrix(matrix_synth, title=f'Synthetic {metric_name}', ax=ax2)
+    plt.show()
+
+
+def plot_second_order_metric_distances(df: pd.DataFrame, metric_name: str, figsize=None):
+    if figsize is None:
+        figsize = (10, len(df) // 6 + 2)
+    plt.figure(figsize=figsize)
+    plt.title(metric_name)
+    g = sns.barplot(y='column', x='distance', data=df)
+    g.set_xlim(0.0, 1.0)
+    plt.show()
+
+
+def bar_plot_results(current_result, ax=None):
+    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax, palette='Paired')
+
+    values = list(current_result.values())
+    for i in range(len(values)):
+        v = values[i]
+        g.text(i, v, round(v, 3), color='black', ha="center")
+
+    if ax:
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(10)
+    else:
+        plt.xticks(rotation=10)
+
+    plt.show()
+
+
+def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000, ax=None):
+    col_test = col_test.dropna()
+    col_synth = col_synth.dropna()
+
+    if len(col_test) == 0 or len(col_synth) == 0:
+        return
+
+    df_col_test = pd.DataFrame(col_test)
+    df_col_synth = pd.DataFrame(col_synth)
+
+    # We sample orig and synth them so that they have the same size to make the plots more comprehensive
+    sample_size = min(sample_size, len(col_test), len(col_synth))
+    concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
+                              df_col_synth.assign(dataset='synth').sample(sample_size)])
+
+    ax = sns.countplot(x=col_test.name, hue='dataset', data=concatenated,
+                       palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+    ax.set_title(title)
+    plt.legend()
+
+
+def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: float = 0.0, sample_size=10_000, ax=None):
+    col_test = pd.to_numeric(col_test.dropna(), errors='coerce').dropna()
+    col_synth = pd.to_numeric(col_synth.dropna(), errors='coerce').dropna()
+    if len(col_test) == 0 or len(col_synth) == 0:
+        return
+
+    col_test = col_test.sample(min(sample_size, len(col_test)))
+    col_synth = col_synth.sample(min(sample_size, len(col_synth)))
+
+    percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+    start, end = np.percentile(col_test, percentiles)
+    if start == end:
+        start, end = min(col_test), max(col_test)
+
+    # In case the synthesized data has overflown and has much different domain
+    col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
+    if len(col_synth) == 0:
+        return
+
+    # workaround for kde failing on datasets with only one value
+    if col_test.nunique() < 2 or col_synth.nunique() < 2:
+        kde = False
+        kde_kws = None
+    else:
+        kde = True
+        kde_kws = {'clip': (start, end)}
+
+    try:
+        sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
+                     hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
+        sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
+                     hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+    except Exception as e:
+        print('ERROR :: Column {} cant be shown :: {}'.format(col_test.name, e))
+
+    ax.set_title(title)
+    plt.legend()
 
 
 def plot_time_series(x, t, ax):
@@ -89,64 +229,6 @@ def plot_auto_association(original: np.array, synthetic: np.array, axes: np.arra
     axes[1].set_title("Synthetic")
 
 
-def calculate_mean_max(x: List[float]) -> Tuple[float, float]:
-    if len(x) > 0:
-        return np.nanmean(x), np.nanmax(x)
-    else:
-        return 0., 0.
-
-
-def plot_avg_distances(synthesized: pd.DataFrame, test: pd.DataFrame,
-                       evaluation: Optional[Evaluation] = None, evaluation_name: Optional[str] = None,
-                       ax: Axes = None):
-    test = test.copy()
-    synthesized = synthesized.copy()
-
-    metrics = calculate_evaluation_metrics(df_orig=test, df_synth=synthesized)
-    print(metrics)
-
-    # Compute summaries
-    avg_ks_distance, max_ks_distance = calculate_mean_max(metrics['ks_distances'])
-    avg_corr_distance, max_corr_distance = calculate_mean_max(metrics['corr_distances'].values)
-    avg_emd_distance, max_emd_distance = calculate_mean_max(metrics['emd_distances'])
-    avg_cramers_v_distance, max_cramers_v_distance = calculate_mean_max(metrics['cramers_v_distances'].values)
-    avg_log_corr_distance, max_log_corr_distance = calculate_mean_max(metrics['logistic_corr_distances'].values)
-
-    current_result = {
-        'ks_distance_avg': avg_ks_distance,
-        'ks_distance_max': max_ks_distance,
-        'emd_categ_avg': avg_emd_distance,
-        'emd_categ_max': max_emd_distance,
-        'corr_dist_avg': avg_corr_distance,
-        'corr_dist_max': max_corr_distance,
-        'cramers_v_avg': avg_cramers_v_distance,
-        'cramers_v_max': max_cramers_v_distance,
-        'logistic_corr_dist_avg': avg_log_corr_distance,
-        'logistic_corr_dist_max': max_log_corr_distance
-    }
-    print(current_result)
-
-    print_line = ''
-    for k, v in current_result.items():
-        if evaluation:
-            assert evaluation_name, 'If evaluation is given, evaluation_name must be given too.'
-            evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
-        print_line += '\n\t{}={:.4f}'.format(k, v)
-
-    g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax, palette='Paired')
-
-    values = list(current_result.values())
-    for i in range(len(values)):
-        v = values[i]
-        g.text(i, v, round(v, 3), color='black', ha="center")
-
-    if ax:
-        for tick in ax.get_xticklabels():
-            tick.set_rotation(10)
-    else:
-        plt.xticks(rotation=10)
-
-
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
     values = np.unique(x)
     val2idx = {val: i for i, val in enumerate(values)}
@@ -160,287 +242,3 @@ def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
 
 def sequence_line_plot(x, t, ax):
     sns.lineplot(x=t, y=x, ax=ax)
-
-
-# -- training functions
-def synthesize_and_plot(data: pd.DataFrame, name: str, evaluation, config, eval_metrics: dict,
-                        test_data: Optional[pd.DataFrame] = None, time_series: bool = False,
-                        col: str = "x", max_lag: int = 10, plot_basic: bool = True, plot_losses: bool = False,
-                        plot_distances: bool = False, show_distributions: bool = False,
-                        show_distribution_distances: bool = False, show_emd_distances: bool = False,
-                        show_correlation_distances: bool = False, show_correlation_matrix: bool = False,
-                        show_cramers_v_distances: bool = False, show_cramers_v_matrix: bool = False,
-                        show_cat_rsquared: bool = False,
-                        show_acf_distances: bool = False,  show_pacf_distances: bool = False,
-                        show_transition_distances: bool = False, show_series: bool = False):
-    """
-    Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
-    """
-    eval_data = test_data if test_data is not None else data
-    len_eval_data = len(eval_data)
-
-    def callback(synth, iteration, losses):
-        if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
-            if len(synth.loss_history) == 0:
-                synth.loss_history.append({n: l.numpy() for n, l in losses.items()})
-            else:
-                synth.loss_history.append({local_name: losses[local_name].numpy()
-                                           for local_name in synth.loss_history[0]})
-        return False
-
-    evaluation.record_config(evaluation=name, config=config)
-    start = time.time()
-    identifier_label = None
-
-    if config['synthesizer_class'] == 'HighDimSynthesizer':
-
-        with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
-            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-                              callback_freq=100)
-            training_time = time.time() - start
-            synthesized = synthesizer.synthesize(num_rows=len_eval_data)
-            value_factory = synthesizer.value_factory
-            print('took', training_time, 's')
-
-    elif config['synthesizer_class'] == 'SeriesSynthesizer':
-
-        if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
-            identifier_label = config['params']['identifier_label']
-            num_series = eval_data[identifier_label].nunique()
-            series_length = int(len_eval_data / num_series)
-        else:
-            num_series = 1
-            series_length = len_eval_data
-
-        with SeriesSynthesizer(df=data, **config['params']) as synthesizer:
-            synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-                              callback_freq=100)
-            training_time = time.time() - start
-            synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
-            value_factory = synthesizer.value_factory
-            print('took', training_time, 's')
-
-    else:
-        raise NotImplementedError("Given 'synthesizer_class={}' not supported.".format(config['synthesizer_class']))
-
-    evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
-    print("Metrics:")
-    for key, metric in eval_metrics.items():
-        value = metric(orig=data, synth=synthesized)
-        evaluation.record_metric(evaluation=name, key=key, value=value)
-        print(f"{key}: {value}")
-
-    if plot_basic:
-        if time_series:
-            display(Markdown("## Plot time-series data"))
-            fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
-            fig.tight_layout()
-            original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
-            synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
-            t_orig = np.arange(0, data.shape[0])
-            plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
-            axes[0, 0].set_title("Original")
-            t_synth = np.arange(0, synthesized.shape[0])
-            plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
-            axes[0, 1].set_title("Synthetic")
-            plot_auto_association(original=original_auto_assoc, synthetic=synthetic_auto_assoc, axes=axes[1])
-        elif data.shape[1] <= 3:
-            display(Markdown("## Plot data"))
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5), sharex=True, sharey=True)
-            ax1.set_title('orig')
-            ax2.set_title('synth')
-            plot_data(data, ax=ax1)
-            plot_data(synthesized, ax=ax2)
-        else:
-            display(Markdown("## Plot data"))
-            fig, ax = plt.subplots(figsize=(15, 5))
-            plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
-
-    testing = UtilityTesting(synthesizer, data, eval_data, synthesized, identifier=identifier_label)
-
-    if plot_losses:
-        display(Markdown("## Show loss history"))
-        df_losses = pd.DataFrame.from_records(synthesizer.loss_history)
-        if len(df_losses) > 0:
-            df_losses.plot(figsize=(15, 7))
-        plt.show()
-
-    if plot_distances:
-        display(Markdown("## Show average distances"))
-
-        # Calculate 1st order metrics for categorical/continuous
-        avg_ks_distance, max_ks_distance = testing.metric_mean_max(metrics.kolmogorov_smirnov_distance)
-        avg_emd_distance, max_emd_distance = testing.metric_mean_max(metrics.earth_movers_distance)
-
-        # Calculate 2nd order metrics for categorical/continuous
-        avg_corr_distance, max_corr_distance = testing.metric_mean_max(metrics.kendell_tau_correlation, max_p_value=MAX_PVAL)
-        avg_cramers_v_distance, max_cramers_v_distance = testing.metric_mean_max(metrics.cramers_v)
-        avg_log_corr_distance, max_log_corr_distance = testing.metric_mean_max(metrics.categorical_logistic_correlation, continuous_input_only=True)
-
-        current_result = {
-            'ks_distance_avg': avg_ks_distance,
-            'ks_distance_max': max_ks_distance,
-            'emd_categ_avg': avg_emd_distance,
-            'emd_categ_max': max_emd_distance,
-            'corr_dist_avg': avg_corr_distance,
-            'corr_dist_max': max_corr_distance,
-            'cramers_v_avg': avg_cramers_v_distance,
-            'cramers_v_max': max_cramers_v_distance,
-            'logistic_corr_dist_avg': avg_log_corr_distance,
-            'logistic_corr_dist_max': max_log_corr_distance
-        }
-
-        print_line = ''
-        for k, v in current_result.items():
-            if evaluation:
-                assert name, 'If evaluation is given, evaluation_name must be given too.'
-                evaluation.record_metric(evaluation=name, key=k, value=v)
-            print_line += '\n\t{}={:.4f}'.format(k, v)
-
-        testing.show_results(current_result)
-
-    if show_distributions:
-        display(Markdown("## Show distributions"))
-        testing.show_distributions(remove_outliers=0.01)
-
-    # First order metrics
-    if show_distribution_distances:
-        display(Markdown("## Show distribution distances"))
-        testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
-    if show_emd_distances:
-        display(Markdown("## Show EMD distances"))
-        testing.show_first_order_metric_distances(metrics.earth_movers_distance)
-
-    # Second order metrics
-    if show_correlation_distances:
-        display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
-    if show_correlation_matrix:
-        display(Markdown("## Show correlation matrices"))
-        testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
-    if show_cramers_v_distances:
-        display(Markdown("## Show Cramer's V distances"))
-        testing.show_second_order_metric_distances(metrics.diff_cramers_v)
-    if show_cramers_v_matrix:
-        display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
-        testing.show_second_order_metric_matrices(metrics.cramers_v)
-    if show_cat_rsquared:
-        display(Markdown("## Show categorical R^2"))
-        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
-
-    # TIME SERIES
-    if show_acf_distances:
-        display(Markdown("## Show Auto-correaltion Distances"))
-        acf_dist_max, acf_dist_avg = testing.show_autocorrelation_distances()
-        evaluation.record_metric(evaluation=name, key='acf_dist_max', value=acf_dist_max)
-        evaluation.record_metric(evaluation=name, key='acf_dist_avg', value=acf_dist_avg)
-        plt.show()
-    if show_pacf_distances:
-        display(Markdown("## Show Partial Auto-correlation Distances"))
-        testing.show_partial_autocorrelation_distances()
-        plt.show()
-    if show_transition_distances:
-        display(Markdown("## Show Transition Distances"))
-        trans_dist_max, trans_dist_avg = testing.show_transition_distances()
-        evaluation.record_metric(evaluation=name, key='trans_dist_max', value=trans_dist_max)
-        evaluation.record_metric(evaluation=name, key='trans_dist_avg', value=trans_dist_avg)
-        plt.show()
-    if show_series:
-        display(Markdown("## Show Series Sample"))
-        testing.show_series()
-        plt.show()
-    return testing
-
-
-# -- Measures of association for different pairs of data types
-def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
-    variable = dataset[col].to_numpy()
-    association = association_dict[variable.dtype.kind]
-    auto_associations = []
-    for order in range(1, max_order+1):
-        postfix = variable[order:]
-        prefix = variable[:-order]
-        auto_associations.append(association(x=prefix, y=postfix))
-    return np.array(auto_associations)
-
-
-# --- Association between continuous and continuous
-def continuous_correlation(x, y):
-    return np.corrcoef(x, y)[0, 1]
-
-
-def ordered_correlation(x, y):
-    return spearmanr(x, y).correlation
-
-
-# --- Association between categorical and categorical
-def categorical_logistic_rsquared(x, y):
-    temp_df = pd.DataFrame({"x": x, "y": y})
-    model = mnlogit("y ~ C(x)", data=temp_df).fit(method="cg", disp=0)
-    return model.prsquared
-
-
-def max_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
-              if dtype.kind == "f"]
-    acf_distances = [np.abs((acf(orig[col], fft=True) - acf(synth[col], fft=True))).max()
-                     for col in floats]
-    return max(acf_distances)
-
-
-def max_partial_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
-              if dtype.kind == "f"]
-    pacf_distances = [np.abs((pacf(orig[col]) - pacf(synth[col]))).max()
-                      for col in floats]
-    return max(pacf_distances)
-
-
-def max_categorical_auto_association_distance(orig: pd.DataFrame, synth: pd.DataFrame, max_order=20):
-    cats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
-            if dtype.kind == "O"]
-    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order) -
-                            calculate_auto_association(synth, col, max_order)).max()
-                     for col in cats]
-    return max(cat_distances)
-
-
-def mean_squared_error_closure(col, baseline: float = 1):
-    def mean_squared_error(orig: pd.DataFrame, synth: pd.DataFrame):
-        return ((orig[col].to_numpy() - synth[col].to_numpy())**2).mean()/baseline
-    return mean_squared_error
-
-
-def rolling_mse_asof(sd, time_unit=None):
-    """
-    Calculate the mean-squared error between the "x" values of the original and synthetic
-    data. The sets of times may not be identical so we use "as of" (last observation rolled
-    forward) to interpolate between the times in the two datasets.
-
-    The dates are also optionally truncated to some unit following the syntax for the pandas
-    `.floor` function.
-
-    :param sd: [float] error standard deviation
-    :param time_unit: [str] the time unit to round to. See documentation for pandas `.floor` method.
-    :return: [(float, float)] MSE and MSE/(2*error variance)
-    """
-    # truncate date
-    def mse_function(orig, synth):
-        if time_unit is not None:
-            synth.t = synth.t.dt.floor(time_unit)
-            orig.t = orig.t.dt.floor(time_unit)
-
-        # join datasets
-        joined = pd.merge_asof(orig[["t", "x"]], synth[["t", "x"]], on="t")
-
-        # calculate metrics
-        mse = ((joined.x_x - joined.x_y) ** 2).mean()
-        mse_eff = mse / (2 * sd ** 2)
-
-        return mse_eff
-    return mse_function
-
-
-# -- global constants
-association_dict = {"i": ordered_correlation, "f": continuous_correlation,
-                    "O": categorical_logistic_rsquared}
