@@ -222,18 +222,24 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> U
     vf = kwargs.get('vf')
     if vf is None:
         vf = ValueFactory(df=df)
-    df = vf.preprocess(df)
     categorical, continuous = categorical_or_continuous_values(vf)
     if y_label not in [v.name for v in categorical]:
         return None
     if len(x_labels) == 0:
         return None
 
-    rg = LogisticRegression()
+    df = vf.preprocess(df)
+
+    df = df[x_labels+[y_label]].dropna()
+    df = df.sample(min(MAX_ANALYSIS_SAMPLE_SIZE, len(df)))
+
+    if df[y_label].nunique() < 2:
+        return None
 
     x_array = _preprocess_x2(df[x_labels], None, [v for v in categorical if v.name in x_labels])
     y_array = df[y_label].values
 
+    rg = LogisticRegression()
     rg.fit(x_array, y_array)
 
     labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
