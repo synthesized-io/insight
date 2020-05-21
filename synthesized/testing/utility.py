@@ -6,6 +6,7 @@
 """This module contains tools for utility testing."""
 from enum import Enum
 import logging
+import math
 from typing import Tuple, Dict, List, Union
 
 import matplotlib.pyplot as plt
@@ -87,27 +88,31 @@ class UtilityTesting:
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
         """
-        rows = np.ceil(len(self.plotable_values)/cols)
+        rows = math.ceil(len(self.plotable_values)/cols)
         if not figsize:
             figsize = (14, 5 * rows + 2)
 
         fig = plt.figure(figsize=figsize)
+        gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.2)
+        n = 0
+
         for i, col in enumerate(self.categorical):
-            ax = fig.add_subplot(rows, cols, i + 1)
+            ax = fig.add_subplot(gs[n // cols, n % cols])
 
             emd_distance = metrics.earth_movers_distance(self.df_orig, self.df_synth, col, vf=self.vf)
             title = f'{col} (EMD Dist={emd_distance:.3f})'
             categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
+            n += 1
 
         for i, col in enumerate(self.continuous):
-            ax = fig.add_subplot(rows, cols, len(self.categorical) + i + 1)
+            ax = fig.add_subplot(gs[n // 2, n % 2])
 
             ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig, self.df_synth, col, vf=self.vf)
             title = f'{col} (KS Dist={ks_distance:.3f})'
             continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
+            n += 1
 
-        plt.suptitle('Distributions')
-        plt.tight_layout(pad=1.1)
+        plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
         plt.show()
 
     def utility(self, target: str, model: str = 'GradientBoosting') -> float:
