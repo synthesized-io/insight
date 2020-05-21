@@ -1,21 +1,15 @@
 import os
 import json
-import logging
 
 if not 'workbookDir' in globals():
     workbookDir = os.getcwd()
 os.chdir(os.path.split(os.path.split(workbookDir)[0])[0])
-
-print(os.getcwd())
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from synthesized.testing.evaluation import Evaluation, synthesize_and_plot
 
-
-logger = logging.getLogger("synthesized")
-logger.setLevel("DEBUG")
 
 evaluation_name = os.environ.get('evaluation_name', 'james')
 branch = os.environ.get('evaluation_branch', 'test')
@@ -37,7 +31,7 @@ data.head(5)
 
 train, test = train_test_split(data, test_size=0.2, random_state=0)
 testing = synthesize_and_plot(data=data, name=evaluation_name, evaluation=evaluation, config=config,
-                              eval_metrics={}, test_data=test, plot_basic=False, plot_losses=True,
+                              eval_metrics=[], test_data=test, plot_basic=False, plot_losses=True,
                               plot_distances=True, show_distributions=True,
                               show_distribution_distances=True, show_emd_distances=True,
                               show_correlation_distances=True, show_correlation_matrix=True,
