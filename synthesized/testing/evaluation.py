@@ -10,10 +10,9 @@ import pandas as pd
 import simplejson
 from sklearn.model_selection import train_test_split
 
-from .metrics import calculate_auto_association
 from .plotting import plot_time_series, plot_auto_association, plot_data, plot_multidimensional
 from .utility import UtilityTesting, MAX_PVAL
-from .utility_time_series import TimeSeriesUtilityTesting
+from .utility_time_series import TimeSeriesUtilityTesting, calculate_auto_association
 from ..highdim import HighDimSynthesizer
 from ..series import SeriesSynthesizer
 from ..insight import metrics

@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional, Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -9,6 +9,8 @@ from sklearn.metrics import mean_squared_error, normalized_mutual_info_score
 from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
 
+from .utility import DisplayType
+from .plotting import COLOR_ORIG, COLOR_SYNTH
 from ..common.synthesizer import Synthesizer
 from ..values import CategoricalValue
 from ..values import ContinuousValue
@@ -16,10 +18,9 @@ from ..values import DateValue
 from ..values import DecomposedContinuousValue
 from ..values import NanValue
 from ..values import Value
-from ..testing import metrics as eval_metrics
 from ..insight import metrics
 from ..insight.modelling import predictive_modelling_comparison
-from .utility import DisplayType, COLOR_ORIG, COLOR_SYNTH
+from ..insight.dataset import categorical_or_continuous_values
 
 
 class TimeSeriesUtilityTesting:
@@ -106,8 +107,8 @@ class TimeSeriesUtilityTesting:
         for i, (col, dtype) in enumerate(self.display_types.items()):
             ax = fig.add_subplot(len(self.display_types), cols, i + 1)
             n = list(range(1, max_order + 1))
-            original_auto = eval_metrics.calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
-            synth_auto = eval_metrics.calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
+            original_auto = calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
+            synth_auto = calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
             ax.stem(n, original_auto, 'b', markerfmt='bo', label="Original")
             ax.stem(n, synth_auto, 'g', markerfmt='go', label="Synthetic")
             ax.set_title(label=col)
@@ -290,12 +291,12 @@ class TimeSeriesUtilityTesting:
             k = 0
             if self.identifier:
                 for i in self.unique_ids_orig:
-                    t_orig += eval_metrics.transition_matrix(
+                    t_orig += transition_matrix(
                         self.df_test.loc[self.df_test[self.identifier] == i, col], val2idx=val2idx)[0]
                     k += 1
                 t_orig /= k
             else:
-                t_orig += eval_metrics.transition_matrix(
+                t_orig += transition_matrix(
                     self.df_test[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
@@ -307,12 +308,12 @@ class TimeSeriesUtilityTesting:
             k = 0
             if self.identifier:
                 for i in self.unique_ids_synth:
-                    t_synth += eval_metrics.transition_matrix(
+                    t_synth += transition_matrix(
                         self.df_synth.loc[self.df_synth[self.identifier] == i, col], val2idx=val2idx)[0]
                     k += 1
                 t_synth /= k
             else:
-                t_synth += eval_metrics.transition_matrix(
+                t_synth += transition_matrix(
                     self.df_synth[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
@@ -360,3 +361,105 @@ class TimeSeriesUtilityTesting:
             plt.show()
 
         return dist_max, dist_avg
+
+# -- Measures of association for different pairs of data types
+def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
+    variable = dataset[col].to_numpy()
+    categorical, continuous = categorical_or_continuous_values(dataset[col])
+
+    association: Optional[metrics.TwoColumnComparison] = None
+
+    if len(categorical) > 0:
+        association = metrics.earth_movers_distance
+    elif len(continuous) > 0:
+        association = metrics.kendell_tau_correlation
+
+    if association is None:
+        return None
+
+    auto_associations = []
+    for order in range(1, max_order+1):
+        postfix = variable[order:]
+        prefix = variable[:-order]
+        df = pd.DataFrame({'prefix': prefix, 'postfix': postfix})
+        auto_associations.append(association(df, 'prefix', 'postfix'))
+    return np.array(auto_associations)
+
+
+def max_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
+    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
+              if dtype.kind == "f"]
+    acf_distances = [np.abs((acf(orig[col], fft=True) - acf(synth[col], fft=True))).max()
+                     for col in floats]
+    return max(acf_distances)
+
+
+def max_partial_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
+    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
+              if dtype.kind == "f"]
+    pacf_distances = [np.abs((pacf(orig[col]) - pacf(synth[col]))).max()
+                      for col in floats]
+    return max(pacf_distances)
+
+
+def max_categorical_auto_association_distance(orig: pd.DataFrame, synth: pd.DataFrame, max_order=20):
+    cats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
+            if dtype.kind == "O"]
+    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order) -
+                            calculate_auto_association(synth, col, max_order)).max()
+                     for col in cats]
+    return max(cat_distances)
+
+
+def mean_squared_error_closure(col, baseline: float = 1):
+    def mean_squared_error(orig: pd.DataFrame, synth: pd.DataFrame):
+        return ((orig[col].to_numpy() - synth[col].to_numpy())**2).mean()/baseline
+    return mean_squared_error
+
+
+def rolling_mse_asof(sd, time_unit=None):
+    """
+    Calculate the mean-squared error between the "x" values of the original and synthetic
+    data. The sets of times may not be identical so we use "as of" (last observation rolled
+    forward) to interpolate between the times in the two datasets.
+
+    The dates are also optionally truncated to some unit following the syntax for the pandas
+    `.floor` function.
+
+    :param sd: [float] error standard deviation
+    :param time_unit: [str] the time unit to round to. See documentation for pandas `.floor` method.
+    :return: [(float, float)] MSE and MSE/(2*error variance)
+    """
+    # truncate date
+    def mse_function(orig, synth):
+        if time_unit is not None:
+            synth.t = synth.t.dt.floor(time_unit)
+            orig.t = orig.t.dt.floor(time_unit)
+
+        # join datasets
+        joined = pd.merge_asof(orig[["t", "x"]], synth[["t", "x"]], on="t")
+
+        # calculate metrics
+        mse = ((joined.x_x - joined.x_y) ** 2).mean()
+        mse_eff = mse / (2 * sd ** 2)
+
+        return mse_eff
+    return mse_function
+
+
+def transition_matrix(transitions: np.array, val2idx: Dict[int, Any] = None) -> Tuple[np.array, Dict[int, Any]]:
+    if not val2idx:
+        val2idx = {v: i for i, v in enumerate(np.unique(transitions))}
+
+    n = len(val2idx)  # number of states
+    M = np.zeros((n, n))
+
+    for (v_i, v_j) in zip(transitions, transitions[1:]):
+        M[val2idx[v_i], val2idx[v_j]] += 1
+
+    for row in M:
+        s = sum(row)
+        if s > 0:
+            row[:] = [f / s for f in row]
+
+    return M, val2idx

@@ -7,7 +7,6 @@ os.chdir(os.path.split(os.path.split(workbookDir)[0])[0])
 
 from synthesized.testing.evaluation import Evaluation
 from synthesized.testing import synthetic_distributions as syn_dist
-from synthesized.testing import metrics as eval_metrics
 from synthesized.testing import plotting as syn_plot
 
 branch = os.environ.get('evaluation_branch', 'n/a')
