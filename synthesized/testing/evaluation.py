@@ -1,7 +1,7 @@
 import datetime
 from collections import OrderedDict
 import time
-from typing import Optional
+from typing import Optional, List
 
 from IPython.display import Markdown, display
 import matplotlib.pyplot as plt
@@ -65,17 +65,19 @@ class Evaluation:
 
 # -- training functions
 def synthesize_and_plot(
-        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: dict, test_data: Optional[pd.DataFrame] = None,
-        plot_basic: bool = True, plot_losses: bool = False, plot_distances: bool = False,
-        show_distributions: bool = False, show_distribution_distances: bool = False, show_emd_distances: bool = False,
-        show_correlation_distances: bool = False, show_correlation_matrix: bool = False,
-        show_cramers_v_distances: bool = False, show_cramers_v_matrix: bool = False, show_cat_rsquared: bool = False
+        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.DataFrameComparison] = None,
+        test_data: Optional[pd.DataFrame] = None, plot_basic: bool = True, plot_losses: bool = False,
+        plot_distances: bool = False, show_distributions: bool = False, show_distribution_distances: bool = False,
+        show_emd_distances: bool = False, show_correlation_distances: bool = False,
+        show_correlation_matrix: bool = False, show_cramers_v_distances: bool = False,
+        show_cramers_v_matrix: bool = False, show_cat_rsquared: bool = False
 ):
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
     eval_data = test_data if test_data is not None else data
     len_eval_data = len(eval_data)
+    eval_metrics = eval_metrics or []
 
     def callback(synth, iteration, losses):
         if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
@@ -100,10 +102,10 @@ def synthesize_and_plot(
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
     
     print("Metrics:")
-    for key, metric in eval_metrics.items():
-        value = metric(orig=data, synth=synthesized)
-        evaluation.record_metric(evaluation=name, key=key, value=value)
-        print(f"{key}: {value}")
+    for metric in eval_metrics:
+        value = metric(df_old=data, df_new=synthesized)
+        evaluation.record_metric(evaluation=name, key=metric.name, value=value)
+        print(f"{metric.name}: {value}")
 
     if plot_basic:
         if data.shape[1] <= 3:
@@ -113,10 +115,12 @@ def synthesize_and_plot(
             ax2.set_title('synth')
             plot_data(data, ax=ax1)
             plot_data(synthesized, ax=ax2)
+            plt.show()
         else:
             display(Markdown("## Plot data"))
             fig, ax = plt.subplots(figsize=(15, 5))
             plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
+            plt.show()
 
     testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
 
@@ -324,8 +328,9 @@ def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
 
     try:
         utility = testing.utility(target=evaluation.configs[evaluation_name]['target'])
-    except:
+    except Exception as e:
         utility = 1.0
+        print(e)
 
     print(f'Utility: {utility:.3f}')
 
