@@ -80,7 +80,7 @@ def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
 
 
-def check_params_version(current_version, old_version):
+def check_format_version(current_version, old_version):
     try:
         current_version = current_version.split('.', 1)
         old_version = old_version.split('.', 1)

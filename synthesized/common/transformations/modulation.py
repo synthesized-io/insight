@@ -3,11 +3,11 @@ from typing import Dict, Any
 from .dense import DenseTransformation
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
-from ..util import check_params_version
+from ..util import check_format_version
 
 
 class ModulationTransformation(Transformation):
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(self, name, input_size, condition_size):
         super().__init__(name=name, input_size=input_size, output_size=input_size)
@@ -46,7 +46,7 @@ class ModulationTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
-            params_version=self.params_version,
+            format_version=self.format_version,
             condition_size=self.condition_size,
             offset=self.offset.get_variables(),
             scale=self.scale.get_variables()
@@ -54,7 +54,7 @@ class ModulationTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         super().set_variables(variables)
 

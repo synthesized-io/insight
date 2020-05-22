@@ -10,7 +10,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .values import Value
-from .util import check_params_version
+from .util import check_format_version
 
 
 def _check_license():
@@ -53,7 +53,7 @@ if not _check_license():
 
 
 class Synthesizer(tf.Module):
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
         super(Synthesizer, self).__init__(name=name)
@@ -193,12 +193,12 @@ class Synthesizer(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
-            params_version=self.params_version,
+            format_version=self.format_version,
             global_step=self.global_step.numpy()
         )
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         assert self.name == variables['name']
 

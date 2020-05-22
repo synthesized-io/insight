@@ -2,7 +2,7 @@ from typing import Callable, List, Dict, Any
 
 import tensorflow as tf
 
-from ..util import check_params_version
+from ..util import check_format_version
 
 # TensorFlow optimizer implementations
 tf_optimizers = dict(
@@ -13,7 +13,7 @@ tf_optimizers = dict(
 
 class Optimizer(tf.Module):
     """Optimizer."""
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(self, name: str, optimizer: str, learning_rate: float, decay_steps: int = None,
                  decay_rate: float = None, initial_boost: int = 0, clip_gradients: float = None):
@@ -93,7 +93,7 @@ class Optimizer(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
-            params_version=self.params_version,
+            format_version=self.format_version,
             clip_gradients=self.clip_gradients,
             optimizer_name=self.optimizer_name,
             learning_rate=self._learning_rate.numpy(),
@@ -104,7 +104,7 @@ class Optimizer(tf.Module):
         )
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         assert self.name == variables['name']
         assert self.clip_gradients == variables['clip_gradients']

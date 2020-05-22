@@ -12,7 +12,7 @@ from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
-from ..common.util import record_summaries_every_n_global_steps, check_params_version
+from ..common.util import record_summaries_every_n_global_steps, check_format_version
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class HighDimSynthesizer(Synthesizer):
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
     is, no temporal or otherwise conditional relation between the rows.
     """
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
@@ -414,7 +414,7 @@ class HighDimSynthesizer(Synthesizer):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
-            params_version=self.params_version,
+            format_version=self.format_version,
 
             # Value Factory
             value_factory=self.value_factory.get_variables(),
@@ -450,10 +450,10 @@ class HighDimSynthesizer(Synthesizer):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         super().set_variables(variables)
-        if self.params_version != variables['params_version']:
+        if self.format_version != variables['format_version']:
             logger.warning("Current and given parameters version are different, this may cause unexpected behaviour.")
 
         # Value Factory

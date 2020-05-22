@@ -5,11 +5,11 @@ import tensorflow as tf
 from .residual import ResidualTransformation
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
-from ..util import check_params_version
+from ..util import check_format_version
 
 
 class ResnetTransformation(Transformation):
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(self, name, input_size, layer_sizes, depths=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
@@ -63,7 +63,7 @@ class ResnetTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
-            params_version=self.params_version,
+            format_version=self.format_version,
             layer_sizes=self.layer_sizes,
             depths=self.depths
         )
@@ -73,7 +73,7 @@ class ResnetTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         super().set_variables(variables)
 

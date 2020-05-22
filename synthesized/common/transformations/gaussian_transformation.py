@@ -5,11 +5,11 @@ import tensorflow as tf
 from .transformation import Transformation
 from .dense import DenseTransformation
 from ..module import tensorflow_name_scoped
-from ..util import check_params_version
+from ..util import check_format_version
 
 
 class GaussianTransformation(Transformation):
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(
             self, input_size: int, output_size: int, name: str = 'gaussian-transformation'
@@ -46,14 +46,14 @@ class GaussianTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
-            params_version=self.params_version,
+            format_version=self.format_version,
             mean=self.mean.get_variables(),
             stddev=self.stddev.get_variables()
         )
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         super().set_variables(variables)
 

@@ -22,7 +22,7 @@ from .nan import NanValue
 from .person import PersonValue
 from .sampling import SamplingValue
 from .value import Value
-from ..util import check_params_version
+from ..util import check_format_version
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class TypeOverride(enum.Enum):
 
 class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
-    params_version = '0.0'
+    format_version = '0.0'
     categorical_threshold_log_multiplier = 2.5
     parsing_nan_fraction_threshold = 0.25
 
@@ -581,7 +581,7 @@ class ValueFactory:
     def get_variables(self) -> Dict[str, Any]:
         variables: Dict[str, Any] = dict(
             name=self.name,
-            params_version=self.params_version,
+            format_version=self.format_version,
             columns=self.columns,
             column_aliases=self.column_aliases,
             identifier_label=self.identifier_label,
@@ -599,7 +599,7 @@ class ValueFactory:
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         assert self.name == variables['name']
 
@@ -622,7 +622,7 @@ class ValueFactory:
 class ValueFactoryWrapper(ValueFactory):
     def __init__(self, name: str, variables: Dict[str, Any]):
         self.name = name
-        self.params_version = ValueFactory.params_version
+        self.format_version = ValueFactory.format_version
         self.set_variables(variables)
 
 

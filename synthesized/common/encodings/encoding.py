@@ -4,11 +4,11 @@ import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..transformations import Transformation
-from ..util import check_params_version
+from ..util import check_format_version
 
 
 class Encoding(Transformation):
-    params_version = '0.0'
+    format_version = '0.0'
 
     def __init__(self, input_size, encoding_size, condition_size=0, name='encoding'):
         super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
@@ -80,7 +80,7 @@ class Encoding(Transformation):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
-            params_version=self.params_version,
+            format_version=self.format_version,
             encoding_size=self.encoding_size,
             condition_size=self.condition_size,
             global_step=self.global_step.numpy(),
@@ -88,7 +88,7 @@ class Encoding(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_params_version(self.params_version, variables['params_version'])
+        check_format_version(self.format_version, variables['format_version'])
 
         super().set_variables(variables)
         assert self.encoding_size == variables['encoding_size']
