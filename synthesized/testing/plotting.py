@@ -1,15 +1,12 @@
 import logging
-import time
-from typing import Optional, List, Tuple, Type
-from itertools import repeat
+from typing import List, Tuple, Union
+import math
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.fft import fft
-from statsmodels.tsa.stattools import acf
 from sklearn.preprocessing import OneHotEncoder
 from matplotlib import cm
 from matplotlib.axes import Axes, SubplotBase
@@ -43,7 +40,7 @@ def set_plotting_style():
     mpl.rcParams['axes.spines.top'] = True
 
 
-def axes_grid(ax: Type[Axes, SubplotBase], rows: int, cols: int,
+def axes_grid(ax: Union[Axes, SubplotBase], rows: int, cols: int,
               col_titles: List[str], row_titles: List[str], **kwargs):
     ax.set_axis_off()
     sp_spec = ax.get_subplotspec()
@@ -264,26 +261,26 @@ def plot_continuous_time_series(df_orig, df_synth, col, identifiers=None, ax=Non
         orig_axes, synth_axes = zip(*axes)
 
         for j, idf in enumerate(identifiers[:5]):
-            x = pd.to_numeric(df_orig.loc[:, (idf, col)], errors='coerce').dropna().values
+            x = pd.to_numeric(df_orig.loc[:, (idf, col)], errors='coerce').dropna()
             if len(x) > 1:
-                orig_axes[j].plot(range(len(x)), x, color=COLOR_ORIG)
+                orig_axes[j].plot(x.index, x.values, color=COLOR_ORIG)
             orig_axes[j].label_outer()
 
-            x = pd.to_numeric(df_synth.loc[:, (idf, col)], errors='coerce').dropna().values
+            x = pd.to_numeric(df_synth.loc[:, (idf, col)], errors='coerce').dropna()
             if len(x) > 1:
-                synth_axes[j].plot(range(len(x)), x, color=COLOR_SYNTH)
+                synth_axes[j].plot(x.index, x.values, color=COLOR_SYNTH)
             synth_axes[j].label_outer()
     else:
         orig_ax, synth_ax = axes_grid(
             ax, 1, 2, col_titles=['Original', 'Synthetic'], row_titles=[''], wspace=0, hspace=0
         )
-        x = pd.to_numeric(df_orig[col], errors='coerce').dropna().values
+        x = pd.to_numeric(df_orig[col], errors='coerce').dropna()
         if len(x) > 1:
-            orig_ax.plot(range(len(x)), x, color=COLOR_ORIG)
+            orig_ax.plot(x.index, x.values, color=COLOR_ORIG)
 
-        x = pd.to_numeric(df_synth[col], errors='coerce').dropna().values
+        x = pd.to_numeric(df_synth[col], errors='coerce').dropna()
         if len(x) > 1:
-            synth_ax.plot(range(len(x)), x, color=COLOR_SYNTH)
+            synth_ax.plot(x.index, x.values, color=COLOR_SYNTH)
 
 
 def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax=None):
@@ -324,6 +321,54 @@ def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax=No
             ax2.set_yticklabels(oh.categories_[0])
             ax2.label_outer()
             ax2.autoscale_view()
+
+
+def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=100, ax=None):
+    ax = ax or plt.gca()
+    if identifiers is not None:
+        axes = axes_grid(
+            ax, len(identifiers), len(identifiers), identifiers, identifiers, wspace=0.0, hspace=0.0
+        )
+        for i, idx in enumerate(identifiers):
+            for j, idy in enumerate(identifiers):
+                ax = axes[i][j]
+                auto_corr_orig = scaled_correlation(
+                    df_orig.loc[:, (idx, col)].values, df_orig.loc[:, (idy, col)].values, window=20, lags=100)
+                auto_corr_synth = scaled_correlation(
+                    df_synth.loc[:, (idx, col)].values, df_synth.loc[:, (idy, col)].values, window=20, lags=100)
+                lags = np.array(range(100))
+
+                ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.7)
+                ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_SYNTH, alpha=0.7)
+                ax.label_outer()
+    else:
+        auto_corr_orig = scaled_correlation(
+            df_orig.loc[:, col].values, df_orig.loc[:, col].values, window=20, lags=max_order)
+        auto_corr_synth = scaled_correlation(
+            df_synth.loc[:, col].values, df_synth.loc[:, col].values, window=20, lags=max_order)
+        lags = np.array(range(100))
+
+        ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.7)
+        ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_SYNTH, alpha=0.7)
+        ax.label_outer()
+
+
+def scaled_correlation(x, y, window=20, lags=100):
+    W = window
+    L = lags
+
+    not_nan = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
+    x = x[not_nan]
+    y = y[not_nan]
+
+    num = math.floor((len(x) - L) / W)
+
+    auto_corr = np.mean(np.array([
+        [np.corrcoef(np.stack((x[n * W + l:(n + 1) * W + l], y[n * W:(n + 1) * W]), axis=0))[0][1] for l in range(L)]
+        for n in range(num)
+    ]), axis=0)
+
+    return auto_corr
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):

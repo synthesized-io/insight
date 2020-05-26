@@ -1,4 +1,5 @@
 from typing import Tuple, Dict, List, Optional, Any
+import math
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -6,11 +7,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.metrics import mean_squared_error, normalized_mutual_info_score
-from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
 
-from .utility import DisplayType
-from .plotting import COLOR_ORIG, COLOR_SYNTH, set_plotting_style
+from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, plot_cross_correlations
 from ..common.synthesizer import Synthesizer
 from ..values import CategoricalValue
 from ..values import ContinuousValue
@@ -19,19 +18,17 @@ from ..values import DecomposedContinuousValue
 from ..values import NanValue
 from ..values import Value
 from ..insight import metrics
-from ..insight.modelling import predictive_modelling_comparison
-from ..insight.dataset import categorical_or_continuous_values
+from ..insight.dataset import categorical_or_continuous_values, format_time_series
+
+COLOR_ORIG = '#1C5D7A'
+COLOR_SYNTH = '#801761'
 
 
 class TimeSeriesUtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
-    def __init__(self,
-                 synthesizer: Synthesizer,
-                 df_orig: pd.DataFrame,
-                 df_test: pd.DataFrame,
-                 df_synth: pd.DataFrame,
-                 identifier=None):
+    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame,
+                 identifier=None, time_index=None):
         """Create an instance of UtilityTesting.
 
         Args:
@@ -40,69 +37,77 @@ class TimeSeriesUtilityTesting:
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
-        self.df_orig = df_orig.copy()
-        self.df_test = df_test.copy()
-        self.df_synth = df_synth.copy()
+        self.df_orig = format_time_series(df_orig, identifier=identifier, time_index=time_index)
+        self.df_test = format_time_series(df_test, identifier=identifier, time_index=time_index)
+        self.df_synth = format_time_series(df_synth, identifier=identifier, time_index=time_index)
 
-        self.df_orig_encoded = synthesizer.preprocess(df=df_orig)
-        self.df_test_encoded = synthesizer.preprocess(df=df_test)
-        self.df_synth_encoded = synthesizer.preprocess(df=df_synth)
+        self.vf = synthesizer.value_factory
+        categorical, continuous = categorical_or_continuous_values(self.vf)
 
-        self.date_cols: List[str] = []
-        self.continuous_cols: List[str] = []
-        self.categorical_cols: List[str] = []
-
-        self.display_types: Dict[str, DisplayType] = {}
-        for value in synthesizer.get_values():
-            if isinstance(value, NanValue):
-                value = value.value
-
-            if isinstance(value, DateValue):
-                self.df_orig[value.name] = pd.to_datetime(self.df_orig[value.name])
-                self.df_test[value.name] = pd.to_datetime(self.df_test[value.name])
-                self.df_synth[value.name] = pd.to_datetime(self.df_synth[value.name])
-                self.date_cols.append(value.name)
-            elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
-                self.display_types[value.name] = DisplayType.CONTINUOUS
-                self.continuous_cols.append(value.name)
-            elif isinstance(value, CategoricalValue):
-                self.display_types[value.name] = DisplayType.CATEGORICAL
-                self.categorical_cols.append(value.name)
-        self.value_by_name: Dict[str, Value] = {}
-        for v in synthesizer.get_values():
-            self.value_by_name[v.name] = v
+        self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
+        self.plotable_values = self.categorical + self.continuous
 
         # Identifiers (only for Time-Series)
         self.identifier = identifier
         if identifier:
-            self.unique_ids_orig = self.df_orig[identifier].unique()
-            self.unique_ids_synth = self.df_synth[identifier].unique()
+            self.unique_ids_orig = self.df_orig.columns.unique(level=0)
+            self.unique_ids_synth = self.df_synth.columns.unique(level=0)
+            num_series = min(5, len(self.unique_ids_orig), len(self.unique_ids_synth))
+            self.identifiers = pd.Series(np.random.choice(self.unique_ids_orig, num_series, replace=False),
+                                         name=self.identifier)
         else:
             self.unique_ids_orig = []
             self.unique_ids_synth = []
+            self.identifiers = None
 
+        # Set the style of plots
         set_plotting_style()
 
-    def _filter_column_data_types(self):
-        categorical, continuous = [], []
-        for name, dtype in self.display_types.items():
-            if dtype == DisplayType.CONTINUOUS:
-                continuous.append(name)
-            elif dtype == DisplayType.CATEGORICAL:
-                categorical.append(name)
-        return categorical, continuous
+    def show_series(self, share_axis=False, share_ids=False):
 
-    def show_auto_associations(self, figsize: Tuple[float, float] = (14, 50), cols: int = 2, max_order=30):
+        rows = len(self.plotable_values)
+        width = 20
+        height = 8 * rows + 3
+        figsize = (width, height)
+
         fig = plt.figure(figsize=figsize)
-        for i, (col, dtype) in enumerate(self.display_types.items()):
-            ax = fig.add_subplot(len(self.display_types), cols, i + 1)
-            n = list(range(1, max_order + 1))
-            original_auto = calculate_auto_association(dataset=self.df_test, col=col, max_order=30)
-            synth_auto = calculate_auto_association(dataset=self.df_synth, col=col, max_order=30)
-            ax.stem(n, original_auto, 'b', markerfmt='bo', label="Original")
-            ax.stem(n, synth_auto, 'g', markerfmt='go', label="Synthetic")
-            ax.set_title(label=col)
-            ax.legend()
+        gs = fig.add_gridspec(nrows=rows, ncols=1, left=.05, bottom=1/height, right=.95, top=(height-2)/height,
+                              wspace=0, hspace=.2)
+
+        for i in range(len(self.continuous)):
+            col = self.continuous[i]
+            ax = fig.add_subplot(gs[i])
+            ax.set_title(col, fontsize=16, pad=32)
+            ax.set_axis_off()
+            plot_continuous_time_series(self.df_orig, self.df_synth, col, identifiers=self.identifiers, ax=ax)
+
+        for i in range(len(self.categorical)):
+            col = self.categorical[i]
+            ax = fig.add_subplot(gs[i+len(self.continuous)])
+            ax.set_title(col, fontsize=16, pad=32)
+            ax.set_axis_off()
+            # plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
+
+        plt.suptitle('Time-Series', fontweight='bold', fontsize=24)
+        plt.show()
+
+    def show_auto_associations(self, max_order=30):
+        rows = len(self.continuous)
+        width = 20
+        height = 8 * rows + 3
+        figsize = (width, height)
+        fig = plt.figure(figsize=figsize)
+
+        gs = fig.add_gridspec(nrows=rows, ncols=1, left=.05, bottom=1 / height, right=.95, top=(height - 2) / height,
+                              wspace=0, hspace=.2)
+        for i, col in enumerate(self.continuous):
+            ax = fig.add_subplot(gs[i])
+            ax.set_title(col, fontsize=16, pad=32)
+            ax.set_axis_off()
+            plot_cross_correlations(self.df_orig, self.df_synth, col, identifiers=self.identifiers,
+                                    max_order=max_order, ax=ax)
+        plt.suptitle('Cross-correlations', fontweight='bold', fontsize=24)
+        plt.show()
 
     def autocorrelation_diff_plot_seaborn(self, max_lag: int = 100) -> None:
         """Plot autocorrelation.
@@ -153,7 +158,7 @@ class TimeSeriesUtilityTesting:
     def show_autocorrelation_distances(self, nlags: int = 40, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
-        for col in self.continuous_cols:
+        for col in self.continuous:
 
             acf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=acf, nlags=nlags)
             acf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=acf,
@@ -219,57 +224,6 @@ class TimeSeriesUtilityTesting:
         plt.show()
 
         return pacf_dist_max, pacf_dist_avg
-
-    def show_series(self, num_series=10, figsize: Tuple[float, float] = None, share_axis=False, share_ids=False):
-
-        if not figsize:
-            figsize = (14, 10 * len(self.display_types))
-
-        if self.identifier:
-            num_series = min(num_series, len(np.unique(self.unique_ids_orig)), len(np.unique(self.unique_ids_synth)))
-            identifiers_orig = np.random.choice(self.unique_ids_orig, num_series, replace=False)
-            if share_ids:
-                identifiers_synth = identifiers_orig
-            else:
-                identifiers_synth = np.random.choice(self.unique_ids_synth, num_series, replace=False)
-
-        fig = plt.figure(figsize=figsize)
-        for i in range(len(self.continuous_cols)):
-            col = self.continuous_cols[i]
-
-            # Original
-            ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 1)
-
-            if self.identifier:
-                for idf in identifiers_orig:
-                    x = pd.to_numeric(self.df_orig.loc[self.df_orig[self.identifier] == idf, col], errors='coerce'
-                                      ).dropna().values
-                    if len(x) > 1:
-                        ax.plot(range(len(x)), x, label=idf)
-                ax.legend()
-            else:
-                x = pd.to_numeric(self.df_orig[col], errors='coerce').dropna().values
-                if len(x) > 1:
-                    ax.plot(range(len(x)), x)
-            ax.set_title(col + ' (Original)')
-
-            # Synthesized
-            if share_axis:
-                ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2, sharex=ax, sharey=ax)
-            else:
-                ax = fig.add_subplot(2 * len(self.continuous_cols), 2, 2 * i + 2)
-            if self.identifier:
-                for idf in identifiers_synth:
-                    x = self.df_synth.loc[self.df_synth[self.identifier] == idf, col].dropna().values
-                    ax.plot(range(len(x)), x, label=idf)
-            else:
-                x = self.df_synth[col].dropna().values
-                ax.plot(range(len(x)), x)
-            ax.legend()
-            ax.set_title(col + ' (Synthesized)')
-
-        plt.tight_layout()
-        plt.show()
 
     def show_transition_distances(self, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
