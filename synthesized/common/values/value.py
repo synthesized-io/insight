@@ -7,11 +7,11 @@ import pandas as pd
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ..util import make_tf_compatible, check_format_version
+from ..util import make_tf_compatible, check_version
 
 
 class Value(tf.Module):
-    format_version = '0.0'
+    module_version = '0.0'
 
     def __init__(self, name: str):
         super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
@@ -200,12 +200,12 @@ class Value(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
-            format_version=self.format_version,
+            module_version=self.module_version,
             pickle=b64encode(pickle.dumps(self)).decode('utf-8')
         )
 
     @staticmethod
     def set_variables(variables: Dict[str, Any]):
-        check_format_version(Value.format_version, variables['format_version'])
+        check_version(Value.module_version, variables['module_version'])
 
         return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

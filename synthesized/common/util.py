@@ -80,20 +80,36 @@ def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
 
 
-def check_format_version(current_version, old_version):
-    try:
-        current_version = current_version.split('.', 1)
-        old_version = old_version.split('.', 1)
+class IncompatibleVersionException(Exception):
+    """Base exception class for incompatible versions."""
 
-        # Major version
-        if current_version[0] != old_version[0]:
-            logger.warning("There is a MAJOR incompatibility in the parameters version, "
-                           "this may cause unexpected behaviour.")
 
-        # Minor version
-        if current_version[1] != old_version[1]:
-            logger.warning("There is a minor incompatibility in the parameters version, "
-                           "this may cause unexpected behaviour.")
+def check_version(current_version, old_version, major_compatibility=None):
+    """Check if current version is compatible with given (old) version, checking major compatibility. If they are not
+    compatible, raise IncompatibleVersionException.
 
-    except Exception as e:
-        logger.warning("Couldn't ensure version compatibility. Message: {}".format(e))
+    Args:
+        current_version:
+        old_version:
+        major_compatibility: List of major versions that current version is compatible with.
+
+    Example:
+        check_version('3.1', '3.0') -> Won't rise exception.
+        check_version('3.1', '1.0', major_compatibility=['1', '2']) -> Won't rise exception.
+        check_version('3.1', '1.0', major_compatibility=['2']) -> WILL rise exception.
+
+    """
+    major_compatibility = major_compatibility if major_compatibility is not None else []
+
+    # Minor version
+    if current_version != old_version:
+        logger.debug(f"Given and current versions are different ({old_version}, {current_version}), "
+                     f"this may cause unexpected behaviour.")
+
+    current_version = current_version.split('.', 1)[0]
+    old_version = old_version.split('.', 1)[0]
+
+    # Major version
+    if current_version != old_version and current_version not in major_compatibility:
+        raise IncompatibleVersionException(f"Given version {old_version} for the imported model is not compatible with "
+                                           f"current version {current_version}.")

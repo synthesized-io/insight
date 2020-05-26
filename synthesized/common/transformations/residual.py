@@ -5,12 +5,12 @@ import tensorflow as tf
 from .dense import DenseTransformation
 from .linear import LinearTransformation
 from .transformation import Transformation
-from ..util import get_initializer, check_format_version
+from ..util import get_initializer, check_version
 from ..module import tensorflow_name_scoped
 
 
 class ResidualTransformation(Transformation):
-    format_version = '0.0'
+    module_version = '0.0'
 
     def __init__(self, name, input_size, output_size, depth=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
@@ -119,7 +119,7 @@ class ResidualTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
-            format_version=self.format_version,
+            module_version=self.module_version,
             depth=self.depth,
             batch_norm=self.batch_norm,
             activation=self.activation
@@ -137,7 +137,7 @@ class ResidualTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_format_version(self.format_version, variables['format_version'])
+        check_version(self.module_version, variables['module_version'])
 
         super().set_variables(variables)
 

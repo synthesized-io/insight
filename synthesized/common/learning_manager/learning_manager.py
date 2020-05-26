@@ -8,7 +8,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ..util import check_format_version
+from ..util import check_version
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class LearningManager:
         >>>         break
 
     """
-    format_version = '0.0'
+    module_version = '0.0'
 
     def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
                  checkpoint_path: str = None, max_training_time: float = None,
@@ -320,14 +320,14 @@ class LearningManager:
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(
-            format_version=self.format_version,
+            module_version=self.module_version,
             max_training_time=self.max_training_time,
             use_vae_loss=self.use_vae_loss,
             custom_stop_metric=self.custom_stop_metric
         )
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_format_version(self.format_version, variables['format_version'])
+        check_version(self.module_version, variables['module_version'])
 
         self.max_training_time = variables['max_training_time']
         self.use_vae_loss = variables['use_vae_loss']

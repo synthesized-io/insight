@@ -4,12 +4,12 @@ import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..values import Value
-from ..util import check_format_version
+from ..util import check_version
 
 
 class Generative(tf.Module):
     """Base class for generative models."""
-    format_version = '0.0'
+    module_version = '0.0'
 
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
         super(Generative, self).__init__(name=name)
@@ -59,10 +59,10 @@ class Generative(tf.Module):
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
-            format_version=self.format_version
+            module_version=self.module_version
         )
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_format_version(self.format_version, variables['format_version'])
+        check_version(self.module_version, variables['module_version'])
 
         assert variables['name'] == self.name
