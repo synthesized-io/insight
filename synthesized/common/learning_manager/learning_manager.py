@@ -79,7 +79,7 @@ class LearningManager:
                     raise ValueError("Only {} supported, given stop_metric='{}'"
                                      .format(stop_metric_name, allowed_stop_metric_names))
             elif isinstance(stop_metric_name, list):
-                if not np.all([l in allowed_stop_metric_names for l in stop_metric_name]):
+                if not np.all([metric_name in allowed_stop_metric_names for metric_name in stop_metric_name]):
                     raise ValueError("Only {} supported, given stop_metric='{}'"
                                      .format(stop_metric_name, allowed_stop_metric_names))
         self.stop_metric_name = stop_metric_name

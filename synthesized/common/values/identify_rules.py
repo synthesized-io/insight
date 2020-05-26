@@ -13,9 +13,9 @@ MAX_CATEGORIES_FOR_THRESH = 3
 CONTINUOUS_VAR_SAMPLE = 1000
 
 
-def _argsort(l):
+def _argsort(lst):
     # Find the indices that would sort a list
-    return sorted(range(len(l)), key=l.__getitem__)
+    return sorted(range(len(lst)), key=lst.__getitem__)
 
 
 def _intersection(l1, l2):

@@ -165,7 +165,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
     elif y_label in [v.name for v in categorical]:
         y_val = [val for val in categorical if val.name == y_label][0]
         num_classes = y_val.num_categories
-        metric = 'roc_auc' if num_classes == 2 else f'macro roc_auc'
+        metric = 'roc_auc' if num_classes == 2 else 'macro roc_auc'
         task = 'binary' if num_classes == 2 else f'multinomial [{num_classes}]'
         score = classifier_score(x_train, y_train, x_test, y_test, model)
         synth_score = classifier_score(x_synth, y_synth, x_test, y_test, model)
