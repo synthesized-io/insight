@@ -1,6 +1,7 @@
 from typing import List
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from .categorical import compute_embedding_size
@@ -71,8 +72,7 @@ class NanValue(Value):
         self.add_regularization_weight(self.embeddings)
 
     def preprocess(self, df):
-        if df.loc[:, self.value.name].dtype.kind not in self.value.pd_types:
-            df.loc[:, self.value.name] = self.value.pd_cast(df.loc[:, self.value.name])
+        df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
         nan = df.loc[:, self.value.name].isna()
         df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
