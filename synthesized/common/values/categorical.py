@@ -153,7 +153,8 @@ class CategoricalValue(Value):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+        sample: bool = kwargs['sample'] if 'sample' in kwargs.keys() else False
         if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
@@ -163,10 +164,17 @@ class CategoricalValue(Value):
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
         if self.nans_valid is False or self.produce_nans:
-            y_flat = tf.random.categorical(logits=y_flat, num_samples=1, dtype=tf.int64)
+            if sample:
+                y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
+            else:
+                y_flat = tf.argmax(y_flat, axis=1)
+                y_flat = tf.expand_dims(tf.argmax(y_flat, axis=1), axis=1)
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
+            if sample:
+                y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
+            else:
+                y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
         y = tf.reshape(y_flat, shape=y.shape[0:-1])
 

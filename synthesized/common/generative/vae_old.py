@@ -228,7 +228,7 @@ class VAEOld(Generative):
 
         x = self.value_ops.unified_inputs(xs)
         y = self._encode_deterministic(x=x, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False)
 
         return synthesized
 

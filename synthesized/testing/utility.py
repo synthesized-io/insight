@@ -392,63 +392,8 @@ class UtilityTesting:
             if len(col_test) == 0 or len(col_synth) == 0:
                 continue
 
-            if dtype == DisplayType.CATEGORICAL:
-
-                df_col_test = pd.DataFrame(col_test)
-                df_col_synth = pd.DataFrame(col_synth)
-
-                # We sample orig and synth them so that they have the same size to make the plots more comprehensive
-                sample_size = min(sample_size, len(col_test), len(col_synth))
-                concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
-                                          df_col_synth.assign(dataset='synth').sample(sample_size)])
-
-                ax = sns.countplot(x=col, hue='dataset', data=concatenated,
-                                   palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
-
-                ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
-
-                emd_distance = eval_metrics.categorical_emd(col_test, col_synth)
-                title += ' (EMD Dist={:.3f})'.format(emd_distance)
-
-            elif dtype == DisplayType.CONTINUOUS:
-                col_test = pd.to_numeric(self.df_orig[col].dropna(), errors='coerce').dropna()
-                col_synth = pd.to_numeric(self.df_synth[col].dropna(), errors='coerce').dropna()
-
-                col_test = col_test.sample(min(sample_size, len(col_test)))
-                col_synth = col_synth.sample(min(sample_size, len(col_synth)))
-
-                if len(col_test) == 0 or len(col_synth) == 0:
-                    continue
-
-                percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
-                start, end = np.percentile(col_test, percentiles)
-                if start == end:
-                    start, end = min(col_test), max(col_test)
-
-                # In case the synthesized data has overflown and has much different domain
-                col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
-
-                if len(col_synth) == 0:
-                    continue
-
-                # workaround for kde failing on datasets with only one value
-                if col_test.nunique() < 2 or col_synth.nunique() < 2:
-                    kde = False
-                    kde_kws = None
-                else:
-                    kde = True
-                    kde_kws = {'clip': (start, end)}
-
-                try:
-                    sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
-                                 hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-                    sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
-                                 hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
-                except Exception as e:
-                    print('ERROR :: Column {} cant be shown :: {}'.format(col, e))
-
-                ks_distance = ks_2samp(col_test, col_synth)[0]
-                title += ' (KS Dist={:.3f})'.format(ks_distance)
+            show_distribution(col_test, col_synth, dtype=dtype, ax=ax,
+                              title=title, remove_outliers=remove_outliers)
 
             ax.set_title(title)
             plt.legend()
@@ -893,3 +838,79 @@ class UtilityTesting:
             plt.show()
 
         return dist_max, dist_avg
+
+
+def show_distribution(col_test: pd.Series, col_synth: pd.Series,
+                      dtype: DisplayType,
+                      ax: plt.Axes = None,
+                      title: str = '',
+                      remove_outliers: float = 0.0,
+                      sample_size: int = 10_000) -> None:
+    """Plot comparison plots of one variables in the original and synthetic datasets."""
+
+    if dtype == DisplayType.CATEGORICAL:
+
+        df_col_test = pd.DataFrame(col_test, columns=['column'])
+        df_col_synth = pd.DataFrame(col_synth, columns=['column'])
+
+        # We sample orig and synth them so that they have the same size to make the plots more comprehensive
+        if sample_size:
+            sample_size = min(sample_size, len(col_test), len(col_synth))
+        else:
+            sample_size = min(len(col_test), len(col_synth))
+        concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
+                                  df_col_synth.assign(dataset='synth').sample(sample_size)])
+
+        ax = sns.countplot(x='column', hue='dataset', data=concatenated,
+                           palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+
+        emd_distance = eval_metrics.categorical_emd(col_test.values, col_synth.values)
+        title += ' (EMD Dist={:.3f})'.format(emd_distance)
+
+    elif dtype == DisplayType.CONTINUOUS:
+        col_test = pd.to_numeric(col_test.dropna(), errors='coerce').dropna()
+        col_synth = pd.to_numeric(col_synth.dropna(), errors='coerce').dropna()
+
+        if sample_size:
+            col_test = col_test.sample(min(sample_size, len(col_test)))
+            col_synth = col_synth.sample(min(sample_size, len(col_synth)))
+
+        if len(col_test) == 0 or len(col_synth) == 0:
+            return
+
+        percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+        start, end = np.percentile(col_test, percentiles)
+        if start == end:
+            start, end = min(col_test), max(col_test)
+
+        # In case the synthesized data has overflown and has much different domain
+        col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
+
+        if len(col_synth) == 0:
+            return
+
+        # workaround for kde failing on datasets with only one value
+        if col_test.nunique() < 2 or col_synth.nunique() < 2:
+            kde = False
+            kde_kws = None
+        else:
+            kde = True
+            kde_kws = {'clip': (start, end)}
+
+        try:
+            sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
+                         hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
+            sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
+                         hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+        except Exception as e:
+            print('ERROR :: Column {} cant be shown :: {}'.format(title, e))
+
+        ks_distance = ks_2samp(col_test, col_synth)[0]
+        title += ' (KS Dist={:.3f})'.format(ks_distance)
+    else:
+        raise NotImplementedError("Got dtype='{}'".format(dtype))
+
+    ax.set_title(title)
+    ax.legend()

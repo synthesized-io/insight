@@ -122,12 +122,16 @@ class NanValue(Value):
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+        sample: bool = kwargs['sample'] if 'sample' in kwargs.keys() else False
         # NaN classification part
-        nan = tf.math.equal(x=tf.squeeze(tf.random.categorical(logits=y[:, :2], num_samples=1), axis=1), y=1)
+        if sample:
+            nan = tf.math.equal(x=tf.argmax(input=y[:, :2], axis=1), y=1)
+        else:
+            nan = tf.math.equal(x=tf.squeeze(tf.random.categorical(logits=y[:, :2], num_samples=1), axis=1), y=1)
 
         # Wrapped value output tensors
-        ys = self.value.output_tensors(y=y[:, 2:])
+        ys = self.value.output_tensors(y=y[:, 2:], **kwargs)
 
         if self.produce_nans:
             # Replace wrapped value with NaNs

@@ -1,11 +1,9 @@
-import logging
 from typing import Optional, Callable, List
 
 import pandas as pd
 
 from ..values import CategoricalValue, NanValue
 from ..synthesizer import Synthesizer
-from ...highdim import HighDimSynthesizer
 
 
 class DataImputer(Synthesizer):
@@ -16,7 +14,7 @@ class DataImputer(Synthesizer):
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
+        callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0
     ) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
@@ -41,4 +39,3 @@ class DataImputer(Synthesizer):
                 nan_columns.append(value.name)
 
         return nan_columns
-
