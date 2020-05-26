@@ -1,14 +1,18 @@
 import logging
 import time
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Type
+from itertools import repeat
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.fft import fft
+from statsmodels.tsa.stattools import acf
+from sklearn.preprocessing import OneHotEncoder
 from matplotlib import cm
-from matplotlib.axes import Axes
+from matplotlib.axes import Axes, SubplotBase
 
 from ..insight.metrics import kolmogorov_smirnov_distance
 
@@ -21,8 +25,8 @@ NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
-COLOR_ORIG = '#00AB26'
-COLOR_SYNTH = '#2794F3'
+COLOR_ORIG = '#1C5D7A'
+COLOR_SYNTH = '#801761'
 
 
 # -- Plotting functions
@@ -37,6 +41,37 @@ def set_plotting_style():
 
     mpl.rcParams['axes.spines.right'] = True
     mpl.rcParams['axes.spines.top'] = True
+
+
+def axes_grid(ax: Type[Axes, SubplotBase], rows: int, cols: int,
+              col_titles: List[str], row_titles: List[str], **kwargs):
+    ax.set_axis_off()
+    sp_spec = ax.get_subplotspec()
+    sgs = sp_spec.subgridspec(rows, cols, **kwargs)
+    fig = ax.figure
+    col_axes = list()
+    for c in range(cols):
+        ax = fig.add_subplot(sgs[:, c])
+        ax.set_title(col_titles[c])
+        col_axes.append(ax)
+
+    if rows == 1:
+        col_axes[0].set_ylabel(row_titles[0])
+        return col_axes
+    else:
+        for col_ax in col_axes:
+            col_ax.set_axis_off()
+
+        axes = []
+        for r in range(rows):
+            row_axes = list()
+            row_axes.append(fig.add_subplot(sgs[r, 0]))
+            row_axes[0].set_ylabel(row_titles[r])
+            for c in range(1, cols):
+                row_axes.append(fig.add_subplot(sgs[r, c], sharey=row_axes[0]))
+            axes.append(row_axes)
+
+    return axes
 
 
 def plot_data(data: pd.DataFrame, ax: Axes):
@@ -220,13 +255,75 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
-def plot_auto_association(original: np.array, synthetic: np.array, axes: np.array):
-    assert axes is not None
-    lags = list(range(original.shape[-1]))
-    axes[0].stem(lags, original, "g", markerfmt='go', use_line_collection=True)
-    axes[0].set_title("Original")
-    axes[1].stem(lags, synthetic, "b", markerfmt='bo', use_line_collection=True)
-    axes[1].set_title("Synthetic")
+def plot_continuous_time_series(df_orig, df_synth, col, identifiers=None, ax=None):
+    ax = ax or plt.gca()
+    if identifiers is not None:
+        axes = axes_grid(
+            ax, len(identifiers), 2, col_titles=['Original', 'Synthetic'], row_titles=identifiers, wspace=0, hspace=0
+        )
+        orig_axes, synth_axes = zip(*axes)
+
+        for j, idf in enumerate(identifiers[:5]):
+            x = pd.to_numeric(df_orig.loc[:, (idf, col)], errors='coerce').dropna().values
+            if len(x) > 1:
+                orig_axes[j].plot(range(len(x)), x, color=COLOR_ORIG)
+            orig_axes[j].label_outer()
+
+            x = pd.to_numeric(df_synth.loc[:, (idf, col)], errors='coerce').dropna().values
+            if len(x) > 1:
+                synth_axes[j].plot(range(len(x)), x, color=COLOR_SYNTH)
+            synth_axes[j].label_outer()
+    else:
+        orig_ax, synth_ax = axes_grid(
+            ax, 1, 2, col_titles=['Original', 'Synthetic'], row_titles=[''], wspace=0, hspace=0
+        )
+        x = pd.to_numeric(df_orig[col], errors='coerce').dropna().values
+        if len(x) > 1:
+            orig_ax.plot(range(len(x)), x, color=COLOR_ORIG)
+
+        x = pd.to_numeric(df_synth[col], errors='coerce').dropna().values
+        if len(x) > 1:
+            synth_ax.plot(range(len(x)), x, color=COLOR_SYNTH)
+
+
+def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax=None):
+    if identifiers is not None:
+        ax.set_axis_off()
+        fig = ax.figure
+        sp_spec = ax.get_subplotspec()
+        gsgs = sp_spec.subgridspec(len(identifiers), 2, hspace=0, wspace=0)
+
+        orig_ax = fig.add_subplot(gsgs[:, 0])
+        orig_ax.set_title('Original')
+        orig_ax.set_axis_off()
+        synth_ax = fig.add_subplot(gsgs[:, 1])
+        synth_ax.set_title('Synthetic')
+        synth_ax.set_axis_off()
+
+        for j, idf in enumerate(identifiers):
+            ax = fig.add_subplot(gsgs[j, 0])
+            x = df_orig.loc[df_orig[identifiers.name] == idf, col].dropna().values
+            oh = OneHotEncoder(dtype=np.float32, sparse=False)
+            data = oh.fit_transform(x.reshape(-1, 1))
+            cmap = cm.colors.LinearSegmentedColormap.from_list('orig', colors=['#FFFFFF', COLOR_ORIG])
+            ax.imshow(data.T, cmap=cmap, aspect='auto')
+            ax.set_ylabel(idf)
+            ax.get_yaxis().set_ticks(np.arange(0, len(oh.categories_[0]), 1))
+            ax.set_yticklabels(oh.categories_[0])
+            ax.label_outer()
+            ax.autoscale_view()
+
+            ax2 = fig.add_subplot(gsgs[j, 1])
+            x = df_synth.loc[df_synth[identifiers.name] == idf, col].dropna().values
+            oh = OneHotEncoder(dtype=np.float32, sparse=False)
+            data = oh.fit_transform(x.reshape(-1, 1))
+            cmap = cm.colors.LinearSegmentedColormap.from_list('orig', colors=['#FFFFFF', COLOR_SYNTH])
+            ax2.imshow(data.T, cmap=cmap, aspect='auto')
+            ax2.set_ylabel(idf)
+            ax2.get_yaxis().set_ticks(np.arange(0, len(oh.categories_[0]), 1))
+            ax2.set_yticklabels(oh.categories_[0])
+            ax2.label_outer()
+            ax2.autoscale_view()
 
 
 def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
