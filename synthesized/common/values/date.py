@@ -136,7 +136,8 @@ class DateValue(ContinuousValue):
         df.loc[:, self.name] = self.from_datetime(df.loc[:, self.name])
 
         for name in ['-hour', '-dow', '-day', '-month']:
-            del df[self.name + name]
+            if self.name + name in df.columns:
+                df.drop([self.name + name], axis=1, inplace=True)
 
         return df
 
