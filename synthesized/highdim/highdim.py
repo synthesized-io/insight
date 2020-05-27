@@ -451,7 +451,6 @@ class HighDimSynthesizer(Synthesizer):
 
         # Value Factory
         self.value_factory.set_variables(variables['value_factory'])
-        self.vae.set_variables(variables['vae'])
 
         # VAE
         self.vae.set_variables(variables['vae'])

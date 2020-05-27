@@ -561,7 +561,7 @@ class ValueFactory:
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
-                     f"rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
+                     f"rate > {1.0 - self.parsing_nan_fraction_threshold}. "
             if is_nan:
                 value = self.create_nan(name, value)
                 reason += " And contains NaNs. "
