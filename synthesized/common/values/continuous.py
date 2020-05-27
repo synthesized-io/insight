@@ -91,7 +91,7 @@ class ContinuousValue(Value):
         assert self.distribution is None
 
         if column.dtype.kind not in self.pd_types:
-            column = pd.to_numeric(column, errors='coerce', downcast='integer')
+            column = self.pd_cast(column)
 
         self.float = (column.dtype.kind == 'f')
 
