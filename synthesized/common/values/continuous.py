@@ -52,7 +52,10 @@ class ContinuousValue(Value):
         self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
-        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
+
+    @staticmethod
+    def pd_cast(col: pd.Series) -> pd.Series:
+        return pd.to_numeric(col, errors='coerce', downcast='integer')
 
     def __str__(self) -> str:
         string = super().__str__()
