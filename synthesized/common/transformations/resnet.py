@@ -5,12 +5,9 @@ import tensorflow as tf
 from .residual import ResidualTransformation
 from .transformation import Transformation
 from ..module import tensorflow_name_scoped
-from ..util import check_version
 
 
 class ResnetTransformation(Transformation):
-    module_version = '0.0'
-
     def __init__(self, name, input_size, layer_sizes, depths=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=layer_sizes[-1])
 
@@ -63,7 +60,6 @@ class ResnetTransformation(Transformation):
 
         variables = super().get_variables()
         variables.update(
-            module_version=self.module_version,
             layer_sizes=self.layer_sizes,
             depths=self.depths
         )
@@ -73,8 +69,6 @@ class ResnetTransformation(Transformation):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_version(self.module_version, variables['module_version'])
-
         super().set_variables(variables)
 
         assert self.layer_sizes == variables['layer_sizes']

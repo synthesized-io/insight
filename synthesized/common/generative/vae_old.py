@@ -9,7 +9,6 @@ from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
 from ..values import Value, ValueOps
-from ..util import check_version
 
 
 class VAEOld(Generative):
@@ -22,8 +21,6 @@ class VAEOld(Generative):
     are concatenated / split tensors per value. The encoder and decoder network use the same
     hyperparameters.
     """
-    module_version = '0.0'
-
     def __init__(
         self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
@@ -247,7 +244,6 @@ class VAEOld(Generative):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
-            module_version=self.module_version,
             latent_size=self.latent_size,
             beta=self.beta,
             weight_decay=self.weight_decay,
@@ -261,8 +257,6 @@ class VAEOld(Generative):
         return variables
 
     def set_variables(self, variables: Dict[str, Any]):
-        check_version(self.module_version, variables['module_version'])
-
         super().set_variables(variables)
 
         assert self.latent_size == variables['latent_size']
