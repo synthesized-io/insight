@@ -1,7 +1,8 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import numpy as np
 import tensorflow as tf
 
 from .categorical import CategoricalValue
@@ -20,6 +21,7 @@ class AssociatedCategoricalValue(Value):
         )
         self.values = values
         self.dtype = tf.int64
+        self.binding: Optional[np.ndarray] = None
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -55,6 +57,18 @@ class AssociatedCategoricalValue(Value):
 
         for v in self.values:
             v.extract(df=df)
+
+        df2 = df[[name for v in self.values for name in v.columns()]].copy()
+        for v in self.values:
+            df2[v.name] = df2[v.name].map(v.category2idx)
+
+        counts = np.zeros(shape=[v.num_categories for v in self.values])
+
+        for i, row in df2.iterrows():
+            idx = tuple(v for v in row.values)
+            counts[idx] += 1
+
+        self.binding = (counts > 0).astype(np.float32)
 
         self.build()
 
