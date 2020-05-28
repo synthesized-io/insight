@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .address import AddressValue
+from .associated_categorical import AssociatedCategoricalValue
 from .bank_number import BankNumberValue
 from .categorical import CategoricalValue
 from .compound_address import CompoundAddressValue
@@ -50,7 +51,7 @@ class ValueFactory:
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None, condition_columns: List[str] = None,
-        find_rules: Union[str, List[str]] = None,
+        find_rules: Union[str, List[str]] = None, associations: Dict[str, List[str]] = None,
         # Person
         title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
         name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
@@ -186,6 +187,14 @@ class ValueFactory:
         else:
             self.condition_columns = condition_columns
 
+        associates = []
+        associated_values = []
+        # TODO: Correctly create AssociatedCategoricalValues
+        if associations is not None:
+            for k, v in associations.items():
+                associates.append(k)
+                associates.extend(v)
+
         for name in df.columns:
             # we are skipping aliases
             if name in self.column_aliases:
@@ -211,8 +220,12 @@ class ValueFactory:
                 self.conditions.append(value)
             elif name == self.identifier_label:
                 self.identifier_value = value
+            elif name in associates:
+                associated_values.append(value)
             else:
                 self.values.append(value)
+
+        self.values.append(AssociatedCategoricalValue(values=associated_values))
 
         # Automatic extraction of specification parameters
         df = df.copy()

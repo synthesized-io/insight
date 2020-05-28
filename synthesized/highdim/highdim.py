@@ -49,7 +49,7 @@ class HighDimSynthesizer(Synthesizer):
         # Nan
         nan_weight: float = 1.0,
         # Conditions
-        condition_columns: List[str] = None,
+        condition_columns: List[str] = None, associations: Dict[str, List[str]] = None,
         # Person
         title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
         name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
@@ -145,7 +145,7 @@ class HighDimSynthesizer(Synthesizer):
             continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
             moving_average=moving_average, nan_weight=nan_weight,
             type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
-            condition_columns=condition_columns, find_rules=find_rules,
+            condition_columns=condition_columns, find_rules=find_rules, associations=associations,
             # Person
             title_label=title_label, gender_label=gender_label, name_label=name_label, firstname_label=firstname_label,
             lastname_label=lastname_label, email_label=email_label, mobile_number_label=mobile_number_label,
