@@ -325,6 +325,8 @@ class HighDimSynthesizer(Synthesizer):
             The generated data.
 
         """
+        if progress_callback is not None:
+            progress_callback(0)
 
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
@@ -377,6 +379,9 @@ class HighDimSynthesizer(Synthesizer):
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
             tf.summary.trace_off()
+
+        if progress_callback is not None:
+            progress_callback(100)
 
         return df_synthesized
 
