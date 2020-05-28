@@ -1,16 +1,19 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple
+from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple, Any, BinaryIO
 
 import numpy as np
 import pandas as pd
+import pickle
 import tensorflow as tf
 
-from ..common import Value, ValueFactory, TypeOverride
+from ..common import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
+from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
+from ..version import __version__
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -33,7 +36,7 @@ class HighDimSynthesizer(Synthesizer):
         # Network
         network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = 6,
-        batchnorm: bool = True, activation: str = 'relu',
+        batch_norm: bool = True, activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
@@ -91,7 +94,7 @@ class HighDimSynthesizer(Synthesizer):
             capacity: Architecture capacity.
             num_layers: Architecture depth.
             residual_depths: The depth(s) of each individual residual layer.
-            batchnorm: Whether to use batch normalization.
+            batch_norm: Whether to use batch normalization.
             activation: Activation function.
             optimizer: Optimizer.
             learning_rate: Learning rate.
@@ -162,7 +165,6 @@ class HighDimSynthesizer(Synthesizer):
             identifier_label=identifier_label,
         )
         self.batch_size = batch_size
-        self.tf_batch_size = tf.Variable(initial_value=batch_size, dtype=tf.int64)
         self.increase_batch_size_every = increase_batch_size_every
         self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
         self.synthesis_batch_size = synthesis_batch_size
@@ -170,9 +172,9 @@ class HighDimSynthesizer(Synthesizer):
         # VAE
         self.vae = VAEOld(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
-            distribution=distribution, latent_size=latent_size, network=network, capacity=capacity,
-            num_layers=num_layers, residual_depths=residual_depths, batchnorm=batchnorm, activation=activation,
-            optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32), decay_steps=decay_steps,
+            latent_size=latent_size, network=network, capacity=capacity,
+            num_layers=num_layers, residual_depths=residual_depths, batch_norm=batch_norm, activation=activation,
+            optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps,
             decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
             weight_decay=weight_decay
         )
@@ -186,7 +188,6 @@ class HighDimSynthesizer(Synthesizer):
             use_vae_loss = False if custom_stop_metric else True
             self.learning_manager = LearningManager(max_training_time=max_training_time, use_vae_loss=use_vae_loss,
                                                     custom_stop_metric=custom_stop_metric)
-            self.learning_manager.set_check_frequency(self.batch_size)
 
     def get_values(self) -> List[Value]:
         return self.value_factory.get_values()
@@ -236,6 +237,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
+            self.learning_manager.set_check_frequency(self.batch_size)
 
         num_data = len(df_train)
 
@@ -289,7 +291,7 @@ class HighDimSynthesizer(Synthesizer):
                             break
 
                 # Increase batch size
-                tf.summary.scalar(name='batch_size', data=self.tf_batch_size)
+                tf.summary.scalar(name='batch_size', data=self.batch_size)
                 if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
                         iteration % self.increase_batch_size_every == 0:
                     self.batch_size *= 2
@@ -299,7 +301,6 @@ class HighDimSynthesizer(Synthesizer):
                         logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                     if self.learning_manager:
                         self.learning_manager.set_check_frequency(self.batch_size)
-                    self.tf_batch_size.assign(self.batch_size)
                     logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
 
                 # Increment iteration number, and check if we reached max num_iterations
@@ -339,7 +340,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-            synthesized = self.vae.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
+            synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             if progress_callback is not None:
                 progress_callback(98)
@@ -408,3 +409,124 @@ class HighDimSynthesizer(Synthesizer):
                                                                 for n in range(encoded['sample'].shape[1])])
 
         return df_encoded, df_synthesized
+
+    def get_variables(self) -> Dict[str, Any]:
+        variables = super().get_variables()
+        variables.update(
+            # Value Factory
+            value_factory=self.value_factory.get_variables(),
+
+            # VAE
+            vae=self.vae.get_variables(),
+            latent_size=self.vae.latent_size,
+            network=self.vae.network,
+            capacity=self.vae.capacity,
+            num_layers=self.vae.num_layers,
+            residual_depths=self.vae.residual_depths,
+            batch_norm=self.vae.batch_norm,
+            activation=self.vae.activation,
+            optimizer=self.vae.optimizer_name,
+            learning_rate=self.vae.learning_rate,
+            decay_steps=self.vae.decay_steps,
+            decay_rate=self.vae.decay_rate,
+            initial_boost=self.vae.initial_boost,
+            clip_gradients=self.vae.clip_gradients,
+            beta=self.vae.beta,
+            weight_decay=self.vae.weight_decay,
+
+            # HighDim
+            batch_size=self.batch_size,
+            increase_batch_size_every=self.increase_batch_size_every,
+            max_batch_size=self.max_batch_size,
+            synthesis_batch_size=self.synthesis_batch_size,
+
+            # Learning Manager
+            learning_manager=self.learning_manager.get_variables() if self.learning_manager else None
+        )
+
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        super().set_variables(variables)
+
+        # Value Factory
+        self.value_factory.set_variables(variables['value_factory'])
+
+        # VAE
+        self.vae.set_variables(variables['vae'])
+
+        # Batch Sizes
+        self.batch_size = variables['batch_size']
+        self.increase_batch_size_every = variables['increase_batch_size_every']
+        self.max_batch_size = variables['max_batch_size']
+        self.synthesis_batch_size = variables['synthesis_batch_size']
+
+        # Learning Manager
+        if 'learning_manager' in variables.keys():
+            self.learning_manager = LearningManager()
+            self.learning_manager.set_variables(variables['learning_manager'])
+
+    def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
+        title = 'HighDimSynthesizer' if title is None else title
+        description = None if title is None else description
+        author = 'SDK-v{}'.format(__version__) if title is None else author
+
+        variables = self.get_variables()
+
+        model_binary = ModelBinary(
+            body=pickle.dumps(variables),
+            title=title,
+            description=description,
+            author=author
+        )
+        model_binary.serialize(fp)
+
+    @staticmethod
+    def import_model(fp: BinaryIO):
+
+        model_binary = ModelBinary()
+        model_binary.deserialize(fp)
+
+        body = model_binary.get_body()
+        if body is None:
+            raise ValueError("The body of the given Binary Model is empty")
+        variables = pickle.loads(model_binary.get_body())
+
+        return HighDimSynthesizerWrapper(variables)
+
+
+class HighDimSynthesizerWrapper(HighDimSynthesizer):
+    def __init__(self, variables, summarizer_dir: str = None, summarizer_name: str = None):
+        super(HighDimSynthesizer, self).__init__(
+            name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
+        )
+
+        # Value Factory
+        self.value_factory = ValueFactoryWrapper(name='value_factory', variables=variables['value_factory'])
+
+        # VAE
+        self.vae = VAEOld(
+            name='vae', values=self.get_values(), conditions=self.get_conditions(),
+            latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
+            num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
+            batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],
+            learning_rate=variables['learning_rate'], decay_steps=variables['decay_steps'],
+            decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
+            clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
+        )
+        self.vae.set_variables(variables['vae'])
+
+        # Batch Sizes
+        self.batch_size = variables['batch_size']
+        self.increase_batch_size_every = variables['increase_batch_size_every']
+        self.max_batch_size = variables['max_batch_size']
+        self.synthesis_batch_size = variables['synthesis_batch_size']
+
+        # Input argument placeholder for num_rows
+        self.num_rows: Optional[tf.Tensor] = None
+
+        # Learning Manager
+        self.learning_manager: Optional[LearningManager] = None
+        if 'learning_manager' in variables.keys():
+            self.learning_manager = LearningManager()
+            self.learning_manager.set_variables(variables['learning_manager'])

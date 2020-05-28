@@ -1,27 +1,27 @@
+from typing import Dict, Any, Optional
+
 import tensorflow as tf
 
 from .dense import DenseTransformation
 from .linear import LinearTransformation
 from .transformation import Transformation
-from .. import util
+from ..util import get_initializer
 from ..module import tensorflow_name_scoped
 
 
 class ResidualTransformation(Transformation):
-
-    def __init__(
-        self, name, input_size, output_size, depth=2, batchnorm=True, activation='relu'
-    ):
+    def __init__(self, name, input_size, output_size, depth=2, batch_norm=True, activation='relu'):
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
-        self.batchnorm = batchnorm
+        self.depth = depth
+        self.batch_norm = batch_norm
         self.activation = activation
 
         self.layers = list()
         for n in range(depth - 1):
             self.layers.append(DenseTransformation(
                 name=('Dense_' + str(n)), input_size=input_size,
-                output_size=input_size, batchnorm=batchnorm, activation=activation
+                output_size=input_size, batch_norm=batch_norm, activation=activation
             ))
         self.layers.append(DenseTransformation(
             name=('Dense_' + str(depth - 1)), input_size=input_size,
@@ -35,6 +35,9 @@ class ResidualTransformation(Transformation):
         else:
             self.identity_transformation = None
 
+        self.offset: Optional[tf.Variable] = None
+        self.scale: Optional[tf.Variable] = None
+
     def specification(self):
         spec = super().specification()
         spec.update(
@@ -46,9 +49,9 @@ class ResidualTransformation(Transformation):
 
     @tensorflow_name_scoped
     def build(self, input_shape):
-        if self.batchnorm:
+        if self.batch_norm:
             shape = (self.output_size,)
-            initializer = util.get_initializer(initializer='zeros')
+            initializer = get_initializer(initializer='zeros')
             self.offset = self.add_weight(
                 name='offset', shape=shape, dtype=tf.float32, initializer=initializer,
                 trainable=True,
@@ -67,7 +70,7 @@ class ResidualTransformation(Transformation):
 
         self.built = True
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
         residual = inputs
         for layer in self.layers:
             residual = layer(residual)
@@ -77,7 +80,7 @@ class ResidualTransformation(Transformation):
 
         x = inputs + residual
 
-        if self.batchnorm:
+        if self.batch_norm:
             mean, variance = tf.nn.moments(x=x, axes=(0,), shift=None, keepdims=False)
             x = tf.nn.batch_normalization(
                 x=x, mean=mean, variance=variance, offset=self.offset,
@@ -88,6 +91,8 @@ class ResidualTransformation(Transformation):
             pass
         elif self.activation == 'relu':
             x = tf.nn.relu(features=x)
+        elif self.activation == 'leaky_relu':
+            x = tf.nn.leaky_relu(features=x)
         elif self.activation == 'softplus':
             x = tf.nn.softplus(features=x)
         elif self.activation == 'tanh':
@@ -105,3 +110,45 @@ class ResidualTransformation(Transformation):
             losses.extend(self.identity_transformation.regularization_losses)
 
         return losses
+
+    def get_variables(self) -> Dict[str, Any]:
+        if not self.built:
+            raise ValueError(self.name + " hasn't been built yet. ")
+
+        variables = super().get_variables()
+        variables.update(
+            depth=self.depth,
+            batch_norm=self.batch_norm,
+            activation=self.activation
+        )
+        for i, layer in enumerate(self.layers):
+            variables['layer_{}'.format(i)] = layer.get_variables()
+
+        if self.identity_transformation is not None:
+            variables['identity_transformation'] = self.identity_transformation.get_variables()
+
+        if self.offset is not None and self.scale is not None:
+            variables['offset'] = self.offset.numpy()
+            variables['scale'] = self.scale.numpy()
+
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        super().set_variables(variables)
+
+        assert self.depth == variables['depth']
+        assert self.batch_norm == variables['batch_norm']
+        assert self.activation == variables['activation']
+
+        if not self.built:
+            self.build(self.input_size)
+
+        for i, layer in enumerate(self.layers):
+            layer.set_variables(variables['layer_{}'.format(i)])
+
+        if self.identity_transformation is not None:
+            self.identity_transformation.set_variables(variables['identity_transformation'])
+
+        if self.offset is not None and self.scale is not None:
+            self.offset.assign(variables['offset'])
+            self.scale.assign(variables['scale'])

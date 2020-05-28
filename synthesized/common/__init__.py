@@ -9,10 +9,10 @@ from .optimizers import Optimizer
 from .sanitizer import Sanitizer
 from .synthesizer import Synthesizer
 from .transformations import Transformation
-from .values import identify_rules, Value, ValueFactory, TypeOverride, ValueOps
+from .values import identify_rules, Value, ValueFactory, ValueFactoryWrapper, TypeOverride, ValueOps
 
 __all__ = [
     'Synthesizer', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
     'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation', 'identify_rules', 'Value',
-    'ValueFactory', 'TypeOverride', 'ValueOps'
+    'ValueFactory', 'ValueFactoryWrapper', 'TypeOverride', 'ValueOps'
 ]

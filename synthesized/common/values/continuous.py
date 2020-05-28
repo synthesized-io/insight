@@ -52,7 +52,10 @@ class ContinuousValue(Value):
         self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
 
         self.pd_types: Tuple[str, ...] = ('f', 'i')
-        self.pd_cast = (lambda x: pd.to_numeric(x, errors='coerce', downcast='integer'))
+
+    @staticmethod
+    def pd_cast(col: pd.Series) -> pd.Series:
+        return pd.to_numeric(col, errors='coerce', downcast='integer')
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -90,7 +93,7 @@ class ContinuousValue(Value):
         # we allow extraction only if distribution hasn't been set
         assert self.distribution is None
 
-        if column.dtype.kind not in ('f', 'i'):
+        if column.dtype.kind not in self.pd_types:
             column = self.pd_cast(column)
 
         self.float = (column.dtype.kind == 'f')
@@ -135,8 +138,8 @@ class ContinuousValue(Value):
         # TODO: mb removal makes learning more stable (?), an investigation required
         # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
 
-        if df.loc[:, self.name].dtype.kind not in ('f', 'i'):
-            df.loc[:, self.name] = self.pd_cast(df.loc[:, self.name])
+        if df.loc[:, self.name].dtype.kind not in self.pd_types:
+            df.loc[:, self.name] = pd.to_numeric(df.loc[:, self.name], errors='coerce', downcast='integer')
 
         assert not df.loc[:, self.name].isna().any()
         assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()

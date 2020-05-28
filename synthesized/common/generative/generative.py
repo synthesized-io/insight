@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import tensorflow as tf
 
@@ -8,7 +8,6 @@ from ..values import Value
 
 class Generative(tf.Module):
     """Base class for generative models."""
-
     def __init__(self, name: str, values: List[Value], conditions: List[Value]):
         super(Generative, self).__init__(name=name)
 
@@ -53,3 +52,11 @@ class Generative(tf.Module):
         if self._trainable_variables is None:
             self._trainable_variables = self.trainable_variables
         return self._trainable_variables
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name
+        )
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert variables['name'] == self.name

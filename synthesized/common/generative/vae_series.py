@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union, Optional, Any
 
 import tensorflow as tf
 
@@ -19,7 +19,7 @@ class SeriesVAE(Generative):
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batchnorm: bool, activation: str, series_dropout: Optional[float],
+            batch_norm: bool, activation: str, series_dropout: Optional[float],
             # Optimizer
             optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
             initial_boost: int, clip_gradients: float,
@@ -35,7 +35,7 @@ class SeriesVAE(Generative):
         self.network = network
         self.capacity = capacity
         self.num_layers = num_layers
-        self.batchnorm = batchnorm
+        self.batch_norm = batch_norm
         self.activation = activation
         self.series_dropout = series_dropout
         self.encoding_size = capacity
@@ -53,13 +53,13 @@ class SeriesVAE(Generative):
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batch_norm=False, activation='none'
         )
 
         kwargs = dict(
             name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
             layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+            output_size=capacity if not num_layers else None, activation=activation, batch_norm=batch_norm
         )
         for k in list(kwargs.keys()):
             if kwargs[k] is None:
@@ -71,7 +71,7 @@ class SeriesVAE(Generative):
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batch_norm=False, activation='none'
         )
 
         if encoding == 'lstm':
@@ -241,3 +241,9 @@ class SeriesVAE(Generative):
             for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
             for loss in module.regularization_losses
         ]
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_variables(self, variables: Dict[str, Any]):
+        raise NotImplementedError

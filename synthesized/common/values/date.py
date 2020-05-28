@@ -24,7 +24,6 @@ class DateValue(ContinuousValue):
 
         self.pd_types = ('M',)
         self.date_format: Optional[str] = None
-        self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
         categorical_kwargs['similarity_based'] = True

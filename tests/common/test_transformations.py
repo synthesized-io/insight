@@ -26,17 +26,20 @@ def _test_transformation(transformation, modulation=False):
             transformed = transform_output
             assert transformed.shape == (4, 6)
 
+    variables = transformation.get_variables()
+    transformation.set_variables(variables)
+
 
 def test_dense():
     transformation = DenseTransformation(
-        name='dense', input_size=8, output_size=6, bias=True, batchnorm=True, activation='relu'
+        name='dense', input_size=8, output_size=6, bias=True, batch_norm=True, activation='relu'
     )
     _test_transformation(transformation=transformation)
 
 
 def test_mlp():
     transformation = MlpTransformation(
-        name='mlp', input_size=8, layer_sizes=(10, 6), batchnorm=True,
+        name='mlp', input_size=8, layer_sizes=(10, 6), batch_norm=True,
         activation='relu'
     )
     _test_transformation(transformation=transformation)
@@ -49,7 +52,7 @@ def test_modulation():
 
 def test_residual():
     transformation = ResidualTransformation(
-        name='residual', input_size=8, output_size=6, depth=2, batchnorm=True,
+        name='residual', input_size=8, output_size=6, depth=2, batch_norm=True,
         activation='relu'
     )
     _test_transformation(transformation=transformation)
@@ -58,6 +61,6 @@ def test_residual():
 def test_resnet():
     transformation = ResnetTransformation(
         name='resnet', input_size=8, layer_sizes=(10, 6), depths=2,
-        batchnorm=True, activation='relu'
+        batch_norm=True, activation='relu'
     )
     _test_transformation(transformation=transformation)

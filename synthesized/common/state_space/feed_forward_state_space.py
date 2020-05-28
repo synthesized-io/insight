@@ -154,15 +154,15 @@ class GaussianEncoder(Transformation):
 
         self.network = MlpTransformation(
             name='mlp-encoder', input_size=input_size, layer_sizes=[capacity for _ in range(num_layers)],
-            batchnorm=False
+            batch_norm=False
         )
         self.mean = DenseTransformation(
             name='mean', input_size=capacity,
-            output_size=output_size, batchnorm=False, activation='none'
+            output_size=output_size, batch_norm=False, activation='none'
         )
         self.stddev = DenseTransformation(
             name='stddev', input_size=capacity,
-            output_size=output_size, batchnorm=False, activation='softplus'
+            output_size=output_size, batch_norm=False, activation='softplus'
         )
 
     def build(self, input_shape):

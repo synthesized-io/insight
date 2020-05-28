@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -27,6 +27,8 @@ class NanValue(Value):
         if embedding_size is None:
             embedding_size = compute_embedding_size(2, similarity_based=False)
         self.embedding_size = embedding_size
+        self.embedding_initialization = 'orthogonal-small'
+        self.embeddings: Optional[tf.Variable] = None
         self.weight = weight
 
         self.produce_nans = produce_nans
@@ -71,6 +73,19 @@ class NanValue(Value):
         )
         self.add_regularization_weight(self.embeddings)
 
+    @tensorflow_name_scoped
+    def build(self) -> None:
+        if not self.built:
+            shape = (2, self.embedding_size)
+            initializer = util.get_initializer(initializer='normal')
+            self.embeddings = tf.Variable(
+                initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+                dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+            )
+            self.add_regularization_weight(self.embeddings)
+
+        self.built = True
+
     def preprocess(self, df):
         df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
@@ -87,17 +102,6 @@ class NanValue(Value):
         df.loc[~nan, :] = self.value.postprocess(df=df.loc[~nan, :])
 
         return df
-
-    def module_initialize(self):
-        super().module_initialize()
-
-        shape = (2, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
-        self.embeddings = tf.Variable(
-            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
-            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
-        )
-        self.add_regularization_weight(self.embeddings)
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

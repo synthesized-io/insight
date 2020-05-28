@@ -23,7 +23,7 @@ class ScenarioSynthesizer(Synthesizer):
         # Prior distribution
         distribution: str = 'normal', latent_size: int = 512,
         # Network
-        network: str = 'mlp', capacity: int = 512, depth: int = 2, batchnorm: bool = True,
+        network: str = 'mlp', capacity: int = 512, depth: int = 2, batch_norm: bool = True,
         activation: str = 'relu',
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 1e-4, decay_steps: int = 200,
@@ -44,7 +44,7 @@ class ScenarioSynthesizer(Synthesizer):
             network: Network type: "mlp" or "resnet".
             capacity: Architecture capacity.
             depth: Architecture depth.
-            batchnorm: Whether to use batch normalization.
+            batch_norm: Whether to use batch normalization.
             activation: Activation function.
             optimizer: Optimizer.
             learning_rate: Learning rate.
@@ -100,7 +100,7 @@ class ScenarioSynthesizer(Synthesizer):
 
         # Decoder: parametrized distribution p(y|z)
         parametrization = dict(
-            module=network, layer_sizes=[capacity for _ in range(depth)], batchnorm=batchnorm,
+            module=network, layer_sizes=[capacity for _ in range(depth)], batch_norm=batch_norm,
             activation=activation, weight_decay=weight_decay
         )
         self.decoder = self.add_module(
