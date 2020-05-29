@@ -21,7 +21,7 @@ class AssociatedCategoricalValue(Value):
         )
         self.values = values
         self.dtype = tf.int64
-        self.binding: Optional[np.ndarray] = None
+        self.binding_mask: Optional[tf.Tensor] = None
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -68,7 +68,7 @@ class AssociatedCategoricalValue(Value):
             idx = tuple(v for v in row.values)
             counts[idx] += 1
 
-        self.binding = (counts > 0).astype(np.float32)
+        self.binding_mask = tf.constant((counts > 0).astype(np.float32), dtype=tf.float32)
 
         self.build()
 
@@ -89,12 +89,29 @@ class AssociatedCategoricalValue(Value):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        # TODO: Correctly output categories that are bound to each other.
+        """Outputs the bound categorical values."""
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
             axis=-1
         )
-        return [t for n, value in enumerate(self.values) for t in value.output_tensors(ys[n])]
+
+        probs = []
+        for y in ys:
+            y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
+            prob = tf.math.softmax(y_flat, axis=-1)
+            probs.append(prob)
+
+        joint = tf_joint_probs(*probs)
+        masked = tf_masked_probs(joint, self.binding_mask)
+        flattened = tf.reshape(masked, (masked.shape[0], -1))
+
+        y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=flattened.shape[0:-1])
+        ot = [tf.math.mod(y, self.values[-1].num_categories)]
+        for n in range(1, len(self.values)):
+            y = tf.math.floordiv(y, self.values[-1].num_categories)
+            ot.append(y)
+
+        return ot
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -103,3 +120,43 @@ class AssociatedCategoricalValue(Value):
             axis=-1
         )
         return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n+1]) for n, v in enumerate(self.values)], axis=None)
+
+
+def tf_joint_probs(*args):
+    rank = len(args)
+    probs = []
+    for n, x in enumerate(args):
+        for m in range(n):
+            x = tf.expand_dims(x, axis=-2-m)
+        for m in range(rank-n-1):
+            x = tf.expand_dims(x, axis=-1)
+        probs.append(x)
+
+    joint_prob = probs[0]
+    for n in range(1, rank):
+        joint_prob = joint_prob * probs[n]
+
+    return joint_prob
+
+
+def tf_masked_probs(jp, mask):
+    if jp.shape[1:] == mask.shape:
+
+        d = jp * mask
+        for n in range(1, len(jp.shape)):
+            d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
+                    jp * mask)
+            d += d_a
+
+        return d
+
+    elif jp.shape == mask.shape:
+        d = jp * mask
+        for n in range(len(jp.shape)):
+            d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
+                        jp * mask)
+            d += d_a
+
+        return d
+    else:
+        raise ValueError("Mask shape doesn't match joint probability's shape.")
