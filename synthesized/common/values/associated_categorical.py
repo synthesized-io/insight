@@ -107,11 +107,15 @@ class AssociatedCategoricalValue(Value):
 
         y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=flattened.shape[0:-1])
         ot = [tf.math.mod(y, self.values[-1].num_categories)]
-        for n in range(1, len(self.values)):
-            y = tf.math.floordiv(y, self.values[-1].num_categories)
-            ot.append(y)
+        for n in range(1, len(self.values)-1):
+            ot.append(tf.math.floordiv(
+                tf.math.mod(y, tf.reduce_prod([self.values[-m-1].num_categories for m in range(1, n)])),
+                self.values[-n].num_categories
+            ))
 
-        return ot
+        ot.append(tf.math.floordiv(y, self.values[1].num_categories))
+
+        return ot[::-1]
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
