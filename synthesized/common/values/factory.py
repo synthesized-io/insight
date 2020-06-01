@@ -527,7 +527,7 @@ class ValueFactory:
                 pass
 
         # Similarity-based categorical value if not too many distinct values
-        elif num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
+        if num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:  # note the alternative is never possible anyway.
                     value = self.create_categorical(name, similarity_based=True, true_categorical=False)

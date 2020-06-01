@@ -849,15 +849,15 @@ def show_distribution(col_test: pd.Series, col_synth: pd.Series,
     """Plot comparison plots of one variables in the original and synthetic datasets."""
 
     if dtype == DisplayType.CATEGORICAL:
-
-        df_col_test = pd.DataFrame(col_test, columns=['column'])
-        df_col_synth = pd.DataFrame(col_synth, columns=['column'])
-
         # We sample orig and synth them so that they have the same size to make the plots more comprehensive
         if sample_size:
             sample_size = min(sample_size, len(col_test), len(col_synth))
         else:
             sample_size = min(len(col_test), len(col_synth))
+
+        df_col_test = pd.DataFrame(col_test.values, columns=['column'])
+        df_col_synth = pd.DataFrame(col_synth.values, columns=['column'])
+
         concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
                                   df_col_synth.assign(dataset='synth').sample(sample_size)])
 
