@@ -13,13 +13,13 @@ from ..module import tensorflow_name_scoped
 class DecomposedContinuousValue(Value):
 
     def __init__(
-            self, name: str, weight: float, identifier: Optional[str],
-            # Scenario
-            integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
-            distribution: str = None, distribution_params: Tuple[Any, ...] = None,
-            use_quantile_transformation: bool = False,
-            transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
-            low_freq_weight: float = 1., high_freq_weight: float = 1.
+        self, name: str, weight: float, identifier: Optional[str],
+        # Scenario
+        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
+        distribution: str = None, distribution_params: Tuple[Any, ...] = None,
+        use_quantile_transformation: bool = False,
+        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
+        low_freq_weight: float = 1., high_freq_weight: float = 1.
     ):
         super().__init__(name=name)
 

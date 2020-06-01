@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 
@@ -19,7 +21,7 @@ class SamplingValue(Value):
             self.smoothing = smoothing
         self.produce_nans = produce_nans
 
-        self.categories: Dict[str, int] = None
+        self.categories: Optional[pd.Series] = None
 
     def specification(self) -> dict:
         spec = super().specification()
@@ -39,6 +41,7 @@ class SamplingValue(Value):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
+        assert self.categories is not None
         df.loc[:, self.name] = np.random.choice(
             a=self.categories.index, size=len(df), p=self.categories.values
         )

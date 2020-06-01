@@ -848,6 +848,9 @@ def show_distribution(col_test: pd.Series, col_synth: pd.Series,
                       sample_size: int = 10_000) -> None:
     """Plot comparison plots of one variables in the original and synthetic datasets."""
 
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
     if dtype == DisplayType.CATEGORICAL:
         # We sample orig and synth them so that they have the same size to make the plots more comprehensive
         if sample_size:

@@ -8,11 +8,20 @@ from ..synthesizer import Synthesizer
 
 
 class DataImputer(Synthesizer):
+    """Imputes synthesized values for nans."""
 
     def __init__(self,
                  synthesizer: Synthesizer = None,
-                 df: pd.DataFrame = None,
-                 highdim_kwargs: Dict[str, Any] = None):
+                 highdim_kwargs: Dict[str, Any] = None,
+                 df: pd.DataFrame = None):
+        """Data Imputer constructor.
+
+        Args:
+            synthesizer: Synthesizer used to impute data. If not given, will create a HighDim from df.
+            highdim_kwargs: Dictionary containing any extra kwargs for HighDim.
+            df: Original DataFrame, not needed if synthesizer is given.
+
+        """
 
         assert (synthesizer is not None) or (df is not None)
         assert not (synthesizer is not None and df is not None)
