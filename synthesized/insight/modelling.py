@@ -33,7 +33,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
-from ..common import ValueFactory, Value
+from ..common import ValueFactory
+from ..common.values import Value
 from .dataset import categorical_or_continuous_values
 
 

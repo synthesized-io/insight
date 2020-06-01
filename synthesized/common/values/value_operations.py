@@ -4,7 +4,7 @@ from typing import Dict, List
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ..values import Value, CategoricalValue
+from ..values import Value
 
 
 class ValueOps(tf.Module):
@@ -92,10 +92,7 @@ class ValueOps(tf.Module):
             synthesized[self.identifier_label] = identifier
 
         for value, y in zip(self.values, ys):
-            if isinstance(value, CategoricalValue):
-                synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y, sample=sample)))
-            else:
-                synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y, sample=sample)))
 
         for value in self.conditions:
             for name in value.learned_output_columns():

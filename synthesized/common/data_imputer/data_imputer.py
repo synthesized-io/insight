@@ -1,8 +1,7 @@
-from typing import Optional, Callable, List, Union, Any, Dict
+from typing import Optional, Callable, List, Union
 
 import pandas as pd
 
-from ...highdim import HighDimSynthesizer
 from ..values import Value, CategoricalValue, NanValue
 from ..synthesizer import Synthesizer
 
@@ -11,31 +10,16 @@ class DataImputer(Synthesizer):
     """Imputes synthesized values for nans."""
 
     def __init__(self,
-                 synthesizer: Synthesizer = None,
-                 highdim_kwargs: Dict[str, Any] = None,
-                 df: pd.DataFrame = None):
+                 synthesizer: Synthesizer):
         """Data Imputer constructor.
 
         Args:
             synthesizer: Synthesizer used to impute data. If not given, will create a HighDim from df.
-            highdim_kwargs: Dictionary containing any extra kwargs for HighDim.
-            df: Original DataFrame, not needed if synthesizer is given.
 
         """
 
-        assert (synthesizer is not None) or (df is not None)
-        assert not (synthesizer is not None and df is not None)
-
-        if synthesizer is not None:
-            assert not synthesizer.produce_nans_for
-            self.synthesizer = synthesizer
-        else:
-            highdim_kwargs = highdim_kwargs if highdim_kwargs is not None else dict()
-            self.synthesizer = HighDimSynthesizer(
-                df=df,
-                produce_nans_for=None,
-                **highdim_kwargs
-            )
+        assert not synthesizer.value_factory.produce_nans_for
+        self.synthesizer = synthesizer
 
         self.nan_columns = self.get_nan_columns()
 

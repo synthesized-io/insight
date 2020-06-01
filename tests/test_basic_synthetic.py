@@ -58,3 +58,25 @@ def test_type_overrides():
     df_original = pd.DataFrame({'r': list(map(int, r))})
     synthesizer = HighDimSynthesizer(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
     assert type(synthesizer.get_values()[0]) == ContinuousValue
+
+
+@pytest.mark.integration
+def test_encode():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
+    with HighDimSynthesizer(df=df_original) as synthesizer:
+        synthesizer.learn(num_iterations=10, df_train=df_original)
+        _, df_synthesized = synthesizer.encode(df_original)
+
+    assert df_synthesized.shape == df_original.shape
+
+
+@pytest.mark.integration
+def test_encode_deterministic():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
+    with HighDimSynthesizer(df=df_original) as synthesizer:
+        synthesizer.learn(num_iterations=10, df_train=df_original)
+        df_synthesized = synthesizer.encode_deterministic(df_original)
+
+    assert df_synthesized.shape == df_original.shape
