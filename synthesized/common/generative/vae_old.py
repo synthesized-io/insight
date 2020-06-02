@@ -201,9 +201,9 @@ class VAEOld(Generative):
         x = self.linear_input(x)
         x = self.encoder(x)
 
-        latent_space = self.encoding(x)
         mean = self.encoding.gaussian.mean(x)
         std = self.encoding.gaussian.stddev(x)
+        latent_space = mean + std * tf.random.normal(shape=tf.shape(mean))
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
