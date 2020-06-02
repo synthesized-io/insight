@@ -202,8 +202,8 @@ class VAEOld(Generative):
         x = self.encoder(x)
 
         latent_space = self.encoding(x)
-        mean = self.encoding.gaussian.mean.output
-        std = self.encoding.gaussian.stddev.output
+        mean = self.encoding.gaussian.mean(x)
+        std = self.encoding.gaussian.stddev(x)
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
@@ -248,7 +248,7 @@ class VAEOld(Generative):
         x = self.linear_input(x)
         x = self.encoder(x)
 
-        mean, _ = self.encoding.gaussian(x)
+        mean = self.encoding.gaussian.mean(x)
 
         x = self.value_ops.add_conditions(x=mean, conditions=cs)
         x = self.decoder(x)

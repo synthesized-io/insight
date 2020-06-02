@@ -48,7 +48,7 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
     with HighDimSynthesizer(df=df_original, produce_nans_for=['r']) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
+        synthesizer.learn(num_iterations=2500, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
     assert df_synthesized['r'].isna().sum() > 0
 
