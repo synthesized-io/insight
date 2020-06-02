@@ -191,18 +191,19 @@ class ValueFactory:
         associated_values = []
         association_tree = tl.Tree()
 
-        association_tree.create_node('root', 'root')
-        for n, nodes in associations.items():
-            if association_tree.get_node(n) is None:
-                association_tree.create_node(n, n, 'root')
-            for m in nodes:
-                if association_tree.get_node(m) is None:
-                    association_tree.create_node(m, m, n)
-                else:
-                    association_tree.move_node(m, n)
+        if associations is not None:
+            association_tree.create_node('root', 'root')
+            for n, nodes in associations.items():
+                if association_tree.get_node(n) is None:
+                    association_tree.create_node(n, n, 'root')
+                for m in nodes:
+                    if association_tree.get_node(m) is None:
+                        association_tree.create_node(m, m, n)
+                    else:
+                        association_tree.move_node(m, n)
 
         associates = [n for n in association_tree.expand_tree('root')][1:]
-        associations = [st[1:] for st in association_tree.paths_to_leaves()]
+        association_groups = [st[1:] for st in association_tree.paths_to_leaves()]
 
         for name in df.columns:
             # we are skipping aliases
@@ -234,7 +235,8 @@ class ValueFactory:
             else:
                 self.values.append(value)
 
-        self.values.append(AssociatedCategoricalValue(values=associated_values, associations=associations))
+        if len(associated_values) > 0:
+            self.values.append(AssociatedCategoricalValue(values=associated_values, associations=association_groups))
 
         # Automatic extraction of specification parameters
         df = df.copy()
