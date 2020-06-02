@@ -6,6 +6,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+import treelib as tl
 
 from .address import AddressValue
 from .associated_categorical import AssociatedCategoricalValue
@@ -187,13 +188,21 @@ class ValueFactory:
         else:
             self.condition_columns = condition_columns
 
-        associates = []
         associated_values = []
-        # TODO: Correctly create AssociatedCategoricalValues
-        if associations is not None:
-            for k, v in associations.items():
-                associates.append(k)
-                associates.extend(v)
+        association_tree = tl.Tree()
+
+        association_tree.create_node('root', 'root')
+        for n, nodes in associations.items():
+            if association_tree.get_node(n) is None:
+                association_tree.create_node(n, n, 'root')
+            for m in nodes:
+                if association_tree.get_node(m) is None:
+                    association_tree.create_node(m, m, n)
+                else:
+                    association_tree.move_node(m, n)
+
+        associates = [n for n in association_tree.expand_tree('root')][1:]
+        associations = [st[1:] for st in association_tree.paths_to_leaves()]
 
         for name in df.columns:
             # we are skipping aliases
@@ -225,7 +234,7 @@ class ValueFactory:
             else:
                 self.values.append(value)
 
-        self.values.append(AssociatedCategoricalValue(values=associated_values))
+        self.values.append(AssociatedCategoricalValue(values=associated_values, associations=associations))
 
         # Automatic extraction of specification parameters
         df = df.copy()

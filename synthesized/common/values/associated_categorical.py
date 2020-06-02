@@ -14,12 +14,13 @@ logger = logging.getLogger(__name__)
 
 class AssociatedCategoricalValue(Value):
     def __init__(
-            self, values: List[CategoricalValue]
+            self, values: List[CategoricalValue], associations: List[List[str]]
     ):
         super(AssociatedCategoricalValue, self).__init__(
             name='|'.join([v.name for v in values])
         )
         self.values = values
+        self.associations = associations
         self.dtype = tf.int64
         self.binding_mask: Optional[tf.Tensor] = None
 
@@ -58,17 +59,30 @@ class AssociatedCategoricalValue(Value):
         for v in self.values:
             v.extract(df=df)
 
-        df2 = df[[name for v in self.values for name in v.columns()]].copy()
-        for v in self.values:
-            df2[v.name] = df2[v.name].map(v.category2idx)
+        final_mask = np.ones(shape=[v.num_categories for v in self.values])
 
-        counts = np.zeros(shape=[v.num_categories for v in self.values])
+        for associated_values in self.associations:
+            associated_values = list(associated_values)
+            associated_values.sort(key=lambda x: [v.name for v in self.values].index(x))
+            df2 = df[associated_values].copy()
+            for v in self.values:
+                df2[v.name] = df2[v.name].map(v.category2idx)
 
-        for i, row in df2.iterrows():
-            idx = tuple(v for v in row.values)
-            counts[idx] += 1
+            counts = np.zeros(shape=[df2[v].nunique() for v in associated_values])
 
-        self.binding_mask = tf.constant((counts > 0).astype(np.float32), dtype=tf.float32)
+            for i, row in df2.iterrows():
+                idx = tuple(v for v in row.values)
+                counts[idx] += 1
+
+            mask = (counts > 0).astype(np.int32)
+
+            for n, v in enumerate(self.values):
+                if v.name not in associated_values:
+                    mask = np.expand_dims(mask, axis=n)
+
+            final_mask *= np.broadcast_to(mask, [v.num_categories for v in self.values])
+
+        self.binding_mask = tf.constant(final_mask, dtype=tf.float32)
 
         self.build()
 
