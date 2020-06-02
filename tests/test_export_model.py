@@ -71,14 +71,14 @@ def test_categorical_variable_generation():
 
 @pytest.mark.integration
 def test_nan_producing():
-    r = np.random.normal(loc=5000, scale=1000, size=1000)
+    r = np.random.normal(loc=0, scale=1, size=1000)
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.2))
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
 
     df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans_for=True))
 
-    assert np.isnan(df_synthesized['r']).any()
+    assert df_synthesized['r'].isna().sum() > 0
     assert np.isclose(np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
                       np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
                       atol=0.02)

@@ -1,7 +1,4 @@
-from typing import List
-
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import pandas as pd
 

@@ -167,7 +167,6 @@ class CategoricalValue(Value):
             if sample:
                 y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
             else:
-                y_flat = tf.argmax(y_flat, axis=1)
                 y_flat = tf.expand_dims(tf.argmax(y_flat, axis=1), axis=1)
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
