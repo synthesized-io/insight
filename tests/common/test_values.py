@@ -5,7 +5,7 @@ import pandas as pd
 import tensorflow as tf
 import pandas as pd
 
-from synthesized.common import Value
+from synthesized.common.values import Value
 from synthesized.common.values import CategoricalValue, ContinuousValue, NanValue, DateValue
 
 
