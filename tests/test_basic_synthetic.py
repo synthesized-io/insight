@@ -60,7 +60,6 @@ def test_type_overrides():
     assert type(synthesizer.get_values()[0]) == ContinuousValue
 
 
-@pytest.mark.integration
 def test_encode():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
@@ -70,7 +69,6 @@ def test_encode():
     assert df_synthesized.shape == df_original.shape
 
 
-@pytest.mark.integration
 def test_encode_deterministic():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})

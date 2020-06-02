@@ -127,7 +127,7 @@ def test_vf_text_floats(df):
 
 
 @seed(42)
-@settings(deadline=None)
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     df=data_frames([
         column('A', elements=st.one_of(st.integers(), st.sampled_from([np.NaN, pd.NaT, None])), fill=st.nothing())
