@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 
@@ -6,7 +8,7 @@ from .value import Value
 
 class SamplingValue(Value):
 
-    def __init__(self, name: str, uniform: bool = False, smoothing: float = None):
+    def __init__(self, name: str, uniform: bool = False, smoothing: float = None, produce_nans: bool = False):
         super().__init__(name=name)
 
         if uniform:
@@ -17,6 +19,9 @@ class SamplingValue(Value):
             self.smoothing = 1.0
         else:
             self.smoothing = smoothing
+        self.produce_nans = produce_nans
+
+        self.categories: Optional[pd.Series] = None
 
     def specification(self) -> dict:
         spec = super().specification()
@@ -25,7 +30,8 @@ class SamplingValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=False)
+        dropna = False if self.produce_nans else True
+        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=dropna)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
 
@@ -35,6 +41,7 @@ class SamplingValue(Value):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
+        assert self.categories is not None
         df.loc[:, self.name] = np.random.choice(
             a=self.categories.index, size=len(df), p=self.categories.values
         )

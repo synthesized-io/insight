@@ -3,13 +3,14 @@ import datetime
 import numpy as np
 import pandas as pd
 import hypothesis.strategies as st
-from hypothesis import given, event, settings, HealthCheck
+from hypothesis import given, event, settings, HealthCheck, seed
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.common import ValueFactory
 from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
 
 
+@seed(42)
 @settings(deadline=None)
 @given(df=data_frames(
     [column('A', elements=st.floats(width=32, allow_infinity=False), fill=st.nothing())],
@@ -34,6 +35,7 @@ def test_vf_floats(df):
     vf.postprocess(df=df_p)
 
 
+@seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
@@ -66,6 +68,7 @@ def test_vf_datetimes(df):
     vf.postprocess(df=df_p)
 
 
+@seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     df=data_frames([column(
@@ -93,6 +96,7 @@ def test_vf_text(df):
     vf.postprocess(df=df_p)
 
 
+@seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
@@ -122,7 +126,8 @@ def test_vf_text_floats(df):
     vf.postprocess(df=df_p)
 
 
-@settings(deadline=None)
+@seed(42)
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     df=data_frames([
         column('A', elements=st.one_of(st.integers(), st.sampled_from([np.NaN, pd.NaT, None])), fill=st.nothing())

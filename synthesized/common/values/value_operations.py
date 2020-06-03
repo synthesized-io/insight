@@ -3,8 +3,8 @@ from typing import Dict, List
 
 import tensorflow as tf
 
-from synthesized.common.module import tensorflow_name_scoped
-from synthesized.common.values import Value
+from ..module import tensorflow_name_scoped
+from ..values import Value
 
 
 class ValueOps(tf.Module):
@@ -78,7 +78,7 @@ class ValueOps(tf.Module):
 
     @tensorflow_name_scoped
     def value_outputs(self, y: tf.Tensor, conditions: Dict[str, tf.Tensor],
-                      identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+                      identifier: tf.Tensor = None, sample: bool = True) -> Dict[str, tf.Tensor]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -92,7 +92,7 @@ class ValueOps(tf.Module):
             synthesized[self.identifier_label] = identifier
 
         for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y)))
+            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y, sample=sample)))
 
         for value in self.conditions:
             for name in value.learned_output_columns():

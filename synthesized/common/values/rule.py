@@ -109,12 +109,12 @@ class RuleValue(Value):
         return tf.concat(values=x, axis=1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         ys: List[tf.Tensor] = list()
         for value, y in zip(self.values[:self.num_learned], y):
-            ys.extend(value.output_tensors(y=y))
+            ys.extend(value.output_tensors(y=y, **kwargs))
         return ys
 
     @tensorflow_name_scoped

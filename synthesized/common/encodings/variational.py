@@ -37,10 +37,8 @@ class VariationalEncoding(Encoding):
         x = mean + stddev * x
 
         kl_loss = self.diagonal_normal_kl_divergence(mean, stddev)
-        # kl_loss = tf.multiply(self.beta, kl_loss)
         kl_loss = self.beta * kl_loss
 
-        # self.add_loss(lambda: kl_loss, inputs=inputs)
         self.add_loss(kl_loss, inputs=inputs)
         tf.summary.histogram(name='mean', data=mean),
         tf.summary.histogram(name='stddev', data=stddev),

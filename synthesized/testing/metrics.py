@@ -13,7 +13,6 @@ from statsmodels.formula.api import ols
 from statsmodels.tsa.stattools import acf, pacf
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100

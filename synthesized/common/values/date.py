@@ -13,7 +13,7 @@ class DateValue(ContinuousValue):
 
     def __init__(
         self, name: str, categorical_kwargs: dict, continuous_kwargs: dict,
-        start_date=None, min_date=None, keep_monotonic: bool = False
+        start_date: datetime = None, min_date: datetime = None, keep_monotonic: bool = False
     ):
         super().__init__(name=name, **continuous_kwargs)
 

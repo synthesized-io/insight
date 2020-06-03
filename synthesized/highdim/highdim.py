@@ -7,12 +7,13 @@ import pandas as pd
 import pickle
 import tensorflow as tf
 
-from ..common import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
+from ..common import ValueFactory, ValueFactoryWrapper, TypeOverride
 from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
+from ..common.values import Value
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
@@ -396,6 +397,7 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
+        df_encode = df_encode.copy()
         df_encode = self.value_factory.preprocess(df=df_encode)
         df_conditions = self.value_factory.preprocess_conditions(conditions)
 
@@ -414,6 +416,33 @@ class HighDimSynthesizer(Synthesizer):
                                                                 for n in range(encoded['sample'].shape[1])])
 
         return df_encoded, df_synthesized
+
+    def encode_deterministic(self, df_encode: pd.DataFrame,
+                             conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
+        """Deterministically encodes a dataset and returns it with imputed nans.
+
+        Args:
+            df_encode: Input dataset
+            conditions: The condition values for the generated rows.
+
+        Returns:
+            Pandas DataFrame of decoded space corresponding to input data
+        """
+        df_encode = df_encode.copy()
+        df_encode = self.value_factory.preprocess(df=df_encode)
+        df_conditions = self.value_factory.preprocess_conditions(conditions)
+
+        num_rows = len(df_encode)
+        data = self.get_data_feed_dict(df_encode)
+        conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
+
+        decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
+
+        columns = self.value_factory.get_column_names()
+        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
+        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
+
+        return df_synthesized
 
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()

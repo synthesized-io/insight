@@ -9,7 +9,8 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common import Value, ValueFactory, TypeOverride
+from ..common import ValueFactory, TypeOverride
+from ..common.values import Value
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
