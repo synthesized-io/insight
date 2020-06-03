@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import tensorflow as tf
 
 from .transformation import Transformation
@@ -75,3 +77,9 @@ class LstmTransformation(Transformation):
             if expand_squeeze:
                 outputs = tf.squeeze(input=outputs, axis=0)
             return outputs
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_variables(self, variables: Dict[str, Any]):
+        raise NotImplementedError

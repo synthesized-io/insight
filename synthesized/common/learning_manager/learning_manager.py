@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union, Callable
+from typing import Optional, Dict, List, Union, Callable, Any
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from ..synthesizer import Synthesizer
 from ...testing.metrics import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class LearningManager:
@@ -315,3 +314,15 @@ class LearningManager:
         self.best_checkpoint: Optional[str] = None
         self.best_iteration: int = 0
         self.start_time: float = time.time()
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            max_training_time=self.max_training_time,
+            use_vae_loss=self.use_vae_loss,
+            custom_stop_metric=self.custom_stop_metric
+        )
+
+    def set_variables(self, variables: Dict[str, Any]):
+        self.max_training_time = variables['max_training_time']
+        self.use_vae_loss = variables['use_vae_loss']
+        self.custom_stop_metric = variables['custom_stop_metric']

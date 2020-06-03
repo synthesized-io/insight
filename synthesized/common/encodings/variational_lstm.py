@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, Any
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -100,3 +100,9 @@ class VariationalLSTMEncoding(Encoding):
     @property
     def regularization_losses(self):
         return [loss for layer in [self.gaussian] for loss in layer.regularization_losses]
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_variables(self, variables: Dict[str, Any]):
+        raise NotImplementedError

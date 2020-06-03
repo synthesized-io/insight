@@ -25,9 +25,6 @@ from .person import PersonValue
 from .sampling import SamplingValue
 from .value import Value
 
-CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
-PARSING_NAN_FRACTION_THRESHOLD = 0.25
-
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +39,8 @@ class TypeOverride(enum.Enum):
 
 class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
+    categorical_threshold_log_multiplier = 2.5
+    parsing_nan_fraction_threshold = 0.25
 
     def __init__(
         self, df: pd.DataFrame, capacity: int = 128,
@@ -163,6 +162,7 @@ class ValueFactory:
         # Identifier
         self.identifier_value: Optional[Value] = None
         self.identifier_label = identifier_label
+
         # Date
         self.date_value: Optional[Value] = None
 
@@ -248,7 +248,6 @@ class ValueFactory:
             value.extract(df=df)
 
         # Identify deterministic rules
-        #  import ipdb; ipdb.set_trace()
         self.values = identify_rules(values=self.values, df=df, tests=self.find_rules)
 
     @property
@@ -504,7 +503,7 @@ class ValueFactory:
             return self.create_constant(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
-        elif num_unique <= CATEGORICAL_THRESHOLD_LOG_MULTIPLIER * log(num_data):
+        elif num_unique <= self.categorical_threshold_log_multiplier * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
@@ -547,7 +546,7 @@ class ValueFactory:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
-                if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+                if num_nan / num_data < self.parsing_nan_fraction_threshold:
                     assert date_data.dtype.kind == 'M'
                     value = self.create_date(name)
                     reason = "Column dtype is 'O' and convertable to datetime. "
@@ -575,7 +574,7 @@ class ValueFactory:
         if col.dtype.kind == 'O':
             numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
-            if num_nan / num_data < PARSING_NAN_FRACTION_THRESHOLD:
+            if num_nan / num_data < self.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
                 is_nan = num_nan > 0
             else:
@@ -590,7 +589,7 @@ class ValueFactory:
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = self.create_continuous(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
-                     f"rate > {1.0-PARSING_NAN_FRACTION_THRESHOLD}. "
+                     f"rate > {1.0 - self.parsing_nan_fraction_threshold}. "
             if is_nan:
                 value = self.create_nan(name, value)
                 reason += " And contains NaNs. "
@@ -604,6 +603,49 @@ class ValueFactory:
 
         assert value is not None
         return value, reason
+
+    def get_variables(self) -> Dict[str, Any]:
+        variables: Dict[str, Any] = dict(
+            name=self.name,
+            columns=self.columns,
+            column_aliases=self.column_aliases,
+            identifier_label=self.identifier_label,
+            identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
+        )
+
+        variables['num_values'] = len(self.values)
+        for i, value in enumerate(self.values):
+            variables['value_{}'.format(i)] = value.get_variables()
+
+        variables['num_conditions'] = len(self.conditions)
+        for i, condition in enumerate(self.conditions):
+            variables['condition_{}'.format(i)] = condition.get_variables()
+
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert self.name == variables['name']
+
+        self.columns = variables['columns']
+        self.column_aliases = variables['column_aliases']
+        self.identifier_label = variables['identifier_label']
+
+        self.identifier_value = Value.set_variables(variables['identifier_value']) \
+            if variables['identifier_value'] is not None else None
+
+        self.values = []
+        for i in range(variables['num_values']):
+            self.values.append(Value.set_variables(variables['value_{}'.format(i)]))
+
+        self.conditions = []
+        for i in range(variables['num_conditions']):
+            self.values.append(Value.set_variables(variables['condition_{}'.format(i)]))
+
+
+class ValueFactoryWrapper(ValueFactory):
+    def __init__(self, name: str, variables: Dict[str, Any]):
+        self.name = name
+        self.set_variables(variables)
 
 
 def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:

@@ -29,7 +29,7 @@ class SeriesSynthesizer(Synthesizer):
         # Network
         network: str = 'mlp', capacity: int = 128, num_layers: int = 2,
         residual_depths: Union[None, int, List[int]] = None,
-        batchnorm: bool = False, activation: str = 'leaky_relu', series_dropout: float = 0.5,
+        batch_norm: bool = False, activation: str = 'leaky_relu', series_dropout: float = 0.5,
         # Optimizer
         optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
         initial_boost: int = 0, clip_gradients: float = 1.0,
@@ -114,7 +114,7 @@ class SeriesSynthesizer(Synthesizer):
             identifier_label=self.value_factory.identifier_label, identifier_value=self.value_factory.identifier_value,
             encoding=self.lstm_mode, latent_size=latent_size,
             network=network, capacity=capacity, num_layers=num_layers, residual_depths=residual_depths,
-            batchnorm=batchnorm, activation=activation, series_dropout=series_dropout,
+            batch_norm=batch_norm, activation=activation, series_dropout=series_dropout,
             optimizer=optimizer, learning_rate=tf.constant(learning_rate, dtype=tf.float32),
             decay_steps=decay_steps, decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients,
             beta=beta, weight_decay=weight_decay

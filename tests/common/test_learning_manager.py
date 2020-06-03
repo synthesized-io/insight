@@ -31,7 +31,9 @@ def _test_learning_manager(
             break
 
     assert (iteration_break == expected_iteration_break) or (expected_iteration_break is None and i == iterations - 1)
-    return
+
+    variables = lm.get_variables()
+    lm.set_variables(variables)
 
 
 def test_lm_basic():
