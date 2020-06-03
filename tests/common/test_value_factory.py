@@ -299,10 +299,7 @@ def test_vf_associated_columns():
     vf = ValueFactory(df=df, associations=associations)
     value = vf.get_values()[0]
     assert isinstance(value, AssociatedCategoricalValue)
-    if type(value.associations) is list:
-        assert value.associations == ['car_brand', 'car_model', 'car_year']
-    else:
-        assert value.associations.as_list() == ['car_brand', 'car_model', 'car_year']
+    assert value.associations == [['car_brand', 'car_model', 'car_year']]
 
     df_p = vf.preprocess(df=df)
     vf.postprocess(df=df_p)
