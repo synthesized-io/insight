@@ -161,23 +161,13 @@ def tf_joint_probs(*args):
 
 
 def tf_masked_probs(jp, mask):
-    if jp.shape[1:] == mask.shape:
-
-        d = jp * mask
-        for n in range(1, len(jp.shape)):
-            d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
-                    jp * mask)
-            d += d_a
-
-        return d
-
-    elif jp.shape == mask.shape:
-        d = jp * mask
-        for n in range(len(jp.shape)):
-            d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
-                        jp * mask)
-            d += d_a
-
-        return d
-    else:
+    if jp.shape[-len(mask.shape):] != mask.shape:
         raise ValueError("Mask shape doesn't match joint probability's shape.")
+
+    d = jp * mask
+    for n in range(len(jp.shape)-len(mask.shape), len(jp.shape)):
+        d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
+                jp * mask)
+        d += d_a
+
+    return d
