@@ -189,6 +189,8 @@ class ValueFactory:
             self.condition_columns = condition_columns
 
         associated_values = []
+        associates = []
+        association_groups = []
         association_tree = tl.Tree()
 
         if associations is not None:
@@ -203,8 +205,8 @@ class ValueFactory:
                         association_tree.move_node(m, n)
             logger.debug(f"Created association tree: {association_tree}")
 
-        associates = [n for n in association_tree.expand_tree('root')][1:]
-        association_groups = [st[1:] for st in association_tree.paths_to_leaves()]
+            associates.extend([n for n in association_tree.expand_tree('root')][1:])
+            association_groups.extend([st[1:] for st in association_tree.paths_to_leaves()])
 
         for name in df.columns:
             # we are skipping aliases
