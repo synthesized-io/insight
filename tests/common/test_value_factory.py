@@ -7,7 +7,8 @@ from hypothesis import given, event, settings, HealthCheck
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.common import ValueFactory
-from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue
+from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue, \
+    AssociatedCategoricalValue
 
 
 @settings(deadline=None)
@@ -281,3 +282,24 @@ def test_vf_double_missing_ints():
 
     value = vf.get_values()[0]
     assert isinstance(value, NanValue)
+
+
+def test_vf_associated_columns():
+    df = pd.DataFrame({
+        'car_brand': ['Porsche', 'Volkwagen', 'BMW', 'Porsche', 'Volkwagen', 'BMW']*2,
+        'car_model': ['Boxter', 'Polo', 'M3', 'Macaan', 'Golf', 'X5']*2,
+        'car_year': [2012, 2016, 2011, 2011, 2014, 2016] + [2012, 2012, 2011, 2013, 2014, 2013]
+    })
+
+    associations = {
+        'car_brand': ['car_model'],
+        'car_model': ['car_year']
+    }
+
+    vf = ValueFactory(df=df, associations=associations)
+    value = vf.get_values()[0]
+    assert isinstance(value, AssociatedCategoricalValue)
+    assert value.associations == ['car_brand', 'car_model', 'car_year']
+
+    df_p = vf.preprocess(df=df)
+    vf.postprocess(df=df_p)
