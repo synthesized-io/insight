@@ -201,6 +201,7 @@ class ValueFactory:
                         association_tree.create_node(m, m, n)
                     else:
                         association_tree.move_node(m, n)
+            logger.debug(f"Created association tree: {association_tree}")
 
         associates = [n for n in association_tree.expand_tree('root')][1:]
         association_groups = [st[1:] for st in association_tree.paths_to_leaves()]

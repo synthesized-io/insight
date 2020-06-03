@@ -20,6 +20,9 @@ class AssociatedCategoricalValue(Value):
             name='|'.join([v.name for v in values])
         )
         self.values = values
+        logger.debug("Creating Associated value with associations: ")
+        for n, association in enumerate(associations):
+            logger.debug(f"{n+1}: {association}")
         self.associations = associations
         self.dtype = tf.int64
         self.binding_mask: Optional[tf.Tensor] = None
