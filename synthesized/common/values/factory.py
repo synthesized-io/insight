@@ -231,7 +231,10 @@ class ValueFactory:
             elif name == self.identifier_label:
                 self.identifier_value = value
             elif name in associates:
-                associated_values.append(value)
+                if isinstance(value, CategoricalValue):
+                    associated_values.append(value)
+                else:
+                    raise ValueError(f"Associated value ({name}) is not a categorical value.")
             else:
                 self.values.append(value)
 
