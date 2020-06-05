@@ -7,7 +7,7 @@
 from enum import Enum
 import logging
 import math
-from typing import Tuple, Dict, List, Union
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -138,12 +138,14 @@ class UtilityTesting:
         return synth_score
 
     def show_first_order_metric_distances(self, metric: ColumnComparison, **kwargs):
+        if metric.name is None:
+            raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
         result = metric_vector(self.df_test, self.df_synth, vf=self.vf, **kwargs)
 
-        if len(result.dropna()) == 0:
+        if result is None or len(result.dropna()) == 0:
             return 0., 0.
 
         dist_max = float(np.nanmax(result))
@@ -163,6 +165,9 @@ class UtilityTesting:
             metric: the two column metric to show.
             figsize: width, height in inches.
         """
+        if metric.name is None:
+            raise ValueError("Metric has no name.")
+
         logger.debug(f"Showing matrices for second-order metric ({metric.name}).")
 
         def filtered_metric_matrix(df):
@@ -187,6 +192,9 @@ class UtilityTesting:
         Args:
             metric: A two column comparison metric
         """
+        if metric.name is None:
+            raise ValueError("Metric has no name.")
+
         logger.debug(f"Showing distances for second-order metric ({metric.name}).")
 
         metric_matrix = TwoColumnComparisonMatrix(metric)
@@ -199,7 +207,8 @@ class UtilityTesting:
                     row_name = distances.index[i]
                     col_name = distances.iloc[:, j].name
                     if pd.notna(distances.iloc[i, j]):
-                        result.append({'column': '{} / {}'.format(row_name, col_name), 'distance': distances.iloc[i, j]})
+                        result.append({'column': '{} / {}'.format(row_name, col_name),
+                                       'distance': distances.iloc[i, j]})
 
         if not result:
             return 0., 0.

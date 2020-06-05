@@ -61,12 +61,25 @@ def axes_grid(ax: Union[Axes, SubplotBase], rows: int, cols: int,
 
         axes = []
         for r in range(rows):
-            row_axes = list()
-            row_axes.append(fig.add_subplot(sgs[r, 0]))
-            row_axes[0].set_ylabel(row_titles[r])
-            for c in range(1, cols):
-                row_axes.append(fig.add_subplot(sgs[r, c], sharey=row_axes[0]))
-            axes.append(row_axes)
+            if cols == 1:
+                if r == 0:
+                    axes.append(fig.add_subplot(sgs[r, 0]))
+                else:
+                    axes.append(fig.add_subplot(sgs[r, 0], sharex=axes[0]))
+                axes[r].set_ylabel(row_titles[r])
+            else:
+                row_axes = list()
+                if r == 0:
+                    row_axes.append(fig.add_subplot(sgs[r, 0]))
+                else:
+                    row_axes.append(fig.add_subplot(sgs[r, 0], sharex=axes[0][0]))
+                row_axes[0].set_ylabel(row_titles[r])
+                for c in range(1, cols):
+                    if r == 0:
+                        row_axes.append(fig.add_subplot(sgs[r, c], sharey=row_axes[0]))
+                    else:
+                        row_axes.append(fig.add_subplot(sgs[r, c], sharex=axes[0][c], sharey=row_axes[0]))
+                axes.append(row_axes)
 
     return axes
 
@@ -252,24 +265,29 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
-def plot_continuous_time_series(df_orig, df_synth, col, identifiers=None, ax=None):
+def plot_continuous_time_series(df_orig, df_synth, df_test, col, identifiers=None, ax=None):
     ax = ax or plt.gca()
     if identifiers is not None:
         axes = axes_grid(
-            ax, len(identifiers), 2, col_titles=['Original', 'Synthetic'], row_titles=identifiers, wspace=0, hspace=0
+            ax, len(identifiers), 1, col_titles=['', ''], row_titles=identifiers, wspace=0, hspace=0
         )
-        orig_axes, synth_axes = zip(*axes)
 
         for j, idf in enumerate(identifiers[:5]):
             x = pd.to_numeric(df_orig.loc[:, (idf, col)], errors='coerce').dropna()
             if len(x) > 1:
-                orig_axes[j].plot(x.index, x.values, color=COLOR_ORIG)
-            orig_axes[j].label_outer()
+                axes[j].plot(x.index, x.values, color=COLOR_ORIG, label='orig')
 
             x = pd.to_numeric(df_synth.loc[:, (idf, col)], errors='coerce').dropna()
             if len(x) > 1:
-                synth_axes[j].plot(x.index, x.values, color=COLOR_SYNTH)
-            synth_axes[j].label_outer()
+                axes[j].plot(x.index, x.values, color=COLOR_SYNTH, label='synth', linewidth=1)
+
+            x = pd.to_numeric(df_test.loc[:, (idf, col)], errors='coerce').dropna()
+            if len(x) > 1:
+                axes[j].axvspan(x.index[0], x.index[-1], facecolor='0.1', alpha=0.02)
+                axes[j].plot(x.index, x.values, color=COLOR_ORIG, linestyle='dashed', linewidth=1, label='test')
+
+            axes[j].label_outer()
+        axes[0].legend()
     else:
         orig_ax, synth_ax = axes_grid(
             ax, 1, 2, col_titles=['Original', 'Synthetic'], row_titles=[''], wspace=0, hspace=0
@@ -338,8 +356,8 @@ def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=
                     df_synth.loc[:, (idx, col)].values, df_synth.loc[:, (idy, col)].values, window=20, lags=100)
                 lags = np.array(range(100))
 
-                ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.7)
-                ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_SYNTH, alpha=0.7)
+                ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.5)
+                ax.bar(lags, auto_corr_synth, width=1.0, color=COLOR_SYNTH, alpha=0.5)
                 ax.label_outer()
     else:
         auto_corr_orig = scaled_correlation(

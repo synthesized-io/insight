@@ -1,7 +1,7 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import ABC, abstractmethod
 from typing import Dict, List, Mapping, Type, Union
-from itertools import combinations, permutations, product
+from itertools import combinations, permutations
 
 import pandas as pd
 import numpy as np
@@ -324,7 +324,7 @@ class AggregateTwoColumnComparisonAdapter(DataFrameComparison):
 # Metrics that return an array instead of one value
 # ----------------------------------------------------
 class _Vector(ABC):
-    ALL: Mapping[str, Type['_Matrix']] = {}
+    ALL: Mapping[str, Type['_Vector']] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 
@@ -344,7 +344,7 @@ class _Matrix(ABC):
 
 
 class DataFrameVector(_Vector):
-    ALL: Dict[str, Type['DataFrameVector']] = {}
+    ALL: Mapping[str, Type['DataFrameVector']] = {}
 
     def __init__(self):
         _register(self, DataFrameVector)
@@ -356,7 +356,7 @@ class DataFrameVector(_Vector):
 
 
 class DataFrameComparisonVector(_Vector):
-    ALL: Dict[str, Type['DataFrameComparisonVector']] = {}
+    ALL: Mapping[str, Type['DataFrameComparisonVector']] = {}
 
     def __init__(self):
         _register(self, DataFrameComparisonVector)

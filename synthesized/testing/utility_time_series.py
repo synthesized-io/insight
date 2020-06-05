@@ -1,22 +1,15 @@
-from typing import Tuple, Dict, List, Optional, Any
-import math
+from typing import Tuple, Dict, List, Any
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import mean_squared_error, normalized_mutual_info_score
+from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.stattools import acf, pacf
 
-from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, plot_cross_correlations
+from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
+    plot_cross_correlations
 from ..common.synthesizer import Synthesizer
-from ..values import CategoricalValue
-from ..values import ContinuousValue
-from ..values import DateValue
-from ..values import DecomposedContinuousValue
-from ..values import NanValue
-from ..values import Value
 from ..insight import metrics
 from ..insight.dataset import categorical_or_continuous_values, format_time_series
 
@@ -66,7 +59,7 @@ class TimeSeriesUtilityTesting:
     def show_series(self, share_axis=False, share_ids=False):
 
         rows = len(self.plotable_values)
-        width = 20
+        width = 14
         height = 8 * rows + 3
         figsize = (width, height)
 
@@ -79,14 +72,15 @@ class TimeSeriesUtilityTesting:
             ax = fig.add_subplot(gs[i])
             ax.set_title(col, fontsize=16, pad=32)
             ax.set_axis_off()
-            plot_continuous_time_series(self.df_orig, self.df_synth, col, identifiers=self.identifiers, ax=ax)
+            plot_continuous_time_series(self.df_orig, self.df_synth, self.df_test, col,
+                                        identifiers=self.identifiers, ax=ax)
 
         for i in range(len(self.categorical)):
             col = self.categorical[i]
             ax = fig.add_subplot(gs[i+len(self.continuous)])
             ax.set_title(col, fontsize=16, pad=32)
             ax.set_axis_off()
-            # plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
+            plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
 
         plt.suptitle('Time-Series', fontweight='bold', fontsize=24)
         plt.show()
@@ -228,7 +222,7 @@ class TimeSeriesUtilityTesting:
     def show_transition_distances(self, plot_results: bool = True):
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
-        for col in self.categorical_cols:
+        for col in self.categorical:
             val2idx = {v: i for i, v in enumerate(np.unique(self.df_test[col]))}
             # ORIGINAL DATA
             t_orig = np.zeros((len(val2idx), len(val2idx)))
@@ -306,27 +300,28 @@ class TimeSeriesUtilityTesting:
 
         return dist_max, dist_avg
 
+
 # -- Measures of association for different pairs of data types
 def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
     variable = dataset[col].to_numpy()
     categorical, continuous = categorical_or_continuous_values(dataset[col])
 
-    association: Optional[metrics.TwoColumnComparison] = None
-
     if len(categorical) > 0:
-        association = metrics.earth_movers_distance
+        def association(df_pre, df_post, col):
+            return metrics.earth_movers_distance(df_pre, df_post, col)
     elif len(continuous) > 0:
-        association = metrics.kendell_tau_correlation
-
-    if association is None:
+        def association(df_pre, df_post, col):
+            df = pd.DataFrame({'pre': df_pre[col], 'post': df_post[col]})
+            return metrics.kendell_tau_correlation(df, 'pre', 'post')
+    else:
         return None
 
     auto_associations = []
     for order in range(1, max_order+1):
         postfix = variable[order:]
         prefix = variable[:-order]
-        df = pd.DataFrame({'prefix': prefix, 'postfix': postfix})
-        auto_associations.append(association(df, 'prefix', 'postfix'))
+        df_pre, df_post = pd.DataFrame({col: prefix}), pd.DataFrame({col: postfix})
+        auto_associations.append(association(df_pre, df_post, col))
     return np.array(auto_associations)
 
 

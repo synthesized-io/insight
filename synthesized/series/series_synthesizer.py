@@ -198,7 +198,7 @@ class SeriesSynthesizer(Synthesizer):
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, print_status_freq: int = 50, timeout: int = 2500
+        callback_freq: int = 0, print_status_freq: int = 10, timeout: int = 2500
     ) -> None:
 
         t_start = time.time()
@@ -302,8 +302,11 @@ class SeriesSynthesizer(Synthesizer):
         if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
             raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
+        print(f'num_series: {num_series}, series_lengths: {series_length}')
+
         with record_summaries_every_n_global_steps(0, self.global_step):
             for identifier in random.sample(range(num_series), num_series):
+                print('synthesizing series.')
                 series_length = series_lengths[identifier]
                 tf_identifier = tf.constant([identifier])
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
