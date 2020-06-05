@@ -3,7 +3,11 @@ from collections import OrderedDict
 import time
 from typing import Optional, List
 
-from IPython.display import Markdown, display
+try:
+    from IPython.display import Markdown, display
+except ImportError:
+    Markdown = str
+    display = print
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
