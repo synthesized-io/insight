@@ -8,7 +8,8 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ...testing.metrics import calculate_evaluation_metrics
+from ...values import ValueFactory
+from ...insight.evaluation import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class LearningManager:
         self.must_reach_metric = must_reach_metric
         self.good_enough_metric = good_enough_metric
 
-        allowed_stop_metric_names = ['ks_distances', 'corr_distances', 'emd_distances']
+        allowed_stop_metric_names = ['ks_distance', 'corr_dist', 'emd_categ']
         if stop_metric_name:
             if isinstance(stop_metric_name, str):
                 if stop_metric_name not in allowed_stop_metric_names:
@@ -205,7 +206,7 @@ class LearningManager:
         return False
 
     def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 column_names: Optional[List[str]] = None) -> bool:
+                                 value_factory: ValueFactory, column_names: Optional[List[str]] = None) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -222,8 +223,9 @@ class LearningManager:
             return False
 
         if self.custom_stop_metric is None:
-            stop_metrics: Union[Dict[str, List[float]], float] \
-                = calculate_evaluation_metrics(df_orig=df_orig, df_synth=df_synth, column_names=column_names)
+            stop_metrics: Union[Dict[str, Union[pd.Series, pd.DataFrame]], float] = calculate_evaluation_metrics(
+                df_orig=df_orig, df_synth=df_synth, value_factory=value_factory, column_names=column_names
+            )
         else:
             stop_metrics = self.custom_stop_metric(df_orig, df_synth)
 
@@ -254,7 +256,7 @@ class LearningManager:
 
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names)
+                                             column_names=column_names, value_factory=synthesizer.value_factory)
 
     def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to

@@ -7,8 +7,8 @@ import tensorflow as tf
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from .. import util
-from ..module import tensorflow_name_scoped
+from ..common import util
+from ..common.module import tensorflow_name_scoped
 
 
 class NanValue(Value):

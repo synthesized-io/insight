@@ -8,7 +8,7 @@ from .generative import Generative
 from ..distributions import Distribution
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
-from ..values import Value, ValueOps
+from ...values import Value, ValueOps
 
 
 class VAE(Generative):

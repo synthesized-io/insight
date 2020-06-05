@@ -3,8 +3,8 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..common import ValueFactory
-from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
+from ..values import ValueFactory
+from ..values import ContinuousValue, CategoricalValue, DecomposedContinuousValue, NanValue, Value
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,8 +44,11 @@ def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]
                 categorical.append(value)
             else:
                 continuous.append(value)
-        elif isinstance(value, ContinuousValue) or isinstance(value, NanValue):
+        elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
             continuous.append(value)
+        elif isinstance(value, NanValue):
+            if isinstance(value.value, ContinuousValue) or isinstance(value.value, DecomposedContinuousValue):
+                continuous.append(value)
 
     return categorical, continuous
 
@@ -58,3 +61,31 @@ def describe_dataset(df: pd.DataFrame) -> pd.DataFrame:
     properties['total_columns'] = sum([n for v, n in value_counts.items() if v != 'NanValue'])
 
     return pd.DataFrame.from_records([properties]).T.reset_index().rename(columns={'index': 'property', 0: 'value'})
+
+
+def format_time_series(df, identifier, time_index):
+    if time_index is not None:
+        df[time_index] = pd.to_datetime(df[time_index])
+
+    if identifier is not None:
+        df = df.pivot(index=time_index, columns=identifier)
+        df = df.swaplevel(0, 1, axis=1)
+    return df.asfreq(infer_freq(df))
+
+
+def infer_freq(df):
+    freqs = [
+        'B', 'D', 'W', 'M', 'SM', 'BM', 'MS', 'SMS', 'BMS', 'Q', 'BQ', 'QS', 'BQS', 'A', 'Y', 'BA', ' BY', 'AS', 'YS',
+        'BAS', 'BYS', 'BH', 'H'
+    ]
+    best, min = None, None
+    for freq in freqs:
+        df2 = df.asfreq(freq)
+        if len(df2) < len(df):
+            continue
+        nan_count = sum(df2.iloc[:, 0].isna())
+        if min is None or nan_count < min:
+            min = nan_count
+            best = freq
+    print(best)
+    return best
