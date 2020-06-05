@@ -1,7 +1,6 @@
 import logging
 import math
-import time
-from typing import Optional, List, Tuple, Dict, Union
+from typing import List, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -441,4 +440,4 @@ def plt_dist_orig_snyh(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, 
         dist = earth_movers_distance(orig_vc, synth_vc, key)
 
     ax.legend()
-    return dist
+    return float(dist or 0.0)

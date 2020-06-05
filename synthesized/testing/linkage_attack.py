@@ -203,8 +203,8 @@ def t_closeness_check(df, schema, threshold=0.2):
         if len(group) == 0 or len(group) > MIN_GROUP_SIZE:
             return False
         for column in columns:
-            a = df_small[column]
-            b = df.loc[group.index, column]
+            a = df_small
+            b = df.loc[group.index, :]
             if schema[column].categorical:
                 emd_function = earth_movers_distance
             else:
@@ -212,7 +212,7 @@ def t_closeness_check(df, schema, threshold=0.2):
                     return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
                 emd_function = non_categorical_emd
 
-            if emd_function(df, group, column) > threshold:
+            if emd_function(a, b, column) > threshold:
                 return True
         return False
 
