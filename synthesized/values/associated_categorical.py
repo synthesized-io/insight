@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from .categorical import CategoricalValue
 from .value import Value
-from ..module import tensorflow_name_scoped
+from synthesized.common.module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 

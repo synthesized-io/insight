@@ -7,7 +7,6 @@ from hypothesis import given, event, settings, HealthCheck
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.values import ValueFactory
-from synthesized.values.factory import PARSING_NAN_FRACTION_THRESHOLD
 from synthesized.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue, \
     AssociatedCategoricalValue
 
