@@ -382,7 +382,9 @@ def scaled_correlation(x, y, window=20, lags=100):
     num = math.floor((len(x) - L) / W)
 
     auto_corr = np.mean(np.array([
-        [np.corrcoef(np.stack((x[n * W + l:(n + 1) * W + l], y[n * W:(n + 1) * W]), axis=0))[0][1] for l in range(L)]
+        [np.corrcoef(
+            np.stack((x[n * W + lag:(n + 1) * W + lag], y[n * W:(n + 1) * W]), axis=0)
+        )[0][1] for lag in range(L)]
         for n in range(num)
     ]), axis=0)
 
