@@ -4,7 +4,8 @@ from typing import List, Tuple, Union
 import pandas as pd
 
 from ..values import ValueFactory
-from ..values import ContinuousValue, CategoricalValue, DecomposedContinuousValue, NanValue, Value
+from ..values import ContinuousValue, CategoricalValue, DecomposedContinuousValue, NanValue, Value, \
+    AssociatedCategoricalValue
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,6 +45,12 @@ def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]
                 categorical.append(value)
             else:
                 continuous.append(value)
+        elif isinstance(value, AssociatedCategoricalValue):
+            for associated_value in value.values:
+                if associated_value.true_categorical:
+                    categorical.append(associated_value)
+                else:
+                    continuous.append(associated_value)
         elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
             continuous.append(value)
         elif isinstance(value, NanValue):
