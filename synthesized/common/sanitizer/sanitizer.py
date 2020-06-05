@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from ..synthesizer import Synthesizer
-from ..values import ContinuousValue, CategoricalValue
+from ...values import ContinuousValue, CategoricalValue
 
 logger = logging.getLogger(__name__)
 

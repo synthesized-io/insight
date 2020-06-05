@@ -7,8 +7,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common import TypeOverride
-from synthesized.common.values.continuous import ContinuousValue
+from synthesized.values import TypeOverride, ContinuousValue
 
 
 def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):

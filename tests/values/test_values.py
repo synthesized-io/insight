@@ -1,12 +1,8 @@
-from typing import List
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import pandas as pd
 
-from synthesized.values import Value
-from synthesized.values import CategoricalValue, ContinuousValue, NanValue, DateValue
+from synthesized.values import Value, CategoricalValue, ContinuousValue, NanValue, DateValue
 
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):

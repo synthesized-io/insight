@@ -4,8 +4,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common import TypeOverride
-from synthesized.common.values.continuous import ContinuousValue
+from synthesized.values import TypeOverride, ContinuousValue
 
 
 @pytest.mark.integration
