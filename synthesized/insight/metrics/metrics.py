@@ -1,5 +1,5 @@
 """This module contains various metrics used across synthesized."""
-from typing import List, Union, Tuple
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -74,7 +74,6 @@ class CramersV(TwoColumnMetric):
 
 class CategoricalLogisticR2(TwoColumnMetric):
     name = "categorical_logistic_correlation"
-    tags = []
 
     def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
         if not super(CategoricalLogisticR2, self).check_column_types(df, col_a_name, col_b_name, **kwargs):
@@ -151,7 +150,7 @@ class PredictiveModellingComparison(DataFrameComparison):
     tags = ["modelling"]
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, **kwargs) -> Union[None, Tuple[float, float]]:
+                 x_labels: List[str] = None, **kwargs) -> Union[None, float]:
         if len(df_old.columns) < 2:
             raise ValueError
         model = model or 'Linear'
@@ -159,4 +158,4 @@ class PredictiveModellingComparison(DataFrameComparison):
         x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
 
         score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
-        return score, synth_score
+        return synth_score/score

@@ -25,14 +25,14 @@ from .metrics_base import DiffTwoColumnMetricAdapter
 from .metrics_base import DiffDataFrameMetricAdapter
 
 from .metrics_base import _Vector
-from .metrics_base import DataFrameVector
-from .metrics_base import DataFrameComparisonVector
+from .metrics_base import DataFrameVector  # noqa: F401
+from .metrics_base import DataFrameComparisonVector  # noqa: F401
 from .metrics_base import ColumnMetricVector
 from .metrics_base import ColumnComparisonVector
 
 from .metrics_base import _Matrix
-from .metrics_base import DataFrameMatrix
-from .metrics_base import DataFrameComparisonMatrix
+from .metrics_base import DataFrameMatrix  # noqa: F401
+from .metrics_base import DataFrameComparisonMatrix  # noqa: F401
 from .metrics_base import TwoColumnMetricMatrix
 from .metrics_base import TwoColumnComparisonMatrix
 
@@ -48,10 +48,10 @@ for metric in _CORE_METRICS:
 
 for metric_name, metric in _Metric.ALL.items():
     globals()[metric_name] = metric
-for metric_name, metric in _Vector.ALL.items():
-    globals()[metric_name] = metric
-for metric_name, metric in _Matrix.ALL.items():
-    globals()[metric_name] = metric
+for vector_name, vector in _Vector.ALL.items():
+    globals()[vector_name] = vector
+for matrix_name, matrix in _Matrix.ALL.items():
+    globals()[matrix_name] = matrix
 
 
 ALL = _Metric.ALL
@@ -109,24 +109,24 @@ diff_categorical_logistic_correlation = DiffTwoColumnMetricAdapter(CategoricalLo
 
 # DataFrameComparisons
 # -----------------------------------------------------------------------------
-diff_min_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='min'))
-diff_max_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='max'))
-diff_avg_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='avg'))
-min_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='min')
-max_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='max')
-avg_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='avg')
-diff_min_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='min'))
-diff_max_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='max'))
-diff_avg_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='avg'))
-min_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='min')
-max_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='max')
-avg_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='avg')
-diff_min_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='min'))
-diff_max_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='max'))
-diff_avg_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='avg'))
-min_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='min')
-max_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='max')
-avg_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='avg')
+diff_min_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='min'))  # noqa: E501
+diff_max_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='max'))  # noqa: E501
+diff_avg_standard_deviation = DiffDataFrameMetricAdapter(AggregateColumnMetricAdapter(StandardDeviation(), summary_type='avg'))  # noqa: E501
+min_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='min')  # noqa: E501
+max_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='max')  # noqa: E501
+avg_diff_standard_deviation = AggregateColumnComparisonAdapter(DiffColumnMetricAdapter(StandardDeviation()), summary_type='avg')  # noqa: E501
+diff_min_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='min'))  # noqa: E501
+diff_max_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='max'))  # noqa: E501
+diff_avg_kendell_tau_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(KendellTauCorrelation(), summary_type='avg'))  # noqa: E501
+min_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='min')  # noqa: E501
+max_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='max')  # noqa: E501
+avg_diff_kendell_tau_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(KendellTauCorrelation()), summary_type='avg')  # noqa: E501
+diff_min_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='min'))  # noqa: E501
+diff_max_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='max'))  # noqa: E501
+diff_avg_spearman_rho_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(SpearmanRhoCorrelation(), summary_type='avg'))  # noqa: E501
+min_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='min')  # noqa: E501
+max_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='max')  # noqa: E501
+avg_diff_spearman_rho_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()), summary_type='avg')  # noqa: E501
 diff_min_cramers_v = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CramersV(), summary_type='min'))
 diff_max_cramers_v = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CramersV(), summary_type='max'))
 diff_avg_cramers_v = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CramersV(), summary_type='avg'))
@@ -139,12 +139,12 @@ avg_kolmogorov_smirnov_distance = AggregateColumnComparisonAdapter(KolmogorovSmi
 min_earth_movers_distance = AggregateColumnComparisonAdapter(EarthMoversDistance(), summary_type='min')
 max_earth_movers_distance = AggregateColumnComparisonAdapter(EarthMoversDistance(), summary_type='max')
 avg_earth_movers_distance = AggregateColumnComparisonAdapter(EarthMoversDistance(), summary_type='avg')
-diff_min_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='min'))
-diff_max_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='max'))
-diff_avg_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='avg'))
-min_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='min')
-max_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='max')
-avg_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='avg')
+diff_min_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='min'))  # noqa: E501
+diff_max_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='max'))  # noqa: E501
+diff_avg_categorical_logistic_correlation = DiffDataFrameMetricAdapter(AggregateTwoColumnMetricAdapter(CategoricalLogisticR2(), summary_type='avg'))  # noqa: E501
+min_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='min')  # noqa: E501
+max_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='max')  # noqa: E501
+avg_diff_categorical_logistic_correlation = AggregateTwoColumnComparisonAdapter(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()), summary_type='avg')  # noqa: E501
 diff_predictive_modelling_score = DiffDataFrameMetricAdapter(PredictiveModellingScore())
 predictive_modelling_comparison = PredictiveModellingComparison()
 
@@ -169,11 +169,11 @@ categorical_logistic_correlation_matrix = TwoColumnMetricMatrix(CategoricalLogis
 diff_kendell_tau_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(KendellTauCorrelation()))
 diff_spearman_rho_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(SpearmanRhoCorrelation()))
 diff_cramers_v_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CramersV()))
-diff_categorical_logistic_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()))
-
+diff_categorical_logistic_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()))  # noqa: E501
 
 __all__ = [
         'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'COLUMN_COMPARISONS',
         'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS' 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
-        'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison'
+        'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison', 'DataFrameVector',
+        'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix'
 ] + [metric_name for metric_name in _Metric.ALL.keys()]

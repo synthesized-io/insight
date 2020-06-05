@@ -32,15 +32,26 @@ with open(config_path, 'r') as f:
 data = pd.read_csv(evaluation.configs[evaluation_name]['data'])
 data = data.drop(evaluation.configs[evaluation_name]['ignore_columns'], axis=1)
 data.dropna(inplace=True)
-data.head(5)
+
+data['date'] = pd.to_datetime(data['date'])
+test_data = data[data['date'] > '2017-01-01']
+data = data[data['date'] <= '2017-01-01']
+
 
 testing = synthesize_and_plot_time_series(
     data=data, name=evaluation_name, evaluation=evaluation, config=config,
-    eval_metrics=[], test_data=data, plot_basic=False, plot_losses=True,
-    plot_distances=True, show_distribution_distances=True,
-    show_distributions=True, show_correlation_distances=True,
-    show_correlation_matrix=True, show_emd_distances=True,
-    show_acf_distances=True, show_transition_distances=True, show_series=True
+    eval_metrics=[], test_data=test_data,
+    plot_basic=False,
+    # plot_losses=True,
+    # plot_distances=True,
+    # show_distribution_distances=True,
+    # show_distributions=True,
+    # show_correlation_distances=True,
+    # show_correlation_matrix=True,
+    # show_emd_distances=True,
+    show_acf=True,
+    # show_transition_distances=True,
+    show_series=True
 )
 
 evaluation.write_metrics()
