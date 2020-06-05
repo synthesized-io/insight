@@ -133,7 +133,10 @@ class AssociatedCategoricalValue(Value):
                 self.values[-n].num_categories
             ))
 
-        ot.append(tf.math.floordiv(y, self.values[1].num_categories))
+        ot.append(tf.math.floordiv(
+            y,
+            tf.cast(tf.reduce_prod([self.values[m].num_categories for m in range(1, len(self.values))]), dtype=tf.int64)
+        ))
 
         return ot[::-1]
 
