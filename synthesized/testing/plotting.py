@@ -3,6 +3,7 @@ import math
 from typing import List, Tuple, Union
 
 import matplotlib as mpl
+from matplotlib.colors import SymLogNorm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -125,6 +126,49 @@ def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: A
     return plot
 
 
+def plot_cross_table(counts: pd.DataFrame, title: str, ax=None):
+    # Generate a mask for the upper triangle
+    sns.set(style='white')
+    # Generate a custom diverging colormap
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+    # Draw the heatmap with the mask and correct aspect ratio
+    hm = sns.heatmap(counts, cmap=cmap, norm=SymLogNorm(linthresh=.1, vmin=-np.max(counts.values), vmax=np.max(counts.values), clip=True),
+                     square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='d')
+
+    if ax:
+        ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+    if title:
+        hm.set_title(title)
+
+
+def plot_cross_tables(
+        df_test: pd.DataFrame, df_synth: pd.DataFrame, col_a: str, col_b: str,
+        figsize: Tuple[float, float] = (15, 11)
+):
+    categories_a = pd.concat((df_test[col_a], df_synth[col_a])).unique()
+    categories_b = pd.concat((df_test[col_b], df_synth[col_b])).unique()
+    categories_a.sort()
+    categories_b.sort()
+
+    # Set up the matplotlib figure
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
+    plt.title(f"{col_a}:{col_b} Cross Table")
+    plot_cross_table(pd.crosstab(
+        pd.Categorical(df_test[col_a], categories_a, ordered=True),
+        pd.Categorical(df_test[col_b], categories_b, ordered=True),
+        dropna=False
+    ), title=f'Original', ax=ax1)
+    plot_cross_table(pd.crosstab(
+        pd.Categorical(df_synth[col_a], categories_a, ordered=True),
+        pd.Categorical(df_synth[col_b], categories_b, ordered=True),
+        dropna=False
+    ), title=f'Synthetic', ax=ax2)
+    for ax in [ax1, ax2]:
+        ax.set_xlabel(col_b)
+        ax.set_ylabel(col_a)
+    plt.show()
+
+
 def plot_first_order_metric_distances(result: pd.Series, metric_name: str):
     if len(result) == 0:
         return
@@ -149,7 +193,7 @@ def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str, ax=None):
 
     # Draw the heatmap with the mask and correct aspect ratio
     hm = sns.heatmap(matrix, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                     square=True, linewidths=.5, cbar_kws={'shrink': .5}, ax=ax, annot=True, fmt='.2f')
+                     square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='.2f')
 
     if ax:
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)

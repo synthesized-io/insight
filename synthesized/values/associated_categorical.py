@@ -124,19 +124,14 @@ class AssociatedCategoricalValue(Value):
 
         y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=flattened.shape[0:-1])
         ot = [tf.math.mod(y, self.values[-1].num_categories)]
-        for n in range(1, len(self.values)-1):
-            ot.append(tf.math.floordiv(
-                tf.math.mod(
+        for n in range(1, len(self.values)):
+            ot.append(tf.math.mod(
+                tf.math.floordiv(
                     y,
-                    tf.cast(tf.reduce_prod([self.values[-m-1].num_categories for m in range(1, n)]), dtype=tf.int64)
+                    tf.cast(tf.reduce_prod([self.values[-m-1].num_categories for m in range(n)]), dtype=tf.int64)
                 ),
-                self.values[-n].num_categories
+                self.values[-n-1].num_categories
             ))
-
-        ot.append(tf.math.floordiv(
-            y,
-            tf.cast(tf.reduce_prod([self.values[m].num_categories for m in range(1, len(self.values))]), dtype=tf.int64)
-        ))
 
         return ot[::-1]
 

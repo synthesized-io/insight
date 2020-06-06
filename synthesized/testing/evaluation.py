@@ -73,7 +73,8 @@ def synthesize_and_plot(
         plot_distances: bool = False, show_distributions: bool = False, show_distribution_distances: bool = False,
         show_emd_distances: bool = False, show_correlation_distances: bool = False,
         show_correlation_matrix: bool = False, show_cramers_v_distances: bool = False,
-        show_cramers_v_matrix: bool = False, show_cat_rsquared: bool = False
+        show_cramers_v_matrix: bool = False, show_logistic_rsquared_distances: bool = False,
+        show_logistic_rsquared_matrix: bool = False
 ):
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
@@ -171,8 +172,11 @@ def synthesize_and_plot(
     if show_cramers_v_matrix:
         display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
         testing.show_second_order_metric_matrices(metrics.cramers_v)
-    if show_cat_rsquared:
-        display(Markdown("## Show categorical R^2"))
+    if show_logistic_rsquared_distances:
+        display(Markdown("## Show Logistic R^2 distances"))
+        testing.show_second_order_metric_distances(metrics.diff_categorical_logistic_correlation, continuous_inputs_only=True)
+    if show_logistic_rsquared_matrix:
+        display(Markdown("## Show Logistic R^2 matrices"))
         testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
 
     return testing

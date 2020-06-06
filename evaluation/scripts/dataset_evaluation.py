@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 
@@ -7,9 +8,11 @@ os.chdir(os.path.split(os.path.split(workbookDir)[0])[0])
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-
 from synthesized.testing.evaluation import Evaluation, synthesize_and_plot
 
+
+logger = logging.getLogger('synthesized')
+logger.setLevel("DEBUG")
 
 evaluation_name = os.environ.get('evaluation_name', 'james')
 branch = os.environ.get('evaluation_branch', 'test')
@@ -35,7 +38,8 @@ testing = synthesize_and_plot(data=data, name=evaluation_name, evaluation=evalua
                               plot_distances=True, show_distributions=True,
                               show_distribution_distances=True, show_emd_distances=True,
                               show_correlation_distances=True, show_correlation_matrix=True,
-                              show_cramers_v_distances=True, show_cramers_v_matrix=True)
+                              show_cramers_v_distances=True, show_cramers_v_matrix=True,
+                              show_logistic_rsquared_distances=True, show_logistic_rsquared_matrix=True)
 
 try:
     utility = testing.utility(target=evaluation.configs[evaluation_name]['target'])
