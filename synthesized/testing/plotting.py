@@ -132,8 +132,11 @@ def plot_cross_table(counts: pd.DataFrame, title: str, ax=None):
     # Generate a custom diverging colormap
     cmap = sns.diverging_palette(220, 10, as_cmap=True)
     # Draw the heatmap with the mask and correct aspect ratio
-    hm = sns.heatmap(counts, cmap=cmap, norm=SymLogNorm(linthresh=.1, vmin=-np.max(counts.values), vmax=np.max(counts.values), clip=True),
-                     square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='d')
+    hm = sns.heatmap(
+        counts, cmap=cmap,
+        norm=SymLogNorm(linthresh=.1, vmin=-np.max(counts.values), vmax=np.max(counts.values), clip=True),
+        square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='d'
+    )
 
     if ax:
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
@@ -157,12 +160,12 @@ def plot_cross_tables(
         pd.Categorical(df_test[col_a], categories_a, ordered=True),
         pd.Categorical(df_test[col_b], categories_b, ordered=True),
         dropna=False
-    ), title=f'Original', ax=ax1)
+    ), title='Original', ax=ax1)
     plot_cross_table(pd.crosstab(
         pd.Categorical(df_synth[col_a], categories_a, ordered=True),
         pd.Categorical(df_synth[col_b], categories_b, ordered=True),
         dropna=False
-    ), title=f'Synthetic', ax=ax2)
+    ), title='Synthetic', ax=ax2)
     for ax in [ax1, ax2]:
         ax.set_xlabel(col_b)
         ax.set_ylabel(col_a)
