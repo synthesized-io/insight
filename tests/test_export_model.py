@@ -10,8 +10,8 @@ from synthesized import HighDimSynthesizer
 from synthesized.common import TypeOverride
 from synthesized.common.values.continuous import ContinuousValue
 
-
 atol = 0.05
+
 
 def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):
     highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
