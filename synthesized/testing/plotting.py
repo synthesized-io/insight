@@ -42,14 +42,28 @@ def set_plotting_style():
 
 
 def axes_grid(ax: Union[Axes, SubplotBase], rows: int, cols: int,
-              col_titles: List[str], row_titles: List[str], **kwargs):
+              col_titles: List[str] = None, row_titles: List[str] = None, **kwargs):
+    """
+
+    Args:
+        ax: The axes to subdivide.
+        rows: number of rows.
+        cols: Number of columns.
+        col_titles: Title for each column.
+        row_titles: Title for each row.
+        **kwargs: wspace, hspace, height_ratios, width_ratios.
+
+    """
+    col_titles = col_titles or ['' for _ in range(cols)]
+    row_titles = row_titles or ['' for _ in range(rows)]
     ax.set_axis_off()
     sp_spec = ax.get_subplotspec()
     sgs = sp_spec.subgridspec(rows, cols, **kwargs)
     fig = ax.figure
     col_axes = list()
     for c in range(cols):
-        ax = fig.add_subplot(sgs[:, c])
+        sharey = col_axes[0] if c > 0 else None
+        ax = fig.add_subplot(sgs[:, c], sharey=sharey)
         ax.set_title(col_titles[c])
         col_axes.append(ax)
 
@@ -185,10 +199,13 @@ def plot_first_order_metric_distances(result: pd.Series, metric_name: str):
     plt.show()
 
 
-def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str, ax=None):
+def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str = None, ax=None, symmetric=True):
     # Generate a mask for the upper triangle
-    mask = np.zeros_like(matrix, dtype=np.bool)
-    mask[np.triu_indices_from(mask)] = True
+    if symmetric:
+        mask = np.zeros_like(matrix, dtype=np.bool)
+        mask[np.triu_indices_from(mask)] = True
+    else:
+        mask = None
 
     sns.set(style='white')
     # Generate a custom diverging colormap
@@ -200,19 +217,30 @@ def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str, ax=None):
 
     if ax:
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
+        ax.label_outer()
     if title:
         hm.set_title(title)
 
 
 def plot_second_order_metric_matrices(
         matrix_test: pd.DataFrame, matrix_synth: pd.DataFrame,
-        metric_name: str, figsize: Tuple[float, float] = (15, 11)
+        metric_name: str, symmetric=True
 ):
     # Set up the matplotlib figure
-    f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
-    plt.title(f"{metric_name} Matrices")
-    plot_second_order_metric_matrix(matrix_test, title=f'Original {metric_name}', ax=ax1)
-    plot_second_order_metric_matrix(matrix_synth, title=f'Synthetic {metric_name}', ax=ax2)
+    scale = 1.0
+    label_length = len(max(matrix_test.columns, key=len))*0.07
+    width, height = (2*scale*len(matrix_test.columns)+label_length, scale*len(matrix_test) + label_length)
+    figsize = (width, height)
+    print(label_length, figsize)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.gca()
+    fig.suptitle(f"{metric_name} Matrices", fontweight='bold', fontsize=14)
+    ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=0.2)
+    ax.get_gridspec().update(
+        left=(0.5+label_length)/width, bottom=(0.5+label_length)/height, right=1-(0.5/width), top=1-(1/height)
+    )
+    plot_second_order_metric_matrix(matrix_test, ax=ax1, symmetric=symmetric)
+    plot_second_order_metric_matrix(matrix_synth, ax=ax2, symmetric=symmetric)
     plt.show()
 
 

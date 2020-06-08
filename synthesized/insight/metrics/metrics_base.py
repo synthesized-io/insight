@@ -81,7 +81,14 @@ class TwoColumnMetric(_Metric):
             _, continuous = categorical_or_continuous_values(kwargs.get('vf', df))
             continuous_columns = [v.name for v in continuous]
 
-            if col_b_name not in continuous_columns:
+            if col_a_name not in continuous_columns:
+                return False
+
+        if kwargs.get('categorical_output_only', False):
+            categorical, _ = categorical_or_continuous_values(kwargs.get('vf', df))
+            categorical_columns = [v.name for v in categorical]
+
+            if col_b_name not in categorical_columns:
                 return False
 
         return True

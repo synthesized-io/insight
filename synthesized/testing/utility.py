@@ -179,12 +179,22 @@ class UtilityTesting:
                     matrix.drop(c, axis=1, inplace=True)
                     matrix.drop(c, axis=0, inplace=True)
 
+            if [c for c in matrix.columns if matrix.loc[:, c].isna().all()] == \
+                    [c for c in matrix.columns if not matrix.loc[c, :].isna().all()]:
+                for c in matrix.columns:
+                    if matrix.loc[:, c].isna().all():
+                        matrix.drop(c, axis=1, inplace=True)
+                    elif matrix.loc[c, :].isna().all():
+                        matrix.drop(c, axis=0, inplace=True)
+
             return matrix
 
         matrix_test = filtered_metric_matrix(self.df_test)
         matrix_synth = filtered_metric_matrix(self.df_synth)
 
-        plot_second_order_metric_matrices(matrix_test, matrix_synth, metric.name)
+        is_symmetric = True if 'symmetric' in metric.tags else False
+
+        plot_second_order_metric_matrices(matrix_test, matrix_synth, metric.name, symmetric=is_symmetric)
 
     def show_second_order_metric_distances(self, metric: TwoColumnComparison, **kwargs) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.

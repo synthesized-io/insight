@@ -79,7 +79,7 @@ class CategoricalLogisticR2(TwoColumnMetric):
         if not super(CategoricalLogisticR2, self).check_column_types(df, col_a_name, col_b_name, **kwargs):
             return None
 
-        r2 = logistic_regression_r2(df, y_label=col_a_name, x_labels=[col_b_name], **kwargs)
+        r2 = logistic_regression_r2(df, y_label=col_b_name, x_labels=[col_a_name], **kwargs)
 
         return r2
 

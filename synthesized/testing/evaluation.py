@@ -170,15 +170,16 @@ def synthesize_and_plot(
         display(Markdown("## Show Cramer's V distances"))
         testing.show_second_order_metric_distances(metrics.diff_cramers_v)
     if show_cramers_v_matrix:
-        display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
+        display(Markdown("## Show Cramer's V matrices"))
         testing.show_second_order_metric_matrices(metrics.cramers_v)
     if show_logistic_rsquared_distances:
         display(Markdown("## Show Logistic R^2 distances"))
         testing.show_second_order_metric_distances(metrics.diff_categorical_logistic_correlation,
-                                                   continuous_inputs_only=True)
+                                                   continuous_input_only=True, categorical_output_only=True)
     if show_logistic_rsquared_matrix:
         display(Markdown("## Show Logistic R^2 matrices"))
-        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation, continuous_inputs_only=True)
+        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation,
+                                                  continuous_input_only=True, categorical_output_only=True)
 
     return testing
 
