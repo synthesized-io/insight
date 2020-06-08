@@ -23,8 +23,8 @@ NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
-COLOR_ORIG = '#1C5D7A'
-COLOR_SYNTH = '#801761'
+COLOR_ORIG = '#00AB26'
+COLOR_SYNTH = '#2794F3'
 
 
 # -- Plotting functions
@@ -228,14 +228,14 @@ def plot_second_order_metric_matrices(
 ):
     # Set up the matplotlib figure
     scale = 1.0
-    label_length = len(max(matrix_test.columns, key=len))*0.07
+    label_length = len(max(matrix_test.columns, key=len))*0.08
     width, height = (2*scale*len(matrix_test.columns)+label_length, scale*len(matrix_test) + label_length)
     figsize = (width, height)
     print(label_length, figsize)
     fig = plt.figure(figsize=figsize)
     ax = fig.gca()
     fig.suptitle(f"{metric_name} Matrices", fontweight='bold', fontsize=14)
-    ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=0.2)
+    ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=1/len(matrix_test.columns))
     ax.get_gridspec().update(
         left=(0.5+label_length)/width, bottom=(0.5+label_length)/height, right=1-(0.5/width), top=1-(1/height)
     )
