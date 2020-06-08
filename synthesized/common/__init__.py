@@ -1,4 +1,5 @@
 from .conditional import ConditionalSampler
+from .data_imputer import DataImputer
 from .distributions import Distribution
 from .encodings import Encoding
 from .functionals import Functional
@@ -11,6 +12,6 @@ from .synthesizer import Synthesizer
 from .transformations import Transformation
 
 __all__ = [
-    'Synthesizer', 'tensorflow_name_scoped', 'ConditionalSampler', 'Distribution', 'Encoding', 'Functional',
-    'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation'
+    'Synthesizer', 'tensorflow_name_scoped', 'ConditionalSampler', 'DataImputer', 'Distribution', 'Encoding',
+    'Functional', 'Generative', 'LearningManager', 'Optimizer', 'Sanitizer', 'Transformation'
 ]

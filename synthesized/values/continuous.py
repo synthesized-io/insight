@@ -216,7 +216,7 @@ class ContinuousValue(Value):
         return tf.expand_dims(input=xs[0], axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
         y = tf.reshape(y, shape=(-1, ))
         return [y]
 

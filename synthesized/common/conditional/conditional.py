@@ -34,6 +34,7 @@ class ConditionalSampler(Synthesizer):
                 Distributions defined as density per category or bin. The result will be sampled
                 from the synthesizer conditionally on these marginals.
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
+            synthesis_batch_size: Synthesis batch size
         """
         self.synthesizer = synthesizer
         self._validate_explicit_marginals(explicit_marginals)

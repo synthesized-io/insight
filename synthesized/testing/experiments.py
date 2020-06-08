@@ -54,6 +54,7 @@ class ExperimentalEstimator:
                         oh = OneHotEncoder()
                         x_i = oh.fit_transform(column.values.reshape(-1, 1)).todense()
                         names = [c]
+
                     if len(names) > 1:
                         c_names = list(np.concatenate((c_names, names)))
                         self.oh_encoders[c] = (oh, names)

@@ -163,7 +163,6 @@ class VAEOld(Generative):
 
         return
 
-    @tf.function
     @tensorflow_name_scoped
     def encode(self, xs: Dict[str, tf.Tensor],
                cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
@@ -180,22 +179,82 @@ class VAEOld(Generative):
         if len(xs) == 0:
             return tf.no_op(), dict()
 
-        #################################
         x = self.value_ops.unified_inputs(xs)
+        latent_space, mean, std, y = self._encode(x=x, cs=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+
+    @tf.function
+    @tensorflow_name_scoped
+    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+        """Encoding Step for VAE.
+
+        Args:
+            x: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            TF tensors with Latent space, means, stddevs and outputs
+
+        """
         x = self.linear_input(x)
         x = self.encoder(x)
 
-        latent_space = self.encoding(x)
-        mean = self.encoding.gaussian.mean.output
-        std = self.encoding.gaussian.stddev.output
+        mean = self.encoding.gaussian.mean(x)
+        std = self.encoding.gaussian.stddev(x)
+        latent_space = mean + std * tf.random.normal(shape=tf.shape(mean))
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
-        #################################
 
-        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+        return latent_space, mean, std, y
+
+    @tensorflow_name_scoped
+    def encode_deterministic(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        """Deterministic encoding for VAE.
+
+        Args:
+            xs: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+
+        """
+        if len(xs) == 0:
+            return dict()
+
+        x = self.value_ops.unified_inputs(xs)
+        y = self._encode_deterministic(x=x, cs=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False)
+
+        return synthesized
+
+    @tf.function
+    @tensorflow_name_scoped
+    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        """Encoding Step for VAE.
+
+        Args:
+            x: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            TF tensors with Latent space, means, stddevs and outputs
+
+        """
+        x = self.linear_input(x)
+        x = self.encoder(x)
+
+        mean = self.encoding.gaussian.mean(x)
+
+        x = self.value_ops.add_conditions(x=mean, conditions=cs)
+        x = self.decoder(x)
+        y = self.linear_output(x)
+
+        return y
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:

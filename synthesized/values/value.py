@@ -144,7 +144,7 @@ class Value(tf.Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
         """Turns an output embedding of a generative model into corresponding output tensors.
 
         Args:
