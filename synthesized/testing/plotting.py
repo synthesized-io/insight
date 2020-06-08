@@ -60,7 +60,7 @@ def axes_grid(ax: Union[Axes, SubplotBase], rows: int, cols: int,
     sp_spec = ax.get_subplotspec()
     sgs = sp_spec.subgridspec(rows, cols, **kwargs)
     fig = ax.figure
-    col_axes = list()
+    col_axes: List[mpl.axes.Axes] = list()
     for c in range(cols):
         sharey = col_axes[0] if c > 0 else None
         ax = fig.add_subplot(sgs[:, c], sharey=sharey)
