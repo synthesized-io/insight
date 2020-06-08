@@ -2,7 +2,7 @@ from typing import Optional, Callable, List, Union
 
 import pandas as pd
 
-from ..values import Value, CategoricalValue, NanValue
+from ...values import Value, CategoricalValue, NanValue
 from ..synthesizer import Synthesizer
 
 
