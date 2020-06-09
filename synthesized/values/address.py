@@ -286,11 +286,11 @@ class AddressValue(Value):
             return self.postcode.unify_inputs(xs=xs)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = False, **kwargs) -> List[tf.Tensor]:
         if self.postcode is None:
-            return super().output_tensors(y=y)
+            return super().output_tensors(y=y, **kwargs)
         else:
-            return self.postcode.output_tensors(y=y)
+            return self.postcode.output_tensors(y=y, sample=sample, **kwargs)
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
