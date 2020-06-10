@@ -6,8 +6,10 @@ import logging
 
 import numpy as np
 import pandas as pd
+import treelib as tl
 
 from .address import AddressValue
+from .associated_categorical import AssociatedCategoricalValue
 from .bank_number import BankNumberValue
 from .categorical import CategoricalValue
 from .compound_address import CompoundAddressValue
@@ -49,7 +51,7 @@ class ValueFactory:
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None, condition_columns: List[str] = None,
-        find_rules: Union[str, List[str]] = None,
+        find_rules: Union[str, List[str]] = None, associations: Dict[str, List[str]] = None,
         # Person
         title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
         name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
@@ -186,6 +188,26 @@ class ValueFactory:
         else:
             self.condition_columns = condition_columns
 
+        associated_values = []
+        associates = []
+        association_groups = []
+        association_tree = tl.Tree()
+
+        if associations is not None:
+            association_tree.create_node('root', 'root')
+            for n, nodes in associations.items():
+                if association_tree.get_node(n) is None:
+                    association_tree.create_node(n, n, 'root')
+                for m in nodes:
+                    if association_tree.get_node(m) is None:
+                        association_tree.create_node(m, m, n)
+                    else:
+                        association_tree.move_node(m, n)
+            logger.debug(f"Created association tree: {association_tree}")
+
+            associates.extend([n for n in association_tree.expand_tree('root')][1:])
+            association_groups.extend([st[1:] for st in association_tree.paths_to_leaves()])
+
         for name in df.columns:
             # we are skipping aliases
             if name in self.column_aliases:
@@ -211,8 +233,16 @@ class ValueFactory:
                 self.conditions.append(value)
             elif name == self.identifier_label:
                 self.identifier_value = value
+            elif name in associates:
+                if isinstance(value, CategoricalValue):
+                    associated_values.append(value)
+                else:
+                    raise ValueError(f"Associated value ({name}) is not a categorical value.")
             else:
                 self.values.append(value)
+
+        if len(associated_values) > 0:
+            self.values.append(AssociatedCategoricalValue(values=associated_values, associations=association_groups))
 
         # Automatic extraction of specification parameters
         df = df.copy()
