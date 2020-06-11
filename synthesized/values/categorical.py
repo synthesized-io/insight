@@ -8,8 +8,8 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from .. import util
-from ..module import tensorflow_name_scoped
+from ..common import util
+from ..common.module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 

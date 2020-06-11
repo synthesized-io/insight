@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pyemd import emd_samples
 
-from .metrics import categorical_emd
+from ..insight.metrics import earth_movers_distance
 
 NEAREST_NEIGHBOUR_MULT = 0.5
 ENLARGED_NEIGHBOUR_MULT = 2.0
@@ -78,17 +78,16 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
 
         sensitive_columns = filter(lambda column: schema[column].sensitive, columns - attrs.keys())
         for sensitive_column in sensitive_columns:
-            arr_orig = df_orig[sensitive_column]
-            arr_synth = df_synth[sensitive_column]
-            arr_eq_orig = eq_class_orig[sensitive_column]
-            arr_eq_synth = eq_class_synth[sensitive_column]
             if schema[sensitive_column].categorical:
-                emd_function = categorical_emd
+                emd_function = earth_movers_distance
             else:
-                emd_function = partial(emd_samples, bins='rice')  # doane can be better
-            if emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
-                    and emd_function(arr_eq_synth, arr_synth) > t_closeness \
-                    and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+                def non_categorical_emd(df_old, df_new, column):
+                    return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+                emd_function = non_categorical_emd
+
+            if emd_function(eq_class_orig, eq_class_synth, sensitive_column) < k_distance \
+                    and emd_function(eq_class_synth, df_synth, sensitive_column) > t_closeness \
+                    and emd_function(eq_class_orig, df_orig, sensitive_column) > t_closeness:
                 attack = {
                     "knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
                     "target": sensitive_column}
@@ -144,26 +143,27 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=
         enlarged_knowledge = enlarge_boundaries(df_synth, knowledge, schema)
         eq_class_synth_enlarged = get_df_subset(df_synth, enlarged_knowledge, schema)
 
-        arr_orig = df_orig[target]
-        arr_synth = df_synth[target]
         eq_class_orig = get_df_subset(df_orig, knowledge, schema)
-        arr_eq_orig = eq_class_orig[target]
-        arr_eq_synth = eq_class_synth[target]
         arr_eq_synth_enlarged = eq_class_synth_enlarged[target]
+
         if schema[target].categorical:
-            emd_function = categorical_emd
+            emd_function = earth_movers_distance
         else:
-            emd_function = partial(emd_samples, bins='rice')  # doane can be better
-        while emd_function(arr_eq_orig, arr_eq_synth_enlarged) < k_distance \
-                and emd_function(arr_eq_synth_enlarged, arr_synth) > t_closeness \
-                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+            def non_categorical_emd(df_old, df_new, column):
+                return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+
+            emd_function = non_categorical_emd
+
+        while emd_function(eq_class_orig, eq_class_synth_enlarged, target) < k_distance \
+                and emd_function(eq_class_synth_enlarged, df_synth, target) > t_closeness \
+                and emd_function(eq_class_orig, df_orig, target) > t_closeness:
             enlarged_knowledge = enlarge_boundaries(df_synth, enlarged_knowledge, schema)
             arr_eq_synth_enlarged = \
                 get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
-        arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
-        while emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
-                and emd_function(arr_eq_synth, arr_synth) > t_closeness \
-                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+        arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(eq_class_synth))
+        while emd_function(eq_class_orig, eq_class_synth, target) < k_distance \
+                and emd_function(eq_class_synth, df_synth, target) > t_closeness \
+                and emd_function(eq_class_orig, df_orig, target) > t_closeness:
             arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
         eq_class_synth[target] = arr_eq_synth
         cleared_df = cleared_df.append(eq_class_synth, ignore_index=False)
@@ -203,13 +203,16 @@ def t_closeness_check(df, schema, threshold=0.2):
         if len(group) == 0 or len(group) > MIN_GROUP_SIZE:
             return False
         for column in columns:
-            a = df_small[column]
-            b = df.loc[group.index, column]
+            a = df_small
+            b = df.loc[group.index, :]
             if schema[column].categorical:
-                emd_function = categorical_emd
+                emd_function = earth_movers_distance
             else:
-                emd_function = partial(emd_samples, bins='rice')  # doane can be better
-            if emd_function(a, b) > threshold:
+                def non_categorical_emd(df_old, df_new, column):
+                    return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+                emd_function = non_categorical_emd
+
+            if emd_function(a, b, column) > threshold:
                 return True
         return False
 

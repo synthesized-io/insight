@@ -1,9 +1,8 @@
 import numpy as np
-import tensorflow as tf
 import pandas as pd
+import tensorflow as tf
 
-from synthesized.common.values import Value
-from synthesized.common.values import CategoricalValue, ContinuousValue, NanValue, DateValue
+from synthesized.values import Value, CategoricalValue, ContinuousValue, NanValue, DateValue
 
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):

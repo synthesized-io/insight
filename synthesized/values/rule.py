@@ -5,7 +5,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from ..module import tensorflow_name_scoped
+from ..common.module import tensorflow_name_scoped
 
 
 class RuleValue(Value):
