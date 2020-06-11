@@ -128,7 +128,7 @@ class ContinuousValue(Value):
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
 
         if self.use_quantile_transformation:
-            self.transformer = QuantileTransformer(n_quantiles=self.transformer_n_quantiles,
+            self.transformer = QuantileTransformer(n_quantiles=min(self.transformer_n_quantiles, len(column)),
                                                    output_distribution='normal')
         else:
             self.transformer = StandardScaler()
