@@ -19,6 +19,7 @@ from .constant import ConstantMeta
 from .continuous import ContinuousMeta
 from .date import DateMeta
 from .enumeration import EnumerationMeta
+from .nan import NanMeta
 from .person import PersonMeta, PersonParams
 from .sampling import SamplingMeta
 from .identify_rules import identify_rules
@@ -35,12 +36,12 @@ class TypeOverride(enum.Enum):
 
 
 class MetaExtractor:
-    def __init__(self, categorical_threshold_log_multiplier=2.5, parsing_nan_fraction_threshold=0.25):
-        self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
-        self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
+    categorical_threshold_log_multiplier = 2.5
+    parsing_nan_fraction_threshold = 0.25
 
+    @classmethod
     def extract(
-            self, df: pd.DataFrame, id_index: str = None, time_index: str = None,
+            cls, df: pd.DataFrame, id_index: str = None, time_index: str = None,
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
@@ -71,15 +72,15 @@ class MetaExtractor:
             df = df.drop(time_index, axis=1)
 
         if person_params is not None:
-            values.extend(self._identify_annotations(df, 'person', person_params))
+            values.extend(cls._identify_annotations(df, 'person', person_params))
         if bank_params is not None:
-            values.extend(self._identify_annotations(df, 'bank', bank_params))
+            values.extend(cls._identify_annotations(df, 'bank', bank_params))
         if address_params is not None:
-            values.extend(self._identify_annotations(df, 'address', address_params))
+            values.extend(cls._identify_annotations(df, 'address', address_params))
         if compound_address_params is not None:
-            values.extend(self._identify_annotations(df, 'compound_address', compound_address_params))
+            values.extend(cls._identify_annotations(df, 'compound_address', compound_address_params))
 
-        values.extend(self._identify_values(df, column_aliases, associations, type_overrides, find_rules))
+        values.extend(cls._identify_values(df, column_aliases, associations, type_overrides, find_rules))
 
         return DataPanel(values=values, id_value=identifier_value, time_value=time_value)
 
@@ -152,7 +153,7 @@ class MetaExtractor:
                     assert False
             else:
                 try:
-                    identified_value, reason = cls.identify_value(col=df[name], name=name)
+                    identified_value, reason = cls.identify_value(col=df[name], name=name, produce_nans=True)
                     # None means the value has already been detected:
                     if identified_value is None:
                         continue
@@ -188,7 +189,8 @@ class MetaExtractor:
         values = identify_rules(values=values, df=df, tests=find_rules)
         return values
 
-    def identify_value(self, col: pd.Series, name: str, produce_nans: bool
+    @classmethod
+    def identify_value(cls, col: pd.Series, name: str, produce_nans: bool
                        ) -> Tuple[Optional[ValueMeta], Optional[str]]:
         """Autodetect the type of a column and assign a name.
 
@@ -212,7 +214,7 @@ class MetaExtractor:
             return ConstantMeta(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
-        elif num_unique <= self.categorical_threshold_log_multiplier * log(num_data):
+        elif num_unique <= cls.categorical_threshold_log_multiplier * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
@@ -259,7 +261,7 @@ class MetaExtractor:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
-                if num_nan / num_data < self.parsing_nan_fraction_threshold:
+                if num_nan / num_data < cls.parsing_nan_fraction_threshold:
                     assert date_data.dtype.kind == 'M'
                     value = DateMeta(name)
                     reason = "Column dtype is 'O' and convertable to datetime. "
@@ -278,24 +280,30 @@ class MetaExtractor:
             return value, reason
 
         # ========== Numeric value ==========
-
+        is_nan: bool = False
         # Try parsing if object type
         if col.dtype.kind == 'O':
             numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
-            if num_nan / num_data < self.parsing_nan_fraction_threshold:
+            if num_nan / num_data < cls.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
+                is_nan = num_nan > 0
             else:
                 numeric_data = col
+                is_nan = col.isna().any()
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
+            is_nan = col.isna().any()
         else:
             numeric_data = None
         # Return numeric value and handle NaNs if necessary
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = ContinuousMeta(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
-                     f"rate > {1.0 - self.parsing_nan_fraction_threshold}. "
+                     f"rate > {1.0 - cls.parsing_nan_fraction_threshold}. "
+            if is_nan:
+                value = NanMeta(name, value, produce_nans)
+                reason += " And contains NaNs. "
             return value, reason
 
         # ========== Fallback values ==========

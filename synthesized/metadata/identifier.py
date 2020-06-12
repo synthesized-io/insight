@@ -5,7 +5,7 @@ import pandas as pd
 from .value_meta import ValueMeta
 
 
-class IdentifierValue(ValueMeta):
+class IdentifierMeta(ValueMeta):
     def __init__(
         self, name, identifiers=None, capacity=None, embedding_size=None
     ):

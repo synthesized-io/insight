@@ -27,16 +27,18 @@ class CategoricalConfig:
 class CategoricalValue(Value):
 
     def __init__(
-        self, name: str, categorical_weight: float, temperature: float,
-        moving_average: bool, num_categories: int,
+        self, name: str, num_categories: int,
         # Optional
-        similarity_based: bool = False, produce_nans: bool = False,
+        similarity_based: bool = False, nans_valid: bool = False, produce_nans: bool = False,
         # Scenario
         probabilities=None, embedding_size: int = None,
+        config: CategoricalConfig = CategoricalConfig()
     ):
         super().__init__(name=name)
-        self.nans_valid: bool = False
         self.num_categories: int = num_categories
+        self.similarity_based = similarity_based
+        self.nans_valid: bool = nans_valid
+        self.produce_nans = produce_nans
 
         self.probabilities = probabilities
 
@@ -45,21 +47,18 @@ class CategoricalValue(Value):
         else:
             self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=similarity_based)
 
-        if similarity_based:
-            self.embedding_initialization = 'glorot-normal'
-        else:
-            self.embedding_initialization = 'orthogonal-small'
+        self.embedding_initialization = 'glorot-normal' if similarity_based else 'orthogonal-small'
 
-        self.weight = categorical_weight
+        self.weight = config.categorical_weight
+        self.use_moving_average = config.moving_average
+        self.temperature = config.temperature
 
-        self.use_moving_average: bool = moving_average
         self.moving_average: Optional[tf.train.ExponentialMovingAverage] = None
         self.embeddings: Optional[tf.Variable] = None
         self.frequency: Optional[tf.Variable] = None
-        self.similarity_based = similarity_based
-        self.temperature = temperature
-        self.produce_nans = produce_nans
         self.dtype = tf.int64
+
+        self.build()
 
     def __str__(self) -> str:
         string = super().__str__()

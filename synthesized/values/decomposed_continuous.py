@@ -1,47 +1,37 @@
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List
 
+from dataclasses import dataclass, fields
 import tensorflow as tf
 
-from . import ContinuousValue
+from .continuous import ContinuousValue, ContinuousConfig
 from .value import Value
 from ..common.module import tensorflow_name_scoped
+
+@dataclass
+class DecomposedContinuousConfig(ContinuousConfig):
+    low_freq_weight: float = 1.0
+    high_freq_weight: float = 1.0
+
+    @property
+    def decomposed_continuous_config(self):
+        return DecomposedContinuousConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(DecomposedContinuousConfig)}
+        )
 
 
 class DecomposedContinuousValue(Value):
 
     def __init__(
-        self, name: str, weight: float, identifier: Optional[str],
-        # Scenario
-        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
-        distribution: str = None, distribution_params: Tuple[Any, ...] = None,
-        use_quantile_transformation: bool = False,
-        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7,
-        low_freq_weight: float = 1., high_freq_weight: float = 1.
+        self, name: str, config: DecomposedContinuousConfig = DecomposedContinuousConfig()
     ):
         super().__init__(name=name)
 
-        self.weight = weight
-        self.identifier = identifier
-        self.low_freq_weight = tf.constant(low_freq_weight, dtype=tf.float32)
-        self.high_freq_weight = tf.constant(high_freq_weight, dtype=tf.float32)
+        self.weight = config.continuous_weight
 
-        self.weight = weight
-        self.integer = integer
-        self.float = float
-        self.positive = positive
-        self.nonnegative = nonnegative
-        self.use_quantile_transformation = use_quantile_transformation
-        self.transformer_n_quantiles = transformer_n_quantiles
-        self.transformer_noise = transformer_noise
-
-        continuous_kwargs: Dict[str, Any] = dict()
-        continuous_kwargs['weight'] = weight
-        continuous_kwargs['use_quantile_transformation'] = use_quantile_transformation
-        continuous_kwargs['transformer_n_quantiles'] = transformer_n_quantiles
-        continuous_kwargs['transformer_noise'] = transformer_noise
-
-        self.low_freq_value = ContinuousValue(name=(self.name + '-low-freq'), **continuous_kwargs)
-        self.high_freq_value = ContinuousValue(name=(self.name + '-high-freq'), **continuous_kwargs)
+        self.low_freq_value = ContinuousValue(
+            name=(self.name + '-low-freq'), config=ContinuousConfig(continuous_weight=config.low_freq_weight))
+        self.high_freq_value = ContinuousValue(
+            name=(self.name + '-high-freq'), config=ContinuousConfig(continuous_weight=config.high_freq_weight))
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -102,4 +92,4 @@ class DecomposedContinuousValue(Value):
         loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[0:1])
         loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[1:2])
 
-        return self.low_freq_weight * loss_low_freq + self.high_freq_weight * loss_high_freq
+        return self.weight * (loss_low_freq + loss_high_freq)

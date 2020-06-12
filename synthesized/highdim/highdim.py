@@ -1,23 +1,75 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Iterable, Optional, Tuple, Any, BinaryIO
+from typing import Callable, List, Union, Dict, Optional, Tuple, Any, BinaryIO
 
+from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import pickle
 import tensorflow as tf
 
+from ..metadata import DataPanel
 from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
-from ..common.learning_manager import LearningManager
+from ..common.learning_manager import LearningManager, LearningManagerConfig
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..values import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
+from ..values import Value, ValueFactory, ValueFactoryConfig, TypeOverride, ValueFactoryWrapper
 
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
+
+
+@dataclass
+class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
+    """
+    distribution: Distribution type: "normal".
+    latent_size: Latent size.
+    network: Network type: "mlp" or "resnet".
+    capacity: Architecture capacity.
+    num_layers: Architecture depth.
+    residual_depths: The depth(s) of each individual residual layer.
+    batch_norm: Whether to use batch normalization.
+    activation: Activation function.
+    optimizer: Optimizer.
+    learning_rate: Learning rate.
+    decay_steps: Learning rate decay steps.
+    decay_rate: Learning rate decay rate.
+    initial_boost: Number of steps for initial x10 learning rate boost.
+    clip_gradients: Gradient norm clipping.
+    batch_size: Batch size.
+    beta: VAE KL-loss beta.
+    weight_decay: Weight decay.
+    learning_manager: Whether to use LearningManager.
+    """
+    # VAE distribution
+    distribution: str = 'normal'
+    latent_size: int = 32
+    # Network
+    network: str = 'resnet'
+    capacity: int = 128
+    num_layers: int = 2
+    residual_depths: Union[None, int, List[int]] = 6
+    batch_norm: bool = True
+    activation: str = 'relu'
+    # Optimizer
+    optimizer: str = 'adam'
+    learning_rate: float = 3e-3
+    decay_steps: int = None
+    decay_rate: float = None
+    initial_boost: int = 0
+    clip_gradients: float = 1.0
+    # Batch size
+    batch_size: int = 64
+    increase_batch_size_every: Optional[int] = 500
+    max_batch_size: Optional[int] = 1024
+    synthesis_batch_size: Optional[int] = 16384
+    # Losses
+    beta: float = 1.0
+    weight_decay: float = 1e-3
+    learning_manager: bool = True
 
 
 class HighDimSynthesizer(Synthesizer):
@@ -28,156 +80,40 @@ class HighDimSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
-        type_overrides: Dict[str, TypeOverride] = None,
-        produce_nans_for: Union[bool, Iterable[str], None] = None,
-        column_aliases: Dict[str, str] = None,
-        # VAE distribution
-        distribution: str = 'normal', latent_size: int = 32,
-        # Network
-        network: str = 'resnet', capacity: int = 128, num_layers: int = 2,
-        residual_depths: Union[None, int, List[int]] = 6,
-        batch_norm: bool = True, activation: str = 'relu',
-        # Optimizer
-        optimizer: str = 'adam', learning_rate: float = 3e-3, decay_steps: int = None, decay_rate: float = None,
-        initial_boost: int = 0, clip_gradients: float = 1.0,
-        # Batch size
-        batch_size: int = 64, increase_batch_size_every: Optional[int] = 500, max_batch_size: Optional[int] = 1024,
-        synthesis_batch_size: Optional[int] = 16384,
-        # Losses
-        beta: float = 1.0, weight_decay: float = 1e-3,
-        # Categorical
-        categorical_weight: float = 3.5, temperature: float = 1.0, moving_average: bool = True,
-        # Continuous
-        continuous_weight: float = 5.0,
-        # Nan
-        nan_weight: float = 1.0,
-        # Conditions
-        condition_columns: List[str] = None, associations: Dict[str, List[str]] = None,
-        # Person
-        title_label: Union[str, List[str]] = None, gender_label: Union[str, List[str]] = None,
-        name_label: Union[str, List[str]] = None, firstname_label: Union[str, List[str]] = None,
-        lastname_label: Union[str, List[str]] = None, email_label: Union[str, List[str]] = None,
-        mobile_number_label: Union[str, List[str]] = None, home_number_label: Union[str, List[str]] = None,
-        work_number_label: Union[str, List[str]] = None,
-        # Bank
-        bic_label: Union[str, List[str]] = None, sort_code_label: Union[str, List[str]] = None,
-        account_label: Union[str, List[str]] = None,
-        # Address
-        postcode_label: Union[str, List[str]] = None, county_label: Union[str, List[str]] = None,
-        city_label: Union[str, List[str]] = None, district_label: Union[str, List[str]] = None,
-        street_label: Union[str, List[str]] = None, house_number_label: Union[str, List[str]] = None,
-        flat_label: Union[str, List[str]] = None, house_name_label: Union[str, List[str]] = None,
-        addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz',
-        # Compound Address
-        address_label: str = None, postcode_regex: str = None,
-        # Identifier label
-        identifier_label: str = None,
-        # Rules to look for
-        find_rules: Union[str, List[str]] = None,
-        # Evaluation conditions
-        learning_manager: bool = True, max_training_time: float = None,
-        custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+        self, data_panel: DataPanel, summarizer_dir: str = None, summarizer_name: str = None,
+        config: HighDimConfig = HighDimConfig(),
     ):
         """Initialize a new BasicSynthesizer instance.
 
         Args:
-            df: Data sample which is representative of the target data to generate. Usually, it is
-                fine to just use the training data here. Generally, it should exhibit all relevant
-                characteristics, so for instance all values a discrete-value column can take.
+            data_panel: Data sample which summarizes all relevant characteristics,
+                so for instance all values a discrete-value column can take.
             summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
-            type_overrides: A dict of type overrides per column.
-            produce_nans_for: A list containing the columns for which nans will be synthesized. If None or False, no
-                column will generate nulls, if True all columns generate nulls (if it applies).
-            distribution: Distribution type: "normal".
-            latent_size: Latent size.
-            network: Network type: "mlp" or "resnet".
-            capacity: Architecture capacity.
-            num_layers: Architecture depth.
-            residual_depths: The depth(s) of each individual residual layer.
-            batch_norm: Whether to use batch normalization.
-            activation: Activation function.
-            optimizer: Optimizer.
-            learning_rate: Learning rate.
-            decay_steps: Learning rate decay steps.
-            decay_rate: Learning rate decay rate.
-            initial_boost: Number of steps for initial x10 learning rate boost.
-            clip_gradients: Gradient norm clipping.
-            batch_size: Batch size.
-            beta: VAE KL-loss beta.
-            weight_decay: Weight decay.
-            categorical_weight: Coefficient for categorical value losses.
-            temperature: Temperature for categorical value distributions.
-            moving_average: Whether to use moving average scaling for categorical values.
-            continuous_weight: Coefficient for continuous value losses.
-            condition_columns: ???.
-            title_label: Person title column.
-            gender_label: Person gender column.
-            name_label: Person combined first and last name column.
-            firstname_label: Person first name column.
-            lastname_label: Person last name column.
-            email_label: Person e-mail address column.
-            mobile_number_label: Person mobile number column.
-            home_number_label: Person home number column.
-            work_number_label Person work number column.
-            bic_label: BIC column.
-            sort_code_label: Bank sort code column.
-            account_label: Bank account column.
-            postcode_label: Address postcode column.
-            county_label: Address county column.
-            city_label: Address city column.
-            district_label: Address district column.
-            street_label: Address street column.
-            house_number_label: Address house number column.
-            flat_label: Address flat number column.
-            house_name_label: Address house column.
-            address_label: Address combined column.
-            postcode_regex: Address postcode regular expression.
-            identifier_label: Identifier column.
-            find_rules: List of rules to check for 'all' finds all rules. See
-                synthesized.common.values.PairwiseRuleFactory for more examples.
-            learning_manager: Whether to use LearningManager.
-            max_training_time: Maximum training time in seconds (LearningManager)
-            custom_stop_metric: Custom stop metric for LearningManager.
+
         """
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
+        self.batch_size = config.batch_size
+        self.increase_batch_size_every = config.increase_batch_size_every
+        self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
+        self.synthesis_batch_size = config.synthesis_batch_size
+
+        self.data_panel = data_panel
+
         self.value_factory = ValueFactory(
-            name='value_factory', df=df,
-            capacity=capacity,
-            continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
-            moving_average=moving_average, nan_weight=nan_weight,
-            type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
-            condition_columns=condition_columns, find_rules=find_rules, associations=associations,
-            # Person
-            title_label=title_label, gender_label=gender_label, name_label=name_label, firstname_label=firstname_label,
-            lastname_label=lastname_label, email_label=email_label, mobile_number_label=mobile_number_label,
-            home_number_label=home_number_label, work_number_label=work_number_label,
-            # Bank
-            bic_label=bic_label, sort_code_label=sort_code_label, account_label=account_label,
-            # Address
-            postcode_label=postcode_label, county_label=county_label, city_label=city_label,
-            district_label=district_label, street_label=street_label, house_number_label=house_number_label,
-            flat_label=flat_label, house_name_label=house_name_label, addresses_file=addresses_file,
-            # Compound Address
-            address_label=address_label, postcode_regex=postcode_regex,
-            # Identifier
-            identifier_label=identifier_label,
+            data_panel=data_panel, name='value_factory', config=config.value_factory_config
         )
-        self.batch_size = batch_size
-        self.increase_batch_size_every = increase_batch_size_every
-        self.max_batch_size: int = max_batch_size if max_batch_size else batch_size
-        self.synthesis_batch_size = synthesis_batch_size
 
         # VAE
         self.vae = VAEOld(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
-            latent_size=latent_size, network=network, capacity=capacity,
-            num_layers=num_layers, residual_depths=residual_depths, batch_norm=batch_norm, activation=activation,
-            optimizer=optimizer, learning_rate=learning_rate, decay_steps=decay_steps,
-            decay_rate=decay_rate, initial_boost=initial_boost, clip_gradients=clip_gradients, beta=beta,
-            weight_decay=weight_decay
+            latent_size=config.latent_size, network=config.network, capacity=config.capacity,
+            num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
+            activation=config.activation,
+            optimizer=config.optimizer, learning_rate=config.learning_rate, decay_steps=config.decay_steps,
+            decay_rate=config.decay_rate, initial_boost=config.initial_boost, clip_gradients=config.clip_gradients,
+            beta=config.beta, weight_decay=config.weight_decay
         )
 
         # Input argument placeholder for num_rows
@@ -185,10 +121,12 @@ class HighDimSynthesizer(Synthesizer):
 
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
-        if learning_manager:
-            use_vae_loss = False if custom_stop_metric else True
-            self.learning_manager = LearningManager(max_training_time=max_training_time, use_vae_loss=use_vae_loss,
-                                                    custom_stop_metric=custom_stop_metric)
+        if config.learning_manager:
+            use_vae_loss = False if config.custom_stop_metric else True
+            self.learning_manager = LearningManager(
+                max_training_time=config.max_training_time, use_vae_loss=use_vae_loss,
+                custom_stop_metric=config.custom_stop_metric
+            )
 
     def get_values(self) -> List[Value]:
         return self.value_factory.get_values()
@@ -211,7 +149,7 @@ class HighDimSynthesizer(Synthesizer):
         return spec
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.value_factory.preprocess(df)
+        df = self.data_panel.preprocess(df)
         return df
 
     def learn(
@@ -244,7 +182,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if not low_memory:
             df_train = df_train.copy()
-            df_train_pre = self.value_factory.preprocess(df_train.copy())
+            df_train_pre = self.data_panel.preprocess(df_train.copy())
         else:
             sample_size_lm = min(self.learning_manager.sample_size,
                                  num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
@@ -256,7 +194,7 @@ class HighDimSynthesizer(Synthesizer):
                 batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
 
                 if low_memory:
-                    feed_dict = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                    feed_dict = self.get_data_feed_dict(self.data_panel.preprocess(df_train.iloc[batch].copy()))
                 else:
                     feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch].copy())
 
@@ -279,7 +217,7 @@ class HighDimSynthesizer(Synthesizer):
                 if self.learning_manager:
                     if low_memory:
                         batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
-                        data = self.get_data_feed_dict(self.value_factory.preprocess(df_train.iloc[batch].copy()))
+                        data = self.get_data_feed_dict(self.data_panel.preprocess(df_train.iloc[batch].copy()))
                         if self.learning_manager.stop_learning(iteration, synthesizer=self,
                                                                data_dict=data, num_data=num_data,
                                                                df_train_orig=df_train.sample(sample_size_lm)):
@@ -332,7 +270,7 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
-        df_conditions = self.value_factory.preprocess_conditions(conditions)
+        df_conditions = self.data_panel.preprocess_conditions(conditions)
         columns = self.value_factory.get_column_names()
 
         if len(columns) == 0:
@@ -375,7 +313,7 @@ class HighDimSynthesizer(Synthesizer):
                     # report approximate progress from 0% to 98% (2% are reserved for post actions)
                     progress_callback(round((k + 1) * 98.0 / n_batches))
 
-        df_synthesized = self.value_factory.postprocess(df_synthesized)
+        df_synthesized = self.data_panel.postprocess(df_synthesized)
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
@@ -398,8 +336,8 @@ class HighDimSynthesizer(Synthesizer):
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
         df_encode = df_encode.copy()
-        df_encode = self.value_factory.preprocess(df=df_encode)
-        df_conditions = self.value_factory.preprocess_conditions(conditions)
+        df_encode = self.data_panel.preprocess(df=df_encode)
+        df_conditions = self.data_panel.preprocess_conditions(conditions)
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
@@ -407,9 +345,9 @@ class HighDimSynthesizer(Synthesizer):
 
         encoded, decoded = self.vae.encode(xs=data, cs=conditions_data)
 
-        columns = self.value_factory.get_column_names()
+        columns = self.data_panel.columns()
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
+        df_synthesized = self.data_panel.postprocess(df=df_synthesized)
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
         df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
@@ -429,8 +367,8 @@ class HighDimSynthesizer(Synthesizer):
             Pandas DataFrame of decoded space corresponding to input data
         """
         df_encode = df_encode.copy()
-        df_encode = self.value_factory.preprocess(df=df_encode)
-        df_conditions = self.value_factory.preprocess_conditions(conditions)
+        df_encode = self.data_panel.preprocess(df=df_encode)
+        df_conditions = self.data_panel.preprocess_conditions(conditions)
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
@@ -438,9 +376,9 @@ class HighDimSynthesizer(Synthesizer):
 
         decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
 
-        columns = self.value_factory.get_column_names()
+        columns = self.data_panel.columns()
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.value_factory.postprocess(df=df_synthesized)
+        df_synthesized = self.data_panel.postprocess(df=df_synthesized)
 
         return df_synthesized
 

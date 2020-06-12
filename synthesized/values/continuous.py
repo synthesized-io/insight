@@ -1,8 +1,7 @@
-from typing import Any, Dict, List, Tuple, Optional, Union
+from typing import Any, Dict, List
 
 from dataclasses import dataclass, fields
 import tensorflow as tf
-from sklearn.preprocessing import QuantileTransformer, StandardScaler
 
 from .value import Value
 from ..common.module import tensorflow_name_scoped
@@ -20,51 +19,16 @@ class ContinuousConfig:
 class ContinuousValue(Value):
 
     def __init__(
-        self, name: str, continuous_weight: float,
-        # Scenario
-        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
-        use_quantile_transformation: bool = True, distribution: str = None,
-        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
+        self, name: str, config: ContinuousConfig = ContinuousConfig(),
     ):
         super().__init__(name=name)
 
-        self.weight = continuous_weight
-
-        self.integer = integer
-        self.float = float
-        self.positive = positive
-        self.nonnegative = nonnegative
-
-        self.distribution = distribution
-
-        # transformer is fitted in `extract`
-        self.use_quantile_transformation = use_quantile_transformation
-        self.transformer_n_quantiles = transformer_n_quantiles
-        self.transformer_noise = transformer_noise
-        self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
-
-        self.pd_types: Tuple[str, ...] = ('f', 'i')
-
-    def __str__(self) -> str:
-        string = super().__str__()
-        if self.distribution is None:
-            string += '-raw'
-        else:
-            string += '-' + self.distribution
-        if self.integer:
-            string += '-integer'
-        if self.positive and self.distribution != 'dirac':
-            string += '-positive'
-        elif self.nonnegative and self.distribution != 'dirac':
-            string += '-nonnegative'
-        return string
+        self.weight = config.continuous_weight
 
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
-            weight=self.weight, integer=self.integer, positive=self.positive,
-            nonnegative=self.nonnegative, distribution=self.distribution,
-            distribution_params=self.distribution_params,
+            weight=self.weight
         )
         return spec
 
@@ -93,8 +57,6 @@ class ContinuousValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
-        if self.distribution == 'dirac':
-            return tf.constant(value=0.0, dtype=tf.float32)
         assert len(xs) == 1
         target = xs[0]
         target = tf.expand_dims(input=target, axis=-1)

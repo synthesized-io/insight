@@ -8,7 +8,7 @@ if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
 
 from .common import Synthesizer  # noqa: F402
 from .highdim import HighDimSynthesizer  # noqa: F402
-from .metadata import DataPanel  # noqa: F402
+from .metadata import DataPanel, MetaExtractor  # noqa: F402
 from .scenario import ScenarioSynthesizer  # noqa: F402
 from .series import SeriesSynthesizer  # noqa: F402
 from .version import __version__  # noqa: F402

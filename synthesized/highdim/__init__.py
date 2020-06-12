@@ -1,4 +1,4 @@
-from .highdim import HighDimSynthesizer
+from .highdim import HighDimSynthesizer, HighDimConfig
 
 
 __all__ = ['HighDimSynthesizer']

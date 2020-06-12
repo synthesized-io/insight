@@ -3,6 +3,7 @@ import tempfile
 import time
 from typing import Optional, Dict, List, Union, Callable, Any
 
+from dataclasses import dataclass, fields
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -12,6 +13,32 @@ from ...values import ValueFactory
 from ...insight.evaluation import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LearningManagerConfig:
+    """
+    max_training_time: Maximum training time in seconds (LearningManager)
+    custom_stop_metric: Custom stop metric for LearningManager.
+    """
+    check_frequency: int = 100
+    use_checkpointing: bool = True
+    checkpoint_path: str = None
+    n_checks_no_improvement: int = 10
+    max_to_keep: int = 3
+    patience: int = 750
+    tol: float = 1e-4
+    must_reach_metric: float = None
+    good_enough_metric: float = None
+    stop_metric_name: Union[str, List[str], None] = None
+    sample_size: Optional[int] = 10_000
+    use_vae_loss: bool = True
+    max_training_time: float = None
+    custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+
+    @property
+    def learning_manager_config(self):
+        return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
 
 class LearningManager:

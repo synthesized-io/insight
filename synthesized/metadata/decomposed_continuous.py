@@ -24,8 +24,8 @@ class DecomposedContinuousMeta(ValueMeta):
 
         self.weight = weight
         self.identifier = identifier
-        self.low_freq_weight = tf.constant(low_freq_weight, dtype=tf.float32)
-        self.high_freq_weight = tf.constant(high_freq_weight, dtype=tf.float32)
+        self.low_freq_weight = low_freq_weight
+        self.high_freq_weight = high_freq_weight
 
         self.weight = weight
         self.integer = integer

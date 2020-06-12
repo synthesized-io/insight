@@ -25,14 +25,14 @@ class ContinuousMeta(ValueMeta):
     def __init__(
         self, name: str,
         # Scenario
-        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
+        integer: bool = None, is_float: bool = True, positive: bool = None, nonnegative: bool = None,
         use_quantile_transformation: bool = True, distribution: str = None, distribution_params: Tuple[Any, ...] = None,
         transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
     ):
         super().__init__(name=name)
 
         self.integer = integer
-        self.float = float
+        self.is_float = is_float
         self.positive = positive
         self.nonnegative = nonnegative
 
@@ -67,7 +67,7 @@ class ContinuousMeta(ValueMeta):
         if column.dtype.kind not in self.pd_types:
             column = self.pd_cast(column)
 
-        self.float = (column.dtype.kind == 'f')
+        self.is_float = (column.dtype.kind == 'f')
 
         if self.integer is None:
             self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
@@ -115,9 +115,6 @@ class ContinuousMeta(ValueMeta):
         assert not df.loc[:, self.name].isna().any()
         assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
 
-        if self.distribution == 'dirac':
-            return df
-
         if self.nonnegative and not self.positive:
             df.loc[:, self.name] = np.maximum(df.loc[:, self.name], 0.001)
 
@@ -144,24 +141,19 @@ class ContinuousMeta(ValueMeta):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
-        if self.distribution == 'dirac':
+        if self.distribution == 'normal':
             assert self.distribution_params is not None
-            df.loc[:, self.name] = self.distribution_params[0]
+            mean, stddev = self.distribution_params
+            df.loc[:, self.name] = df.loc[:, self.name] * stddev + mean
+        elif self.distribution is not None:
+            df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
+                norm.cdf(df.loc[:, self.name]), *self.distribution_params
+            )
+        elif self.transformer:
+            df.loc[:, self.name] = self.transformer.inverse_transform(df.loc[:, self.name].values.reshape(-1, 1))
 
-        else:
-            if self.distribution == 'normal':
-                assert self.distribution_params is not None
-                mean, stddev = self.distribution_params
-                df.loc[:, self.name] = df.loc[:, self.name] * stddev + mean
-            elif self.distribution is not None:
-                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
-                    norm.cdf(df.loc[:, self.name]), *self.distribution_params
-                )
-            elif self.transformer:
-                df.loc[:, self.name] = self.transformer.inverse_transform(df.loc[:, self.name].values.reshape(-1, 1))
-
-            if self.nonnegative:
-                df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
+        if self.nonnegative:
+            df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
 
         assert not df.loc[:, self.name].isna().any()
         assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
@@ -169,7 +161,7 @@ class ContinuousMeta(ValueMeta):
         if self.integer:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
 
-        if self.float and df.loc[:, self.name].dtype != 'float32':
+        if self.is_float and df.loc[:, self.name].dtype != 'float32':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
 
         return df

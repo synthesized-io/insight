@@ -12,12 +12,13 @@ from .categorical import CategoricalValue, CategoricalConfig
 from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue, ContinuousConfig
 from .date import DateValue, DateConfig
-from .decomposed_continuous import DecomposedContinuousValue
+from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
 from .identifier import IdentifierValue, IdentifierConfig
 from .nan import NanValue, NanConfig
 from .person import PersonValue
 from .value import Value
-from ..metadata import DataPanel
+from ..metadata import DataPanel, ValueMeta
+from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta
 
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,8 @@ class TypeOverride(enum.Enum):
 
 
 @dataclass
-class ValueFactoryConfig(ContinuousConfig, CategoricalConfig, DateConfig, NanConfig, IdentifierConfig):
+class ValueFactoryConfig(CategoricalConfig, DateConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
-    decompose_continuous_values: bool = False
     produce_nans: bool = False
 
     @property
@@ -50,14 +50,9 @@ class ValueFactory:
         """Init ValueFactory."""
         self.name = name
 
-        self.categorical_kwargs: Dict[str, Any] = asdict(config.categorical_config)
-        self.continuous_kwargs: Dict[str, Any] = asdict(config.continuous_config)
-        self.nan_kwargs: Dict[str, Any] = asdict(config.nan_config)
-        self.date_kwargs: Dict[str, Any] = asdict(config.date_config)
-        self.identifier_kwargs: Dict[str, Any] = asdict(config.identifier_config)
+        self.config = config
 
         self.capacity = config.capacity
-        self.decompose_continuous_values = config.decompose_continuous_values
         self.produce_nans = config.produce_nans
 
         # Values
@@ -76,21 +71,6 @@ class ValueFactory:
     def create_identifier(self, name: str) -> IdentifierValue:
         """Create IdentifierValue."""
         return IdentifierValue(name=name, **self.identifier_kwargs)
-
-    def create_categorical(self, name: str, **kwargs) -> CategoricalValue:
-        """Create CategoricalValue."""
-        categorical_kwargs = dict(self.categorical_kwargs)
-        categorical_kwargs.update(kwargs)
-        return CategoricalValue(name=name, **categorical_kwargs)
-
-    def create_continuous(self, name: str, **kwargs) -> Union[ContinuousValue, DecomposedContinuousValue]:
-        """Create ContinuousValue."""
-        continuous_kwargs = dict(self.continuous_kwargs)
-        continuous_kwargs.update(kwargs)
-        if self.decompose_continuous_values:
-            return DecomposedContinuousValue(name=name, identifier=self.identifier_value, **continuous_kwargs)
-        else:
-            return ContinuousValue(name=name, **continuous_kwargs)
 
     def create_date(self, name: str) -> DateValue:
         """Create DateValue."""
@@ -132,8 +112,21 @@ class ValueFactory:
             categorical_kwargs=self.categorical_kwargs
         )
 
-    def create_value(self, value_meta) -> Optional[Value]:
-        # TODO: valuemeta -> value logic.
+    def create_value(self, vm: ValueMeta) -> Optional[Value]:
+        if isinstance(vm, CategoricalMeta):
+            return CategoricalValue(
+                vm.name, num_categories=vm.num_categories, similarity_based=vm.similarity_based,
+                nans_valid=vm.nans_valid, produce_nans=self.produce_nans, config=self.config.categorical_config
+            )
+        elif isinstance(vm, ContinuousMeta):
+            return ContinuousValue(
+                vm.name, config=self.config.continuous_config
+            )
+        elif isinstance(vm, DecomposedContinuousMeta):
+            return DecomposedContinuousValue(
+                vm.name, config=self.config.decomposed_continuous_config
+            )
+
         return None
 
     @property
