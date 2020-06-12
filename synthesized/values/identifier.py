@@ -1,11 +1,20 @@
 from typing import List, Optional, Dict
 
-import pandas as pd
+from dataclasses import dataclass, fields
 import tensorflow as tf
 
 from .value import Value
 from ..common import util
 from ..common.module import tensorflow_name_scoped
+
+
+@dataclass
+class IdentifierConfig:
+    capacity: int = 128
+
+    @property
+    def identifier_config(self):
+        return IdentifierConfig(**{f.name: self.__getattribute__(f.name) for f in fields(IdentifierConfig)})
 
 
 class IdentifierValue(Value):
@@ -54,20 +63,6 @@ class IdentifierValue(Value):
         assert self.num_identifiers is not None
         return self.num_identifiers
 
-    def extract(self, df):
-        super().extract(df=df)
-
-        if self.identifiers is None:
-            self.identifiers = sorted(df.loc[:, self.name].unique())
-            self.num_identifiers = len(self.identifiers)
-        elif sorted(df.loc[:, self.name].unique()) != self.identifiers:
-            raise NotImplementedError
-
-        self.identifier2idx = {k: i for i, k in enumerate(self.identifiers)}
-        self.idx2identifier = {i: k for i, k in enumerate(self.identifiers)}
-
-        self.build()
-
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
@@ -82,17 +77,6 @@ class IdentifierValue(Value):
             )
 
         self.built = True
-
-    def preprocess(self, df: pd.DataFrame):
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.identifier2idx)
-        if df.loc[:, self.name].dtype != 'int64':
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
-        return super().preprocess(df)
-
-    def postprocess(self, df: pd.DataFrame):
-        df = super().postprocess(df=df)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2identifier)
-        return df
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

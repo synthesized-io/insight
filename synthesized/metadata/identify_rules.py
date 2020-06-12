@@ -2,10 +2,10 @@ from typing import List, Union, Optional, cast
 
 import pandas as pd
 
-from .categorical import CategoricalValue
-from .continuous import ContinuousValue
-from .rule import RuleValue
-from .value import Value
+from .categorical import CategoricalMeta
+from .continuous import ContinuousMeta
+from .rule import RuleMeta
+from .value_meta import ValueMeta
 
 # When finding separable values, want to limit the maximum number of groups to search over. A categorical variable with
 # many categories will likely split continuous variables neatly.
@@ -43,21 +43,21 @@ class PairwiseRuleFactory(object):
     categorical_categorical_tests = ['find_permute']
 
     @staticmethod
-    def find_relationship(df: pd.DataFrame, x: Value, y: Value, tests: Union[str, List[str]]):
+    def find_relationship(df: pd.DataFrame, x: ValueMeta, y: ValueMeta, tests: Union[str, List[str]]):
         rule = None
-        if isinstance(x, ContinuousValue) and isinstance(y, CategoricalValue):
+        if isinstance(x, ContinuousMeta) and isinstance(y, CategoricalMeta):
             rule = PairwiseRuleFactory.continuous_categorical(df, x, y, tests)
-        elif isinstance(x, ContinuousValue) and isinstance(y, ContinuousValue):
+        elif isinstance(x, ContinuousMeta) and isinstance(y, ContinuousMeta):
             rule = PairwiseRuleFactory.continuous_continuous(df, x, y, tests)
-        elif isinstance(x, CategoricalValue) and isinstance(y, ContinuousValue):
+        elif isinstance(x, CategoricalMeta) and isinstance(y, ContinuousMeta):
             rule = PairwiseRuleFactory.continuous_categorical(df, y, x, tests)
-        elif isinstance(x, CategoricalValue) and isinstance(y, CategoricalValue):
+        elif isinstance(x, CategoricalMeta) and isinstance(y, CategoricalMeta):
             rule = PairwiseRuleFactory.categorical_categorical(df, y, x, tests)
         return rule
 
     @staticmethod
-    def continuous_categorical(df: pd.DataFrame, x: ContinuousValue, y: CategoricalValue,
-                               tests: Union[str, List[str]]) -> Optional[RuleValue]:
+    def continuous_categorical(df: pd.DataFrame, x: ContinuousMeta, y: CategoricalMeta,
+                               tests: Union[str, List[str]]) -> Optional[RuleMeta]:
         if tests == 'all' or tests == 'continuous_categorical':
             tests = PairwiseRuleFactory.continuous_categorical_tests
         elif isinstance(tests, list):
@@ -82,8 +82,8 @@ class PairwiseRuleFactory(object):
         return rule
 
     @staticmethod
-    def find_piecewise(x: ContinuousValue, y: CategoricalValue, mins: List[float],
-                       maxes: List[float]) -> Optional[RuleValue]:
+    def find_piecewise(x: ContinuousMeta, y: CategoricalMeta, mins: List[float],
+                       maxes: List[float]) -> Optional[RuleMeta]:
         """ Splits the data into sets for each category. If each set is non-overlapping, then we have a
         piecewise constant relationship or 'flag' variable.
         """
@@ -106,12 +106,12 @@ class PairwiseRuleFactory(object):
         # Make the threshold the midway between the two boundaries
         threshs = [(lower_max + upper_min)/2 for lower_max, upper_min in zip(maxes[:-1], mins[1:])]
 
-        return RuleValue(name=str(x.name) + '_' + str(y.name), values=[x, y], function='flag_1',
+        return RuleMeta(name=str(x.name) + '_' + str(y.name), values=[x, y], function='flag_1',
                          fkwargs=dict(threshs=threshs, categories=categories))
 
     @staticmethod
-    def find_pulse(x: ContinuousValue, y: CategoricalValue, sets: List[pd.DataFrame], mins: List[float],
-                   maxes: List[float]) -> Optional[RuleValue]:
+    def find_pulse(x: ContinuousMeta, y: CategoricalMeta, sets: List[pd.DataFrame], mins: List[float],
+                   maxes: List[float]) -> Optional[RuleMeta]:
         """ Checks if a categorical variable with 2 options splits the continuous variable into two regions, one
         completely inside the other and with no overlap. E.g. 'working age' vs 'age' would satisfy this.
         """
@@ -137,14 +137,14 @@ class PairwiseRuleFactory(object):
         Nupper = (sets[0] > maxes[1]).sum()
         if Nlower + Nupper == len(sets[0]):
             threshs = dict(lower=mins[1], upper=maxes[1])
-            return RuleValue(name=str(x.name) + '_' + str(y.name), values=[x, y], function='pulse_1',
+            return RuleMeta(name=str(x.name) + '_' + str(y.name), values=[x, y], function='pulse_1',
                              fkwargs=dict(threshs=threshs, categories=categories))
         else:
             return None
 
     @staticmethod
-    def continuous_continuous(df: pd.DataFrame, x: ContinuousValue, y: ContinuousValue,
-                              tests: Union[str, List[str]]) -> Optional[RuleValue]:
+    def continuous_continuous(df: pd.DataFrame, x: ContinuousMeta, y: ContinuousMeta,
+                              tests: Union[str, List[str]]) -> Optional[RuleMeta]:
         if tests == 'all' or tests == 'continuous_continuous':
             tests = PairwiseRuleFactory.continuous_continuous_tests
         elif isinstance(tests, list):
@@ -158,20 +158,20 @@ class PairwiseRuleFactory(object):
         rule = None
         if 'find_line' in tests and rule is None:
             # TODO: `cast` was added to pass mypy, however this call seems to be wrong
-            rule = PairwiseRuleFactory.find_piecewise(x, cast(CategoricalValue, y), [], [])
+            rule = PairwiseRuleFactory.find_piecewise(x, cast(CategoricalMeta, y), [], [])
 
         return rule
 
     @staticmethod
-    def find_line(df: pd.DataFrame, x: ContinuousValue, y: ContinuousValue) -> Optional[RuleValue]:
+    def find_line(df: pd.DataFrame, x: ContinuousMeta, y: ContinuousMeta) -> Optional[RuleMeta]:
         """ Checks if two continuous variables are linear functions of each other. Does this by finding
         gradient and intercept for a subset. If found, tests on all the data.
         """
         return None
 
     @staticmethod
-    def categorical_categorical(df: pd.DataFrame, x: CategoricalValue, y: CategoricalValue,
-                                tests: Union[str, List[str]]) -> Optional[RuleValue]:
+    def categorical_categorical(df: pd.DataFrame, x: CategoricalMeta, y: CategoricalMeta,
+                                tests: Union[str, List[str]]) -> Optional[RuleMeta]:
         if tests == 'all' or tests == 'categorical_categorical':
             tests = PairwiseRuleFactory.categorical_categorical_tests
         elif isinstance(tests, list):
@@ -189,12 +189,12 @@ class PairwiseRuleFactory(object):
         return rule
 
     @staticmethod
-    def find_permute(x: CategoricalValue, y: CategoricalValue) -> Optional[RuleValue]:
+    def find_permute(x: CategoricalMeta, y: CategoricalMeta) -> Optional[RuleMeta]:
         """ Checks if two categorical values are permutations of one another. """
         return None
 
 
-def identify_rules(df: pd.DataFrame, values: List[Value], tests: Union[str, List[str]]) -> List[Value]:
+def identify_rules(df: pd.DataFrame, values: List[ValueMeta], tests: Union[str, List[str]]) -> List[ValueMeta]:
     """ Loops through all pairs of values and finds the presence of simple
     rules.
     """
@@ -229,7 +229,7 @@ def identify_rules(df: pd.DataFrame, values: List[Value], tests: Union[str, List
             new_values.append(values[i])
 
     # Bundle first three values into rule value
-    #  value = RuleValue(name='rule1', values=values[:3], function='pick-first')
+    #  value = RuleMeta(name='rule1', values=values[:3], function='pick-first')
 
     # Replace first three values with rule value
     #  return [value] + values[3:]

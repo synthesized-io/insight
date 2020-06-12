@@ -1,9 +1,9 @@
 import pandas as pd
 
-from .value import Value
+from .value_meta import ValueMeta
 
 
-class ConstantValue(Value):
+class ConstantMeta(ValueMeta):
 
     def __init__(self, name: str, constant_value=None):
         super().__init__(name=name)
@@ -28,9 +28,3 @@ class ConstantValue(Value):
         df = super().postprocess(df=df)
         df.loc[:, self.name] = self.constant_value
         return df
-
-    def learned_input_size(self) -> int:
-        return 0
-
-    def learned_output_size(self) -> int:
-        return 0

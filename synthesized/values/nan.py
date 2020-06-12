@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import List
 
+from dataclasses import dataclass, fields
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from .categorical import compute_embedding_size
@@ -11,10 +11,19 @@ from ..common import util
 from ..common.module import tensorflow_name_scoped
 
 
+@dataclass
+class NanConfig:
+    nan_weight: float = 1.0
+
+    @property
+    def nan_config(self):
+        return NanConfig(**{f.name: self.__getattribute__(f.name) for f in fields(NanConfig)})
+
+
 class NanValue(Value):
 
     def __init__(
-        self, name: str, value: Value, capacity: int, weight: float,
+        self, name: str, value: Value, nan_weight: float,
         embedding_size: int = None, produce_nans: bool = False
     ):
         super().__init__(name=name)
@@ -23,15 +32,21 @@ class NanValue(Value):
         # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
 
-        self.capacity = capacity
         if embedding_size is None:
             embedding_size = compute_embedding_size(2, similarity_based=False)
         self.embedding_size = embedding_size
         self.embedding_initialization = 'orthogonal-small'
-        self.embeddings: Optional[tf.Variable] = None
-        self.weight = weight
+        self.weight = nan_weight
 
         self.produce_nans = produce_nans
+
+        shape = (2, self.embedding_size)
+        initializer = util.get_initializer(initializer='normal')
+        self.embeddings = tf.Variable(
+            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+        )
+        self.add_regularization_weight(self.embeddings)
 
     def __str__(self):
         string = super().__str__()
@@ -46,32 +61,11 @@ class NanValue(Value):
         )
         return spec
 
-    def learned_input_columns(self):
-        return self.value.learned_input_columns()
-
-    def learned_output_columns(self):
-        return self.value.learned_output_columns()
-
     def learned_input_size(self):
         return self.embedding_size + self.value.learned_input_size()
 
     def learned_output_size(self):
         return 2 + self.value.learned_output_size()
-
-    def extract(self, df):
-        column = df[self.value.name]
-        if column.dtype.kind not in self.value.pd_types:
-            column = self.value.pd_cast(column)
-        df_clean = df[column.notna()]
-        self.value.extract(df=df_clean)
-
-        shape = (2, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
-        self.embeddings = tf.Variable(
-            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
-            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
-        )
-        self.add_regularization_weight(self.embeddings)
 
     @tensorflow_name_scoped
     def build(self) -> None:
@@ -85,23 +79,6 @@ class NanValue(Value):
             self.add_regularization_weight(self.embeddings)
 
         self.built = True
-
-    def preprocess(self, df):
-        df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
-
-        nan = df.loc[:, self.value.name].isna()
-        df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
-        df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
-
-        return super().preprocess(df=df)
-
-    def postprocess(self, df):
-        df = super().postprocess(df=df)
-
-        nan = df.loc[:, self.value.name].isna()
-        df.loc[~nan, :] = self.value.postprocess(df=df.loc[~nan, :])
-
-        return df
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

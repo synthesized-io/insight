@@ -1,10 +1,9 @@
-from collections.abc import MutableSequence
 import logging
-from math import isnan, log
+from math import log
 from typing import Any, Dict, List, Optional
 
+from dataclasses import dataclass, fields
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from .value import Value
@@ -14,26 +13,32 @@ from ..common.module import tensorflow_name_scoped
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CategoricalConfig:
+    categorical_weight: float = 3.5
+    temperature: float = 1.0
+    moving_average: bool = True
+
+    @property
+    def categorical_config(self):
+        return CategoricalConfig(**{f.name: self.__getattribute__(f.name) for f in fields(CategoricalConfig)})
+
+
 class CategoricalValue(Value):
 
     def __init__(
-        self, name: str, capacity: int, weight: float, temperature: float,
-        moving_average: bool,
+        self, name: str, categorical_weight: float, temperature: float,
+        moving_average: bool, num_categories: int,
         # Optional
-        similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
+        similarity_based: bool = False, produce_nans: bool = False,
         # Scenario
-        categories: List = None, probabilities=None, embedding_size: int = None, true_categorical: bool = True
+        probabilities=None, embedding_size: int = None,
     ):
         super().__init__(name=name)
-        self.categories: Optional[MutableSequence] = None
-        self.category2idx: Optional[Dict] = None
-        self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
-        self.num_categories: Optional[int] = None
+        self.num_categories: int = num_categories
 
-        self.given_categories = categories
         self.probabilities = probabilities
-        self.capacity = capacity
 
         if embedding_size:
             self.embedding_size: Optional[int] = embedding_size
@@ -45,19 +50,15 @@ class CategoricalValue(Value):
         else:
             self.embedding_initialization = 'orthogonal-small'
 
-        self.weight = weight
+        self.weight = categorical_weight
 
         self.use_moving_average: bool = moving_average
         self.moving_average: Optional[tf.train.ExponentialMovingAverage] = None
-
         self.embeddings: Optional[tf.Variable] = None
         self.frequency: Optional[tf.Variable] = None
         self.similarity_based = similarity_based
         self.temperature = temperature
-        self.pandas_category = pandas_category
         self.produce_nans = produce_nans
-        self.true_categorical = true_categorical
-        self.is_string = False
         self.dtype = tf.int64
 
     def __str__(self) -> str:
@@ -70,7 +71,7 @@ class CategoricalValue(Value):
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
-            categories=self.categories, embedding_size=self.embedding_size,
+            embedding_size=self.embedding_size,
             similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
             produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
@@ -84,21 +85,6 @@ class CategoricalValue(Value):
     def learned_output_size(self) -> int:
         assert self.num_categories is not None
         return self.num_categories
-
-    def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
-
-        if df.loc[:, self.name].dtype.kind == 'O':
-            self.is_string = True
-            unique_values = df.loc[:, self.name].astype(object).fillna('nan').apply(str).unique().tolist()
-        else:
-            unique_values = df.loc[:, self.name].fillna(np.nan).unique().tolist()
-        self._set_categories(unique_values)
-
-        if self.embedding_size is None:
-            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
-
-        self.build()
 
     @tensorflow_name_scoped
     def build(self):
@@ -124,28 +110,6 @@ class CategoricalValue(Value):
                 self.moving_average.apply(var_list=[self.frequency])
 
         self.built = True
-
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
-
-        assert isinstance(self.categories, list)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
-
-        if df.loc[:, self.name].dtype != 'int64':
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
-        return super().preprocess(df=df)
-
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().postprocess(df=df)
-        assert isinstance(self.categories, list)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
-        if self.is_string:
-            df.loc[df[self.name] == 'nan', self.name] = np.nan
-
-        if self.pandas_category:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
-        return df
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -233,56 +197,6 @@ class CategoricalValue(Value):
         loss = tf.math.squared_difference(x=probs, y=self.probabilities)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
-
-    def _set_categories(self, categories: MutableSequence):
-
-        found = None
-
-        if self.given_categories is None:
-            # Put any nan at the position zero of the list
-            for n, x in enumerate(categories):
-                if self.is_string and x == 'nan':
-                    found = categories.pop(n)
-                    self.nans_valid = True
-                    break
-                elif isinstance(x, float) and isnan(x):
-                    found = categories.pop(n)
-                    self.nans_valid = True
-                    break
-
-            try:
-                categories = list(np.sort(categories))
-            except TypeError:
-                pass  # Don't sort the categories if it's not possible.
-
-        else:
-            for x in categories:
-                if x not in self.given_categories:
-                    found = 'nan' if self.is_string else np.nan
-                    self.nans_valid = True
-                    break
-
-            categories = self.given_categories.copy()
-
-        if found is not None:
-            categories.insert(0, found)
-
-        # If categories are not set
-        if self.categories is None:
-            self.categories = categories
-            self.num_categories = len(categories)
-            self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
-
-            if found is not None:
-                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
-            else:
-                self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
-
-        # If categories have been set and are different to the given
-        elif isinstance(self.categories, list):
-            for category in categories[int(self.nans_valid):]:
-                if category not in self.categories[int(self.nans_valid):]:
-                    raise NotImplementedError
 
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:
