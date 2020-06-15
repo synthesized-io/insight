@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from .value_meta import ValueMeta
@@ -19,6 +20,14 @@ class DataPanel:
         self.time_index = time_value.name if time_value is not None else None
         self.column_aliases = column_aliases or dict()
 
+        value_map = {v.name: v for v in self.values}
+        if time_value is not None:
+            value_map[time_value.name] = time_value
+        if id_value is not None:
+            value_map[id_value.name] = id_value
+
+        self._value_map = value_map
+
     @property
     def all_values(self):
         values = self.values
@@ -31,6 +40,27 @@ class DataPanel:
 
         return values
 
+    def __getitem__(self, item):
+        return self._value_map[item]
+
+    def unified_inputs(self, inputs: Dict[str, np.ndarray]) -> Dict[str, List[np.ndarray]]:
+        # Concatenate input tensors per value
+        x = {
+            vm.name: [inputs[col_name] for col_name in vm.learned_input_columns()]
+            for vm in self.values
+        }
+        return x
+
+    def split_outputs(self, outputs: Dict[str, List]) -> Dict[str, Any]:
+        # Concatenate input tensors per value
+        print(outputs)
+        x = {
+            col_name: outputs[vm.name][n]
+            for vm in self.values
+            for n, col_name in enumerate(vm.learned_output_columns())
+        }
+        return x
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         """Returns a preprocessed copy of the input DataFrame"""
         df_copy = df.copy()
@@ -38,6 +68,23 @@ class DataPanel:
             df_copy = value.preprocess(df=df_copy)
 
         return df_copy
+
+    def preprocess_by_name(self, df: Union[pd.DataFrame, None], value_names: List[str]) -> Union[pd.DataFrame, None]:
+        """Returns a preprocessed copy of the input conditions dataframe"""
+        if df is not None:
+            if isinstance(df, dict):
+                df_conditions = pd.DataFrame.from_dict(
+                    {name: np.reshape(condition, (-1,)) for name, condition in df.items()}
+                )
+            else:
+                df_conditions = df.copy()
+
+            for name in value_names:
+                df_conditions = self.__getitem__(name).preprocess(df=df_conditions)
+        else:
+            df_conditions = None
+
+        return df_conditions
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         """Post-processes the input DataFrame"""

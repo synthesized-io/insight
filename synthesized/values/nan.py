@@ -23,7 +23,7 @@ class NanConfig:
 class NanValue(Value):
 
     def __init__(
-        self, name: str, value: Value, nan_weight: float,
+        self, name: str, value: Value, config: NanConfig = NanConfig(),
         embedding_size: int = None, produce_nans: bool = False
     ):
         super().__init__(name=name)
@@ -36,7 +36,7 @@ class NanValue(Value):
             embedding_size = compute_embedding_size(2, similarity_based=False)
         self.embedding_size = embedding_size
         self.embedding_initialization = 'orthogonal-small'
-        self.weight = nan_weight
+        self.weight = config.nan_weight
 
         self.produce_nans = produce_nans
 

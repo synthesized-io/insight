@@ -285,7 +285,8 @@ class LearningManager:
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
                                              column_names=column_names, value_factory=synthesizer.value_factory)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]) -> bool:
+    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer,
+                               data_dict: Dict[str, List[tf.Tensor]]) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -301,9 +302,11 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=list(data_dict.values())[0].shape[0],
-                                        dtype=tf.int64)
-        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch_valid)
+        batch_valid = tf.random.uniform(
+            shape=(self.sample_size,), maxval=list([x for val in data_dict.values() for x in val])[0].shape[0],
+            dtype=tf.int64
+        )
+        feed_dict = {name: [tf.nn.embedding_lookup(params=x, ids=batch_valid) for x in value_data]
                      for name, value_data in data_dict.items()}
 
         losses = synthesizer.get_losses(data=feed_dict)
@@ -311,7 +314,7 @@ class LearningManager:
         return self.stop_learning_check_metric(iteration, losses)
 
     def stop_learning(self, iteration: int, synthesizer: Synthesizer,
-                      data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
+                      data_dict: Dict[str, List[tf.Tensor]] = None, num_data: int = None,
                       df_train_orig: pd.DataFrame = None
                       ) -> bool:
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return

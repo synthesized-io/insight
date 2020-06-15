@@ -145,7 +145,7 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
+    def learn(self, xs: Dict[str, List[tf.Tensor]]) -> None:
         """Training step for the generative model.
 
         Args:
@@ -164,8 +164,8 @@ class VAEOld(Generative):
         return
 
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, tf.Tensor],
-               cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(self, xs: Dict[str, List[tf.Tensor]],
+               cs: Dict[str, List[tf.Tensor]]) -> Tuple[Dict[str, tf.Tensor], Dict[str, List[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
@@ -187,7 +187,7 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def _encode(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """Encoding Step for VAE.
 
         Args:
@@ -212,7 +212,7 @@ class VAEOld(Generative):
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
-    def encode_deterministic(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def encode_deterministic(self, xs: Dict[str, tf.Tensor], cs: Dict[str, List[tf.Tensor]]) -> Dict[str, tf.Tensor]:
         """Deterministic encoding for VAE.
 
         Args:
@@ -234,7 +234,7 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
         """Encoding Step for VAE.
 
         Args:
@@ -257,7 +257,7 @@ class VAEOld(Generative):
         return y
 
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
@@ -274,7 +274,7 @@ class VAEOld(Generative):
         return synthesized
 
     @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
         """Generate the given number of instances.
 
         Args:

@@ -8,7 +8,7 @@ import pandas as pd
 import pickle
 import tensorflow as tf
 
-from ..metadata import DataPanel
+from ..metadata import DataPanel, ValueMeta
 from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager, LearningManagerConfig
@@ -80,8 +80,8 @@ class HighDimSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, data_panel: DataPanel, summarizer_dir: str = None, summarizer_name: str = None,
-        config: HighDimConfig = HighDimConfig(),
+        self, data_panel: DataPanel, conditions: List[str] = None, summarizer_dir: str = None,
+        summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -102,7 +102,7 @@ class HighDimSynthesizer(Synthesizer):
         self.data_panel = data_panel
 
         self.value_factory = ValueFactory(
-            data_panel=data_panel, name='value_factory', config=config.value_factory_config
+            data_panel=data_panel, name='value_factory',  conditions=conditions, config=config.value_factory_config
         )
 
         # VAE
@@ -133,6 +133,12 @@ class HighDimSynthesizer(Synthesizer):
 
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
+
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return [(v, self.data_panel[v.name]) for v in self.value_factory.all_values]
+
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return [(v, self.data_panel[v.name]) for v in self.value_factory.get_conditions()]
 
     def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
         self.vae.xs = data
@@ -270,8 +276,8 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
-        df_conditions = self.data_panel.preprocess_conditions(conditions)
-        columns = self.value_factory.get_column_names()
+        df_conditions = self.data_panel.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
+        columns = self.data_panel.columns
 
         if len(columns) == 0:
             return pd.DataFrame([[], ]*num_rows)
@@ -282,6 +288,8 @@ class HighDimSynthesizer(Synthesizer):
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
             synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
+            synthesized = self.data_panel.split_outputs(synthesized)
+
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
             if progress_callback is not None:
                 progress_callback(98)
@@ -290,6 +298,7 @@ class HighDimSynthesizer(Synthesizer):
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
             synthesized = self.vae.synthesize(tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64),
                                               cs=feed_dict)
+            synthesized = self.data_panel.split_outputs(synthesized)
             df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
 
             feed_dict = self.get_conditions_feed_dict(df_conditions, self.synthesis_batch_size)
@@ -306,6 +315,7 @@ class HighDimSynthesizer(Synthesizer):
                         if condition_data.shape == (num_rows,)
                     })
                 other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
+                other = self.data_panel.split_outputs(other)
                 df_synthesized = df_synthesized.append(
                     pd.DataFrame.from_dict(other)[columns], ignore_index=True
                 )
@@ -337,7 +347,7 @@ class HighDimSynthesizer(Synthesizer):
         """
         df_encode = df_encode.copy()
         df_encode = self.data_panel.preprocess(df=df_encode)
-        df_conditions = self.data_panel.preprocess_conditions(conditions)
+        df_conditions = self.data_panel.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
@@ -345,7 +355,8 @@ class HighDimSynthesizer(Synthesizer):
 
         encoded, decoded = self.vae.encode(xs=data, cs=conditions_data)
 
-        columns = self.data_panel.columns()
+        columns = self.data_panel.columns
+        decoded = self.data_panel.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.data_panel.postprocess(df=df_synthesized)
 
@@ -376,7 +387,7 @@ class HighDimSynthesizer(Synthesizer):
 
         decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
 
-        columns = self.data_panel.columns()
+        columns = self.data_panel.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.data_panel.postprocess(df=df_synthesized)
 

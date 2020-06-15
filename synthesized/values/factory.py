@@ -18,7 +18,7 @@ from .nan import NanValue, NanConfig
 from .person import PersonValue
 from .value import Value
 from ..metadata import DataPanel, ValueMeta
-from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta
+from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta
 
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,12 @@ class ValueFactoryConfig(CategoricalConfig, DateConfig, NanConfig, IdentifierCon
 
 class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
-    def __init__(self, data_panel: DataPanel, name: str = 'value_factory',
+    def __init__(self, data_panel: DataPanel, name: str = 'value_factory', conditions: List[str] = None,
                  config: ValueFactoryConfig = ValueFactoryConfig()):
 
         """Init ValueFactory."""
         self.name = name
-
+        self.condition_columns = conditions or list()
         self.config = config
 
         self.capacity = config.capacity
@@ -59,14 +59,20 @@ class ValueFactory:
         self.columns = list(data_panel.columns)
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
+        self.identifier_value: Optional[Value] = None
 
         self.create_values(data_panel)
 
     def create_values(self, data_panel):
         for value_meta in data_panel.values:
             value = self.create_value(value_meta)
+            print(value_meta.name, value, value.name if value is not None else 'None')
             if value is not None:
-                self.values.append(value)
+                if value.name in self.condition_columns:
+                    assert value_meta.learned_input_columns() == value_meta.learned_output_columns()
+                    self.conditions.append(value)
+                else:
+                    self.values.append(value)
 
     def create_identifier(self, name: str) -> IdentifierValue:
         """Create IdentifierValue."""
@@ -125,6 +131,11 @@ class ValueFactory:
         elif isinstance(vm, DecomposedContinuousMeta):
             return DecomposedContinuousValue(
                 vm.name, config=self.config.decomposed_continuous_config
+            )
+        elif isinstance(vm, NanMeta):
+            value = self.create_value(vm.value)
+            return NanValue(
+                vm.name, value=value, config=self.config.nan_config
             )
 
         return None
