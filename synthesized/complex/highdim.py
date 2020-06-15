@@ -12,7 +12,7 @@ from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..values import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
+from ..common.values import Value, ValueFactory, ValueFactoryWrapper, TypeOverride
 
 from ..version import __version__
 

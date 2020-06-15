@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from ..values import ValueFactory
+from ..common.values import ValueFactory
 from ..insight import metrics
 
 

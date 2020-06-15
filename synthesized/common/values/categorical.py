@@ -8,8 +8,8 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from ..common import util
-from ..common.module import tensorflow_name_scoped
+from ..util import get_initializer
+from ..module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class CategoricalValue(Value):
                 # "hack": scenario synthesizer, embeddings not used
                 return
             shape = (self.num_categories, self.embedding_size)
-            initializer = util.get_initializer(initializer=self.embedding_initialization)
+            initializer = get_initializer(initializer=self.embedding_initialization)
 
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,

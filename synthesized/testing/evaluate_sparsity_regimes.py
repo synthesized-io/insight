@@ -8,7 +8,7 @@ import simplejson
 from scipy.stats import ks_2samp
 from sklearn.preprocessing import QuantileTransformer, StandardScaler, LabelEncoder
 
-from synthesized.complex import HighDimSynthesizer
+from ..complex import HighDimSynthesizer
 
 
 def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MCAR',

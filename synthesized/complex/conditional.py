@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from ..common.synthesizer import Synthesizer
-from ..values import ContinuousValue, CategoricalValue, NanValue
+from ..common.values import ContinuousValue, CategoricalValue, NanValue
 
 
 class ConditionalSampler(Synthesizer):

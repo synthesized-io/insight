@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer, Distribution, Functional
-from ..values import Value
+from ..common.values import Value
 
 
 # TODO: Migrate to TensorFlow2

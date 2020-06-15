@@ -8,7 +8,7 @@ from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding, R
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ...values import Value, IdentifierValue, ValueOps
+from ..values import Value, IdentifierValue, ValueOps
 
 
 class SeriesVAE(Generative):

@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple, Any
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ...values import Value
+from ..values import Value
 
 
 class Generative(tf.Module):

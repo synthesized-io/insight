@@ -9,7 +9,7 @@ import simplejson
 
 from .highdim import HighDimSynthesizer
 from ..common.synthesizer import Synthesizer
-from ..values import ContinuousValue, CategoricalValue
+from ..common.values import ContinuousValue, CategoricalValue
 
 logger = logging.getLogger(__name__)
 
