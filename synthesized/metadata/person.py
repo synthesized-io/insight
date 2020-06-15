@@ -53,7 +53,7 @@ class PersonMeta(ValueMeta):
             self.gender = None
         elif self.title_label == self.gender_label:
             # a special case when we extract gender from title:
-            self.gender = CategoricalMeta(name='_gender')
+            self.gender = CategoricalMeta(name=self.title_label + '_gender')
         else:
             self.gender = CategoricalMeta(name=gender_label)
 

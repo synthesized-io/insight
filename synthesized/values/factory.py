@@ -5,20 +5,17 @@ import logging
 
 from dataclasses import dataclass, fields, asdict
 
-from .address import AddressValue
 from .associated_categorical import AssociatedCategoricalValue
-from .bank_number import BankNumberValue
 from .categorical import CategoricalValue, CategoricalConfig
-from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue, ContinuousConfig
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
 from .identifier import IdentifierValue, IdentifierConfig
 from .nan import NanValue, NanConfig
-from .person import PersonValue
 from .value import Value
 from ..metadata import DataPanel, ValueMeta
-from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta
+from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
+    CompoundAddressMeta, BankNumberMeta, PersonMeta
 
 
 logger = logging.getLogger(__name__)
@@ -87,24 +84,6 @@ class ValueFactory:
             categorical_kwargs=self.categorical_kwargs
         )
 
-    def create_bank(self, i: int) -> BankNumberValue:
-        """Create BankNumberValue."""
-        return BankNumberValue(
-            name='bank_{}'.format(i)
-        )
-
-    def create_compound_address(self) -> CompoundAddressValue:
-        """Create CompoundAddressValue."""
-        return CompoundAddressValue(name='address', address_label=self.address_label)
-
-    def create_address(self, i: int) -> AddressValue:
-        """Create AddressValue."""
-        return AddressValue(
-            name='address_{}'.format(i), fake=fake,
-            postcode_label=self.postcode_label[i] if self.postcode_label else None,
-            categorical_kwargs=self.categorical_kwargs
-        )
-
     def create_value(self, vm: ValueMeta) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
             return CategoricalValue(
@@ -129,6 +108,17 @@ class ValueFactory:
                 vm.name, categorical_config=self.config.categorical_config,
                 continuous_config=self.config.continuous_config
             )
+        elif isinstance(vm, AddressMeta):
+            if vm.fake is False:
+                return self.create_value(vm.postcode)
+        elif isinstance(vm, CompoundAddressMeta):
+            return self.create_value(vm.postcode)
+        elif isinstance(vm, PersonMeta):
+            if vm.gender is not None:
+                return self.create_value(vm.gender)
+        elif isinstance(vm, BankNumberMeta):
+            # TODO: create BankNumberMeta logic
+            return None
 
         return None
 
