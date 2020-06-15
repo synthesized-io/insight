@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.common.values.identify_rules import PairwiseRuleFactory, identify_rules
+from synthesized.metadata.identify_rules import PairwiseRuleFactory, identify_rules
 from synthesized.common.values.rule import RuleValue
 from synthesized.complex import HighDimSynthesizer
 
