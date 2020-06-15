@@ -13,3 +13,4 @@ statsmodels==0.11.0
 simplejson==3.17.0
 treelib==1.6.1
 hypothesis[pandas]==5.10.5
+dataclasses==0.7
