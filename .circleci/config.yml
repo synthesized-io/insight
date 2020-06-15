@@ -54,6 +54,12 @@ jobs:
           command: make test
           no_output_timeout: 20m
 
+      - store_test_results:
+          path: test-results
+
+      - store_artifacts:
+          path: test-results
+
       - run:
           name: Package
           command: make build

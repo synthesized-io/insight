@@ -13,7 +13,7 @@ build: $(SRC)
 	touch build
 
 test:  venv
-	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
 unit-test: venv
 	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing
