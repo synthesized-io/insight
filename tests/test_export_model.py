@@ -7,7 +7,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.values import TypeOverride, ContinuousValue
+from synthesized.common.values import TypeOverride, ContinuousValue
 
 
 atol = 0.05

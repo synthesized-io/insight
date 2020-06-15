@@ -6,8 +6,8 @@ import hypothesis.strategies as st
 from hypothesis import given, event, settings, HealthCheck, seed
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
-from synthesized.values import ValueFactory
-from synthesized.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue, \
+from synthesized.common.values import ValueFactory
+from synthesized.common.values import NanValue, ContinuousValue, CategoricalValue, ConstantValue, SamplingValue, \
     AssociatedCategoricalValue
 
 

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer
-from synthesized.common.data_imputer import DataImputer
+from synthesized.complex import DataImputer
 
 NANS_PROP_TEST = 0.5
 
