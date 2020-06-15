@@ -9,7 +9,7 @@ from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 DISTRIBUTIONS = dict(
     # beta=(beta, tfd.Beta),

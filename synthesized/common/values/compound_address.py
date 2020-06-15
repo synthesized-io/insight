@@ -8,7 +8,7 @@ from faker import Faker
 
 from .categorical import CategoricalValue
 from .value import Value
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 class CompoundAddressValue(Value):

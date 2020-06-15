@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..values import Value
+from ..common.values import Value
 
 
 def _check_license():

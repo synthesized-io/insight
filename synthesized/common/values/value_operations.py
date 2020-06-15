@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import tensorflow as tf
 
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 from .value import Value
 
 

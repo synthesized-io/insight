@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from synthesized import HighDimSynthesizer
-from synthesized.common import ConditionalSampler
+from synthesized.complex import ConditionalSampler
 
 
 def test_categorical_sampling():
@@ -31,4 +31,3 @@ def test_continuous_sampling():
 
     assert np.isclose(len(df_synthesized[df_synthesized['x'] < 0]) / num_rows, 0.9, atol=0.02)
     assert np.isclose(len(df_synthesized[df_synthesized['x'] >= 0]) / num_rows, 0.1, atol=0.02)
-

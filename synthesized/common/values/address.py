@@ -12,7 +12,7 @@ import simplejson
 
 from .categorical import CategoricalValue
 from .value import Value
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 
