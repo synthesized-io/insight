@@ -33,7 +33,7 @@ class TypeOverride(enum.Enum):
 
 
 @dataclass
-class ValueFactoryConfig(CategoricalConfig, DateConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
+class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
     produce_nans: bool = False
 
