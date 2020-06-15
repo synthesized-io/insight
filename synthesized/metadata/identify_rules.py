@@ -107,7 +107,7 @@ class PairwiseRuleFactory(object):
         threshs = [(lower_max + upper_min)/2 for lower_max, upper_min in zip(maxes[:-1], mins[1:])]
 
         return RuleMeta(name=str(x.name) + '_' + str(y.name), values=[x, y], function='flag_1',
-                         fkwargs=dict(threshs=threshs, categories=categories))
+                        fkwargs=dict(threshs=threshs, categories=categories))
 
     @staticmethod
     def find_pulse(x: ContinuousMeta, y: CategoricalMeta, sets: List[pd.DataFrame], mins: List[float],
@@ -138,7 +138,7 @@ class PairwiseRuleFactory(object):
         if Nlower + Nupper == len(sets[0]):
             threshs = dict(lower=mins[1], upper=maxes[1])
             return RuleMeta(name=str(x.name) + '_' + str(y.name), values=[x, y], function='pulse_1',
-                             fkwargs=dict(threshs=threshs, categories=categories))
+                            fkwargs=dict(threshs=threshs, categories=categories))
         else:
             return None
 

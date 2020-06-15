@@ -1,21 +1,20 @@
 """Utilities that help you create Value objects."""
 import enum
-from typing import Dict, Any, Optional, Union, Iterable, List, Set, Tuple
+from typing import Dict, Any, Optional, Union, List
 import logging
 
-from dataclasses import dataclass, fields, asdict
+from dataclasses import dataclass, fields
 
-from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue, CategoricalConfig
-from .continuous import ContinuousValue, ContinuousConfig
+from .continuous import ContinuousValue
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
-from .identifier import IdentifierValue, IdentifierConfig
+from .identifier import IdentifierConfig
 from .rule import RuleValue
 from .nan import NanValue, NanConfig
 from .value import Value
-from ..metadata import DataPanel, ValueMeta
-from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
+from ...metadata import DataPanel, ValueMeta
+from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
     CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta
 
 
@@ -72,12 +71,10 @@ class ValueFactory:
                 else:
                     self.values.append(value)
 
-    def create_identifier(self, name: str) -> IdentifierValue:
-        """Create IdentifierValue."""
-        return IdentifierValue(name=name, **self.identifier_kwargs)
-
-    def create_value(self, vm: ValueMeta) -> Optional[Value]:
+    def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
+            if vm.num_categories is None:
+                raise ValueError
             return CategoricalValue(
                 vm.name, num_categories=vm.num_categories, similarity_based=vm.similarity_based,
                 nans_valid=vm.nans_valid, produce_nans=self.produce_nans, config=self.config.categorical_config
@@ -92,6 +89,8 @@ class ValueFactory:
             )
         elif isinstance(vm, NanMeta):
             value = self.create_value(vm.value)
+            if value is None:
+                raise ValueError
             return NanValue(
                 vm.name, value=value, config=self.config.nan_config
             )
@@ -112,7 +111,13 @@ class ValueFactory:
             # TODO: create BankNumberMeta logic
             return None
         elif isinstance(vm, RuleMeta):
-            values = [self.create_value(meta) for meta in vm.values]
+            values: List[Value] = list()
+            for meta in vm.values:
+                v = self.create_value(meta)
+                if v is None:
+                    raise ValueError
+                else:
+                    values.append(v)
             return RuleValue(
                 name=vm.name, values=values, num_learned=vm.num_learned
             )
@@ -143,8 +148,6 @@ class ValueFactory:
         variables: Dict[str, Any] = dict(
             name=self.name,
             columns=self.columns,
-            column_aliases=self.column_aliases,
-            id_index=self.id_index,
             identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
         )
 

@@ -3,7 +3,7 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional, Any
+from typing import Callable, Dict, Union, List, Optional, Any, Tuple
 
 import numpy as np
 import pandas as pd
@@ -85,11 +85,11 @@ class Synthesizer(tf.Module):
         return self.get_values() + self.get_conditions()
 
     @abstractmethod
-    def get_value_meta_pairs(self) -> List[ValueMeta]:
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_condition_meta_pairs(self) -> List[ValueMeta]:
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         raise NotImplementedError()
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
@@ -125,9 +125,11 @@ class Synthesizer(tf.Module):
         elif (num_rows % batch_size) != 0:
             for value, meta in self.get_condition_meta_pairs():
                 feed_dict[value.name] = [
-                    np.tile(df_conditions[name].values, (num_rows % batch_size,)) if df_conditions[name].values.shape == (1,)
-                    else df_conditions[name].values[-num_rows % batch_size:] if df_conditions[name].values.shape == (num_rows,)
-                    else None
+                    np.tile(df_conditions[name].values, (num_rows % batch_size,))
+                    if df_conditions[name].values.shape == (1,) else
+                    df_conditions[name].values[-num_rows % batch_size:]
+                    if df_conditions[name].values.shape == (num_rows,) else
+                    None
                     for name in meta.learned_input_columns()
                 ]
                 for x in feed_dict[value.name]:

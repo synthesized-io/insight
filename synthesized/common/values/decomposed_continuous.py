@@ -7,6 +7,7 @@ from .continuous import ContinuousValue, ContinuousConfig
 from .value import Value
 from ..module import tensorflow_name_scoped
 
+
 @dataclass
 class DecomposedContinuousConfig(ContinuousConfig):
     low_freq_weight: float = 1.0

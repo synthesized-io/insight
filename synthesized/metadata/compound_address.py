@@ -12,7 +12,7 @@ from .value_meta import ValueMeta
 
 @dataclass
 class CompoundAddressParams:
-    address_label: Optional[str]= None
+    address_label: Optional[str] = None
     postcode_regex: Optional[str] = None
 
 

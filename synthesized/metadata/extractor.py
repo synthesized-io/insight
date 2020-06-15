@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import enum
 import logging
 from math import sqrt, log
@@ -102,7 +102,7 @@ class MetaExtractor:
                 value = string_to_meta[annotation](
                     name=f'{annotation}_{i}', **kwargs
                 )
-                values.append = value
+                values.append(value)
 
         df.drop(labels=np.concatenate(labels_matrix), axis=1, inplace=True)
 
@@ -134,7 +134,6 @@ class MetaExtractor:
         associated_values = []
 
         for name in df.columns:
-            alias = None
             value: Optional[ValueMeta]
             # we are skipping aliases
             if name in column_aliases:

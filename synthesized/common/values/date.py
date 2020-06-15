@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 import tensorflow as tf
@@ -16,18 +15,17 @@ class DateValue(ContinuousValue):
     ):
         super().__init__(name=name, config=continuous_config)
 
-        categorical_config.similarity_based = True
         self.hour = CategoricalValue(
-            name=(self.name + '-hour'), num_categories=24, config=categorical_config
+            name=(self.name + '-hour'), num_categories=24, similarity_based=True, config=categorical_config
         )
         self.dow = CategoricalValue(
-            name=(self.name + '-dow'), num_categories=7, config=categorical_config
+            name=(self.name + '-dow'), num_categories=7, similarity_based=True, config=categorical_config
         )
         self.day = CategoricalValue(
-            name=(self.name + '-day'), num_categories=31, config=categorical_config
+            name=(self.name + '-day'), num_categories=31, similarity_based=True, config=categorical_config
         )
         self.month = CategoricalValue(
-            name=(self.name + '-month'), num_categories=12, config=categorical_config
+            name=(self.name + '-month'), num_categories=12, similarity_based=True, config=categorical_config
         )
 
     def specification(self):

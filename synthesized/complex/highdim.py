@@ -14,7 +14,7 @@ from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager, LearningManagerConfig
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueFactory, ValueFactoryConfig, TypeOverride, ValueFactoryWrapper
+from ..common.values import Value, ValueFactory, ValueFactoryConfig, ValueFactoryWrapper
 
 from ..version import __version__
 
@@ -57,8 +57,8 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     # Optimizer
     optimizer: str = 'adam'
     learning_rate: float = 3e-3
-    decay_steps: int = None
-    decay_rate: float = None
+    decay_steps: Optional[int] = None
+    decay_rate: Optional[float] = None
     initial_boost: int = 0
     clip_gradients: float = 1.0
     # Batch size
@@ -379,7 +379,7 @@ class HighDimSynthesizer(Synthesizer):
         """
         df_encode = df_encode.copy()
         df_encode = self.data_panel.preprocess(df=df_encode)
-        df_conditions = self.data_panel.preprocess_conditions(conditions)
+        df_conditions = self.data_panel.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)

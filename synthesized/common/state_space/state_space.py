@@ -4,7 +4,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..optimizers import Optimizer
-from ..values import ValueFactory, ValueOps
+from ..values import ValueFactory, ValueOps, ValueFactoryConfig
 
 
 class StateSpaceModel(tf.Module):
@@ -25,13 +25,15 @@ class StateSpaceModel(tf.Module):
         t: time length
 
     """
-    def __init__(self, df, capacity: int, latent_size: int, name='state_space_model'):
+    def __init__(self, data_panel, capacity: int, latent_size: int, name='state_space_model'):
         super(StateSpaceModel, self).__init__(name=name)
         self.capacity = capacity
         self.latent_size = latent_size
         self._trainable_variables = None
 
-        self.value_factory = ValueFactory(df=df, capacity=capacity)
+        self.data_panel = data_panel
+        vf_config = ValueFactoryConfig(capacity=capacity)
+        self.value_factory = ValueFactory(data_panel=data_panel, config=vf_config)
         self.value_ops = ValueOps(
             values=self.value_factory.get_values(), conditions=self.value_factory.get_conditions()
         )
@@ -176,7 +178,7 @@ class StateSpaceModel(tf.Module):
         x = self.value_ops.value_outputs(y=y, conditions={})
 
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.data_panel.postprocess(df=syn_df)
         return syn_df
 
     @staticmethod

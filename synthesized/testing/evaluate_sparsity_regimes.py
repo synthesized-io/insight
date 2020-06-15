@@ -8,7 +8,8 @@ import simplejson
 from scipy.stats import ks_2samp
 from sklearn.preprocessing import QuantileTransformer, StandardScaler, LabelEncoder
 
-from ..complex import HighDimSynthesizer
+from ..complex.highdim import HighDimSynthesizer, HighDimConfig
+from ..metadata import MetaExtractor
 
 
 def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MCAR',
@@ -39,6 +40,8 @@ def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MC
                 X = np.array(data_missing[list(filter(lambda x: x != c, data_missing.columns))])
             elif mechanism == 'MNAR':
                 X = np.array(data_missing)
+            else:
+                raise ValueError
 
             # Scale to 0 mean, 1 std
             ss = StandardScaler()
@@ -123,7 +126,10 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
                 configs = simplejson.load(f)
                 config = configs["instances"]["synthetic"]
 
-            with HighDimSynthesizer(df=data_missing, **config['params']) as synthesizer:
+            dp = MetaExtractor.extract(data_missing)
+            conf = HighDimConfig(**config['params'])
+
+            with HighDimSynthesizer(data_panel=dp, config=conf) as synthesizer:
                 synthesizer.learn(df_train=data_missing, num_iterations=n_iter)
                 synthesized = synthesizer.synthesize(num_rows=len(data))
 

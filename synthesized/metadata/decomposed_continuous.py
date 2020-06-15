@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from scipy.signal import filtfilt
 
 from .continuous import ContinuousMeta

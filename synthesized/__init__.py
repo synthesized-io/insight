@@ -12,5 +12,6 @@ from .metadata import DataPanel, MetaExtractor  # noqa: F402
 from .version import __version__  # noqa: F402
 
 __all__ = [
-    '__version__', 'HighDimSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Synthesizer', 'DataPanel'
+    '__version__', 'HighDimSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Synthesizer', 'DataPanel',
+    'MetaExtractor'
 ]

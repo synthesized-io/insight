@@ -41,7 +41,7 @@ class NanValue(Value):
         self.produce_nans = produce_nans
 
         shape = (2, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
+        initializer = get_initializer(initializer='normal')
         self.embeddings = tf.Variable(
             initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
             dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
