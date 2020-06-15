@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from synthesized import HighDimSynthesizer
-from synthesized.testing.linkage_attack import LinkageAttack
+from synthesized.privacy import LinkageAttack
 
 
 def test_unittest_dataset():

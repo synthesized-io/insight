@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from .metrics import categorical_emd
+from synthesized.testing.metrics import categorical_emd
 
 
 class LinkageAttack:
