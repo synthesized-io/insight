@@ -8,13 +8,13 @@ import pandas as pd
 import pickle
 import tensorflow as tf
 
+from .binary_builder import ModelBinary
 from ..metadata import DataPanel, ValueMeta
-from ..common.binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager, LearningManagerConfig
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..values import Value, ValueFactory, ValueFactoryConfig, TypeOverride, ValueFactoryWrapper
+from ..common.values import Value, ValueFactory, ValueFactoryConfig, TypeOverride, ValueFactoryWrapper
 
 from ..version import __version__
 

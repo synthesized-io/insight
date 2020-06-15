@@ -5,8 +5,8 @@ import pickle
 
 import tensorflow as tf
 
-from ..common.module import tensorflow_name_scoped
-from ..common.util import make_tf_compatible
+from ..module import tensorflow_name_scoped
+from ..util import make_tf_compatible
 
 
 class Value(tf.Module):

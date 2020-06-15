@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ...values import ValueFactory
+from ..values import ValueFactory
 from ...insight.evaluation import calculate_evaluation_metrics
 
 logger = logging.getLogger(__name__)

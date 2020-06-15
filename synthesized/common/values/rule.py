@@ -3,7 +3,7 @@ from typing import List
 import tensorflow as tf
 
 from .value import Value
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 class RuleValue(Value):

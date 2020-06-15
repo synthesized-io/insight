@@ -4,8 +4,8 @@ from dataclasses import dataclass, fields
 import tensorflow as tf
 
 from .value import Value
-from ..common import util
-from ..common.module import tensorflow_name_scoped
+from ..util import get_initializer
+from ..module import tensorflow_name_scoped
 
 
 @dataclass
@@ -66,7 +66,7 @@ class IdentifierValue(Value):
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
-            initializer = util.get_initializer(initializer='glorot-normal')
+            initializer = get_initializer(initializer='glorot-normal')
             shape = (self.num_identifiers, self.embedding_size)
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,

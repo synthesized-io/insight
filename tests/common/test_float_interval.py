@@ -1,4 +1,4 @@
-from synthesized.common.conditional.conditional import FloatInterval, Inclusive, Exclusive
+from synthesized.complex.conditional import FloatInterval, Inclusive, Exclusive
 
 
 def test_left_open_right_open_parsing():

@@ -4,7 +4,7 @@ from io import BytesIO
 import numpy as np
 import pandas as pd
 
-from synthesized.common.binary_builder import BinaryType, CompressionType, ModelBinary, DatasetBinary, Binary
+from synthesized.complex.binary_builder import BinaryType, CompressionType, ModelBinary, DatasetBinary, Binary
 
 
 def test_model_binary_init():

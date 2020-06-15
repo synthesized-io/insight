@@ -7,8 +7,8 @@ import tensorflow as tf
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from ..common import util
-from ..common.module import tensorflow_name_scoped
+from ..util import get_initializer
+from ..module import tensorflow_name_scoped
 
 
 @dataclass
@@ -71,7 +71,7 @@ class NanValue(Value):
     def build(self) -> None:
         if not self.built:
             shape = (2, self.embedding_size)
-            initializer = util.get_initializer(initializer='normal')
+            initializer = get_initializer(initializer='normal')
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
                 dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True

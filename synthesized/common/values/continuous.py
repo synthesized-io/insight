@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 import tensorflow as tf
 
 from .value import Value
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 @dataclass

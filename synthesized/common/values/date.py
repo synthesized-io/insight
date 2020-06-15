@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .categorical import CategoricalValue, CategoricalConfig
 from .continuous import ContinuousValue, ContinuousConfig
-from ..common.module import tensorflow_name_scoped
+from ..module import tensorflow_name_scoped
 
 
 class DateValue(ContinuousValue):
