@@ -11,14 +11,14 @@ from .bank_number import BankNumberValue
 from .categorical import CategoricalValue, CategoricalConfig
 from .compound_address import CompoundAddressValue
 from .continuous import ContinuousValue, ContinuousConfig
-from .date import DateValue, DateConfig
+from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
 from .identifier import IdentifierValue, IdentifierConfig
 from .nan import NanValue, NanConfig
 from .person import PersonValue
 from .value import Value
 from ..metadata import DataPanel, ValueMeta
-from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta
+from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta
 
 
 logger = logging.getLogger(__name__)
@@ -78,19 +78,6 @@ class ValueFactory:
         """Create IdentifierValue."""
         return IdentifierValue(name=name, **self.identifier_kwargs)
 
-    def create_date(self, name: str) -> DateValue:
-        """Create DateValue."""
-        return DateValue(
-            name=name, categorical_kwargs=self.categorical_kwargs, continuous_kwargs=self.continuous_kwargs,
-            **self.date_kwargs
-        )
-
-    def create_nan(self, name: str, value: Value, produce_nans: bool) -> NanValue:
-        """Create NanValue."""
-        nan_kwargs = dict(self.nan_kwargs)
-        nan_kwargs['produce_nans'] = produce_nans
-        return NanValue(name=name, value=value, **nan_kwargs)
-
     def create_person(self, i: int) -> PersonValue:
         """Create PersonValue."""
         return PersonValue(
@@ -136,6 +123,11 @@ class ValueFactory:
             value = self.create_value(vm.value)
             return NanValue(
                 vm.name, value=value, config=self.config.nan_config
+            )
+        elif isinstance(vm, DateMeta):
+            return DateValue(
+                vm.name, categorical_config=self.config.categorical_config,
+                continuous_config=self.config.continuous_config
             )
 
         return None

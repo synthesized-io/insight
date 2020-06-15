@@ -1,76 +1,42 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
-from dataclasses import dataclass, fields
 import tensorflow as tf
 
-from .categorical import CategoricalValue
-from .continuous import ContinuousValue
+from .categorical import CategoricalValue, CategoricalConfig
+from .continuous import ContinuousValue, ContinuousConfig
 from ..common.module import tensorflow_name_scoped
-
-
-@dataclass
-class DateConfig:
-    keep_monotonic_dates: bool = False
-
-    @property
-    def date_config(self):
-        return DateConfig(**{f.name: self.__getattribute__(f.name) for f in fields(DateConfig)})
 
 
 class DateValue(ContinuousValue):
 
     def __init__(
-        self, name: str, categorical_kwargs: dict, continuous_kwargs: dict,
-        start_date: datetime = None, min_date: datetime = None, keep_monotonic: bool = False
+        self, name: str, categorical_config: CategoricalConfig = CategoricalConfig(),
+        continuous_config: ContinuousConfig = ContinuousConfig()
     ):
-        super().__init__(name=name, **continuous_kwargs)
+        super().__init__(name=name, config=continuous_config)
 
-        assert start_date is None or min_date is None
-        self.start_date = start_date
-        self.min_date = min_date
-        self.keep_monotonic = keep_monotonic
-
-        self.pd_types = ('M',)
-        self.date_format: Optional[str] = None
-        self.original_dtype = None
-
-        categorical_kwargs['similarity_based'] = True
+        categorical_config.similarity_based = True
         self.hour = CategoricalValue(
-            name=(self.name + '-hour'), categories=list(range(24)), **categorical_kwargs
+            name=(self.name + '-hour'), num_categories=24, config=categorical_config
         )
         self.dow = CategoricalValue(
-            name=(self.name + '-dow'), categories=list(range(7)), **categorical_kwargs
+            name=(self.name + '-dow'), num_categories=7, config=categorical_config
         )
         self.day = CategoricalValue(
-            name=(self.name + '-day'), categories=list(range(31)), **categorical_kwargs
+            name=(self.name + '-day'), num_categories=31, config=categorical_config
         )
         self.month = CategoricalValue(
-            name=(self.name + '-month'), categories=list(range(12)), **categorical_kwargs
+            name=(self.name + '-month'), num_categories=12, config=categorical_config
         )
-
-    def __str__(self):
-        string = super().__str__()
-        if self.start_date is not None:
-            string += '-timedelta'
-        return string
 
     def specification(self):
         spec = super().specification()
         spec.update(
-            keep_monotonic=self.keep_monotonic,
             hour=self.hour.specification(), dow=self.dow.specification(),
             day=self.day.specification(), month=self.month.specification()
         )
         return spec
-
-    def learned_input_columns(self):
-        columns = super().learned_input_columns()
-        columns.extend(self.hour.learned_input_columns())
-        columns.extend(self.dow.learned_input_columns())
-        columns.extend(self.day.learned_input_columns())
-        columns.extend(self.month.learned_input_columns())
-        return columns
 
     def learned_input_size(self):
         return super().learned_input_size() + self.hour.learned_input_size() + \

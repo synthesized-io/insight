@@ -11,7 +11,7 @@ class DateMeta(ContinuousMeta):
     def __init__(
         self, name: str, start_date: datetime = None, min_date: datetime = None, keep_monotonic: bool = False
     ):
-        super().__init__(name=name, float=True)
+        super().__init__(name=name, is_float=True)
 
         assert start_date is None or min_date is None
         self.start_date = start_date
