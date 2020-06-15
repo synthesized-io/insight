@@ -88,7 +88,7 @@ class MetaExtractor:
     def _identify_annotations(df: pd.DataFrame, annotation: str, params):
         labels = {f.name: _get_formated_label(params.__getattribute__(f.name)) for f in fields(params)}
 
-        labels_matrix = _get_labels_matrix([l for l in labels.values()])
+        labels_matrix = _get_labels_matrix([label for label in labels.values()])
         values: List[Optional[ValueMeta]] = list()
 
         string_to_meta = {
