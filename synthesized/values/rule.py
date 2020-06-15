@@ -8,9 +8,9 @@ from ..common.module import tensorflow_name_scoped
 
 class RuleValue(Value):
 
-    def __init__(self, name: str, values: List[Value]):
+    def __init__(self, name: str, values: List[Value], num_learned: int):
         super().__init__(name=name)
-
+        self.num_learned = num_learned
         self.values = values
 
     def __str__(self) -> str:

@@ -11,11 +11,12 @@ from .continuous import ContinuousValue, ContinuousConfig
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
 from .identifier import IdentifierValue, IdentifierConfig
+from .rule import RuleValue
 from .nan import NanValue, NanConfig
 from .value import Value
 from ..metadata import DataPanel, ValueMeta
 from ..metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
-    CompoundAddressMeta, BankNumberMeta, PersonMeta
+    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta
 
 
 logger = logging.getLogger(__name__)
@@ -75,15 +76,6 @@ class ValueFactory:
         """Create IdentifierValue."""
         return IdentifierValue(name=name, **self.identifier_kwargs)
 
-    def create_person(self, i: int) -> PersonValue:
-        """Create PersonValue."""
-        return PersonValue(
-            name='person_{}'.format(i),
-            title_label=self.title_label[i] if self.title_label else None,
-            gender_label=self.gender_label[i] if self.gender_label else None,
-            categorical_kwargs=self.categorical_kwargs
-        )
-
     def create_value(self, vm: ValueMeta) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
             return CategoricalValue(
@@ -119,6 +111,11 @@ class ValueFactory:
         elif isinstance(vm, BankNumberMeta):
             # TODO: create BankNumberMeta logic
             return None
+        elif isinstance(vm, RuleMeta):
+            values = [self.create_value(meta) for meta in vm.values]
+            return RuleValue(
+                name=vm.name, values=values, num_learned=vm.num_learned
+            )
 
         return None
 
