@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Distribution, Functional
-from ..common.synthesizer import Synthesizer
+from ..common import Synthesizer, Distribution, Functional
 from ..values import Value
 
 

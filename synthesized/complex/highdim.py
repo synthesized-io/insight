@@ -7,7 +7,7 @@ import pandas as pd
 import pickle
 import tensorflow as tf
 
-from ..common.binary_builder import ModelBinary
+from .binary_builder import ModelBinary
 from ..common.generative import VAEOld
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer

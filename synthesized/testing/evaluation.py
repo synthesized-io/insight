@@ -17,8 +17,7 @@ from sklearn.model_selection import train_test_split
 from .plotting import plot_time_series, plot_data, plot_multidimensional
 from .utility import UtilityTesting, MAX_PVAL
 from .utility_time_series import TimeSeriesUtilityTesting
-from ..highdim import HighDimSynthesizer
-from ..series import SeriesSynthesizer
+from ..complex import HighDimSynthesizer, SeriesSynthesizer
 from ..insight import metrics
 
 
