@@ -6,11 +6,12 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer
+from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.complex.highdim import HighDimConfig
 from synthesized.common.values import TypeOverride, ContinuousValue
 
-
 atol = 0.05
+
 
 def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):
     highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
@@ -18,7 +19,9 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500,
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
 
-    with HighDimSynthesizer(df=df_original, **highdim_kwargs) as synthesizer:
+    dp = MetaExtractor.extract(df=df_original)
+    config = HighDimConfig(**highdim_kwargs)
+    with HighDimSynthesizer(data_panel=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
 
@@ -88,7 +91,8 @@ def test_nan_producing():
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
-    synthesizer = HighDimSynthesizer(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
+    dp = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
+    synthesizer = HighDimSynthesizer(data_panel=dp)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
     temp_dir = tempfile.mkdtemp()
