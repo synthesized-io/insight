@@ -1,3 +1,5 @@
+from typing import List
+
 import pandas as pd
 
 from .value_meta import ValueMeta
@@ -19,6 +21,12 @@ class ConstantMeta(ValueMeta):
         unique_values = df.loc[:, self.name].unique()
         assert len(unique_values) == 1
         self.constant_value = unique_values[0]
+
+    def learned_input_columns(self) -> List[str]:
+        return []
+
+    def learned_output_columns(self) -> List[str]:
+        return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=self.name, axis=1)

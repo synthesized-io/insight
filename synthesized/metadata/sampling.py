@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
@@ -34,6 +34,12 @@ class SamplingMeta(ValueMeta):
         self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=dropna)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
+
+    def learned_input_columns(self) -> List[str]:
+        return []
+
+    def learned_output_columns(self) -> List[str]:
+        return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=self.name, axis=1)

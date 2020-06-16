@@ -48,7 +48,7 @@ class MetaExtractor:
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
-    ):
+    ) -> DataPanel:
         id_index = id_index
         time_index = time_index
         column_aliases = column_aliases or dict()
