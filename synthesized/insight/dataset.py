@@ -21,7 +21,7 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
             s['categories'] = '[' + ', '.join([str(o) for o in s['categories']]) + ']'
 
     for n, v in enumerate(values):
-        if v.__class__.__name__ == 'NanValue':
+        if isinstance(v, NanMeta):
             value_spec.append(
                 {'class_name': v.value.__class__.__name__, 'name': v.name + '_value'})
 
