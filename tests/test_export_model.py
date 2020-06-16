@@ -7,13 +7,14 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.metadata import TypeOverride
 from synthesized.complex.highdim import HighDimConfig
-from synthesized.common.values import TypeOverride, ContinuousValue
+from synthesized.common.values import ContinuousValue
 
 atol = 0.05
 
 
-def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):
+def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, highdim_kwargs=None):
     highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
 
     temp_dir = tempfile.mkdtemp()
@@ -80,7 +81,7 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
 
-    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans_for=True))
+    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans=True))
 
     assert df_synthesized['r'].isna().sum() > 0
     assert np.isclose(np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),

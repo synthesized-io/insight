@@ -21,14 +21,6 @@ from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMet
 logger = logging.getLogger(__name__)
 
 
-class TypeOverride(enum.Enum):
-    ID = 'ID'
-    DATE = 'DATE'
-    CATEGORICAL = 'CATEGORICAL'
-    CONTINUOUS = 'CONTINUOUS'
-    ENUMERATION = 'ENUMERATION'
-
-
 @dataclass
 class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
@@ -92,7 +84,7 @@ class ValueFactory:
             if value is None:
                 raise ValueError
             return NanValue(
-                vm.name, value=value, config=self.config.nan_config
+                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans
             )
         elif isinstance(vm, DateMeta):
             return DateValue(
@@ -148,6 +140,7 @@ class ValueFactory:
         variables: Dict[str, Any] = dict(
             name=self.name,
             columns=self.columns,
+            produce_nans=self.produce_nans,
             identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
         )
 
@@ -165,7 +158,7 @@ class ValueFactory:
         assert self.name == variables['name']
 
         self.columns = variables['columns']
-
+        self.produce_nans  = variables['produce_nans']
         self.identifier_value = Value.set_variables(variables['identifier_value']) \
             if variables['identifier_value'] is not None else None
 

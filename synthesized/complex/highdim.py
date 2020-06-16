@@ -396,6 +396,8 @@ class HighDimSynthesizer(Synthesizer):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
+            # Data Panel
+            data_panel=self.data_panel.get_variables(),
             # Value Factory
             value_factory=self.value_factory.get_variables(),
 
@@ -483,6 +485,9 @@ class HighDimSynthesizerWrapper(HighDimSynthesizer):
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
+
+        # Data Panel
+        self.data_panel = DataPanel.from_dict(variables['data_panel'])
 
         # Value Factory
         self.value_factory = ValueFactoryWrapper(name='value_factory', variables=variables['value_factory'])

@@ -103,6 +103,7 @@ class DataPanel:
     def get_variables(self) -> Dict[str, Any]:
         variables: Dict[str, Any] = dict(
             columns=self.columns,
+            column_aliases=self.column_aliases,
             id_index=self.id_index,
             identifier_value=self.identifier_value.get_variables() if self.identifier_value else None,
             time_index=self.time_index,
@@ -117,6 +118,7 @@ class DataPanel:
 
     def set_variables(self, variables: Dict[str, Any]):
         self.columns = variables['columns']
+        self.column_aliases = variables['column_aliases']
         self.id_index = variables['id_index']
         self.identifier_value = ValueMeta.set_variables(variables['identifier_value']) \
             if variables['identifier_value'] is not None else None
