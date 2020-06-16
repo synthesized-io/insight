@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
+from .association import AssociationMeta
 from .value_meta import ValueMeta
 
 
@@ -10,7 +11,7 @@ class DataPanel:
     """A smart container for the various types of data sets."""
     def __init__(
             self, values: List[ValueMeta], id_value: Optional[ValueMeta] = None, time_value: Optional[ValueMeta] = None,
-            column_aliases: Dict[str, str] = None
+            column_aliases: Dict[str, str] = None, association_meta: AssociationMeta = None
     ):
         self.values = values
         self.identifier_value = id_value
@@ -19,6 +20,7 @@ class DataPanel:
         self.id_index = id_value.name if id_value is not None else None
         self.time_index = time_value.name if time_value is not None else None
         self.column_aliases = column_aliases or dict()
+        self.association_meta = association_meta
 
         value_map = {v.name: v for v in self.values}
         if time_value is not None:
@@ -107,7 +109,8 @@ class DataPanel:
             id_index=self.id_index,
             identifier_value=self.identifier_value.get_variables() if self.identifier_value else None,
             time_index=self.time_index,
-            time_value=self.time_value.get_variables() if self.time_value else None
+            time_value=self.time_value.get_variables() if self.time_value else None,
+            association_meta=self.association_meta.get_variables() if self.association_meta is not None else None
         )
 
         variables['num_values'] = len(self.values)
@@ -124,6 +127,8 @@ class DataPanel:
             if variables['identifier_value'] is not None else None
         self.time_index = variables['id_index']
         self.time_value = ValueMeta.set_variables(variables['time_value']) \
+            if variables['time_value'] is not None else None
+        self.association_meta = ValueMeta.set_variables(variables['association_meta']) \
             if variables['time_value'] is not None else None
 
         self.values = []

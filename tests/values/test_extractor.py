@@ -302,7 +302,7 @@ def test_vf_associated_columns():
     }
 
     dp = MetaExtractor.extract(df=df, associations=associations)
-    value = dp.all_values[0]
+    value = dp.association_meta
     assert isinstance(value, AssociationMeta)
     assert value.associations == [['car_brand', 'car_model', 'car_year']]
 

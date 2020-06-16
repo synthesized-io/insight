@@ -80,9 +80,12 @@ class MetaExtractor:
         if compound_address_params is not None:
             values.extend(cls._identify_annotations(df, 'compound_address', compound_address_params))
 
-        values.extend(cls._identify_values(df, column_aliases, associations, type_overrides, find_rules))
+        values.extend(cls._identify_values(df, column_aliases, type_overrides, find_rules))
 
-        return DataPanel(values=values, id_value=identifier_value, time_value=time_value)
+        association_meta = cls.create_associations(values, associations)
+
+        return DataPanel(values=values, id_value=identifier_value, time_value=time_value,
+                         column_aliases=column_aliases, association_meta=association_meta)
 
     @staticmethod
     def _identify_annotations(df: pd.DataFrame, annotation: str, params):
@@ -109,29 +112,9 @@ class MetaExtractor:
         return values
 
     @classmethod
-    def _identify_values(cls, df: pd.DataFrame, column_aliases, associations, type_overrides, find_rules):
+    def _identify_values(cls, df: pd.DataFrame, column_aliases, type_overrides, find_rules):
 
         values: List[ValueMeta] = list()
-        associates = []
-        association_groups = []
-        association_tree = tl.Tree()
-
-        if associations is not None:
-            association_tree.create_node('root', 'root')
-            for n, nodes in associations.items():
-                if association_tree.get_node(n) is None:
-                    association_tree.create_node(n, n, 'root')
-                for m in nodes:
-                    if association_tree.get_node(m) is None:
-                        association_tree.create_node(m, m, n)
-                    else:
-                        association_tree.move_node(m, n)
-            logger.debug(f"Created association tree: {association_tree}")
-
-            associates.extend([n for n in association_tree.expand_tree('root')][1:])
-            association_groups.extend([st[1:] for st in association_tree.paths_to_leaves()])
-
-        associated_values = []
 
         for name in df.columns:
             value: Optional[ValueMeta]
@@ -166,17 +149,7 @@ class MetaExtractor:
 
                 value = identified_value
 
-            if name in associates:
-                if isinstance(value, CategoricalMeta):
-                    associated_values.append(value)
-                else:
-                    raise ValueError(f"Associated value ({name}) is not a categorical value.")
             values.append(value)
-
-        if len(associated_values) > 0:
-            values.append(
-                AssociationMeta(values=associated_values, associations=association_groups)
-            )
 
         # Automatic extraction of specification parameters
         df = df.copy()
@@ -187,6 +160,44 @@ class MetaExtractor:
         # Identify deterministic rules
         values = identify_rules(values=values, df=df, tests=find_rules)
         return values
+
+    @classmethod
+    def create_associations(cls, value_metas, associations):
+
+        associates = []
+        association_groups = []
+        association_tree = tl.Tree()
+        association_meta: Optional[AssociationMeta] = None
+
+        if associations is not None:
+            association_tree.create_node('root', 'root')
+            for n, nodes in associations.items():
+                if association_tree.get_node(n) is None:
+                    association_tree.create_node(n, n, 'root')
+                for m in nodes:
+                    if association_tree.get_node(m) is None:
+                        association_tree.create_node(m, m, n)
+                    else:
+                        association_tree.move_node(m, n)
+            logger.debug(f"Created association tree: {association_tree}")
+
+            associates.extend([n for n in association_tree.expand_tree('root')][1:])
+            association_groups.extend([st[1:] for st in association_tree.paths_to_leaves()])
+
+        associated_values = []
+
+        for meta in value_metas:
+
+            if meta.name in associates:
+                if isinstance(meta, CategoricalMeta):
+                    associated_values.append(meta)
+                else:
+                    raise ValueError(f"Associated value ({meta.name}) is not a categorical value.")
+
+        if len(associated_values) > 0:
+            association_meta = AssociationMeta(values=associated_values, associations=association_groups)
+
+        return association_meta
 
     @classmethod
     def identify_value(cls, col: pd.Series, name: str, produce_nans: bool

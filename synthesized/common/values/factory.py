@@ -4,6 +4,7 @@ import logging
 
 from dataclasses import dataclass, fields
 
+from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue, CategoricalConfig
 from .continuous import ContinuousValue
 from .date import DateValue
@@ -14,7 +15,7 @@ from .nan import NanValue, NanConfig
 from .value import Value
 from ...metadata import DataPanel, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
-    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta
+    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, AssociationMeta
 
 
 logger = logging.getLogger(__name__)
@@ -52,15 +53,32 @@ class ValueFactory:
         self.create_values(data_panel)
 
     def create_values(self, data_panel):
+        if data_panel.association_meta is not None:
+            associated_metas = [v.name for v in data_panel.association_meta.values]
+        else:
+            associated_metas = []
+
+        associated_values = []
+
         for value_meta in data_panel.values:
             value = self.create_value(value_meta)
             print(value_meta.name, value, value.name if value is not None else 'None')
             if value is not None:
-                if value.name in self.condition_columns:
+                if value.name in associated_metas:
+                    if isinstance(value, CategoricalValue):
+                        associated_values.append(value)
+                    else:
+                        raise ValueError(f'Associated value {value.name} not CategoricalValue.')
+                elif value.name in self.condition_columns:
                     assert value_meta.learned_input_columns() == value_meta.learned_output_columns()
                     self.conditions.append(value)
                 else:
                     self.values.append(value)
+
+        if len(associated_values) > 0 and data_panel.association_meta is not None:
+            self.values.append(AssociatedCategoricalValue(
+                values=associated_values, associations=data_panel.association_meta.associations
+            ))
 
     def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
