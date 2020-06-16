@@ -19,23 +19,13 @@ class IdentifierConfig:
 
 class IdentifierValue(Value):
     def __init__(
-        self, name, identifiers=None, capacity=None, embedding_size=None
+        self, name, num_identifiers=None, embedding_size=None, config: IdentifierConfig = IdentifierConfig()
     ):
         super().__init__(name=name)
-
-        if identifiers is None:
-            self.identifiers = None
-            self.num_identifiers = None
-        elif isinstance(identifiers, int):
-            self.identifiers = self.num_identifiers = identifiers
-        else:
-            self.identifiers = sorted(identifiers)
-            self.num_identifiers = len(self.identifiers)
-
+        self.num_identifiers = num_identifiers
         self.identifier2idx: Optional[Dict] = None
 
-        self.capacity = capacity
-        self.embedding_size = embedding_size
+        self.capacity = config.capacity
         if embedding_size is None:
             self.embedding_size = self.capacity
         else:

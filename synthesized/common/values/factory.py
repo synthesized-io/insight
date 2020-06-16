@@ -9,13 +9,13 @@ from .categorical import CategoricalValue, CategoricalConfig
 from .continuous import ContinuousValue
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
-from .identifier import IdentifierConfig
+from .identifier import IdentifierConfig, IdentifierValue
 from .rule import RuleValue
 from .nan import NanValue, NanConfig
 from .value import Value
 from ...metadata import DataPanel, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
-    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, AssociationMeta
+    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,6 @@ class ValueFactory:
 
         for value_meta in data_panel.values:
             value = self.create_value(value_meta)
-            print(value_meta.name, value, value.name if value is not None else 'None')
             if value is not None:
                 if value.name in associated_metas:
                     if isinstance(value, CategoricalValue):
@@ -79,6 +78,9 @@ class ValueFactory:
             self.values.append(AssociatedCategoricalValue(
                 values=associated_values, associations=data_panel.association_meta.associations
             ))
+
+        if data_panel.identifier_value is not None:
+            self.identifier_value = self.create_value(data_panel.identifier_value)
 
     def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
@@ -108,6 +110,8 @@ class ValueFactory:
                 vm.name, categorical_config=self.config.categorical_config,
                 continuous_config=self.config.continuous_config
             )
+        elif isinstance(vm, IdentifierMeta):
+            return IdentifierValue(vm.name, num_identifiers=vm.num_identifiers, config=self.config.identifier_config)
         elif isinstance(vm, AddressMeta):
             if vm.fake is False:
                 return self.create_value(vm.postcode)

@@ -14,7 +14,7 @@ from ..common.values import Value, ValueFactory, ValueFactoryConfig
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager, LearningManagerConfig
 from ..common.util import record_summaries_every_n_global_steps
-from ..metadata import DataPanel
+from ..metadata import DataPanel, ValueMeta
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -141,17 +141,31 @@ class SeriesSynthesizer(Synthesizer):
     def get_all_values(self) -> List[Value]:
         return self.value_factory.all_values
 
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return [(v, self.data_panel[v.name]) for v in self.value_factory.all_values]
+
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return [(v, self.data_panel[v.name]) for v in self.value_factory.get_conditions()]
+
     def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         self.vae.xs = data
         self.vae.loss()
         return self.vae.losses
 
-    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, np.ndarray]], List[int]]:
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
+        data = {
+            value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype) for name in meta.learned_input_columns()]
+            for value, meta in self.get_value_meta_pairs()
+        }
+        return data
+
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, List[tf.Tensor]]], List[int]]:
         if self.data_panel.id_index is None:
             num_data = [len(df)]
             groups = [{
-                name: df[name].to_numpy() for value in self.get_all_values()
-                for name in value.learned_input_columns()
+                value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype)
+                             for name in meta.learned_input_columns()]
+                for value, meta in self.get_value_meta_pairs()
             }]
 
         else:
@@ -159,13 +173,14 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    name: tf.constant(groups[n][name].to_numpy()) for value in self.get_all_values()
-                    for name in value.learned_input_columns()
+                    value.name: [tf.constant(groups[n][name], dtype=value.dtype)
+                                 for name in meta.learned_input_columns()]
+                    for value, meta in self.get_value_meta_pairs()
                 }
 
         return groups, num_data
 
-    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None):
+    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None) -> Dict[str, List[tf.Tensor]]:
         group = group if group is not None else randrange(len(num_data))
         data = groups[group]
 
@@ -175,7 +190,7 @@ class SeriesSynthesizer(Synthesizer):
         else:
             batch = tf.range(num_data[group])
 
-        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch)
+        feed_dict = {name: [tf.nn.embedding_lookup(params=val, ids=batch) for val in value_data]
                      for name, value_data in data.items()}
 
         return feed_dict
@@ -207,19 +222,24 @@ class SeriesSynthesizer(Synthesizer):
         df_train = self.data_panel.preprocess(df_train)
 
         groups, num_data = self.get_groups_feed_dict(df_train)
+        max_seq_len = min(min(num_data), self.max_seq_len)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
 
-                feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=self.max_seq_len)
+                feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=max_seq_len)
                               for _ in range(self.batch_size)]
 
                 # TODO: Code below will fail if sequences don't have same shape.
-                feed_dict = {name: tf.stack([fd[name] for fd in feed_dicts], axis=0)
-                             for value in self.get_all_values()
-                             for name in value.learned_input_columns()}
+                feed_dict = {
+                    value.name: [
+                        tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
+                        for n, name in enumerate(self.data_panel[value.name].learned_input_columns())
+                    ]
+                    for value in self.get_all_values()
+                }
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
@@ -309,6 +329,7 @@ class SeriesSynthesizer(Synthesizer):
                 tf_identifier = tf.constant([identifier])
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
                                             identifier=tf_identifier)
+                other = self.data_panel.split_outputs(other)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -356,6 +377,7 @@ class SeriesSynthesizer(Synthesizer):
         if not decoded or not encoded:
             return pd.DataFrame(), pd.DataFrame()
 
+        decoded = self.data_panel.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.data_panel.postprocess(df=df_synthesized)
 

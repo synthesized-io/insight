@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Any
+from typing import Callable, List, Dict, Any, Union
 
 import tensorflow as tf
 
@@ -11,7 +11,7 @@ tf_optimizers = dict(
 
 class Optimizer(tf.Module):
     """Optimizer."""
-    def __init__(self, name: str, optimizer: str, learning_rate: float, decay_steps: int = None,
+    def __init__(self, name: str, optimizer: str, learning_rate: Union[tf.Tensor, float], decay_steps: int = None,
                  decay_rate: float = None, initial_boost: int = 0, clip_gradients: float = None):
         super().__init__(name=name)
 

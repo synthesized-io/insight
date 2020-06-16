@@ -18,6 +18,7 @@ from .compound_address import CompoundAddressMeta, CompoundAddressParams
 from .constant import ConstantMeta
 from .continuous import ContinuousMeta
 from .date import DateMeta
+from .identifier import IdentifierMeta
 from .enumeration import EnumerationMeta
 from .nan import NanMeta
 from .person import PersonMeta, PersonParams
@@ -63,7 +64,9 @@ class MetaExtractor:
         df = df.copy()
 
         if id_index is not None:
-            identifier_value = CategoricalMeta(id_index)
+            identifier_value = IdentifierMeta(id_index)
+            logger.debug("Adding column %s (%s:%s) as %s for id_value.", id_index, df[id_index].dtype,
+                         df[id_index].dtype.kind, identifier_value.__class__.__name__)
             identifier_value.extract(df)
             df = df.drop(id_index, axis=1)
         if time_index is not None:

@@ -25,8 +25,10 @@ class DataPanel:
         value_map = {v.name: v for v in self.values}
         if time_value is not None:
             value_map[time_value.name] = time_value
+            self.columns = [time_value.name, ] + self.columns
         if id_value is not None:
             value_map[id_value.name] = id_value
+            self.columns = [id_value.name, ] + self.columns
 
         self._value_map = value_map
 
@@ -55,12 +57,18 @@ class DataPanel:
 
     def split_outputs(self, outputs: Dict[str, List]) -> Dict[str, Any]:
         # Concatenate input tensors per value
-        print(outputs)
+        values = self.values
+        if self.identifier_value:
+            values = values + [self.identifier_value]
+        if self.time_value:
+            values = values + [self.time_value]
+
         x = {
             col_name: outputs[vm.name][n]
-            for vm in self.values
+            for vm in values
             for n, col_name in enumerate(vm.learned_output_columns())
         }
+
         return x
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:

@@ -1,7 +1,7 @@
 .PHONY: lint test unit-test
 
 SRC := $(shell find synthesized -name '*.py')
-VENV_NAME ?= venv
+VENV_NAME ?= venv36
 VENV_ACTIVATE = $(VENV_NAME)/bin/activate
 PYTHON = $(VENV_NAME)/bin/python3
 

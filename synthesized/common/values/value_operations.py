@@ -91,7 +91,6 @@ class ValueOps(tf.Module):
             synthesized[self.identifier_label] = [identifier]
 
         for value, y in zip(self.values, ys):
-            print(value.name, value)
             synthesized[value.name] = value.output_tensors(y=y, sample=sample)
 
         for value in self.conditions:

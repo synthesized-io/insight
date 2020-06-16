@@ -7,7 +7,7 @@ from .value_meta import ValueMeta
 
 class IdentifierMeta(ValueMeta):
     def __init__(
-        self, name, identifiers=None, capacity=None, embedding_size=None
+        self, name, identifiers=None
     ):
         super().__init__(name=name)
 
@@ -22,25 +22,16 @@ class IdentifierMeta(ValueMeta):
 
         self.identifier2idx: Optional[Dict] = None
 
-        self.capacity = capacity
-        self.embedding_size = embedding_size
-        if embedding_size is None:
-            self.embedding_size = self.capacity
-        else:
-            self.embedding_size = embedding_size
-
-        self.embeddings = None
         self.placeholder = None
         # self.current_identifier = None
 
     def __str__(self):
         string = super().__str__()
-        string += '{}-{}'.format(self.num_identifiers, self.embedding_size)
         return string
 
     def specification(self):
         spec = super().specification()
-        spec.update(identifiers=self.identifiers, embedding_size=self.embedding_size)
+        spec.update(identifiers=self.identifiers)
         return spec
 
     def extract(self, df):
