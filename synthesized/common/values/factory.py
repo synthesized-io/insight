@@ -1,5 +1,4 @@
 """Utilities that help you create Value objects."""
-import enum
 from typing import Dict, Any, Optional, Union, List
 import logging
 
@@ -158,7 +157,7 @@ class ValueFactory:
         assert self.name == variables['name']
 
         self.columns = variables['columns']
-        self.produce_nans  = variables['produce_nans']
+        self.produce_nans = variables['produce_nans']
         self.identifier_value = Value.set_variables(variables['identifier_value']) \
             if variables['identifier_value'] is not None else None
 
