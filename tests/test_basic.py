@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer, DataPanel, MetaExtractor
+from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.complex.highdim import HighDimConfig
 
 
@@ -21,9 +21,9 @@ def test_datasets_quick():
 
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
-                with HighDimSynthesizer(
-                    df=df_original, capacity=8, num_layers=1, batch_size=8
-                ) as synthesizer:
+                config = HighDimConfig(capacity=8, num_layers=1, batch_size=8, learning_manager=False)
+                dp = MetaExtractor.extract(df=df_original)
+                with HighDimSynthesizer(data_panel=dp, config=config) as synthesizer:
                     synthesizer.learn(num_iterations=10, df_train=df_original)
                     df_synthesized = synthesizer.synthesize(num_rows=10000)
                     assert len(df_synthesized) == 10000
