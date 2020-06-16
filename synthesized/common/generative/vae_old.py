@@ -213,7 +213,8 @@ class VAEOld(Generative):
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
-    def encode_deterministic(self, xs: Dict[str, tf.Tensor], cs: Dict[str, List[tf.Tensor]]) -> Dict[str, tf.Tensor]:
+    def encode_deterministic(self, xs: Dict[str, List[tf.Tensor]],
+                             cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
         """Deterministic encoding for VAE.
 
         Args:

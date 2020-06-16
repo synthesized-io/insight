@@ -386,7 +386,7 @@ class HighDimSynthesizer(Synthesizer):
         conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
 
         decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
-
+        decoded = self.data_panel.split_outputs(decoded)
         columns = self.data_panel.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.data_panel.postprocess(df=df_synthesized)
