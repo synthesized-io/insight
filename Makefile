@@ -1,7 +1,7 @@
 .PHONY: lint test unit-test
 
 SRC := $(shell find synthesized -name '*.py')
-VENV_NAME ?= venv
+VENV_NAME ?= venv36
 VENV_ACTIVATE = $(VENV_NAME)/bin/activate
 PYTHON = $(VENV_NAME)/bin/python3
 
@@ -13,7 +13,7 @@ build: $(SRC)
 	touch build
 
 test:  venv
-	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
 unit-test: venv
 	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing

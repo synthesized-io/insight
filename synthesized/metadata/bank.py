@@ -1,13 +1,20 @@
-from typing import List
+from typing import List, Union
 
+from dataclasses import dataclass
 import faker
 import pandas as pd
-import tensorflow as tf
 
-from .value import Value
+from .value_meta import ValueMeta
 
 
-class BankNumberValue(Value):
+@dataclass
+class BankParams:
+    bic_label: Union[str, List[str], None] = None
+    sort_code_label: Union[str, List[str], None] = None
+    account_label: Union[str, List[str], None] = None
+
+
+class BankNumberMeta(ValueMeta):
     def __init__(self, name, bic_label=None, sort_code_label=None, account_label=None):
         super().__init__(name)
         fkr = faker.Faker(locale='en_GB')
@@ -18,9 +25,6 @@ class BankNumberValue(Value):
 
     def extract(self, df: pd.DataFrame) -> None:
         pass
-
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        return super().unify_inputs(xs=xs)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=[self.sort_code_label, self.account_label], axis=1)

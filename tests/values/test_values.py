@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from synthesized.common.values import Value, CategoricalValue, ContinuousValue, NanValue, DateValue
+from synthesized.metadata import DateMeta
 
 
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
@@ -33,12 +34,10 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
 
 def test_categorical():
     value = CategoricalValue(
-        name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
-        embedding_size=None, pandas_category=False, similarity_based=False,
-        temperature=1.0, moving_average=False,
+        name='categorical', num_categories=8, probabilities=None,
+        embedding_size=None, similarity_based=False
     )
     cat_values = np.random.randint(low=0, high=8, size=(4,))
-    value.extract(pd.DataFrame({'categorical': cat_values}))
     _test_value(
         value=value, x=cat_values,
         y=np.random.randn(4, value.learned_output_size())
@@ -47,12 +46,10 @@ def test_categorical():
 
 def test_categorical_similarity():
     value = CategoricalValue(
-        name='categorical', weight=5.0, categories=list(range(8)), probabilities=None, capacity=64,
-        embedding_size=None, pandas_category=False, similarity_based=True,
-        temperature=1.0, moving_average=True
+        name='categorical', num_categories=8, probabilities=None,
+        embedding_size=None, similarity_based=True
     )
     cat_values = np.random.randint(low=0, high=8, size=(4,))
-    value.extract(pd.DataFrame({'categorical': cat_values}))
     _test_value(
         value=value, x=cat_values,
         y=np.random.randn(4, value.learned_output_size())
@@ -60,19 +57,13 @@ def test_categorical_similarity():
 
 
 def test_continuous():
-    value = ContinuousValue(
-        name='continuous', weight=1.0, integer=None,
-        positive=None, nonnegative=None
-    )
+    value = ContinuousValue(name='continuous')
     _test_value(value=value, x=np.random.randn(4,))
 
 
 def test_nan():
-    cont_value = ContinuousValue(
-        name='continuous', weight=1.0, integer=None,
-        positive=None, nonnegative=None)
-
-    value = NanValue(name='nan', value=cont_value, capacity=32, weight=1.0)
+    cont_value = ContinuousValue(name='continuous')
+    value = NanValue(name='nan', value=cont_value)
 
     n = 10
     x = np.random.randn(n)
@@ -83,16 +74,16 @@ def test_nan():
 
 
 def test_date():
-    categorical_kwargs = dict(weight=1., capacity=32, temperature=1., moving_average=False)
-    continuous_kwargs = dict(weight=1.)
-
-    value = DateValue(name='date', categorical_kwargs=categorical_kwargs, continuous_kwargs=continuous_kwargs)
+    value = DateValue(name='date')
 
     n = 100
     date0 = np.datetime64('2017-01-01 00:00:00')
     df = pd.DataFrame([date0 + np.random.randint(1000, 1_000_000) for _ in range(n)], columns=['date'])
-    value.extract(df)
-    df = value.preprocess(df)
+
+    meta = DateMeta('date')
+
+    meta.extract(df)
+    df = meta.preprocess(df)
     input_tensor_output = [tf.constant(value=df[c], dtype=tf.float32) for c in df.columns]
     unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
     assert unified_tensor_output.shape[0] == n

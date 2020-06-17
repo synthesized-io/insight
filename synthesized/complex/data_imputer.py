@@ -18,7 +18,7 @@ class DataImputer(Synthesizer):
 
         """
 
-        assert not synthesizer.value_factory.produce_nans_for
+        assert not synthesizer.value_factory.produce_nans
         self.synthesizer = synthesizer
 
         self.nan_columns = self.get_nan_columns()

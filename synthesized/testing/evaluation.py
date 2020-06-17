@@ -17,8 +17,10 @@ from sklearn.model_selection import train_test_split
 from .plotting import plot_time_series, plot_data, plot_multidimensional
 from .utility import UtilityTesting, MAX_PVAL
 from .utility_time_series import TimeSeriesUtilityTesting
-from ..complex import HighDimSynthesizer, SeriesSynthesizer
+from ..complex.highdim import HighDimSynthesizer, HighDimConfig
+from ..complex.series import SeriesSynthesizer, SeriesConfig
 from ..insight import metrics
+from ..metadata import MetaExtractor
 
 
 class Evaluation:
@@ -94,7 +96,9 @@ def synthesize_and_plot(
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
 
-    with HighDimSynthesizer(df=data, **config['params']) as synthesizer:
+    dp = MetaExtractor.extract(df=data)
+    hd_config = HighDimConfig(**config['params'])
+    with HighDimSynthesizer(data_panel=dp, config=hd_config) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
                           callback_freq=100)
         training_time = time.time() - start
@@ -222,7 +226,10 @@ def synthesize_and_plot_time_series(
     #     num_series = 1
     #     series_length = len_eval_data
 
-    with SeriesSynthesizer(df=data[[c for c in data.columns if c != 'date']], **config['params']) as synthesizer:
+    dp = MetaExtractor.extract(df=data)
+    series_config = SeriesConfig(**config['params'])
+
+    with SeriesSynthesizer(data_panel=dp, config=series_config) as synthesizer:
         # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
         #                   callback_freq=100)
         training_time = time.time() - start

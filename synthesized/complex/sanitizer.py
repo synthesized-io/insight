@@ -7,9 +7,10 @@ import pandas as pd
 import numpy as np
 import simplejson
 
-from .highdim import HighDimSynthesizer
+from .highdim import HighDimSynthesizer, HighDimConfig
 from ..common.synthesizer import Synthesizer
 from ..common.values import ContinuousValue, CategoricalValue
+from ..metadata import MetaExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +196,9 @@ def privacy_check(data: pd.DataFrame, num_iterations: int = None, synthesizer_cl
         synthesizer_params = dict()
 
     if synthesizer_class == 'HighDimSynthesizer':
-        synthesizer = HighDimSynthesizer(df=data, **synthesizer_params)
+        dp = MetaExtractor.extract(df=data)
+        config = HighDimConfig(**synthesizer_params)
+        synthesizer = HighDimSynthesizer(data_panel=dp, config=config)
         synthesizer.__enter__()
         synthesizer.learn(df_train=data, num_iterations=num_iterations)
     else:

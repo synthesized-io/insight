@@ -1,18 +1,23 @@
 import re
-from typing import List
+from typing import Optional
 
+from dataclasses import dataclass
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from faker import Faker
 
-from .categorical import CategoricalValue
-from .value import Value
-from ..module import tensorflow_name_scoped
+from .categorical import CategoricalMeta
+from .value_meta import ValueMeta
 
 
-class CompoundAddressValue(Value):
-    def __init__(self, name, postcode_level=0, address_label=None, postcode_regex=None, capacity=None):
+@dataclass
+class CompoundAddressParams:
+    address_label: Optional[str] = None
+    postcode_regex: Optional[str] = None
+
+
+class CompoundAddressMeta(ValueMeta):
+    def __init__(self, name, postcode_level=0, address_label=None, postcode_regex=None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
@@ -23,23 +28,8 @@ class CompoundAddressValue(Value):
         self.postcode_regex = postcode_regex
 
         self.postcodes = None
-        self.postcode = CategoricalValue(
-            name=address_label, categories=self.postcodes,
-            capacity=capacity
-        )
+        self.postcode = CategoricalMeta(name=address_label, categories=self.postcodes)
         self.faker = Faker(locale='en_GB')
-
-    def learned_input_columns(self) -> List[str]:
-        return self.postcode.learned_input_columns()
-
-    def learned_output_columns(self) -> List[str]:
-        return self.postcode.learned_output_columns()
-
-    def learned_input_size(self) -> int:
-        return self.postcode.learned_input_size()
-
-    def learned_output_size(self) -> int:
-        return self.postcode.learned_output_size()
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
@@ -116,19 +106,3 @@ class CompoundAddressValue(Value):
 
         df[self.address_label] = postcode.apply(expand_address)
         return df
-
-    @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        return self.postcode.unify_inputs(xs=xs)
-
-    @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
-        return self.postcode.output_tensors(y=y)
-
-    @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
-        return self.postcode.loss(y=y, xs=xs)
-
-    @tensorflow_name_scoped
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
-        return self.postcode.distribution_loss(ys=ys)

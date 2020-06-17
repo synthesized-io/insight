@@ -1,14 +1,14 @@
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
 
-from .value import Value
+from .value_meta import ValueMeta
 
 
-class SamplingValue(Value):
+class SamplingMeta(ValueMeta):
 
-    def __init__(self, name: str, uniform: bool = False, smoothing: float = None, produce_nans: bool = False):
+    def __init__(self, name: str, uniform: bool = False, smoothing: float = None, produce_nans=False):
         super().__init__(name=name)
 
         if uniform:
@@ -19,8 +19,8 @@ class SamplingValue(Value):
             self.smoothing = 1.0
         else:
             self.smoothing = smoothing
-        self.produce_nans = produce_nans
 
+        self.produce_nans = produce_nans
         self.categories: Optional[pd.Series] = None
 
     def specification(self) -> dict:
@@ -35,6 +35,12 @@ class SamplingValue(Value):
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
 
+    def learned_input_columns(self) -> List[str]:
+        return []
+
+    def learned_output_columns(self) -> List[str]:
+        return []
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=self.name, axis=1)
         return super().preprocess(df=df)
@@ -46,9 +52,3 @@ class SamplingValue(Value):
             a=self.categories.index, size=len(df), p=self.categories.values
         )
         return df
-
-    def learned_input_size(self) -> int:
-        return 0
-
-    def learned_output_size(self) -> int:
-        return 0

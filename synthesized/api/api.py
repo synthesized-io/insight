@@ -5,7 +5,8 @@ import werkzeug
 from flask import Flask, Response
 from flask_restful import Resource, Api, reqparse
 
-from synthesized.common import BasicSynthesizer
+from synthesized.complex import HighDimSynthesizer
+from synthesized.metadata import MetaExtractor
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
@@ -22,8 +23,9 @@ class Synthesize(Resource):
         with file.stream as stream:
             data = pd.read_csv(stream).dropna()
             print(data.head(5))
-            with BasicSynthesizer(data=data) as synthesizer:
-                synthesizer.learn(num_iterations=2000, data=data, verbose=200)
+            data_panel = MetaExtractor.extract(data)
+            with HighDimSynthesizer(data_panel=data_panel) as synthesizer:
+                synthesizer.learn(df_train=data, num_iterations=2000)
                 synthesized = synthesizer.synthesize(len(data))
                 out = StringIO()
                 synthesized.to_csv(out)
