@@ -39,13 +39,13 @@ class DataImputer(Synthesizer):
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    def impute_data(self, df: pd.DataFrame, mask: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
+    def _impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
         to_impute_indexes = df[mask.sum(axis=1) > 0].index
         df_encoded = self.synthesizer.encode_deterministic(df.iloc[to_impute_indexes])
-        df_encoded.index = to_impute_indexes
+        df_encoded.reindex(to_impute_indexes)
         df[mask] = df_encoded[mask]
 
         return df
@@ -59,7 +59,7 @@ class DataImputer(Synthesizer):
             logger.warning("Given df doesn't contain NaNs. Returning it as it is.")
             return df
 
-        self.impute_data(df, nans, inplace=True)
+        self._impute_mask(df, nans, inplace=True)
         return df
 
     def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05,
@@ -78,7 +78,7 @@ class DataImputer(Synthesizer):
                 column[column > end] = end
                 column[column < start] = start
 
-        self.impute_data(df, outliers, inplace=True)
+        self._impute_mask(df, outliers, inplace=True)
         return df
 
     def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
