@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from ..highdim import HighDimSynthesizer
+from ..complex import HighDimSynthesizer
 
 
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:

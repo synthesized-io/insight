@@ -13,7 +13,7 @@ class DateValue(ContinuousValue):
 
     def __init__(
         self, name: str, categorical_kwargs: dict, continuous_kwargs: dict,
-        start_date=None, min_date=None, keep_monotonic: bool = False
+        start_date: datetime = None, min_date: datetime = None, keep_monotonic: bool = False
     ):
         super().__init__(name=name, **continuous_kwargs)
 
@@ -24,7 +24,6 @@ class DateValue(ContinuousValue):
 
         self.pd_types = ('M',)
         self.date_format: Optional[str] = None
-        self.pd_cast = (lambda x: pd.to_datetime(x))
         self.original_dtype = None
 
         categorical_kwargs['similarity_based'] = True
@@ -96,6 +95,17 @@ class DateValue(ContinuousValue):
                 raise NotImplementedError
             column = (column - self.min_date).dt.total_seconds() / (24 * 60 * 60)
 
+        df_date = pd.DataFrame(df[self.name])
+        if df_date.loc[:, self.name].dtype.kind != 'M':
+            df_date.loc[:, self.name] = self.to_datetime(df.loc[:, self.name])
+
+        df_date[self.name + '-hour'] = df_date.loc[:, self.name].dt.hour
+        df_date[self.name + '-dow'] = df_date.loc[:, self.name].dt.weekday
+        df_date[self.name + '-day'] = df_date.loc[:, self.name].dt.day - 1
+        df_date[self.name + '-month'] = df_date.loc[:, self.name].dt.month - 1
+        for val in [self.hour, self.dow, self.day, self.month]:
+            val.extract(df_date)
+
         super().extract(df=pd.DataFrame.from_dict({self.name: column}))
 
     def preprocess(self, df):
@@ -123,6 +133,11 @@ class DateValue(ContinuousValue):
         else:
             df.loc[:, self.name] += self.min_date
         df.loc[:, self.name] = self.from_datetime(df.loc[:, self.name])
+
+        for name in ['-hour', '-dow', '-day', '-month']:
+            if self.name + name in df.columns:
+                df.drop([self.name + name], axis=1, inplace=True)
+
         return df
 
     def to_datetime(self, col: pd.Series) -> pd.Series:

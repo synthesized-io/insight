@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union, Optional, Any
 
 import tensorflow as tf
 
@@ -21,16 +21,15 @@ class VAEOld(Generative):
     are concatenated / split tensors per value. The encoder and decoder network use the same
     hyperparameters.
     """
-
     def __init__(
         self, name: str, values: List[Value], conditions: List[Value],
         # Latent distribution
-        distribution: str, latent_size: int,
+        latent_size: int,
         # Encoder and decoder network
-        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batchnorm: bool,
+        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batch_norm: bool,
         activation: str,
         # Optimizer
-        optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
+        optimizer: str, learning_rate: float, decay_steps: Optional[int], decay_rate: Optional[float],
         initial_boost: int, clip_gradients: float,
         # Beta KL loss coefficient
         beta: float,
@@ -38,7 +37,20 @@ class VAEOld(Generative):
         weight_decay: float
     ):
         super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
+
         self.latent_size = latent_size
+        self.network = network
+        self.capacity = capacity
+        self.num_layers = num_layers
+        self.residual_depths = residual_depths
+        self.batch_norm = batch_norm
+        self.activation = activation
+        self.optimizer_name = optimizer
+        self.learning_rate = learning_rate
+        self.decay_steps = decay_steps
+        self.decay_rate = decay_rate
+        self.initial_boost = initial_boost
+        self.clip_gradients = clip_gradients
         self.beta = beta
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
@@ -47,13 +59,13 @@ class VAEOld(Generative):
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batch_norm=False, activation='none'
         )
 
         kwargs = dict(
             name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
             layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+            output_size=capacity if not num_layers else None, activation=activation, batch_norm=batch_norm
         )
         for k in list(kwargs.keys()):
             if kwargs[k] is None:
@@ -72,7 +84,7 @@ class VAEOld(Generative):
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batch_norm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -151,7 +163,6 @@ class VAEOld(Generative):
 
         return
 
-    @tf.function
     @tensorflow_name_scoped
     def encode(self, xs: Dict[str, tf.Tensor],
                cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
@@ -168,22 +179,82 @@ class VAEOld(Generative):
         if len(xs) == 0:
             return tf.no_op(), dict()
 
-        #################################
         x = self.value_ops.unified_inputs(xs)
+        latent_space, mean, std, y = self._encode(x=x, cs=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+
+    @tf.function
+    @tensorflow_name_scoped
+    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+        """Encoding Step for VAE.
+
+        Args:
+            x: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            TF tensors with Latent space, means, stddevs and outputs
+
+        """
         x = self.linear_input(x)
         x = self.encoder(x)
 
-        latent_space = self.encoding(x)
-        mean = self.encoding.gaussian.mean.output
-        std = self.encoding.gaussian.stddev.output
+        mean = self.encoding.gaussian.mean(x)
+        std = self.encoding.gaussian.stddev(x)
+        latent_space = mean + std * tf.random.normal(shape=tf.shape(mean))
 
         x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
-        #################################
 
-        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+        return latent_space, mean, std, y
+
+    @tensorflow_name_scoped
+    def encode_deterministic(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        """Deterministic encoding for VAE.
+
+        Args:
+            xs: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+
+        """
+        if len(xs) == 0:
+            return dict()
+
+        x = self.value_ops.unified_inputs(xs)
+        y = self._encode_deterministic(x=x, cs=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False)
+
+        return synthesized
+
+    @tf.function
+    @tensorflow_name_scoped
+    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        """Encoding Step for VAE.
+
+        Args:
+            x: Input tensor per column.
+            cs: Condition tensor per column.
+
+        Returns:
+            TF tensors with Latent space, means, stddevs and outputs
+
+        """
+        x = self.linear_input(x)
+        x = self.encoder(x)
+
+        mean = self.encoding.gaussian.mean(x)
+
+        x = self.value_ops.add_conditions(x=mean, conditions=cs)
+        x = self.decoder(x)
+        y = self.linear_output(x)
+
+        return y
 
     @tensorflow_name_scoped
     def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
@@ -197,7 +268,7 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-        y = self._synthesize(n=n, cs=cs)
+        y = self._synthesize(n=tf.constant(n, dtype=tf.int64), cs=cs)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
@@ -214,7 +285,7 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-        x = self.encoding.sample(n=n)
+        x = self.encoding.sample(n)
         x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
@@ -228,3 +299,33 @@ class VAEOld(Generative):
             for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
             for loss in module.regularization_losses
         ]
+
+    def get_variables(self) -> Dict[str, Any]:
+        variables = super().get_variables()
+        variables.update(
+            latent_size=self.latent_size,
+            beta=self.beta,
+            weight_decay=self.weight_decay,
+            linear_input=self.linear_input.get_variables(),
+            encoder=self.encoder.get_variables(),
+            encoding=self.encoding.get_variables(),
+            decoder=self.decoder.get_variables(),
+            linear_output=self.linear_output.get_variables(),
+            optimizer=self.optimizer.get_variables()
+        )
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        super().set_variables(variables)
+
+        assert self.latent_size == variables['latent_size']
+
+        self.beta = variables['beta']
+        self.weight_decay = variables['weight_decay']
+
+        self.linear_input.set_variables(variables['linear_input'])
+        self.encoder.set_variables(variables['encoder'])
+        self.encoding.set_variables(variables['encoding'])
+        self.decoder.set_variables(variables['decoder'])
+        self.linear_output.set_variables(variables['linear_output'])
+        self.optimizer.set_variables(variables['optimizer'])

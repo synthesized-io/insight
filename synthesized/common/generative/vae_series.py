@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union, Optional, Any
 
 import tensorflow as tf
 
@@ -19,7 +19,7 @@ class SeriesVAE(Generative):
             latent_size: int,
             # Encoder and decoder network
             network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batchnorm: bool, activation: str, series_dropout: Optional[float],
+            batch_norm: bool, activation: str, series_dropout: Optional[float],
             # Optimizer
             optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
             initial_boost: int, clip_gradients: float,
@@ -35,7 +35,7 @@ class SeriesVAE(Generative):
         self.network = network
         self.capacity = capacity
         self.num_layers = num_layers
-        self.batchnorm = batchnorm
+        self.batch_norm = batch_norm
         self.activation = activation
         self.series_dropout = series_dropout
         self.encoding_size = capacity
@@ -53,13 +53,13 @@ class SeriesVAE(Generative):
 
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_ops.input_size, output_size=capacity, batchnorm=False, activation='none'
+            input_size=self.value_ops.input_size, output_size=capacity, batch_norm=False, activation='none'
         )
 
         kwargs = dict(
             name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
             layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batchnorm=batchnorm
+            output_size=capacity if not num_layers else None, activation=activation, batch_norm=batch_norm
         )
         for k in list(kwargs.keys()):
             if kwargs[k] is None:
@@ -71,7 +71,7 @@ class SeriesVAE(Generative):
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batchnorm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batch_norm=False, activation='none'
         )
 
         if encoding == 'lstm':
@@ -169,30 +169,41 @@ class SeriesVAE(Generative):
 
         return
 
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
+    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor], n_forecast: int = 0) -> \
             Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
         x = self.value_ops.unified_inputs(xs)
+        x = tf.expand_dims(x, axis=0)
+
+        # Get identifier
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
+            identifier = tf.expand_dims(identifier, axis=0)
         else:
             identifier = None
 
-        #################################
+        latent_space, mean, std, y = self._encode(x, cs, identifier, tf.constant(n_forecast))
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+
+        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+
+    @tf.function
+    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: Optional[tf.Tensor],
+                n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
+
         x = self.linear_input(inputs=x)
         x = self.encoder(inputs=x)
         x = self.value_ops.add_conditions(x, conditions=cs)
-        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True)
+        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True, n_forecast=n_forecast)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
-        #################################
-
-        return {"sample": latent_space, "mean": mean, "std": std}, synthesized
+        # Remove third dimension, as we synthesize one series per step
+        y = tf.squeeze(y, axis=0)
+        return latent_space, mean, std, y
 
     def synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
@@ -200,6 +211,7 @@ class SeriesVAE(Generative):
 
         return synthesized
 
+    # @tf.function
     def _synthesize(
             self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
@@ -218,7 +230,8 @@ class SeriesVAE(Generative):
         x = self.value_ops.add_conditions(x=x, conditions=cs)
         x = self.decoder(inputs=x)
         y = self.linear_output(inputs=x)
-
+        # Remove third dimension, as we synthesize one series per step
+        y = tf.squeeze(y, axis=0)
         return y, identifier
 
     @property
@@ -228,3 +241,9 @@ class SeriesVAE(Generative):
             for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
             for loss in module.regularization_losses
         ]
+
+    def get_variables(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def set_variables(self, variables: Dict[str, Any]):
+        raise NotImplementedError

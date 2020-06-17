@@ -31,7 +31,9 @@ def _test_learning_manager(
             break
 
     assert (iteration_break == expected_iteration_break) or (expected_iteration_break is None and i == iterations - 1)
-    return
+
+    variables = lm.get_variables()
+    lm.set_variables(variables)
 
 
 def test_lm_basic():
@@ -39,7 +41,7 @@ def test_lm_basic():
 
     def fn_metric(i):
         return {k: [(iterations - i) / float(iterations)]
-                for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                for k in ['ks_distance', 'corr_dist', 'emd_categ']}
 
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=None, use_checkpointing=False)
 
@@ -50,10 +52,10 @@ def test_lm_basic2():
     def fn_metric(i):
         if i <= 1000:
             return {k: [(iterations - i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
         else:
             return {k: [(iterations + i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
 
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=2000, use_checkpointing=False)
 
@@ -62,15 +64,15 @@ def test_lm_metric_name():
     iterations = 3000
 
     def fn_metric(i):
-        loss = {k: [(iterations + i) / float(iterations)] for k in ['corr_distances', 'emd_distances']}
+        loss = {k: [(iterations + i) / float(iterations)] for k in ['corr_dist', 'emd_categ']}
         if i <= 1500:
-            loss['ks_distances'] = [(iterations - i) / float(iterations)]
+            loss['ks_distance'] = [(iterations - i) / float(iterations)]
         else:
-            loss['ks_distances'] = [(iterations + i) / float(iterations)]
+            loss['ks_distance'] = [(iterations + i) / float(iterations)]
         return loss
 
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=2500, use_checkpointing=False,
-                           stop_metric_name='ks_distances')
+                           stop_metric_name='ks_distance')
 
 
 def test_lm_patience():
@@ -79,10 +81,10 @@ def test_lm_patience():
     def fn_metric(i):
         if i <= 1000:
             return {k: [(iterations + i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
         else:
             return {k: [(iterations - i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
 
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=None, use_checkpointing=False)
 
@@ -93,15 +95,15 @@ def test_lm_4():
     def fn_metric(i):
         if i <= 1000:
             return {k: [(iterations - i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
         if i <= 1500:
             return {k: [(iterations + i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
         if i <= 2500:
             return {k: [(iterations - i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
         else:
             return {k: [(iterations + i) / float(iterations)]
-                    for k in ['ks_distances', 'corr_distances', 'emd_distances']}
+                    for k in ['ks_distance', 'corr_dist', 'emd_categ']}
 
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=3500, use_checkpointing=False)

@@ -1,3 +1,4 @@
+from collections.abc import MutableSequence
 import logging
 from math import isnan, log
 from typing import Any, Dict, List, Optional
@@ -7,7 +8,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from .. import util
+from ..util import get_initializer
 from ..module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
@@ -21,19 +22,16 @@ class CategoricalValue(Value):
         # Optional
         similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
         # Scenario
-        categories: List = None, probabilities=None, embedding_size: int = None
+        categories: List = None, probabilities=None, embedding_size: int = None, true_categorical: bool = True
     ):
         super().__init__(name=name)
-        self.categories: Optional[List] = None
+        self.categories: Optional[MutableSequence] = None
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
-        if categories is None:
-            self.num_categories: Optional[int] = None
-        else:
-            unique_values = pd.Series(categories).unique().tolist()
-            self._set_categories(unique_values)
+        self.num_categories: Optional[int] = None
 
+        self.given_categories = categories
         self.probabilities = probabilities
         self.capacity = capacity
 
@@ -58,6 +56,7 @@ class CategoricalValue(Value):
         self.temperature = temperature
         self.pandas_category = pandas_category
         self.produce_nans = produce_nans
+        self.true_categorical = true_categorical
         self.is_string = False
         self.dtype = tf.int64
 
@@ -91,8 +90,9 @@ class CategoricalValue(Value):
 
         if df.loc[:, self.name].dtype.kind == 'O':
             self.is_string = True
-
-        unique_values = df.loc[:, self.name].unique().tolist()
+            unique_values = df.loc[:, self.name].astype(object).fillna('nan').apply(str).unique().tolist()
+        else:
+            unique_values = df.loc[:, self.name].fillna(np.nan).unique().tolist()
         self._set_categories(unique_values)
 
         if self.embedding_size is None:
@@ -107,7 +107,7 @@ class CategoricalValue(Value):
                 # "hack": scenario synthesizer, embeddings not used
                 return
             shape = (self.num_categories, self.embedding_size)
-            initializer = util.get_initializer(initializer=self.embedding_initialization)
+            initializer = get_initializer(initializer=self.embedding_initialization)
 
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
@@ -127,7 +127,7 @@ class CategoricalValue(Value):
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
+            df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
 
         assert isinstance(self.categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
@@ -153,7 +153,7 @@ class CategoricalValue(Value):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
         if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
@@ -163,10 +163,16 @@ class CategoricalValue(Value):
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
         if self.nans_valid is False or self.produce_nans:
-            y_flat = tf.random.categorical(logits=y_flat, num_samples=1, dtype=tf.int64)
+            if sample:
+                y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
+            else:
+                y_flat = tf.expand_dims(tf.argmax(y_flat, axis=1), axis=1)
         else:
             # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
+            if sample:
+                y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
+            else:
+                y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
         y = tf.reshape(y_flat, shape=y.shape[0:-1])
 
@@ -228,33 +234,55 @@ class CategoricalValue(Value):
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
 
-    def _set_categories(self, categories: list):
+    def _set_categories(self, categories: MutableSequence):
 
         found = None
-        # Put any nan at the position zero of the list
-        for n, x in enumerate(categories):
-            if isinstance(x, float) and isnan(x):
-                found = categories.pop(n)
-                self.nans_valid = True
-                break
 
-        categories = list(np.sort(categories))
+        if self.given_categories is None:
+            # Put any nan at the position zero of the list
+            for n, x in enumerate(categories):
+                if self.is_string and x == 'nan':
+                    found = categories.pop(n)
+                    self.nans_valid = True
+                    break
+                elif isinstance(x, float) and isnan(x):
+                    found = categories.pop(n)
+                    self.nans_valid = True
+                    break
+
+            try:
+                categories = list(np.sort(categories))
+            except TypeError:
+                pass  # Don't sort the categories if it's not possible.
+
+        else:
+            for x in categories:
+                if x not in self.given_categories:
+                    found = 'nan' if self.is_string else np.nan
+                    self.nans_valid = True
+                    break
+
+            categories = self.given_categories.copy()
+
         if found is not None:
-            if self.is_string:
-                categories.insert(0, 'nan')
-            else:
-                categories.insert(0, np.nan)
+            categories.insert(0, found)
 
         # If categories are not set
         if self.categories is None:
             self.categories = categories
-            self.num_categories = len(self.categories)
-            self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+            self.num_categories = len(categories)
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
+
+            if found is not None:
+                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
+            else:
+                self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+
         # If categories have been set and are different to the given
-        elif isinstance(self.categories, list) and \
-                categories[int(self.nans_valid):] != self.categories[int(self.nans_valid):]:
-            raise NotImplementedError
+        elif isinstance(self.categories, list):
+            for category in categories[int(self.nans_valid):]:
+                if category not in self.categories[int(self.nans_valid):]:
+                    raise NotImplementedError
 
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:
@@ -262,3 +290,9 @@ def compute_embedding_size(num_categories: Optional[int], similarity_based: bool
         return int(log(num_categories + 1) * 2.0)
     else:
         return num_categories
+
+
+class Categories(dict):
+
+    def __missing__(self, key):
+        return 0

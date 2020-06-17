@@ -1,12 +1,13 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from .. import util
+from ..util import get_initializer
 from ..module import tensorflow_name_scoped
 
 
@@ -26,6 +27,8 @@ class NanValue(Value):
         if embedding_size is None:
             embedding_size = compute_embedding_size(2, similarity_based=False)
         self.embedding_size = embedding_size
+        self.embedding_initialization = 'orthogonal-small'
+        self.embeddings: Optional[tf.Variable] = None
         self.weight = weight
 
         self.produce_nans = produce_nans
@@ -63,16 +66,28 @@ class NanValue(Value):
         self.value.extract(df=df_clean)
 
         shape = (2, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
+        initializer = get_initializer(initializer='normal')
         self.embeddings = tf.Variable(
             initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
             dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
         )
         self.add_regularization_weight(self.embeddings)
 
+    @tensorflow_name_scoped
+    def build(self) -> None:
+        if not self.built:
+            shape = (2, self.embedding_size)
+            initializer = get_initializer(initializer='normal')
+            self.embeddings = tf.Variable(
+                initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+                dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+            )
+            self.add_regularization_weight(self.embeddings)
+
+        self.built = True
+
     def preprocess(self, df):
-        if df.loc[:, self.value.name].dtype.kind not in self.value.pd_types:
-            df.loc[:, self.value.name] = self.value.pd_cast(df.loc[:, self.value.name])
+        df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
         nan = df.loc[:, self.value.name].isna()
         df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
@@ -88,17 +103,6 @@ class NanValue(Value):
 
         return df
 
-    def module_initialize(self):
-        super().module_initialize()
-
-        shape = (2, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
-        self.embeddings = tf.Variable(
-            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
-            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
-        )
-        self.add_regularization_weight(self.embeddings)
-
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         # NaN embedding
@@ -110,20 +114,23 @@ class NanValue(Value):
         # Wrapped value input
         x = self.value.unify_inputs(xs=xs)
 
-        # Set NaNs to zero to avoid propagating NaNs (which corresponds to mean because of quantile transformation)
-        x = tf.where(condition=tf.expand_dims(input=nan, axis=1), x=tf.zeros_like(input=x), y=x)
+        # Set NaNs to random noise to avoid propagating NaNs
+        x = tf.where(condition=tf.expand_dims(input=nan, axis=1), x=tf.random.normal(shape=x.shape), y=x)
 
         # Concatenate NaN embedding and wrapped value
         x = tf.concat(values=(embedding, x), axis=1)
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
         # NaN classification part
-        nan = tf.math.equal(x=tf.squeeze(tf.random.categorical(logits=y[:, :2], num_samples=1), axis=1), y=1)
+        if sample:
+            nan = tf.math.equal(x=tf.squeeze(tf.random.categorical(logits=y[:, :2], num_samples=1), axis=1), y=1)
+        else:
+            nan = tf.math.equal(x=tf.argmax(input=y[:, :2], axis=1), y=1)
 
         # Wrapped value output tensors
-        ys = self.value.output_tensors(y=y[:, 2:])
+        ys = self.value.output_tensors(y=y[:, 2:], **kwargs)
 
         if self.produce_nans:
             # Replace wrapped value with NaNs

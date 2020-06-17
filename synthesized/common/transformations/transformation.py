@@ -1,10 +1,9 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 
 import tensorflow as tf
 
 
 class Transformation(tf.keras.layers.Layer):
-
     def __init__(self, name, input_size, output_size, dtype=tf.float32):
         super(Transformation, self).__init__(name=name, dtype=dtype)
 
@@ -14,8 +13,11 @@ class Transformation(tf.keras.layers.Layer):
         self._regularization_losses: List[tf.Tensor] = list()
 
     def specification(self):
-        spec = dict(name=self.name)
-        spec.update(input_size=self.input_size, output_size=self.output_size)
+        spec = dict(
+            name=self.name,
+            input_size=self.input_size,
+            output_size=self.output_size
+        )
         return spec
 
     def size(self):
@@ -43,3 +45,15 @@ class Transformation(tf.keras.layers.Layer):
         else:
             self._regularization_losses.append(variable)
         return variable
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            input_size=self.input_size,
+            output_size=self.output_size
+        )
+
+    def set_variables(self, variables: Dict[str, Any]):
+        assert self.name == variables['name']
+        assert self.input_size == variables['input_size']
+        assert self.output_size == variables['output_size']

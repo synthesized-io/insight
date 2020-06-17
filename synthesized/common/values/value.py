@@ -1,5 +1,7 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from base64 import b64encode, b64decode
+import pickle
 
 import pandas as pd
 import tensorflow as tf
@@ -10,8 +12,9 @@ from ..util import make_tf_compatible
 
 class Value(tf.Module):
     def __init__(self, name: str):
-        super().__init__(name=self.__class__.__name__+'_'+re.sub("\\.", '_', make_tf_compatible(name)))
+        super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
+
         self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
         self.dtype = tf.float32
@@ -141,7 +144,7 @@ class Value(tf.Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
         """Turns an output embedding of a generative model into corresponding output tensors.
 
         Args:
@@ -191,3 +194,13 @@ class Value(tf.Module):
     def add_regularization_weight(self, variable: tf.Variable):
         self._regularization_losses.append(variable)
         return variable
+
+    def get_variables(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            pickle=b64encode(pickle.dumps(self)).decode('utf-8')
+        )
+
+    @staticmethod
+    def set_variables(variables: Dict[str, Any]):
+        return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

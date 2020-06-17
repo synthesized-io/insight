@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
@@ -5,9 +7,9 @@ from ..transformations import Transformation
 
 
 class Encoding(Transformation):
-
     def __init__(self, input_size, encoding_size, condition_size=0, name='encoding'):
         super().__init__(name=name, input_size=input_size, output_size=encoding_size, dtype=tf.float32)
+
         self.input_size = input_size
         self.encoding_size = encoding_size
         self.condition_size = condition_size
@@ -41,7 +43,6 @@ class Encoding(Transformation):
             >>> beta = beta * self.increase_beta_multiplier()
 
         """
-        assert tf.less(t_start, t_end)
         global_step = tf.cast(self.global_step, dtype=tf.float32)
 
         if global_step <= t_start:
@@ -68,7 +69,23 @@ class Encoding(Transformation):
 
         return 0.5 * tf.reduce_mean(
             tf.reduce_sum(
-                tf.math.log(cov_2/cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
+                tf.math.log(cov_2 / cov_1) + (tf.square(mu_1 - mu_2) + cov_1 - cov_2) / cov_2,
                 axis=-1
             )
         )
+
+    def get_variables(self) -> Dict[str, Any]:
+        variables = super().get_variables()
+        variables.update(
+            encoding_size=self.encoding_size,
+            condition_size=self.condition_size,
+            global_step=self.global_step.numpy(),
+        )
+        return variables
+
+    def set_variables(self, variables: Dict[str, Any]):
+        super().set_variables(variables)
+        assert self.encoding_size == variables['encoding_size']
+        assert self.condition_size == variables['condition_size']
+
+        self.global_step.assign(variables['global_step'])

@@ -26,7 +26,7 @@ def get_git_revision(base_path):
 git_revision = get_git_revision(here)
 
 if git_revision:
-    __version__ += '-' + git_revision
+    __version__ += '.rev' + git_revision
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -64,6 +64,5 @@ setup(
     packages=packages,
     install_requires=install_requires,
     ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
-    cmdclass={'build_ext': build_ext},
-    python_requires='>=3.6'
+    cmdclass={'build_ext': build_ext}
 )

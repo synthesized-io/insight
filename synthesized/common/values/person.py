@@ -48,6 +48,7 @@ class PersonValue(Value):
             self.gender = CategoricalValue(
                 name=gender_label, **categorical_kwargs
             )
+        self.dtype = tf.int64
 
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
@@ -142,11 +143,11 @@ class PersonValue(Value):
             return self.gender.unify_inputs(xs=xs)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = False, **kwargs) -> List[tf.Tensor]:
         if self.gender is None:
-            return super().output_tensors(y=y)
+            return super().output_tensors(y=y, **kwargs)
         else:
-            return self.gender.output_tensors(y=y)
+            return self.gender.output_tensors(y=y, sample=sample, **kwargs)
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:

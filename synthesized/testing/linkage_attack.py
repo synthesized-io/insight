@@ -5,12 +5,14 @@ import numpy as np
 import pandas as pd
 from pyemd import emd_samples
 
-from .util import categorical_emd
+from ..insight.metrics import earth_movers_distance
 
 NEAREST_NEIGHBOUR_MULT = 0.5
 ENLARGED_NEIGHBOUR_MULT = 2.0
 T_CLOSENESS_DEFAULT = 0.3
 K_DISTANCE_DEFAULT = 0.02
+MIN_GROUP_SIZE = 250
+MAX_SAMPLE_SIZE = 5_000
 
 
 class Column:
@@ -76,17 +78,16 @@ def identify_attacks(df_orig, df_synth, schema, t_closeness=T_CLOSENESS_DEFAULT,
 
         sensitive_columns = filter(lambda column: schema[column].sensitive, columns - attrs.keys())
         for sensitive_column in sensitive_columns:
-            arr_orig = df_orig[sensitive_column]
-            arr_synth = df_synth[sensitive_column]
-            arr_eq_orig = eq_class_orig[sensitive_column]
-            arr_eq_synth = eq_class_synth[sensitive_column]
             if schema[sensitive_column].categorical:
-                emd_function = categorical_emd
+                emd_function = earth_movers_distance
             else:
-                emd_function = partial(emd_samples, bins='rice')  # doane can be better
-            if emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
-                    and emd_function(arr_eq_synth, arr_synth) > t_closeness \
-                    and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+                def non_categorical_emd(df_old, df_new, column):
+                    return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+                emd_function = non_categorical_emd
+
+            if emd_function(eq_class_orig, eq_class_synth, sensitive_column) < k_distance \
+                    and emd_function(eq_class_synth, df_synth, sensitive_column) > t_closeness \
+                    and emd_function(eq_class_orig, df_orig, sensitive_column) > t_closeness:
                 attack = {
                     "knowledge": {k: {"value": v, "lower": down[k], "upper": up[k]} for k, v in attrs.items()},
                     "target": sensitive_column}
@@ -142,26 +143,27 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=
         enlarged_knowledge = enlarge_boundaries(df_synth, knowledge, schema)
         eq_class_synth_enlarged = get_df_subset(df_synth, enlarged_knowledge, schema)
 
-        arr_orig = df_orig[target]
-        arr_synth = df_synth[target]
         eq_class_orig = get_df_subset(df_orig, knowledge, schema)
-        arr_eq_orig = eq_class_orig[target]
-        arr_eq_synth = eq_class_synth[target]
         arr_eq_synth_enlarged = eq_class_synth_enlarged[target]
+
         if schema[target].categorical:
-            emd_function = categorical_emd
+            emd_function = earth_movers_distance
         else:
-            emd_function = partial(emd_samples, bins='rice')  # doane can be better
-        while emd_function(arr_eq_orig, arr_eq_synth_enlarged) < k_distance \
-                and emd_function(arr_eq_synth_enlarged, arr_synth) > t_closeness \
-                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+            def non_categorical_emd(df_old, df_new, column):
+                return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+
+            emd_function = non_categorical_emd
+
+        while emd_function(eq_class_orig, eq_class_synth_enlarged, target) < k_distance \
+                and emd_function(eq_class_synth_enlarged, df_synth, target) > t_closeness \
+                and emd_function(eq_class_orig, df_orig, target) > t_closeness:
             enlarged_knowledge = enlarge_boundaries(df_synth, enlarged_knowledge, schema)
             arr_eq_synth_enlarged = \
                 get_df_subset(df_synth, enlarge_boundaries(df_synth, enlarged_knowledge, schema), schema)[target]
-        arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
-        while emd_function(arr_eq_orig, arr_eq_synth) < k_distance \
-                and emd_function(arr_eq_synth, arr_synth) > t_closeness \
-                and emd_function(arr_eq_orig, arr_orig) > t_closeness:
+        arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(eq_class_synth))
+        while emd_function(eq_class_orig, eq_class_synth, target) < k_distance \
+                and emd_function(eq_class_synth, df_synth, target) > t_closeness \
+                and emd_function(eq_class_orig, df_orig, target) > t_closeness:
             arr_eq_synth = np.random.choice(arr_eq_synth_enlarged, len(arr_eq_synth))
         eq_class_synth[target] = arr_eq_synth
         cleared_df = cleared_df.append(eq_class_synth, ignore_index=False)
@@ -191,31 +193,42 @@ def t_closeness_check(df, schema, threshold=0.2):
     to find equivalence classes which do not satisfy t-closeness requirement
 
     """
+    df_bin = df.copy()
+    for c in df_bin.columns:
+        if not schema[c].categorical:
+            df_bin[c] = pd.cut(df_bin[c], bins=100)
+    df_small = df.sample(min(len(df), MAX_SAMPLE_SIZE))
 
-    def is_t_close(group, columns):
+    def is_not_t_close(group, columns):
+        if len(group) == 0 or len(group) > MIN_GROUP_SIZE:
+            return False
         for column in columns:
-            a = df[column]
-            b = group[column]
+            a = df_small
+            b = df.loc[group.index, :]
             if schema[column].categorical:
-                emd_function = categorical_emd
+                emd_function = earth_movers_distance
             else:
-                emd_function = partial(emd_samples, bins='rice')  # doane can be better
-            if emd_function(a, b) > threshold:
-                return False
-        return True
+                def non_categorical_emd(df_old, df_new, column):
+                    return partial(emd_samples, bins='rice')(df_old[column], df_new[column])
+                emd_function = non_categorical_emd
+
+            if emd_function(a, b, column) > threshold:
+                return True
+        return False
 
     result = []
-    columns = set(schema.keys())
-    all_key_columns = set(filter(lambda column: schema[column].key_attribute, columns))
-    all_sensitive_columns = set(filter(lambda column: schema[column].sensitive, columns))
+    columns = list(schema.keys())
+    all_key_columns = list(filter(lambda column: schema[column].key_attribute, columns))
+    all_sensitive_columns = list(filter(lambda column: schema[column].sensitive, columns))
     for i in range(1, len(all_key_columns) + 1):
         for key_columns in combinations(all_key_columns, i):
-            sensitive_columns = all_sensitive_columns - set(key_columns)
+            key_columns = list(key_columns)
+            sensitive_columns = list(filter(lambda column: column not in key_columns, all_sensitive_columns))
             if len(sensitive_columns) == 0:
                 continue
-            vulnerable_rows = df.groupby(by=list(key_columns)).filter(
-                lambda g: not is_t_close(g, columns=sensitive_columns))
-            key_attributes = vulnerable_rows[list(key_columns)].drop_duplicates()
+            vulnerable_rows = df_bin.groupby(by=key_columns).filter(
+                lambda g: is_not_t_close(g, columns=sensitive_columns))
+            key_attributes = df.loc[vulnerable_rows.index, key_columns]
             if not key_attributes.empty:
                 result.extend(key_attributes.to_dict('records'))
     return result
