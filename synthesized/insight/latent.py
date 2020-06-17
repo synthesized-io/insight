@@ -50,3 +50,37 @@ def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev'
         raise ValueError
 
     return usage
+
+
+def density(x, m, v):
+    d = (2.0*np.pi*v)**-0.5 * np.exp(-(x - m)**2 / v)
+    return np.sum(d)
+
+
+def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame, new_data: pd.DataFrame):
+    dims = latent_dimension_usage(df_latent_orig, 'mean')['dimension'][-10:].to_list()[::-1]
+    df_latent, df_syn = synth.encode(new_data)
+
+    mean = df_latent.loc[:, [f'm_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
+    stddev = df_latent.loc[:, [f's_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
+
+    orig_mean = df_latent_orig.loc[:, [f'm_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
+    orig_stddev = df_latent_orig.loc[:, [f's_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
+
+    N = len(df_latent)
+    N2 = len(df_latent_orig)
+    KL = []
+
+    for dim in dims[:10]:
+        m, v = mean[dim].to_numpy()[:N], stddev[dim].to_numpy()[:N] ** 2
+        m_orig, v_orig = orig_mean[dim].to_numpy()[:N2], orig_stddev[dim].to_numpy()[:N2] ** 2
+
+        d = 0.02
+        X = np.arange(-5, 5, d)
+        Y = np.array([density(x, m, v) / N for x in X])
+        Y2 = np.array([density(x, m_orig, v_orig) / N2 for x in X])
+        # G = [density(x, 0, 1) / 1.0 for x in X]
+
+        KL.append(d*np.sum(Y * np.log(Y / Y2)))
+
+    return np.sum(KL)
