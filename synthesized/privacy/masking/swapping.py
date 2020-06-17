@@ -7,6 +7,14 @@ from .base_mask import BaseMask
 
 
 class SwappingMask(BaseMask):
+    """'swapping' mask.
+
+    Shuffles the categories around for a given column.
+
+    Examples:
+        'a' -> 'b' ('a' and 'b' are both existing values.)
+
+    """
     def __init__(self, column_name: str, uniform: bool = False):
         super(SwappingMask, self).__init__(column_name)
         self.uniform = uniform

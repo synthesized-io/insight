@@ -9,6 +9,14 @@ from .base_mask import BaseMask
 
 
 class RandomMask(BaseMask):
+    """'random' mask.
+
+    Generate a random string, with slight format consistency. Implemented on SamplingValue.
+
+    Examples:
+        "49050810L" -> "L3n8o3H2M"
+
+    """
     def __init__(self, column_name: str, str_length: int = 10):
         super(RandomMask, self).__init__(column_name)
 

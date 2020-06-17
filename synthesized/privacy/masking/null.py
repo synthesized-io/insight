@@ -4,6 +4,11 @@ from .base_mask import BaseMask
 
 
 class NullMask(BaseMask):
+    """'null_out' mask. Deactivates a given column.
+
+    Examples:
+        'some_example_value' -> ''
+    """
     def __init__(self, column_name: str):
         super(NullMask, self).__init__(column_name, assert_fitted=False)
 

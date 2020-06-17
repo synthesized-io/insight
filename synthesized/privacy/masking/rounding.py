@@ -5,6 +5,14 @@ from .base_mask import BaseMask
 
 
 class RoundingMask(BaseMask):
+    """'rounding' (or 'rounding|N') mask.
+
+    Bin the numeric column to 20 (or N) bins. Implemented on ContinuousValue, and will happen in pre/post-processing.
+
+    Examples:
+        102,845 -> "[100,000, 125,000)"
+
+    """
     def __init__(self, column_name, n_bins: int = 20):
         super(RoundingMask, self).__init__(column_name)
         self.n_bins = n_bins
