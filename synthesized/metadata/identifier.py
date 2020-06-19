@@ -47,10 +47,10 @@ class IdentifierMeta(ValueMeta):
         self.idx2identifier = {i: k for i, k in enumerate(self.identifiers)}
 
     def learned_input_columns(self) -> List[str]:
-        return []
+        return [self.name]
 
     def learned_output_columns(self) -> List[str]:
-        return []
+        return [self.name]
 
     def set_index(self, df: pd.DataFrame):
         if df.index.names == [None]:
