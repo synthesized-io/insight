@@ -101,7 +101,16 @@ class AddressMeta(ValueMeta):
         self.dtype = tf.int64
         assert self.fake or self.postcode
 
+    def columns(self) -> List[str]:
+        columns = [
+            self.county_label, self.postcode_label, self.city_label, self.district_label,
+            self.street_label, self.house_number_label, self.flat_label, self.house_name_label
+        ]
+        return [c for c in columns if c is not None]
+
     def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+
         if self.fake:
             return
 
@@ -145,15 +154,19 @@ class AddressMeta(ValueMeta):
             postcode_data = pd.DataFrame({self.postcode_label: unique_postcodes})
             self.postcode.extract(df=postcode_data)
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+    def learned_input_columns(self) -> List[str]:
         if self.fake:
-            return super().preprocess(df=df)
+            return []
+        else:
+            return [self.postcode_label]
 
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        if not self.fake:
+            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
+            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
 
-        if self.postcode:
-            df = self.postcode.preprocess(df=df)
+            if self.postcode:
+                df = self.postcode.preprocess(df=df)
 
         return super().preprocess(df=df)
 
@@ -201,6 +214,12 @@ class AddressMeta(ValueMeta):
                         d[self._get_postcode_key(js['postcode'])].extend(addresses)
 
         return d
+
+    def learned_output_columns(self) -> List[str]:
+        if self.fake:
+            return []
+        else:
+            return [self.postcode_label]
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)

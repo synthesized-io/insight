@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Optional, List
 
 from dataclasses import dataclass
 import numpy as np
@@ -17,19 +17,27 @@ class CompoundAddressParams:
 
 
 class CompoundAddressMeta(ValueMeta):
-    def __init__(self, name, postcode_level=0, address_label=None, postcode_regex=None):
+    def __init__(self, name, postcode_level=0, address_label: str = None, postcode_regex: str = None):
         super().__init__(name=name)
 
         if postcode_level < 0 or postcode_level > 2:
             raise NotImplementedError
 
         self.postcode_level = postcode_level
-        self.address_label = address_label
+        if address_label is None:
+            raise ValueError
+        self.address_label: str = address_label
         self.postcode_regex = postcode_regex
 
         self.postcodes = None
         self.postcode = CategoricalMeta(name=address_label, categories=self.postcodes)
         self.faker = Faker(locale='en_GB')
+
+    def columns(self) -> List[str]:
+        columns = [
+            self.address_label
+        ]
+        return [c for c in columns if c is not None]
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
@@ -62,6 +70,12 @@ class CompoundAddressMeta(ValueMeta):
 
         postcode_df.dropna(inplace=True)
         self.postcode.extract(df=postcode_df)
+
+    def learned_input_columns(self) -> List[str]:
+        return [self.address_label]
+
+    def learned_output_columns(self) -> List[str]:
+        return [self.address_label]
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         for n, row in df.iterrows():

@@ -14,7 +14,6 @@ class Value(tf.Module):
         super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
 
-        self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
         self.built = False
         self.dtype = tf.float32
         self._regularization_losses: List[tf.Tensor] = list()

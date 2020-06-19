@@ -57,6 +57,13 @@ class PersonMeta(ValueMeta):
         else:
             self.gender = CategoricalMeta(name=gender_label)
 
+    def columns(self) -> List[str]:
+        columns = [
+            self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
+            self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
+        ]
+        return [c for c in columns if c is not None]
+
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
             return super().learned_input_columns()
@@ -70,6 +77,8 @@ class PersonMeta(ValueMeta):
             return self.gender.learned_output_columns()
 
     def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+
         if self.gender is not None:
             if self.title_label == self.gender_label:
                 df['_gender'] = df[self.title_label].map(self.gender_mapping)

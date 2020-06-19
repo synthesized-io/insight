@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import pandas as pd
 
@@ -45,6 +45,18 @@ class IdentifierMeta(ValueMeta):
 
         self.identifier2idx = {k: i for i, k in enumerate(self.identifiers)}
         self.idx2identifier = {i: k for i, k in enumerate(self.identifiers)}
+
+    def learned_input_columns(self) -> List[str]:
+        return []
+
+    def learned_output_columns(self) -> List[str]:
+        return []
+
+    def set_index(self, df: pd.DataFrame):
+        if df.index.names == [None]:
+            df.set_index(self.name, inplace=True)
+        else:
+            df.set_index(self.name, inplace=True, append=True)
 
     def preprocess(self, df: pd.DataFrame):
         df.loc[:, self.name] = df.loc[:, self.name].map(self.identifier2idx)

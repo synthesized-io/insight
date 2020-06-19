@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 
@@ -30,6 +30,8 @@ class DateMeta(ContinuousMeta):
         return spec
 
     def extract(self, df):
+        super().extract(df=df)
+
         column = df.loc[:, self.name]
 
         self.original_dtype = type(df.loc[:, self.name].iloc[0])
@@ -85,6 +87,12 @@ class DateMeta(ContinuousMeta):
             return col.apply(datetime_to_str)
         else:
             return col
+
+    def learned_input_columns(self) -> List[str]:
+        return [self.name] + [f'{self.name}-{postfix}' for postfix in ['hour', 'dow', 'day', 'month']]
+
+    def learned_output_columns(self) -> List[str]:
+        return [self.name]
 
     def preprocess(self, df):
         if df.loc[:, self.name].dtype.kind != 'M':

@@ -23,8 +23,15 @@ class BankNumberMeta(ValueMeta):
         self.sort_code_label = sort_code_label
         self.account_label = account_label
 
+    def columns(self) -> List[str]:
+        columns = [
+            self.bic_label, self.sort_code_label, self.account_label
+        ]
+        return [c for c in columns if c is not None]
+
     def extract(self, df: pd.DataFrame) -> None:
-        pass
+        super().extract(df=df)
+        # TODO: Implement this.
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=[self.sort_code_label, self.account_label], axis=1)
