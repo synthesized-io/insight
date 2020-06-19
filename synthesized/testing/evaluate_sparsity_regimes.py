@@ -129,7 +129,7 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
             dp = MetaExtractor.extract(data_missing)
             conf = HighDimConfig(**config['params'])
 
-            with HighDimSynthesizer(data_panel=dp, config=conf) as synthesizer:
+            with HighDimSynthesizer(df_meta=dp, config=conf) as synthesizer:
                 synthesizer.learn(df_train=data_missing, num_iterations=n_iter)
                 synthesized = synthesizer.synthesize(num_rows=len(data))
 

@@ -9,7 +9,7 @@ from ..transformations import Transformation, MlpTransformation, DenseTransforma
 
 class FeedForwardStateSpaceModel(StateSpaceModel):
     """A Deep State Space model using only feed forward networks"""
-    def __init__(self, data_panel, capacity: int, latent_size: int, name: str = 'ff_state_space_model'):
+    def __init__(self, df_meta, capacity: int, latent_size: int, name: str = 'ff_state_space_model'):
         super(FeedForwardStateSpaceModel, self).__init__(data_panel, capacity=capacity, latent_size=latent_size,
                                                          name=name)
 

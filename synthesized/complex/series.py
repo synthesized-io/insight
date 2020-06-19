@@ -14,7 +14,7 @@ from ..common.values import Value, ValueFactory, ValueFactoryConfig
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager, LearningManagerConfig
 from ..common.util import record_summaries_every_n_global_steps
-from ..metadata import DataPanel, ValueMeta
+from ..metadata import DataFrameMeta, ValueMeta
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -75,7 +75,7 @@ class SeriesConfig(ValueFactoryConfig, LearningManagerConfig):
 
 class SeriesSynthesizer(Synthesizer):
     def __init__(
-        self, data_panel: DataPanel, summarizer_dir: str = None, summarizer_name: str = None,
+        self, df_meta: DataFrameMeta, summarizer_dir: str = None, summarizer_name: str = None,
         config: SeriesConfig = SeriesConfig(),
         # SeriesSynthesizer
         condition_labels: List[str] = None,
@@ -85,9 +85,9 @@ class SeriesSynthesizer(Synthesizer):
         super(SeriesSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
-        self.data_panel = data_panel
+        self.df_meta = df_meta
         self.value_factory = ValueFactory(
-            data_panel=data_panel, name='value_factory', conditions=condition_labels, config=config.value_factory_config
+            df_meta=df_meta, name='value_factory', conditions=condition_labels, config=config.value_factory_config
         )
         if config.lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
@@ -107,7 +107,7 @@ class SeriesSynthesizer(Synthesizer):
         # VAE
         self.vae = SeriesVAE(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
-            identifier_label=self.data_panel.id_index, identifier_value=self.value_factory.identifier_value,
+            identifier_label=self.df_meta.id_index, identifier_value=self.value_factory.identifier_value,
             encoding=self.lstm_mode, latent_size=config.latent_size,
             network=config.network, capacity=config.capacity, num_layers=config.num_layers,
             residual_depths=config.residual_depths,
@@ -142,10 +142,10 @@ class SeriesSynthesizer(Synthesizer):
         return self.value_factory.all_values
 
     def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.data_panel[v.name]) for v in self.value_factory.all_values]
+        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values]
 
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.data_panel[v.name]) for v in self.value_factory.get_conditions()]
+        return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
     def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         self.vae.xs = data
@@ -160,7 +160,7 @@ class SeriesSynthesizer(Synthesizer):
         return data
 
     def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, List[tf.Tensor]]], List[int]]:
-        if self.data_panel.id_index is None:
+        if self.df_meta.id_index is None:
             num_data = [len(df)]
             groups = [{
                 value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype)
@@ -169,7 +169,7 @@ class SeriesSynthesizer(Synthesizer):
             }]
 
         else:
-            groups = [group[1] for group in df.groupby(by=self.data_panel.id_index)]
+            groups = [group[1] for group in df.groupby(by=self.df_meta.id_index)]
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
@@ -205,7 +205,7 @@ class SeriesSynthesizer(Synthesizer):
         return spec
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.data_panel.preprocess(df)
+        df = self.df_meta.preprocess(df)
         return df
 
     def learn(
@@ -219,7 +219,7 @@ class SeriesSynthesizer(Synthesizer):
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
-        df_train = self.data_panel.preprocess(df_train)
+        df_train = self.df_meta.preprocess(df_train)
 
         groups, num_data = self.get_groups_feed_dict(df_train)
         max_seq_len = min(min(num_data), self.max_seq_len)
@@ -236,7 +236,7 @@ class SeriesSynthesizer(Synthesizer):
                 feed_dict = {
                     value.name: [
                         tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
-                        for n, name in enumerate(self.data_panel[value.name].learned_input_columns())
+                        for n, name in enumerate(self.df_meta[value.name].learned_input_columns())
                     ]
                     for value in self.get_all_values()
                 }
@@ -310,8 +310,8 @@ class SeriesSynthesizer(Synthesizer):
             raise ValueError("Both 'num_series' and 'series_lengths' are None. One or the other is require to"
                              "synthesize data.")
 
-        df_conditions = self.data_panel.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
-        columns = self.data_panel.columns
+        df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
+        columns = self.df_meta.columns
 
         feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
         synthesized = None
@@ -329,7 +329,7 @@ class SeriesSynthesizer(Synthesizer):
                 tf_identifier = tf.constant([identifier])
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
                                             identifier=tf_identifier)
-                other = self.data_panel.split_outputs(other)
+                other = self.df_meta.split_outputs(other)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
                     synthesized = other
@@ -337,7 +337,7 @@ class SeriesSynthesizer(Synthesizer):
                     synthesized = synthesized.append(other, ignore_index=True)
 
         df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
-        df_synthesized = self.data_panel.postprocess(df=df_synthesized)
+        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
 
         return df_synthesized
 
@@ -347,9 +347,9 @@ class SeriesSynthesizer(Synthesizer):
         if conditions is not None:
             raise NotImplementedError
 
-        columns = self.data_panel.columns
+        columns = self.df_meta.columns
         df_encode = df_encode.copy()
-        df_encode = self.data_panel.preprocess(df_encode)
+        df_encode = self.df_meta.preprocess(df_encode)
 
         groups, num_data = self.get_groups_feed_dict(df_encode)
 
@@ -362,9 +362,9 @@ class SeriesSynthesizer(Synthesizer):
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
 
-            if self.data_panel.id_index:
-                identifier = feed_dict[self.data_panel.id_index][0]
-                decoded_i[self.data_panel.id_index] = tf.tile([identifier], [num_data[i] + n_forecast])
+            if self.df_meta.id_index:
+                identifier = feed_dict[self.df_meta.id_index][0]
+                decoded_i[self.df_meta.id_index] = tf.tile([identifier], [num_data[i] + n_forecast])
 
             if not encoded or not decoded:
                 encoded, decoded = encoded_i, decoded_i
@@ -377,9 +377,9 @@ class SeriesSynthesizer(Synthesizer):
         if not decoded or not encoded:
             return pd.DataFrame(), pd.DataFrame()
 
-        decoded = self.data_panel.split_outputs(decoded)
+        decoded = self.df_meta.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.data_panel.postprocess(df=df_synthesized)
+        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
 

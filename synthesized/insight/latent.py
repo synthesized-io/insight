@@ -15,7 +15,7 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
     dp = MetaExtractor.extract(df)
     config = HighDimConfig(learning_manager=False)
 
-    with HighDimSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with HighDimSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=num_iterations)
         df_latent, df_synthesized = synthesizer.encode(df_encode=df)
 

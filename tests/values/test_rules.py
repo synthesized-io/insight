@@ -30,7 +30,7 @@ def test_piecewise_detection():
     df.columns = [str(x) for x in df.columns]
 
     dp = MetaExtractor.extract(df, find_rules=['find_piecewise'])
-    synth = HighDimSynthesizer(data_panel=dp)
+    synth = HighDimSynthesizer(df_meta=dp)
     values = synth.get_values()
     assert len(values) == 15
     for i in range(5):
@@ -50,7 +50,7 @@ def test_piecewise_generation():
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
     dp = MetaExtractor.extract(df, find_rules=['find_piecewise'])
-    with HighDimSynthesizer(data_panel=dp) as synthesizer:
+    with HighDimSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -75,7 +75,7 @@ def test_pulse_detection():
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
     dp = MetaExtractor.extract(df, find_rules=['find_pulse'])
-    synth = HighDimSynthesizer(data_panel=dp)
+    synth = HighDimSynthesizer(df_meta=dp)
     values = synth.get_values()
     assert len(values) == 16
     for i in range(4):
@@ -95,7 +95,7 @@ def test_pulse_generation():
     df.columns = [str(x) for x in df.columns]
 
     dp = MetaExtractor.extract(df, find_rules=['find_pulse'])
-    with HighDimSynthesizer(data_panel=dp) as synthesizer:
+    with HighDimSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -120,7 +120,7 @@ def test_times(rule):
     df.columns = [str(x) for x in df.columns]
 
     dp = MetaExtractor.extract(df=pd.DataFrame(np.random.randn(5, 5)))
-    dummy = HighDimSynthesizer(data_panel=dp)
+    dummy = HighDimSynthesizer(df_meta=dp)
 
     # Make the list of values
     values = list()

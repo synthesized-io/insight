@@ -11,7 +11,7 @@ def test_series_basic():
     r = np.random.normal(loc=0, scale=1, size=1000)
     df_original = pd.DataFrame({'r': r})
     dp = MetaExtractor.extract(df=df_original)
-    with SeriesSynthesizer(data_panel=dp) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
@@ -26,7 +26,7 @@ def test_series_synthesis_identifier():
     c = np.random.choice([1, 2, 3], 1000)
     df_original = pd.DataFrame({'r': r, 's': c})
     dp = MetaExtractor.extract(df=df_original, id_index='s')
-    with SeriesSynthesizer(data_panel=dp) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=3)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50, 25])
@@ -44,7 +44,7 @@ def test_series_lstm():
     df_original = pd.DataFrame({'r': r, 's': c})
     config = SeriesConfig(lstm_mode='lstm')
     dp = MetaExtractor.extract(df=df_original, id_index='s')
-    with SeriesSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
@@ -60,7 +60,7 @@ def test_series_basic_vrae():
     df_original = pd.DataFrame({'r': r, 's': c})
     config = SeriesConfig(lstm_mode='vrae')
     dp = MetaExtractor.extract(df=df_original, id_index='s')
-    with SeriesSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
@@ -76,7 +76,7 @@ def test_series_rdssm():
     df_original = pd.DataFrame({'r': r, 's': c})
     config = SeriesConfig(lstm_mode='rdssm')
     dp = MetaExtractor.extract(df=df_original, id_index='s')
-    with SeriesSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
         df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
@@ -94,7 +94,7 @@ def test_series_encode_lstm():
     df_original = pd.DataFrame({'r': r, 's': c})
     config = SeriesConfig(lstm_mode='lstm')
     dp = MetaExtractor.extract(df=df_original)
-    with SeriesSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_encoded, df_synthesized = synthesizer.encode(df_original, n_forecast=50)
 
@@ -110,7 +110,7 @@ def test_series_encode_vrae():
     df_original = pd.DataFrame({'r': r, 's': c})
     config = SeriesConfig(lstm_mode='vrae')
     dp = MetaExtractor.extract(df=df_original)
-    with SeriesSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with SeriesSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_encoded, df_synthesized = synthesizer.encode(df_original, n_forecast=50)
 

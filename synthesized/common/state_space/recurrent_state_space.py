@@ -7,9 +7,9 @@ from .state_space import StateSpaceModel
 
 class RecurrentStateSpaceModel(StateSpaceModel):
     """"""
-    def __init__(self, data_panel, capacity: int, latent_size: int):
+    def __init__(self, df_meta, capacity: int, latent_size: int):
         super(RecurrentStateSpaceModel, self).__init__(
-            data_panel=data_panel, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
+            df_meta=df_meta, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
         )
 
         self.emission_network = GaussianEncoder(
@@ -81,7 +81,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
 
         syn_df = pd.DataFrame(x)
-        syn_df = self.data_panel.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         fig = plt.figure(figsize=(16, 6))
         ax = fig.gca()
         sns.lineplot(data=syn_df, axes=ax, dashes=False)

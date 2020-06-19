@@ -8,7 +8,7 @@ import pandas as pd
 import treelib as tl
 from dataclasses import fields
 
-from .data_panel import DataPanel
+from .data_frame import DataFrameMeta
 from .value_meta import ValueMeta
 from .address import AddressMeta, AddressParams
 from .association import AssociationMeta
@@ -49,7 +49,7 @@ class MetaExtractor:
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
-    ) -> DataPanel:
+    ) -> DataFrameMeta:
         id_index = id_index
         time_index = time_index
         column_aliases = column_aliases or dict()
@@ -87,7 +87,7 @@ class MetaExtractor:
 
         association_meta = cls.create_associations(values, associations)
 
-        return DataPanel(values=values, id_value=identifier_value, time_value=time_value,
+        return DataFrameMeta(values=values, id_value=identifier_value, time_value=time_value,
                          column_aliases=column_aliases, association_meta=association_meta)
 
     @staticmethod

@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..metadata import MetaExtractor, DataPanel
+from ..metadata import MetaExtractor, DataFrameMeta
 from ..metadata import ContinuousMeta, CategoricalMeta, DecomposedContinuousMeta, NanMeta, ValueMeta, \
     AssociationMeta
 
@@ -30,7 +30,7 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     return df_values
 
 
-def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, DataPanel]) \
+def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, DataFrameMeta]) \
         -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
     dp = MetaExtractor.extract(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
     values = dp.values

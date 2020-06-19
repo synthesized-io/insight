@@ -12,7 +12,7 @@ def test_continuous_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.normal(loc=0, scale=1, size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
     dp = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(data_panel=dp) as synthesizer:
+    with HighDimSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
@@ -27,7 +27,7 @@ def test_categorical_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.choice(['a', 'b', 'c'], size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
     dp = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(data_panel=dp) as synthesizer:
+    with HighDimSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
@@ -45,8 +45,8 @@ def test_continuous_outliers_imputation():
         'x': np.where(np.random.uniform(size=n) < 0.98, x, np.random.normal(loc=0, scale=50, size=n)),
         'y': 0.5 * x
     })
-
-    with HighDimSynthesizer(df=df_original) as synthesizer:
+    dp = MetaExtractor.extract(df=df_original)
+    with HighDimSynthesizer(df_meta=dp) as synthesizer:
         synthesizer.learn(num_iterations=100, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
