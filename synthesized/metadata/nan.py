@@ -49,7 +49,8 @@ class NanMeta(ValueMeta):
         df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
         nan = df.loc[:, self.value.name].isna()
-        df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
+        if sum(~nan) > 0:
+            df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
         df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
 
         return super().preprocess(df=df)
