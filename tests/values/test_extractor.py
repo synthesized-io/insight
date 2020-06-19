@@ -196,7 +196,6 @@ def test_vf_float():
 def test_vf_bool():
     df = pd.DataFrame({'bool': [True, False]*500})
 
-
     df_meta = MetaExtractor.extract(df=df)
     df_p = df_meta.preprocess(df=df)
     df_meta.postprocess(df=df_p)
@@ -215,7 +214,7 @@ def test_vf_dates():
 
     df_meta = MetaExtractor.extract(df=df)
     df_p = df_meta.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_category_string():
@@ -232,11 +231,11 @@ def test_vf_category_string():
 def test_vf_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([1, 1, 1, 0]*250)/np.array([1, 1, 1, 0]*250) * np.arange(0, 1000)})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
-    value = dp.all_values[0]
+    value = df_meta.all_values[0]
     assert isinstance(value, NanMeta)
     assert isinstance(value.value, ContinuousMeta)
     assert value.value.integer
@@ -245,11 +244,11 @@ def test_vf_missing_ints():
 def test_vf_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', 'c', None]*100})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
-    value = dp.all_values[0]
+    value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
     assert value.categories == ['nan', 'a', 'b', 'c']
 
@@ -257,11 +256,11 @@ def test_vf_missing_strings():
 def test_vf_missing_categories():
     df = pd.DataFrame({'missing_strings': pd.Categorical(['a', 'b', 1, None]*100)})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
-    value = dp.all_values[0]
+    value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
     assert value.categories == ['nan', '1', 'a', 'b']
 
@@ -269,11 +268,11 @@ def test_vf_missing_categories():
 def test_vf_double_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', np.NaN, None]*100})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
-    value = dp.all_values[0]
+    value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
     assert value.categories == ['nan', 'a', 'b']
 
@@ -281,11 +280,11 @@ def test_vf_double_missing_strings():
 def test_vf_double_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, np.NaN, None]*2)})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
-    value = dp.all_values[0]
+    value = df_meta.all_values[0]
     assert isinstance(value, NanMeta)
 
 
@@ -301,10 +300,10 @@ def test_vf_associated_columns():
         'car_model': ['car_year']
     }
 
-    dp = MetaExtractor.extract(df=df, associations=associations)
-    value = dp.association_meta
+    df_meta = MetaExtractor.extract(df=df, associations=associations)
+    value = df_meta.association_meta
     assert isinstance(value, AssociationMeta)
     assert value.associations == [['car_brand', 'car_model', 'car_year']]
 
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
