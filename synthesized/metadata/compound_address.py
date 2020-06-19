@@ -1,5 +1,5 @@
 import re
-from typing import Optional, List
+from typing import Dict, List, Optional
 
 from dataclasses import dataclass
 import numpy as np
@@ -27,9 +27,12 @@ class CompoundAddressMeta(ValueMeta):
         if address_label is None:
             raise ValueError
         self.address_label: str = address_label
+
+        if postcode_regex is None:
+            raise ValueError
         self.postcode_regex = postcode_regex
 
-        self.postcodes = None
+        self.postcodes: Optional[Dict[str, List[str]]] = None
         self.postcode = CategoricalMeta(name=address_label, categories=self.postcodes)
         self.faker = Faker(locale='en_GB')
 

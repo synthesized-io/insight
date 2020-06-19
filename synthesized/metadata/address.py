@@ -155,13 +155,13 @@ class AddressMeta(ValueMeta):
             self.postcode.extract(df=postcode_data)
 
     def learned_input_columns(self) -> List[str]:
-        if self.fake:
+        if self.fake and self.postcode is not None:
             return self.postcode.learned_input_columns()
         else:
             return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not self.fake:
+        if not self.fake and self.postcode_label is not None:
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
 
@@ -216,7 +216,7 @@ class AddressMeta(ValueMeta):
         return d
 
     def learned_output_columns(self) -> List[str]:
-        if self.fake:
+        if self.fake and self.postcode is not None:
             return self.postcode.learned_output_columns()
         else:
             return []

@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List
 from base64 import b64encode, b64decode
 import pickle
 

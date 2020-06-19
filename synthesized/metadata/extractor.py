@@ -88,7 +88,7 @@ class MetaExtractor:
         association_meta = cls.create_associations(values, associations)
 
         return DataFrameMeta(values=values, id_value=identifier_value, time_value=time_value,
-                         column_aliases=column_aliases, association_meta=association_meta)
+                             column_aliases=column_aliases, association_meta=association_meta)
 
     @staticmethod
     def _identify_annotations(df: pd.DataFrame, annotation: str, params):
