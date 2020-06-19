@@ -156,9 +156,9 @@ class AddressMeta(ValueMeta):
 
     def learned_input_columns(self) -> List[str]:
         if self.fake:
-            return []
+            return self.postcode.learned_input_columns()
         else:
-            return [self.postcode_label]
+            return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if not self.fake:
@@ -217,9 +217,9 @@ class AddressMeta(ValueMeta):
 
     def learned_output_columns(self) -> List[str]:
         if self.fake:
-            return []
+            return self.postcode.learned_output_columns()
         else:
-            return [self.postcode_label]
+            return []
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
