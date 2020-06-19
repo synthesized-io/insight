@@ -17,8 +17,8 @@ from synthesized.metadata import MetaExtractor, ContinuousMeta, CategoricalMeta,
     index=range_indexes(min_size=2, max_size=500)
 ))
 def test_vf_floats(df):
-    dp = MetaExtractor.extract(df=df)
-    value = dp.all_values[0]
+    df_meta = MetaExtractor.extract(df=df)
+    value = df_meta.all_values[0]
     value_name = ''
 
     if isinstance(value, NanMeta):
@@ -31,8 +31,8 @@ def test_vf_floats(df):
         value_name += '(int)' if value.integer else '(float)'
 
     event(value_name)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 @seed(42)
@@ -50,8 +50,8 @@ def test_vf_floats(df):
     index=range_indexes(min_size=2, max_size=500)
 ))
 def test_vf_datetimes(df):
-    dp = MetaExtractor.extract(df=df)
-    value = dp.all_values[0]
+    df_meta = MetaExtractor.extract(df=df)
+    value = df_meta.all_values[0]
     value_name = ''
 
     if isinstance(value, NanMeta):
@@ -64,8 +64,8 @@ def test_vf_datetimes(df):
         value_name += '(int)' if value.integer else '(float)'
 
     event(value_name)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 @seed(42)
@@ -78,8 +78,8 @@ def test_vf_datetimes(df):
     )], index=range_indexes(min_size=2, max_size=500))
 )
 def test_vf_text(df):
-    dp = MetaExtractor.extract(df=df)
-    value = dp.all_values[0]
+    df_meta = MetaExtractor.extract(df=df)
+    value = df_meta.all_values[0]
     value_name = ''
 
     if isinstance(value, NanMeta):
@@ -92,8 +92,8 @@ def test_vf_text(df):
         value_name += '(int)' if value.integer else '(float)'
 
     event(value_name)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 @seed(42)
@@ -108,8 +108,8 @@ def test_vf_text(df):
     index=range_indexes(min_size=2, max_size=500)
 ))
 def test_vf_text_floats(df):
-    dp = MetaExtractor.extract(df=df)
-    value = dp.all_values[0]
+    df_meta = MetaExtractor.extract(df=df)
+    value = df_meta.all_values[0]
     value_name = ''
 
     if isinstance(value, NanMeta):
@@ -122,8 +122,8 @@ def test_vf_text_floats(df):
         value_name += '(int)' if value.integer else '(float)'
 
     event(value_name)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 @seed(42)
@@ -134,8 +134,8 @@ def test_vf_text_floats(df):
     ], index=range_indexes(min_size=2, max_size=500))
 )
 def test_vf_na_int(df):
-    dp = MetaExtractor.extract(df=df)
-    value = dp.all_values[0]
+    df_meta = MetaExtractor.extract(df=df)
+    value = df_meta.all_values[0]
     value_name = ''
 
     if isinstance(value, NanMeta):
@@ -155,8 +155,8 @@ def test_vf_na_int(df):
         assert isinstance(value, ConstantMeta) or isinstance(value, CategoricalMeta)
 
     event(value_name)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 # Normal Data Columns
@@ -164,57 +164,57 @@ def test_vf_na_int(df):
 def test_vf_int64():
     df = pd.DataFrame({'int64': list(range(0, 1000))})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_string():
     df = pd.DataFrame({'string': list('abcde')*200})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_uint8():
     df = pd.DataFrame({'uint8': np.arange(0, 1000).astype('u1')})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_float():
     df = pd.DataFrame({'float64': np.arange(0.0, 1000.0)})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_bool():
     df = pd.DataFrame({'bool': [True, False]*500})
 
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_bool_constant():
     df = pd.DataFrame({'bool_false': [False, ]*1000})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
+    df_meta.postprocess(df=df_p)
 
 
 def test_vf_dates():
     df = pd.DataFrame({'dates': pd.date_range('now', periods=1000).values})
 
-    dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
+    df_meta = MetaExtractor.extract(df=df)
+    df_p = df_meta.preprocess(df=df)
     dp.postprocess(df=df_p)
 
 

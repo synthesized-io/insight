@@ -20,9 +20,9 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, 
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
 
-    dp = MetaExtractor.extract(df=df_original)
+    df_meta = MetaExtractor.extract(df=df_original)
     config = HighDimConfig(**highdim_kwargs)
-    with HighDimSynthesizer(data_panel=dp, config=config) as synthesizer:
+    with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
 
@@ -92,8 +92,8 @@ def test_nan_producing():
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
-    dp = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
-    synthesizer = HighDimSynthesizer(data_panel=dp)
+    df_meta = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
     temp_dir = tempfile.mkdtemp()
