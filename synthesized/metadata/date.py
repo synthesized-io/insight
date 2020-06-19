@@ -30,7 +30,7 @@ class DateMeta(ContinuousMeta):
         return spec
 
     def extract(self, df):
-        super().extract(df=df)
+        super(ContinuousMeta, self).extract(df=df)  # This is to call ValueMeta.extract()
 
         column = df.loc[:, self.name]
 
