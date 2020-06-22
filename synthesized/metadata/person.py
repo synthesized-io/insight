@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import faker
 import numpy as np
 import pandas as pd
@@ -22,12 +22,21 @@ class PersonParams:
     work_number_label: Union[str, List[str], None] = None
 
 
+@dataclass
+class PersonMetaConfig:
+    dict_cache_size: int = 10000
+
+    @property
+    def person_meta_config(self):
+        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+
+
 class PersonMeta(ValueMeta):
 
     def __init__(self, name, title_label=None, gender_label=None, name_label=None,
                  firstname_label=None, lastname_label=None, email_label=None,
                  mobile_number_label=None, home_number_label=None, work_number_label=None,
-                 dict_cache_size=10000):
+                 config: PersonMetaConfig = PersonMetaConfig()):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -45,6 +54,7 @@ class PersonMeta(ValueMeta):
 
         fkr = faker.Faker(locale='en_GB')
         self.fkr = fkr
+        dict_cache_size = config.dict_cache_size
         self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
         self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
         self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))

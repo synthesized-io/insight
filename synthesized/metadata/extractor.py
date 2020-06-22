@@ -6,11 +6,11 @@ from math import sqrt, log
 import numpy as np
 import pandas as pd
 import treelib as tl
-from dataclasses import fields
+from dataclasses import dataclass, fields
 
 from .data_frame import DataFrameMeta
 from .value_meta import ValueMeta
-from .address import AddressMeta, AddressParams
+from .address import AddressMeta, AddressParams, AddressMetaConfig
 from .association import AssociationMeta
 from .bank import BankNumberMeta, BankParams
 from .categorical import CategoricalMeta
@@ -21,7 +21,7 @@ from .date import DateMeta
 from .identifier import IdentifierMeta
 from .enumeration import EnumerationMeta
 from .nan import NanMeta
-from .person import PersonMeta, PersonParams
+from .person import PersonMeta, PersonParams, PersonMetaConfig
 from .sampling import SamplingMeta
 from .identify_rules import identify_rules
 
@@ -36,9 +36,18 @@ class TypeOverride(enum.Enum):
     ENUMERATION = 'ENUMERATION'
 
 
+@dataclass
+class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
+    categorical_threshold_log_multiplier: float = 2.5
+    parsing_nan_fraction_threshold: float = 0.25
+
+    @property
+    def value_factory_config(self):
+        return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
+
+
 class MetaExtractor:
-    categorical_threshold_log_multiplier = 2.5
-    parsing_nan_fraction_threshold = 0.25
+    config: MetaExtractorConfig = MetaExtractorConfig()
 
     @classmethod
     def extract(
@@ -74,11 +83,11 @@ class MetaExtractor:
             df = df.drop(time_index, axis=1)
 
         if person_params is not None:
-            values.extend(cls._identify_annotations(df, 'person', person_params))
+            values.extend(cls._identify_annotations(df, 'person', person_params, cls.config.person_meta_config))
         if bank_params is not None:
             values.extend(cls._identify_annotations(df, 'bank', bank_params))
         if address_params is not None:
-            values.extend(cls._identify_annotations(df, 'address', address_params))
+            values.extend(cls._identify_annotations(df, 'address', address_params, cls.config.address_meta_config))
         if compound_address_params is not None:
             values.extend(cls._identify_annotations(df, 'compound_address', compound_address_params))
 
@@ -90,7 +99,7 @@ class MetaExtractor:
                              column_aliases=column_aliases, association_meta=association_meta)
 
     @staticmethod
-    def _identify_annotations(df: pd.DataFrame, annotation: str, params):
+    def _identify_annotations(df: pd.DataFrame, annotation: str, params, config=None):
         labels = {f.name: _get_formated_label(params.__getattribute__(f.name)) for f in fields(params)}
 
         labels_matrix = _get_labels_matrix([label for label in labels.values()])
@@ -104,6 +113,8 @@ class MetaExtractor:
         if len(labels_matrix) > 0:
             for i, bank in enumerate(labels_matrix):
                 kwargs = {k: v[i] if v is not None else None for k, v in labels.items()}
+                if config is not None:
+                    kwargs['config'] = config
                 value = string_to_meta[annotation](
                     name=f'{annotation}_{i}', **kwargs
                 )
@@ -232,7 +243,7 @@ class MetaExtractor:
             return ConstantMeta(name), "num_unique <= 1. "
 
         # Categorical value if small number of distinct values
-        elif num_unique <= cls.categorical_threshold_log_multiplier * log(num_data):
+        elif num_unique <= cls.config.categorical_threshold_log_multiplier * log(num_data):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
@@ -279,7 +290,7 @@ class MetaExtractor:
             try:
                 date_data = pd.to_datetime(col)
                 num_nan = date_data.isna().sum()
-                if num_nan / num_data < cls.parsing_nan_fraction_threshold:
+                if num_nan / num_data < cls.config.parsing_nan_fraction_threshold:
                     assert date_data.dtype.kind == 'M'
                     value = DateMeta(name)
                     reason = "Column dtype is 'O' and convertable to datetime. "
@@ -303,7 +314,7 @@ class MetaExtractor:
         if col.dtype.kind == 'O':
             numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
-            if num_nan / num_data < cls.parsing_nan_fraction_threshold:
+            if num_nan / num_data < cls.config.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
                 is_nan = num_nan > 0
             else:
@@ -318,7 +329,7 @@ class MetaExtractor:
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = ContinuousMeta(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
-                     f"rate > {1.0 - cls.parsing_nan_fraction_threshold}. "
+                     f"rate > {1.0 - cls.config.parsing_nan_fraction_threshold}. "
             if is_nan:
                 value = NanMeta(name, value, produce_nans)
                 reason += " And contains NaNs. "
@@ -355,6 +366,7 @@ def _get_labels_matrix(labels: List[Optional[List[str]]]) -> np.array:
     for label in labels:
         if label:
             if labels_len:
+                print(labels_len, label)
                 assert labels_len == len(label), 'All labels must have the same lenght'
             else:
                 labels_len = len(label)

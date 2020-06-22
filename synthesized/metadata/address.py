@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Union
 import gzip
 import logging
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import faker
 import numpy as np
 import pandas as pd
@@ -27,7 +27,15 @@ class AddressParams:
     house_number_label: Union[str, List[str], None] = None
     flat_label: Union[str, List[str], None] = None
     house_name_label: Union[str, List[str], None] = None
+
+
+@dataclass
+class AddressMetaConfig:
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+
+    @property
+    def address_meta_config(self):
+        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
 
 
 class AddressRecord:
@@ -60,7 +68,7 @@ class AddressMeta(ValueMeta):
     def __init__(self, name, postcode_level: int = 0, postcode_label: str = None,
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
-                 addresses_file: str = None):
+                 config: AddressMetaConfig = AddressMetaConfig()):
 
         super().__init__(name=name)
 
@@ -76,7 +84,9 @@ class AddressMeta(ValueMeta):
         self.house_number_label = house_number_label
         self.flat_label = flat_label
         self.house_name_label = house_name_label
+        self.config = config
 
+        addresses_file = config.addresses_file
         # Check if given 'addresses_file' exist, otherwise set to None.
         if addresses_file is not None:
             if not os.path.exists(os.path.expanduser(addresses_file)):
