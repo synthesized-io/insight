@@ -27,7 +27,7 @@ class AddressParams:
     house_number_label: Union[str, List[str], None] = None
     flat_label: Union[str, List[str], None] = None
     house_name_label: Union[str, List[str], None] = None
-    addresses_file: Optional[str] = None
+    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
 
 
 class AddressRecord:
