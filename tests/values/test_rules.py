@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.common.values.identify_rules import PairwiseRuleFactory, identify_rules
+from synthesized.metadata.identify_rules import PairwiseRuleFactory, identify_rules
+from synthesized.metadata import MetaExtractor
 from synthesized.common.values.rule import RuleValue
 from synthesized.complex import HighDimSynthesizer
 
@@ -27,7 +28,9 @@ def test_piecewise_detection():
     df.loc[:, 18] = 1 * (df.loc[:, 3] > 1) - 1 * (df.loc[:,3] < -1)
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
-    synth = HighDimSynthesizer(df=df, find_rules=['find_piecewise'])
+
+    df_meta = MetaExtractor.extract(df, find_rules=['find_piecewise'])
+    synth = HighDimSynthesizer(df_meta=df_meta)
     values = synth.get_values()
     assert len(values) == 15
     for i in range(5):
@@ -46,7 +49,8 @@ def test_piecewise_generation():
     df.loc[:, 18] = 1 * (df.loc[:, 3] > 1) - 1 * (df.loc[:,3] < -1)
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
-    with HighDimSynthesizer(df=df, find_rules=['find_piecewise']) as synthesizer:
+    df_meta = MetaExtractor.extract(df, find_rules=['find_piecewise'])
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -70,7 +74,8 @@ def test_pulse_detection():
     df.loc[(df.loc[:, 3] > -0.5) & (df.loc[:, 3] < 0), 18] = 7
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
-    synth = HighDimSynthesizer(df=df, find_rules=['find_pulse'])
+    df_meta = MetaExtractor.extract(df, find_rules=['find_pulse'])
+    synth = HighDimSynthesizer(df_meta=df_meta)
     values = synth.get_values()
     assert len(values) == 16
     for i in range(4):
@@ -89,7 +94,8 @@ def test_pulse_generation():
     df.loc[(df.loc[:, 3] < -0.5) | (df.loc[:, 3] > 0), 18] = 2
     df.columns = [str(x) for x in df.columns]
 
-    with HighDimSynthesizer(df=df, find_rules=['find_pulse']) as synthesizer:
+    df_meta = MetaExtractor.extract(df, find_rules=['find_pulse'])
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=200)
         synthesized = synthesizer.synthesize(num_rows=5000)
 
@@ -113,7 +119,8 @@ def test_times(rule):
     df.loc[:, 99] = (df.loc[:,98] > 0)
     df.columns = [str(x) for x in df.columns]
 
-    dummy = HighDimSynthesizer(df=pd.DataFrame(np.random.randn(5, 5)))
+    df_meta = MetaExtractor.extract(df=pd.DataFrame(np.random.randn(5, 5)))
+    dummy = HighDimSynthesizer(df_meta=df_meta)
 
     # Make the list of values
     values = list()

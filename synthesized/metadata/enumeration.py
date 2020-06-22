@@ -1,9 +1,9 @@
 import pandas as pd
 
-from .value import Value
+from .value_meta import ValueMeta
 
 
-class EnumerationValue(Value):
+class EnumerationMeta(ValueMeta):
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=self.name, axis=1)

@@ -119,7 +119,9 @@ class SeriesVAE(Generative):
 
         x = self.value_ops.unified_inputs(self.xs)
         if self.identifier_label and self.identifier_value:
-            identifier = self.identifier_value.unify_inputs(xs=[self.xs[self.identifier_label][:, 0]])
+            identifier = self.identifier_value.unify_inputs(
+                xs=[tensor[:, 0] for tensor in self.xs[self.identifier_label]]
+            )
         else:
             identifier = None
 
@@ -160,7 +162,7 @@ class SeriesVAE(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
+    def learn(self, xs: Dict[str, List[tf.Tensor]]) -> None:
         self.xs = xs
         # Optimization step
         self.optimizer.optimize(
@@ -169,8 +171,8 @@ class SeriesVAE(Generative):
 
         return
 
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor], n_forecast: int = 0) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(self, xs: Dict[str, List[tf.Tensor]], cs: Dict[str, List[tf.Tensor]], n_forecast: int = 0) -> \
+            Tuple[Dict[str, tf.Tensor], Dict[str, List[tf.Tensor]]]:
         if len(self.xs) == 0:
             return dict(), tf.no_op()
 
@@ -190,7 +192,7 @@ class SeriesVAE(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tf.function
-    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: Optional[tf.Tensor],
+    def _encode(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]], identifier: Optional[tf.Tensor],
                 n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
 
         x = self.linear_input(inputs=x)
@@ -205,7 +207,8 @@ class SeriesVAE(Generative):
         y = tf.squeeze(y, axis=0)
         return latent_space, mean, std, y
 
-    def synthesize(self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: int, cs: Dict[str, List[tf.Tensor]],
+                   identifier: tf.Tensor = None) -> Dict[str, List[tf.Tensor]]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
 
@@ -213,7 +216,7 @@ class SeriesVAE(Generative):
 
     # @tf.function
     def _synthesize(
-            self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
+            self, n: int, cs: Dict[str, List[tf.Tensor]], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:

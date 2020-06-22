@@ -3,14 +3,14 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..common.values import ValueFactory
-from ..common.values import ContinuousValue, CategoricalValue, DecomposedContinuousValue, NanValue, Value, \
-    AssociatedCategoricalValue
+from ..metadata import MetaExtractor, DataFrameMeta
+from ..metadata import ContinuousMeta, CategoricalMeta, DecomposedContinuousMeta, NanMeta, ValueMeta, \
+    AssociationMeta
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
-    vf = ValueFactory(df=df)
-    values = vf.get_values()
+    dp = MetaExtractor.extract(df=df)
+    values = dp.values
 
     value_spec = [
         {k: j for k, j in chain(v.specification().items(), [('class_name', v.__class__.__name__)])}
@@ -21,9 +21,7 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
             s['categories'] = '[' + ', '.join([str(o) for o in s['categories']]) + ']'
 
     for n, v in enumerate(values):
-        if hasattr(v, 'day'):
-            value_spec[n]['embedding_size'] = v.learned_input_size()
-        if v.__class__.__name__ == 'NanValue':
+        if isinstance(v, NanMeta):
             value_spec.append(
                 {'class_name': v.value.__class__.__name__, 'name': v.name + '_value'})
 
@@ -32,29 +30,29 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     return df_values
 
 
-def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, ValueFactory]) \
-        -> Tuple[List[Value], List[Value]]:
-    vf = ValueFactory(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
-
-    values = vf.get_values()
-    categorical, continuous = [], []
+def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, DataFrameMeta]) \
+        -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
+    dp = MetaExtractor.extract(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
+    values = dp.values
+    categorical: List[CategoricalMeta] = list()
+    continuous: List[ValueMeta] = list()
 
     for value in values:
-        if isinstance(value, CategoricalValue):
+        if isinstance(value, CategoricalMeta):
             if value.true_categorical:
                 categorical.append(value)
             else:
                 continuous.append(value)
-        elif isinstance(value, AssociatedCategoricalValue):
+        elif isinstance(value, AssociationMeta):
             for associated_value in value.values:
                 if associated_value.true_categorical:
                     categorical.append(associated_value)
                 else:
                     continuous.append(associated_value)
-        elif isinstance(value, ContinuousValue) or isinstance(value, DecomposedContinuousValue):
+        elif isinstance(value, ContinuousMeta) or isinstance(value, DecomposedContinuousMeta):
             continuous.append(value)
-        elif isinstance(value, NanValue):
-            if isinstance(value.value, ContinuousValue) or isinstance(value.value, DecomposedContinuousValue):
+        elif isinstance(value, NanMeta):
+            if isinstance(value.value, ContinuousMeta) or isinstance(value.value, DecomposedContinuousMeta):
                 continuous.append(value)
 
     return categorical, continuous

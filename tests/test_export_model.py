@@ -6,19 +6,23 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer
-from synthesized.common.values import TypeOverride, ContinuousValue
-
+from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.metadata import TypeOverride
+from synthesized.complex.highdim import HighDimConfig
+from synthesized.common.values import ContinuousValue
 
 atol = 0.05
 
-def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 2500, highdim_kwargs=None):
+
+def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, highdim_kwargs=None):
     highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
 
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
 
-    with HighDimSynthesizer(df=df_original, **highdim_kwargs) as synthesizer:
+    df_meta = MetaExtractor.extract(df=df_original)
+    config = HighDimConfig(**highdim_kwargs)
+    with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
 
@@ -77,7 +81,7 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
 
-    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans_for=True))
+    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans=True))
 
     assert df_synthesized['r'].isna().sum() > 0
     assert np.isclose(np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
@@ -88,7 +92,8 @@ def test_nan_producing():
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
-    synthesizer = HighDimSynthesizer(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
+    df_meta = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
     temp_dir = tempfile.mkdtemp()

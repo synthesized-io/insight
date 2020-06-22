@@ -1,9 +1,11 @@
+from typing import List
+
 import pandas as pd
 
-from .value import Value
+from .value_meta import ValueMeta
 
 
-class ConstantValue(Value):
+class ConstantMeta(ValueMeta):
 
     def __init__(self, name: str, constant_value=None):
         super().__init__(name=name)
@@ -20,6 +22,12 @@ class ConstantValue(Value):
         assert len(unique_values) == 1
         self.constant_value = unique_values[0]
 
+    def learned_input_columns(self) -> List[str]:
+        return []
+
+    def learned_output_columns(self) -> List[str]:
+        return []
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.drop(labels=self.name, axis=1)
         return super().preprocess(df=df)
@@ -28,9 +36,3 @@ class ConstantValue(Value):
         df = super().postprocess(df=df)
         df.loc[:, self.name] = self.constant_value
         return df
-
-    def learned_input_size(self) -> int:
-        return 0
-
-    def learned_output_size(self) -> int:
-        return 0

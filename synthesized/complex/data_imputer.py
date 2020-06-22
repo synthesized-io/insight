@@ -22,7 +22,7 @@ class DataImputer(Synthesizer):
 
         """
 
-        assert not synthesizer.value_factory.produce_nans_for
+        assert not synthesizer.value_factory.produce_nans
         self.synthesizer = synthesizer
 
     def __enter__(self):

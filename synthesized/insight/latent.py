@@ -3,7 +3,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from ..complex import HighDimSynthesizer
+from ..complex.highdim import HighDimSynthesizer, HighDimConfig
+from ..metadata import MetaExtractor
 
 
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
@@ -11,7 +12,10 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000) -> pd.DataFrame:
     log_level = logger.level
     logger.setLevel(50)
 
-    with HighDimSynthesizer(df=df, learning_manager=False) as synthesizer:
+    dp = MetaExtractor.extract(df)
+    config = HighDimConfig(learning_manager=False)
+
+    with HighDimSynthesizer(df_meta=dp, config=config) as synthesizer:
         synthesizer.learn(df_train=df, num_iterations=num_iterations)
         df_latent, df_synthesized = synthesizer.encode(df_encode=df)
 

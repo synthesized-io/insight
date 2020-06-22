@@ -1,82 +1,37 @@
+from typing import Any, Dict, List
 from math import log
-from typing import Any, Dict, List, Tuple, Optional, Union
 
-import numpy as np
-import pandas as pd
+from dataclasses import dataclass, fields
 import tensorflow as tf
-from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, norm, uniform, weibull_min
-from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import tensorflow_name_scoped
+from ...metadata.continuous import DISTRIBUTIONS
 
-DISTRIBUTIONS = dict(
-    # beta=(beta, tfd.Beta),
-    gamma=(gamma, tfd.Gamma),
-    gilbrat=(gilbrat, None),
-    gumbel=(gumbel_r, tfd.Gumbel),
-    log_normal=(lognorm, tfd.LogNormal),
-    uniform=(uniform, tfd.Uniform),
-    weibull=(weibull_min, None)
-)
+
+@dataclass
+class ContinuousConfig:
+    continuous_weight: float = 5.0
+
+    @property
+    def continuous_config(self):
+        return ContinuousConfig(**{f.name: self.__getattribute__(f.name) for f in fields(ContinuousConfig)})
 
 
 class ContinuousValue(Value):
 
     def __init__(
-        self, name: str, weight: float,
-        # Scenario
-        integer: bool = None, float: bool = True, positive: bool = None, nonnegative: bool = None,
-        distribution: str = None, distribution_params: Tuple[Any, ...] = None,
-        use_quantile_transformation: bool = True,
-        transformer_n_quantiles: int = 1000, transformer_noise: Optional[float] = 1e-7
+        self, name: str, config: ContinuousConfig = ContinuousConfig(),
     ):
         super().__init__(name=name)
 
-        self.weight = weight
-
-        self.integer = integer
-        self.float = float
-        self.positive = positive
-        self.nonnegative = nonnegative
-
-        assert distribution is None or distribution == 'normal' or distribution in DISTRIBUTIONS
-        self.distribution = distribution
-        self.distribution_params = distribution_params
-
-        # transformer is fitted in `extract`
-        self.use_quantile_transformation = use_quantile_transformation
-        self.transformer_n_quantiles = transformer_n_quantiles
-        self.transformer_noise = transformer_noise
-        self.transformer: Optional[Union[QuantileTransformer, StandardScaler]] = None
-
-        self.pd_types: Tuple[str, ...] = ('f', 'i')
-
-    @staticmethod
-    def pd_cast(col: pd.Series) -> pd.Series:
-        return pd.to_numeric(col, errors='coerce', downcast='integer')
-
-    def __str__(self) -> str:
-        string = super().__str__()
-        if self.distribution is None:
-            string += '-raw'
-        else:
-            string += '-' + self.distribution
-        if self.integer:
-            string += '-integer'
-        if self.positive and self.distribution != 'dirac':
-            string += '-positive'
-        elif self.nonnegative and self.distribution != 'dirac':
-            string += '-nonnegative'
-        return string
+        self.weight = config.continuous_weight
 
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
-            weight=self.weight, integer=self.integer, positive=self.positive,
-            nonnegative=self.nonnegative, distribution=self.distribution,
-            distribution_params=self.distribution_params,
+            weight=self.weight
         )
         return spec
 
@@ -85,130 +40,6 @@ class ContinuousValue(Value):
 
     def learned_output_size(self) -> int:
         return 1
-
-    def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
-        column = df.loc[:, self.name]
-
-        # we allow extraction only if distribution hasn't been set
-        assert self.distribution is None
-
-        if column.dtype.kind not in self.pd_types:
-            column = self.pd_cast(column)
-
-        self.float = (column.dtype.kind == 'f')
-
-        if self.integer is None:
-            self.integer = (column.dtype.kind == 'i') or column.apply(lambda x: x.is_integer()).all()
-        elif self.integer and column.dtype.kind not in ['i', 'u']:
-            raise NotImplementedError
-
-        column = column.astype(dtype='float32')
-        assert not column.isna().any()
-        assert (column != float('inf')).all() and (column != float('-inf')).all()
-
-        if self.positive is None:
-            self.positive = (column > 0.0).all()
-        elif self.positive and (column <= 0.0).all():
-            raise NotImplementedError
-
-        if self.nonnegative is None:
-            self.nonnegative = (column >= 0.0).all()
-        elif self.nonnegative and (column < 0.0).all():
-            raise NotImplementedError
-
-        column = column.values
-        # positive / nonnegative transformation
-        if self.positive or self.nonnegative:
-            if self.nonnegative and not self.positive:
-                column = np.maximum(column, 0.001)
-            # column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
-
-        if self.transformer_noise:
-            column += np.random.normal(scale=self.transformer_noise, size=len(column))
-
-        if self.use_quantile_transformation:
-            self.transformer = QuantileTransformer(n_quantiles=min(self.transformer_n_quantiles, len(column)),
-                                                   output_distribution='normal')
-        else:
-            self.transformer = StandardScaler()
-        self.transformer.fit(column.reshape(-1, 1))
-
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        # TODO: mb removal makes learning more stable (?), an investigation required
-        # df = ContinuousValue.remove_outliers(df, self.name, REMOVE_OUTLIERS_PCT)
-
-        if df.loc[:, self.name].dtype.kind not in self.pd_types:
-            df.loc[:, self.name] = pd.to_numeric(df.loc[:, self.name], errors='coerce', downcast='integer')
-
-        assert not df.loc[:, self.name].isna().any()
-        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
-
-        if self.distribution == 'dirac':
-            return df
-
-        if self.nonnegative and not self.positive:
-            df.loc[:, self.name] = np.maximum(df.loc[:, self.name], 0.001)
-
-        if self.distribution == 'normal':
-            assert self.distribution_params is not None
-            mean, stddev = self.distribution_params
-            df.loc[:, self.name] = (df.loc[:, self.name] - mean) / stddev
-
-        elif self.distribution is not None:
-            df.loc[:, self.name] = norm.ppf(
-                DISTRIBUTIONS[self.distribution][0].cdf(df.loc[:, self.name], *self.distribution_params)
-            )
-            df = df[(df.loc[:, self.name] != float('inf')) & (df.loc[:, self.name] != float('-inf'))]
-        elif self.transformer:
-            if self.transformer_noise:
-                df.loc[:, self.name] += np.random.normal(scale=self.transformer_noise, size=len(df.loc[:, self.name]))
-            df.loc[:, self.name] = self.transformer.transform(df.loc[:, self.name].values.reshape(-1, 1))
-
-        assert not df.loc[:, self.name].isna().any()
-        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
-
-        df.loc[:, self.name] = df.loc[:, self.name].astype(np.float32)
-        return super().preprocess(df=df)
-
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().postprocess(df=df)
-        if self.distribution == 'dirac':
-            assert self.distribution_params is not None
-            df.loc[:, self.name] = self.distribution_params[0]
-
-        else:
-            if self.distribution == 'normal':
-                assert self.distribution_params is not None
-                mean, stddev = self.distribution_params
-                df.loc[:, self.name] = df.loc[:, self.name] * stddev + mean
-            elif self.distribution is not None:
-                df.loc[:, self.name] = DISTRIBUTIONS[self.distribution][0].ppf(
-                    norm.cdf(df.loc[:, self.name]), *self.distribution_params
-                )
-            elif self.transformer:
-                df.loc[:, self.name] = self.transformer.inverse_transform(df.loc[:, self.name].values.reshape(-1, 1))
-
-            if self.nonnegative:
-                df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
-
-        assert not df.loc[:, self.name].isna().any()
-        assert (df.loc[:, self.name] != float('inf')).all() and (df.loc[:, self.name] != float('-inf')).all()
-
-        if self.integer:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
-
-        if self.float and df.loc[:, self.name].dtype != 'float32':
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
-
-        return df
-
-    def module_initialize(self) -> None:
-        super().module_initialize()
-
-    @tensorflow_name_scoped
-    def input_tensors(self) -> List[tf.Tensor]:
-        return [self.placeholder]
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
@@ -222,8 +53,6 @@ class ContinuousValue(Value):
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
-        if self.distribution == 'dirac':
-            return tf.constant(value=0.0, dtype=tf.float32)
         assert len(xs) == 1
         target = xs[0]
         target = tf.expand_dims(input=target, axis=-1)
