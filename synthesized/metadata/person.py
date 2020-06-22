@@ -62,7 +62,7 @@ class PersonMeta(ValueMeta):
             self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
             self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
         ]
-        return [c for c in columns if c is not None]
+        return np.unique([c for c in columns if c is not None]).tolist()
 
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
@@ -81,15 +81,15 @@ class PersonMeta(ValueMeta):
 
         if self.gender is not None:
             if self.title_label == self.gender_label:
-                df['_gender'] = df[self.title_label].map(self.gender_mapping)
+                df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
             self.gender.extract(df=df)
             if self.title_label == self.gender_label:
-                df.drop('_gender', axis=1, inplace=True)
+                df.drop(self.title_label + '_gender', axis=1, inplace=True)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.gender is not None:
             if self.title_label == self.gender_label:
-                df['_gender'] = df[self.title_label].map(self.gender_mapping)
+                df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
             df = self.gender.preprocess(df=df)
         return super().preprocess(df=df)
 
@@ -101,8 +101,8 @@ class PersonMeta(ValueMeta):
         else:
             df = self.gender.postprocess(df=df)
             if self.title_label == self.gender_label:
-                gender = df['_gender']
-                df.drop('_gender', axis=1, inplace=True)
+                gender = df[self.title_label + '_gender']
+                df.drop(self.title_label + '_gender', axis=1, inplace=True)
             else:
                 gender = df[self.gender_label]
 

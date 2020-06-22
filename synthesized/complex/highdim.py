@@ -290,7 +290,7 @@ class HighDimSynthesizer(Synthesizer):
             synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
             synthesized = self.df_meta.split_outputs(synthesized)
 
-            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            df_synthesized = pd.DataFrame.from_dict(synthesized)
             if progress_callback is not None:
                 progress_callback(98)
 
@@ -299,7 +299,7 @@ class HighDimSynthesizer(Synthesizer):
             synthesized = self.vae.synthesize(tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64),
                                               cs=feed_dict)
             synthesized = self.df_meta.split_outputs(synthesized)
-            df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
+            df_synthesized = pd.DataFrame.from_dict(synthesized)
 
             feed_dict = self.get_conditions_feed_dict(df_conditions, self.synthesis_batch_size)
             n_batches = num_rows // self.synthesis_batch_size
@@ -317,13 +317,13 @@ class HighDimSynthesizer(Synthesizer):
                 other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
                 other = self.df_meta.split_outputs(other)
                 df_synthesized = df_synthesized.append(
-                    pd.DataFrame.from_dict(other)[columns], ignore_index=True
+                    pd.DataFrame.from_dict(other), ignore_index=True
                 )
                 if progress_callback is not None:
                     # report approximate progress from 0% to 98% (2% are reserved for post actions)
                     progress_callback(round((k + 1) * 98.0 / n_batches))
 
-        df_synthesized = self.df_meta.postprocess(df_synthesized)
+        df_synthesized = self.df_meta.postprocess(df_synthesized)[columns]
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)

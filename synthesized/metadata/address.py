@@ -106,7 +106,7 @@ class AddressMeta(ValueMeta):
             self.county_label, self.postcode_label, self.city_label, self.district_label,
             self.street_label, self.house_number_label, self.flat_label, self.house_name_label
         ]
-        return [c for c in columns if c is not None]
+        return np.unique([c for c in columns if c is not None]).tolist()
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
