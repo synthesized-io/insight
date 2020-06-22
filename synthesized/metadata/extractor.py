@@ -45,17 +45,16 @@ class MetaExtractor:
             cls, df: pd.DataFrame, id_index: str = None, time_index: str = None,
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
-            find_rules: Union[str, List[str]] = None,
+            find_rules: Union[str, List[str]] = None, produce_nans_for: List[str] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
     ) -> DataFrameMeta:
-        id_index = id_index
-        time_index = time_index
         column_aliases = column_aliases or dict()
         associations = associations or dict()
         type_overrides = type_overrides or dict()
         find_rules = find_rules or list()
+        produce_nans_for = produce_nans_for or list()
 
         values: List[ValueMeta] = list()
         identifier_value: Optional[ValueMeta] = None
@@ -83,7 +82,7 @@ class MetaExtractor:
         if compound_address_params is not None:
             values.extend(cls._identify_annotations(df, 'compound_address', compound_address_params))
 
-        values.extend(cls._identify_values(df, column_aliases, type_overrides, find_rules))
+        values.extend(cls._identify_values(df, column_aliases, type_overrides, find_rules, produce_nans_for))
 
         association_meta = cls.create_associations(values, associations)
 
@@ -115,7 +114,8 @@ class MetaExtractor:
         return values
 
     @classmethod
-    def _identify_values(cls, df: pd.DataFrame, column_aliases, type_overrides, find_rules):
+    def _identify_values(cls, df: pd.DataFrame, column_aliases: Dict[str, str], type_overrides: Dict[str, TypeOverride],
+                         find_rules: Union[str, List[str]], produce_nans_for: List[str]):
 
         values: List[ValueMeta] = list()
 
@@ -127,7 +127,7 @@ class MetaExtractor:
             if name in type_overrides:
                 forced_type = type_overrides[name]
                 if forced_type == TypeOverride.CATEGORICAL:
-                    value = CategoricalMeta(name)
+                    value = CategoricalMeta(name, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.CONTINUOUS:
                     value = ContinuousMeta(name)
                 elif forced_type == TypeOverride.DATE:
@@ -138,7 +138,9 @@ class MetaExtractor:
                     assert False
             else:
                 try:
-                    identified_value, reason = cls.identify_value(col=df[name], name=name, produce_nans=True)
+                    identified_value, reason = cls.identify_value(
+                        col=df[name], name=name, produce_nans=name in produce_nans_for
+                    )
                     # None means the value has already been detected:
                     if identified_value is None:
                         continue
