@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import hypothesis.strategies as st
-from hypothesis import given, event, settings, HealthCheck, seed
+from hypothesis import given, event, settings, HealthCheck, seed, example
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.metadata import MetaExtractor, ContinuousMeta, CategoricalMeta, AssociationMeta, NanMeta, \
@@ -133,7 +133,9 @@ def test_vf_text_floats(df):
         column('A', elements=st.one_of(st.integers(), st.sampled_from([np.NaN, pd.NaT, None])), fill=st.nothing())
     ], index=range_indexes(min_size=2, max_size=500))
 )
+@example(df=pd.DataFrame(data=[np.NaN, pd.NaT], index=[0, 1], columns=['A'], dtype=object))
 def test_vf_na_int(df):
+    print(df)
     df_meta = MetaExtractor.extract(df=df)
     value = df_meta.all_values[0]
     value_name = ''
@@ -150,7 +152,7 @@ def test_vf_na_int(df):
     elif isinstance(value, SamplingMeta):
         for v in value.categories.index:
             assert v in [pd.NaT, np.NaN] or \
-                   sum(df[value.name].isna())/len(df) >= MetaExtractor.parsing_nan_fraction_threshold
+                   sum(df[value.name].isna())/len(df) >= MetaExtractor.config.parsing_nan_fraction_threshold
     else:
         assert isinstance(value, ConstantMeta) or isinstance(value, CategoricalMeta)
 
