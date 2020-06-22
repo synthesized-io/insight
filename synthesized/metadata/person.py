@@ -66,13 +66,13 @@ class PersonMeta(ValueMeta):
 
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
-            return super().learned_input_columns()
+            return []
         else:
             return self.gender.learned_input_columns()
 
     def learned_output_columns(self) -> List[str]:
         if self.gender is None:
-            return super().learned_output_columns()
+            return []
         else:
             return self.gender.learned_output_columns()
 

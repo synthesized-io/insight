@@ -82,6 +82,9 @@ class MetaExtractor:
         if compound_address_params is not None:
             values.extend(cls._identify_annotations(df, 'compound_address', compound_address_params))
 
+        for value in values:
+            value.extract(df=df)
+
         values.extend(cls._identify_values(df, column_aliases, type_overrides, find_rules, produce_nans_for))
 
         association_meta = cls.create_associations(values, associations)
