@@ -66,8 +66,8 @@ class MetaExtractor:
         produce_nans_for = produce_nans_for or list()
 
         values: List[ValueMeta] = list()
-        identifier_value: Optional[ValueMeta] = None
-        time_value: Optional[ValueMeta] = None
+        identifier_value: Optional[IdentifierMeta] = None
+        time_value: Optional[TimeIndexMeta] = None
 
         df = df.copy()
 

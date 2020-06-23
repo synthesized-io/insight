@@ -202,7 +202,6 @@ def synthesize_and_plot_time_series(
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
-    eval_data = test_data if test_data is not None else data
     # len_eval_data = len(eval_data)
 
     def callback(synth, iteration, losses):
@@ -235,7 +234,7 @@ def synthesize_and_plot_time_series(
         training_time = time.time() - start
 
         # synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
-        synthesized = pd.concat((data.copy(), eval_data.copy()), axis=0)
+        synthesized = data.copy()
         identifiers = data[identifier_label].unique()
         id_map = {a: b
                   for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
@@ -265,7 +264,7 @@ def synthesize_and_plot_time_series(
         plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
         axes[0, 1].set_title("Synthetic")
 
-    testing = TimeSeriesUtilityTesting(synthesizer, data, eval_data, synthesized, identifier=identifier_label,
+    testing = TimeSeriesUtilityTesting(synthesizer, data, synthesized, identifier=identifier_label,
                                        time_index='date')
 
     if plot_losses:

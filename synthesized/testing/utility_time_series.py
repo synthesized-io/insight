@@ -115,8 +115,8 @@ class TimeSeriesUtilityTesting:
             return ((data[:n - h] - mean) *
                     (data[h:] - mean)).sum() / float(n) / c0
 
-        n_orig, n_synth = len(self.df_test), len(self.df_synth)
-        original_data, synthetic_data = np.asarray(self.df_test), np.asarray(self.df_synth)
+        n_orig, n_synth = len(self.df_orig), len(self.df_synth)
+        original_data, synthetic_data = np.asarray(self.df_orig), np.asarray(self.df_synth)
 
         mean_orig, mean_synth = np.mean(original_data), np.mean(synthetic_data)
         c0_orig = np.sum((original_data - mean_orig) ** 2) / float(n_orig)
@@ -153,7 +153,7 @@ class TimeSeriesUtilityTesting:
         result = []
         for col in self.continuous:
 
-            acf_distance_orig = self.get_avg_fn(self.df_test, col, unique_ids=self.unique_ids_orig, fn=acf, nlags=nlags)
+            acf_distance_orig = self.get_avg_fn(self.df_orig, col, unique_ids=self.unique_ids_orig, fn=acf, nlags=nlags)
             acf_distance_synth = self.get_avg_fn(self.df_synth, col, unique_ids=self.unique_ids_synth, fn=acf,
                                                  nlags=nlags)
 
@@ -222,23 +222,23 @@ class TimeSeriesUtilityTesting:
         """Plot a barplot with ACF-distances between original and synthetic columns."""
         result = []
         for col in self.categorical:
-            val2idx = {v: i for i, v in enumerate(np.unique(self.df_test[col]))}
+            val2idx = {v: i for i, v in enumerate(np.unique(self.df_orig[col]))}
             # ORIGINAL DATA
             t_orig = np.zeros((len(val2idx), len(val2idx)))
             k = 0
             if self.identifier:
                 for i in self.unique_ids_orig:
                     t_orig += transition_matrix(
-                        self.df_test.loc[self.df_test[self.identifier] == i, col], val2idx=val2idx)[0]
+                        self.df_orig.loc[self.df_orig[self.identifier] == i, col], val2idx=val2idx)[0]
                     k += 1
                 t_orig /= k
             else:
                 t_orig += transition_matrix(
-                    self.df_test[col], val2idx=val2idx)[0]
+                    self.df_orig[col], val2idx=val2idx)[0]
 
             # Convert to dataframe
-            t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_test[col])))
-            t_orig.index = np.unique(self.df_test[col])
+            t_orig = pd.DataFrame(t_orig, columns=list(np.unique(self.df_orig[col])))
+            t_orig.index = np.unique(self.df_orig[col])
 
             # SYNTHESIZED DATA
             t_synth = np.zeros((len(val2idx), len(val2idx)))

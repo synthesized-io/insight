@@ -49,7 +49,7 @@ class DataFrameMeta:
 
     @property
     def indices(self) -> List[Union[IdentifierMeta, TimeIndexMeta]]:
-        indices = []
+        indices: List[Union[IdentifierMeta, TimeIndexMeta]] = []
 
         if self.id_value:
             indices.append(self.id_value)

@@ -306,7 +306,9 @@ def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000
 
 
 def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: float = 0.0, sample_size=10_000,
-                                 ax: Union[Axes, SubplotBase] =  None):
+                                 ax: Union[Axes, SubplotBase] = None):
+    ax = ax or plt.gca()
+
     col_test = pd.to_numeric(col_test.dropna(), errors='coerce').dropna()
     col_synth = pd.to_numeric(col_synth.dropna(), errors='coerce').dropna()
     if len(col_test) == 0 or len(col_synth) == 0:
@@ -353,8 +355,8 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
-def plot_continuous_time_series(df_orig, df_synth, col, forecast_from: str = None, identifiers=None,
-                                ax: Union[Axes, SubplotBase] = None):
+def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, col: str, forecast_from: str = None,
+                                identifiers=None, ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
     if identifiers is not None:
         axes = axes_grid(
