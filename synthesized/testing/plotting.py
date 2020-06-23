@@ -26,6 +26,8 @@ CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 COLOR_ORIG = '#00AB26'
 COLOR_SYNTH = '#2794F3'
 
+idx = pd.IndexSlice
+
 
 # -- Plotting functions
 def set_plotting_style():
@@ -41,8 +43,10 @@ def set_plotting_style():
     mpl.rcParams['axes.spines.top'] = True
 
 
-def axes_grid(ax: Union[Axes, SubplotBase], rows: int, cols: int,
-              col_titles: List[str] = None, row_titles: List[str] = None, **kwargs):
+def axes_grid(
+        ax: Union[Axes, SubplotBase], rows: int, cols: int, col_titles: List[str] = None,
+        row_titles: List[str] = None, **kwargs
+) -> Union[List[Union[Axes, SubplotBase]], List[List[Union[Axes, SubplotBase]]]]:
     """
 
     Args:
@@ -199,7 +203,9 @@ def plot_first_order_metric_distances(result: pd.Series, metric_name: str):
     plt.show()
 
 
-def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str = None, ax=None, symmetric=True):
+def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str = None,
+                                    ax: Union[Axes, SubplotBase] = None, symmetric: bool = True,
+                                    divergent=True):
     # Generate a mask for the upper triangle
     if symmetric:
         mask = np.zeros_like(matrix, dtype=np.bool)
@@ -209,11 +215,17 @@ def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str = None, ax=
 
     sns.set(style='white')
     # Generate a custom diverging colormap
-    cmap = sns.diverging_palette(220, 10, as_cmap=True)
 
-    # Draw the heatmap with the mask and correct aspect ratio
-    hm = sns.heatmap(matrix, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
-                     square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='.2f')
+    if divergent:
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+        # Draw the heatmap with the mask and correct aspect ratio
+        hm = sns.heatmap(matrix, mask=mask, cmap=cmap, vmin=-1.0, vmax=1.0, center=0,
+                         square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='.2f')
+    else:
+        cmap = sns.light_palette(color=COLOR_SYNTH, as_cmap=True)
+        hm = sns.heatmap(matrix, mask=mask, cmap=cmap,
+                         square=True, linewidths=.5, cbar=False, ax=ax, annot=True, fmt='.2f')
 
     if ax:
         ax.set_ylim(ax.get_ylim()[0] + .5, ax.get_ylim()[1] - .5)
@@ -254,7 +266,7 @@ def plot_second_order_metric_distances(df: pd.DataFrame, metric_name: str, figsi
     plt.show()
 
 
-def bar_plot_results(current_result, ax=None):
+def bar_plot_results(current_result, ax: Union[Axes, SubplotBase] = None):
     g = sns.barplot(x=list(current_result.keys()), y=list(current_result.values()), ax=ax, palette='Paired')
 
     values = list(current_result.values())
@@ -271,7 +283,7 @@ def bar_plot_results(current_result, ax=None):
     plt.show()
 
 
-def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000, ax=None):
+def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000, ax: Union[Axes, SubplotBase] = None):
     col_test = col_test.dropna()
     col_synth = col_synth.dropna()
 
@@ -293,7 +305,8 @@ def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000
     plt.legend()
 
 
-def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: float = 0.0, sample_size=10_000, ax=None):
+def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: float = 0.0, sample_size=10_000,
+                                 ax: Union[Axes, SubplotBase] =  None):
     col_test = pd.to_numeric(col_test.dropna(), errors='coerce').dropna()
     col_synth = pd.to_numeric(col_synth.dropna(), errors='coerce').dropna()
     if len(col_test) == 0 or len(col_synth) == 0:
@@ -340,26 +353,28 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
-def plot_continuous_time_series(df_orig, df_synth, df_test, col, identifiers=None, ax=None):
+def plot_continuous_time_series(df_orig, df_synth, col, forecast_from: str = None, identifiers=None,
+                                ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
     if identifiers is not None:
         axes = axes_grid(
             ax, len(identifiers), 1, col_titles=['', ''], row_titles=identifiers, wspace=0, hspace=0
         )
 
-        for j, idf in enumerate(identifiers[:5]):
-            x = pd.to_numeric(df_orig.loc[:, (idf, col)], errors='coerce').dropna()
+        for j, idf in enumerate(identifiers):
+            x = pd.to_numeric(df_orig.xs(idf).loc[:forecast_from, col], errors='coerce').dropna()
             if len(x) > 1:
                 axes[j].plot(x.index, x.values, color=COLOR_ORIG, label='orig')
 
-            x = pd.to_numeric(df_synth.loc[:, (idf, col)], errors='coerce').dropna()
+            x = pd.to_numeric(df_synth.xs(idf)[col], errors='coerce').dropna()
             if len(x) > 1:
                 axes[j].plot(x.index, x.values, color=COLOR_SYNTH, label='synth', linewidth=1)
 
-            x = pd.to_numeric(df_test.loc[:, (idf, col)], errors='coerce').dropna()
-            if len(x) > 1:
-                axes[j].axvspan(x.index[0], x.index[-1], facecolor='0.1', alpha=0.02)
-                axes[j].plot(x.index, x.values, color=COLOR_ORIG, linestyle='dashed', linewidth=1, label='test')
+            if forecast_from is not None:
+                x = pd.to_numeric(df_orig.xs(idf).loc[forecast_from:, col], errors='coerce').dropna()
+                if len(x) > 1:
+                    axes[j].axvspan(x.index[0], x.index[-1], facecolor='0.1', alpha=0.02)
+                    axes[j].plot(x.index, x.values, color=COLOR_ORIG, linestyle='dashed', linewidth=1, label='test')
 
             axes[j].label_outer()
         axes[0].legend()
@@ -376,7 +391,7 @@ def plot_continuous_time_series(df_orig, df_synth, df_test, col, identifiers=Non
             synth_ax.plot(x.index, x.values, color=COLOR_SYNTH)
 
 
-def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax=None):
+def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax: Union[Axes, SubplotBase] = None):
     if identifiers is not None:
         ax.set_axis_off()
         fig = ax.figure
@@ -416,20 +431,25 @@ def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax=No
             ax2.autoscale_view()
 
 
-def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=100, ax=None):
+def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=100,
+                            ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
     if identifiers is not None:
         axes = axes_grid(
             ax, len(identifiers), len(identifiers), identifiers, identifiers, wspace=0.0, hspace=0.0
         )
-        for i, idx in enumerate(identifiers):
-            for j, idy in enumerate(identifiers):
+        for i, id_a in enumerate(identifiers):
+            for j, id_b in enumerate(identifiers):
                 ax = axes[i][j]
                 auto_corr_orig = scaled_correlation(
-                    df_orig.loc[:, (idx, col)].values, df_orig.loc[:, (idy, col)].values, window=20, lags=100)
+                    df_orig.loc[idx[id_a, :], col].values, df_orig.loc[idx[id_b, :], col].values,
+                    window=5, lags=max_order
+                )
                 auto_corr_synth = scaled_correlation(
-                    df_synth.loc[:, (idx, col)].values, df_synth.loc[:, (idy, col)].values, window=20, lags=100)
-                lags = np.array(range(100))
+                    df_synth.loc[idx[id_a, :], col].values, df_synth.loc[idx[id_b, :], col].values,
+                    window=5, lags=max_order
+                )
+                lags = np.array(range(max_order))
 
                 ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.5)
                 ax.bar(lags, auto_corr_synth, width=1.0, color=COLOR_SYNTH, alpha=0.5)
@@ -446,6 +466,21 @@ def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=
         ax.label_outer()
 
 
+def plot_correlation_heatmap(df_orig, col, identifiers=None, ax: Union[Axes, SubplotBase] = None):
+    ax = ax or plt.gca()
+    if identifiers is not None:
+        corrs = pd.DataFrame(index=identifiers, columns=identifiers, dtype=np.float32)
+        for i, id_a in enumerate(identifiers):
+            for j, id_b in enumerate(identifiers[:i+1]):
+                auto_corr_orig = scaled_correlation(
+                    df_orig.loc[idx[id_a, :], col].values, df_orig.loc[idx[id_b, :], col].values,
+                    window=3, lags=1
+                )[0]
+                corrs.loc[id_a, id_b] = corrs.loc[id_b, id_a] = auto_corr_orig
+
+        plot_second_order_metric_matrix(corrs, title=f'{col} correlations', ax=ax, symmetric=False, divergent=False)
+
+
 def scaled_correlation(x, y, window=20, lags=100):
     W = window
     L = lags
@@ -456,7 +491,7 @@ def scaled_correlation(x, y, window=20, lags=100):
 
     num = math.floor((len(x) - L) / W)
 
-    auto_corr = np.mean(np.array([
+    auto_corr = np.nanmean(np.array([
         [np.corrcoef(
             np.stack((x[n * W + lag:(n + 1) * W + lag], y[n * W:(n + 1) * W]), axis=0)
         )[0][1] for lag in range(L)]

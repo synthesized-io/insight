@@ -20,7 +20,7 @@ COLOR_SYNTH = '#801761'
 class TimeSeriesUtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
-    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame,
+    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
                  identifier=None, time_index=None):
         """Create an instance of UtilityTesting.
 
@@ -31,7 +31,6 @@ class TimeSeriesUtilityTesting:
             df_synth: A DataFrame with synthetic data
         """
         self.df_orig = format_time_series(df_orig, identifier=identifier, time_index=time_index)
-        self.df_test = format_time_series(df_test, identifier=identifier, time_index=time_index)
         self.df_synth = format_time_series(df_synth, identifier=identifier, time_index=time_index)
 
         self.vf = synthesizer.value_factory
