@@ -21,9 +21,15 @@ Clone the repo:
     $ python setup.py install
 
 If the environment variable `SYNTHESIZED_TP_WARNINGS` is set to `true`, then numpy, pandas, sklearn and tensorflow warnings will be shown.
-    
+   
 Project setup
 -------------
+
+### Configure git hooks
+
+  ```
+  git config --local core.hooksPath .githooks/
+  ```
 
 ### Create a virtualenv
 
