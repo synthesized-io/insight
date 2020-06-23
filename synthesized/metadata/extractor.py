@@ -17,7 +17,7 @@ from .categorical import CategoricalMeta
 from .compound_address import CompoundAddressMeta, CompoundAddressParams
 from .constant import ConstantMeta
 from .continuous import ContinuousMeta
-from .date import DateMeta
+from .date import DateMeta, TimeIndexMeta
 from .identifier import IdentifierMeta
 from .enumeration import EnumerationMeta
 from .nan import NanMeta
@@ -76,11 +76,11 @@ class MetaExtractor:
             logger.debug("Adding column %s (%s:%s) as %s for id_value.", id_index, df[id_index].dtype,
                          df[id_index].dtype.kind, identifier_value.__class__.__name__)
             identifier_value.extract(df)
-            df = df.drop(id_index, axis=1)
+            identifier_value.set_index(df)
         if time_index is not None:
-            time_value = DateMeta(time_index)
+            time_value = TimeIndexMeta(time_index)
             time_value.extract(df)
-            df = df.drop(time_index, axis=1)
+            time_value.set_index(df)
 
         if person_params is not None:
             values.extend(cls._identify_annotations(df, 'person', person_params, cls.config.person_meta_config))
@@ -366,7 +366,6 @@ def _get_labels_matrix(labels: List[Optional[List[str]]]) -> np.array:
     for label in labels:
         if label:
             if labels_len:
-                print(labels_len, label)
                 assert labels_len == len(label), 'All labels must have the same lenght'
             else:
                 labels_len = len(label)

@@ -5,20 +5,23 @@ import pandas as pd
 
 from .association import AssociationMeta
 from .value_meta import ValueMeta
+from .date import TimeIndexMeta
+from .identifier import IdentifierMeta
 
 
 class DataFrameMeta:
     """A smart container for the various types of data sets."""
     def __init__(
-            self, values: List[ValueMeta], id_value: Optional[ValueMeta] = None, time_value: Optional[ValueMeta] = None,
+            self, values: List[ValueMeta], id_value: Optional[IdentifierMeta] = None,
+            time_value: Optional[TimeIndexMeta] = None,
             column_aliases: Dict[str, str] = None, association_meta: AssociationMeta = None
     ):
         self.values = values
-        self.identifier_value = id_value
+        self.id_value = id_value
         self.time_value = time_value
         self.columns = [col for value in self.values for col in value.columns()]
-        self.id_index = id_value.name if id_value is not None else None
-        self.time_index = time_value.name if time_value is not None else None
+        self.id_index_name = id_value.name if id_value is not None else None
+        self.time_index_name = time_value.name if time_value is not None else None
         self.column_aliases = column_aliases or dict()
         self.association_meta = association_meta
 
@@ -39,10 +42,27 @@ class DataFrameMeta:
         if self.time_value:
             values = [self.time_value] + values
 
-        if self.identifier_value:
-            values = [self.identifier_value] + values
+        if self.id_value:
+            values = [self.id_value] + values
 
         return values
+
+    @property
+    def indices(self) -> List[Union[IdentifierMeta, TimeIndexMeta]]:
+        indices = []
+
+        if self.id_value:
+            indices.append(self.id_value)
+        if self.time_value:
+            indices.append(self.time_value)
+
+        return indices
+
+    def set_indices(self, df: pd.DataFrame):
+        for index in self.indices:
+            index.set_index(df=df)
+
+        df.sort_index(inplace=True)
 
     def __getitem__(self, item):
         return self._value_map[item]
@@ -58,8 +78,8 @@ class DataFrameMeta:
     def split_outputs(self, outputs: Dict[str, List]) -> Dict[str, Any]:
         # Concatenate input tensors per value
         values = self.values
-        if self.identifier_value:
-            values = values + [self.identifier_value]
+        if self.id_value:
+            values = values + [self.id_value]
         if self.time_value:
             values = values + [self.time_value]
 
@@ -114,9 +134,9 @@ class DataFrameMeta:
         variables: Dict[str, Any] = dict(
             columns=self.columns,
             column_aliases=self.column_aliases,
-            id_index=self.id_index,
-            identifier_value=self.identifier_value.get_variables() if self.identifier_value else None,
-            time_index=self.time_index,
+            id_index=self.id_index_name,
+            identifier_value=self.id_value.get_variables() if self.id_value else None,
+            time_index=self.time_index_name,
             time_value=self.time_value.get_variables() if self.time_value else None,
             association_meta=self.association_meta.get_variables() if self.association_meta is not None else None
         )
@@ -130,10 +150,10 @@ class DataFrameMeta:
     def set_variables(self, variables: Dict[str, Any]):
         self.columns = variables['columns']
         self.column_aliases = variables['column_aliases']
-        self.id_index = variables['id_index']
-        self.identifier_value = ValueMeta.set_variables(variables['identifier_value']) \
+        self.id_index_name = variables['id_index']
+        self.id_value = ValueMeta.set_variables(variables['identifier_value']) \
             if variables['identifier_value'] is not None else None
-        self.time_index = variables['id_index']
+        self.time_index_name = variables['id_index']
         self.time_value = ValueMeta.set_variables(variables['time_value']) \
             if variables['time_value'] is not None else None
         self.association_meta = ValueMeta.set_variables(variables['association_meta']) \
