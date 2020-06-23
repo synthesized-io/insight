@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List, Any
+from typing import Tuple, Dict, List, Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +9,7 @@ from statsmodels.tsa.stattools import acf, pacf
 
 from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
     plot_cross_correlations
-from ..common.synthesizer import Synthesizer
+from ..metadata import DataFrameMeta
 from ..insight import metrics
 from ..insight.dataset import categorical_or_continuous_values, format_time_series
 
@@ -20,42 +20,38 @@ COLOR_SYNTH = '#801761'
 class TimeSeriesUtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
-    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                 identifier=None, time_index=None):
+    def __init__(self, df_meta: DataFrameMeta, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                 forecast_from=None):
         """Create an instance of UtilityTesting.
 
         Args:
-            synthesizer: A synthesizer instance.
+            df_meta: DataFrame meta information.
             df_orig: A DataFrame with original data that was used for training
-            df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
-        self.df_orig = format_time_series(df_orig, identifier=identifier, time_index=time_index)
-        self.df_synth = format_time_series(df_synth, identifier=identifier, time_index=time_index)
+        self.df_meta = df_meta
+        self.id_index = df_meta.id_index_name
+        self.time_index = df_meta.time_index_name
 
-        self.vf = synthesizer.value_factory
-        categorical, continuous = categorical_or_continuous_values(self.vf)
+        self.df_orig = self.df_meta.set_indices(df_orig.copy())
+        self.df_synth = self.df_meta.set_indices(df_synth.copy())
+        self.forecast_from = forecast_from
+
+        categorical, continuous = categorical_or_continuous_values(self.df_meta)
 
         self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
         self.plotable_values = self.categorical + self.continuous
 
         # Identifiers (only for Time-Series)
-        self.identifier = identifier
-        if identifier:
-            self.unique_ids_orig = self.df_orig.columns.unique(level=0)
-            self.unique_ids_synth = self.df_synth.columns.unique(level=0)
-            num_series = min(5, len(self.unique_ids_orig), len(self.unique_ids_synth))
-            self.identifiers = pd.Series(np.random.choice(self.unique_ids_orig, num_series, replace=False),
-                                         name=self.identifier)
-        else:
-            self.unique_ids_orig = []
-            self.unique_ids_synth = []
-            self.identifiers = None
+        self.unique_ids_orig = self.df_orig.index.get_level_values(self.id_index).unique()
+        self.unique_ids_synth = self.df_synth.index.get_level_values(self.id_index).unique()
+
+        self.identifiers = df_meta.id_value.identifiers
 
         # Set the style of plots
         set_plotting_style()
 
-    def show_series(self, share_axis=False, share_ids=False):
+    def show_series(self):
 
         rows = len(self.plotable_values)
         width = 14
@@ -71,7 +67,7 @@ class TimeSeriesUtilityTesting:
             ax = fig.add_subplot(gs[i])
             ax.set_title(col, fontsize=16, pad=32)
             ax.set_axis_off()
-            plot_continuous_time_series(self.df_orig, self.df_synth, self.df_test, col,
+            plot_continuous_time_series(self.df_orig, self.df_synth, col, forecast_from=self.forecast_from,
                                         identifiers=self.identifiers, ax=ax)
 
         for i in range(len(self.categorical)):

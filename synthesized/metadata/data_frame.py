@@ -63,6 +63,7 @@ class DataFrameMeta:
             index.set_index(df=df)
 
         df.sort_index(inplace=True)
+        return df
 
     def __getitem__(self, item):
         return self._value_map[item]

@@ -458,9 +458,9 @@ def plot_cross_correlations(df_orig, df_synth, col, identifiers=None, max_order=
                 ax.label_outer()
     else:
         auto_corr_orig = scaled_correlation(
-            df_orig.loc[:, col].values, df_orig.loc[:, col].values, window=20, lags=max_order)
+            df_orig.loc[:, col].values, df_orig.loc[:, col].values, window=3, lags=max_order)
         auto_corr_synth = scaled_correlation(
-            df_synth.loc[:, col].values, df_synth.loc[:, col].values, window=20, lags=max_order)
+            df_synth.loc[:, col].values, df_synth.loc[:, col].values, window=3, lags=max_order)
         lags = np.array(range(100))
 
         ax.bar(lags, auto_corr_orig, width=1.0, color=COLOR_ORIG, alpha=0.7)
