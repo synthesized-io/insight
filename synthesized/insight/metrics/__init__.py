@@ -10,6 +10,7 @@ from .metrics import PredictiveModellingScore
 from .metrics import PredictiveModellingComparison
 
 from .vectors import DiffVector
+from .vectors import FractionalDiffVector
 
 from .metrics_base import _Metric
 from .metrics_base import ColumnMetric
@@ -34,6 +35,7 @@ from .metrics_base import DataFrameComparisonVector  # noqa: F401
 from .metrics_base import ColumnMetricVector
 from .metrics_base import ColumnComparisonVector
 from .metrics_base import RollingColumnMetricVector
+from .metrics_base import ChainColumnVector
 
 from .metrics_base import _Matrix
 from .metrics_base import DataFrameMatrix  # noqa: F401
@@ -157,6 +159,7 @@ predictive_modelling_comparison = PredictiveModellingComparison()
 # DataFrameMetricVectors
 # -----------------------------------------------------------------------------
 diff_vector = DiffVector()
+fractional_diff_vector = FractionalDiffVector()
 
 # DataFrameMetricVectors
 # -----------------------------------------------------------------------------

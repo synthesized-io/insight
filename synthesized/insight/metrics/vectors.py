@@ -10,3 +10,10 @@ class DiffVector(ColumnVector):
 
     def __call__(self, sr, periods=1, **kwargs) -> Union[pd.Series, None]:
         return sr.diff(periods=periods)
+
+
+class FractionalDiffVector(ColumnVector):
+    name = 'fractional_diff_vector'
+
+    def __call__(self, sr, periods=1, **kwargs) -> Union[pd.Series, None]:
+        return sr.diff(periods=periods,)/sr

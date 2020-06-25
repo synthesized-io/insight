@@ -407,15 +407,28 @@ class RollingColumnMetricVector(ColumnVector):
         self.name = f'rolling_{metric.name}_vector'
         super().__init__()
 
-    def __call__(self, sr: pd.Series, window: int = 5, **kwargs):
+    def __call__(self, sr: pd.Series, window: int = 5, **kwargs) -> pd.Series:
         length = len(sr)
         pad = (window - 1) // 2
         offset = (window - 1) % 2
 
-        sr = pd.Series(index=sr.index, dtype=float, name=sr.name)
+        sr2 = pd.Series(index=sr.index, dtype=float, name=sr.name)
         for n in range(pad, length - pad):
             sr_window = sr.iloc[n:n + 2 * pad + offset]
-            sr.iloc[n] = (self.metric(sr_window, **kwargs))
+            sr2.iloc[n] = self.metric(sr_window, **kwargs)
+
+        return sr2
+
+
+class ChainColumnVector(ColumnVector):
+    def __init__(self, *args):
+        self.metrics = args
+        self.name = '|'.join([m.name for m in self.metrics])
+        super().__init__()
+
+    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
+        for metric in self.metrics:
+            sr = metric(sr, **kwargs)
 
         return sr
 

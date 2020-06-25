@@ -26,7 +26,10 @@ class StandardDeviation(ColumnMetric):
     tags = ["ordinal"]
 
     def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
-        stddev = float(np.var(sr.values)**0.5)
+
+        rm_outliers = kwargs.get('rm_outliers', 0.0)
+        values = np.sort(sr.values)[int(len(sr)*rm_outliers):int(len(sr)*(1.0-rm_outliers))]
+        stddev = float(np.nanvar(values)**0.5)
 
         return stddev
 
