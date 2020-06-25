@@ -349,7 +349,7 @@ class ColumnVector(_Vector):
         super().__init__()
 
     @abstractmethod
-    def __call__(self, sr: pd.Series, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
         pass
 
 

@@ -362,11 +362,11 @@ def plot_series(sr: pd.Series, ax: Union[Axes, SubplotBase] = None, **kwargs):
         ax.plot(x.index, x.values, **kwargs)
 
 
-def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, col: str, forecast_from: str = None,
+def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, col: str, forecast_from=None,
                                 identifiers=None, ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
     if identifiers is not None:
-        axes = axes_grid(
+        axes: List[Union[Axes, SubplotBase]] = axes_grid(
             ax, len(identifiers), 1, col_titles=['', ''], row_titles=identifiers, wspace=0, hspace=0
         )
 
@@ -385,6 +385,9 @@ def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, c
         orig_ax, synth_ax = axes_grid(
             ax, 1, 2, col_titles=['Original', 'Synthetic'], row_titles=[''], wspace=0, hspace=0
         )
+        assert isinstance(orig_ax, Axes)
+        assert isinstance(synth_ax, Axes)
+
         x = pd.to_numeric(df_orig[col], errors='coerce').dropna()
         if len(x) > 1:
             orig_ax.plot(x.index, x.values, color=COLOR_ORIG)
@@ -395,6 +398,7 @@ def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, c
 
 
 def plot_categorical_time_series(df_orig, df_synth, col, identifiers=None, ax: Union[Axes, SubplotBase] = None):
+    ax = ax or plt.gca()
     if identifiers is not None:
         ax.set_axis_off()
         fig = ax.figure

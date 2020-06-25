@@ -29,13 +29,13 @@ from .metrics_base import DiffTwoColumnMetricAdapter
 from .metrics_base import DiffDataFrameMetricAdapter
 
 from .metrics_base import _Vector
-from .metrics_base import ColumnVector
+from .metrics_base import ColumnVector  # noqa: F401
 from .metrics_base import DataFrameVector  # noqa: F401
 from .metrics_base import DataFrameComparisonVector  # noqa: F401
 from .metrics_base import ColumnMetricVector
 from .metrics_base import ColumnComparisonVector
-from .metrics_base import RollingColumnMetricVector
-from .metrics_base import ChainColumnVector
+from .metrics_base import RollingColumnMetricVector  # noqa: F401
+from .metrics_base import ChainColumnVector  # noqa: F401
 
 from .metrics_base import _Matrix
 from .metrics_base import DataFrameMatrix  # noqa: F401
