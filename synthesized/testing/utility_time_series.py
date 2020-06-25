@@ -8,9 +8,10 @@ from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.stattools import acf, pacf
 
 from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
-    plot_cross_correlations
+    plot_cross_correlations, plot_series
 from ..metadata import DataFrameMeta
 from ..insight import metrics
+from ..insight.metrics import ColumnVector
 from ..insight.dataset import categorical_or_continuous_values, format_time_series
 
 COLOR_ORIG = '#1C5D7A'
@@ -78,6 +79,34 @@ class TimeSeriesUtilityTesting:
             plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
 
         plt.suptitle('Time-Series', fontweight='bold', fontsize=24)
+        plt.show()
+
+    def show_continuous_column_vector(self, metric_vector: ColumnVector, col: str, id_: str, **kwargs):
+        xs_orig = self.df_orig.xs(id_)
+        xs_synth = self.df_synth.xs(id_)
+
+        sr_orig = metric_vector(sr=xs_orig[col], **kwargs)
+        sr_synth = metric_vector(sr=xs_synth[col], **kwargs)
+
+        rows = 1
+        width = 20
+        height = 8 * rows + 3
+        figsize = (width, height)
+        fig = plt.figure(figsize=figsize)
+        ax = fig.gca()
+
+        plot_series(sr_orig, ax=ax, color=COLOR_ORIG)
+        sr_orig_avg = np.nanmean(sr_orig.values)
+        sr_orig[sr_orig.notna()] = sr_orig_avg
+        plot_series(sr_orig, ax=ax, color=COLOR_ORIG, linestyle='dashed')
+
+        plot_series(sr_synth, ax=ax, color=COLOR_SYNTH)
+        sr_synth_avg = np.nanmean(sr_synth.values)
+        sr_synth[sr_synth.notna()] = sr_synth_avg
+        plot_series(sr_synth, ax=ax, color=COLOR_SYNTH, linestyle='dashed')
+
+        plt.suptitle(f'{metric_vector.name} (Orig Avg: {sr_orig_avg:.3f} Synth Avg: {sr_synth_avg:.3f})',
+                     fontweight='bold', fontsize=24)
         plt.show()
 
     def show_auto_associations(self, max_order=30):

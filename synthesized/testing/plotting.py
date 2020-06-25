@@ -23,8 +23,8 @@ NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
-COLOR_ORIG = '#00AB26'
-COLOR_SYNTH = '#2794F3'
+COLOR_ORIG = '#1C5D7A'
+COLOR_SYNTH = '#801761'
 
 idx = pd.IndexSlice
 
@@ -355,6 +355,13 @@ def plot_time_series(x, t, ax):
         sequence_index_plot(x=x, t=t, ax=ax)
 
 
+def plot_series(sr: pd.Series, ax: Union[Axes, SubplotBase] = None, **kwargs):
+    ax = ax or plt.gca()
+    x = pd.to_numeric(sr, errors='coerce').dropna()
+    if len(x) > 1:
+        ax.plot(x.index, x.values, **kwargs)
+
+
 def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, col: str, forecast_from: str = None,
                                 identifiers=None, ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
@@ -364,19 +371,13 @@ def plot_continuous_time_series(df_orig: pd.DataFrame, df_synth: pd.DataFrame, c
         )
 
         for j, idf in enumerate(identifiers):
-            x = pd.to_numeric(df_orig.xs(idf).loc[:forecast_from, col], errors='coerce').dropna()
-            if len(x) > 1:
-                axes[j].plot(x.index, x.values, color=COLOR_ORIG, label='orig')
-
-            x = pd.to_numeric(df_synth.xs(idf)[col], errors='coerce').dropna()
-            if len(x) > 1:
-                axes[j].plot(x.index, x.values, color=COLOR_SYNTH, label='synth', linewidth=1)
+            plot_series(sr=df_orig.xs(idf).loc[:forecast_from, col], ax=axes[j], color=COLOR_ORIG, label='orig')
+            plot_series(sr=df_synth.xs(idf)[col], ax=axes[j], color=COLOR_SYNTH, label='synth')
 
             if forecast_from is not None:
-                x = pd.to_numeric(df_orig.xs(idf).loc[forecast_from:, col], errors='coerce').dropna()
-                if len(x) > 1:
-                    axes[j].axvspan(x.index[0], x.index[-1], facecolor='0.1', alpha=0.02)
-                    axes[j].plot(x.index, x.values, color=COLOR_ORIG, linestyle='dashed', linewidth=1, label='test')
+                sr = df_orig.xs(idf).loc[forecast_from:, col]
+                plot_series(sr=sr, ax=axes[j], color=COLOR_ORIG, linestyle='dashed', linewidth=1, label='test')
+                axes[j].axvspan(sr.index[0], sr.index[-1], facecolor='0.1', alpha=0.02)
 
             axes[j].label_outer()
         axes[0].legend()
