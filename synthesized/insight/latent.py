@@ -24,6 +24,14 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.Dat
     return df_latent
 
 
+def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: pd.DataFrame, df_new: pd.DataFrame) -> float:
+    with synthesizer as synth:
+        synth.learn(df_train=df_new, num_iterations=None)
+        df_latent, df_synthesized = synth.encode(df_encode=pd.concat((df_orig, df_new), axis=0))
+
+    return total_latent_space_usage(df_latent, usage_type='mean')
+
+
 def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> pd.DataFrame:
     if usage_type == 'stddev':
         ldu = 1.0 - df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(3).to_numpy()
