@@ -166,7 +166,7 @@ class ConditionalSampler(Synthesizer):
         return df
 
     def _validate_explicit_marginals(self, explicit_marginals):
-        values = self.synthesizer.data_panel.values
+        values = self.synthesizer.df_meta.values
         values_name = [value.name for value in values]
 
         for col, cond in explicit_marginals:

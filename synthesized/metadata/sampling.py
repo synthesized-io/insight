@@ -30,7 +30,7 @@ class SamplingMeta(ValueMeta):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        dropna = False if self.produce_nans else True
+        dropna = False if self.produce_nans else False if all(df.loc[:, self.name].isna()) else True
         self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=dropna)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()

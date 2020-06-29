@@ -96,9 +96,9 @@ def synthesize_and_plot(
     evaluation.record_config(evaluation=name, config=config)
     start = time.time()
 
-    dp = MetaExtractor.extract(df=data)
+    df_meta = MetaExtractor.extract(df=data)
     hd_config = HighDimConfig(**config['params'])
-    with HighDimSynthesizer(data_panel=dp, config=hd_config) as synthesizer:
+    with HighDimSynthesizer(df_meta=df_meta, config=hd_config) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
                           callback_freq=100)
         training_time = time.time() - start
@@ -226,10 +226,10 @@ def synthesize_and_plot_time_series(
     #     num_series = 1
     #     series_length = len_eval_data
 
-    dp = MetaExtractor.extract(df=data)
+    df_meta = MetaExtractor.extract(df=data)
     series_config = SeriesConfig(**config['params'])
 
-    with SeriesSynthesizer(data_panel=dp, config=series_config) as synthesizer:
+    with SeriesSynthesizer(df_meta=df_meta, config=series_config) as synthesizer:
         # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
         #                   callback_freq=100)
         training_time = time.time() - start

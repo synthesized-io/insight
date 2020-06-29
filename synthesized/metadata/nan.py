@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 
@@ -32,13 +34,18 @@ class NanMeta(ValueMeta):
         )
         return spec
 
-    def learned_input_columns(self):
+    def columns(self) -> List[str]:
+        return self.value.columns()
+
+    def learned_input_columns(self) -> List[str]:
         return self.value.learned_input_columns()
 
-    def learned_output_columns(self):
+    def learned_output_columns(self) -> List[str]:
         return self.value.learned_output_columns()
 
     def extract(self, df):
+        super().extract(df=df)
+
         column = df[self.value.name]
         if column.dtype.kind not in self.value.pd_types:
             column = self.value.pd_cast(column)
@@ -49,7 +56,8 @@ class NanMeta(ValueMeta):
         df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
         nan = df.loc[:, self.value.name].isna()
-        df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
+        if sum(~nan) > 0:
+            df.loc[~nan, :] = self.value.preprocess(df=df.loc[~nan, :])
         df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
 
         return super().preprocess(df=df)

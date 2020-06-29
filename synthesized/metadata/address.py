@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Union
 import gzip
 import logging
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import faker
 import numpy as np
 import pandas as pd
@@ -27,7 +27,15 @@ class AddressParams:
     house_number_label: Union[str, List[str], None] = None
     flat_label: Union[str, List[str], None] = None
     house_name_label: Union[str, List[str], None] = None
-    addresses_file: Optional[str] = None
+
+
+@dataclass
+class AddressMetaConfig:
+    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+
+    @property
+    def address_meta_config(self):
+        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
 
 
 class AddressRecord:
@@ -60,7 +68,7 @@ class AddressMeta(ValueMeta):
     def __init__(self, name, postcode_level: int = 0, postcode_label: str = None,
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
-                 addresses_file: str = None):
+                 config: AddressMetaConfig = AddressMetaConfig()):
 
         super().__init__(name=name)
 
@@ -76,7 +84,9 @@ class AddressMeta(ValueMeta):
         self.house_number_label = house_number_label
         self.flat_label = flat_label
         self.house_name_label = house_name_label
+        self.config = config
 
+        addresses_file = config.addresses_file
         # Check if given 'addresses_file' exist, otherwise set to None.
         if addresses_file is not None:
             if not os.path.exists(os.path.expanduser(addresses_file)):
@@ -101,7 +111,16 @@ class AddressMeta(ValueMeta):
         self.dtype = tf.int64
         assert self.fake or self.postcode
 
+    def columns(self) -> List[str]:
+        columns = [
+            self.county_label, self.postcode_label, self.city_label, self.district_label,
+            self.street_label, self.house_number_label, self.flat_label, self.house_name_label
+        ]
+        return np.unique([c for c in columns if c is not None]).tolist()
+
     def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+
         if self.fake:
             return
 
@@ -145,15 +164,19 @@ class AddressMeta(ValueMeta):
             postcode_data = pd.DataFrame({self.postcode_label: unique_postcodes})
             self.postcode.extract(df=postcode_data)
 
+    def learned_input_columns(self) -> List[str]:
+        if self.fake and self.postcode is not None:
+            return self.postcode.learned_input_columns()
+        else:
+            return []
+
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if self.fake:
-            return super().preprocess(df=df)
+        if not self.fake and self.postcode_label is not None:
+            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
+            df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
 
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
-        df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
-
-        if self.postcode:
-            df = self.postcode.preprocess(df=df)
+            if self.postcode:
+                df = self.postcode.preprocess(df=df)
 
         return super().preprocess(df=df)
 
@@ -201,6 +224,12 @@ class AddressMeta(ValueMeta):
                         d[self._get_postcode_key(js['postcode'])].extend(addresses)
 
         return d
+
+    def learned_output_columns(self) -> List[str]:
+        if self.fake and self.postcode is not None:
+            return self.postcode.learned_output_columns()
+        else:
+            return []
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)

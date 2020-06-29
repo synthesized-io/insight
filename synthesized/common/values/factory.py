@@ -13,7 +13,7 @@ from .identifier import IdentifierConfig, IdentifierValue
 from .rule import RuleValue
 from .nan import NanValue, NanConfig
 from .value import Value
-from ...metadata import DataPanel, ValueMeta
+from ...metadata import DataFrameMeta, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
     CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
@@ -33,7 +33,7 @@ class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, Decompo
 
 class ValueFactory:
     """A Mix-In that you extend to be able to create various values."""
-    def __init__(self, data_panel: DataPanel, name: str = 'value_factory', conditions: List[str] = None,
+    def __init__(self, df_meta: DataFrameMeta, name: str = 'value_factory', conditions: List[str] = None,
                  config: ValueFactoryConfig = ValueFactoryConfig()):
 
         """Init ValueFactory."""
@@ -45,22 +45,22 @@ class ValueFactory:
         self.produce_nans = config.produce_nans
 
         # Values
-        self.columns = list(data_panel.columns)
+        self.columns = list(df_meta.columns)
         self.values: List[Value] = list()
         self.conditions: List[Value] = list()
         self.identifier_value: Optional[Value] = None
 
-        self.create_values(data_panel)
+        self.create_values(df_meta)
 
-    def create_values(self, data_panel):
-        if data_panel.association_meta is not None:
-            associated_metas = [v.name for v in data_panel.association_meta.values]
+    def create_values(self, df_meta):
+        if df_meta.association_meta is not None:
+            associated_metas = [v.name for v in df_meta.association_meta.values]
         else:
             associated_metas = []
 
         associated_values = []
 
-        for value_meta in data_panel.values:
+        for value_meta in df_meta.values:
             value = self.create_value(value_meta)
             if value is not None:
                 if value.name in associated_metas:
@@ -74,13 +74,13 @@ class ValueFactory:
                 else:
                     self.values.append(value)
 
-        if len(associated_values) > 0 and data_panel.association_meta is not None:
+        if len(associated_values) > 0 and df_meta.association_meta is not None:
             self.values.append(AssociatedCategoricalValue(
-                values=associated_values, associations=data_panel.association_meta.associations
+                values=associated_values, associations=df_meta.association_meta.associations
             ))
 
-        if data_panel.identifier_value is not None:
-            self.identifier_value = self.create_value(data_panel.identifier_value)
+        if df_meta.identifier_value is not None:
+            self.identifier_value = self.create_value(df_meta.identifier_value)
 
     def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
@@ -90,13 +90,10 @@ class ValueFactory:
                 vm.name, num_categories=vm.num_categories, similarity_based=vm.similarity_based,
                 nans_valid=vm.nans_valid, produce_nans=self.produce_nans, config=self.config.categorical_config
             )
-        elif isinstance(vm, ContinuousMeta):
-            return ContinuousValue(
-                vm.name, config=self.config.continuous_config
-            )
-        elif isinstance(vm, DecomposedContinuousMeta):
-            return DecomposedContinuousValue(
-                vm.name, config=self.config.decomposed_continuous_config
+        elif isinstance(vm, DateMeta):
+            return DateValue(
+                vm.name, categorical_config=self.config.categorical_config,
+                continuous_config=self.config.continuous_config
             )
         elif isinstance(vm, NanMeta):
             value = self.create_value(vm.value)
@@ -105,21 +102,36 @@ class ValueFactory:
             return NanValue(
                 vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans
             )
-        elif isinstance(vm, DateMeta):
-            return DateValue(
-                vm.name, categorical_config=self.config.categorical_config,
-                continuous_config=self.config.continuous_config
+        elif isinstance(vm, ContinuousMeta):
+            return ContinuousValue(
+                vm.name, config=self.config.continuous_config
+            )
+        elif isinstance(vm, DecomposedContinuousMeta):
+            return DecomposedContinuousValue(
+                vm.name, config=self.config.decomposed_continuous_config
             )
         elif isinstance(vm, IdentifierMeta):
             return IdentifierValue(vm.name, num_identifiers=vm.num_identifiers, config=self.config.identifier_config)
         elif isinstance(vm, AddressMeta):
-            if vm.fake is False:
-                return self.create_value(vm.postcode)
+            if isinstance(vm.postcode, CategoricalMeta):
+                if vm.postcode.num_categories is None:
+                    raise ValueError
+                return CategoricalValue(
+                    vm.name, num_categories=vm.postcode.num_categories, similarity_based=vm.postcode.similarity_based,
+                    nans_valid=vm.postcode.nans_valid, produce_nans=vm.postcode.produce_nans or self.produce_nans,
+                    config=self.config.categorical_config
+                )
         elif isinstance(vm, CompoundAddressMeta):
             return self.create_value(vm.postcode)
         elif isinstance(vm, PersonMeta):
-            if vm.gender is not None:
-                return self.create_value(vm.gender)
+            if isinstance(vm.gender, CategoricalMeta):
+                if vm.gender.num_categories is None:
+                    raise ValueError
+                return CategoricalValue(
+                    vm.name, num_categories=vm.gender.num_categories, similarity_based=vm.gender.similarity_based,
+                    nans_valid=vm.gender.nans_valid, produce_nans=vm.gender.produce_nans or self.produce_nans,
+                    config=self.config.categorical_config
+                )
         elif isinstance(vm, BankNumberMeta):
             # TODO: create BankNumberMeta logic
             return None

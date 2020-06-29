@@ -47,12 +47,12 @@ class DateValue(ContinuousValue):
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         self.build()
-        xs[0] = super().unify_inputs(xs=xs[0: 1])
-        xs[1] = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
-        xs[2] = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
-        xs[3] = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
-        xs[4] = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
-        return tf.concat(values=xs, axis=-1)
+        xs0 = super().unify_inputs(xs=xs[0: 1])
+        xs1 = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
+        xs2 = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
+        xs3 = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
+        xs4 = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
+        return tf.concat(values=[xs0, xs1, xs2, xs3, xs4], axis=-1)
 
     # TODO: skip last and assume absolute value
     # def tf_loss(self, x, feed=None):
@@ -65,3 +65,9 @@ class DateValue(ContinuousValue):
             self.day.build()
             self.month.build()
             self.built = True
+
+    @tensorflow_name_scoped
+    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+        xs = xs[0: 1]
+        loss = super().loss(y=y, xs=xs)
+        return loss

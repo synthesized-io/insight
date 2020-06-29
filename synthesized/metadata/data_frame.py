@@ -7,7 +7,7 @@ from .association import AssociationMeta
 from .value_meta import ValueMeta
 
 
-class DataPanel:
+class DataFrameMeta:
     """A smart container for the various types of data sets."""
     def __init__(
             self, values: List[ValueMeta], id_value: Optional[ValueMeta] = None, time_value: Optional[ValueMeta] = None,
@@ -36,11 +36,11 @@ class DataPanel:
     def all_values(self):
         values = self.values
 
-        if self.identifier_value:
-            values = values + [self.identifier_value]
-
         if self.time_value:
-            values = values + [self.time_value]
+            values = [self.time_value] + values
+
+        if self.identifier_value:
+            values = [self.identifier_value] + values
 
         return values
 
@@ -144,7 +144,7 @@ class DataPanel:
             self.values.append(ValueMeta.set_variables(variables['value_{}'.format(i)]))
 
     @classmethod
-    def from_dict(cls, variables: Dict[str, Any]) -> 'DataPanel':
-        data_panel = cls.__new__(cls)
-        data_panel.set_variables(variables)
-        return data_panel
+    def from_dict(cls, variables: Dict[str, Any]) -> 'DataFrameMeta':
+        df_meta = cls.__new__(cls)
+        df_meta.set_variables(variables)
+        return df_meta

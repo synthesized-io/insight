@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import faker
 import numpy as np
 import pandas as pd
@@ -22,12 +22,21 @@ class PersonParams:
     work_number_label: Union[str, List[str], None] = None
 
 
+@dataclass
+class PersonMetaConfig:
+    dict_cache_size: int = 10000
+
+    @property
+    def person_meta_config(self):
+        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+
+
 class PersonMeta(ValueMeta):
 
     def __init__(self, name, title_label=None, gender_label=None, name_label=None,
                  firstname_label=None, lastname_label=None, email_label=None,
                  mobile_number_label=None, home_number_label=None, work_number_label=None,
-                 dict_cache_size=10000):
+                 config: PersonMetaConfig = PersonMetaConfig()):
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -45,6 +54,7 @@ class PersonMeta(ValueMeta):
 
         fkr = faker.Faker(locale='en_GB')
         self.fkr = fkr
+        dict_cache_size = config.dict_cache_size
         self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
         self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
         self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))
@@ -57,30 +67,39 @@ class PersonMeta(ValueMeta):
         else:
             self.gender = CategoricalMeta(name=gender_label)
 
+    def columns(self) -> List[str]:
+        columns = [
+            self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
+            self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
+        ]
+        return np.unique([c for c in columns if c is not None]).tolist()
+
     def learned_input_columns(self) -> List[str]:
         if self.gender is None:
-            return super().learned_input_columns()
+            return []
         else:
             return self.gender.learned_input_columns()
 
     def learned_output_columns(self) -> List[str]:
         if self.gender is None:
-            return super().learned_output_columns()
+            return []
         else:
             return self.gender.learned_output_columns()
 
     def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
+
         if self.gender is not None:
             if self.title_label == self.gender_label:
-                df['_gender'] = df[self.title_label].map(self.gender_mapping)
+                df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
             self.gender.extract(df=df)
             if self.title_label == self.gender_label:
-                df.drop('_gender', axis=1, inplace=True)
+                df.drop(self.title_label + '_gender', axis=1, inplace=True)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.gender is not None:
             if self.title_label == self.gender_label:
-                df['_gender'] = df[self.title_label].map(self.gender_mapping)
+                df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
             df = self.gender.preprocess(df=df)
         return super().preprocess(df=df)
 
@@ -92,8 +111,8 @@ class PersonMeta(ValueMeta):
         else:
             df = self.gender.postprocess(df=df)
             if self.title_label == self.gender_label:
-                gender = df['_gender']
-                df.drop('_gender', axis=1, inplace=True)
+                gender = df[self.title_label + '_gender']
+                df.drop(self.title_label + '_gender', axis=1, inplace=True)
             else:
                 gender = df[self.gender_label]
 

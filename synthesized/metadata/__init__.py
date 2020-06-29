@@ -1,4 +1,4 @@
-from .data_panel import DataPanel
+from .data_frame import DataFrameMeta
 from .extractor import MetaExtractor, TypeOverride
 
 from .address import AddressMeta
@@ -19,7 +19,7 @@ from .sampling import SamplingMeta
 from .value_meta import ValueMeta
 
 __all__ = [
-    'DataPanel', 'MetaExtractor', 'AddressMeta', 'AssociationMeta', 'BankNumberMeta', 'CategoricalMeta',
+    'DataFrameMeta', 'MetaExtractor', 'AddressMeta', 'AssociationMeta', 'BankNumberMeta', 'CategoricalMeta',
     'CompoundAddressMeta', 'ConstantMeta', 'ContinuousMeta', 'DateMeta', 'DecomposedContinuousMeta', 'EnumerationMeta',
     'IdentifierMeta', 'NanMeta', 'PersonMeta', 'RuleMeta', 'SamplingMeta', 'ValueMeta', 'TypeOverride'
 ]

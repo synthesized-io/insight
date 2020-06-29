@@ -42,12 +42,6 @@ class AssociatedCategoricalValue(Value):
     def columns(self) -> List[str]:
         return [name for value in self.values for name in value.columns()]
 
-    def learned_input_columns(self) -> List[str]:
-        return [name for value in self.values for name in value.learned_input_columns()]
-
-    def learned_output_columns(self) -> List[str]:
-        return [name for value in self.values for name in value.learned_output_columns()]
-
     def learned_input_size(self) -> int:
         return sum([v.learned_input_size() for v in self.values])
 

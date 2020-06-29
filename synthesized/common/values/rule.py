@@ -28,9 +28,6 @@ class RuleValue(Value):
     def learned_output_size(self) -> int:
         return sum(value.learned_output_size() for value in self.values[:self.num_learned])
 
-    def module_initialize(self) -> None:
-        raise NotImplementedError
-
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
         x = list()

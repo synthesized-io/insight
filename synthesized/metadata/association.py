@@ -32,6 +32,7 @@ class AssociationMeta(ValueMeta):
         return [name for value in self.values for name in value.columns()]
 
     def extract(self, df: pd.DataFrame) -> None:
+        super().extract(df=df)
         for v in self.values:
             v.extract(df=df)
 
@@ -59,6 +60,12 @@ class AssociationMeta(ValueMeta):
             final_mask *= np.broadcast_to(mask, [v.num_categories for v in self.values])
 
         self.binding_mask = tf.constant(final_mask, dtype=tf.float32)
+
+    def learned_input_columns(self) -> List[str]:
+        return [col for value in self.values for col in value.learned_input_columns()]
+
+    def learned_output_columns(self) -> List[str]:
+        return [col for value in self.values for col in value.learned_output_columns()]
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         for value in self.values:

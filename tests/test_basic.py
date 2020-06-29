@@ -22,8 +22,8 @@ def test_datasets_quick():
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
                 config = HighDimConfig(capacity=8, num_layers=1, batch_size=8, learning_manager=False)
-                dp = MetaExtractor.extract(df=df_original)
-                with HighDimSynthesizer(data_panel=dp, config=config) as synthesizer:
+                df_meta = MetaExtractor.extract(df=df_original)
+                with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
                     synthesizer.learn(num_iterations=10, df_train=df_original)
                     df_synthesized = synthesizer.synthesize(num_rows=10000)
                     assert len(df_synthesized) == 10000
@@ -39,10 +39,10 @@ def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
 
     config = HighDimConfig(capacity=8, num_layers=1, batch_size=8, learning_manager=False)
-    dp = MetaExtractor.extract(df=df_original)
+    df_meta = MetaExtractor.extract(df=df_original)
 
     with HighDimSynthesizer(
-        data_panel=dp, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
+        df_meta=df_meta, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})
@@ -53,8 +53,8 @@ def test_unittest_dataset_quick():
 @pytest.mark.integration
 def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv').dropna()
-    dp = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(data_panel=dp) as synthesizer:
+    df_meta = MetaExtractor.extract(df=df_original)
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=5000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
         assert len(df_synthesized) == len(df_original)
