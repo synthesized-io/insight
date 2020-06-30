@@ -79,7 +79,8 @@ def density(x, m, v):
     return np.sum(d)
 
 
-def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame, new_data: pd.DataFrame):
+def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame, new_data: pd.DataFrame,
+                         num_dims: int = 10):
     dims = latent_dimension_usage(df_latent_orig, 'mean')['dimension'][-10:].to_list()[::-1]
     df_latent, df_syn = synth.encode(new_data)
 
@@ -93,7 +94,7 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
     N2 = len(df_latent_orig)
     KL = []
 
-    for dim in dims[:10]:
+    for dim in dims[:num_dims]:
         m, v = mean[dim].to_numpy()[:N], stddev[dim].to_numpy()[:N] ** 2
         m_orig, v_orig = orig_mean[dim].to_numpy()[:N2], orig_stddev[dim].to_numpy()[:N2] ** 2
 
@@ -101,7 +102,6 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
         X = np.arange(-5, 5, d)
         Y = np.array([density(x, m, v) / N for x in X])
         Y2 = np.array([density(x, m_orig, v_orig) / N2 for x in X])
-        # G = [density(x, 0, 1) / 1.0 for x in X]
 
         KL.append(d*np.sum(Y * np.log(Y / Y2)))
 
