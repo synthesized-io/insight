@@ -137,13 +137,17 @@ class MetaExtractor:
             value: Optional[ValueMeta]
             # we are skipping aliases
             if name in column_aliases:
+                logger.debug("Skipping aliased column %s.", name)
                 continue
             if name in type_overrides:
                 forced_type = type_overrides[name]
+                logger.debug("Type Overriding column %s to %s.", name, forced_type)
                 if forced_type == TypeOverride.CATEGORICAL:
                     value = CategoricalMeta(name, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.CONTINUOUS:
                     value = ContinuousMeta(name)
+                    if pd.to_numeric(df[name]).isna().sum() > 1:
+                        value = NanMeta(name, value, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.DATE:
                     value = DateMeta(name)
                 elif forced_type == TypeOverride.ENUMERATION:
