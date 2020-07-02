@@ -146,7 +146,7 @@ class MetaExtractor:
                     value = CategoricalMeta(name, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.CONTINUOUS:
                     value = ContinuousMeta(name)
-                    if pd.to_numeric(df[name]).isna().sum() > 1:
+                    if any(pd.to_numeric(df[name]).isna()):
                         value = NanMeta(name, value, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.DATE:
                     value = DateMeta(name)
