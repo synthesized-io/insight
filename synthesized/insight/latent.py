@@ -26,7 +26,7 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.Dat
 
 
 def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.DataFrame],
-                     df_new: pd.DataFrame, **learn_kwargs) -> float:
+                     df_new: pd.DataFrame, **kwargs) -> float:
     """Returns a score representing the complexity of the data.
 
     Internally, this function trains the synthesizer on the new dataframe and uses all the data to calculate a new
@@ -40,7 +40,7 @@ def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.Da
 
     """
     with synthesizer as synth:
-        synth.learn(df_train=df_new, num_iterations=None, **learn_kwargs)
+        synth.learn(df_train=df_new, num_iterations=None, **kwargs)
         df_latent, df_synthesized = synth.encode(df_encode=pd.concat((df_orig, df_new), axis=0))
 
     return total_latent_space_usage(df_latent, usage_type='mean')
