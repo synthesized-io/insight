@@ -50,7 +50,10 @@ def source_files(base_dir):
     return result
 
 
-ext_modules = [Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')]
+ext_modules = [
+    Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
+    if f.replace('/', '.').replace('\\', '.')[:-3] != 'synthesized.config'
+]
 
 setup(
     name='synthesized',
