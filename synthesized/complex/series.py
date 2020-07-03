@@ -4,73 +4,20 @@ import time
 from random import randrange
 from typing import Callable, List, Union, Dict, Optional, Tuple
 
-from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common.values import Value, ValueFactory, ValueFactoryConfig
+from ..common.values import Value, ValueFactory
 from ..common.generative import SeriesVAE
-from ..common.learning_manager import LearningManager, LearningManagerConfig
+from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
+from ..config import SeriesConfig
 from ..metadata import DataFrameMeta, ValueMeta
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
-
-
-@dataclass
-class SeriesConfig(ValueFactoryConfig, LearningManagerConfig):
-    """
-    distribution: Distribution type: "normal".
-    latent_size: Latent size.
-    network: Network type: "mlp" or "resnet".
-    capacity: Architecture capacity.
-    num_layers: Architecture depth.
-    residual_depths: The depth(s) of each individual residual layer.
-    batch_norm: Whether to use batch normalization.
-    activation: Activation function.
-    optimizer: Optimizer.
-    learning_rate: Learning rate.
-    decay_steps: Learning rate decay steps.
-    decay_rate: Learning rate decay rate.
-    initial_boost: Number of steps for initial x10 learning rate boost.
-    clip_gradients: Gradient norm clipping.
-    batch_size: Batch size.
-    beta: VAE KL-loss beta.
-    weight_decay: Weight decay.
-    learning_manager: Whether to use LearningManager.
-    """
-    # VAE distribution
-    distribution: str = 'normal'
-    latent_size: int = 128
-    # Network
-    network: str = 'mlp'
-    capacity: int = 128
-    num_layers: int = 2
-    residual_depths: Union[None, int, List[int]] = None
-    batch_norm: bool = False
-    activation: str = 'leaky_relu'
-    # Optimizer
-    optimizer: str = 'adam'
-    learning_rate: float = 3e-3
-    decay_steps: Optional[int] = None
-    decay_rate: Optional[float] = None
-    initial_boost: int = 0
-    clip_gradients: float = 1.0
-    # Batch size
-    batch_size: int = 32
-    increase_batch_size_every: Optional[int] = 500
-    max_batch_size: Optional[int] = None
-    # Losses
-    beta: float = 0.01
-    weight_decay: float = 1e-6
-    learning_manager: bool = False
-    # Series
-    lstm_mode: str = 'rdssm'
-    max_seq_len: int = 512
-    series_dropout: float = 0.5
 
 
 class SeriesSynthesizer(Synthesizer):

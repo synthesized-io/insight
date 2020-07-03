@@ -1,6 +1,5 @@
 from typing import List
 
-from dataclasses import dataclass, fields
 import numpy as np
 import tensorflow as tf
 
@@ -9,15 +8,7 @@ from .continuous import ContinuousValue
 from .value import Value
 from ..util import get_initializer
 from ..module import tensorflow_name_scoped
-
-
-@dataclass
-class NanConfig:
-    nan_weight: float = 1.0
-
-    @property
-    def nan_config(self):
-        return NanConfig(**{f.name: self.__getattribute__(f.name) for f in fields(NanConfig)})
+from ...config import NanConfig
 
 
 class NanValue(Value):

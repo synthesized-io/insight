@@ -2,26 +2,15 @@ import logging
 from math import log
 from typing import Any, Dict, List, Optional
 
-from dataclasses import dataclass, fields
 import numpy as np
 import tensorflow as tf
 
 from .value import Value
 from ..util import get_initializer
 from ..module import tensorflow_name_scoped
+from ...config import CategoricalConfig
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class CategoricalConfig:
-    categorical_weight: float = 3.5
-    temperature: float = 1.0
-    moving_average: bool = True
-
-    @property
-    def categorical_config(self):
-        return CategoricalConfig(**{f.name: self.__getattribute__(f.name) for f in fields(CategoricalConfig)})
 
 
 class CategoricalValue(Value):

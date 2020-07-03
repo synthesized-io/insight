@@ -1,34 +1,11 @@
-from typing import List, Union
-
-from dataclasses import dataclass, fields
+from typing import List
 import faker
 import numpy as np
 import pandas as pd
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-
-
-@dataclass
-class PersonParams:
-    title_label: Union[str, List[str], None] = None
-    gender_label: Union[str, List[str], None] = None
-    name_label: Union[str, List[str], None] = None
-    firstname_label: Union[str, List[str], None] = None
-    lastname_label: Union[str, List[str], None] = None
-    email_label: Union[str, List[str], None] = None
-    mobile_number_label: Union[str, List[str], None] = None
-    home_number_label: Union[str, List[str], None] = None
-    work_number_label: Union[str, List[str], None] = None
-
-
-@dataclass
-class PersonMetaConfig:
-    dict_cache_size: int = 10000
-
-    @property
-    def person_meta_config(self):
-        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+from ..config import PersonMetaConfig
 
 
 class PersonMeta(ValueMeta):

@@ -5,7 +5,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.complex.highdim import HighDimConfig
+from synthesized.config import HighDimConfig
 
 
 @pytest.mark.integration
