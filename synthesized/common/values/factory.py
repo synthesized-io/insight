@@ -2,33 +2,22 @@
 from typing import Dict, Any, Optional, Union, List
 import logging
 
-from dataclasses import dataclass, fields
-
 from .associated_categorical import AssociatedCategoricalValue
-from .categorical import CategoricalValue, CategoricalConfig
+from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
-from .decomposed_continuous import DecomposedContinuousValue, DecomposedContinuousConfig
-from .identifier import IdentifierConfig, IdentifierValue
+from .decomposed_continuous import DecomposedContinuousValue
+from .identifier import IdentifierValue
 from .rule import RuleValue
-from .nan import NanValue, NanConfig
+from .nan import NanValue
 from .value import Value
+from ...config import ValueFactoryConfig
 from ...metadata import DataFrameMeta, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
     CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
-    capacity: int = 128
-    produce_nans: bool = False
-
-    @property
-    def value_factory_config(self):
-        return ValueFactoryConfig(**{f.name: self.__getattribute__(f.name) for f in fields(ValueFactoryConfig)})
 
 
 class ValueFactory:

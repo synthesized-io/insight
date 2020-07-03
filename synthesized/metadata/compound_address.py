@@ -1,19 +1,12 @@
 import re
 from typing import Dict, List, Optional
 
-from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from faker import Faker
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-
-
-@dataclass
-class CompoundAddressParams:
-    address_label: Optional[str] = None
-    postcode_regex: Optional[str] = None
 
 
 class CompoundAddressMeta(ValueMeta):

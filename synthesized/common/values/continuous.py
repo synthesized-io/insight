@@ -1,22 +1,13 @@
 from typing import Any, Dict, List
 from math import log
 
-from dataclasses import dataclass, fields
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import tensorflow_name_scoped
+from ...config import ContinuousConfig
 from ...metadata.continuous import DISTRIBUTIONS
-
-
-@dataclass
-class ContinuousConfig:
-    continuous_weight: float = 5.0
-
-    @property
-    def continuous_config(self):
-        return ContinuousConfig(**{f.name: self.__getattribute__(f.name) for f in fields(ContinuousConfig)})
 
 
 class ContinuousValue(Value):

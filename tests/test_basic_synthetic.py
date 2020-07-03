@@ -5,7 +5,7 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.metadata import TypeOverride
-from synthesized.complex.highdim import HighDimConfig
+from synthesized.config import HighDimConfig
 from synthesized.common.values import ContinuousValue
 
 

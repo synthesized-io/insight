@@ -2,9 +2,10 @@ from typing import List
 
 import tensorflow as tf
 
-from .categorical import CategoricalValue, CategoricalConfig
-from .continuous import ContinuousValue, ContinuousConfig
+from .categorical import CategoricalValue
+from .continuous import ContinuousValue
 from ..module import tensorflow_name_scoped
+from ...config import CategoricalConfig, ContinuousConfig
 
 
 class DateValue(ContinuousValue):

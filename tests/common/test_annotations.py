@@ -1,9 +1,7 @@
 import pandas as pd
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.metadata.address import AddressParams
-from synthesized.metadata.bank import BankParams
-from synthesized.metadata.person import PersonParams
+from synthesized.config import AddressParams, BankParams, PersonParams
 
 
 def test_annotations():

@@ -1,23 +1,11 @@
 from typing import Any, Dict, List
 
-from dataclasses import dataclass, fields
 import tensorflow as tf
 
-from .continuous import ContinuousValue, ContinuousConfig
+from .continuous import ContinuousValue
 from .value import Value
 from ..module import tensorflow_name_scoped
-
-
-@dataclass
-class DecomposedContinuousConfig(ContinuousConfig):
-    low_freq_weight: float = 1.0
-    high_freq_weight: float = 1.0
-
-    @property
-    def decomposed_continuous_config(self):
-        return DecomposedContinuousConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(DecomposedContinuousConfig)}
-        )
+from ...config import DecomposedContinuousConfig, ContinuousConfig
 
 
 class DecomposedContinuousValue(Value):

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from synthesized import SeriesSynthesizer, MetaExtractor
-from synthesized.complex.series import SeriesConfig
+from synthesized.config import SeriesConfig
 
 
 @pytest.mark.integration

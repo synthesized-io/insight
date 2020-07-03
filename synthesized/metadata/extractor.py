@@ -6,24 +6,25 @@ from math import sqrt, log
 import numpy as np
 import pandas as pd
 import treelib as tl
-from dataclasses import dataclass, fields
+from dataclasses import fields
 
 from .data_frame import DataFrameMeta
 from .value_meta import ValueMeta
-from .address import AddressMeta, AddressParams, AddressMetaConfig
+from .address import AddressMeta
 from .association import AssociationMeta
-from .bank import BankNumberMeta, BankParams
+from .bank import BankNumberMeta
 from .categorical import CategoricalMeta
-from .compound_address import CompoundAddressMeta, CompoundAddressParams
+from .compound_address import CompoundAddressMeta
 from .constant import ConstantMeta
 from .continuous import ContinuousMeta
 from .date import DateMeta
 from .identifier import IdentifierMeta
 from .enumeration import EnumerationMeta
 from .nan import NanMeta
-from .person import PersonMeta, PersonParams, PersonMetaConfig
+from .person import PersonMeta
 from .sampling import SamplingMeta
 from .identify_rules import identify_rules
+from ..config import MetaExtractorConfig, AddressParams, BankParams, CompoundAddressParams, PersonParams
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +35,6 @@ class TypeOverride(enum.Enum):
     CATEGORICAL = 'CATEGORICAL'
     CONTINUOUS = 'CONTINUOUS'
     ENUMERATION = 'ENUMERATION'
-
-
-@dataclass
-class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
-    categorical_threshold_log_multiplier: float = 2.5
-    parsing_nan_fraction_threshold: float = 0.25
-
-    @property
-    def value_factory_config(self):
-        return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
 
 
 class MetaExtractor:

@@ -1,10 +1,9 @@
 import re
 import os
-from typing import List, Dict, Optional, Union
+from typing import List, Dict
 import gzip
 import logging
 
-from dataclasses import dataclass, fields
 import faker
 import numpy as np
 import pandas as pd
@@ -13,29 +12,9 @@ import simplejson
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
+from ..config import AddressMetaConfig
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class AddressParams:
-    postcode_label: Union[str, List[str], None] = None
-    county_label: Union[str, List[str], None] = None
-    city_label: Union[str, List[str], None] = None
-    district_label: Union[str, List[str], None] = None
-    street_label: Union[str, List[str], None] = None
-    house_number_label: Union[str, List[str], None] = None
-    flat_label: Union[str, List[str], None] = None
-    house_name_label: Union[str, List[str], None] = None
-
-
-@dataclass
-class AddressMetaConfig:
-    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
-
-    @property
-    def address_meta_config(self):
-        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
 
 
 class AddressRecord:

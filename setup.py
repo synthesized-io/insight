@@ -1,6 +1,7 @@
 from codecs import open
 from os import path, listdir
 import pathlib
+import re
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
@@ -50,7 +51,10 @@ def source_files(base_dir):
     return result
 
 
-ext_modules = [Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')]
+ext_modules = [
+    Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
+    if re.match(r"synthesized(/|\\{2})config\.py", f) is None  # windows uses '\\' instead of '/'
+]
 
 setup(
     name='synthesized',
