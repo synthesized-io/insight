@@ -120,10 +120,10 @@ class MetaExtractor:
                 )
                 values.append(value)
 
-        for value in values:
-            value.extract(df=df)
+            for value in values:
+                value.extract(df=df)
 
-        df.drop(labels=[label for label in np.concatenate(labels_matrix) if label], axis=1, inplace=True)
+            df.drop(labels=[label for label in np.concatenate(labels_matrix) if label], axis=1, inplace=True)
 
         return values
 
