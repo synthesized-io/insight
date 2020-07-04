@@ -12,6 +12,7 @@ file_mounts: {
     "~/requirements.txt": "requirements.txt",
     "~/data/credit_with_categoricals.csv": "data/credit_with_categoricals.csv",
     "~/tune_highdim.ipynb": "tune/tune_highdim.ipynb",
+    "~/tune_latent_space_stability.ipynb": "tune/tune_latent_space_stability.ipynb",
     "~/tune_utils.py": "tune/tune_utils.py"
 }
 

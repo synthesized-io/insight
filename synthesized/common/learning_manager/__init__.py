@@ -1,4 +1,4 @@
-from .learning_manager import LearningManager, LearningManagerConfig
+from .learning_manager import LearningManager
 
 
-__all__ = ['LearningManager', 'LearningManagerConfig']
+__all__ = ['LearningManager']

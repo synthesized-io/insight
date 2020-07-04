@@ -1,17 +1,9 @@
-from typing import List, Union
+from typing import List
 
-from dataclasses import dataclass
 import faker
 import pandas as pd
 
 from .value_meta import ValueMeta
-
-
-@dataclass
-class BankParams:
-    bic_label: Union[str, List[str], None] = None
-    sort_code_label: Union[str, List[str], None] = None
-    account_label: Union[str, List[str], None] = None
 
 
 class BankNumberMeta(ValueMeta):

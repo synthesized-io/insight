@@ -1,20 +1,11 @@
 from typing import List, Optional, Dict
 
-from dataclasses import dataclass, fields
 import tensorflow as tf
 
 from .value import Value
 from ..util import get_initializer
 from ..module import tensorflow_name_scoped
-
-
-@dataclass
-class IdentifierConfig:
-    capacity: int = 128
-
-    @property
-    def identifier_config(self):
-        return IdentifierConfig(**{f.name: self.__getattribute__(f.name) for f in fields(IdentifierConfig)})
+from ...config import IdentifierConfig
 
 
 class IdentifierValue(Value):
