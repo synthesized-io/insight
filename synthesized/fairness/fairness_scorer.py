@@ -1,0 +1,316 @@
+import logging
+from itertools import combinations
+from typing import Any, Dict, List, Optional, Union, Tuple
+
+from ipywidgets import widgets, HBox, VBox
+import numpy as np
+import pandas as pd
+from pyemd import emd
+
+from .classification_bias import ClassificationBias
+from .sensitive_names_detector import SensitiveNamesDetector
+from ..insight.metrics import CramersV, CategoricalLogisticR2
+from ..insight.dataset import categorical_or_continuous_values
+
+
+logger = logging.getLogger(__name__)
+
+
+class FairnessScorer:
+    def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str], target: str, n_bins: int = 5,
+                 detect_sensitive: bool = False, detect_hidden: bool = False):
+        """FairnessScorer constructor.
+
+        Args:
+            df: Input DataFrame to be scored.
+            sensitive_attrs: Given sensitive attributes.
+            target: Target variable.
+            n_bins: Number of bins for sensitive attributes/target to be binarized.
+            detect_sensitive: Whether to try to detect sensitive attributes from the column names.
+            detect_hidden: Whether to try to detect sensitive attributes from hidden correlations with other sensitive
+                attributes.
+
+        """
+        self.df = df.copy()
+        self.sensitive_attrs: List[str] = sensitive_attrs if isinstance(sensitive_attrs, list) else [sensitive_attrs]
+        self.target = target
+        self.n_bins = n_bins
+
+        # Check sensitive attrs
+        for sensitive_attr in self.sensitive_attrs:
+            if sensitive_attr not in df.columns:
+                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's not found in"
+                               f"given DataFrame.")
+                self.sensitive_attrs.remove(sensitive_attr)
+        if len(self.sensitive_attrs) == 0:
+            raise ValueError("Number of sensitive attributes in the given DataFrame must be greater than zero.")
+
+        if detect_sensitive:
+            columns = list(filter(lambda c: c not in np.concatenate((self.sensitive_attrs, [self.target])), df.columns))
+            new_sensitive_attrs = self.detect_sensitive_attrs(columns)
+            for new_sensitive_attr in new_sensitive_attrs:
+                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
+                self.add_sensitive_attr(new_sensitive_attr)
+
+        if detect_hidden:
+            corr = self.other_correlations()
+            for new_sensitive_attr, _, _ in corr:
+                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
+                self.add_sensitive_attr(new_sensitive_attr)
+
+        # self.df.fillna('NaN', inplace=True)
+        self.df.dropna(inplace=True)
+        self.binarize_columns(self.df)
+
+    @classmethod
+    def init_detect_sensitive(cls, df, target, n_bins: int = 5):
+        sensitive_attrs = cls.detect_sensitive_attrs(df.columns)
+        scorer = cls(df, sensitive_attrs, target, n_bins)
+        return scorer
+
+    def get_sensitive_attrs(self) -> List[str]:
+        return self.sensitive_attrs
+
+    def set_sensitive_attrs(self, sensitive_attrs: List[str]):
+        self.sensitive_attrs = sensitive_attrs
+
+    def add_sensitive_attr(self, sensitive_attr: str):
+        self.sensitive_attrs.append(sensitive_attr)
+
+    def get_rates(self, sensitive_attr: Union[List[str], str]) -> pd.DataFrame:
+        df = self.df.copy()
+        df['Count'] = 0
+        name = self.sensitive_attr_name(sensitive_attr)
+        if type(sensitive_attr) == list and len(sensitive_attr) > 1:
+            df[name] = df[sensitive_attr].apply(
+                lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
+                axis=1)
+            df.drop(sensitive_attr, axis=1, inplace=True)
+
+        df_count = df.groupby([name, self.target]).count()[['Count']]
+
+        for t in df[self.target].unique():
+            df_count.loc[('Total', t), 'Count'] = sum(df_count['Count'][:, t])
+
+        sensitive_unique = df_count.index.get_level_values(0).unique()
+
+        df_count['Rate'] = 0.
+        for attr in sensitive_unique:
+            df_count['Rate'][attr] = df_count['Count'][attr] / df_count['Count'][attr].sum()
+
+        return df_count
+
+    @staticmethod
+    def sensitive_attr_name(sensitive_attr: Union[List[str], str]) -> str:
+        if isinstance(sensitive_attr, list):
+            if len(sensitive_attr) == 1:
+                return sensitive_attr[0]
+            else:
+                return "({})".format(', '.join(sensitive_attr))
+        elif isinstance(sensitive_attr, str):
+            return sensitive_attr
+        else:
+            raise ValueError
+
+    def format_bias(self, bias: pd.DataFrame) -> List[Dict[str, Any]]:
+        fmt_bias = []
+
+        for item in bias.iterrows():
+            bias_i = dict()
+
+            bias_i['name'] = bias.index.names[0]
+            if bias.index.nlevels == 1:
+                bias_i['value'] = item[0]
+            elif bias.index.nlevels == 2:
+                bias_i['value'] = item[0][0]
+                bias_i[self.target] = item[0][1]
+            else:
+                raise NotImplementedError
+
+            bias_i['distance'] = round(item[1]['Distance'], 3)
+            bias_i['count'] = int(item[1]['Count'])
+
+            fmt_bias.append(bias_i)
+
+        return fmt_bias
+
+    def get_score_and_biases(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = True,
+                             mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
+        biases = []
+        score = 0.
+        count = 0
+
+        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
+            if max_combinations else len(self.sensitive_attrs) + 1
+        # Compute biases for all combinations of sensitive attributes
+        for k in range(1, max_combinations):
+            for sensitive_attr in combinations(self.sensitive_attrs, k):
+
+                df_count = self.get_rates(list(sensitive_attr))
+
+                if mode == 'diff':
+                    df_dist = self.difference_distance(df_count)
+                elif mode == 'emd':
+                    df_dist = self.emd_distance(df_count)
+                else:
+                    raise ValueError(f"Given mode='{mode}' not supported")
+
+                if weighted:
+                    score += np.sum(df_dist['Distance'].abs() * df_dist['Count']) / df_dist['Count'].sum()
+                else:
+                    score += np.average(df_dist['Distance'].abs())
+
+                biases.extend(self.format_bias(df_dist))
+                count += 1
+
+        df_biases = pd.DataFrame(biases) if len(biases) > 0 else None
+        if df_biases is not None:
+            df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
+                'distance', ascending=False).reset_index(drop=True)
+
+        score /= count
+        return score, df_biases
+
+    def classification_score(self):
+        clf_scores = []
+        for attr in self.sensitive_attrs:
+            self.cb = ClassificationBias(self.df, attr, self.target)
+            clf_scores.append(self.cb.classifier_bias())
+
+        return np.average(clf_scores)
+
+    def cramers_v_score(self) -> float:
+        df = self.df.copy()
+        cramers_v = CramersV()
+        score = 0.
+        count = 0
+
+        # Compute biases for all combinations of sensitive attributes
+        for k in range(1, len(self.sensitive_attrs) + 1):
+            for sensitive_attr_tuple in combinations(self.sensitive_attrs, k):
+                sensitive_attr = list(sensitive_attr_tuple)
+
+                if type(sensitive_attr) == list and len(sensitive_attr) > 1:
+                    name = self.sensitive_attr_name(sensitive_attr)
+                    df[name] = df[sensitive_attr].apply(
+                        lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
+                        axis=1)
+                else:
+                    name = sensitive_attr[0]
+
+                score_i = cramers_v(df, name, self.target)
+                if score_i is not None:
+                    score += score_i
+                    count += 1
+                else:
+                    print(f"score_i is None for {sensitive_attr}")
+
+        return score / count
+
+    def other_correlations(self, threshold: float = 0.5) -> List[Tuple[str, str, float]]:
+        """
+
+        Args:
+            threshold:
+        Returns:
+            List of Tuples containing (detected attr, sensitive_attr, correlation_value).
+
+        """
+        columns = list(filter(lambda c: c not in np.concatenate((self.sensitive_attrs, [self.target])),
+                              self.df.columns))
+        df = self.df.dropna()
+        categorical, continuous = categorical_or_continuous_values(self.df[columns])
+        cramers_v = CramersV()
+        categorical_logistic_r2 = CategoricalLogisticR2()
+
+        correlation_pairs = []
+        for sensitive_attr in self.sensitive_attrs:
+            for v_cat in categorical:
+                corr = cramers_v(df, v_cat.name, sensitive_attr)
+                if corr is not None and corr > threshold:
+                    correlation_pairs.append((v_cat.name, sensitive_attr, corr))
+
+            for v_cont in continuous:
+                corr = categorical_logistic_r2(df, v_cont.name, sensitive_attr)
+                if corr is not None and corr > threshold:
+                    correlation_pairs.append((v_cont.name, sensitive_attr, corr))
+
+        for detected_attr, sensitive_attr, corr in correlation_pairs:
+            logger.warning(f"Columns '{detected_attr}' and '{sensitive_attr}' are highly correlated (corr={corr:.2f}), "
+                           f"so probably '{detected_attr}' contains some sensitive information stored in "
+                           f"'{sensitive_attr}'.")
+
+        return correlation_pairs
+
+    def difference_distance(self, df_count):
+        df_count = df_count.copy()
+        df_count['Distance'] = 0.
+        for idx in df_count.index:
+            l0, l1 = idx
+            df_count['Distance'][idx] = df_count['Rate'][idx] - df_count['Rate'][('Total', l1)]
+        df_count.drop('Total', inplace=True)
+        return df_count
+
+    def emd_distance(self, df_count):
+        emd_dist = []
+        space = df_count.index.get_level_values(1).unique()
+
+        for sensitive_value in df_count.index.get_level_values(0).unique():
+            p_counts = df_count['Count'][sensitive_value].to_dict()
+            q_counts = df_count['Count']['Total'].to_dict()
+
+            p = np.array([float(p_counts[x]) if x in p_counts else 0.0 for x in space])
+            q = np.array([float(q_counts[x]) if x in q_counts else 0.0 for x in space])
+
+            p /= np.sum(p)
+            q /= np.sum(q)
+
+            distance_space = 1 - np.eye(len(space))
+
+            emd_dist.append({
+                df_count.index.names[0]: sensitive_value,
+                'Distance': emd(p, q, distance_space),
+                'Count': df_count['Count'][sensitive_value].sum()
+            })
+        return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
+
+    @staticmethod
+    def detect_sensitive_attrs(names: List[str]) -> List[str]:
+        detector = SensitiveNamesDetector()
+        names_dict = detector.detect_names_dict(names)
+        if len(names_dict) > 0:
+            logger.info("Sensitive columns detected: "
+                        "{}".format(', '.join([f"'{k}' (bias type: {v})" for k, v in names_dict.items()])))
+
+        return [attr for attr in names_dict.keys()]
+
+    def check_box(self, columns: List[str], box_cols: int = 3) -> Tuple[Dict[str, Any], Any]:
+        columns = list(filter(lambda c: c != self.target, columns))
+        checks = dict()
+        box = []
+        for i in range(int(np.ceil(len(columns) / box_cols))):
+            row = []
+            for j in range(box_cols):
+                idx = i * box_cols + j
+                if idx >= len(columns):
+                    break
+                column = columns[idx]
+                check = widgets.Checkbox(
+                    value=True if column in self.sensitive_attrs else False,
+                    description=column,
+                    disabled=False
+                )
+                checks[column] = check
+                row.append(check)
+            box.append(HBox(row))
+        VBox(box)
+
+        return checks, VBox(box)
+
+    def binarize_columns(self, df: pd.DataFrame):
+        columns = np.concatenate((self.sensitive_attrs, [self.target]))
+        for col in columns:
+            if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > 5:
+                df[col] = pd.qcut(df[col], q=self.n_bins, duplicates='drop').astype(str)
+            else:
+                df[col] = df[col].astype(str).fillna('NaN')

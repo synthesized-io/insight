@@ -1,20 +1,23 @@
+import logging
 from typing import Optional, Dict, List, Tuple, Any
 
-import simplejson
-import numpy as np
-import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import OneHotEncoder
+import numpy as np
+import pandas as pd
+import simplejson
+from scipy.signal import filtfilt
 from sklearn.base import BaseEstimator
-from sklearn.linear_model import RidgeClassifier
-from sklearn.svm import LinearSVC
+from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import RidgeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, \
     precision_recall_curve, confusion_matrix
-from sklearn.base import clone
-from scipy.signal import filtfilt
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+from sklearn.svm import LinearSVC
+from sklearn.utils.validation import check_is_fitted
+from sklearn.exceptions import NotFittedError
 
 # Set the style of plots
 plt.style.use('seaborn')
@@ -27,6 +30,8 @@ mpl.rcParams['axes.edgecolor'] = 'grey'
 
 mpl.rcParams['axes.spines.right'] = True
 mpl.rcParams['axes.spines.top'] = True
+
+logger = logging.getLogger(__name__)
 
 
 class ExperimentalEstimator:
@@ -45,8 +50,11 @@ class ExperimentalEstimator:
             for c in data.columns:
                 column = data[c]
                 if column.dtype.kind not in ('f', 'i') or column.nunique() <= 2:
-                    # print("Converting '{}' to One-Hot encoding".format(c))
-                    if column.nunique() > 1:
+                    if c == self.target:
+                        oh = LabelEncoder()
+                        x_i = oh.fit_transform(column.values.reshape(-1, 1)).reshape(-1, 1)
+                        names = [c]
+                    elif column.nunique() > 1:
                         oh = OneHotEncoder(drop='first')
                         x_i = oh.fit_transform(column.values.reshape(-1, 1)).todense()
                         names = ['{}_{}'.format(c, enc) for enc in oh.categories_[0][1:]]
@@ -74,7 +82,10 @@ class ExperimentalEstimator:
                 oh_encoder_names = self.oh_encoders[c]
                 if oh_encoder_names is not None:
                     oh_encoder, names = oh_encoder_names
-                    x_i = oh_encoder.transform(column.values.reshape(-1, 1)).todense()
+                    if isinstance(oh_encoder, OneHotEncoder):
+                        x_i = oh_encoder.transform(column.values.reshape(-1, 1)).todense()
+                    elif isinstance(oh_encoder, LabelEncoder):
+                        x_i = oh_encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)
                     c_names = list(np.concatenate((c_names, names)))
                 else:
                     x_i = column.values.reshape(-1, 1)
@@ -86,7 +97,7 @@ class ExperimentalEstimator:
 
     def classification(self, df_train: pd.DataFrame, df_test: pd.DataFrame,
                        classifiers: Dict[str, BaseEstimator] = None, name: str = None,
-                       results: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+                       results: List[Dict[str, Any]] = None, copy_clf: bool = True) -> List[Dict[str, Any]]:
 
         if classifiers is None:
             classifiers = {
@@ -107,15 +118,41 @@ class ExperimentalEstimator:
         X_test = df_test[features].astype(np.float64).values
         y_test = df_test[self.target].astype(np.float64).values
 
-        for clf_name, clf_ in classifiers.items():
-            clf = clone(clf_)
+        if len(np.unique(y_train)) == 1 or len(np.unique(y_test)) == 1:
+            return results
 
-            clf.fit(X_train, y_train)
+        for clf_name, clf_ in classifiers.items():
+            clf = clone(clf_) if copy_clf else clf_
+
+            # Check if the classifiers have been trained.
+            try:
+                check_is_fitted(clf)
+            except NotFittedError:
+                clf.fit(X_train, y_train)
+
+            y_train_oh = y_train
+            y_test_oh = y_test
             if hasattr(clf, 'predict_proba'):
-                f_prob_train = clf.predict_proba(X_train).T[1]
-                f_train = [0 if p < 0.5 else 1 for p in f_prob_train]
-                f_prob_test = clf.predict_proba(X_test).T[1]
-                f_test = [0 if p < 0.5 else 1 for p in f_prob_test]
+                f_prob_train = clf.predict_proba(X_train)
+                f_prob_test = clf.predict_proba(X_test)
+                f_train = np.argmax(f_prob_train, axis=1)
+                f_test = np.argmax(f_prob_test, axis=1)
+
+                # ROC AUC would fail if one class is not present
+                if f_prob_train.shape[1] == 2:  # Sklearn's AUC doesn't support two dimensions
+                    f_prob_train = f_prob_train.T[1]
+                elif f_prob_train.shape[1] > len(np.unique(y_train)):
+                    f_prob_train = f_prob_train[:, np.unique(y_train).astype(int)]
+                    oh = OneHotEncoder()
+                    y_train_oh = oh.fit_transform(y_train.reshape(-1, 1)).todense()
+
+                if f_prob_test.shape[1] == 2:
+                    f_prob_test = f_prob_test.T[1]
+                elif f_prob_test.shape[1] > len(np.unique(y_test)):
+                    f_prob_test = f_prob_test[:, np.unique(y_test).astype(int)]
+                    oh = OneHotEncoder()
+                    y_test_oh = oh.fit_transform(y_test.reshape(-1, 1)).todense()
+
             else:
                 f_prob_train = f_train = clf.predict(X_train)
                 f_prob_test = f_test = clf.predict(X_test)
@@ -123,23 +160,24 @@ class ExperimentalEstimator:
             results.append({
                 'Classifier': clf_name,
                 'Name': name,
+                'Predicted Values': f_prob_test,
 
                 # Train
                 'Accuracy Train': accuracy_score(y_train, f_train),
-                'Precision Train': precision_score(y_train, f_train),
-                'Recall Train': recall_score(y_train, f_train),
-                'F1 Train': f1_score(y_train, f_train),
-                'AUC Train': roc_auc_score(y_train, f_prob_train),
+                'Precision Train': precision_score(y_train, f_train, average='micro'),
+                'Recall Train': recall_score(y_train, f_train, average='micro'),
+                'F1 Train': f1_score(y_train, f_train, average='micro'),
+                'AUC Train': roc_auc_score(y_train_oh, f_prob_train, multi_class='ovo'),
 
                 # Test
                 'Accuracy Test': accuracy_score(y_test, f_test),
-                'Precision Test': precision_score(y_test, f_test),
-                'Recall Test': recall_score(y_test, f_test),
-                'F1 Test': f1_score(y_test, f_test),
-                'AUC Test': roc_auc_score(y_test, f_prob_test),
+                'Precision Test': precision_score(y_test, f_test, average='micro'),
+                'Recall Test': recall_score(y_test, f_test, average='micro'),
+                'F1 Test': f1_score(y_test, f_test, average='micro'),
+                'AUC Test': roc_auc_score(y_test_oh, f_prob_test, multi_class='ovo'),
 
-                'ROC Curve': roc_curve(y_test, f_prob_test),
-                'PR Curve': precision_recall_curve(y_test, f_prob_test),
+                'ROC Curve': roc_curve(y_test_oh, f_prob_test) if len(f_prob_train) == 1 else None,
+                'PR Curve': precision_recall_curve(y_test_oh, f_prob_test) if len(f_prob_train) == 1 else None,
                 'Confusion Matrix': confusion_matrix(y_test, f_test)
             })
 
@@ -147,7 +185,7 @@ class ExperimentalEstimator:
 
     def preprocess_classify(self, original_data, other_dfs: Dict[str, pd.DataFrame], train_idx: np.array,
                             test_idx: np.array, name_orig: Optional[str] = 'Original',
-                            classifiers: Dict[str, BaseEstimator] = None) -> pd.DataFrame:
+                            classifiers: Dict[str, BaseEstimator] = None, copy_clf: bool = True) -> pd.DataFrame:
 
         original_data = original_data.copy()
         other_dfs = other_dfs.copy()
@@ -164,12 +202,14 @@ class ExperimentalEstimator:
         results: List[Dict[str, Any]] = []
 
         if name_orig:
-            print("\nClassifying original data-frame...")
-            results = self.classification(train, test, name=name_orig, results=results, classifiers=classifiers)
+            logger.debug("Classifying original data-frame...")
+            results = self.classification(train, test, name=name_orig, results=results, classifiers=classifiers,
+                                          copy_clf=copy_clf)
 
         for name, df in other_dfs.items():
-            print("\nClassifying data-frame '{}'...".format(name))
-            results = self.classification(df, test, name=name, results=results, classifiers=classifiers)
+            logger.debug("Classifying data-frame '{}'...".format(name))
+            results = self.classification(df, test, name=name, results=results, classifiers=classifiers,
+                                          copy_clf=copy_clf)
 
         df_results = pd.DataFrame(results)
         return df_results
@@ -183,7 +223,7 @@ def read_data_run_experiment(func, synthesized_path, config_file, func_kwargs=No
     results = dict()
 
     for name, config in j['instances'].items():
-        print("\n>> Computing dataset '{}' <<".format(name))
+        logger.info("\n>> Computing dataset '{}' <<".format(name))
         data = pd.read_csv(synthesized_path + config['data'])
         if 'ignore_columns' in config.keys():
             data.drop(config['ignore_columns'], axis=1, inplace=True)

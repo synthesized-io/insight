@@ -250,7 +250,7 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> U
     llf = np.sum(oh_labels * lp)
 
     rg = LogisticRegression()
-    rg.fit(np.ones(x_array.shape), y_array)
+    rg.fit(np.ones_like(y_array).reshape(-1, 1), y_array)
 
     lp = rg.predict_log_proba(x_array)
     llnull = np.sum(oh_labels * lp)
