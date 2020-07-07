@@ -164,7 +164,7 @@ class AddressMeta(ValueMeta):
             return 'nan'
 
         if not AddressMeta.postcode_regex.match(postcode):
-            raise ValueError(postcode)
+            return 'nan'
         if self.postcode_level == 0:  # 1-2 letters
             index = 2 - postcode[1].isdigit()
         elif self.postcode_level == 1:

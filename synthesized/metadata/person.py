@@ -1,4 +1,5 @@
 from typing import List
+
 import faker
 import numpy as np
 import pandas as pd
@@ -28,6 +29,8 @@ class PersonMeta(ValueMeta):
         # Assume the gender are always encoded like M or F or U(???)
         self.title_mapping = {'M': 'MR', 'F': 'MRS', 'U': 'MRS'}
         self.gender_mapping = {'MR': 'M', 'MRS': 'F', 'MS': 'F', 'MISS': 'F'}
+        self.titles = list(self.title_mapping.values())
+        self.genders = list(self.title_mapping.keys())
 
         fkr = faker.Faker(locale='en_GB')
         self.fkr = fkr
@@ -68,7 +71,13 @@ class PersonMeta(ValueMeta):
 
         if self.gender is not None:
             if self.title_label == self.gender_label:
-                df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
+                df[self.title_label + '_gender'] = df[self.title_label].astype(
+                    str).apply(lambda s: s.upper()).map(self.gender_mapping)
+
+                # If the mapping didn't produce 'F' and 'M', generate them randomly:
+                if len(set(self.titles) - set(df[self.title_label + '_gender'].unique())) != 0:
+                    df[self.title_label + '_gender'] = np.random.choice(self.genders, len(df))
+
             self.gender.extract(df=df)
             if self.title_label == self.gender_label:
                 df.drop(self.title_label + '_gender', axis=1, inplace=True)
@@ -77,6 +86,10 @@ class PersonMeta(ValueMeta):
         if self.gender is not None:
             if self.title_label == self.gender_label:
                 df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
+
+            # If the mapping didn't produce 'F' and 'M', generate them randomly:
+            if len(set(self.genders) - set(df[self.title_label + '_gender'].unique())) != 0:
+                df[self.title_label + '_gender'] = np.random.choice(self.genders, len(df))
             df = self.gender.preprocess(df=df)
         return super().preprocess(df=df)
 
@@ -84,7 +97,7 @@ class PersonMeta(ValueMeta):
         df = super().postprocess(df=df)
 
         if self.gender is None:
-            gender = pd.Series(np.random.choice(a=['F', 'M'], size=len(df)))
+            gender = pd.Series(np.random.choice(a=self.genders, size=len(df)))
         else:
             df = self.gender.postprocess(df=df)
             if self.title_label == self.gender_label:
