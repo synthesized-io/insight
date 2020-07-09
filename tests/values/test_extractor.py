@@ -8,6 +8,7 @@ from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.metadata import MetaExtractor, ContinuousMeta, CategoricalMeta, AssociationMeta, NanMeta, \
     SamplingMeta, ConstantMeta
+from synthesized.config import MetaExtractorConfig
 
 
 @seed(42)
@@ -152,7 +153,7 @@ def test_vf_na_int(df):
     elif isinstance(value, SamplingMeta):
         for v in value.categories.index:
             assert v in [pd.NaT, np.NaN] or \
-                   sum(df[value.name].isna())/len(df) >= MetaExtractor.config.parsing_nan_fraction_threshold
+                   sum(df[value.name].isna())/len(df) >= MetaExtractorConfig.parsing_nan_fraction_threshold
     else:
         assert isinstance(value, ConstantMeta) or isinstance(value, CategoricalMeta)
 
