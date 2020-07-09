@@ -138,8 +138,9 @@ class MetaExtractor:
 
         return values
 
-    def _identify_values(self, df: pd.DataFrame, column_aliases: Dict[str, str], type_overrides: Dict[str, TypeOverride],
-                         find_rules: Union[str, List[str]], produce_nans_for: List[str]):
+    def _identify_values(self, df: pd.DataFrame, column_aliases: Dict[str, str],
+                         type_overrides: Dict[str, TypeOverride], find_rules: Union[str, List[str]],
+                         produce_nans_for: List[str]):
 
         values: List[ValueMeta] = list()
 
