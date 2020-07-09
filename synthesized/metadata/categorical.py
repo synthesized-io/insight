@@ -54,8 +54,13 @@ class CategoricalMeta(ValueMeta):
         if self.is_string:
             df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
 
-        assert isinstance(self.categories, list)
+        assert isinstance(self.categories, list) and isinstance(self.num_categories, int)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
+
+        # If there's a category not present in category2idx, map will produce nans. We populate them randomly.
+        n_nans = df.loc[:, self.name].isna().sum()
+        if n_nans > 0:
+            df.loc[df.loc[:, self.name].isna(), self.name] = np.random.choice(range(self.num_categories), n_nans)
 
         if df.loc[:, self.name].dtype != 'int64':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')

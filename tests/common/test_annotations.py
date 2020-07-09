@@ -1,7 +1,7 @@
 import pandas as pd
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.config import AddressParams, BankParams, PersonParams, AddressMetaConfig
+from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtractorConfig
 
 
 def test_annotations():
@@ -48,7 +48,7 @@ def test_annotations():
 def test_addresses_from_file():
     data = pd.read_csv('data/annotations_nd.csv')
 
-    address_meta_config = AddressMetaConfig(addresses_file='')
+    meta_extractor_config = MetaExtractorConfig(addresses_file='data/addresses.jsonl.gz')
 
     address_params = AddressParams(
         postcode_label='POSTCODE',
@@ -63,6 +63,7 @@ def test_addresses_from_file():
 
     df_meta = MetaExtractor.extract(
         df=data,
+        config=meta_extractor_config,
         address_params=address_params
     )
 
@@ -71,4 +72,3 @@ def test_addresses_from_file():
         df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
     assert df_synthesized.shape == data.shape
-
