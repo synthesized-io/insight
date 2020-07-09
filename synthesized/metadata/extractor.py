@@ -380,7 +380,6 @@ def _get_labels_matrix(labels: List[Optional[List[str]]]) -> np.array:
     for label in labels:
         if label:
             if labels_len:
-                print(labels_len, label)
                 assert labels_len == len(label), 'All labels must have the same lenght'
             else:
                 labels_len = len(label)
