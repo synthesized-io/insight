@@ -9,6 +9,9 @@ class ValueMeta:
     def __init__(self, name: str):
         self.name = name
 
+    def __str__(self) -> str:
+        return self.__class__.__name__[:-4].lower() + "_meta"
+
     def specification(self):
         return dict(name=self.name)
 

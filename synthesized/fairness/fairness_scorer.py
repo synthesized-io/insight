@@ -6,9 +6,13 @@ from ipywidgets import widgets, HBox, VBox
 import numpy as np
 import pandas as pd
 from pyemd import emd
+from sklearn.base import BaseEstimator
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
-from .sensitive_names_detector import SensitiveNamesDetector
+from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..insight.metrics import CramersV, CategoricalLogisticR2
 from ..insight.dataset import categorical_or_continuous_values
 
@@ -34,6 +38,7 @@ class FairnessScorer:
         self.df = df.copy()
         self.sensitive_attrs: List[str] = sensitive_attrs if isinstance(sensitive_attrs, list) else [sensitive_attrs]
         self.target = target
+        self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
         self.n_bins = n_bins
 
         # Check sensitive attrs
@@ -45,8 +50,11 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             raise ValueError("Number of sensitive attributes in the given DataFrame must be greater than zero.")
 
+        if target not in df.columns:
+            raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
+
         if detect_sensitive:
-            columns = list(filter(lambda c: c not in np.concatenate((self.sensitive_attrs, [self.target])), df.columns))
+            columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
             new_sensitive_attrs = self.detect_sensitive_attrs(columns)
             for new_sensitive_attr in new_sensitive_attrs:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
@@ -80,7 +88,7 @@ class FairnessScorer:
     def get_rates(self, sensitive_attr: Union[List[str], str]) -> pd.DataFrame:
         df = self.df.copy()
         df['Count'] = 0
-        name = self.sensitive_attr_name(sensitive_attr)
+        name = sensitive_attr_concat_name(sensitive_attr)
         if type(sensitive_attr) == list and len(sensitive_attr) > 1:
             df[name] = df[sensitive_attr].apply(
                 lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
@@ -99,18 +107,6 @@ class FairnessScorer:
             df_count['Rate'][attr] = df_count['Count'][attr] / df_count['Count'][attr].sum()
 
         return df_count
-
-    @staticmethod
-    def sensitive_attr_name(sensitive_attr: Union[List[str], str]) -> str:
-        if isinstance(sensitive_attr, list):
-            if len(sensitive_attr) == 1:
-                return sensitive_attr[0]
-            else:
-                return "({})".format(', '.join(sensitive_attr))
-        elif isinstance(sensitive_attr, str):
-            return sensitive_attr
-        else:
-            raise ValueError
 
     def format_bias(self, bias: pd.DataFrame) -> List[Dict[str, Any]]:
         fmt_bias = []
@@ -134,8 +130,8 @@ class FairnessScorer:
 
         return fmt_bias
 
-    def get_score_and_biases(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = True,
-                             mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
+    def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
+                            mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
         biases = []
         score = 0.
         count = 0
@@ -143,9 +139,8 @@ class FairnessScorer:
         max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
             if max_combinations else len(self.sensitive_attrs) + 1
         # Compute biases for all combinations of sensitive attributes
-        for k in range(1, max_combinations):
+        for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
-
                 df_count = self.get_rates(list(sensitive_attr))
 
                 if mode == 'diff':
@@ -171,13 +166,32 @@ class FairnessScorer:
         score /= count
         return score, df_biases
 
-    def classification_score(self):
+    def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
+                             min_count: int = 100, max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
         clf_scores = []
-        for attr in self.sensitive_attrs:
-            self.cb = ClassificationBias(self.df, attr, self.target)
-            clf_scores.append(self.cb.classifier_bias())
 
-        return np.average(clf_scores)
+        if classifiers is None:
+            classifiers = {
+                'LogisticRegression': LogisticRegression(max_iter=500),
+                'RandomForest': RandomForestClassifier(),
+                'GradientBoostingClassifier': GradientBoostingClassifier(),
+                'NeuralNetwork': MLPClassifier(hidden_layer_sizes=(64, 32, 16), max_iter=1000)
+            }
+
+        biases = []
+
+        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
+            if max_combinations else len(self.sensitive_attrs) + 1
+        # Compute biases for all combinations of sensitive attributes
+        for k in range(1, max_combinations + 1):
+            for sensitive_attr in combinations(self.sensitive_attrs, k):
+
+                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
+                clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
+                clf_scores.append(clf_score)
+                biases.extend(biases_i)
+
+        return np.nanmean(clf_scores), pd.DataFrame(biases)
 
     def cramers_v_score(self) -> float:
         df = self.df.copy()
@@ -191,7 +205,7 @@ class FairnessScorer:
                 sensitive_attr = list(sensitive_attr_tuple)
 
                 if type(sensitive_attr) == list and len(sensitive_attr) > 1:
-                    name = self.sensitive_attr_name(sensitive_attr)
+                    name = sensitive_attr_concat_name(sensitive_attr)
                     df[name] = df[sensitive_attr].apply(
                         lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
                         axis=1)
@@ -202,8 +216,6 @@ class FairnessScorer:
                 if score_i is not None:
                     score += score_i
                     count += 1
-                else:
-                    print(f"score_i is None for {sensitive_attr}")
 
         return score / count
 
@@ -216,8 +228,7 @@ class FairnessScorer:
             List of Tuples containing (detected attr, sensitive_attr, correlation_value).
 
         """
-        columns = list(filter(lambda c: c not in np.concatenate((self.sensitive_attrs, [self.target])),
-                              self.df.columns))
+        columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
         df = self.df.dropna()
         categorical, continuous = categorical_or_continuous_values(self.df[columns])
         cramers_v = CramersV()

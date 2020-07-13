@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Union
+import logging
+from typing import Any, Dict, List, Union, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,32 +11,57 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
 from ..testing.experiments import ExperimentalEstimator
+from .sensitive_attributes import sensitive_attr_concat_name
+
+logger = logging.getLogger(__name__)
 
 
 class ClassificationBias:
-    def __init__(self, df, sensitive_attr, target):
+    """Compute classification bias from given Dataframe, a list of sensitive attributes, and a target variable. It will
+    be calculated by computing the difference of ROC AUC, Confusion Matrix, and Disparate Imact for the entire dataset
+    and all unique values grouped by sensitive attributes.
+
+    """
+    def __init__(self, df, sensitive_attrs: Union[str, List[str]], target, min_count: int = 50):
+        """Classification Bias Constructor.
+
+        Args:
+            df: Dataframe to compute bias.
+            sensitive_attrs: Sensitive attributes.
+            target: Target variable
+            min_count: Minimum sample size to compute classification tasks.
+
+        """
         self.df = df.reset_index(drop=True)
-        self.sensitive_attr = sensitive_attr
+        self.sensitive_attrs: List[str] = sensitive_attrs if isinstance(sensitive_attrs, list) else [sensitive_attrs]
+        self.sensitive_attrs_name: str = sensitive_attr_concat_name(sensitive_attrs)
         self.target = target
+        self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
 
         self.ee = ExperimentalEstimator(target=target)
 
         try:
             train, test = train_test_split(self.df, test_size=0.4, random_state=42,
-                                           stratify=self.df[[self.target, self.sensitive_attr]])
+                                           stratify=self.df[self.sensitive_attrs_and_target])
         except ValueError:
             train, test = train_test_split(self.df, test_size=0.4, random_state=42)
 
         self.train_idx = train.index
 
         self.tests = {'All': test.index}
-        for sensitive_value in self.df[sensitive_attr].unique():
-            test_idx_i = test[test[sensitive_attr] == sensitive_value].index
-            # if len(test_i) > 100:
-            self.tests[sensitive_value] = test_idx_i
+        for sensitive_values, indices in df.groupby(self.sensitive_attrs).indices.items():
+            if len(indices) > min_count:
+                self.tests[sensitive_values] = indices
 
-    def classifier_bias(self, classifiers: Dict[str, BaseEstimator] = None, remove_sensitive: bool = False,
-                        plot_results: bool = False):
+        if len(self.tests) == 1:
+            logger.info(f"No sensitive populations found for sensitive_attrs='{self.sensitive_attrs_name}'.")
+
+    def classifier_bias(self, threshold: float = 0.025, classifiers: Dict[str, BaseEstimator] = None,
+                        remove_sensitive: bool = False, plot_results: bool = False,
+                        plot_file_name: str = None) -> Tuple[float, List[Dict[str, Any]]]:
+
+        if len(self.tests) == 1:
+            return 0, []
 
         if classifiers is None:
             classifiers = {
@@ -61,17 +87,19 @@ class ClassificationBias:
             else:
                 columns = self.df.columns
 
+            metrics_to_compute = ['AUC', 'ROC_Curve', 'ConfusionMatrix']
             results = self.ee.preprocess_classify(self.df[columns], other_dfs=dict(), train_idx=self.train_idx,
-                                                  test_idx=test, classifiers=classifiers, copy_clf=False)
+                                                  test_idx=test, classifiers=classifiers,
+                                                  metrics_to_compute=metrics_to_compute, copy_clf=False)
             if len(results) == 0:
                 continue
 
             for i, clf in enumerate(results['Classifier'].unique()):
                 # ROC Curves
-                auc = results.loc[results['Classifier'] == clf, 'AUC Test'].values[0]
+                auc = results.loc[results['Classifier'] == clf, 'AUC'].values[0]
 
                 if plot_results:
-                    x, y, _ = results.loc[results['Classifier'] == clf, 'ROC Curve'].values[0]
+                    x, y, _ = results.loc[results['Classifier'] == clf, 'ROC_Curve'].values[0]
                     axs[i].plot(x, y, label=f"{name} (AUC={auc:.3f})")
                     axs[i].legend(loc='lower right')
                     axs[i].set_title(clf)
@@ -79,30 +107,36 @@ class ClassificationBias:
                     axs[i].set_ylabel('FPR')
 
                 # Confusion Matrix Heatmap
-                cm = results.loc[results['Classifier'] == clf, 'Confusion Matrix'].values[0]
+                cm = results.loc[results['Classifier'] == clf, 'ConfusionMatrix'].values[0]
                 cm_norm = cm / np.sum(cm)
 
                 if plot_results:
-                    cm_annot = self.get_cm_annot(cm, cm_norm)
-                    sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False,
-                                xticklabels=list(self.ee.oh_encoders['income'][0].categories_[0]),
-                                yticklabels=list(self.ee.oh_encoders['income'][0].categories_[0]),
-                                ax=axs_hm[i][k])
+                    oh_encoder = self.ee.oh_encoders[self.target]
+                    if oh_encoder is not None:
+                        cm_annot = self.get_cm_annot(cm, cm_norm)
+                        sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False,
+                                    xticklabels=list(oh_encoder[0].categories_[0]),
+                                    yticklabels=list(oh_encoder[0].categories_[0]),
+                                    ax=axs_hm[i][k])
 
-                    axs_hm[i][k].set_title(f"{clf} - {name}")
-                    axs_hm[i][k].set_xlabel('Real')
-                    axs_hm[i][k].set_ylabel('Predicted')
+                        axs_hm[i][k].set_title(f"{clf} - {name}")
+                        axs_hm[i][k].set_xlabel('Real')
+                        axs_hm[i][k].set_ylabel('Predicted')
 
                 # disparate_impact
-                predicted_values = results.loc[results['Classifier'] == clf, 'Predicted Values'].values[0]
+                predicted_values = results.loc[results['Classifier'] == clf, 'PredictedValues'].values[0]
 
                 classification_bias[name][clf] = (auc, cm_norm, predicted_values)
 
         if plot_results:
             fig.tight_layout()
             fig_hm.tight_layout()
-            fig.savefig(f"/Users/tonbadal/Pictures/fairness/ROC_{self.sensitive_attr}_{remove_sensitive}.png")
-            fig_hm.savefig(f"/Users/tonbadal/Pictures/fairness/CM_{self.sensitive_attr}_{remove_sensitive}.png")
+            if plot_file_name is None:
+                fig.savefig(f"ROC_{self.sensitive_attrs_name}_{remove_sensitive}.png")
+                fig_hm.savefig(f"CM_{self.sensitive_attrs_name}_{remove_sensitive}.png")
+            else:
+                fig.savefig(f"ROC_{plot_file_name}")
+                fig_hm.savefig(f"CM_{plot_file_name}")
             plt.show()
 
         classification_score = dict()
@@ -124,9 +158,21 @@ class ClassificationBias:
             cm_diff = cm_diff / n_clfs
             di = di / n_clfs
 
-            classification_score[name] = (auc_diff + cm_diff + di) / 3
+            classification_score[name] = np.nanmean((auc_diff, cm_diff, di))
 
-        return np.std(list(classification_score.values()))
+        score_mean = np.nanmean(list(classification_score.values()))
+        biases: List[Dict[str, Any]] = []
+        for name, score in classification_score.items():
+            distance = abs(score_mean - score)
+            if distance > threshold:
+                biases.append({
+                    'name': self.sensitive_attrs_name,
+                    'value': name,
+                    'distance': distance,
+                    'count': len(self.tests[name])
+                })
+
+        return np.std(list(classification_score.values())), biases
 
     @staticmethod
     def get_cm_annot(cm: np.array, cm_norm: np.array = None) -> List[List[str]]:
@@ -149,4 +195,13 @@ class ClassificationBias:
         if not isinstance(y_all, np.ndarray):
             y_all = np.array(y_all)
 
-        return (np.sum(y_sensitive >= 0.5) / len(y_sensitive)) / (np.sum(y_all >= 0.5) / len(y_all))
+        positives_sensitive = np.sum(y_sensitive >= 0.5)
+        positives_all = np.sum(y_all >= 0.5)
+        if positives_sensitive == 0 and positives_all == 0:
+            di = 1.
+        elif positives_sensitive != 0 and positives_all != 0:
+            di = (np.sum(y_sensitive >= 0.5) / len(y_sensitive)) / (np.sum(y_all >= 0.5) / len(y_all))
+        else:
+            di = 0.
+
+        return max(1, abs(1 - di))

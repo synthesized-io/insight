@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict, List, Any, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,9 +15,12 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
     precision_recall_curve, confusion_matrix
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+
 from sklearn.svm import LinearSVC
 from sklearn.utils.validation import check_is_fitted
 from sklearn.exceptions import NotFittedError
+
+from ..metadata import MetaExtractor, DataFrameMeta, ContinuousMeta,  CategoricalMeta, DateMeta
 
 # Set the style of plots
 plt.style.use('seaborn')
@@ -37,67 +40,71 @@ logger = logging.getLogger(__name__)
 class ExperimentalEstimator:
     def __init__(self, target: str):
         self.target = target
-        self.oh_encoders: Dict[str, Optional[Tuple[OneHotEncoder, List[str]]]] = dict()
+        # self.oh_encoders: Dict[str, Optional[Tuple[OneHotEncoder, List[str]]]] = dict()
+        self.oh_encoders: Dict[str, Union[LabelEncoder, OneHotEncoder]] = dict()
+        self.all_metrics = [
+            'Accuracy',
+            'Precision',
+            'Recall',
+            'F1',
+            'AUC',
+            'ROC_Curve',
+            'PR_Curve',
+            'ConfusionMatrix'
+        ]
+        self.dp: Optional[DataFrameMeta] = None
 
     def preprocess_df(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.copy()
+        self.dp = MetaExtractor.extract(data)
 
         xx = []
         c_names: List[str] = []
 
-        # Train OH Encoders
-        if len(self.oh_encoders) == 0:
-            for c in data.columns:
-                column = data[c]
-                if column.dtype.kind not in ('f', 'i') or column.nunique() <= 2:
-                    if c == self.target:
-                        oh = LabelEncoder()
-                        x_i = oh.fit_transform(column.values.reshape(-1, 1)).reshape(-1, 1)
-                        names = [c]
-                    elif column.nunique() > 1:
-                        oh = OneHotEncoder(drop='first')
-                        x_i = oh.fit_transform(column.values.reshape(-1, 1)).todense()
-                        names = ['{}_{}'.format(c, enc) for enc in oh.categories_[0][1:]]
-                    else:
-                        oh = OneHotEncoder()
-                        x_i = oh.fit_transform(column.values.reshape(-1, 1)).todense()
-                        names = [c]
+        for v in self.dp.values:
+            column = data[v.name]
+            x_i = c_name_i = None
 
-                    if len(names) > 1:
-                        c_names = list(np.concatenate((c_names, names)))
-                        self.oh_encoders[c] = (oh, names)
-                    else:
-                        c_names = list(np.concatenate((c_names, [c])))
-                        self.oh_encoders[c] = (oh, [c])
+            if v.name == self.target:
+                x_i = column.values.reshape(-1, 1)
+                if isinstance(v, CategoricalMeta):
+                    if v.name not in self.oh_encoders:
+                        self.oh_encoders[v.name] = LabelEncoder()
+                        self.oh_encoders[v.name].fit(x_i)
+                    x_i = self.oh_encoders[v.name].transform(x_i).reshape(-1, 1)
                 else:
-                    x_i = column.values.reshape(-1, 1)
-                    c_names = list(np.concatenate((c_names, [c])))
-                    self.oh_encoders[c] = None
-                xx.append(x_i)
+                    x_i = pd.to_numeric(column, errors='coerce').values.reshape(-1, 1)
 
-        # OH Encoders are already trained
-        elif len(self.oh_encoders) > 0:
-            for c in data.columns:
-                column = data[c]
-                oh_encoder_names = self.oh_encoders[c]
-                if oh_encoder_names is not None:
-                    oh_encoder, names = oh_encoder_names
-                    if isinstance(oh_encoder, OneHotEncoder):
-                        x_i = oh_encoder.transform(column.values.reshape(-1, 1)).todense()
-                    elif isinstance(oh_encoder, LabelEncoder):
-                        x_i = oh_encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)
-                    c_names = list(np.concatenate((c_names, names)))
-                else:
-                    x_i = column.values.reshape(-1, 1)
-                    c_names = list(np.concatenate((c_names, [c])))
+                c_name_i = [v.name]
+            elif isinstance(v, DateMeta):
+                x_i = pd.to_numeric(pd.to_datetime(column), errors='coerce').values.reshape(-1, 1)
+                c_name_i = [v.name]
+            elif isinstance(v, ContinuousMeta):
+                x_i = column.values.reshape(-1, 1)
+                c_name_i = [v.name]
+            elif isinstance(v, CategoricalMeta):
+                x_i = column.values.reshape(-1, 1)
+                if v.name not in self.oh_encoders:
+                    self.oh_encoders[v.name] = OneHotEncoder(drop='first')
+                    self.oh_encoders[v.name].fit(x_i)
+
+                x_i = self.oh_encoders[v.name].transform(column.values.reshape(-1, 1)).todense()
+                c_name_i = ['{}_{}'.format(v.name, enc) for enc in self.oh_encoders[v.name].categories_[0][1:]]
+
+            else:
+                logger.debug(f"Ignoring column {v.name} (type {v.__class__.__name__})")
+
+            if x_i is not None and c_name_i is not None:
                 xx.append(x_i)
+                c_names.extend(c_name_i)
 
         xx = np.hstack(xx)
         return pd.DataFrame(xx, columns=c_names)
 
     def classification(self, df_train: pd.DataFrame, df_test: pd.DataFrame,
                        classifiers: Dict[str, BaseEstimator] = None, name: str = None,
-                       results: List[Dict[str, Any]] = None, copy_clf: bool = True) -> List[Dict[str, Any]]:
+                       results: List[Dict[str, Any]] = None, copy_clf: bool = True,
+                       metrics_to_compute: List[str] = None) -> List[Dict[str, Any]]:
 
         if classifiers is None:
             classifiers = {
@@ -111,6 +118,9 @@ class ExperimentalEstimator:
         if results is None:
             results = []
 
+        if metrics_to_compute is None:
+            metrics_to_compute = self.all_metrics
+
         features = list(filter(lambda x: x != self.target, df_train.columns))
 
         X_train = df_train[features].astype(np.float64).values
@@ -119,6 +129,7 @@ class ExperimentalEstimator:
         y_test = df_test[self.target].astype(np.float64).values
 
         if len(np.unique(y_train)) == 1 or len(np.unique(y_test)) == 1:
+            logger.info("A single class found in target column. Returning empty List.")
             return results
 
         for clf_name, clf_ in classifiers.items():
@@ -130,22 +141,12 @@ class ExperimentalEstimator:
             except NotFittedError:
                 clf.fit(X_train, y_train)
 
-            y_train_oh = y_train
             y_test_oh = y_test
             if hasattr(clf, 'predict_proba'):
-                f_prob_train = clf.predict_proba(X_train)
                 f_prob_test = clf.predict_proba(X_test)
-                f_train = np.argmax(f_prob_train, axis=1)
                 f_test = np.argmax(f_prob_test, axis=1)
 
                 # ROC AUC would fail if one class is not present
-                if f_prob_train.shape[1] == 2:  # Sklearn's AUC doesn't support two dimensions
-                    f_prob_train = f_prob_train.T[1]
-                elif f_prob_train.shape[1] > len(np.unique(y_train)):
-                    f_prob_train = f_prob_train[:, np.unique(y_train).astype(int)]
-                    oh = OneHotEncoder()
-                    y_train_oh = oh.fit_transform(y_train.reshape(-1, 1)).todense()
-
                 if f_prob_test.shape[1] == 2:
                     f_prob_test = f_prob_test.T[1]
                 elif f_prob_test.shape[1] > len(np.unique(y_test)):
@@ -154,38 +155,44 @@ class ExperimentalEstimator:
                     y_test_oh = oh.fit_transform(y_test.reshape(-1, 1)).todense()
 
             else:
-                f_prob_train = f_train = clf.predict(X_train)
+                logger.warning(f"Given classifier '{clf_name}' doesn't have 'predict_proba' attr, needed to compute "
+                               f"some metrics.")
                 f_prob_test = f_test = clf.predict(X_test)
 
-            results.append({
+            results_i = {
                 'Classifier': clf_name,
                 'Name': name,
-                'Predicted Values': f_prob_test,
+                'PredictedValues': f_prob_test
+            }
 
-                # Train
-                'Accuracy Train': accuracy_score(y_train, f_train),
-                'Precision Train': precision_score(y_train, f_train, average='micro'),
-                'Recall Train': recall_score(y_train, f_train, average='micro'),
-                'F1 Train': f1_score(y_train, f_train, average='micro'),
-                'AUC Train': roc_auc_score(y_train_oh, f_prob_train, multi_class='ovo'),
+            if 'Accuracy' in metrics_to_compute:
+                results_i['Accuracy'] = accuracy_score(y_test, f_test)
+            if 'Precision' in metrics_to_compute:
+                results_i['Precision'] = precision_score(y_test, f_test, average='micro')
+            if 'Recall' in metrics_to_compute:
+                results_i['Recall'] = recall_score(y_test, f_test, average='micro')
+            if 'F1' in metrics_to_compute:
+                results_i['F1'] = f1_score(y_test, f_test, average='micro')
+            if 'AUC' in metrics_to_compute:
+                results_i['AUC'] = roc_auc_score(y_test_oh, f_prob_test, multi_class='ovo')
 
-                # Test
-                'Accuracy Test': accuracy_score(y_test, f_test),
-                'Precision Test': precision_score(y_test, f_test, average='micro'),
-                'Recall Test': recall_score(y_test, f_test, average='micro'),
-                'F1 Test': f1_score(y_test, f_test, average='micro'),
-                'AUC Test': roc_auc_score(y_test_oh, f_prob_test, multi_class='ovo'),
+            if 'ROC_Curve' in metrics_to_compute:
+                results_i['ROC_Curve'] = roc_curve(y_test_oh, f_prob_test) \
+                    if len(f_prob_test) == 1 else None
+            if 'PR_Curve' in metrics_to_compute:
+                results_i['PR_Curve'] = precision_recall_curve(y_test_oh, f_prob_test) \
+                    if len(f_prob_test) == 1 else None
+            if 'ConfusionMatrix' in metrics_to_compute:
+                results_i['ConfusionMatrix'] = confusion_matrix(y_test, f_test)
 
-                'ROC Curve': roc_curve(y_test_oh, f_prob_test) if len(f_prob_train) == 1 else None,
-                'PR Curve': precision_recall_curve(y_test_oh, f_prob_test) if len(f_prob_train) == 1 else None,
-                'Confusion Matrix': confusion_matrix(y_test, f_test)
-            })
+            results.append(results_i)
 
         return results
 
     def preprocess_classify(self, original_data, other_dfs: Dict[str, pd.DataFrame], train_idx: np.array,
                             test_idx: np.array, name_orig: Optional[str] = 'Original',
-                            classifiers: Dict[str, BaseEstimator] = None, copy_clf: bool = True) -> pd.DataFrame:
+                            classifiers: Dict[str, BaseEstimator] = None, metrics_to_compute: List[str] = None,
+                            copy_clf: bool = True) -> pd.DataFrame:
 
         original_data = original_data.copy()
         other_dfs = other_dfs.copy()
@@ -202,14 +209,14 @@ class ExperimentalEstimator:
         results: List[Dict[str, Any]] = []
 
         if name_orig:
-            logger.debug("Classifying original data-frame...")
+            logger.info("Classifying original data-frame...")
             results = self.classification(train, test, name=name_orig, results=results, classifiers=classifiers,
-                                          copy_clf=copy_clf)
+                                          metrics_to_compute=metrics_to_compute, copy_clf=copy_clf)
 
         for name, df in other_dfs.items():
-            logger.debug("Classifying data-frame '{}'...".format(name))
+            logger.info("Classifying data-frame '{}'...".format(name))
             results = self.classification(df, test, name=name, results=results, classifiers=classifiers,
-                                          copy_clf=copy_clf)
+                                          metrics_to_compute=metrics_to_compute, copy_clf=copy_clf)
 
         df_results = pd.DataFrame(results)
         return df_results

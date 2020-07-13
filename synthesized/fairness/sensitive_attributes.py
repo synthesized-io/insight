@@ -1,6 +1,6 @@
 from difflib import SequenceMatcher
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 
 class SensitiveNames(Enum):
@@ -70,3 +70,15 @@ class SensitiveNamesDetector:
     @staticmethod
     def str_distance(s1: str, s2: str) -> float:
         return 1 - SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+
+
+def sensitive_attr_concat_name(sensitive_attr: Union[List[str], str]) -> str:
+    if isinstance(sensitive_attr, list):
+        if len(sensitive_attr) == 1:
+            return sensitive_attr[0]
+        else:
+            return "({})".format(', '.join(sensitive_attr))
+    elif isinstance(sensitive_attr, str):
+        return sensitive_attr
+    else:
+        raise ValueError(sensitive_attr)
