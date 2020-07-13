@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -71,12 +72,29 @@ class DataFrameMeta:
 
         return x
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+    def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
         """Returns a preprocessed copy of the input DataFrame"""
-        df_copy = df.copy()
-        for value in self.all_values:
-            df_copy = value.preprocess(df=df_copy)
+        if max_workers is None:
+            df_pre = df.copy()
+            for value in self.all_values:
+                df_pre = value.preprocess(df=df_pre)
 
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                arguments = ((value, df[[value.name]].copy()) for value in self.all_values)
+                col_pre = executor.map(self.preprocess_value, arguments)
+
+            series = []
+            for v, f in zip(self.all_values, col_pre):
+                series.append(f)
+            df_pre = pd.concat(col_pre, axis=1)
+
+        return df_pre
+
+    @staticmethod
+    def preprocess_value(argument):
+        value, df_copy = argument
+        df_copy = value.preprocess(df_copy)
         return df_copy
 
     def preprocess_by_name(self, df: Union[pd.DataFrame, None], value_names: List[str]) -> Union[pd.DataFrame, None]:
@@ -96,19 +114,39 @@ class DataFrameMeta:
 
         return df_conditions
 
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+    def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
         """Post-processes the input DataFrame"""
-        for value in self.all_values:
-            df = value.postprocess(df=df)
+        df_post = df.copy()
+        if max_workers is None:
+            for value in self.all_values:
+                df_post = value.postprocess(df=df_post)
+
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                arguments = ((value, df[[value.name]].copy()) for value in self.all_values)
+                futures = executor.map(self.postprocess_value, arguments)
+
+            series = []
+            names = []
+            for v, f in zip(self.all_values, futures):
+                series.append(f)
+                names.append(v.name)
+            df_post = pd.concat(series, axis=1)
 
         # aliases:
         for alias, col in self.column_aliases.items():
-            df[alias] = df[col]
+            df_post[alias] = df_post[col]
 
         assert len(df.columns) == len(self.columns)
-        df = df[self.columns]
+        df_post = df_post[self.columns]
 
-        return df
+        return df_post
+
+    @staticmethod
+    def postprocess_value(argument):
+        value, df_copy = argument
+        df_copy = value.postprocess(df_copy)
+        return df_copy
 
     def get_variables(self) -> Dict[str, Any]:
         variables: Dict[str, Any] = dict(

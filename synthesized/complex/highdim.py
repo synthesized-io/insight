@@ -104,12 +104,12 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.df_meta.preprocess(df)
+    def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
+        df = self.df_meta.preprocess(df, max_workers=max_workers)
         return df
 
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.df_meta.postprocess(df)
+    def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
+        df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
     def learn(
