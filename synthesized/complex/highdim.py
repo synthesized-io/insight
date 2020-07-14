@@ -156,7 +156,7 @@ class HighDimSynthesizer(Synthesizer):
                 if low_memory:
                     feed_dict = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
                 else:
-                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch].copy())
+                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch])
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0

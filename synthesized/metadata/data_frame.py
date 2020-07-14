@@ -87,7 +87,7 @@ class DataFrameMeta:
             series = []
             for v, f in zip(self.all_values, col_pre):
                 series.append(f)
-            df_pre = pd.concat(col_pre, axis=1)
+            df_pre = pd.concat(series, axis=1)
 
         return df_pre
 
