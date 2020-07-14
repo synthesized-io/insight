@@ -253,7 +253,8 @@ def test_vf_missing_strings():
 
     value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', 'a', 'b', 'c']
+    assert value.categories == ['a', 'b', 'c']
+    assert value.nans_valid
 
 
 def test_vf_missing_categories():
@@ -265,7 +266,8 @@ def test_vf_missing_categories():
 
     value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', '1', 'a', 'b']
+    assert value.categories == ['1', 'a', 'b']
+    assert value.nans_valid
 
 
 def test_vf_double_missing_strings():
@@ -277,7 +279,8 @@ def test_vf_double_missing_strings():
 
     value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', 'a', 'b']
+    assert value.categories == ['a', 'b']
+    assert value.nans_valid
 
 
 def test_vf_double_missing_ints():

@@ -34,7 +34,10 @@ class CategoricalMeta(ValueMeta):
 
     @property
     def categories(self):
-        return [c for c in self._categories if not np.isnan(c)]
+        if self.is_string:
+            return [c for c in self._categories if c != 'nan']
+        else:
+            return [c for c in self._categories if not np.isnan(c)]
 
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
