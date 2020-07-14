@@ -81,7 +81,7 @@ class DataFrameMeta:
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                arguments = ((value, df[[value.name]].copy()) for value in self.all_values)
+                arguments = ((value, df[value.columns()].copy()) for value in self.all_values)
                 col_pre = executor.map(self.preprocess_value, arguments)
 
             series = []
@@ -123,7 +123,7 @@ class DataFrameMeta:
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                arguments = ((value, df[[value.name]].copy()) for value in self.all_values)
+                arguments = ((value, df[value.learned_output_columns()].copy()) for value in self.all_values)
                 futures = executor.map(self.postprocess_value, arguments)
 
             series = []
@@ -137,7 +137,7 @@ class DataFrameMeta:
         for alias, col in self.column_aliases.items():
             df_post[alias] = df_post[col]
 
-        assert len(df.columns) == len(self.columns)
+        assert len(df_post.columns) == len(self.columns)
         df_post = df_post[self.columns]
 
         return df_post
