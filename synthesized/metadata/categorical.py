@@ -57,11 +57,6 @@ class CategoricalMeta(ValueMeta):
         assert isinstance(self.categories, list) and isinstance(self.num_categories, int)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
 
-        # If there's a category not present in category2idx, map will produce nans. We populate them randomly.
-        n_nans = df.loc[:, self.name].isna().sum()
-        if n_nans > 0:
-            df.loc[df.loc[:, self.name].isna(), self.name] = np.random.choice(range(self.num_categories), n_nans)
-
         if df.loc[:, self.name].dtype != 'int64':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
         return super().preprocess(df=df)
@@ -79,17 +74,13 @@ class CategoricalMeta(ValueMeta):
 
     def _set_categories(self, categories: MutableSequence):
 
-        found = None
-
         if self.given_categories is None:
             # Put any nan at the position zero of the list
             for n, x in enumerate(categories):
                 if self.is_string and x == 'nan':
-                    found = categories.pop(n)
                     self.nans_valid = True
                     break
                 elif isinstance(x, float) and isnan(x):
-                    found = categories.pop(n)
                     self.nans_valid = True
                     break
 
@@ -101,25 +92,20 @@ class CategoricalMeta(ValueMeta):
         else:
             for x in categories:
                 if x not in self.given_categories:
-                    found = 'nan' if self.is_string else np.nan
                     self.nans_valid = True
                     break
 
             categories = self.given_categories.copy()
 
-        if found is not None:
-            categories.insert(0, found)
+        nan = 'nan' if self.is_string else np.nan
+        categories.insert(0, nan)
 
         # If categories are not set
         if self.categories is None:
             self.categories = categories
             self.num_categories = len(categories)
             self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
-
-            if found is not None:
-                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
-            else:
-                self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
+            self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
 
         # If categories have been set and are different to the given
         elif isinstance(self.categories, list):

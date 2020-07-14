@@ -249,7 +249,9 @@ class AddressMeta(ValueMeta):
                 postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
 
             def sample_address(postcode_key):
-                return np.random.choice(self.postcodes[postcode_key])
+                if postcode_key in self.postcodes.keys():
+                    return np.random.choice(self.postcodes[postcode_key])
+                return np.nan
 
             addresses = np.vectorize(sample_address)(postcode)
 
