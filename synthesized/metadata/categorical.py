@@ -1,5 +1,4 @@
 from collections.abc import MutableSequence
-from math import isnan
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -83,11 +82,11 @@ class CategoricalMeta(ValueMeta):
             for n, x in enumerate(categories):
                 if self.is_string and x == 'nan':
                     self.nans_valid = True
-                    categories.remove('nan')
+                    categories.remove(x)
                     break
-                elif isinstance(x, float) and isnan(x):
+                elif isinstance(x, float) and np.isnan(x):
                     self.nans_valid = True
-                    categories.remove(np.nan)
+                    categories.remove(x)
                     break
 
             try:
