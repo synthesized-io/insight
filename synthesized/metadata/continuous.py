@@ -96,7 +96,7 @@ class ContinuousMeta(ValueMeta):
                                                    output_distribution='normal')
         else:
             self.transformer = StandardScaler()
-        self.transformer.fit(column.reshape(-1, 1))
+        self.transformer.fit(column.to_numpy().reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required
