@@ -18,7 +18,7 @@ class CategoricalMeta(ValueMeta):
         categories: List = None, probabilities=None, true_categorical: bool = True
     ):
         super().__init__(name=name)
-        self.categories: Optional[MutableSequence] = None
+        self._categories: Optional[MutableSequence] = None
         self.category2idx: Optional[Dict] = None
         self.idx2category: Optional[Dict] = None
         self.nans_valid: bool = False
@@ -32,6 +32,10 @@ class CategoricalMeta(ValueMeta):
         self.produce_nans = produce_nans
         self.true_categorical = true_categorical
         self.is_string = False
+
+    @property
+    def categories(self):
+        return [c for c in self._categories if not np.isnan(c)]
 
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
@@ -54,7 +58,7 @@ class CategoricalMeta(ValueMeta):
         if self.is_string:
             df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
 
-        assert isinstance(self.categories, list) and isinstance(self.num_categories, int)
+        assert isinstance(self._categories, list) and isinstance(self.num_categories, int)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
 
         if df.loc[:, self.name].dtype != 'int64':
@@ -63,7 +67,7 @@ class CategoricalMeta(ValueMeta):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
-        assert isinstance(self.categories, list)
+        assert isinstance(self._categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.is_string:
             df.loc[df[self.name] == 'nan', self.name] = np.nan
@@ -72,16 +76,18 @@ class CategoricalMeta(ValueMeta):
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
         return df
 
-    def _set_categories(self, categories: MutableSequence):
+    def _set_categories(self, categories: List):
 
         if self.given_categories is None:
             # Put any nan at the position zero of the list
             for n, x in enumerate(categories):
                 if self.is_string and x == 'nan':
                     self.nans_valid = True
+                    categories.remove('nan')
                     break
                 elif isinstance(x, float) and isnan(x):
                     self.nans_valid = True
+                    categories.remove(np.nan)
                     break
 
             try:
@@ -101,16 +107,16 @@ class CategoricalMeta(ValueMeta):
         categories.insert(0, nan)
 
         # If categories are not set
-        if self.categories is None:
-            self.categories = categories
+        if self._categories is None:
+            self._categories = categories
             self.num_categories = len(categories)
-            self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
-            self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
+            self.idx2category = {i: self._categories[i] for i in range(len(self._categories))}
+            self.category2idx = Categories({self._categories[i]: i for i in range(len(self._categories))})
 
         # If categories have been set and are different to the given
-        elif isinstance(self.categories, list):
+        elif isinstance(self._categories, list):
             for category in categories[int(self.nans_valid):]:
-                if category not in self.categories[int(self.nans_valid):]:
+                if category not in self._categories[int(self.nans_valid):]:
                     raise NotImplementedError
 
 
