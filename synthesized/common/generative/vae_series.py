@@ -126,26 +126,26 @@ class SeriesVAE(Generative):
             identifier = None
 
         #################################
-        x = self.linear_input(inputs=x)
-        x = self.encoder(inputs=x)
+        x = self.linear_input(x)
+        x = self.encoder(x)
         x = self.value_ops.add_conditions(x, conditions=self.xs)
-        x = self.encoding(inputs=x, identifier=identifier, series_dropout=self.series_dropout)
-        x = self.decoder(inputs=x)
-        y = self.linear_output(inputs=x)
+        x = self.encoding(x, identifier=identifier, series_dropout=self.series_dropout)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         #################################
 
         # Losses
         self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y, self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'
         )
 
-        total_loss = tf.add_n(inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss')
+        total_loss = tf.add_n([kl_loss, reconstruction_loss, regularization_loss], name='total_loss')
 
         self.losses['reconstruction-loss'] = reconstruction_loss
         self.losses['kl-loss'] = kl_loss
@@ -187,7 +187,7 @@ class SeriesVAE(Generative):
             identifier = None
 
         latent_space, mean, std, y = self._encode(x, cs, identifier, tf.constant(n_forecast))
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y, conditions=cs)
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
@@ -195,14 +195,14 @@ class SeriesVAE(Generative):
     def _encode(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]], identifier: Optional[tf.Tensor],
                 n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
 
-        x = self.linear_input(inputs=x)
-        x = self.encoder(inputs=x)
+        x = self.linear_input(x)
+        x = self.encoder(x)
         x = self.value_ops.add_conditions(x, conditions=cs)
-        x, latent_space = self.encoding(inputs=x, identifier=identifier, return_encoding=True, n_forecast=n_forecast)
+        x, latent_space = self.encoding(x, identifier=identifier, return_encoding=True, n_forecast=n_forecast)
         mean = self.encoding.mean.output
         std = self.encoding.stddev.output
-        x = self.decoder(inputs=x)
-        y = self.linear_output(inputs=x)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         # Remove third dimension, as we synthesize one series per step
         y = tf.squeeze(y, axis=0)
         return latent_space, mean, std, y
@@ -210,7 +210,7 @@ class SeriesVAE(Generative):
     def synthesize(self, n: int, cs: Dict[str, List[tf.Tensor]],
                    identifier: tf.Tensor = None) -> Dict[str, List[tf.Tensor]]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, identifier=identifier)
+        synthesized = self.value_ops.value_outputs(y, conditions=cs, identifier=identifier)
 
         return synthesized
 
@@ -225,14 +225,14 @@ class SeriesVAE(Generative):
             else:
                 identifier, identifier_embedding = self.identifier_value.random_value_from_normal()
             identifier_embedding = tf.squeeze(identifier_embedding)
-            identifier = tf.tile(input=identifier, multiples=(n,))
+            identifier = tf.tile(identifier, multiples=(n,))
         else:
             identifier, identifier_embedding = None, None
 
         x = self.encoding.sample(n=n, identifier=identifier_embedding)
         x = self.value_ops.add_conditions(x=x, conditions=cs)
-        x = self.decoder(inputs=x)
-        y = self.linear_output(inputs=x)
+        x = self.decoder(x)
+        y = self.linear_output(x)
         # Remove third dimension, as we synthesize one series per step
         y = tf.squeeze(y, axis=0)
         return y, identifier

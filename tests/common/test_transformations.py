@@ -14,10 +14,10 @@ def _test_transformation(transformation, modulation=False):
         if modulation:
             transform_input = np.random.randn(4, 8).astype(np.float32)
             condition_input = np.random.randn(4, 6).astype(np.float32)
-            transform_output = transformation(inputs=transform_input, condition=condition_input)
+            transform_output = transformation(transform_input, condition_input)
         else:
             transform_input = np.random.randn(4, 8).astype(np.float32)
-            transform_output = transformation(inputs=transform_input)
+            transform_output = transformation(transform_input)
 
         if modulation:
             transformed = transform_output
