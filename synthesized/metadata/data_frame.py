@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -23,7 +23,7 @@ class DataFrameMeta:
         self.column_aliases = column_aliases or dict()
         self.association_meta = association_meta
 
-        value_map = {v.name: v for v in self.values}
+        value_map: Dict[str, ValueMeta] = {v.name: v for v in self.values}
         if time_value is not None:
             value_map[time_value.name] = time_value
             self.columns = [time_value.name, ] + self.columns
@@ -34,7 +34,7 @@ class DataFrameMeta:
         self._value_map = value_map
 
     @property
-    def all_values(self):
+    def all_values(self) -> List[ValueMeta]:
         values = self.values
 
         if self.time_value:
@@ -45,7 +45,7 @@ class DataFrameMeta:
 
         return values
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> ValueMeta:
         return self._value_map[item]
 
     def unified_inputs(self, inputs: Dict[str, np.ndarray]) -> Dict[str, List[np.ndarray]]:
@@ -92,7 +92,7 @@ class DataFrameMeta:
         return df_pre
 
     @staticmethod
-    def preprocess_value(argument):
+    def preprocess_value(argument: Tuple[ValueMeta, pd.DataFrame]) -> pd.DataFrame:
         value, df_copy = argument
         df_copy = value.preprocess(df_copy)
         return df_copy
@@ -143,7 +143,7 @@ class DataFrameMeta:
         return df_post
 
     @staticmethod
-    def postprocess_value(argument):
+    def postprocess_value(argument: Tuple[ValueMeta, pd.DataFrame]) -> pd.DataFrame:
         value, df_copy = argument
         df_copy = value.postprocess(df_copy)
         return df_copy
