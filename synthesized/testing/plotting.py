@@ -226,19 +226,32 @@ def plot_second_order_metric_matrices(
         matrix_test: pd.DataFrame, matrix_synth: pd.DataFrame,
         metric_name: str, symmetric=True
 ):
+    if len(matrix_test.columns) == 0:
+        return
+
     # Set up the matplotlib figure
     scale = 1.0
     label_length = len(max(matrix_test.columns, key=len))*0.08
     width, height = (2*scale*len(matrix_test.columns)+label_length, scale*len(matrix_test) + label_length)
     figsize = (width, height)
-    print(label_length, figsize)
+
     fig = plt.figure(figsize=figsize)
     ax = fig.gca()
     fig.suptitle(f"{metric_name} Matrices", fontweight='bold', fontsize=14)
     ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=1/len(matrix_test.columns))
+
+    left = (0.5 + label_length) / width
+    bottom = (0.5 + label_length) / height
+    right = 1 - (0.5 / width)
+    top = 1 - (1 / height)
+
     ax.get_gridspec().update(
-        left=(0.5+label_length)/width, bottom=(0.5+label_length)/height, right=1-(0.5/width), top=1-(1/height)
+        left=left,
+        bottom=bottom,
+        right=right,
+        top=top if top > bottom else bottom * 1.1
     )
+
     plot_second_order_metric_matrix(matrix_test, ax=ax1, symmetric=symmetric)
     plot_second_order_metric_matrix(matrix_synth, ax=ax2, symmetric=symmetric)
     plt.show()
@@ -326,7 +339,7 @@ def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: fl
         sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
                      hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
     except Exception as e:
-        print('ERROR :: Column {} cant be shown :: {}'.format(col_test.name, e))
+        logger.error('Column {} cant be shown :: {}'.format(col_test.name, e))
 
     ax.set_title(title)
     plt.legend()

@@ -8,8 +8,8 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ..values import ValueFactory
 from ...insight.evaluation import calculate_evaluation_metrics
+from ...metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ class LearningManager:
         return False
 
     def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 value_factory: ValueFactory, column_names: Optional[List[str]] = None) -> bool:
+                                 df_meta: DataFrameMeta, column_names: Optional[List[str]] = None) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -214,6 +214,7 @@ class LearningManager:
             iteration: Iteration number.
             df_orig: Original DataFrame.
             df_synth: Synthesized DataFrame.
+            df_meta: DataFrameMeta of the synthesizer.
             column_names: List of columns used to compute the 'break_metric'.
 
         Returns
@@ -224,7 +225,7 @@ class LearningManager:
 
         if self.custom_stop_metric is None:
             stop_metrics: Union[Dict[str, Union[pd.Series, pd.DataFrame]], float] = calculate_evaluation_metrics(
-                df_orig=df_orig, df_synth=df_synth, value_factory=value_factory, column_names=column_names
+                df_orig=df_orig, df_synth=df_synth, df_meta=df_meta, column_names=column_names
             )
         else:
             stop_metrics = self.custom_stop_metric(df_orig, df_synth)
@@ -256,7 +257,7 @@ class LearningManager:
 
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names, value_factory=synthesizer.value_factory)
+                                             column_names=column_names, df_meta=synthesizer.df_meta)
 
     def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer,
                                data_dict: Dict[str, List[tf.Tensor]]) -> bool:

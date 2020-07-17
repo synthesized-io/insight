@@ -34,8 +34,8 @@ class TimeSeriesUtilityTesting:
         self.df_test = format_time_series(df_test, identifier=identifier, time_index=time_index)
         self.df_synth = format_time_series(df_synth, identifier=identifier, time_index=time_index)
 
-        self.vf = synthesizer.value_factory
-        categorical, continuous = categorical_or_continuous_values(self.vf)
+        self.dp = synthesizer.df_meta
+        categorical, continuous = categorical_or_continuous_values(self.dp)
 
         self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
         self.plotable_values = self.categorical + self.continuous

@@ -91,8 +91,11 @@ class KolmogorovSmirnovDistance(ColumnComparison):
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
         if not super(KolmogorovSmirnovDistance, self).check_column_types(df_old, df_new, col_name, **kwargs):
             return None
-        column_old_clean = df_old[col_name].dropna()
-        column_new_clean = df_new[col_name].dropna()
+        column_old_clean = pd.to_numeric(df_old[col_name], errors='coerce').dropna()
+        column_new_clean = pd.to_numeric(df_new[col_name], errors='coerce').dropna()
+        if len(column_old_clean) == 0 or len(column_new_clean) == 0:
+            return np.nan
+
         ks_distance, p_value = ks_2samp(column_old_clean, column_new_clean)
         return ks_distance
 

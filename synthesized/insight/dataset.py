@@ -4,8 +4,7 @@ from typing import List, Tuple, Union
 import pandas as pd
 
 from ..metadata import MetaExtractor, DataFrameMeta
-from ..metadata import ContinuousMeta, CategoricalMeta, DecomposedContinuousMeta, NanMeta, ValueMeta, \
-    AssociationMeta
+from ..metadata import ContinuousMeta, CategoricalMeta, DecomposedContinuousMeta, NanMeta, ValueMeta, AssociationMeta
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -30,9 +29,9 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     return df_values
 
 
-def categorical_or_continuous_values(df_or_vf: Union[pd.DataFrame, DataFrameMeta]) \
+def categorical_or_continuous_values(df_or_dp: Union[pd.DataFrame, DataFrameMeta]) \
         -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
-    dp = MetaExtractor.extract(df=df_or_vf) if isinstance(df_or_vf, pd.DataFrame) else df_or_vf
+    dp = MetaExtractor.extract(df=df_or_dp) if isinstance(df_or_dp, pd.DataFrame) else df_or_dp
     values = dp.values
     categorical: List[CategoricalMeta] = list()
     continuous: List[ValueMeta] = list()

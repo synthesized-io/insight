@@ -53,8 +53,8 @@ class UtilityTesting:
         self.df_test = df_test.copy()
         self.df_synth = df_synth.copy()
 
-        self.vf = synthesizer.value_factory
-        categorical, continuous = categorical_or_continuous_values(self.vf)
+        self.dp = synthesizer.df_meta
+        categorical, continuous = categorical_or_continuous_values(self.dp)
 
         self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
         self.plotable_values = self.categorical+self.continuous
@@ -63,7 +63,7 @@ class UtilityTesting:
         set_plotting_style()
 
     def show_standard_metrics(self, ax=None):
-        standard_metrics = calculate_evaluation_metrics(self.df_test, self.df_synth, self.vf)
+        standard_metrics = calculate_evaluation_metrics(self.df_test, self.df_synth, self.dp)
 
         current_result = dict()
         for name, val in standard_metrics.items():
@@ -99,7 +99,7 @@ class UtilityTesting:
         for i, col in enumerate(self.categorical):
             ax = fig.add_subplot(gs[n // cols, n % cols])
 
-            emd_distance = metrics.earth_movers_distance(self.df_orig, self.df_synth, col, vf=self.vf)
+            emd_distance = metrics.earth_movers_distance(self.df_orig, self.df_synth, col, dp=self.dp)
             title = f'{col} (EMD Dist={emd_distance:.3f})'
             categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
             n += 1
@@ -107,7 +107,7 @@ class UtilityTesting:
         for i, col in enumerate(self.continuous):
             ax = fig.add_subplot(gs[n // 2, n % 2])
 
-            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig, self.df_synth, col, vf=self.vf)
+            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig, self.df_synth, col, dp=self.dp)
             title = f'{col} (KS Dist={ks_distance:.3f})'
             continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
             n += 1
@@ -143,7 +143,7 @@ class UtilityTesting:
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_test, self.df_synth, vf=self.vf, **kwargs)
+        result = metric_vector(self.df_test, self.df_synth, dp=self.dp, **kwargs)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -172,7 +172,7 @@ class UtilityTesting:
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, vf=self.vf, **kwargs)
+            matrix = metric_matrix(df, dp=self.dp, **kwargs)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
@@ -208,7 +208,7 @@ class UtilityTesting:
         logger.debug(f"Showing distances for second-order metric ({metric.name}).")
 
         metric_matrix = TwoColumnComparisonMatrix(metric)
-        distances = np.abs(metric_matrix(self.df_test,  self.df_synth, vf=self.vf, **kwargs))
+        distances = np.abs(metric_matrix(self.df_test,  self.df_synth, dp=self.dp, **kwargs))
 
         result = []
         for i in range(len(distances.index)):
@@ -241,7 +241,7 @@ class UtilityTesting:
         elif isinstance(metric, TwoColumnComparison):
             metric = TwoColumnComparisonMatrix(metric)
 
-        x = metric(self.df_orig, self.df_synth, vf=self.vf, **kwargs)
+        x = metric(self.df_orig, self.df_synth, dp=self.dp, **kwargs)
 
         if len(x) > 0:
             x = x.values
