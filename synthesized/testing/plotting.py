@@ -357,8 +357,7 @@ def plot_continuous_time_series(df_orig, df_synth, df_test, col, identifiers=Non
     ax = ax or plt.gca()
     if identifiers is not None:
         axes = axes_grid(
-            ax, len(identifiers), 1, col_titles=['', ''], row_titplot_second_order_metric_matricesles=identifiers,
-            wspace=0, hspace=0
+            ax, len(identifiers), 1, col_titles=['', ''], row_titles=identifiers, wspace=0, hspace=0
         )
 
         for j, idf in enumerate(identifiers[:5]):
