@@ -7,7 +7,7 @@ from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtr
 def test_annotations():
     data = pd.read_csv('data/annotations_nd.csv')
     person_params = PersonParams(
-        gender_label='Title (Tab selection)',
+        gender_label=None,
         title_label='Title (Tab selection)',
         firstname_label='First Name',
         lastname_label='Last Name',

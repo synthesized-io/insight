@@ -104,8 +104,12 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.df_meta.preprocess(df)
+    def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
+        df = self.df_meta.preprocess(df, max_workers=max_workers)
+        return df
+
+    def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
+        df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
     def learn(
@@ -138,7 +142,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if not low_memory:
             df_train = df_train.copy()
-            df_train_pre = self.df_meta.preprocess(df_train.copy())
+            df_train_pre = self.preprocess(df_train.copy())
         else:
             sample_size_lm = min(self.learning_manager.sample_size,
                                  num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
@@ -150,9 +154,9 @@ class HighDimSynthesizer(Synthesizer):
                 batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
 
                 if low_memory:
-                    feed_dict = self.get_data_feed_dict(self.df_meta.preprocess(df_train.iloc[batch].copy()))
+                    feed_dict = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
                 else:
-                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch].copy())
+                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch])
 
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
@@ -173,7 +177,7 @@ class HighDimSynthesizer(Synthesizer):
                 if self.learning_manager:
                     if low_memory:
                         batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
-                        data = self.get_data_feed_dict(self.df_meta.preprocess(df_train.iloc[batch].copy()))
+                        data = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
                         if self.learning_manager.stop_learning(iteration, synthesizer=self,
                                                                data_dict=data, num_data=num_data,
                                                                df_train_orig=df_train.sample(sample_size_lm)):
@@ -236,7 +240,7 @@ class HighDimSynthesizer(Synthesizer):
             tf.summary.trace_on(graph=True, profiler=False)
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
-            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
             synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
             synthesized = self.df_meta.split_outputs(synthesized)
 
@@ -245,13 +249,12 @@ class HighDimSynthesizer(Synthesizer):
                 progress_callback(98)
 
         else:
-            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows)
-            synthesized = self.vae.synthesize(tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64),
-                                              cs=feed_dict)
-            synthesized = self.df_meta.split_outputs(synthesized)
-            df_synthesized = pd.DataFrame.from_dict(synthesized)
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
+            synthesized = self.vae.synthesize(num_rows % self.synthesis_batch_size, cs=feed_dict)
+            dict_synthesized = self.df_meta.split_outputs(synthesized)
+            dict_synthesized = {k: v.numpy().tolist() for k, v in dict_synthesized.items()}
 
-            feed_dict = self.get_conditions_feed_dict(df_conditions, self.synthesis_batch_size)
+            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=self.synthesis_batch_size)
             n_batches = num_rows // self.synthesis_batch_size
             conditions_data = self.get_conditions_data(df_conditions)
 
@@ -266,14 +269,16 @@ class HighDimSynthesizer(Synthesizer):
                     })
                 other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
                 other = self.df_meta.split_outputs(other)
-                df_synthesized = df_synthesized.append(
-                    pd.DataFrame.from_dict(other), ignore_index=True
-                )
+                for c in dict_synthesized.keys():
+                    dict_synthesized[c].extend(other[c].numpy().tolist())
+
                 if progress_callback is not None:
                     # report approximate progress from 0% to 98% (2% are reserved for post actions)
                     progress_callback(round((k + 1) * 98.0 / n_batches))
 
-        df_synthesized = self.df_meta.postprocess(df_synthesized)[columns]
+            df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
+
+        df_synthesized = self.postprocess(df_synthesized)[columns]
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
@@ -308,7 +313,7 @@ class HighDimSynthesizer(Synthesizer):
         columns = self.df_meta.columns
         decoded = self.df_meta.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
+        df_synthesized = self.postprocess(df=df_synthesized)
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
         df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
@@ -339,7 +344,7 @@ class HighDimSynthesizer(Synthesizer):
         decoded = self.df_meta.split_outputs(decoded)
         columns = self.df_meta.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
+        df_synthesized = self.postprocess(df=df_synthesized)
 
         return df_synthesized
 

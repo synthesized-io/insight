@@ -259,7 +259,7 @@ class VAEOld(Generative):
         return y
 
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
+    def synthesize(self, n: int, cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
