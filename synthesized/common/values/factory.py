@@ -88,7 +88,7 @@ class ValueFactory:
             if value is None:
                 raise ValueError
             return NanValue(
-                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans,
+                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans or vm.produce_nans,
                 produce_infs=vm.produce_infs
             )
         elif isinstance(vm, ContinuousMeta):

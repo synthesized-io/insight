@@ -67,8 +67,8 @@ def test_inf_not_producing():
     df_original.iloc[indices] = np.inf
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
     df_original.iloc[indices] = -np.inf
-    print(df_original.iloc[:20])
-    with HighDimSynthesizer(df=df_original, produce_infs_for=False) as synthesizer:
+    df_meta = MetaExtractor.extract(df=df_original, produce_infs_for=None)
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=2500, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() == 0
@@ -82,8 +82,8 @@ def test_inf_producing():
     df_original.iloc[indices] = np.inf
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
     df_original.iloc[indices] = -np.inf
-    print(df_original.iloc[:20])
-    with HighDimSynthesizer(df=df_original, produce_infs_for=['r']) as synthesizer:
+    df_meta = MetaExtractor.extract(df=df_original, produce_infs_for=['r'])
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=2500, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() > 0

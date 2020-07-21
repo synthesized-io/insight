@@ -48,6 +48,7 @@ class MetaExtractor:
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None, produce_nans_for: List[str] = None,
+            produce_infs_for: List[str] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
@@ -56,6 +57,7 @@ class MetaExtractor:
         dataframe_meta = extractor.extract_dataframe_meta(
             df=df, id_index=id_index, time_index=time_index, column_aliases=column_aliases, associations=associations,
             type_overrides=type_overrides, find_rules=find_rules, produce_nans_for=produce_nans_for,
+            produce_infs_for=produce_infs_for,
             address_params=address_params, bank_params=bank_params, compound_address_params=compound_address_params,
             person_params=person_params
         )
@@ -66,6 +68,7 @@ class MetaExtractor:
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None, produce_nans_for: List[str] = None,
+            produce_infs_for: List[str] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
@@ -75,6 +78,7 @@ class MetaExtractor:
         type_overrides = type_overrides or dict()
         find_rules = find_rules or list()
         produce_nans_for = produce_nans_for or list()
+        produce_infs_for = produce_infs_for or list()
 
         values: List[ValueMeta] = list()
         identifier_value: Optional[ValueMeta] = None
@@ -102,7 +106,9 @@ class MetaExtractor:
         if compound_address_params is not None:
             values.extend(self._identify_annotations(df, 'compound_address', compound_address_params))
 
-        values.extend(self._identify_values(df, column_aliases, type_overrides, find_rules, produce_nans_for))
+        values.extend(
+            self._identify_values(df, column_aliases, type_overrides, find_rules, produce_nans_for, produce_infs_for)
+        )
 
         association_meta = self.create_associations(values, associations)
 
@@ -140,7 +146,7 @@ class MetaExtractor:
 
     def _identify_values(self, df: pd.DataFrame, column_aliases: Dict[str, str],
                          type_overrides: Dict[str, TypeOverride], find_rules: Union[str, List[str]],
-                         produce_nans_for: List[str]):
+                         produce_nans_for: List[str], produce_infs_for: List[str]):
 
         values: List[ValueMeta] = list()
 
@@ -157,8 +163,9 @@ class MetaExtractor:
                     value = CategoricalMeta(name, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.CONTINUOUS:
                     value = ContinuousMeta(name)
-                    if any(pd.to_numeric(df[name]).isna()):
-                        value = NanMeta(name, value, produce_nans=name in produce_nans_for)
+                    if any(pd.to_numeric(df[name]).isin([np.NaN, np.Inf, -np.Inf])):
+                        value = NanMeta(name, value, produce_nans=name in produce_nans_for,
+                                        produce_infs=name in produce_infs_for)
                 elif forced_type == TypeOverride.DATE:
                     value = DateMeta(name)
                 elif forced_type == TypeOverride.ENUMERATION:
@@ -168,7 +175,8 @@ class MetaExtractor:
             else:
                 try:
                     identified_value, reason = self.identify_value(
-                        col=df[name], name=name, produce_nans=name in produce_nans_for
+                        col=df[name], name=name, produce_nans=name in produce_nans_for,
+                        produce_infs=name in produce_infs_for
                     )
                     # None means the value has already been detected:
                     if identified_value is None:
@@ -233,7 +241,7 @@ class MetaExtractor:
 
         return association_meta
 
-    def identify_value(self, col: pd.Series, name: str, produce_nans: bool
+    def identify_value(self, col: pd.Series, name: str, produce_nans: bool, produce_infs: bool
                        ) -> Tuple[Optional[ValueMeta], Optional[str]]:
         """Autodetect the type of a column and assign a name.
 
@@ -251,7 +259,7 @@ class MetaExtractor:
         num_data = len(col)
         num_unique = col.nunique(dropna=False)
 
-        excl_nan_dtype = col[col.notna()].infer_objects().dtype
+        excl_nan_dtype = col[~col.isin([np.NaN, np.Inf, -np.Inf, pd.NaT])].infer_objects().dtype
 
         if num_unique <= 1:
             return ConstantMeta(name), "num_unique <= 1. "
@@ -323,20 +331,16 @@ class MetaExtractor:
             return value, reason
 
         # ========== Numeric value ==========
-        is_nan: bool = False
         # Try parsing if object type
         if col.dtype.kind == 'O':
             numeric_data = pd.to_numeric(col, errors='coerce')
             num_nan = numeric_data.isna().sum()
             if num_nan / num_data < self.config.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
-                is_nan = num_nan > 0
             else:
-                numeric_data = col
-                is_nan = col.isna().any()
+                numeric_data = None
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
-            is_nan = col.isna().any()
         else:
             numeric_data = None
         # Return numeric value and handle NaNs if necessary
@@ -344,9 +348,15 @@ class MetaExtractor:
             value = ContinuousMeta(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
                      f"rate > {1.0 - self.config.parsing_nan_fraction_threshold}. "
-            if is_nan:
-                value = NanMeta(name, value, produce_nans)
-                reason += " And contains NaNs. "
+
+            is_nan = col.isna().any()
+            is_inf = col.isin([np.Inf, -np.Inf]).any()
+
+            if is_nan or is_inf:
+                value = NanMeta(name, value, produce_nans=produce_nans, produce_infs=produce_infs)
+                reason += " And contains "
+                reason += 'NaNs/Infs. ' if is_nan and is_inf else 'NaNs. ' if is_nan else 'Infs. '
+
             return value, reason
 
         # ========== Fallback values ==========
