@@ -218,7 +218,7 @@ def regressor_score(x_train, y_train, x_test, y_test, model, y_val) -> float:
 
 
 def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> Union[None, float]:
-    dp = kwargs.get('vf')
+    dp = kwargs.get('dp')
     if dp is None:
         dp = MetaExtractor.extract(df=df)
     categorical, continuous = categorical_or_continuous_values(dp)
@@ -270,11 +270,11 @@ def _preprocess_data(data, dp, response_variable, explanatory_variables, sample_
     return x, y
 
 
-def _preprocess_split_data(data, vf, response_variable, explanatory_variables, sample_size):
-    data = vf.preprocess(data)
+def _preprocess_split_data(data, dp, response_variable, explanatory_variables, sample_size):
+    data = dp.preprocess(data)
     sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    categorical, continuous = categorical_or_continuous_values(vf)
+    categorical, continuous = categorical_or_continuous_values(dp)
 
     if response_variable in [v.name for v in categorical]:
         if all(sample[response_variable].value_counts().values > 1):

@@ -80,20 +80,13 @@ class ContinuousMeta(ValueMeta):
 
         if self.positive is None:
             self.positive = (column > 0.0).all()
-        elif self.positive and (column <= 0.0).all():
+        elif self.positive and (column <= 0.0).any():
             raise NotImplementedError
 
         if self.nonnegative is None:
             self.nonnegative = (column >= 0.0).all()
-        elif self.nonnegative and (column < 0.0).all():
+        elif self.nonnegative and (column < 0.0).any():
             raise NotImplementedError
-
-        column = column.values
-        # positive / nonnegative transformation
-        if self.positive or self.nonnegative:
-            if self.nonnegative and not self.positive:
-                column = np.maximum(column, 0.001)
-            # column = np.log(np.sign(column) * (1.0 - np.exp(-np.abs(column)))) + np.maximum(column, 0.0)
 
         if self.transformer_noise:
             column += np.random.normal(scale=self.transformer_noise, size=len(column))
@@ -103,7 +96,7 @@ class ContinuousMeta(ValueMeta):
                                                    output_distribution='normal')
         else:
             self.transformer = StandardScaler()
-        self.transformer.fit(column.reshape(-1, 1))
+        self.transformer.fit(column.to_numpy().reshape(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         # TODO: mb removal makes learning more stable (?), an investigation required

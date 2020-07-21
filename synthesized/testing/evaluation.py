@@ -103,7 +103,6 @@ def synthesize_and_plot(
                           callback_freq=100)
         training_time = time.time() - start
         synthesized = synthesizer.synthesize(num_rows=len_eval_data)
-        # value_factory = synthesizer.value_factory
         print('took', training_time, 's')
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
@@ -239,8 +238,6 @@ def synthesize_and_plot_time_series(
         id_map = {a: b
                   for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
         synthesized[identifier_label] = synthesized[identifier_label].map(id_map)
-
-        # value_factory = synthesizer.value_factory
         print('took', training_time, 's')
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)

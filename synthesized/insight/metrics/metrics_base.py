@@ -65,28 +65,28 @@ class TwoColumnMetric(_Metric):
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs):
         df = pd.DataFrame([sr_a, sr_b])
         if "nominal" in self.tags:
-            categorical, _ = categorical_or_continuous_values(kwargs.get('vf', df))
+            categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df))
             categorical_columns = [v.name for v in categorical]
 
             if sr_a.name not in categorical_columns or sr_b.name not in categorical_columns:
                 return False
 
         if "ordinal" in self.tags:
-            _, continuous = categorical_or_continuous_values(kwargs.get('vf', df))
+            _, continuous = categorical_or_continuous_values(kwargs.get('dp', df))
             continuous_columns = [v.name for v in continuous]
 
             if sr_a.name not in continuous_columns or sr_b.name not in continuous_columns:
                 return False
 
         if kwargs.get('continuous_input_only', False):
-            _, continuous = categorical_or_continuous_values(kwargs.get('vf', df))
+            _, continuous = categorical_or_continuous_values(kwargs.get('dp', df))
             continuous_columns = [v.name for v in continuous]
 
             if sr_a.name not in continuous_columns:
                 return False
 
         if kwargs.get('categorical_output_only', False):
-            categorical, _ = categorical_or_continuous_values(kwargs.get('vf', df))
+            categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df))
             categorical_columns = [v.name for v in categorical]
 
             if sr_b.name not in categorical_columns:
@@ -129,14 +129,14 @@ class ColumnComparison(_Metric):
 
     def check_column_types(self, df_old, df_new, col_name, **kwargs):
         if "nominal" in self.tags:
-            categorical, _ = categorical_or_continuous_values(kwargs.get('vf', df_old))
+            categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df_old))
             categorical_columns = [v.name for v in categorical]
 
             if col_name not in categorical_columns:
                 return False
 
         if "ordinal" in self.tags:
-            _, continuous = categorical_or_continuous_values(kwargs.get('vf', df_old))
+            _, continuous = categorical_or_continuous_values(kwargs.get('dp', df_old))
             continuous_columns = [v.name for v in continuous]
 
             if col_name not in continuous_columns:

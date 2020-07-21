@@ -75,7 +75,7 @@ class AddressMeta(ValueMeta):
                 addresses_file = os.path.expanduser(addresses_file)
 
         if addresses_file is None:
-            self.fake = True
+            self.fake: bool = True
             self.fkr = faker.Faker(locale='en_GB')
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
@@ -109,6 +109,9 @@ class AddressMeta(ValueMeta):
             for n, row in df.dropna().iterrows():
                 postcode = row[self.postcode_label]
                 postcode_key = self._get_postcode_key(postcode)
+                if postcode_key == 'nan':
+                    contains_nans = True
+                    continue
 
                 county = row[self.county_label] if self.county_label else None
                 city = row[self.city_label] if self.city_label else None
@@ -144,13 +147,13 @@ class AddressMeta(ValueMeta):
             self.postcode.extract(df=postcode_data)
 
     def learned_input_columns(self) -> List[str]:
-        if self.fake and self.postcode is not None:
+        if self.fake is False and self.postcode is not None:
             return self.postcode.learned_input_columns()
         else:
             return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not self.fake and self.postcode_label is not None:
+        if self.fake is False and self.postcode_label is not None:
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
 
@@ -164,7 +167,7 @@ class AddressMeta(ValueMeta):
             return 'nan'
 
         if not AddressMeta.postcode_regex.match(postcode):
-            raise ValueError(postcode)
+            return 'nan'
         if self.postcode_level == 0:  # 1-2 letters
             index = 2 - postcode[1].isdigit()
         elif self.postcode_level == 1:
@@ -205,7 +208,7 @@ class AddressMeta(ValueMeta):
         return d
 
     def learned_output_columns(self) -> List[str]:
-        if self.fake and self.postcode is not None:
+        if self.fake is False and self.postcode is not None:
             return self.postcode.learned_output_columns()
         else:
             return []
@@ -246,7 +249,9 @@ class AddressMeta(ValueMeta):
                 postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
 
             def sample_address(postcode_key):
-                return np.random.choice(self.postcodes[postcode_key])
+                if postcode_key in self.postcodes.keys():
+                    return np.random.choice(self.postcodes[postcode_key])
+                return np.nan
 
             addresses = np.vectorize(sample_address)(postcode)
 
