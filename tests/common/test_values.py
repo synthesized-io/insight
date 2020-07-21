@@ -83,6 +83,22 @@ def test_nan():
                 )
 
 
+def test_nan_inf():
+    cont_value = ContinuousValue(
+        name='continuous', weight=1.0, integer=None,
+        positive=None, nonnegative=None)
+
+    value = NanValue(name='nan', value=cont_value, capacity=32, weight=1.0)
+
+    n = 10
+    x = np.array([0.2, -0.1, np.NaN, 0.0, 0.8, np.Inf, -0.6, -np.Inf, 0.13, -0.4], dtype=np.float32)
+    _test_value(
+        value=value,
+        x=x,
+        y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
+    )
+
+
 def test_date():
     categorical_kwargs = dict(weight=1., capacity=32, temperature=1., moving_average=False)
     continuous_kwargs = dict(weight=1.)
