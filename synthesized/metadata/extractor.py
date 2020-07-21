@@ -17,7 +17,6 @@ from .constant import ConstantMeta
 from .continuous import ContinuousMeta
 from .data_frame import DataFrameMeta
 from .date import DateMeta, TimeIndexMeta
-from .identifier import IdentifierMeta
 from .enumeration import EnumerationMeta
 from .identifier import IdentifierMeta
 from .identify_rules import identify_rules

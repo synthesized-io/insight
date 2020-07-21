@@ -41,10 +41,12 @@ class DataFrameMeta:
         values = self.values
 
         if self.time_value:
-            values = [self.time_value] + values
+            time_index_values: List[ValueMeta] = [self.time_value]
+            values = time_index_values + values
 
         if self.id_value:
-            values = [self.id_value] + values
+            id_index_values: List[ValueMeta] = [self.id_value]
+            values = id_index_values + values
 
         return values
 
