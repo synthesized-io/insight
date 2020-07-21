@@ -23,8 +23,9 @@ from .person import PersonValue
 from .sampling import SamplingValue
 from .value import Value
 
-
 logger = logging.getLogger(__name__)
+
+pd.options.mode.use_inf_as_na = True
 
 
 class TypeOverride(enum.Enum):
