@@ -88,7 +88,6 @@ class NanValue(Value):
         self.built = True
 
     def preprocess(self, df):
-        print(df.iloc[:20])
         df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
         nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
