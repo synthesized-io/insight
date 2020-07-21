@@ -16,7 +16,6 @@ from ...metadata import DataFrameMeta, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
     CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -89,7 +88,8 @@ class ValueFactory:
             if value is None:
                 raise ValueError
             return NanValue(
-                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans
+                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans or vm.produce_nans,
+                produce_infs=vm.produce_infs
             )
         elif isinstance(vm, ContinuousMeta):
             return ContinuousValue(
