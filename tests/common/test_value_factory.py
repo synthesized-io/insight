@@ -36,6 +36,31 @@ def test_vf_floats(df):
 
 
 @seed(42)
+@settings(deadline=None)
+@given(df=data_frames(
+    [column('A', elements=st.floats(width=32, allow_infinity=True), fill=st.nothing())],
+    index=range_indexes(min_size=2, max_size=500)
+))
+def test_vf_floats_inf(df):
+    vf = ValueFactory(df=df)
+    value = vf.get_values()[0]
+    value_name = ''
+
+    if isinstance(value, NanValue):
+        value_name += 'NanValue:'
+        value = value.value
+
+    value_name += value.__class__.__name__
+
+    if isinstance(value, ContinuousValue):
+        value_name += '(int)' if value.integer else '(float)'
+
+    event(value_name)
+    df_p = vf.preprocess(df=df)
+    vf.postprocess(df=df_p)
+
+
+@seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column(
