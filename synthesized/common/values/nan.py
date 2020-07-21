@@ -1,20 +1,20 @@
-from typing import List, Optional
+from typing import List
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from .. import util
+from ..util import get_initializer
 from ..module import tensorflow_name_scoped
+from ...config import NanConfig
 
 
 class NanValue(Value):
 
     def __init__(
-        self, name: str, value: Value, capacity: int, weight: float,
+        self, name: str, value: Value, config: NanConfig = NanConfig(),
         embedding_size: int = None, produce_nans: bool = False, produce_infs: bool = False
     ):
         super().__init__(name=name)
@@ -23,16 +23,22 @@ class NanValue(Value):
         # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
 
-        self.capacity = capacity
         if embedding_size is None:
             embedding_size = compute_embedding_size(4, similarity_based=False)
         self.embedding_size = embedding_size
         self.embedding_initialization = 'orthogonal-small'
-        self.embeddings: Optional[tf.Variable] = None
-        self.weight = weight
+        self.weight = config.nan_weight
 
         self.produce_nans = produce_nans
         self.produce_infs = produce_infs
+
+        shape = (4, self.embedding_size)
+        initializer = get_initializer(initializer='normal')
+        self.embeddings = tf.Variable(
+            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
+            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
+        )
+        self.add_regularization_weight(self.embeddings)
 
     def __str__(self):
         string = super().__str__()
@@ -47,38 +53,17 @@ class NanValue(Value):
         )
         return spec
 
-    def learned_input_columns(self):
-        return self.value.learned_input_columns()
-
-    def learned_output_columns(self):
-        return self.value.learned_output_columns()
-
     def learned_input_size(self):
         return self.embedding_size + self.value.learned_input_size()
 
     def learned_output_size(self):
         return 4 + self.value.learned_output_size()
 
-    def extract(self, df):
-        column = df[self.value.name]
-        if column.dtype.kind not in self.value.pd_types:
-            column = self.value.pd_cast(column)
-        df_clean = df[~column.isin([np.NaN, pd.NaT, np.Inf, -np.Inf])]
-        self.value.extract(df=df_clean)
-
-        shape = (4, self.embedding_size)
-        initializer = util.get_initializer(initializer='normal')
-        self.embeddings = tf.Variable(
-            initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
-            dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
-        )
-        self.add_regularization_weight(self.embeddings)
-
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
             shape = (4, self.embedding_size)
-            initializer = util.get_initializer(initializer='normal')
+            initializer = get_initializer(initializer='normal')
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
                 dtype=tf.float32, trainable=True, caching_device=None, validate_shape=True
@@ -86,23 +71,6 @@ class NanValue(Value):
             self.add_regularization_weight(self.embeddings)
 
         self.built = True
-
-    def preprocess(self, df):
-        df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
-
-        nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
-        df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
-        df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
-
-        return super().preprocess(df=df)
-
-    def postprocess(self, df):
-        df = super().postprocess(df=df)
-
-        nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
-        df.loc[~nan_inf, :] = self.value.postprocess(df=df.loc[~nan_inf, :])
-
-        return df
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:

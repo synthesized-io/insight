@@ -3,13 +3,14 @@ import tensorflow as tf
 
 from .feed_forward_state_space import GaussianEncoder
 from .state_space import StateSpaceModel
+from ...metadata import DataFrameMeta
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):
     """"""
-    def __init__(self, df: pd.DataFrame, capacity: int, latent_size: int):
+    def __init__(self, df_meta: DataFrameMeta, capacity: int, latent_size: int):
         super(RecurrentStateSpaceModel, self).__init__(
-            df=df, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
+            df_meta=df_meta, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
         )
 
         self.emission_network = GaussianEncoder(
@@ -41,7 +42,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
     @property
     def regularization_losses(self):
-        pass
+        return None
 
     def initial_transition_state(self, shape):
         return (tf.zeros(shape=[shape[0], self.capacity], dtype=tf.float32),
@@ -81,7 +82,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
 
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         fig = plt.figure(figsize=(16, 6))
         ax = fig.gca()
         sns.lineplot(data=syn_df, axes=ax, dashes=False)
@@ -130,7 +131,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         x = self.value_ops.value_outputs(y=y, conditions={})
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         return syn_df
 
 
@@ -143,6 +144,7 @@ if __name__ == '__main__':
     import seaborn as sns
     import numpy as np
 
+    from ...metadata import MetaExtractor
     from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
@@ -168,9 +170,10 @@ if __name__ == '__main__':
         b=-value
     ))
 
-    rssm = RecurrentStateSpaceModel(df=df, capacity=8, latent_size=4)
+    df_meta = MetaExtractor.extract(df)
+    rssm = RecurrentStateSpaceModel(df_meta=df_meta, capacity=8, latent_size=4)
 
-    df_train = rssm.value_factory.preprocess(df)
+    df_train = rssm.df_meta.preprocess(df)
     data = rssm.get_training_data(df_train)
 
     global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)

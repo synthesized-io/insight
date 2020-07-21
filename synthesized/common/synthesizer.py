@@ -3,13 +3,14 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional, Any
+from typing import Callable, Dict, Union, List, Optional, Any, Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .values import Value
+from ..common.values import Value
+from ..metadata import ValueMeta
 
 
 def _check_license():
@@ -83,10 +84,18 @@ class Synthesizer(tf.Module):
     def get_all_values(self) -> List[Value]:
         return self.get_values() + self.get_conditions()
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
+    @abstractmethod
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        raise NotImplementedError()
+
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
         data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_all_values()
-            for name in value.learned_input_columns()
+            value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype) for name in meta.learned_input_columns()]
+            for value, meta in self.get_value_meta_pairs()
         }
         return data
 
@@ -102,32 +111,36 @@ class Synthesizer(tf.Module):
 
         if not batch_size:
             # Add conditions to 'feed_dict'
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition
-                    else:
+            for value, meta in self.get_condition_meta_pairs():
+                feed_dict[value.name] = [
+                    np.tile(df_conditions[name].values, (num_rows,)) if df_conditions[name].values.shape == (1,)
+                    else df_conditions[name].values if df_conditions[name].values.shape == (1,)
+                    else None
+                    for name in meta.learned_input_columns()
+                ]
+                for x in feed_dict[value.name]:
+                    if x is None:
                         raise NotImplementedError
 
         elif (num_rows % batch_size) != 0:
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows % batch_size,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition[-num_rows % batch_size:]
-                    else:
+            for value, meta in self.get_condition_meta_pairs():
+                feed_dict[value.name] = [
+                    np.tile(df_conditions[name].values, (num_rows % batch_size,))
+                    if df_conditions[name].values.shape == (1,) else
+                    df_conditions[name].values[-num_rows % batch_size:]
+                    if df_conditions[name].values.shape == (num_rows,) else
+                    None
+                    for name in meta.learned_input_columns()
+                ]
+                for x in feed_dict[value.name]:
+                    if x is None:
                         raise NotImplementedError
         else:
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (batch_size,))
+            for value, meta in self.get_condition_meta_pairs():
+                feed_dict[value.name] = [
+                    np.tile(df_conditions[name].values, (batch_size,))
+                    for name in meta.learned_input_columns() if df_conditions[name].values.shape == (1,)
+                ]
 
         return feed_dict
 

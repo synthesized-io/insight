@@ -8,8 +8,7 @@ The functions handle Categorical and Continuous values. When the y_label is a co
 an R^2 value for a regression task; And when the y_label is a categorical value, the functions compute a ROC AUC value
 for a binary/multinomial classification task.
 """
-from typing import Dict, List, Type, Optional
-
+from typing import Union, Dict, List, Type, Optional, cast
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
@@ -33,9 +32,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
-from ..common import ValueFactory
-from ..common.values import Value
 from .dataset import categorical_or_continuous_values
+from ..metadata import MetaExtractor, CategoricalMeta, ValueMeta
 
 
 CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
@@ -84,13 +82,13 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
         raise ValueError('Response variable not in DataFrame.')
 
     data = data[available_columns]
-    vf = ValueFactory(df=data)
+    dp = MetaExtractor.extract(df=data)
 
-    categorical, continuous = categorical_or_continuous_values(vf)
-    available_columns = [v.name for v in categorical+continuous]
+    categorical, continuous = categorical_or_continuous_values(dp)
+    available_columns = [v.name for v in cast(List[ValueMeta], categorical)+continuous]
 
-    vf.values = categorical+continuous
-    vf.columns = available_columns
+    dp.values = cast(List[ValueMeta], categorical)+continuous
+    dp.columns = available_columns
     data = data[available_columns]
     x_labels = list(filter(lambda v: v in available_columns, x_labels))
 
@@ -104,7 +102,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
         raise KeyError(f'Selected model ({model}) not available for regression.')
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
-    x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
+    x_train, y_train, x_test, y_test = _preprocess_split_data(data, dp, y_label, x_labels, sample_size)
 
     if y_label in [v.name for v in continuous]:
         metric = 'r2'
@@ -131,13 +129,13 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
         raise ValueError('Response variable not in DataFrame.')
 
     data = data[available_columns]
-    vf = ValueFactory(df=data)
+    dp = MetaExtractor.extract(df=data)
 
-    categorical, continuous = categorical_or_continuous_values(vf)
-    available_columns = [v.name for v in categorical + continuous]
+    categorical, continuous = categorical_or_continuous_values(dp)
+    available_columns = [v.name for v in cast(List[ValueMeta], categorical) + continuous]
 
-    vf.values = categorical + continuous
-    vf.columns = available_columns
+    dp.values = cast(List[ValueMeta], categorical) + continuous
+    dp.columns = available_columns
     data = data[available_columns].dropna()
     synth_data = synth_data[available_columns].dropna()
 
@@ -153,8 +151,8 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
         raise KeyError(f'Selected model ({model}) not available for regression.')
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data), len(synth_data))
-    x_train, y_train, x_test, y_test = _preprocess_split_data(data, vf, y_label, x_labels, sample_size)
-    x_synth, y_synth = _preprocess_data(synth_data, vf, y_label, x_labels, int(0.8*sample_size))
+    x_train, y_train, x_test, y_test = _preprocess_split_data(data, dp, y_label, x_labels, sample_size)
+    x_synth, y_synth = _preprocess_data(synth_data, dp, y_label, x_labels, int(0.8*sample_size))
 
     if y_label in [v.name for v in continuous]:
         metric = 'r2'
@@ -219,15 +217,28 @@ def regressor_score(x_train, y_train, x_test, y_test, model, y_val) -> float:
     return r2_score(y_test, f_test)
 
 
-def logistic_regression_r2(df, y_label: str, x_labels: List[str]) -> float:
-    vf = ValueFactory(df=df)
-    categorical, continuous = categorical_or_continuous_values(vf)
+def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> Union[None, float]:
+    dp = kwargs.get('dp')
+    if dp is None:
+        dp = MetaExtractor.extract(df=df)
+    categorical, continuous = categorical_or_continuous_values(dp)
+    if y_label not in [v.name for v in categorical]:
+        return None
+    if len(x_labels) == 0:
+        return None
 
-    rg = LogisticRegression()
+    df = dp.preprocess(df)
 
-    x_array = _preprocess_x2(df[x_labels].to_numpy(), None, [v for v in categorical if v.name in x_labels])
+    df = df[x_labels+[y_label]].dropna()
+    df = df.sample(min(MAX_ANALYSIS_SAMPLE_SIZE, len(df)))
+
+    if df[y_label].nunique() < 2:
+        return None
+
+    x_array = _preprocess_x2(df[x_labels], None, [v for v in categorical if v.name in x_labels])
     y_array = df[y_label].values
 
+    rg = LogisticRegression()
     rg.fit(x_array, y_array)
 
     labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
@@ -247,11 +258,11 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str]) -> float:
     return psuedo_r2
 
 
-def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_size):
-    data = vf.preprocess(data)
+def _preprocess_data(data, dp, response_variable, explanatory_variables, sample_size):
+    data = dp.preprocess(data)
     sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    categorical, continuous = categorical_or_continuous_values(vf)
+    categorical, continuous = categorical_or_continuous_values(dp)
 
     df_x, y = sample[explanatory_variables], sample[response_variable].values
     x = _preprocess_x2(df_x, None, [v for v in categorical if v.name in explanatory_variables])
@@ -259,11 +270,11 @@ def _preprocess_data(data, vf, response_variable, explanatory_variables, sample_
     return x, y
 
 
-def _preprocess_split_data(data, vf, response_variable, explanatory_variables, sample_size):
-    data = vf.preprocess(data)
+def _preprocess_split_data(data, dp, response_variable, explanatory_variables, sample_size):
+    data = dp.preprocess(data)
     sample = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    categorical, continuous = categorical_or_continuous_values(vf)
+    categorical, continuous = categorical_or_continuous_values(dp)
 
     if response_variable in [v.name for v in categorical]:
         if all(sample[response_variable].value_counts().values > 1):
@@ -308,13 +319,13 @@ def _remove_zero_column(y1, y2):
     return y1, y2
 
 
-def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values_categorical: List[Value]):
+def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values_categorical: List[CategoricalMeta]):
     x_all = pd.concat((x_train, x_test), axis='index') if x_test is not None else x_train
     train_result = []
     test_result = []
 
     columns_categorical = [v.name for v in values_categorical]
-    columns_numeric = [col for col in x_train if col not in columns_categorical]
+    columns_numeric = [col for col in x_train.columns if col not in columns_categorical]
 
     if len(columns_numeric) > 0:
         train_result.append(x_train[columns_numeric])
@@ -322,7 +333,7 @@ def _preprocess_x2(x_train: pd.DataFrame, x_test: Optional[pd.DataFrame], values
             test_result.append(x_test[columns_numeric])
 
     if len(columns_categorical) > 0:
-        oh = OneHotEncoder(categories=[list(range(v.num_categories)) for v in values_categorical], sparse=False)
+        oh = OneHotEncoder(categories=[list(range(v.num_categories or 0)) for v in values_categorical], sparse=False)
         oh.fit(x_all[columns_categorical])
         train_result.append(oh.transform(x_train[columns_categorical]))
         if x_test is not None:

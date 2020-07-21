@@ -5,12 +5,13 @@ import tensorflow as tf
 
 from .state_space import StateSpaceModel
 from ..transformations import Transformation, MlpTransformation, DenseTransformation
+from ...metadata import DataFrameMeta
 
 
 class FeedForwardStateSpaceModel(StateSpaceModel):
     """A Deep State Space model using only feed forward networks"""
-    def __init__(self, df: pd.DataFrame, capacity: int, latent_size: int, name: str = 'ff_state_space_model'):
-        super(FeedForwardStateSpaceModel, self).__init__(df=df, capacity=capacity, latent_size=latent_size,
+    def __init__(self, df_meta: DataFrameMeta, capacity: int, latent_size: int, name: str = 'ff_state_space_model'):
+        super(FeedForwardStateSpaceModel, self).__init__(df_meta, capacity=capacity, latent_size=latent_size,
                                                          name=name)
 
         self.emission_network = GaussianEncoder(
@@ -187,6 +188,7 @@ if __name__ == '__main__':
     import seaborn as sns
     import numpy as np
 
+    from ...metadata import MetaExtractor
     from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
@@ -195,7 +197,8 @@ if __name__ == '__main__':
         b=-np.sin(np.linspace(0, 200, 3000))
     ))
 
-    ffssm = FeedForwardStateSpaceModel(df=df, capacity=8, latent_size=4)
+    df_meta = MetaExtractor.extract(df)
+    ffssm = FeedForwardStateSpaceModel(df_meta=df_meta, capacity=8, latent_size=4)
 
     fig = plt.figure(figsize=(16, 6))
     ax = fig.gca()
@@ -203,7 +206,7 @@ if __name__ == '__main__':
     plt.savefig('logs/ffdssm/original.png', dpi=100)
     plt.close(fig)
 
-    df_train = ffssm.value_factory.preprocess(df)
+    df_train = ffssm.df_meta.preprocess(df)
     data = ffssm.get_training_data(df_train)
 
     global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)

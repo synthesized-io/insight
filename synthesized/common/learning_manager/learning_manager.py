@@ -8,7 +8,8 @@ import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ...testing.metrics import calculate_evaluation_metrics
+from ...insight.evaluation import calculate_evaluation_metrics
+from ...metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class LearningManager:
         self.must_reach_metric = must_reach_metric
         self.good_enough_metric = good_enough_metric
 
-        allowed_stop_metric_names = ['ks_distances', 'corr_distances', 'emd_distances']
+        allowed_stop_metric_names = ['ks_distance', 'corr_dist', 'emd_categ']
         if stop_metric_name:
             if isinstance(stop_metric_name, str):
                 if stop_metric_name not in allowed_stop_metric_names:
@@ -205,7 +206,7 @@ class LearningManager:
         return False
 
     def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 column_names: Optional[List[str]] = None) -> bool:
+                                 df_meta: DataFrameMeta, column_names: Optional[List[str]] = None) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -213,6 +214,7 @@ class LearningManager:
             iteration: Iteration number.
             df_orig: Original DataFrame.
             df_synth: Synthesized DataFrame.
+            df_meta: DataFrameMeta of the synthesizer.
             column_names: List of columns used to compute the 'break_metric'.
 
         Returns
@@ -222,8 +224,9 @@ class LearningManager:
             return False
 
         if self.custom_stop_metric is None:
-            stop_metrics: Union[Dict[str, List[float]], float] \
-                = calculate_evaluation_metrics(df_orig=df_orig, df_synth=df_synth, column_names=column_names)
+            stop_metrics: Union[Dict[str, Union[pd.Series, pd.DataFrame]], float] = calculate_evaluation_metrics(
+                df_orig=df_orig, df_synth=df_synth, df_meta=df_meta, column_names=column_names
+            )
         else:
             stop_metrics = self.custom_stop_metric(df_orig, df_synth)
 
@@ -254,9 +257,10 @@ class LearningManager:
 
         df_synth = synthesizer.synthesize(num_rows=sample_size)
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names)
+                                             column_names=column_names, df_meta=synthesizer.df_meta)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]) -> bool:
+    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer,
+                               data_dict: Dict[str, List[tf.Tensor]]) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -272,9 +276,11 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=list(data_dict.values())[0].shape[0],
-                                        dtype=tf.int64)
-        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch_valid)
+        batch_valid = tf.random.uniform(
+            shape=(self.sample_size,), maxval=list([x for val in data_dict.values() for x in val])[0].shape[0],
+            dtype=tf.int64
+        )
+        feed_dict = {name: [tf.nn.embedding_lookup(params=x, ids=batch_valid) for x in value_data]
                      for name, value_data in data_dict.items()}
 
         losses = synthesizer.get_losses(data=feed_dict)
@@ -282,7 +288,7 @@ class LearningManager:
         return self.stop_learning_check_metric(iteration, losses)
 
     def stop_learning(self, iteration: int, synthesizer: Synthesizer,
-                      data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
+                      data_dict: Dict[str, List[tf.Tensor]] = None, num_data: int = None,
                       df_train_orig: pd.DataFrame = None
                       ) -> bool:
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return

@@ -1,4 +1,4 @@
-tensorflow==2.1.0
+tensorflow==2.2.0
 tensorflow_probability==0.9.0
 numpy==1.18.1
 scipy==1.4.1
@@ -11,4 +11,6 @@ flask_restful==0.3.7
 faker==4.0.0
 statsmodels==0.11.0
 simplejson==3.17.0
+treelib==1.6.1
 hypothesis[pandas]==5.10.5
+dataclasses==0.7
