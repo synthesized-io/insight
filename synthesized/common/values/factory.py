@@ -41,7 +41,7 @@ class ValueFactory:
 
         self.create_values(df_meta)
 
-    def create_values(self, df_meta):
+    def create_values(self, df_meta: DataFrameMeta):
         if df_meta.association_meta is not None:
             associated_metas = [v.name for v in df_meta.association_meta.values]
         else:
@@ -68,8 +68,8 @@ class ValueFactory:
                 values=associated_values, associations=df_meta.association_meta.associations
             ))
 
-        if df_meta.identifier_value is not None:
-            self.identifier_value = self.create_value(df_meta.identifier_value)
+        if df_meta.id_value is not None:
+            self.identifier_value = self.create_value(df_meta.id_value)
 
     def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
         if isinstance(vm, CategoricalMeta):
