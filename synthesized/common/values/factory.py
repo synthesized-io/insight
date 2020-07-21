@@ -25,8 +25,6 @@ from .value import Value
 
 logger = logging.getLogger(__name__)
 
-pd.options.mode.use_inf_as_na = True
-
 
 class TypeOverride(enum.Enum):
     ID = 'ID'
@@ -49,6 +47,7 @@ class ValueFactory:
         name: str = 'value_factory',
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
+        produce_infs_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None, condition_columns: List[str] = None,
         find_rules: Union[str, List[str]] = None,
         # Person
@@ -176,6 +175,13 @@ class ValueFactory:
             self.produce_nans_for = set(df.columns)
         else:
             self.produce_nans_for = set()
+
+        if isinstance(produce_infs_for, Iterable):
+            self.produce_infs_for: Set[str] = set(produce_infs_for)
+        elif produce_nans_for:
+            self.produce_infs_for = set(df.columns)
+        else:
+            self.produce_infs_for = set()
 
         if column_aliases is None:
             self.column_aliases: Dict[str, str] = {}
@@ -334,6 +340,7 @@ class ValueFactory:
         """Create NanValue."""
         nan_kwargs = dict(self.nan_kwargs)
         nan_kwargs['produce_nans'] = True if name in self.produce_nans_for else False
+        nan_kwargs['produce_infs'] = True if name in self.produce_infs_for else False
         return NanValue(name=name, value=value, **nan_kwargs)
 
     def create_person(self, i: int) -> PersonValue:
@@ -469,8 +476,9 @@ class ValueFactory:
         num_data = len(col)
         num_unique = col.nunique(dropna=False)
         is_nan = False
+        is_inf = False
 
-        excl_nan_dtype = col[col.notna()].infer_objects().dtype
+        excl_nan_dtype = col[col.isin([np.NaN, np.Inf, -np.Inf, pd.NaT]) == False].infer_objects().dtype
 
         if num_unique <= 1:
             return self.create_constant(name), "num_unique <= 1. "
@@ -549,13 +557,10 @@ class ValueFactory:
             num_nan = numeric_data.isna().sum()
             if num_nan / num_data < self.parsing_nan_fraction_threshold:
                 assert numeric_data.dtype.kind in ('f', 'i')
-                is_nan = num_nan > 0
             else:
-                numeric_data = col
-                is_nan = col.isna().any()
+                numeric_data = None
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
-            is_nan = col.isna().any()
         else:
             numeric_data = None
         # Return numeric value and handle NaNs if necessary
@@ -563,9 +568,15 @@ class ValueFactory:
             value = self.create_continuous(name)
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
                      f"rate > {1.0 - self.parsing_nan_fraction_threshold}. "
-            if is_nan:
+
+            is_nan = col.isna().any()
+            is_inf = col.isin([np.Inf, -np.Inf]).any()
+
+            if is_nan or is_inf:
                 value = self.create_nan(name, value)
-                reason += " And contains NaNs. "
+                reason += " And contains "
+                reason += 'NaNs/Infs. ' if is_nan and is_inf else 'NaNs. ' if is_nan else 'Infs. '
+
             return value, reason
 
         # ========== Fallback values ==========
