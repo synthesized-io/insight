@@ -63,7 +63,7 @@ class NanValue(Value):
         column = df[self.value.name]
         if column.dtype.kind not in self.value.pd_types:
             column = self.value.pd_cast(column)
-        df_clean = df[column.isin([np.NaN, pd.NaT, np.Inf, -np.Inf]) == False]
+        df_clean = df[~column.isin([np.NaN, pd.NaT, np.Inf, -np.Inf])]
         self.value.extract(df=df_clean)
 
         shape = (4, self.embedding_size)

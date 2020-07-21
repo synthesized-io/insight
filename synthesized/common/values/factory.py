@@ -478,7 +478,7 @@ class ValueFactory:
         is_nan = False
         is_inf = False
 
-        excl_nan_dtype = col[col.isin([np.NaN, np.Inf, -np.Inf, pd.NaT]) == False].infer_objects().dtype
+        excl_nan_dtype = col[~col.isin([np.NaN, np.Inf, -np.Inf, pd.NaT])].infer_objects().dtype
 
         if num_unique <= 1:
             return self.create_constant(name), "num_unique <= 1. "
