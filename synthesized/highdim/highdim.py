@@ -31,6 +31,7 @@ class HighDimSynthesizer(Synthesizer):
         self, df: pd.DataFrame, summarizer_dir: str = None, summarizer_name: str = None,
         type_overrides: Dict[str, TypeOverride] = None,
         produce_nans_for: Union[bool, Iterable[str], None] = None,
+        produce_infs_for: Union[bool, Iterable[str], None] = None,
         column_aliases: Dict[str, str] = None,
         # VAE distribution
         distribution: str = 'normal', latent_size: int = 32,
@@ -148,8 +149,8 @@ class HighDimSynthesizer(Synthesizer):
             capacity=capacity,
             continuous_weight=continuous_weight, categorical_weight=categorical_weight, temperature=temperature,
             moving_average=moving_average, nan_weight=nan_weight,
-            type_overrides=type_overrides, produce_nans_for=produce_nans_for, column_aliases=column_aliases,
-            condition_columns=condition_columns, find_rules=find_rules,
+            type_overrides=type_overrides, produce_nans_for=produce_nans_for, produce_infs_for=produce_infs_for,
+            column_aliases=column_aliases, condition_columns=condition_columns, find_rules=find_rules,
             # Person
             title_label=title_label, gender_label=gender_label, name_label=name_label, firstname_label=firstname_label,
             lastname_label=lastname_label, email_label=email_label, mobile_number_label=mobile_number_label,
