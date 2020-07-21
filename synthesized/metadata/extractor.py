@@ -259,7 +259,7 @@ class MetaExtractor:
         num_data = len(col)
         num_unique = col.nunique(dropna=False)
 
-        excl_nan_dtype = col[~col.isin([np.NaN, np.Inf, -np.Inf, pd.NaT])].infer_objects().dtype
+        excl_nan_dtype = col[~col.isin([np.NaN, pd.NaT])].infer_objects().dtype
 
         if num_unique <= 1:
             return ConstantMeta(name), "num_unique <= 1. "
