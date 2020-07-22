@@ -22,6 +22,10 @@ REGRESSION_METRICS = ['mean_absolute_error', 'mean_squared_error', 'r2_score']
 CLASSIFICATION_METRICS = ['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc']
 CLASSIFICATION_PLOT_METRICS = ['roc_curve', 'pr_curve', 'confusion_matrix']
 
+DEFAULT_REGRESSION_METRICS = ['mean_squared_error', 'r2_score']
+DEFAULT_CLASSIFICATION_METRICS = ['accuracy', 'f1_score', 'roc_auc']
+DEFAULT_CLASSIFICATION_PLOT_METRICS = ['roc_curve', 'pr_curve']
+
 
 def classifier_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataFrame,
                               target: str, clf: ClassifierMixin,
@@ -74,11 +78,9 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     if isinstance(metrics, str):
         metrics = [metrics]
     elif metrics is None:
-        metrics = CLASSIFICATION_METRICS
+        metrics = DEFAULT_CLASSIFICATION_METRICS
 
-    missing_metrics = list(filter(
-        lambda m: m not in np.concatenate((CLASSIFICATION_METRICS, CLASSIFICATION_PLOT_METRICS)), metrics
-    ))
+    missing_metrics = list(filter(lambda m: m not in CLASSIFICATION_METRICS, metrics))
     if len(missing_metrics) > 0:
         raise ValueError("Can't compute following metrics: '{}'".format("', '".join(missing_metrics)))
 
@@ -168,7 +170,7 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
     if isinstance(metrics, str):
         metrics = [metrics]
     elif metrics is None:
-        metrics = REGRESSION_METRICS
+        metrics = DEFAULT_REGRESSION_METRICS
 
     missing_metrics = list(filter(lambda m: m not in REGRESSION_METRICS, metrics))
     if len(missing_metrics) > 0:
@@ -249,7 +251,7 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
         metrics = [metrics]
 
     if metrics is None:
-        metrics = CLASSIFICATION_PLOT_METRICS
+        metrics = DEFAULT_CLASSIFICATION_PLOT_METRICS
     else:
         missing_metrics = list(filter(lambda m: m not in CLASSIFICATION_PLOT_METRICS, metrics))
         if len(missing_metrics) > 0:
