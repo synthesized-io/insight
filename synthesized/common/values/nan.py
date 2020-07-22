@@ -22,9 +22,10 @@ class NanValue(Value):
         assert isinstance(value, ContinuousValue)
         # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
+        self.num_categories = 4  # Num, NaN, Inf, -Inf
 
         if embedding_size is None:
-            embedding_size = compute_embedding_size(4, similarity_based=False)
+            embedding_size = compute_embedding_size(self.num_categories, similarity_based=False)
         self.embedding_size = embedding_size
         self.embedding_initialization = 'orthogonal-small'
         self.weight = config.nan_weight
@@ -32,7 +33,7 @@ class NanValue(Value):
         self.produce_nans = produce_nans
         self.produce_infs = produce_infs
 
-        shape = (4, self.embedding_size)
+        shape = (self.num_categories, self.embedding_size)
         initializer = get_initializer(initializer='normal')
         self.embeddings = tf.Variable(
             initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
@@ -57,12 +58,12 @@ class NanValue(Value):
         return self.embedding_size + self.value.learned_input_size()
 
     def learned_output_size(self):
-        return 4 + self.value.learned_output_size()
+        return self.num_categories + self.value.learned_output_size()
 
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
-            shape = (4, self.embedding_size)
+            shape = (self.num_categories, self.embedding_size)
             initializer = get_initializer(initializer='normal')
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='nan-embeddings', shape=shape,
@@ -106,12 +107,12 @@ class NanValue(Value):
     def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
         # NaN classification part
         if sample:
-            nan = tf.squeeze(tf.random.categorical(logits=y[:, :4], num_samples=1), axis=1)
+            nan = tf.squeeze(tf.random.categorical(logits=y[:, :self.num_categories], num_samples=1), axis=1)
         else:
-            nan = tf.argmax(input=y[:, :4], axis=1)
+            nan = tf.argmax(input=y[:, :self.num_categories], axis=1)
 
         # Wrapped value output tensors
-        ys = self.value.output_tensors(y=y[:, 4:], **kwargs)
+        ys = self.value.output_tensors(y=y[:, self.num_categories:], **kwargs)
 
         if self.produce_nans:
             # Replace wrapped value with NaNs
@@ -121,23 +122,32 @@ class NanValue(Value):
         if self.produce_infs:
             # Replace wrapped value with Infs
             for n, y in enumerate(ys):
-                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=2), x=np.inf, y=y)
-                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=3), x=-np.inf, y=y)
+                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=2), x=np.inf, y=ys[n])
+                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=3), x=-np.inf, y=ys[n])
 
         return ys
 
     @tensorflow_name_scoped
     def loss(self, y, xs: List[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
-        target_nan = tf.logical_or(tf.math.is_nan(x=target), tf.math.is_inf(x=target))
+        nan = tf.math.is_nan(x=target)
+        inf = tf.math.is_inf(x=target)
+        nan_or_inf = tf.logical_or(x=nan, y=inf)
+        pos = tf.greater(target, tf.constant(0.0, dtype=tf.float32))
+
+        nan_int = tf.cast(nan, dtype=tf.int64)
+        pos_inf = tf.constant(2, dtype=tf.int64) * tf.cast(tf.logical_and(inf, pos), dtype=tf.int64)
+        neg_inf = tf.constant(3, dtype=tf.int64) * tf.cast(tf.logical_and(inf, tf.logical_not(pos)), dtype=tf.int64)
+
+        target_nan = nan_int + pos_inf + neg_inf
         target_embedding = tf.one_hot(
-            indices=tf.cast(x=target_nan, dtype=tf.int64), depth=4, on_value=1.0, off_value=0.0,
+            indices=tf.cast(x=target_nan, dtype=tf.int64), depth=self.num_categories, on_value=1.0, off_value=0.0,
             axis=1, dtype=tf.float32
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(
-            labels=target_embedding, logits=y[:, :4], axis=1
+            labels=target_embedding, logits=y[:, :self.num_categories], axis=1
         )
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=0)
-        loss += self.value.loss(y=y[:, 4:], xs=xs, mask=tf.math.logical_not(x=target_nan))
+        loss += self.value.loss(y=y[:, self.num_categories:], xs=xs, mask=tf.math.logical_not(x=nan_or_inf))
         tf.summary.scalar(name=self.name, data=loss)
         return loss
