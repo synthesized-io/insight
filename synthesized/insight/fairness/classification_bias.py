@@ -10,7 +10,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
-from ..testing.experiments import ExperimentalEstimator
+from ...testing.experiments import ExperimentalEstimator
+from ..modelling import ModellingPreprocessor
 from .sensitive_attributes import sensitive_attr_concat_name
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class ClassificationBias:
         self.target = target
         self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
 
+        self.preprocessor = ModellingPreprocessor(target=target)
         self.ee = ExperimentalEstimator(target=target)
 
         try:

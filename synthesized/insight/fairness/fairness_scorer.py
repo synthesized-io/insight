@@ -13,8 +13,8 @@ from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
-from ..insight.metrics import CramersV, CategoricalLogisticR2
-from ..insight.dataset import categorical_or_continuous_values
+from ..metrics import CramersV, CategoricalLogisticR2
+from ..dataset import categorical_or_continuous_values
 
 
 logger = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ class FairnessScorer:
                 clf_scores.append(clf_score)
                 biases.extend(biases_i)
 
-        return np.nanmean(clf_scores), pd.DataFrame(biases)
+        return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
 
     def cramers_v_score(self) -> float:
         df = self.df.copy()

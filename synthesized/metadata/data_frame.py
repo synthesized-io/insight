@@ -1,10 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, Union, Sequence
+from typing import Any, Dict, List, Optional, Tuple, Union, Tupl, Sequence
 
 import numpy as np
 import pandas as pd
 
 from .association import AssociationMeta
+from .continuous import ContinuousMeta
+from .categorical import CategoricalMeta
+from .date import DateMeta
+from .decomposed_continuous import DecomposedContinuousMeta
+from .nan import NanMeta
 from .value_meta import ValueMeta
 from .date import TimeIndexMeta
 from .identifier import IdentifierMeta
@@ -37,6 +42,9 @@ class DataFrameMeta:
             self.columns = [self.id_value.name, ] + self.columns
 
         return value_map
+
+        self.categorical: Optional[List[CategoricalMeta]] = None
+        self.continuous: Optional[List[ValueMeta]] = None
 
     @property
     def all_values(self) -> List[ValueMeta]:
@@ -185,6 +193,54 @@ class DataFrameMeta:
         value, df_copy = argument
         df_copy = value.postprocess(df_copy)
         return df_copy
+
+    def get_categorical(self):
+        if self.categorical is not None:
+            return self.categorical
+
+        categorical, _ = self.get_categorical_and_continuous()
+        return categorical
+
+    def get_continuous(self):
+        if self.continuous is not None:
+            return self.continuous
+
+        _, continuous = self.get_categorical_and_continuous()
+        return continuous
+
+    def get_categorical_and_continuous(self) -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
+
+        if self.categorical is not None and self.continuous is not None:
+            return self.categorical, self.continuous
+
+        categorical: List[CategoricalMeta] = list()
+        continuous: List[ValueMeta] = list()
+
+        for value in self.values:
+            if isinstance(value, CategoricalMeta):
+                if value.true_categorical:
+                    categorical.append(value)
+                else:
+                    continuous.append(value)
+            elif isinstance(value, AssociationMeta):
+                for associated_value in value.values:
+                    if associated_value.true_categorical:
+                        categorical.append(associated_value)
+                    else:
+                        continuous.append(associated_value)
+            elif isinstance(value, DateMeta):
+                # To avoid DateMeta get into Continuous
+                pass
+            elif isinstance(value, ContinuousMeta) or isinstance(value, DecomposedContinuousMeta):
+                continuous.append(value)
+            elif isinstance(value, NanMeta):
+                if isinstance(value.value, ContinuousMeta) or isinstance(value.value, DecomposedContinuousMeta):
+                    continuous.append(value)
+
+        self.categorical = categorical
+        self.continuous = continuous
+
+        return self.categorical, self.continuous
 
     def get_variables(self) -> Dict[str, Any]:
         variables: Dict[str, Any] = dict(
