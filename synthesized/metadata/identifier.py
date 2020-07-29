@@ -47,10 +47,10 @@ class IdentifierMeta(ValueMeta):
         self.idx2identifier = {i: k for i, k in enumerate(self.identifiers)}
 
     def learned_input_columns(self) -> List[str]:
-        return [self.name]
+        return []
 
     def learned_output_columns(self) -> List[str]:
-        return [self.name]
+        return []
 
     def set_index(self, df: pd.DataFrame):
         if df.index.names == [None]:
@@ -62,6 +62,9 @@ class IdentifierMeta(ValueMeta):
         df.loc[:, self.name] = df.loc[:, self.name].map(self.identifier2idx)
         if df.loc[:, self.name].dtype != 'int64':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
+
+        self.set_index(df)
+
         return super().preprocess(df)
 
     def postprocess(self, df: pd.DataFrame):

@@ -11,13 +11,25 @@ from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, Column
 from ..modelling import predictive_modelling_score, predictive_modelling_comparison, logistic_regression_r2
 
 
+class Mean(ColumnMetric):
+    name = "mean"
+    tags = ["ordinal"]
+
+    def __call__(self, sr: pd.Series, **kwargs) -> float:
+        mean = float(np.nanmean(sr.values))
+
+        return mean
+
+
 class StandardDeviation(ColumnMetric):
     name = "standard_deviation"
     tags = ["ordinal"]
 
-    def __call__(self, df: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        column = df[col_name]
-        stddev = float(np.var(column.values)**0.5)
+    def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
+
+        rm_outliers = kwargs.get('rm_outliers', 0.0)
+        values = np.sort(sr.values)[int(len(sr)*rm_outliers):int(len(sr)*(1.0-rm_outliers))]
+        stddev = float(np.nanvar(values)**0.5)
 
         return stddev
 
@@ -26,13 +38,11 @@ class KendellTauCorrelation(TwoColumnMetric):
     name = "kendell_tau_correlation"
     tags = ["ordinal", "symmetric"]
 
-    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        if not super(KendellTauCorrelation, self).check_column_types(df, col_a_name, col_b_name, **kwargs):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+        if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        column_a = df[col_a_name]
-        column_b = df[col_b_name]
-        corr, p_value = kendalltau(column_a.values, column_b.values)
+        corr, p_value = kendalltau(sr_a.values, sr_b.values)
 
         if p_value <= kwargs.get('max_p_value', 1.0):
             return corr
@@ -44,25 +54,27 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
     name = "spearman_rho_correlation"
     tags = ["ordinal", "symmetric"]
 
-    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        column_a = df[col_a_name]
-        column_b = df[col_b_name]
-        corr, p_value = spearmanr(column_a.values, column_b.values)
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+        if not super().check_column_types(sr_a, sr_b, **kwargs):
+            return None
 
-        return corr
+        corr, p_value = spearmanr(sr_a.values, sr_b.values)
+
+        if p_value <= kwargs.get('max_p_value', 1.0):
+            return corr
+        else:
+            return None
 
 
 class CramersV(TwoColumnMetric):
     name = "cramers_v"
     tags = ["nominal", "symmetric"]
 
-    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        if not super(CramersV, self).check_column_types(df, col_a_name, col_b_name, **kwargs):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+        if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        column_a = df[col_a_name]
-        column_b = df[col_b_name]
-        table = sm.stats.Table(pd.crosstab(column_a, column_b))
+        table = sm.stats.Table(pd.crosstab(sr_a, sr_b))
         expected = table.fittedvalues.to_numpy()
         real = table.table
         r, c = real.shape
@@ -75,11 +87,12 @@ class CramersV(TwoColumnMetric):
 class CategoricalLogisticR2(TwoColumnMetric):
     name = "categorical_logistic_correlation"
 
-    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        if not super(CategoricalLogisticR2, self).check_column_types(df, col_a_name, col_b_name, **kwargs):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+        if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        r2 = logistic_regression_r2(df, y_label=col_b_name, x_labels=[col_a_name], **kwargs)
+        df = pd.DataFrame(data=[sr_a, sr_b])
+        r2 = logistic_regression_r2(df, y_label=sr_b.name, x_labels=[sr_a.name], **kwargs)
 
         return r2
 
