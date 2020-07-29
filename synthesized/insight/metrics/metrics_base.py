@@ -44,7 +44,7 @@ class ColumnMetric(_Metric):
         super(ColumnMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
         pass
 
 
@@ -62,39 +62,40 @@ class TwoColumnMetric(_Metric):
 
         super(TwoColumnMetric, self).__init__()
 
-    def check_column_types(self, df, col_a_name, col_b_name, **kwargs):
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs):
+        df = pd.DataFrame([sr_a, sr_b])
         if "nominal" in self.tags:
             categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df))
             categorical_columns = [v.name for v in categorical]
 
-            if col_a_name not in categorical_columns or col_b_name not in categorical_columns:
+            if sr_a.name not in categorical_columns or sr_b.name not in categorical_columns:
                 return False
 
         if "ordinal" in self.tags:
             _, continuous = categorical_or_continuous_values(kwargs.get('dp', df))
             continuous_columns = [v.name for v in continuous]
 
-            if col_a_name not in continuous_columns or col_b_name not in continuous_columns:
+            if sr_a.name not in continuous_columns or sr_b.name not in continuous_columns:
                 return False
 
         if kwargs.get('continuous_input_only', False):
             _, continuous = categorical_or_continuous_values(kwargs.get('dp', df))
             continuous_columns = [v.name for v in continuous]
 
-            if col_a_name not in continuous_columns:
+            if sr_a.name not in continuous_columns:
                 return False
 
         if kwargs.get('categorical_output_only', False):
             categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df))
             categorical_columns = [v.name for v in categorical]
 
-            if col_b_name not in categorical_columns:
+            if sr_b.name not in categorical_columns:
                 return False
 
         return True
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame, col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
         pass
 
 
@@ -195,7 +196,7 @@ class AggregateColumnMetricAdapter(DataFrameMetric):
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
         for col in df.columns:
-            value = self.metric(df, col, **kwargs)
+            value = self.metric(df[col], **kwargs)
             if value is not None:
                 values.append(value)
 
@@ -212,11 +213,11 @@ class DiffColumnMetricAdapter(ColumnComparison):
     def __init__(self, metric: ColumnMetric):
         self.metric = metric
         self.name = f'diff_{metric.name}'
-        super(DiffColumnMetricAdapter, self).__init__()
+        super().__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(df_old, col_name, **kwargs)
-        value_new = self.metric(df_new, col_name, **kwargs)
+        value_old = self.metric(df_old[col_name], **kwargs)
+        value_new = self.metric(df_new[col_name], **kwargs)
         if value_old is None or value_new is None:
             return None
         else:
@@ -235,7 +236,7 @@ class AggregateTwoColumnMetricAdapter(DataFrameMetric):
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
         values: List[Union[int, float]] = []
         for col_a, col_b in combinations(df.columns, 2):
-            value = self.metric(df, col_a, col_b, **kwargs)
+            value = self.metric(df[col_a], df[col_b], **kwargs)
             if value is not None:
                 values.append(value)
 
@@ -256,8 +257,8 @@ class DiffTwoColumnMetricAdapter(TwoColumnComparison):
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
                  col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(df_old, col_a_name, col_b_name, **kwargs)
-        value_new = self.metric(df_new, col_a_name, col_b_name, **kwargs)
+        value_old = self.metric(df_old[col_a_name], df_old[col_b_name], **kwargs)
+        value_new = self.metric(df_new[col_a_name], df_new[col_b_name], **kwargs)
         if value_old is None or value_new is None:
             return None
         else:
@@ -328,7 +329,7 @@ class AggregateTwoColumnComparisonAdapter(DataFrameComparison):
             return sum(values) / len(values) if len(values) > 0 else None
 
 
-# Metrics that return an array instead of one value
+# Vectors that return a series instead of one value
 # ----------------------------------------------------
 class _Vector(ABC):
     ALL: Mapping[str, Type['_Vector']] = {}
@@ -340,14 +341,16 @@ class _Vector(ABC):
         super(_Vector, self).__init__()
 
 
-class _Matrix(ABC):
-    ALL: Mapping[str, Type['_Matrix']] = {}
-    name: Union[str, None] = None
-    tags: List[str] = []
+class ColumnVector(_Vector):
+    ALL: Mapping[str, Type['ColumnVector']] = {}
 
     def __init__(self):
-        _register(self, _Matrix)
-        super(_Matrix, self).__init__()
+        _register(self, ColumnVector)
+        super().__init__()
+
+    @abstractmethod
+    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
+        pass
 
 
 class DataFrameVector(_Vector):
@@ -355,7 +358,7 @@ class DataFrameVector(_Vector):
 
     def __init__(self):
         _register(self, DataFrameVector)
-        super(DataFrameVector, self).__init__()
+        super().__init__()
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
@@ -372,6 +375,74 @@ class DataFrameComparisonVector(_Vector):
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
         pass
+
+
+class ColumnMetricVector(DataFrameVector):
+    def __init__(self, metric: ColumnMetric):
+        self.metric = metric
+        self.name = f'{metric.name}_vector'
+        super(ColumnMetricVector, self).__init__()
+
+    def __call__(self, df: pd.DataFrame, **kwargs) -> pd.Series:
+        return df.apply(func=self.metric, axis='index', raw=False, **kwargs)
+
+
+class ColumnComparisonVector(DataFrameComparisonVector):
+    def __init__(self, metric: ColumnComparison):
+        self.metric = metric
+        self.name = f'{metric.name}_vector'
+        super().__init__()
+
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
+
+        return pd.Series(
+            data=[self.metric(df_old, df_new, col, **kwargs) for col in df_old.columns], index=df_old.columns,
+            name=self.metric.name
+        )
+
+
+class RollingColumnMetricVector(ColumnVector):
+    def __init__(self, metric: ColumnMetric):
+        self.metric = metric
+        self.name = f'rolling_{metric.name}_vector'
+        super().__init__()
+
+    def __call__(self, sr: pd.Series, window: int = 5, **kwargs) -> pd.Series:
+        length = len(sr)
+        pad = (window - 1) // 2
+        offset = (window - 1) % 2
+
+        sr2 = pd.Series(index=sr.index, dtype=float, name=sr.name)
+        for n in range(pad, length - pad):
+            sr_window = sr.iloc[n:n + 2 * pad + offset]
+            sr2.iloc[n] = self.metric(sr_window, **kwargs)
+
+        return sr2
+
+
+class ChainColumnVector(ColumnVector):
+    def __init__(self, *args):
+        self.metrics = args
+        self.name = '|'.join([m.name for m in self.metrics])
+        super().__init__()
+
+    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
+        for metric in self.metrics:
+            sr = metric(sr, **kwargs)
+
+        return sr
+
+
+# Metrics that return an array instead of one value
+# ----------------------------------------------------
+class _Matrix(ABC):
+    ALL: Mapping[str, Type['_Matrix']] = {}
+    name: Union[str, None] = None
+    tags: List[str] = []
+
+    def __init__(self):
+        _register(self, _Matrix)
+        super(_Matrix, self).__init__()
 
 
 class DataFrameMatrix(_Matrix):
@@ -396,33 +467,6 @@ class DataFrameComparisonMatrix(_Matrix):
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.DataFrame, None]:
         pass
-
-
-class ColumnMetricVector(DataFrameVector):
-    def __init__(self, metric: ColumnMetric):
-        self.metric = metric
-        self.name = f'{metric.name}_vector'
-        super(ColumnMetricVector, self).__init__()
-
-    def __call__(self, df: pd.DataFrame, **kwargs) -> pd.Series:
-        def agg_func(series: pd.Series):
-            return self.metric(pd.DataFrame(series), series.name, **kwargs)
-
-        return df.apply(func=agg_func, axis='index', raw=False)
-
-
-class ColumnComparisonVector(DataFrameComparisonVector):
-    def __init__(self, metric: ColumnComparison):
-        self.metric = metric
-        self.name = f'{metric.name}_vector'
-        super(ColumnComparisonVector, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
-
-        return pd.Series(
-            data=[self.metric(df_old, df_new, col, **kwargs) for col in df_old.columns], index=df_old.columns,
-            name=self.metric.name
-        )
 
 
 class TwoColumnComparisonMatrix(DataFrameComparisonMatrix):
@@ -458,10 +502,9 @@ class TwoColumnMetricMatrix(DataFrameMatrix):
 
         if 'symmetric' in self.tags:
             for col_a, col_b in combinations(columns, 2):
-                matrix[col_a][col_b] = matrix[col_b][col_a] = self.metric(df, col_a_name=col_a,
-                                                                          col_b_name=col_b, **kwargs)
+                matrix[col_a][col_b] = matrix[col_b][col_a] = self.metric(df[col_a], df[col_b], **kwargs)
         else:
             for col_a, col_b in permutations(columns, 2):
-                matrix[col_a][col_b] = self.metric(df, col_a_name=col_a, col_b_name=col_b, **kwargs)
+                matrix[col_a][col_b] = self.metric(df[col_a], df[col_b], **kwargs)
 
         return matrix.astype(np.float32)

@@ -201,7 +201,6 @@ def synthesize_and_plot_time_series(
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
-    eval_data = test_data if test_data is not None else data
     # len_eval_data = len(eval_data)
 
     def callback(synth, iteration, losses):
@@ -234,7 +233,7 @@ def synthesize_and_plot_time_series(
         training_time = time.time() - start
 
         # synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
-        synthesized = pd.concat((data.copy(), eval_data.copy()), axis=0)
+        synthesized = data.copy()
         identifiers = data[identifier_label].unique()
         id_map = {a: b
                   for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
@@ -262,8 +261,7 @@ def synthesize_and_plot_time_series(
         plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
         axes[0, 1].set_title("Synthetic")
 
-    testing = TimeSeriesUtilityTesting(synthesizer, data, eval_data, synthesized, identifier=identifier_label,
-                                       time_index='date')
+    testing = TimeSeriesUtilityTesting(synthesizer.df_meta, data, synthesized)
 
     if plot_losses:
         # display(Markdown("## Show loss history")
@@ -315,26 +313,10 @@ def synthesize_and_plot_time_series(
     #                                               continuous_inputs_only=True)
 
     # TIME SERIES
-    if show_acf_distances:
-        # display(Markdown("## Show Auto-correaltion Distances")
-        print("## Show Auto-correaltion Distances")
-        acf_dist_max, acf_dist_avg = testing.show_autocorrelation_distances()
-        evaluation.record_metric(evaluation=name, key='acf_dist_max', value=acf_dist_max)
-        evaluation.record_metric(evaluation=name, key='acf_dist_avg', value=acf_dist_avg)
-    if show_pacf_distances:
-        # display(Markdown("## Show Partial Auto-correlation Distances")
-        print("## Show Partial Auto-correlation Distances")
-        testing.show_partial_autocorrelation_distances()
-    if show_transition_distances:
-        # display(Markdown("## Show Transition Distances")
-        print("## Show Transition Distances")
-        trans_dist_max, trans_dist_avg = testing.show_transition_distances()
-        evaluation.record_metric(evaluation=name, key='trans_dist_max', value=trans_dist_max)
-        evaluation.record_metric(evaluation=name, key='trans_dist_avg', value=trans_dist_avg)
     if show_series:
         # display(Markdown("## Show Series Sample")
         print("## Show Series Sample")
-        testing.show_series(share_ids=True)
+        testing.show_series()
     if show_acf:
         # display(Markdown("## Show Series ACF")
         print("## Show Series ACF")

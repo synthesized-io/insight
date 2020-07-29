@@ -1,3 +1,4 @@
+from .metrics import Mean
 from .metrics import StandardDeviation
 from .metrics import KendellTauCorrelation
 from .metrics import SpearmanRhoCorrelation
@@ -7,6 +8,9 @@ from .metrics import EarthMoversDistance
 from .metrics import CategoricalLogisticR2
 from .metrics import PredictiveModellingScore
 from .metrics import PredictiveModellingComparison
+
+from .vectors import DiffVector
+from .vectors import FractionalDiffVector
 
 from .metrics_base import _Metric
 from .metrics_base import ColumnMetric
@@ -25,10 +29,13 @@ from .metrics_base import DiffTwoColumnMetricAdapter
 from .metrics_base import DiffDataFrameMetricAdapter
 
 from .metrics_base import _Vector
+from .metrics_base import ColumnVector  # noqa: F401
 from .metrics_base import DataFrameVector  # noqa: F401
 from .metrics_base import DataFrameComparisonVector  # noqa: F401
 from .metrics_base import ColumnMetricVector
 from .metrics_base import ColumnComparisonVector
+from .metrics_base import RollingColumnMetricVector  # noqa: F401
+from .metrics_base import ChainColumnVector  # noqa: F401
 
 from .metrics_base import _Matrix
 from .metrics_base import DataFrameMatrix  # noqa: F401
@@ -38,7 +45,7 @@ from .metrics_base import TwoColumnComparisonMatrix
 
 
 _CORE_METRICS = [
-    StandardDeviation, KendellTauCorrelation, SpearmanRhoCorrelation, CramersV, KolmogorovSmirnovDistance,
+    Mean, StandardDeviation, KendellTauCorrelation, SpearmanRhoCorrelation, CramersV, KolmogorovSmirnovDistance,
     EarthMoversDistance, CategoricalLogisticR2, PredictiveModellingScore, PredictiveModellingComparison
 ]
 
@@ -66,6 +73,7 @@ DATA_FRAME_MATRICES = _Matrix.ALL
 
 # ColumnMetrics
 # -----------------------------------------------------------------------------
+mean = Mean()
 standard_deviation = StandardDeviation()
 
 # TwoColumnMetrics
@@ -150,6 +158,11 @@ predictive_modelling_comparison = PredictiveModellingComparison()
 
 # DataFrameMetricVectors
 # -----------------------------------------------------------------------------
+diff_vector = DiffVector()
+fractional_diff_vector = FractionalDiffVector()
+
+# DataFrameMetricVectors
+# -----------------------------------------------------------------------------
 standard_deviation_vector = ColumnMetricVector(StandardDeviation())
 
 # DataFrameComparisonVectors
@@ -175,5 +188,5 @@ __all__ = [
         'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'COLUMN_COMPARISONS',
         'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS' 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
         'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison', 'DataFrameVector',
-        'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix'
+        'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix', 'RollingColumnMetricVector'
 ] + [metric_name for metric_name in _Metric.ALL.keys()]
