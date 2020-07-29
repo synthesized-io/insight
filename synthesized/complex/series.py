@@ -104,19 +104,24 @@ class SeriesSynthesizer(Synthesizer):
         }
         return losses
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
-            value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype) for name in meta.learned_input_columns()]
+            value.name: tf.stack(
+                [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
+                axis=-1
+            )
             for value, meta in self.get_value_meta_pairs()
         }
         return data
 
-    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, List[tf.Tensor]]], List[int]]:
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, tf.Tensor]], List[int]]:
         if self.df_meta.id_index is None:
             num_data = [len(df)]
             groups = [{
-                value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype)
-                             for name in meta.learned_input_columns()]
+                value.name: tf.stack(
+                    [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
+                    axis=-1
+                )
                 for value, meta in self.get_value_meta_pairs()
             }]
 
@@ -125,14 +130,16 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: [tf.constant(groups[n][name], dtype=value.dtype)
-                                 for name in meta.learned_input_columns()]
+                    value.name: tf.stack(
+                        [tf.constant(groups[n][name], dtype=value.dtype) for name in meta.learned_input_columns()],
+                        axis=-1
+                    )
                     for value, meta in self.get_value_meta_pairs()
                 }
 
         return groups, num_data
 
-    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None) -> Dict[str, List[tf.Tensor]]:
+    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None) -> Dict[str, tf.Tensor]:
         group = group if group is not None else randrange(len(num_data))
         data = groups[group]
 
@@ -142,8 +149,7 @@ class SeriesSynthesizer(Synthesizer):
         else:
             batch = tf.range(num_data[group])
 
-        feed_dict = {name: [tf.nn.embedding_lookup(params=val, ids=batch) for val in value_data]
-                     for name, value_data in data.items()}
+        feed_dict = {name: tf.nn.embedding_lookup(params=val, ids=batch) for name, val in data.items()}
 
         return feed_dict
 
@@ -186,10 +192,7 @@ class SeriesSynthesizer(Synthesizer):
 
                 # TODO: Code below will fail if sequences don't have same shape.
                 feed_dict = {
-                    value.name: [
-                        tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
-                        for n, name in enumerate(self.df_meta[value.name].learned_input_columns())
-                    ]
+                    value.name: tf.stack([fd[value.name] for fd in feed_dicts], axis=0)
                     for value in self.get_all_values()
                 }
 
@@ -232,31 +235,17 @@ class SeriesSynthesizer(Synthesizer):
             )
         ))
 
-    def synthesize(self, series_length: int = None,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None,
-                   num_series: int = None, series_lengths: List[int] = None
-                   ) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None, num_series: int = 1
+    ) -> pd.DataFrame:
         """Synthesize a dataset from the learned model
 
-        :param series_length: Length of the synthesized series, if all have same length.
-        :param conditions: Conditions.
-        :param progress_callback: Progress bar callback.
-        :param num_series: Number of series to synthesize.
-        :param series_lengths: List of lenghts of each synthesized series, if they are different
-        :return: Synthesized dataframe.
-        """
-        if num_series is not None:
-            assert series_length is not None, "If 'num_series' is given, 'series_length' must be defined."
-            assert series_lengths is None, "Parameter 'series_lengths' is incompatible with 'num_series'."
-
-            series_lengths = [series_length] * num_series
-
-        elif series_lengths is not None:
-            assert series_length is None, "Parameter 'series_length' is incompatible with 'series_lengths'."
-            assert num_series is None or num_series == len(series_lengths)
-
-            num_series = len(series_lengths)
+        Args:
+            num_rows: Length of the synthesized series.
+            num_series: Number of series to synthesize.
+            conditions: Conditions.
+            progress_callback: Progress bar callback.
 
         else:
             raise ValueError("Both 'num_series' and 'series_lengths' are None. One or the other is require to"
@@ -338,4 +327,4 @@ class SeriesSynthesizer(Synthesizer):
         df_encoded = pd.DataFrame.from_records(
             latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
 
-        return df_encoded,  df_synthesized
+        return df_encoded, df_synthesized

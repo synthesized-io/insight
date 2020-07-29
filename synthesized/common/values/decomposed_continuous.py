@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import tensorflow as tf
 
@@ -49,25 +49,27 @@ class DecomposedContinuousValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
         self.build()
-        xs[0] = self.low_freq_value.unify_inputs(xs=xs[0:1])
-        xs[1] = self.high_freq_value.unify_inputs(xs=xs[1:2])
-        return tf.concat(values=xs, axis=-1)
+        low = self.low_freq_value.unify_inputs(xs=xs[:, 0:1])
+        high = self.high_freq_value.unify_inputs(xs=xs[:, 1:2])
+        return tf.concat(values=[low, high], axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
-        y_low_freq, y_high_freq = tf.split(value=y,
-                                           num_or_size_splits=[
-                                               self.low_freq_value.learned_output_size(),
-                                               self.high_freq_value.learned_output_size()],
-                                           axis=-1)
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> tf.Tensor:
+        y_low_freq, y_high_freq = tf.split(
+            value=y,
+            num_or_size_splits=[self.low_freq_value.learned_output_size(), self.high_freq_value.learned_output_size()],
+            axis=-1
+        )
 
-        return self.low_freq_value.output_tensors(y=y_low_freq, **kwargs) + \
+        return tf.concat((
+            self.low_freq_value.output_tensors(y=y_low_freq, **kwargs),
             self.high_freq_value.output_tensors(y=y_high_freq, **kwargs)
+        ), axis=-1)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
 
         if len(y.shape) == 2:
             y_low_freq = y[:, 0]
@@ -78,7 +80,7 @@ class DecomposedContinuousValue(Value):
         else:
             raise NotImplementedError
 
-        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[0:1])
-        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[1:2])
+        loss_low_freq = self.low_freq_value.loss(y=tf.expand_dims(y_low_freq, axis=-1), xs=xs[:, 0:1])
+        loss_high_freq = self.high_freq_value.loss(y=tf.expand_dims(y_high_freq, axis=-1), xs=xs[:, 1:2])
 
         return self.weight * (loss_low_freq + loss_high_freq)

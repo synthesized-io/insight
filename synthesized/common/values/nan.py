@@ -1,5 +1,3 @@
-from typing import List
-
 import numpy as np
 import tensorflow as tf
 
@@ -74,11 +72,12 @@ class NanValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
         # NaN embedding
-        nan = tf.math.is_nan(x=xs[0])
-        inf = tf.math.is_inf(x=xs[0])
-        pos = tf.greater(xs[0], tf.constant(0.0, dtype=tf.float32))
+        x = tf.squeeze(xs, axis=-1)
+        nan = tf.math.is_nan(x=x)
+        inf = tf.math.is_inf(x=x)
+        pos = tf.greater(x, tf.constant(0.0, dtype=tf.float32))
 
         nan_int = tf.cast(nan, dtype=tf.int64)
         pos_inf = tf.constant(2, dtype=tf.int64) * tf.cast(tf.logical_and(inf, pos), dtype=tf.int64)
@@ -104,32 +103,30 @@ class NanValue(Value):
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> tf.Tensor:
         # NaN classification part
         if sample:
-            nan = tf.squeeze(tf.random.categorical(logits=y[:, :self.num_categories], num_samples=1), axis=1)
+            nan = tf.random.categorical(logits=y[:, :self.num_categories], num_samples=1)
         else:
-            nan = tf.argmax(input=y[:, :self.num_categories], axis=1)
+            nan = tf.expand_dims(tf.argmax(input=y[:, :self.num_categories], axis=1), axis=1)
 
         # Wrapped value output tensors
         ys = self.value.output_tensors(y=y[:, self.num_categories:], **kwargs)
 
         if self.produce_nans:
             # Replace wrapped value with NaNs
-            for n, y in enumerate(ys):
-                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=1), x=np.nan, y=y)
+            ys = tf.where(condition=tf.math.equal(x=nan, y=1), x=np.nan, y=ys)
 
         if self.produce_infs:
             # Replace wrapped value with Infs
-            for n, y in enumerate(ys):
-                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=2), x=np.inf, y=ys[n])
-                ys[n] = tf.where(condition=tf.math.equal(x=nan, y=3), x=-np.inf, y=ys[n])
+            ys = tf.where(condition=tf.math.equal(x=nan, y=2), x=np.inf, y=ys)
+            ys = tf.where(condition=tf.math.equal(x=nan, y=3), x=-np.inf, y=ys)
 
         return ys
 
     @tensorflow_name_scoped
-    def loss(self, y, xs: List[tf.Tensor]) -> tf.Tensor:
-        target = xs[0]
+    def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
+        target = tf.squeeze(xs, axis=-1)
         nan = tf.math.is_nan(x=target)
         inf = tf.math.is_inf(x=target)
         nan_or_inf = tf.logical_or(x=nan, y=inf)

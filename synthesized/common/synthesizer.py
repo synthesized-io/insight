@@ -92,9 +92,12 @@ class Synthesizer(tf.Module):
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         raise NotImplementedError()
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
         data = {
-            value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype) for name in meta.learned_input_columns()]
+            value.name: tf.stack(
+                [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
+                axis=-1
+            )
             for value, meta in self.get_value_meta_pairs()
         }
         return data
@@ -106,41 +109,45 @@ class Synthesizer(tf.Module):
         }
         return data
 
-    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = None):
+    def get_conditions_feed_dict(
+            self, df_conditions: pd.DataFrame, num_rows: int, batch_size: Optional[int] = None
+    ) -> Dict[str, tf.Tensor]:
+
         feed_dict = dict()
 
         if not batch_size:
             # Add conditions to 'feed_dict'
             for value, meta in self.get_condition_meta_pairs():
-                feed_dict[value.name] = [
-                    np.tile(df_conditions[name].values, (num_rows,)) if df_conditions[name].values.shape == (1,)
-                    else df_conditions[name].values if df_conditions[name].values.shape == (1,)
-                    else None
-                    for name in meta.learned_input_columns()
-                ]
-                for x in feed_dict[value.name]:
-                    if x is None:
+                for name in meta.learned_input_columns():
+                    if not(df_conditions[name].values.shape == (num_rows,) or df_conditions[name].values.shape == (1,)):
+                        print(df_conditions[name].values.shape)
                         raise NotImplementedError
+
+                feed_dict[value.name] = tf.stack([
+                    np.tile(df_conditions[name].values, (num_rows,)) if df_conditions[name].values.shape == (1,)
+                    else df_conditions[name].values  # values.shape == (num_rows,)
+                    for name in meta.learned_input_columns()
+                ], axis=-1)
 
         elif (num_rows % batch_size) != 0:
             for value, meta in self.get_condition_meta_pairs():
-                feed_dict[value.name] = [
+                feed_dict[value.name] = tf.stack([
                     np.tile(df_conditions[name].values, (num_rows % batch_size,))
                     if df_conditions[name].values.shape == (1,) else
                     df_conditions[name].values[-num_rows % batch_size:]
                     if df_conditions[name].values.shape == (num_rows,) else
                     None
                     for name in meta.learned_input_columns()
-                ]
+                ],  axis=-1)
                 for x in feed_dict[value.name]:
                     if x is None:
                         raise NotImplementedError
         else:
             for value, meta in self.get_condition_meta_pairs():
-                feed_dict[value.name] = [
+                feed_dict[value.name] = tf.stack([
                     np.tile(df_conditions[name].values, (batch_size,))
                     for name in meta.learned_input_columns() if df_conditions[name].values.shape == (1,)
-                ]
+                ], axis=-1)
 
         return feed_dict
 
@@ -157,8 +164,8 @@ class Synthesizer(tf.Module):
         return False
 
     def learn(
-        self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
+            self, df_train: pd.DataFrame, num_iterations: Optional[int],
+            callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -175,9 +182,10 @@ class Synthesizer(tf.Module):
         """
         raise NotImplementedError
 
-    def synthesize(self, num_rows: int,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None
+    ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:

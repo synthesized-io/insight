@@ -85,7 +85,7 @@ class HighDimSynthesizer(Synthesizer):
         return self.value_factory.get_conditions()
 
     def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values]
+        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values if v.learned_input_size() > 0]
 
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
@@ -234,6 +234,9 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
+        if type(conditions) is dict:
+            conditions = pd.DataFrame(index=np.arange(num_rows), data=conditions)
+
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
         columns = self.df_meta.columns
 
@@ -247,7 +250,6 @@ class HighDimSynthesizer(Synthesizer):
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
             synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
             synthesized = self.df_meta.split_outputs(synthesized)
-
             df_synthesized = pd.DataFrame.from_dict(synthesized)
             if progress_callback is not None:
                 progress_callback(98)
@@ -258,7 +260,7 @@ class HighDimSynthesizer(Synthesizer):
                 tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict
             )
             dict_synthesized = self.df_meta.split_outputs(synthesized)
-            dict_synthesized = {k: v.numpy().tolist() for k, v in dict_synthesized.items()}
+            dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=self.synthesis_batch_size)
             n_batches = num_rows // self.synthesis_batch_size
@@ -276,7 +278,7 @@ class HighDimSynthesizer(Synthesizer):
                 other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
                 other = self.df_meta.split_outputs(other)
                 for c in dict_synthesized.keys():
-                    dict_synthesized[c].extend(other[c].numpy().tolist())
+                    dict_synthesized[c].extend(other[c].tolist())
 
                 if progress_callback is not None:
                     # report approximate progress from 0% to 98% (2% are reserved for post actions)

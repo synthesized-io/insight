@@ -29,33 +29,33 @@ class RuleValue(Value):
         return sum(value.learned_output_size() for value in self.values[:self.num_learned])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
         x = list()
         index = 0
         for value in self.values:
             num = len(value.learned_input_columns())
-            x.append(value.unify_inputs(xs=xs[index: index + num]))
+            x.append(value.unify_inputs(xs=xs[:, index: index + num]))
             index += num
-        return tf.concat(values=x, axis=1)
+        return tf.concat(values=x, axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> tf.Tensor:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         ys: List[tf.Tensor] = list()
         for value, y in zip(self.values[:self.num_learned], y):
             ys.extend(value.output_tensors(y=y, **kwargs))
-        return ys
+        return tf.concat(ys, axis=-1)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         losses = list()
         index = 0
         for value, y in zip(self.values[:self.num_learned], y):
             num = len(value.learned_output_columns())
-            losses.append(value.loss(y=y, xs=xs[index: index + num]))
+            losses.append(value.loss(y=y, xs=xs[:, index: index + num]))
             index += num
         return tf.math.add_n(inputs=losses)
 

@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import Dict, Optional
 
 import tensorflow as tf
 
@@ -60,10 +60,10 @@ class IdentifierValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
+    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
         self.build()
-        return tf.nn.embedding_lookup(params=self.embeddings, ids=tf.cast(xs[0], dtype=tf.int64))
+        x = tf.cast(tf.squeeze(xs, axis=-1), dtype=tf.int64)
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=x)
 
     @tensorflow_name_scoped
     def next_identifier(self):
@@ -99,9 +99,9 @@ class IdentifierValue(Value):
     def get_embedding(self, identifier: tf.Tensor):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
 
-    # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    # def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
     #     target = tf.one_hot(
-    #         indices=xs[0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
+    #         indices=xs[:, 0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
     #         dtype=tf.float32
     #     )
     #
