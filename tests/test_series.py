@@ -22,67 +22,62 @@ def test_series_basic():
 
 @pytest.mark.integration
 def test_series_synthesis_identifier():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    c = np.random.choice([1, 2, 3], 1000)
-    df_original = pd.DataFrame({'r': r, 's': c})
-    df_meta = MetaExtractor.extract(df=df_original, id_index='s')
+    r = np.random.normal(loc=0, scale=1, size=900)
+    t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
+    c = np.array([1, 2, 3]*300)
+    df_original = pd.DataFrame({'r': r, 'c': c, 't': t})
+    df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=3)
-        df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50, 25])
 
     assert len(df_synthesized1) == 300
-    assert df_synthesized1['s'].nunique() == 3
-    assert len(df_synthesized2) == 175
-    assert df_synthesized2['s'].nunique() == 3
+    assert df_synthesized1['c'].nunique() == 3
 
 
 @pytest.mark.integration
 def test_series_lstm():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    c = np.random.choice([1, 2, 3], 1000)
-    df_original = pd.DataFrame({'r': r, 's': c})
+    r = np.random.normal(loc=0, scale=1, size=900)
+    t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
+    c = np.array([1, 2, 3]*300)
+    df_original = pd.DataFrame({'r': r, 'c': c, 't': t})
     config = SeriesConfig(lstm_mode='lstm')
-    df_meta = MetaExtractor.extract(df=df_original, id_index='s')
+    df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
-        df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
 
     assert len(df_synthesized1) == 200
-    assert len(df_synthesized2) == 150
 
 
 @pytest.mark.integration
 def test_series_basic_vrae():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    c = np.random.choice([1, 2, 3], 1000)
-    df_original = pd.DataFrame({'r': r, 's': c})
+    r = np.random.normal(loc=0, scale=1, size=900)
+    t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
+    c = np.array([1, 2, 3] * 300)
+    df_original = pd.DataFrame({'r': r, 'c': c, 't': t})
     config = SeriesConfig(lstm_mode='vrae')
-    df_meta = MetaExtractor.extract(df=df_original, id_index='s')
+    df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
-        df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
 
     assert len(df_synthesized1) == 200
-    assert len(df_synthesized2) == 150
 
 
 @pytest.mark.integration
 def test_series_rdssm():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    c = np.random.choice([1, 2, 3], 1000)
-    df_original = pd.DataFrame({'r': r, 's': c})
+    r = np.random.normal(loc=0, scale=1, size=900)
+    t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
+    c = np.array([1, 2, 3] * 300)
+    df_original = pd.DataFrame({'r': r, 'c': c, 't': t})
     config = SeriesConfig(lstm_mode='rdssm')
-    df_meta = MetaExtractor.extract(df=df_original, id_index='s')
+    df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
-        df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
 
     assert len(df_synthesized1) == 200
-    assert len(df_synthesized2) == 150
 
 
 # TODO: Fails in CircleCI, works in local

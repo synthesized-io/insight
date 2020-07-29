@@ -9,12 +9,12 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common.values import Value, ValueFactory
+from ..common.values import Value, ValueFactory, IdentifierValue
 from ..common.generative import SeriesVAE
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..config import SeriesConfig
-from ..metadata import DataFrameMeta, ValueMeta
+from ..metadata import DataFrameMeta, ValueMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
@@ -120,8 +120,12 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: [tf.constant(groups[n][name], dtype=value.dtype)
-                                 for name in meta.learned_input_columns()]
+                    value.name: [
+                        tf.constant(groups[n][name], dtype=value.dtype)
+                        for name in (meta.learned_input_columns()
+                                     if not isinstance(meta, IdentifierMeta)
+                                     else [meta.name])
+                    ]
                     for value, meta in self.get_value_meta_pairs()
                 }
 
@@ -166,7 +170,7 @@ class SeriesSynthesizer(Synthesizer):
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
-        df_train = self.df_meta.preprocess(df_train)
+        df_train = self.df_meta.preprocess(df_train, max_workers=None).reset_index()
 
         groups, num_data = self.get_groups_feed_dict(df_train)
         max_seq_len = min(min(num_data), self.max_seq_len)
@@ -178,12 +182,14 @@ class SeriesSynthesizer(Synthesizer):
 
                 feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=max_seq_len)
                               for _ in range(self.batch_size)]
-
                 # TODO: Code below will fail if sequences don't have same shape.
                 feed_dict = {
                     value.name: [
                         tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
-                        for n, name in enumerate(self.df_meta[value.name].learned_input_columns())
+                        for n, name in enumerate(
+                            self.df_meta[value.name].learned_input_columns() if not isinstance(value, IdentifierValue)
+                            else [value.name]
+                        )
                     ]
                     for value in self.get_all_values()
                 }
@@ -277,14 +283,14 @@ class SeriesSynthesizer(Synthesizer):
                 other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
                                             identifier=tf_identifier)
                 other = self.df_meta.split_outputs(other)
-                other = pd.DataFrame.from_dict(other)[columns]
+                other = pd.DataFrame.from_dict(other)
                 if synthesized is None:
                     synthesized = other
                 else:
                     synthesized = synthesized.append(other, ignore_index=True)
 
-        df_synthesized = pd.DataFrame.from_dict(synthesized)[columns]
-        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
+        df_synthesized = pd.DataFrame.from_dict(synthesized)
+        df_synthesized = self.df_meta.postprocess(df=df_synthesized, max_workers=None)[columns]
 
         return df_synthesized
 
