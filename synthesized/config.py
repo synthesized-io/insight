@@ -147,7 +147,7 @@ class LearningManagerConfig:
     good_enough_metric: Optional[float] = None
     stop_metric_name: Union[str, List[str], None] = None
     sample_size: Optional[int] = 10_000
-    use_vae_loss: bool = True
+    use_engine_loss: bool = True
     max_training_time: Optional[float] = None
     custom_stop_metric: Optional[Callable[[pd.DataFrame, pd.DataFrame], float]] = None
 

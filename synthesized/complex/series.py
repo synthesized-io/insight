@@ -10,7 +10,7 @@ import tensorflow as tf
 
 from ..common import Synthesizer
 from ..common.values import Value, ValueFactory
-from ..common.generative import SeriesVAE
+from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..config import SeriesConfig
@@ -52,7 +52,7 @@ class SeriesSynthesizer(Synthesizer):
         self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
 
         # VAE
-        self.vae = SeriesVAE(
+        self.engine = SeriesEngine(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.df_meta.id_index, identifier_value=self.value_factory.identifier_value,
             encoding=self.lstm_mode, latent_size=config.latent_size,
@@ -74,7 +74,7 @@ class SeriesSynthesizer(Synthesizer):
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
         if learning_manager:
-            self.use_vae_loss = True
+            self.use_engine_loss = True
             self.learning_manager = LearningManager()
             self.learning_manager.set_check_frequency(self.batch_size)
             raise NotImplementedError
@@ -95,9 +95,14 @@ class SeriesSynthesizer(Synthesizer):
         return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
     def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
-        self.vae.xs = data
-        self.vae.loss()
-        return self.vae.losses
+        # total_loss = self.engine.loss(data)
+        losses = {
+            'total-loss': self.engine.total_loss,
+            'kl-loss': self.engine.kl_loss,
+            'regularization-loss': self.engine.regularization_loss,
+            'reconstruction-loss': self.engine.reconstruction_loss
+        }
+        return losses
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
         data = {
@@ -147,7 +152,7 @@ class SeriesSynthesizer(Synthesizer):
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
             conditions=[value.specification() for value in self.value_factory.get_conditions()],
-            vae=self.vae.specification(), batch_size=self.batch_size
+            engine=self.engine.specification(), batch_size=self.batch_size
         )
         return spec
 
@@ -193,16 +198,16 @@ class SeriesSynthesizer(Synthesizer):
                 ):
                     if self.writer is not None and iteration == 1:
                         tf.summary.trace_on(graph=True, profiler=False)
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=feed_dict)
                         tf.summary.trace_export(name="Learn", step=self.global_step)
                         tf.summary.trace_off()
                     else:
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=feed_dict)
 
-                    # if callback(self, iteration, self.vae.losses) is True:
+                    # if callback(self, iteration, self.engine.losses) is True:
                     #     return
                 else:
-                    self.vae.learn(xs=feed_dict)
+                    self.engine.learn(xs=feed_dict)
 
                 if print_status_freq > 0 and iteration % print_status_freq == 0:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
@@ -274,8 +279,8 @@ class SeriesSynthesizer(Synthesizer):
                 print('synthesizing series.')
                 series_length = series_lengths[identifier]
                 tf_identifier = tf.constant([identifier])
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
-                                            identifier=tf_identifier)
+                other = self.engine.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                               identifier=tf_identifier)
                 other = self.df_meta.split_outputs(other)
                 other = pd.DataFrame.from_dict(other)[columns]
                 if synthesized is None:
@@ -305,7 +310,7 @@ class SeriesSynthesizer(Synthesizer):
         for i in range(len(groups)):
 
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
+            encoded_i, decoded_i = self.engine.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
 

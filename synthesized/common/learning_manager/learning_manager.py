@@ -35,7 +35,7 @@ class LearningManager:
                  n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
                  tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
                  stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
-                 use_vae_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+                 use_engine_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
                  ):
         """Initialize LearningManager.
 
@@ -55,7 +55,7 @@ class LearningManager:
             stop_metric_name: Which 'stop_metric' will be evaluated in each iteration. If None, all 'stop_metric'es will
                 be used, otherwise a str for a single 'stop_metric' or a list of str for more than one.
             sample_size: Sample size
-            use_vae_loss: Whether to use the VAE learning loss or evaluation metrics.
+            use_engine_loss: Whether to use the VAE learning loss or evaluation metrics.
             custom_stop_metric: If given, use this callable to compute stop metric.
         """
 
@@ -85,7 +85,7 @@ class LearningManager:
         self.stop_metric_name = stop_metric_name
         self.sample_size = sample_size
         self.max_training_time = max_training_time
-        self.use_vae_loss = use_vae_loss
+        self.use_engine_loss = use_engine_loss
         self.custom_stop_metric = custom_stop_metric
 
         self.count_no_improvement: int = 0
@@ -259,8 +259,9 @@ class LearningManager:
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
                                              column_names=column_names, df_meta=synthesizer.df_meta)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer,
-                               data_dict: Dict[str, List[tf.Tensor]]) -> bool:
+    def stop_learning_engine_loss(
+            self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]
+    ) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -307,9 +308,9 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        if self.use_vae_loss:
+        if self.use_engine_loss:
             assert data_dict is not None and num_data is not None
-            return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
+            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
         else:
             assert df_train_orig is not None
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)
@@ -324,11 +325,11 @@ class LearningManager:
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             max_training_time=self.max_training_time,
-            use_vae_loss=self.use_vae_loss,
+            use_engine_loss=self.use_engine_loss,
             custom_stop_metric=self.custom_stop_metric
         )
 
     def set_variables(self, variables: Dict[str, Any]):
         self.max_training_time = variables['max_training_time']
-        self.use_vae_loss = variables['use_vae_loss']
+        self.use_engine_loss = variables['use_engine_loss']
         self.custom_stop_metric = variables['custom_stop_metric']

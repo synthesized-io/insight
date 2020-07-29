@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Dict, List, Tuple, Union, Optional, Any
 
 import tensorflow as tf
@@ -11,7 +10,7 @@ from ..transformations import DenseTransformation
 from ..values import Value, ValueOps
 
 
-class VAEOld(Generative):
+class HighDimEngine(Generative):
     """Variational auto-encoder.
 
     The VAE consists of an NN-parametrized input-conditioned encoder distribution q(z|x), a latent
@@ -36,7 +35,7 @@ class VAEOld(Generative):
         # Weight decay
         weight_decay: float
     ):
-        super(VAEOld, self).__init__(name=name, values=values, conditions=conditions)
+        super(HighDimEngine, self).__init__(name=name, values=values, conditions=conditions)
 
         self.latent_size = latent_size
         self.network = network
@@ -101,39 +100,42 @@ class VAEOld(Generative):
         )
         return spec
 
-    def loss(self):
-        if len(self.xs) == 0:
+    @tensorflow_name_scoped
+    def loss(self, xs: Dict[str, tf.Tensor]):
+        if len(xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_ops.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(xs)
 
         #################################
         x = self.linear_input(x)
         x = self.encoder(x)
         z = self.encoding(x)
-        x = self.value_ops.add_conditions(z, conditions=self.xs)
+        x = self.value_ops.add_conditions(z, conditions=xs)
         x = self.decoder(x)
         y = self.linear_output(x)
         #################################
 
         # Losses
-        self.losses: Dict[str, tf.Tensor] = OrderedDict()
+        # self.losses: Dict[str, tf.Tensor] = OrderedDict()
 
         reconstruction_loss = tf.identity(
-            self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y=y, inputs=xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
-        regularization_loss = tf.add_n(
-            inputs=[self.l2(w) for w in self.regularization_losses],
-            name='regularization_loss'
-        )
+
+        with tf.name_scope("regularization"):
+            regularization_loss = tf.add_n(
+                inputs=[self.l2(w) for w in self.regularization_losses],
+                name='regularization_loss'
+            )
 
         total_loss = tf.add_n(
             inputs=[reconstruction_loss, kl_loss, regularization_loss], name='total_loss'
         )
-        self.losses['reconstruction-loss'] = reconstruction_loss
-        self.losses['regularization-loss'] = regularization_loss
-        self.losses['kl-loss'] = kl_loss
-        self.losses['total-loss'] = total_loss
+        self.reconstruction_loss.assign(reconstruction_loss)
+        self.regularization_loss.assign(regularization_loss)
+        self.kl_loss.assign(kl_loss)
+        self.total_loss.assign(total_loss)
 
         # Summaries
         tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
@@ -144,8 +146,7 @@ class VAEOld(Generative):
         return total_loss
 
     @tf.function
-    @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, List[tf.Tensor]]) -> None:
+    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
 
         Args:
@@ -155,17 +156,21 @@ class VAEOld(Generative):
             Dictionary of loss tensors, and optimization operation.
 
         """
-        self.xs = xs
-        # Optimization step
-        self.optimizer.optimize(
-            loss=self.loss, variables=self.get_trainable_variables
-        )
+
+        with tf.GradientTape() as gg:
+            total_loss = self.loss(xs)
+
+        with tf.name_scope("optimization"):
+            gradients = gg.gradient(total_loss, self.trainable_variables)
+            grads_and_vars = list(zip(gradients, self.trainable_variables))
+            self.optimizer.optimize(grads_and_vars)
 
         return
 
+    @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, List[tf.Tensor]],
-               cs: Dict[str, List[tf.Tensor]]) -> Tuple[Dict[str, tf.Tensor], Dict[str, List[tf.Tensor]]]:
+    def encode(self, xs: Dict[str, tf.Tensor],
+               cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """Encoding Step for VAE.
 
         Args:
@@ -185,10 +190,9 @@ class VAEOld(Generative):
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
-    @tf.function
     @tensorflow_name_scoped
     def _encode(self, x: tf.Tensor,
-                cs: Dict[str, List[tf.Tensor]]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+                cs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """Encoding Step for VAE.
 
         Args:
@@ -213,8 +217,8 @@ class VAEOld(Generative):
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
-    def encode_deterministic(self, xs: Dict[str, List[tf.Tensor]],
-                             cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
+    def encode_deterministic(self, xs: Dict[str, tf.Tensor],
+                             cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         """Deterministic encoding for VAE.
 
         Args:
@@ -236,7 +240,7 @@ class VAEOld(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
+    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
         """Encoding Step for VAE.
 
         Args:
@@ -258,8 +262,9 @@ class VAEOld(Generative):
 
         return y
 
+    @tf.function
     @tensorflow_name_scoped
-    def synthesize(self, n: int, cs: Dict[str, List[tf.Tensor]]) -> Dict[str, List[tf.Tensor]]:
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         """Generate the given number of instances.
 
         Args:
@@ -270,13 +275,13 @@ class VAEOld(Generative):
             Output tensor per column.
 
         """
-        y = self._synthesize(n=tf.constant(n, dtype=tf.int64), cs=cs)
+        y = self._synthesize(n=n, cs=cs)
+        print(cs)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
-    @tf.function
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
         """Generate the given number of instances.
 
         Args:

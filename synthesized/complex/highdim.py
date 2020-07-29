@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from .binary_builder import ModelBinary
 from ..metadata import DataFrameMeta, ValueMeta
-from ..common.generative import VAEOld
+from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
@@ -56,7 +56,7 @@ class HighDimSynthesizer(Synthesizer):
         )
 
         # VAE
-        self.vae = VAEOld(
+        self.engine = HighDimEngine(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             latent_size=config.latent_size, network=config.network, capacity=config.capacity,
             num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
@@ -72,10 +72,10 @@ class HighDimSynthesizer(Synthesizer):
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
         if config.learning_manager:
-            use_vae_loss = False if config.custom_stop_metric else True
+            use_engine_loss = False if config.custom_stop_metric else True
             self.learning_manager = LearningManager(
-                max_training_time=config.max_training_time, use_vae_loss=use_vae_loss,
-                custom_stop_metric=config.custom_stop_metric
+                max_training_time=config.max_training_time, use_engine_loss=use_engine_loss,
+                custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
 
     def get_values(self) -> List[Value]:
@@ -90,17 +90,21 @@ class HighDimSynthesizer(Synthesizer):
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
-        self.vae.xs = data
-        self.vae.loss()
-        return self.vae.losses
+    def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        losses = {
+            'total-loss': self.engine.kl_loss+self.engine.regularization_loss+self.engine.reconstruction_loss,
+            'kl-loss': self.engine.kl_loss,
+            'regularization-loss': self.engine.regularization_loss,
+            'reconstruction-loss': self.engine.reconstruction_loss
+        }
+        return losses
 
     def specification(self) -> dict:
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
             conditions=[value.specification() for value in self.value_factory.get_conditions()],
-            vae=self.vae.specification(), batch_size=self.batch_size
+            engine=self.engine.specification(), batch_size=self.batch_size
         )
         return spec
 
@@ -241,7 +245,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
-            synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
+            synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=feed_dict)
             synthesized = self.df_meta.split_outputs(synthesized)
 
             df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -250,7 +254,9 @@ class HighDimSynthesizer(Synthesizer):
 
         else:
             feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
-            synthesized = self.vae.synthesize(num_rows % self.synthesis_batch_size, cs=feed_dict)
+            synthesized = self.engine.synthesize(
+                tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict
+            )
             dict_synthesized = self.df_meta.split_outputs(synthesized)
             dict_synthesized = {k: v.numpy().tolist() for k, v in dict_synthesized.items()}
 
@@ -267,7 +273,7 @@ class HighDimSynthesizer(Synthesizer):
                         for name, condition_data in conditions_data.items()
                         if condition_data.shape == (num_rows,)
                     })
-                other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
+                other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
                 other = self.df_meta.split_outputs(other)
                 for c in dict_synthesized.keys():
                     dict_synthesized[c].extend(other[c].numpy().tolist())
@@ -308,7 +314,7 @@ class HighDimSynthesizer(Synthesizer):
         data = self.get_data_feed_dict(df_encode)
         conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
 
-        encoded, decoded = self.vae.encode(xs=data, cs=conditions_data)
+        encoded, decoded = self.engine.encode(xs=data, cs=conditions_data)
 
         columns = self.df_meta.columns
         decoded = self.df_meta.split_outputs(decoded)
@@ -340,7 +346,7 @@ class HighDimSynthesizer(Synthesizer):
         data = self.get_data_feed_dict(df_encode)
         conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
 
-        decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
+        decoded = self.engine.encode_deterministic(xs=data, cs=conditions_data)
         decoded = self.df_meta.split_outputs(decoded)
         columns = self.df_meta.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
@@ -357,22 +363,22 @@ class HighDimSynthesizer(Synthesizer):
             value_factory=self.value_factory.get_variables(),
 
             # VAE
-            vae=self.vae.get_variables(),
-            latent_size=self.vae.latent_size,
-            network=self.vae.network,
-            capacity=self.vae.capacity,
-            num_layers=self.vae.num_layers,
-            residual_depths=self.vae.residual_depths,
-            batch_norm=self.vae.batch_norm,
-            activation=self.vae.activation,
-            optimizer=self.vae.optimizer_name,
-            learning_rate=self.vae.learning_rate,
-            decay_steps=self.vae.decay_steps,
-            decay_rate=self.vae.decay_rate,
-            initial_boost=self.vae.initial_boost,
-            clip_gradients=self.vae.clip_gradients,
-            beta=self.vae.beta,
-            weight_decay=self.vae.weight_decay,
+            engine=self.engine.get_variables(),
+            latent_size=self.engine.latent_size,
+            network=self.engine.network,
+            capacity=self.engine.capacity,
+            num_layers=self.engine.num_layers,
+            residual_depths=self.engine.residual_depths,
+            batch_norm=self.engine.batch_norm,
+            activation=self.engine.activation,
+            optimizer=self.engine.optimizer_name,
+            learning_rate=self.engine.learning_rate,
+            decay_steps=self.engine.decay_steps,
+            decay_rate=self.engine.decay_rate,
+            initial_boost=self.engine.initial_boost,
+            clip_gradients=self.engine.clip_gradients,
+            beta=self.engine.beta,
+            weight_decay=self.engine.weight_decay,
 
             # HighDim
             batch_size=self.batch_size,
@@ -393,7 +399,7 @@ class HighDimSynthesizer(Synthesizer):
         self.value_factory.set_variables(variables['value_factory'])
 
         # VAE
-        self.vae.set_variables(variables['vae'])
+        self.engine.set_variables(variables['engine'])
 
         # Batch Sizes
         self.batch_size = variables['batch_size']
@@ -448,7 +454,7 @@ class HighDimSynthesizerWrapper(HighDimSynthesizer):
         self.value_factory = ValueFactoryWrapper(name='value_factory', variables=variables['value_factory'])
 
         # VAE
-        self.vae = VAEOld(
+        self.engine = HighDimEngine(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
             num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
@@ -457,7 +463,7 @@ class HighDimSynthesizerWrapper(HighDimSynthesizer):
             decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
             clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
         )
-        self.vae.set_variables(variables['vae'])
+        self.engine.set_variables(variables['engine'])
 
         # Batch Sizes
         self.batch_size = variables['batch_size']
