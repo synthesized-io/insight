@@ -153,7 +153,10 @@ class StateSpaceModel(tf.Module):
         """
         return tf.random.normal(shape=(bs, 1, self.value_ops.output_size), dtype=tf.float32)
 
-    # @tf.function
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        raise NotImplementedError
+
+    @tf.function
     def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
 
@@ -164,11 +167,13 @@ class StateSpaceModel(tf.Module):
             Dictionary of loss tensors, and optimization operation.
 
         """
-        self.xs = xs
-        # Optimization step
-        self.optimizer.optimize(
-            loss=self.loss, variables=self.get_trainable_variables
-        )
+        with tf.GradientTape() as gg:
+            total_loss = self.loss(xs)
+
+        with tf.name_scope("optimization"):
+            gradients = gg.gradient(total_loss, self.trainable_variables)
+            grads_and_vars = list(zip(gradients, self.trainable_variables))
+            self.optimizer.optimize(grads_and_vars)
 
         return
 

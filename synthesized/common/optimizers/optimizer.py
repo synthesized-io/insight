@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Tuple
 
 import tensorflow as tf
 
@@ -71,19 +71,18 @@ class Optimizer(tf.Module):
     def module_initialize(self):
         super().module_initialize()
 
-    def optimize(self, loss: Callable[..., tf.Tensor], variables: Callable[..., List[tf.Variable]]):
+    def optimize(self, grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]]):
         """Optimize the given loss.
 
         Args:
-            loss: Loss tensor.
-            variables: List of variables to optimize
+            grads_and_vars: List of gradient, variable pairs to optimize
 
         Returns:
             The optimization operation.
 
         """
         # Trainable variables
-        self.optimizer.minimize(loss=loss, var_list=variables)
+        self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
         return
 
     def get_variables(self) -> Dict[str, Any]:

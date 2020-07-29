@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Tuple
 
 import pandas as pd
 import tensorflow as tf
@@ -105,8 +105,8 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         return z_f, x_f
 
-    def loss(self) -> tf.Tensor:
-        x = self.value_ops.unified_inputs(inputs=self.xs)
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        x = self.value_ops.unified_inputs(inputs=xs)
 
         z_0 = self.get_initial_state(x_1=x[:, 0:1, :])
         mu_theta_0, sigma_theta_0 = self.emission(z_t=z_0)
@@ -133,7 +133,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
             mu_1=mu_theta_0, stddev_1=sigma_theta_0, mu_2=tf.zeros(shape=mu_theta_0.shape, dtype=tf.float32),
             stddev_2=tf.ones(shape=sigma_theta_0.shape, dtype=tf.float32)
         )
-        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
+        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=xs)
         loss = tf.add_n((kl_loss, init_kl_loss, reconstruction_loss, normal_kl_loss), name='total_loss')
 
         tf.summary.scalar(name='kl_loss', data=kl_loss)

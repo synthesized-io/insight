@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Dict, List, Union, Tuple, Optional, Any
 
 import tensorflow as tf
@@ -23,19 +22,19 @@ class VAE(Generative):
     """
 
     def __init__(
-        self, name: str, values: List[Value], conditions: List[Value],
-        # Latent distribution
-        distribution: str, latent_size: int,
-        # Encoder and decoder network
-        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batch_norm: bool,
-        activation: str,
-        # Optimizer
-        optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
-        initial_boost: int, clip_gradients: float,
-        # Beta KL loss coefficient
-        beta: float,
-        # Weight decay
-        weight_decay: float
+            self, name: str, values: List[Value], conditions: List[Value],
+            # Latent distribution
+            distribution: str, latent_size: int,
+            # Encoder and decoder network
+            network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
+            batch_norm: bool, activation: str,
+            # Optimizer
+            optimizer: str, learning_rate: tf.Tensor, decay_steps: Optional[int], decay_rate: Optional[float],
+            initial_boost: int, clip_gradients: float,
+            # Beta KL loss coefficient
+            beta: float,
+            # Weight decay
+            weight_decay: float
     ):
         super().__init__(name=name, values=values, conditions=conditions)
         self.latent_size = latent_size
@@ -85,29 +84,26 @@ class VAE(Generative):
         )
         return spec
 
-    def loss(self):
-        if len(self.xs) == 0:
+    def loss(self, xs: Dict[str, tf.Tensor]):
+        if len(xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_ops.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(xs)
 
         #################################
         x = self.encoder(x)
         q = self.encoding(x)
         z = q.sample()
-        x = self.value_ops.add_conditions(x=z, conditions=self.xs)
+        x = self.value_ops.add_conditions(x=z, conditions=xs)
         x = self.decoder(x)
         p = self.decoding(x)
         y = p.sample()
         #################################
 
         # Losses
-        self.losses: Dict[str, tf.Tensor] = OrderedDict()
-
         reconstruction_loss = tf.identity(
             self.value_ops.reconstruction_loss(y=y, inputs=self.xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
-        reconstruction_loss = tf.identity(self.losses['reconstruction-loss'], name='reconstruction_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
             name='regularization_loss'
@@ -116,9 +112,10 @@ class VAE(Generative):
         total_loss = tf.add_n(
             inputs=[kl_loss, reconstruction_loss, regularization_loss], name='total_loss'
         )
-        self.losses['regularization-loss'] = regularization_loss
-        self.losses['kl-loss'] = kl_loss
-        self.losses['total-loss'] = total_loss
+        self.reconstruction_loss.assign(reconstruction_loss)
+        self.regularization_loss.assign(regularization_loss)
+        self.kl_loss.assign(kl_loss)
+        self.total_loss.assign(total_loss)
 
         # Summaries
         tf.summary.scalar(name='total-loss', data=total_loss)
@@ -143,18 +140,21 @@ class VAE(Generative):
             Dictionary of loss tensors, and optimization operation.
 
         """
-        self.xs = xs
-        # Optimization step
-        self.optimizer.optimize(
-            loss=self.loss, variables=self.get_trainable_variables
-        )
+        with tf.GradientTape() as gg:
+            total_loss = self.loss(xs)
+
+        with tf.name_scope("optimization"):
+            gradients = gg.gradient(total_loss, self.trainable_variables)
+            grads_and_vars = list(zip(gradients, self.trainable_variables))
+            self.optimizer.optimize(grads_and_vars)
 
         return
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(
+            self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor]
+    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """Encoding Step for VAE.
 
         Args:
