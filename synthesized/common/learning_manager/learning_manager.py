@@ -30,13 +30,14 @@ class LearningManager:
         >>>         break
 
     """
-    def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
-                 checkpoint_path: str = None, max_training_time: float = None,
-                 n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
-                 tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
-                 stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
-                 use_engine_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
-                 ):
+    def __init__(
+            self, check_frequency: int = 100, use_checkpointing: bool = True,
+            checkpoint_path: str = None, max_training_time: float = None,
+            n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
+            tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
+            stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
+            use_engine_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+    ):
         """Initialize LearningManager.
 
         Args:
@@ -103,8 +104,9 @@ class LearningManager:
         self.check_frequency = int(1e3 / np.sqrt(batch_size))
         logger.debug("LearningManager :: check_frequency updated to {}".format(self.check_frequency))
 
-    def stop_learning_check_metric(self, iteration: int, stop_metric: Union[Dict[str, List[float]], float]
-                                   ) -> bool:
+    def stop_learning_check_metric(
+            self, iteration: int, stop_metric: Union[Dict[str, List[float]], float]
+    ) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
 
         Args:
@@ -205,8 +207,10 @@ class LearningManager:
 
         return False
 
-    def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 df_meta: DataFrameMeta, column_names: Optional[List[str]] = None) -> bool:
+    def stop_learning_check_data(
+            self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+            df_meta: DataFrameMeta, column_names: Optional[List[str]] = None
+    ) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -277,21 +281,22 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = tf.random.uniform(
-            shape=(self.sample_size,), maxval=list([x for val in data_dict.values() for x in val])[0].shape[0],
-            dtype=tf.int64
-        )
-        feed_dict = {name: [tf.nn.embedding_lookup(params=x, ids=batch_valid) for x in value_data]
-                     for name, value_data in data_dict.items()}
-
-        losses = synthesizer.get_losses(data=feed_dict)
-        losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
+        # TODO: Implement this in tensorflow for larger validation batch sizes.
+        # batch_valid = tf.random.uniform(
+        #     shape=(self.sample_size,), maxval=list([x for val in data_dict.values() for x in val])[0].shape[0],
+        #     dtype=tf.int64
+        # )
+        # feed_dict = {name: tf.nn.embedding_lookup(params=x, ids=batch_valid)
+        #              for name, x in data_dict.items()}
+        losses = synthesizer.get_losses()
+        losses = {k: [v.numpy()] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
         return self.stop_learning_check_metric(iteration, losses)
 
-    def stop_learning(self, iteration: int, synthesizer: Synthesizer,
-                      data_dict: Dict[str, List[tf.Tensor]] = None, num_data: int = None,
-                      df_train_orig: pd.DataFrame = None
-                      ) -> bool:
+    def stop_learning(
+            self, iteration: int, synthesizer: Synthesizer,
+            data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
+            df_train_orig: pd.DataFrame = None
+    ) -> bool:
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return
         accordingly.
 

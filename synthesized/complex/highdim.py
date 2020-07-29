@@ -90,9 +90,12 @@ class HighDimSynthesizer(Synthesizer):
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
+        if data is not None:
+            self.engine.loss(data)
+
         losses = {
-            'total-loss': self.engine.kl_loss+self.engine.regularization_loss+self.engine.reconstruction_loss,
+            'total-loss': self.engine.total_loss,
             'kl-loss': self.engine.kl_loss,
             'regularization-loss': self.engine.regularization_loss,
             'reconstruction-loss': self.engine.reconstruction_loss
@@ -109,17 +112,17 @@ class HighDimSynthesizer(Synthesizer):
         return spec
 
     def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        df = self.df_meta.preprocess(df, max_workers=max_workers)
-        return df
+        """Returns a preprocessed copy of the given DataFrame."""
+        return self.df_meta.preprocess(df, max_workers=max_workers)
 
     def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
         df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
     def learn(
-        self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, low_memory: bool = False
+            self, df_train: pd.DataFrame, num_iterations: Optional[int],
+            callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
+            callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -143,75 +146,65 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.set_check_frequency(self.batch_size)
 
         num_data = len(df_train)
+        df_train_pre = self.preprocess(df_train)
+        feed_dict = self.get_data_feed_dict(df_train_pre)
 
-        if not low_memory:
-            df_train = df_train.copy()
-            df_train_pre = self.preprocess(df_train.copy())
-        else:
-            sample_size_lm = min(self.learning_manager.sample_size,
-                                 num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
+        dataset = tf.data.Dataset.from_tensor_slices(
+            feed_dict
+        ).shuffle(buffer_size=num_data, reshuffle_each_iteration=True).repeat(count=None)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
-            iteration = 1
+            iteration = 0
             while keep_learning:
-                batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
+                train = dataset.batch(self.batch_size).prefetch(2)
+                for xs in train:
+                    # Increment iteration number, and check if we reached max num_iterations
+                    self.global_step.assign_add(1)
+                    iteration += 1
+                    if num_iterations:
+                        keep_learning = iteration <= num_iterations
+                    if keep_learning is False:
+                        break
 
-                if low_memory:
-                    feed_dict = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
-                else:
-                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch])
+                    if callback is not None and callback_freq > 0 and (
+                        iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                    ):
+                        if self.writer is not None and iteration == 1:
+                            tf.summary.trace_on(graph=True, profiler=False)
+                            self.engine.learn(xs=xs)
+                            tf.summary.trace_export(name="Learn", step=self.global_step)
+                            tf.summary.trace_off()
+                        else:
+                            self.engine.learn(xs=xs)
 
-                if callback is not None and callback_freq > 0 and (
-                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
-                ):
-                    if self.writer is not None and iteration == 1:
-                        tf.summary.trace_on(graph=True, profiler=False)
-                        self.vae.learn(xs=feed_dict)
-                        tf.summary.trace_export(name="Learn", step=self.global_step)
-                        tf.summary.trace_off()
+                        losses = self.get_losses()
+                        if callback(self, iteration, losses) is True:
+                            return
                     else:
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=xs)
 
-                    if callback(self, iteration, self.vae.losses) is True:
-                        return
-                else:
-                    self.vae.learn(xs=feed_dict)
-
-                if self.learning_manager:
-                    if low_memory:
-                        batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
-                        data = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
-                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                               data_dict=data, num_data=num_data,
-                                                               df_train_orig=df_train.sample(sample_size_lm)):
-                            break
-                    else:
-                        data = self.get_data_feed_dict(df_train_pre)
-                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                               data_dict=data, num_data=num_data,
-                                                               df_train_orig=df_train):
-                            break
-
-                # Increase batch size
-                tf.summary.scalar(name='batch_size', data=self.batch_size)
-                if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
-                        iteration % self.increase_batch_size_every == 0:
-                    self.batch_size *= 2
-                    if self.batch_size > self.max_batch_size:
-                        self.batch_size = self.max_batch_size
-                    if self.batch_size == self.max_batch_size:
-                        logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                     if self.learning_manager:
-                        self.learning_manager.set_check_frequency(self.batch_size)
-                    logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
+                        if self.learning_manager.stop_learning(
+                                iteration, synthesizer=self, data_dict=feed_dict,
+                                num_data=num_data, df_train_orig=df_train
+                        ):
+                            keep_learning = False
+                            break
 
-                # Increment iteration number, and check if we reached max num_iterations
-                iteration += 1
-                if num_iterations:
-                    keep_learning = iteration < num_iterations
+                    # Increase batch size
+                    tf.summary.scalar(name='batch_size', data=self.batch_size)
+                    if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
+                            iteration % self.increase_batch_size_every == 0:
+                        self.batch_size *= 2
+                        if self.batch_size > self.max_batch_size:
+                            self.batch_size = self.max_batch_size
 
-                self.global_step.assign_add(1)
+                        if self.batch_size == self.max_batch_size:
+                            logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
+                        if self.learning_manager:
+                            self.learning_manager.set_check_frequency(self.batch_size)
+                        break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
@@ -297,8 +290,9 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
-            -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def encode(
+            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
 
         Args:

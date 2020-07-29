@@ -39,11 +39,6 @@ class SeriesSynthesizer(Synthesizer):
         if config.lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
         self.lstm_mode = config.lstm_mode
-
-        # if identifier_label:
-        #     min_len = df.groupby(identifier_label).count().min().values[0]
-        #     max_seq_len = min(max_seq_len, min_len)
-
         self.max_seq_len = config.max_seq_len
 
         self.batch_size = config.batch_size
@@ -247,10 +242,9 @@ class SeriesSynthesizer(Synthesizer):
             conditions: Conditions.
             progress_callback: Progress bar callback.
 
-        else:
-            raise ValueError("Both 'num_series' and 'series_lengths' are None. One or the other is require to"
-                             "synthesize data.")
-
+        Returns: Synthesized dataframe.
+        """
+        series_length = num_rows
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
         columns = self.df_meta.columns
 
@@ -261,12 +255,8 @@ class SeriesSynthesizer(Synthesizer):
         if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
             raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
-        print(f'num_series: {num_series}, series_lengths: {series_length}')
-
         with record_summaries_every_n_global_steps(0, self.global_step):
             for identifier in random.sample(range(num_series), num_series):
-                print('synthesizing series.')
-                series_length = series_lengths[identifier]
                 tf_identifier = tf.constant([identifier])
                 other = self.engine.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
                                                identifier=tf_identifier)
@@ -304,7 +294,7 @@ class SeriesSynthesizer(Synthesizer):
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
 
             if self.df_meta.id_index:
-                identifier = feed_dict[self.df_meta.id_index][0]
+                identifier = feed_dict[self.df_meta.id_index]
                 decoded_i[self.df_meta.id_index] = tf.tile([identifier], [num_data[i] + n_forecast])
 
             if not encoded or not decoded:
