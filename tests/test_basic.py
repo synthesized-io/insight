@@ -6,6 +6,9 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.config import HighDimConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
@@ -54,8 +57,11 @@ def test_unittest_dataset_quick():
 def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv').dropna()
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=5000, df_train=df_original)
+    conf = HighDimConfig(learning_manager=True)
+    with HighDimSynthesizer(df_meta=df_meta, config=conf) as synthesizer:
+        logger.info("LEARN")
+        synthesizer.learn(num_iterations=None, df_train=df_original, callback_freq=0, callback=lambda a, b, c: False)
+        logger.info("SYNTHESIZE")
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
         assert len(df_synthesized) == len(df_original)
 

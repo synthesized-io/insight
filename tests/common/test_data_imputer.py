@@ -47,7 +47,7 @@ def test_continuous_outliers_imputation():
     })
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=500, df_train=df_original)
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
     df_synthesized = data_imputer.impute_outliers(df_original, outliers_percentile=0.05)
