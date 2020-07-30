@@ -73,7 +73,7 @@ def test_series_rdssm():
     df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
+        df_synthesized1 = synthesizer.synthesize(num_rows=100, num_series=2)
 
     assert len(df_synthesized1) == 200
 
