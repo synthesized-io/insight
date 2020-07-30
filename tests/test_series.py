@@ -13,11 +13,9 @@ def test_series_basic():
     df_meta = MetaExtractor.extract(df=df_original)
     with SeriesSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
-        df_synthesized2 = synthesizer.synthesize(series_lengths=[100, 50])
+        df_synthesized1 = synthesizer.synthesize(num_rows=100, num_series=2)
 
     assert len(df_synthesized1) == 200
-    assert len(df_synthesized2) == 150
 
 
 @pytest.mark.integration
@@ -29,7 +27,7 @@ def test_series_synthesis_identifier():
     df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=3)
+        df_synthesized1 = synthesizer.synthesize(num_rows=100, num_series=3)
 
     assert len(df_synthesized1) == 300
     assert df_synthesized1['c'].nunique() == 3
@@ -45,7 +43,7 @@ def test_series_lstm():
     df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
+        df_synthesized1 = synthesizer.synthesize(num_rows=100, num_series=2)
 
     assert len(df_synthesized1) == 200
 
@@ -60,7 +58,7 @@ def test_series_basic_vrae():
     df_meta = MetaExtractor.extract(df=df_original, id_index='c', time_index='t')
     with SeriesSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized1 = synthesizer.synthesize(series_length=100, num_series=2)
+        df_synthesized1 = synthesizer.synthesize(num_rows=100, num_series=2)
 
     assert len(df_synthesized1) == 200
 
