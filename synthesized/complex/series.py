@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common.values import Value, ValueFactory, IdentifierValue
+from ..common.values import Value, ValueFactory
 from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
@@ -89,8 +89,9 @@ class SeriesSynthesizer(Synthesizer):
     def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
         return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
-        # total_loss = self.engine.loss(data)
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
+        if data is not None:
+            self.engine.loss(data)
         losses = {
             'total-loss': self.engine.total_loss,
             'kl-loss': self.engine.kl_loss,

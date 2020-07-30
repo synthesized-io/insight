@@ -151,7 +151,7 @@ class Synthesizer(tf.Module):
 
         return feed_dict
 
-    def get_losses(self, data) -> tf.Tensor:
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         raise NotImplementedError()
 
     def preprocess(self, df):
