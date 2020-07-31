@@ -11,6 +11,7 @@ import tensorflow as tf
 
 from ..common.values import Value
 from ..metadata import ValueMeta
+from ..version import versionadded
 
 
 def _check_license():
@@ -52,6 +53,7 @@ if not _check_license():
     raise Exception('Failed to load license key')
 
 
+@versionadded('1.0.0')
 class Synthesizer(tf.Module):
     def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
         super(Synthesizer, self).__init__(name=name)
@@ -163,6 +165,7 @@ class Synthesizer(tf.Module):
         print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
         return False
 
+    @versionadded('1.0.0')
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
@@ -182,6 +185,7 @@ class Synthesizer(tf.Module):
         """
         raise NotImplementedError
 
+    @versionadded('1.0.0')
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
             progress_callback: Callable[[int], None] = None

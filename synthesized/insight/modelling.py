@@ -9,6 +9,7 @@ an R^2 value for a regression task; And when the y_label is a categorical value,
 for a binary/multinomial classification task.
 """
 from typing import Union, Dict, List, Type, Optional, cast
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
@@ -34,8 +35,9 @@ from sklearn.svm import LinearSVC
 
 from .dataset import categorical_or_continuous_values
 from ..metadata import MetaExtractor, CategoricalMeta, ValueMeta
+from ..version import versionadded
 
-
+#  TODO: Make the keys Enum members.
 CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
     'Linear': RidgeClassifier,
     'Logistic': LogisticRegression,
@@ -59,6 +61,7 @@ MAX_ANALYSIS_SAMPLE_SIZE = 10_000
 RANDOM_SEED = 42
 
 
+@versionadded('1.0.0')
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 
@@ -120,6 +123,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
     return score, metric, task
 
 
+@versionadded('1.0.0')
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
                                     y_label: str, x_labels: List[str], model: str):
     score, synth_score, metric, task = None, None, None, None

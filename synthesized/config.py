@@ -3,8 +3,11 @@ from typing import Union, List, Optional, Callable
 from dataclasses import dataclass, fields
 import pandas as pd
 
+from .version import versionadded
+
 
 @dataclass
+@versionadded('1.0.0')
 class AddressParams:
     postcode_label: Union[str, List[str], None] = None
     county_label: Union[str, List[str], None] = None
@@ -17,6 +20,7 @@ class AddressParams:
 
 
 @dataclass
+@versionadded('1.0.0')
 class AddressMetaConfig:
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
 
@@ -26,6 +30,7 @@ class AddressMetaConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class BankParams:
     bic_label: Union[str, List[str], None] = None
     sort_code_label: Union[str, List[str], None] = None
@@ -33,12 +38,14 @@ class BankParams:
 
 
 @dataclass
+@versionadded('1.0.0')
 class CompoundAddressParams:
     address_label: Optional[str] = None
     postcode_regex: Optional[str] = None
 
 
 @dataclass
+@versionadded('1.0.0')
 class PersonParams:
     title_label: Union[str, List[str], None] = None
     gender_label: Union[str, List[str], None] = None
@@ -52,6 +59,7 @@ class PersonParams:
 
 
 @dataclass
+@versionadded('1.0.0')
 class PersonMetaConfig:
     dict_cache_size: int = 10000
 
@@ -61,6 +69,7 @@ class PersonMetaConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
     categorical_threshold_log_multiplier: float = 2.5
     parsing_nan_fraction_threshold: float = 0.25
@@ -71,6 +80,7 @@ class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
 
 
 @dataclass
+@versionadded('1.0.0')
 class CategoricalConfig:
     categorical_weight: float = 3.5
     temperature: float = 1.0
@@ -82,6 +92,7 @@ class CategoricalConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class ContinuousConfig:
     continuous_weight: float = 5.0
 
@@ -91,6 +102,7 @@ class ContinuousConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class DecomposedContinuousConfig(ContinuousConfig):
     low_freq_weight: float = 1.0
     high_freq_weight: float = 1.0
@@ -103,6 +115,7 @@ class DecomposedContinuousConfig(ContinuousConfig):
 
 
 @dataclass
+@versionadded('1.0.0')
 class IdentifierConfig:
     capacity: int = 128
 
@@ -112,6 +125,7 @@ class IdentifierConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class NanConfig:
     nan_weight: float = 1.0
 
@@ -121,6 +135,7 @@ class NanConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
     produce_nans: bool = False
@@ -131,6 +146,7 @@ class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, Decompo
 
 
 @dataclass
+@versionadded('1.0.0')
 class LearningManagerConfig:
     """
     max_training_time: Maximum training time in seconds (LearningManager)
@@ -161,6 +177,7 @@ class LearningManagerConfig:
 
 
 @dataclass
+@versionadded('1.0.0')
 class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     """
     distribution: Distribution type: "normal".
@@ -178,11 +195,10 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     initial_boost: Number of steps for initial x10 learning rate boost.
     clip_gradients: Gradient norm clipping.
     batch_size: Batch size.
-    beta: VAE KL-loss beta.
+    beta: beta.
     weight_decay: Weight decay.
     learning_manager: Whether to use LearningManager.
     """
-    # VAE distribution
     distribution: str = 'normal'
     latent_size: int = 32
     # Network
@@ -211,6 +227,7 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
 
 
 @dataclass
+@versionadded('1.0.0')
 class SeriesConfig(ValueFactoryConfig, LearningManagerConfig):
     """
     distribution: Distribution type: "normal".
@@ -228,11 +245,10 @@ class SeriesConfig(ValueFactoryConfig, LearningManagerConfig):
     initial_boost: Number of steps for initial x10 learning rate boost.
     clip_gradients: Gradient norm clipping.
     batch_size: Batch size.
-    beta: VAE KL-loss beta.
+    beta: beta.
     weight_decay: Weight decay.
     learning_manager: Whether to use LearningManager.
     """
-    # VAE distribution
     distribution: str = 'normal'
     latent_size: int = 128
     # Network

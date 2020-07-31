@@ -7,11 +7,15 @@ import gc
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from ..common.synthesizer import Synthesizer
-from ..common.values import ContinuousValue, CategoricalValue, NanValue
+from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
+from ..metadata import ValueMeta
+from ..version import versionadded
 
 
+@versionadded('1.0.0')
 class ConditionalSampler(Synthesizer):
     """Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
 
@@ -36,7 +40,13 @@ class ConditionalSampler(Synthesizer):
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
             synthesis_batch_size: Synthesis batch size
         """
+        super().__init__(name='conditional')
         self.synthesizer = synthesizer
+        self.global_step = synthesizer.global_step
+        self.logdir = synthesizer.logdir
+        self.loss_history = synthesizer.loss_history
+        self.writer = synthesizer.writer
+
         self._validate_explicit_marginals(explicit_marginals)
 
         # For simplicity let's store distributions in a dict where key is a column:
@@ -61,12 +71,14 @@ class ConditionalSampler(Synthesizer):
         self.min_sampled_ratio = min_sampled_ratio
         self.synthesis_batch_size = synthesis_batch_size
 
+    @versionadded('1.0.0')
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
+    @versionadded('1.0.0')
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
@@ -184,6 +196,21 @@ class ConditionalSampler(Synthesizer):
                     elif category not in categories:
                         raise ValueError("Category '{}' for column '{}' not found in learned data. Available options "
                                          "are: '{}'".format(category, col, ', '.join(categories)))
+
+    def get_values(self) -> List[Value]:
+        return self.synthesizer.get_values()
+
+    def get_conditions(self) -> List[Value]:
+        return self.synthesizer.get_conditions()
+
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return self.synthesizer.get_value_meta_pairs()
+
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return self.synthesizer.get_condition_meta_pairs()
+
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
+        return self.synthesizer.get_losses()
 
 
 class FloatEndpoint(ABC):

@@ -25,10 +25,12 @@ from .person import PersonMeta
 from .sampling import SamplingMeta
 from .value_meta import ValueMeta
 from ..config import MetaExtractorConfig, AddressParams, BankParams, CompoundAddressParams, PersonParams
+from ..version import versionadded
 
 logger = logging.getLogger(__name__)
 
 
+@versionadded('1.0.0')
 class TypeOverride(enum.Enum):
     ID = 'ID'
     DATE = 'DATE'
@@ -37,11 +39,13 @@ class TypeOverride(enum.Enum):
     ENUMERATION = 'ENUMERATION'
 
 
+@versionadded('1.0.0')
 class MetaExtractor:
     def __init__(self, config: MetaExtractorConfig = MetaExtractorConfig()):
         self.config = config
 
     @classmethod
+    @versionadded('1.0.0')
     def extract(
             cls, df: pd.DataFrame, config: MetaExtractorConfig = MetaExtractorConfig(),
             id_index: str = None, time_index: str = None,
@@ -63,6 +67,7 @@ class MetaExtractor:
         )
         return dataframe_meta
 
+    @versionadded('1.0.0')
     def extract_dataframe_meta(
             self, df: pd.DataFrame, id_index: str = None, time_index: str = None,
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,

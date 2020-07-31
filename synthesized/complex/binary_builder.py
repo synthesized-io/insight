@@ -6,6 +6,8 @@ import lzma
 import pickle
 import zlib
 
+from ..version import versionadded
+
 
 class BinarySerializeException(Exception):
     """Base exception class for binary serializing errors"""
@@ -15,11 +17,13 @@ class BinaryDeserializeException(Exception):
     """Base exception class for binary deserializing errors"""
 
 
+@versionadded('1.0.0')
 class BinaryType(enum.Enum):
     MODEL = 'model'
     DATASET = 'dataset'
 
 
+@versionadded('1.0.0')
 class CompressionType(enum.Enum):
     ZLIB = 'zlib'
     GZIP = 'gzip'
@@ -27,6 +31,7 @@ class CompressionType(enum.Enum):
     NONE = 'none'
 
 
+@versionadded('1.0.0')
 class Binary:
     """Initializes an instance of the Binary with passed params.
 
@@ -58,6 +63,7 @@ class Binary:
         if body is not None:
             self._set_body(body)
 
+    @versionadded('1.0.0')
     def serialize(self, fp: BinaryIO):
         """Pickle body and metadata then store in binary file.
 
@@ -82,6 +88,7 @@ class Binary:
 
         fp.write(binary)
 
+    @versionadded('1.0.0')
     def deserialize(self, fp: BinaryIO):
         """Populate binary object from binary file.
 
@@ -106,6 +113,7 @@ class Binary:
             self.author = meta_data.get('author', None)
             self.creation_date = meta_data.get('creation_date', None)
 
+    @versionadded('1.0.0')
     def get_body(self) -> bytes:
         """Uncompress and retrieve body bytes of binary."""
         assert isinstance(self.body, bytes)
@@ -132,15 +140,18 @@ class Binary:
             body = lzma.compress(body)
         self.body = body
 
+    @versionadded('1.0.0')
     def get_id(self):
         return f"{self.author}_{self.creation_date.strftime('%m-%d-%Y-%H-%M-%S')}"
 
 
+@versionadded('1.0.0')
 class ModelBinary(Binary):
     def __init__(self, *args, **kwargs):
         super().__init__(binary_type=BinaryType.MODEL, *args, **kwargs)
 
 
+@versionadded('1.0.0')
 class DatasetBinary(Binary):
     def __init__(self, *args, **kwargs):
         super().__init__(binary_type=BinaryType.DATASET, *args, **kwargs)
