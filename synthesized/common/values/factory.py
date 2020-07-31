@@ -192,8 +192,10 @@ class ValueFactory:
         for i in range(variables['num_conditions']):
             self.values.append(Value.set_variables(variables['condition_{}'.format(i)]))
 
+    @staticmethod
+    def from_dict(dict_: dict):
+        vf = ValueFactory.__new__(ValueFactory)
+        vf.name = 'value_factory'
+        vf.set_variables(dict_)
 
-class ValueFactoryWrapper(ValueFactory):
-    def __init__(self, name: str, variables: Dict[str, Any]):
-        self.name = name
-        self.set_variables(variables)
+        return ValueFactory
