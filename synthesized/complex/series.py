@@ -17,7 +17,6 @@ from ..config import SeriesConfig
 from ..metadata import DataFrameMeta, ValueMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class SeriesSynthesizer(Synthesizer):
