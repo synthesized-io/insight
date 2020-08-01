@@ -1,77 +1,50 @@
-import textwrap
-import wrapt
-from deprecated.classic import ClassicAdapter, deprecated as _deprecated
+import functools
 
 __version__ = '1.0.0'
 
 
-class DocStringAdapter(ClassicAdapter):
+class DocStringDecorator:
     """"""
-
-    def __init__(self, directive, reason="", version="", action=None, category=DeprecationWarning):
+    def __init__(self, version: str, directive: str):
+        self.version = version
         self.directive = directive
-        super().__init__(
-            reason=reason, version=version, action=action, category=category
-        )
 
-    def __call__(self, wrapped):
-        if self.directive == 'version_changed' and self.version == __version__:
-            # TODO: Show some alert that the api to this class/function has changed.
-            pass
+    def __call__(self, func):
+        docstring = func.__doc__ or ""
 
-        reason = textwrap.dedent(self.reason).strip()
-        reason = '\n'.join(
-            textwrap.fill(line, width=70, initial_indent='   ', subsequent_indent='   ') for line in reason.splitlines()
-        ).strip()
-        docstring = textwrap.dedent(wrapped.__doc__ or "")
         if docstring:
-            docstring += "\n\n"
+            docstring += "\n"
 
         docstring += "    {directive}: {version}\n".format(
             directive=self.directive.replace('_', ' ').title(),
             version=self.version
         )
-        if reason:
-            docstring += "        {reason}\n".format(reason=reason)
 
-        wrapped.__doc__ = docstring
-        setattr(wrapped, f'_{self.directive}', self.version)
-        return super().__call__(wrapped)
+        func.__doc__ = docstring
+        setattr(func, f'_{self.directive}', self.version)
 
+        if isinstance(func, type):
+            wrapper = func
 
-def versionadded(version, reason=""):
-    adapter = DocStringAdapter('version_added', reason=reason, version=version)
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwds):
+                f_result = func(*args, **kwds)
+                return f_result
 
-    # noinspection PyUnusedLocal
-    @wrapt.decorator(adapter=adapter)
-    def wrapper(wrapped, instance, args, kwargs):
-        return wrapped(*args, **kwargs)
-
-    return wrapper
+        return wrapper
 
 
-def versionchanged(version, reason=""):
-    adapter = DocStringAdapter('version_changed', reason=reason, version=version)
-
-    # noinspection PyUnusedLocal
-    @wrapt.decorator(adapter=adapter)
-    def wrapper(wrapped, instance, args, kwargs):
-        return wrapped(*args, **kwargs)
-
-    return wrapper
+class versionadded(DocStringDecorator):
+    def __init__(self, version: str):
+        super().__init__(version, directive='version_added')
 
 
-def deprecated(version, reason=""):
-    """
-    This decorator can be used to insert a "deprecated" directive in your function/class docstring in order to
-    documents the version of the project which deprecates this functionality in your library.
+class versionchanged(DocStringDecorator):
+    def __init__(self, version: str):
+        super().__init__(version, directive='version_changed')
 
-    Args:
-        version: Version of your project which deprecates this feature. The version number has the
-            format "MAJOR.MINOR.PATCH".
-        reason: Reason message which documents the deprecation in your library (can be omitted).
 
-    """
-    directive = 'deprecated'
-    adapter_cls = DocStringAdapter
-    return _deprecated(version=version, reason=reason, directive=directive, adapter_cls=adapter_cls)
+class deprecated(DocStringDecorator):
+    def __init__(self, version: str):
+        super().__init__(version, directive='deprecated')
