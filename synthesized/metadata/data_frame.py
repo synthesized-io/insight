@@ -39,7 +39,6 @@ class DataFrameMeta:
         self._value_map = value_map
 
     @property
-    @versionadded('1.0.0')
     def all_values(self) -> List[ValueMeta]:
         values = self.values
 
