@@ -198,4 +198,4 @@ class ValueFactory:
         vf.name = 'value_factory'
         vf.set_variables(dict_)
 
-        return ValueFactory
+        return vf
