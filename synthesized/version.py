@@ -1,5 +1,3 @@
-import functools
-
 __version__ = '1.0.0'
 
 
@@ -23,16 +21,7 @@ class DocStringDecorator:
         func.__doc__ = docstring
         setattr(func, f'_{self.directive}', self.version)
 
-        if isinstance(func, type):
-            wrapper = func
-
-        else:
-            @functools.wraps(func)
-            def wrapper(*args, **kwds):
-                f_result = func(*args, **kwds)
-                return f_result
-
-        return wrapper
+        return func
 
 
 class versionadded(DocStringDecorator):
