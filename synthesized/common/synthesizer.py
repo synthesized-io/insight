@@ -5,7 +5,6 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Callable, Dict, Union, List, Optional, Any, Sequence
 
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -88,20 +87,16 @@ class Synthesizer(tf.Module):
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         raise NotImplementedError
 
-    def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
-        data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_conditions()
-            for name in value.learned_input_columns()
-        }
-        return data
-
     def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         raise NotImplementedError
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         raise NotImplementedError
 
-    def preprocess(self, df):
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     @staticmethod

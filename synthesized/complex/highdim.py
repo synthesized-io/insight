@@ -83,10 +83,10 @@ class HighDimSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+    def get_data_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
             value.name: tuple([
-                tf.constant(df[name])
+                tf.constant(df_conditions[name])
                 for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
             ])
             for value in self.get_all_values()
