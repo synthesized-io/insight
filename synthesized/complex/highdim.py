@@ -29,8 +29,8 @@ class HighDimSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, df_meta: DataFrameMeta, conditions: List[str] = None, summarizer_dir: str = None,
-        summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
+            self, df_meta: DataFrameMeta, conditions: List[str] = None, summarizer_dir: str = None,
+            summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -362,8 +362,10 @@ class HighDimSynthesizer(Synthesizer):
             conditions_dataset = None
 
         if conditions_dataset is not None:
+            encoded, decoded = None, None
             for cs in conditions_dataset.batch(num_rows).take(1):
                 encoded, decoded = self.engine.encode(xs=data, cs=cs)
+            assert encoded is not None and decoded is not None
         else:
             encoded, decoded = self.engine.encode(xs=data, cs=dict())
 
@@ -404,8 +406,10 @@ class HighDimSynthesizer(Synthesizer):
             conditions_dataset = None
 
         if conditions_dataset is not None:
+            decoded = None
             for cs in conditions_dataset.batch(num_rows).take(1):
                 decoded = self.engine.encode_deterministic(xs=data, cs=cs)
+            assert decoded is not None
         else:
             decoded = self.engine.encode_deterministic(xs=data, cs=dict())
 

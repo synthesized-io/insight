@@ -21,19 +21,19 @@ class HighDimEngine(Generative):
     hyperparameters.
     """
     def __init__(
-        self, name: str, values: List[Value], conditions: List[Value],
-        # Latent distribution
-        latent_size: int,
-        # Encoder and decoder network
-        network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]], batch_norm: bool,
-        activation: str,
-        # Optimizer
-        optimizer: str, learning_rate: float, decay_steps: Optional[int], decay_rate: Optional[float],
-        initial_boost: int, clip_gradients: float,
-        # Beta KL loss coefficient
-        beta: float,
-        # Weight decay
-        weight_decay: float
+            self, name: str, values: List[Value], conditions: List[Value],
+            # Latent distribution
+            latent_size: int,
+            # Encoder and decoder network
+            network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
+            batch_norm: bool, activation: str,
+            # Optimizer
+            optimizer: str, learning_rate: float, decay_steps: Optional[int], decay_rate: Optional[float],
+            initial_boost: int, clip_gradients: float,
+            # Beta KL loss coefficient
+            beta: float,
+            # Weight decay
+            weight_decay: float
     ):
         super(HighDimEngine, self).__init__(name=name, values=values, conditions=conditions)
 
@@ -101,9 +101,9 @@ class HighDimEngine(Generative):
         return spec
 
     @tensorflow_name_scoped
-    def loss(self, xs: Dict[str, Sequence[tf.Tensor]]):
+    def loss(self, xs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         if len(xs) == 0:
-            return dict(), tf.no_op()
+            return tf.constant(0, dtype=tf.float32)
 
         x = self.value_ops.unified_inputs(xs)
 
@@ -169,8 +169,9 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, Sequence[tf.Tensor]],
-               cs: Dict[str, Sequence[tf.Tensor]]) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
+    def encode(
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
+    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
@@ -191,8 +192,9 @@ class HighDimEngine(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
-    def _encode(self, x: tf.Tensor,
-                cs: Dict[str, Sequence[tf.Tensor]]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def _encode(
+            self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]
+    ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """Encoding Step for VAE.
 
         Args:
@@ -217,8 +219,9 @@ class HighDimEngine(Generative):
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
-    def encode_deterministic(self, xs: Dict[str, Sequence[tf.Tensor]],
-                             cs: Dict[str, Sequence[tf.Tensor]]) -> Dict[str, tf.Tensor]:
+    def encode_deterministic(
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
+    ) -> Dict[str, Sequence[tf.Tensor]]:
         """Deterministic encoding for VAE.
 
         Args:
@@ -226,7 +229,7 @@ class HighDimEngine(Generative):
             cs: Condition tensor per column.
 
         Returns:
-            Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
+            Dictionary of dictionary of output tensors per column
 
         """
         if len(xs) == 0:
