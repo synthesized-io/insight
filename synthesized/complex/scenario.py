@@ -8,9 +8,11 @@ import tensorflow as tf
 
 from ..common import Synthesizer, Distribution, Functional
 from ..common.values import Value
+from ..version import deprecated
 
 
 # TODO: Migrate to TensorFlow2
+@deprecated('1.0.0')
 class ScenarioSynthesizer(Synthesizer):
     """The scenario synthesizer implementation.
 
