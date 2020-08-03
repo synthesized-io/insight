@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, Sequence
 from math import log
 
 import tensorflow as tf
@@ -33,17 +33,19 @@ class ContinuousValue(Value):
         return 1
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
-        return xs
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        assert len(xs) == 1
+        x = tf.expand_dims(xs[0], axis=-1)
+        return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> tf.Tensor:
-        y = tf.reshape(y, shape=(-1, 1))
-        return y
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
+        y = tf.reshape(y, shape=(-1,))
+        return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: tf.Tensor, mask: tf.Tensor = None) -> tf.Tensor:
-        target = xs
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+        target = tf.expand_dims(xs[0], axis=-1)
 
         if mask is not None:
             target = tf.boolean_mask(tensor=target, mask=mask)
@@ -55,7 +57,7 @@ class ContinuousValue(Value):
         return loss
 
     @tensorflow_name_scoped
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+    def distribution_loss(self, ys: Sequence[tf.Tensor]) -> tf.Tensor:
         assert len(ys) == 1
 
         if self.distribution is None:

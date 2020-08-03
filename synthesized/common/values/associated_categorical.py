@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import tensorflow as tf
 
@@ -15,7 +15,7 @@ class AssociatedCategoricalValue(Value):
             self, values: List[CategoricalValue], associations: List[List[str]]
     ):
         super(AssociatedCategoricalValue, self).__init__(
-            name='|'.join([v.name for v in values])
+            name='|'.join([v.name for v in values]), meta_names=[name for value in values for name in value.meta_names]
         )
         self.values = values
         logger.debug("Creating Associated value with associations: ")
@@ -49,11 +49,11 @@ class AssociatedCategoricalValue(Value):
         return sum([v.learned_output_size() for v in self.values])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
-        return tf.concat([value.unify_inputs(xs[:, n:n+1]) for n, value in enumerate(self.values)], axis=-1)
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        return tf.concat([value.unify_inputs(xs[n:n+1]) for n, value in enumerate(self.values)], axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> tf.Tensor:
+    def output_tensors(self, y: tf.Tensor) -> Sequence[tf.Tensor]:
         """Outputs the bound categorical values."""
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -81,15 +81,15 @@ class AssociatedCategoricalValue(Value):
                 self.values[-n-1].num_categories
             ))
 
-        return tf.stack(ot[::-1], axis=-1)
+        return tuple(ot[::-1])
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
             axis=-1
         )
-        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[:, n:n+1]) for n, v in enumerate(self.values)], axis=None)
+        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n+1]) for n, v in enumerate(self.values)], axis=None)
 
 
 def tf_joint_probs(*args):

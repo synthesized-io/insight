@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union, Callable, Any
+from typing import Optional, Dict, List, Union, Callable, Any, Sequence
 
 import numpy as np
 import pandas as pd
@@ -264,7 +264,7 @@ class LearningManager:
                                              column_names=column_names, df_meta=synthesizer.df_meta)
 
     def stop_learning_engine_loss(
-            self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]
+            self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, Sequence[tf.Tensor]]
     ) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
@@ -294,7 +294,7 @@ class LearningManager:
 
     def stop_learning(
             self, iteration: int, synthesizer: Synthesizer,
-            data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
+            data_dict: Dict[str, Sequence[tf.Tensor]] = None, num_data: int = None,
             df_train_orig: pd.DataFrame = None
     ) -> bool:
         """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return

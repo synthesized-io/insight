@@ -1,6 +1,6 @@
 import logging
 from math import log
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Sequence, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -100,12 +100,12 @@ class CategoricalValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
-        return tf.nn.embedding_lookup(params=self.embeddings, ids=tf.squeeze(xs, axis=-1))
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> Sequence[tf.Tensor]:
         if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
@@ -126,13 +126,13 @@ class CategoricalValue(Value):
             else:
                 y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
-        y = tf.reshape(y_flat, shape=tf.concat(([-1], y.shape[1:-1], [1]), axis=0))
+        y = tf.reshape(y_flat, shape=tf.concat(([-1], y.shape[1:-1]), axis=0))
 
-        return y
+        return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
-        target = tf.squeeze(xs, axis=-1)
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None
             assert self.frequency is not None

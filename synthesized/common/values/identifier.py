@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 import tensorflow as tf
 
@@ -60,9 +60,9 @@ class IdentifierValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
-        x = tf.cast(tf.squeeze(xs, axis=-1), dtype=tf.int64)
+        x = tf.cast(xs[0], dtype=tf.int64)
         return tf.nn.embedding_lookup(params=self.embeddings, ids=x)
 
     @tensorflow_name_scoped

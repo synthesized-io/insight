@@ -3,14 +3,13 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional, Any, Tuple
+from typing import Callable, Dict, Union, List, Optional, Any, Sequence
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common.values import Value
-from ..metadata import ValueMeta
 from ..version import versionadded
 
 
@@ -86,23 +85,8 @@ class Synthesizer(tf.Module):
     def get_all_values(self) -> List[Value]:
         return self.get_values() + self.get_conditions()
 
-    @abstractmethod
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        raise NotImplementedError()
-
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
-        data = {
-            value.name: tf.stack(
-                [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
-                axis=-1
-            )
-            for value, meta in self.get_value_meta_pairs()
-        }
-        return data
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        raise NotImplementedError
 
     def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
         data = {
@@ -111,50 +95,11 @@ class Synthesizer(tf.Module):
         }
         return data
 
-    def get_conditions_feed_dict(
-            self, df_conditions: pd.DataFrame, num_rows: int, batch_size: Optional[int] = None
-    ) -> Dict[str, tf.Tensor]:
-
-        feed_dict = dict()
-
-        if not batch_size:
-            # Add conditions to 'feed_dict'
-            for value, meta in self.get_condition_meta_pairs():
-                for name in meta.learned_input_columns():
-                    if not(df_conditions[name].values.shape == (num_rows,) or df_conditions[name].values.shape == (1,)):
-                        print(df_conditions[name].values.shape)
-                        raise NotImplementedError
-
-                feed_dict[value.name] = tf.stack([
-                    np.tile(df_conditions[name].values, (num_rows,)) if df_conditions[name].values.shape == (1,)
-                    else df_conditions[name].values  # values.shape == (num_rows,)
-                    for name in meta.learned_input_columns()
-                ], axis=-1)
-
-        elif (num_rows % batch_size) != 0:
-            for value, meta in self.get_condition_meta_pairs():
-                feed_dict[value.name] = tf.stack([
-                    np.tile(df_conditions[name].values, (num_rows % batch_size,))
-                    if df_conditions[name].values.shape == (1,) else
-                    df_conditions[name].values[-num_rows % batch_size:]
-                    if df_conditions[name].values.shape == (num_rows,) else
-                    None
-                    for name in meta.learned_input_columns()
-                ],  axis=-1)
-                for x in feed_dict[value.name]:
-                    if x is None:
-                        raise NotImplementedError
-        else:
-            for value, meta in self.get_condition_meta_pairs():
-                feed_dict[value.name] = tf.stack([
-                    np.tile(df_conditions[name].values, (batch_size,))
-                    for name in meta.learned_input_columns() if df_conditions[name].values.shape == (1,)
-                ], axis=-1)
-
-        return feed_dict
+    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        raise NotImplementedError
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def preprocess(self, df):
         return df

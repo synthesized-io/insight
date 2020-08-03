@@ -10,7 +10,7 @@ class Transformation(tf.keras.layers.Layer):
         self.input_size = input_size
         self.output_size = output_size
         self._output: Optional[tf.Tensor] = None
-        self._regularization_losses: List[tf.Tensor] = list()
+        self._regularization_losses: List[Union[tf.Variable, tf.Tensor]] = list()
 
     def specification(self):
         spec = dict(

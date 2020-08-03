@@ -2,7 +2,7 @@ import logging
 import random
 import time
 from random import randrange
-from typing import Callable, List, Union, Dict, Optional, Tuple
+from typing import Callable, List, Union, Dict, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..config import SeriesConfig
-from ..metadata import DataFrameMeta, ValueMeta, IdentifierMeta
+from ..metadata import DataFrameMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
 
@@ -79,14 +79,28 @@ class SeriesSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_all_values()
+        }
+        return data
+
+    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df_conditions[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_conditions()
+        }
+        return data
+
     def get_all_values(self) -> List[Value]:
         return self.value_factory.all_values
-
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values]
-
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
         if data is not None:
@@ -99,25 +113,15 @@ class SeriesSynthesizer(Synthesizer):
         }
         return losses
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
-        data = {
-            value.name: tf.stack(
-                [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
-                axis=-1
-            )
-            for value, meta in self.get_value_meta_pairs()
-        }
-        return data
-
-    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, tf.Tensor]], List[int]]:
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, Sequence[tf.Tensor]]], List[int]]:
         if self.df_meta.id_index_name is None:
             num_data = [len(df)]
-            groups = [{
-                value.name: tf.stack(
-                    [tf.constant(df[name], dtype=value.dtype) for name in meta.learned_input_columns()],
-                    axis=-1
-                )
-                for value, meta in self.get_value_meta_pairs()
+            groups: List[Dict[str, Sequence[tf.Tensor]]] = [{
+                value.name: tuple([
+                    tf.constant(df[name])
+                    for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+                ])
+                for value in self.get_all_values()
             }]
 
         else:
@@ -125,17 +129,21 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: tf.stack([
-                        tf.constant(groups[n][name], dtype=value.dtype) for name in (
-                            meta.learned_input_columns() if not isinstance(meta, IdentifierMeta) else [meta.name]
+                    value.name: tuple([
+                        tf.constant(groups[n][name])
+                        for m_name in value.meta_names for name in (
+                            self.df_meta[m_name].learned_input_columns()
+                            if not isinstance(self.df_meta[m_name], IdentifierMeta) else [m_name]
                         )
-                    ], axis=-1)
-                    for value, meta in self.get_value_meta_pairs()
+                    ])
+                    for value in self.get_all_values()
                 }
 
         return groups, num_data
 
-    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None) -> Dict[str, tf.Tensor]:
+    def get_group_feed_dict(
+            self, groups: List[Dict[str, Sequence[tf.Tensor]]], num_data, max_seq_len=None, group=None
+    ) -> Dict[str, Sequence[tf.Tensor]]:
         group = group if group is not None else randrange(len(num_data))
         data = groups[group]
 
@@ -145,7 +153,13 @@ class SeriesSynthesizer(Synthesizer):
         else:
             batch = tf.range(num_data[group])
 
-        feed_dict = {name: tf.nn.embedding_lookup(params=val, ids=batch) for name, val in data.items()}
+        feed_dict: Dict[str, Sequence[tf.Tensor]] = {
+            name: tuple([
+                tf.nn.embedding_lookup(params=val, ids=batch)
+                for val in values
+            ])
+            for name, values in data.items()
+        }
 
         return feed_dict
 
@@ -186,8 +200,12 @@ class SeriesSynthesizer(Synthesizer):
                 feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=max_seq_len)
                               for _ in range(self.batch_size)]
                 # TODO: Code below will fail if sequences don't have same shape.
+
                 feed_dict = {
-                    value.name: tf.stack([fd[value.name] for fd in feed_dicts], axis=0)
+                    value.name: [
+                        tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
+                        for n in range(len(feed_dicts[0][value.name]))
+                    ]
                     for value in self.get_all_values()
                 }
 
@@ -248,7 +266,7 @@ class SeriesSynthesizer(Synthesizer):
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
         columns = self.df_meta.columns
 
-        feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
+        feed_dict = self.get_conditions_feed_dict(df_conditions)
         synthesized = None
 
         # Get identifiers to iterate

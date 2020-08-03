@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Sequence
 
 import numpy as np
 import pandas as pd
@@ -81,7 +81,7 @@ class DataFrameMeta:
         }
         return x
 
-    def split_outputs(self, outputs: Dict[str, Any]) -> Dict[str, np.ndarray]:
+    def split_outputs(self, outputs: Dict[str, Sequence[Any]]) -> Dict[str, np.ndarray]:
         # Concatenate input tensors per value
         values = self.values
         if self.id_value:
@@ -90,7 +90,7 @@ class DataFrameMeta:
             values = values + [self.time_value]
 
         x = self.convert_tf_to_np_dict({
-            col_name: outputs[vm.name][..., n]
+            col_name: outputs[vm.name][n]
             for vm in values
             for n, col_name in enumerate(
                 vm.learned_output_columns() if not isinstance(vm, IdentifierMeta)

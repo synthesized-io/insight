@@ -1,3 +1,5 @@
+from typing import Sequence
+
 import tensorflow as tf
 
 from .categorical import CategoricalValue
@@ -44,13 +46,13 @@ class DateValue(ContinuousValue):
         return super().learned_output_size()
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: tf.Tensor) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
-        xs0 = super().unify_inputs(xs=xs[:, 0: 1])
-        xs1 = self.hour.unify_inputs(xs=tf.cast(xs[:, 1: 2], dtype=tf.int64))
-        xs2 = self.dow.unify_inputs(xs=tf.cast(xs[:, 2: 3], dtype=tf.int64))
-        xs3 = self.day.unify_inputs(xs=tf.cast(xs[:, 3: 4], dtype=tf.int64))
-        xs4 = self.month.unify_inputs(xs=tf.cast(xs[:, 4: 5], dtype=tf.int64))
+        xs0 = super().unify_inputs(xs=xs[0: 1])
+        xs1 = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
+        xs2 = self.dow.unify_inputs(xs=tf.cast(xs[2: 3], dtype=tf.int64))
+        xs3 = self.day.unify_inputs(xs=tf.cast(xs[3: 4], dtype=tf.int64))
+        xs4 = self.month.unify_inputs(xs=tf.cast(xs[4: 5], dtype=tf.int64))
         return tf.concat(values=[xs0, xs1, xs2, xs3, xs4], axis=-1)
 
     # TODO: skip last and assume absolute value
@@ -66,7 +68,7 @@ class DateValue(ContinuousValue):
             self.built = True
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: tf.Tensor, mask: tf.Tensor = None) -> tf.Tensor:
-        xs = xs[:, 0:1]
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+        xs = xs[0:1]
         loss = super().loss(y=y, xs=xs)
         return loss

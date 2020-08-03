@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
 
 import tensorflow as tf
 
@@ -112,15 +112,15 @@ class SeriesEngine(Generative):
         )
         return spec
 
-    def loss(self, xs: Dict[str, tf.Tensor]):
+    def loss(self, xs: Dict[str, Sequence[tf.Tensor]]):
         if len(xs) == 0:
             return dict(), tf.no_op()
 
         x = self.value_ops.unified_inputs(xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(
-                xs=xs[self.identifier_label][:, 0, :]
-            )
+                xs=xs[self.identifier_label]
+            )[:, 0, :]
         else:
             identifier = None
 
@@ -160,7 +160,7 @@ class SeriesEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
+    def learn(self, xs: Dict[str, Sequence[tf.Tensor]]) -> None:
 
         with tf.GradientTape() as gg:
             total_loss = self.loss(xs)
@@ -172,8 +172,9 @@ class SeriesEngine(Generative):
 
         return
 
-    def encode(self, xs: Dict[str, tf.Tensor], cs: Dict[str, tf.Tensor], n_forecast: int = 0) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], n_forecast: int = 0
+    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         if len(xs) == 0:
             return dict(), tf.no_op()
 
@@ -192,7 +193,7 @@ class SeriesEngine(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tf.function
-    def _encode(self, x: tf.Tensor, cs: Dict[str, tf.Tensor], identifier: Optional[tf.Tensor],
+    def _encode(self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]], identifier: Optional[tf.Tensor],
                 n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
 
         x = self.linear_input(x)
@@ -207,8 +208,8 @@ class SeriesEngine(Generative):
         y = tf.squeeze(y, axis=0)
         return latent_space, mean, std, y
 
-    def synthesize(self, n: int, cs: Dict[str, tf.Tensor],
-                   identifier: tf.Tensor = None) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: int, cs: Dict[str, Sequence[tf.Tensor]],
+                   identifier: tf.Tensor = None) -> Dict[str, Sequence[tf.Tensor]]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y, conditions=cs, identifier=identifier)
 
@@ -216,7 +217,7 @@ class SeriesEngine(Generative):
 
     # @tf.function
     def _synthesize(
-            self, n: int, cs: Dict[str, tf.Tensor], identifier: tf.Tensor = None
+            self, n: int, cs: Dict[str, Sequence[tf.Tensor]], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:

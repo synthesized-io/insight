@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
 
 import tensorflow as tf
 
@@ -101,7 +101,7 @@ class HighDimEngine(Generative):
         return spec
 
     @tensorflow_name_scoped
-    def loss(self, xs: Dict[str, tf.Tensor]):
+    def loss(self, xs: Dict[str, Sequence[tf.Tensor]]):
         if len(xs) == 0:
             return dict(), tf.no_op()
 
@@ -146,7 +146,7 @@ class HighDimEngine(Generative):
         return total_loss
 
     @tf.function
-    def learn(self, xs: Dict[str, tf.Tensor]) -> None:
+    def learn(self, xs: Dict[str, Sequence[tf.Tensor]]) -> None:
         """Training step for the generative model.
 
         Args:
@@ -169,8 +169,8 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(self, xs: Dict[str, tf.Tensor],
-               cs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
+    def encode(self, xs: Dict[str, Sequence[tf.Tensor]],
+               cs: Dict[str, Sequence[tf.Tensor]]) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
@@ -192,7 +192,7 @@ class HighDimEngine(Generative):
 
     @tensorflow_name_scoped
     def _encode(self, x: tf.Tensor,
-                cs: Dict[str, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+                cs: Dict[str, Sequence[tf.Tensor]]) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """Encoding Step for VAE.
 
         Args:
@@ -217,8 +217,8 @@ class HighDimEngine(Generative):
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
-    def encode_deterministic(self, xs: Dict[str, tf.Tensor],
-                             cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def encode_deterministic(self, xs: Dict[str, Sequence[tf.Tensor]],
+                             cs: Dict[str, Sequence[tf.Tensor]]) -> Dict[str, tf.Tensor]:
         """Deterministic encoding for VAE.
 
         Args:
@@ -240,7 +240,7 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         """Encoding Step for VAE.
 
         Args:
@@ -264,7 +264,7 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def synthesize(self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> Dict[str, Sequence[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
@@ -276,12 +276,11 @@ class HighDimEngine(Generative):
 
         """
         y = self._synthesize(n=n, cs=cs)
-        print(cs)
         synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
 
         return synthesized
 
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def _synthesize(self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         """Generate the given number of instances.
 
         Args:
