@@ -46,7 +46,9 @@ class DataImputer(Synthesizer):
         to_impute_indexes = df[mask.sum(axis=1) > 0].index
         df_encoded = self.synthesizer.encode_deterministic(df.iloc[to_impute_indexes])
         df_encoded = df_encoded.set_index(to_impute_indexes)
-        df[mask] = df_encoded[mask]
+
+        for col in df.columns:
+            df.loc[to_impute_indexes, col] = df_encoded.loc[to_impute_indexes, col]
 
         return df
 
