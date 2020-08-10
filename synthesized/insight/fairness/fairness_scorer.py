@@ -16,7 +16,6 @@ from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +32,6 @@ class FairnessScorer:
             detect_sensitive: Whether to try to detect sensitive attributes from the column names.
             detect_hidden: Whether to try to detect sensitive attributes from hidden correlations with other sensitive
                 attributes.
-
         """
         self.df = df.copy()
         self.sensitive_attrs: List[str] = sensitive_attrs if isinstance(sensitive_attrs, list) else [sensitive_attrs]
@@ -71,7 +69,7 @@ class FairnessScorer:
         self.binarize_columns(self.df)
 
     @classmethod
-    def init_detect_sensitive(cls, df, target, n_bins: int = 5):
+    def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
         sensitive_attrs = cls.detect_sensitive_attrs(df.columns)
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
@@ -253,7 +251,8 @@ class FairnessScorer:
 
         return correlation_pairs
 
-    def difference_distance(self, df_count):
+    @staticmethod
+    def difference_distance(df_count: pd.DataFrame) -> pd.DataFrame:
         df_count = df_count.copy()
         df_count['Distance'] = 0.
         for idx in df_count.index:
@@ -262,7 +261,8 @@ class FairnessScorer:
         df_count.drop('Total', inplace=True)
         return df_count
 
-    def emd_distance(self, df_count):
+    @staticmethod
+    def emd_distance(df_count: pd.DataFrame) -> pd.DataFrame:
         emd_dist = []
         space = df_count.index.get_level_values(1).unique()
 
@@ -319,8 +319,7 @@ class FairnessScorer:
         return checks, VBox(box)
 
     def binarize_columns(self, df: pd.DataFrame):
-        columns = np.concatenate((self.sensitive_attrs, [self.target]))
-        for col in columns:
+        for col in self.sensitive_attrs_and_target:
             if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > 5:
                 df[col] = pd.qcut(df[col], q=self.n_bins, duplicates='drop').astype(str)
             else:

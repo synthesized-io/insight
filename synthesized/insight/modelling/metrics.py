@@ -80,7 +80,8 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     elif metrics is None:
         metrics = DEFAULT_CLASSIFICATION_METRICS
 
-    missing_metrics = list(filter(lambda m: m not in CLASSIFICATION_METRICS, metrics))
+    all_classification_metrics = np.concatenate((CLASSIFICATION_METRICS, CLASSIFICATION_PLOT_METRICS))
+    missing_metrics = list(filter(lambda m: m not in all_classification_metrics, metrics))
     if len(missing_metrics) > 0:
         raise ValueError("Can't compute following metrics: '{}'".format("', '".join(missing_metrics)))
 
@@ -260,7 +261,7 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
     if isinstance(axes, plt.Axes):
         axes = [axes]
     elif axes is None:
-        fig, axes = plt.subplots(1, len(metrics))
+        fig, axes = plt.subplots(1, len(metrics), figsize=(6 * len(metrics), 6))
         axes = [axes] if len(metrics) == 1 else axes
 
     if len(metrics) != len(axes):
@@ -278,7 +279,7 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
 
     if 'roc_curve' in metrics:
         metric = 'roc_curve'
-        ax = axes_dict[metric] if metric in axes_dict else plt.subplots(1, 1)[1]
+        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
 
         roc = scores['roc_curve']
         tpr, fpr, _ = roc
@@ -292,7 +293,7 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
 
     if 'pr_curve' in metrics:
         metric = 'pr_curve'
-        ax = axes_dict[metric] if metric in axes_dict else plt.subplots(1, 1)[1]
+        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
 
         pr = scores['pr_curve']
         prec, rec, _ = pr
@@ -306,7 +307,7 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
 
     if 'confusion_matrix' in metrics:
         metric = 'confusion_matrix'
-        ax = axes_dict[metric] if metric in axes_dict else plt.subplots(1, 1)[1]
+        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
 
         cm = scores['confusion_matrix']
         cm_norm = cm / np.sum(cm)
@@ -315,8 +316,8 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
         sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False, ax=ax)
 
         ax.set_title("Confusion Matrix")
-        ax.set_xlabel("Real")
-        ax.set_ylabel("Predicted")
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("Real")
 
 
 def _get_cm_annot(cm: np.array, cm_norm: np.array = None) -> List[List[str]]:
@@ -328,7 +329,7 @@ def _get_cm_annot(cm: np.array, cm_norm: np.array = None) -> List[List[str]]:
     for i in range(len(cm)):
         row = []
         for j in range(len(cm[i])):
-            row.append(f"{cm[i, j]} ({cm_norm[i, j] * 100:.2f}%)")
+            row.append(f"{cm[i, j]}\n({cm_norm[i, j] * 100:.2f}%)")
         cm_annot.append(row)
 
     return cm_annot

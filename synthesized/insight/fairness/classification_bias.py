@@ -10,7 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
-from ...testing.experiments import ExperimentalEstimator
+from ...testing import ExperimentalEstimator
 from ..modelling import ModellingPreprocessor
 from .sensitive_attributes import sensitive_attr_concat_name
 

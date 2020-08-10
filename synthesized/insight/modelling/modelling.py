@@ -155,7 +155,7 @@ def _preprocess_split_data(data: pd.DataFrame, response_variable: str, explanato
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=response_variable)
         preprocessor.fit(data)
-    elif preprocessor is not None and not preprocessor.is_fit:
+    elif preprocessor is not None and not preprocessor.is_fitted:
         preprocessor.fit(data)
 
     df_train_pre = preprocessor.transform(df_train)

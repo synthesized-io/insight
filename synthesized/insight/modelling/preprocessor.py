@@ -24,10 +24,10 @@ class ModellingPreprocessor:
 
         self.column_encoders: Dict[str, BaseEstimator] = dict()
 
-        self.is_fit: bool = False
+        self.is_fitted: bool = False
 
     def fit(self, data: pd.DataFrame):
-        if self.is_fit:
+        if self.is_fitted:
             logger.info("Preprocessor has already been fitted.")
             return
 
@@ -65,10 +65,10 @@ class ModellingPreprocessor:
             else:
                 logger.debug(f"Ignoring column {v.name} (type {v.__class__.__name__})")
 
-        self.is_fit = True
+        self.is_fitted = True
 
     def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        if not self.is_fit:
+        if not self.is_fitted:
             raise ValueError("Preprocessor has not been fit yet. Call 'fit()' before calling 'transform()'")
         assert self.dp is not None
 

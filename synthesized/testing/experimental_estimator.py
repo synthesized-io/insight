@@ -85,10 +85,10 @@ class ExperimentalEstimator:
             elif isinstance(v, CategoricalMeta):
                 x_i = column.values.reshape(-1, 1)
                 if v.name not in self.oh_encoders:
-                    self.oh_encoders[v.name] = OneHotEncoder(drop='first')
+                    self.oh_encoders[v.name] = OneHotEncoder(drop='first', sparse=False)
                     self.oh_encoders[v.name].fit(x_i)
 
-                x_i = self.oh_encoders[v.name].transform(column.values.reshape(-1, 1)).todense()
+                x_i = self.oh_encoders[v.name].transform(column.values.reshape(-1, 1))
                 c_name_i = ['{}_{}'.format(v.name, enc) for enc in self.oh_encoders[v.name].categories_[0][1:]]
 
             else:
@@ -151,8 +151,8 @@ class ExperimentalEstimator:
                     f_prob_test = f_prob_test.T[1]
                 elif f_prob_test.shape[1] > len(np.unique(y_test)):
                     f_prob_test = f_prob_test[:, np.unique(y_test).astype(int)]
-                    oh = OneHotEncoder()
-                    y_test_oh = oh.fit_transform(y_test.reshape(-1, 1)).todense()
+                    oh = OneHotEncoder(sparse=False)
+                    y_test_oh = oh.fit_transform(y_test.reshape(-1, 1))
 
             else:
                 logger.warning(f"Given classifier '{clf_name}' doesn't have 'predict_proba' attr, needed to compute "
@@ -189,8 +189,8 @@ class ExperimentalEstimator:
 
         return results
 
-    def preprocess_classify(self, original_data, other_dfs: Dict[str, pd.DataFrame], train_idx: np.array,
-                            test_idx: np.array, name_orig: Optional[str] = 'Original',
+    def preprocess_classify(self, original_data: pd.DataFrame, other_dfs: Dict[str, pd.DataFrame],
+                            train_idx: np.ndarray, test_idx: np.ndarray, name_orig: Optional[str] = 'Original',
                             classifiers: Dict[str, BaseEstimator] = None, metrics_to_compute: List[str] = None,
                             copy_clf: bool = True) -> pd.DataFrame:
 
