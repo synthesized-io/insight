@@ -12,10 +12,8 @@ import tensorflow as tf
 from ..common.synthesizer import Synthesizer
 from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
 from ..metadata import ValueMeta
-from ..version import versionadded
 
 
-@versionadded('1.0.0')
 class ConditionalSampler(Synthesizer):
     """Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
 
@@ -71,14 +69,12 @@ class ConditionalSampler(Synthesizer):
         self.min_sampled_ratio = min_sampled_ratio
         self.synthesis_batch_size = synthesis_batch_size
 
-    @versionadded('1.0.0')
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    @versionadded('1.0.0')
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,

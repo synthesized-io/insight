@@ -15,12 +15,11 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import Value, ValueFactory
 from ..config import HighDimConfig
-from ..version import __version__, versionadded
+from ..version import __version__
 
 logger = logging.getLogger(__name__)
 
 
-@versionadded('1.0.0')
 class HighDimSynthesizer(Synthesizer):
     """The main synthesizer implementation.
 
@@ -103,7 +102,6 @@ class HighDimSynthesizer(Synthesizer):
         }
         return data
 
-    @versionadded('1.0.0')
     def get_losses(self, data: Dict[str, Sequence[tf.Tensor]] = None) -> Dict[str, tf.Tensor]:
         if data is not None:
             self.engine.loss(data)
@@ -133,7 +131,6 @@ class HighDimSynthesizer(Synthesizer):
         df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
-    @versionadded('1.0.0')
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
@@ -221,7 +218,6 @@ class HighDimSynthesizer(Synthesizer):
                             self.learning_manager.set_check_frequency(self.batch_size)
                         break
 
-    @versionadded('1.0.0')
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
             progress_callback: Callable[[int], None] = None
@@ -336,7 +332,6 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    @versionadded('1.0.0')
     def encode(
             self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -380,7 +375,6 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_encoded, df_synthesized
 
-    @versionadded('1.0.0')
     def encode_deterministic(
             self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
     ) -> pd.DataFrame:
@@ -393,7 +387,6 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             Pandas DataFrame of decoded space corresponding to input data
         """
-        df_encode = df_encode.copy()
         df_encode = self.df_meta.preprocess(df=df_encode)
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
 
@@ -478,7 +471,6 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager = LearningManager()
             self.learning_manager.set_variables(variables['learning_manager'])
 
-    @versionadded('1.0.0')
     def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
         title = 'HighDimSynthesizer' if title is None else title
         description = None if title is None else description
@@ -495,7 +487,6 @@ class HighDimSynthesizer(Synthesizer):
         model_binary.serialize(fp)
 
     @staticmethod
-    @versionadded('1.0.0')
     def import_model(fp: BinaryIO):
 
         model_binary = ModelBinary()
@@ -509,7 +500,6 @@ class HighDimSynthesizer(Synthesizer):
         return HighDimSynthesizer.from_dict(variables)
 
     @staticmethod
-    @versionadded('1.0.0')
     def from_dict(dict_: dict, summarizer_dir: str = None, summarizer_name: str = None):
         synth = HighDimSynthesizer.__new__(HighDimSynthesizer)
         super(HighDimSynthesizer, synth).__init__(

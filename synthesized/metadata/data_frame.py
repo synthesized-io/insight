@@ -8,10 +8,8 @@ from .association import AssociationMeta
 from .value_meta import ValueMeta
 from .date import TimeIndexMeta
 from .identifier import IdentifierMeta
-from ..version import versionadded
 
 
-@versionadded('1.0.0')
 class DataFrameMeta:
     """A smart container for the various types of data sets."""
     def __init__(

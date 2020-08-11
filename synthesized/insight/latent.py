@@ -6,10 +6,8 @@ import pandas as pd
 
 from ..complex.highdim import HighDimSynthesizer, HighDimConfig
 from ..metadata import MetaExtractor
-from ..version import versionadded
 
 
-@versionadded('1.0.0')
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:
     logger = logging.getLogger()
     log_level = logger.level
@@ -27,7 +25,6 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.Dat
     return df_latent
 
 
-@versionadded('1.0.0')
 def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.DataFrame],
                      df_new: pd.DataFrame, **kwargs) -> float:
     """Returns a score representing the complexity of the data.
@@ -49,10 +46,9 @@ def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.Da
     return total_latent_space_usage(df_latent, usage_type='mean')
 
 
-@versionadded('1.0.0')
 def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> pd.DataFrame:
     if usage_type == 'stddev':
-        ldu = 1.0 - df_latent.filter(like='s', axis='columns').describe().loc['mean'].round(3).to_numpy()
+        ldu = 1.0 - (df_latent.filter(like='s', axis='columns')**2).describe().loc['mean'].round(3).to_numpy()
     elif usage_type == 'mean':
         ldu = df_latent.filter(like='m', axis='columns').describe().loc['std'].round(3).to_numpy()
     else:
@@ -65,7 +61,6 @@ def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') 
     return ldu.sort_values(by='usage').reset_index(drop=True)
 
 
-@versionadded('1.0.0')
 def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> float:
     ldu = latent_dimension_usage(df_latent=df_latent, usage_type=usage_type)
 

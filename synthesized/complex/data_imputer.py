@@ -8,12 +8,11 @@ import tensorflow as tf
 from ..common.values import Value
 from ..common import Synthesizer
 from ..metadata import ValueMeta
-from ..version import versionadded
+
 
 logger = logging.getLogger(__name__)
 
 
-@versionadded('1.0.0')
 class DataImputer(Synthesizer):
     """Imputes synthesized values for nans."""
 
@@ -38,7 +37,6 @@ class DataImputer(Synthesizer):
     def get_values(self) -> List[Value]:
         return self.synthesizer.get_values()
 
-    @versionadded('1.0.0')
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
         callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0
@@ -58,7 +56,6 @@ class DataImputer(Synthesizer):
 
         return df
 
-    @versionadded('1.0.0')
     def impute_nans(self, df: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
@@ -71,7 +68,6 @@ class DataImputer(Synthesizer):
         self._impute_mask(df, nans, inplace=True)
         return df
 
-    @versionadded('1.0.0')
     def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05,
                         inplace: bool = False) -> pd.DataFrame:
         if not inplace:
@@ -91,7 +87,6 @@ class DataImputer(Synthesizer):
         self._impute_mask(df, outliers, inplace=True)
         return df
 
-    @versionadded('1.0.0')
     def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
                    progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         return self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions)

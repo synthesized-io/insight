@@ -15,12 +15,10 @@ from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..config import SeriesConfig
 from ..metadata import DataFrameMeta, IdentifierMeta
-from ..version import deprecated
 
 logger = logging.getLogger(__name__)
 
 
-@deprecated('1.0.0')
 class SeriesSynthesizer(Synthesizer):
     def __init__(
         self, df_meta: DataFrameMeta, summarizer_dir: str = None, summarizer_name: str = None,
