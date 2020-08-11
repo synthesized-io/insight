@@ -75,7 +75,7 @@ def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev'
 
 
 def density(x, m, v):
-    d = (2.0*np.pi*v)**-0.5 * np.exp(-(x - m)**2 / v)
+    d = (2.0 * np.pi * v)**-0.5 * np.exp(-(x - m)**2 / v)
     return np.sum(d)
 
 
@@ -103,6 +103,6 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
         Y = np.array([density(x, m, v) / N for x in X])
         Y2 = np.array([density(x, m_orig, v_orig) / N2 for x in X])
 
-        KL.append(d*np.sum(Y * np.log(Y / Y2)))
+        KL.append(d * np.sum(Y * np.log(Y / Y2)))
 
     return np.sum(KL)

@@ -57,7 +57,7 @@ class TimeSeriesUtilityTesting:
         figsize = (width, height)
 
         fig = plt.figure(figsize=figsize)
-        gs = fig.add_gridspec(nrows=rows, ncols=1, left=.05, bottom=1/height, right=.95, top=(height-2)/height,
+        gs = fig.add_gridspec(nrows=rows, ncols=1, left=.05, bottom=1 / height, right=.95, top=(height - 2) / height,
                               wspace=0, hspace=.2)
 
         for i in range(len(self.continuous)):
@@ -70,7 +70,7 @@ class TimeSeriesUtilityTesting:
 
         for i in range(len(self.categorical)):
             col = self.categorical[i]
-            ax = fig.add_subplot(gs[i+len(self.continuous)])
+            ax = fig.add_subplot(gs[i + len(self.continuous)])
             ax.set_title(col, fontsize=16, pad=32)
             ax.set_axis_off()
             plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
@@ -141,7 +141,7 @@ def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
         return None
 
     auto_associations = []
-    for order in range(1, max_order+1):
+    for order in range(1, max_order + 1):
         postfix = variable[order:]
         prefix = variable[:-order]
         df_pre, df_post = pd.DataFrame({col: prefix}), pd.DataFrame({col: postfix})
@@ -152,15 +152,15 @@ def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
 def max_categorical_auto_association_distance(orig: pd.DataFrame, synth: pd.DataFrame, max_order=20):
     cats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
             if dtype.kind == "O"]
-    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order) -
-                            calculate_auto_association(synth, col, max_order)).max()
+    cat_distances = [np.abs(calculate_auto_association(orig, col, max_order)
+                            - calculate_auto_association(synth, col, max_order)).max()
                      for col in cats]
     return max(cat_distances)
 
 
 def mean_squared_error_closure(col, baseline: float = 1):
     def mean_squared_error(orig: pd.DataFrame, synth: pd.DataFrame):
-        return ((orig[col].to_numpy() - synth[col].to_numpy())**2).mean()/baseline
+        return ((orig[col].to_numpy() - synth[col].to_numpy())**2).mean() / baseline
     return mean_squared_error
 
 
@@ -175,7 +175,7 @@ def rolling_mse_asof(sd, time_unit=None):
 
     :param sd: [float] error standard deviation
     :param time_unit: [str] the time unit to round to. See documentation for pandas `.floor` method.
-    :return: [(float, float)] MSE and MSE/(2*error variance)
+    :return: [(float, float)] MSE and MSE/(2 * error variance)
     """
     # truncate date
     def mse_function(orig, synth):

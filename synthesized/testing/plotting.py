@@ -116,7 +116,7 @@ def plot_data(data: pd.DataFrame, ax: Axes):
         elif data['x'].dtype.kind == 'f' and data['y'].dtype.kind == 'f':
             return ax.hist2d(data['x'], data['y'], bins=100)
         elif data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'O':
-            crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r/r.sum(), axis=1)
+            crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r / r.sum(), axis=1)
             sns.heatmap(crosstab, vmin=0.0, vmax=1.0, ax=ax)
         else:
             return sns.distplot(data, ax=ax, color=["b", "g"])
@@ -243,14 +243,14 @@ def plot_second_order_metric_matrices(
 
     # Set up the matplotlib figure
     scale = 1.0
-    label_length = len(max(matrix_test.columns, key=len))*0.08
-    width, height = (2*scale*len(matrix_test.columns)+label_length, scale*len(matrix_test) + label_length)
+    label_length = len(max(matrix_test.columns, key=len)) * 0.08
+    width, height = (2 * scale * len(matrix_test.columns) + label_length, scale * len(matrix_test) + label_length)
     figsize = (width, height)
 
     fig = plt.figure(figsize=figsize)
     ax = fig.gca()
     fig.suptitle(f"{metric_name} Matrices", fontweight='bold', fontsize=14)
-    ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=1/len(matrix_test.columns))
+    ax1, ax2 = axes_grid(ax, rows=1, cols=2, col_titles=['Original', 'Synthetic'], wspace=1 / len(matrix_test.columns))
 
     left = (0.5 + label_length) / width
     bottom = (0.5 + label_length) / height
@@ -491,7 +491,7 @@ def plot_correlation_heatmap(df_orig, col, identifiers=None, ax: Union[Axes, Sub
     if identifiers is not None:
         corrs = pd.DataFrame(index=identifiers, columns=identifiers, dtype=np.float32)
         for i, id_a in enumerate(identifiers):
-            for j, id_b in enumerate(identifiers[:i+1]):
+            for j, id_b in enumerate(identifiers[:i + 1]):
                 auto_corr_orig = scaled_correlation(
                     df_orig.loc[idx[id_a, :], col].values, df_orig.loc[idx[id_b, :], col].values,
                     window=3, lags=1
@@ -525,10 +525,10 @@ def sequence_index_plot(x, t, ax: Axes, cmap_name: str = "YlGn"):
     values = np.unique(x)
     val2idx = {val: i for i, val in enumerate(values)}
     cmap = cm.get_cmap(cmap_name)
-    colors = [cmap(j/values.shape[0]) for j in range(values.shape[0])]
+    colors = [cmap(j / values.shape[0]) for j in range(values.shape[0])]
 
     for i, val in enumerate(x):
-        ax.fill_between((i, i+1), 2, facecolor=colors[val2idx[val]])
+        ax.fill_between((i, i + 1), 2, facecolor=colors[val2idx[val]])
     ax.get_yaxis().set_visible(False)
 
 

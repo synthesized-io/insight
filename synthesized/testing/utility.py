@@ -57,7 +57,7 @@ class UtilityTesting:
         categorical, continuous = categorical_or_continuous_values(self.dp)
 
         self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
-        self.plotable_values = self.categorical+self.continuous
+        self.plotable_values = self.categorical + self.continuous
 
         # Set the style of plots
         set_plotting_style()
@@ -88,7 +88,7 @@ class UtilityTesting:
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
         """
-        rows = math.ceil(len(self.plotable_values)/cols)
+        rows = math.ceil(len(self.plotable_values) / cols)
         if not figsize:
             figsize = (14, 5 * rows + 2)
 
@@ -208,7 +208,7 @@ class UtilityTesting:
         logger.debug(f"Showing distances for second-order metric ({metric.name}).")
 
         metric_matrix = TwoColumnComparisonMatrix(metric)
-        distances = np.abs(metric_matrix(self.df_test,  self.df_synth, dp=self.dp, **kwargs))
+        distances = np.abs(metric_matrix(self.df_test, self.df_synth, dp=self.dp, **kwargs))
 
         result = []
         for i in range(len(distances.index)):

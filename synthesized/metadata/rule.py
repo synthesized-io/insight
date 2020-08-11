@@ -26,7 +26,7 @@ class RuleMeta(ValueMeta):
                 y.loc[x.iloc[:, 0] < self.fkwargs['threshs'][0]] = self.fkwargs['categories'][0]
                 regions = list(self.fkwargs['threshs']) + [inf]
                 for i, (t1, t2) in enumerate(zip(regions[:-1], regions[1:])):
-                    y.loc[(x.iloc[:, 0] >= t1) & (x.iloc[:, 0] < t2)] = self.fkwargs['categories'][i+1]
+                    y.loc[(x.iloc[:, 0] >= t1) & (x.iloc[:, 0] < t2)] = self.fkwargs['categories'][i + 1]
                 return y
             self.functions[self.values[1].columns()[0]] = piecewise
         elif function == 'pulse_1':
@@ -38,8 +38,8 @@ class RuleMeta(ValueMeta):
 
             def pulse(x):
                 y = pd.Series(self.fkwargs['categories'][0], index=x.index)
-                y.loc[(x.iloc[:, 0] > self.fkwargs['threshs']['lower']) &
-                      (x.iloc[:, 0] < self.fkwargs['threshs']['upper'])] = self.fkwargs['categories'][1]
+                y.loc[(x.iloc[:, 0] > self.fkwargs['threshs']['lower'])
+                      & (x.iloc[:, 0] < self.fkwargs['threshs']['upper'])] = self.fkwargs['categories'][1]
                 return y
             self.functions[self.values[1].columns()[0]] = pulse
         else:

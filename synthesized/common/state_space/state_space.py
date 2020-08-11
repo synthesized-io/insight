@@ -133,7 +133,7 @@ class StateSpaceModel(tf.Module):
         mu, sigma = self.initial(x_1)
         e = self.sample_state(bs=x_1.shape[0])
 
-        return mu + e*sigma
+        return mu + e * sigma
 
     def sample_state(self, bs: tf.Tensor = tf.constant(1, dtype=tf.int64)) -> tf.Tensor:
         """Samples the latent state from a multivariate gauss ball.

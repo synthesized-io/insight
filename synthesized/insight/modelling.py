@@ -79,7 +79,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
     """
     score, metric, task = None, None, None
 
-    available_columns = list(set(data.columns).intersection(set(x_labels+[y_label])))
+    available_columns = list(set(data.columns).intersection(set(x_labels + [y_label])))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
         raise ValueError('Response variable not in DataFrame.')
 
@@ -87,9 +87,9 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
     dp = MetaExtractor.extract(df=data)
 
     categorical, continuous = categorical_or_continuous_values(dp)
-    available_columns = [v.name for v in cast(List[ValueMeta], categorical)+continuous]
+    available_columns = [v.name for v in cast(List[ValueMeta], categorical) + continuous]
 
-    dp.values = cast(List[ValueMeta], categorical)+continuous
+    dp.values = cast(List[ValueMeta], categorical) + continuous
     dp.columns = available_columns
     data = data[available_columns]
     x_labels = list(filter(lambda v: v in available_columns, x_labels))
@@ -126,7 +126,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
                                     y_label: str, x_labels: List[str], model: str):
     score, synth_score, metric, task = None, None, None, None
 
-    available_columns = list(set(data.columns).intersection(set(x_labels+[y_label])))
+    available_columns = list(set(data.columns).intersection(set(x_labels + [y_label])))
     if y_label not in available_columns or len([label for label in x_labels if label in available_columns]) == 0:
         raise ValueError('Response variable not in DataFrame.')
 
@@ -154,7 +154,7 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
 
     sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data), len(synth_data))
     x_train, y_train, x_test, y_test = _preprocess_split_data(data, dp, y_label, x_labels, sample_size)
-    x_synth, y_synth = _preprocess_data(synth_data, dp, y_label, x_labels, int(0.8*sample_size))
+    x_synth, y_synth = _preprocess_data(synth_data, dp, y_label, x_labels, int(0.8 * sample_size))
 
     if y_label in [v.name for v in continuous]:
         metric = 'r2'
@@ -231,7 +231,7 @@ def logistic_regression_r2(df, y_label: str, x_labels: List[str], **kwargs) -> U
 
     df = dp.preprocess(df)
 
-    df = df[x_labels+[y_label]].dropna()
+    df = df[x_labels + [y_label]].dropna()
     df = df.sample(min(MAX_ANALYSIS_SAMPLE_SIZE, len(df)))
 
     if df[y_label].nunique() < 2:

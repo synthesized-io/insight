@@ -20,7 +20,7 @@ def _register(metric, cls):
 
 
 class _Metric(ABC):
-    ALL: Mapping[str,  Type['_Metric']] = {}
+    ALL: Mapping[str, Type['_Metric']] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 

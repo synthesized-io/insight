@@ -26,7 +26,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         )
 
         self.inference_rnn = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units=capacity//2, return_sequences=True)
+            tf.keras.layers.LSTM(units=capacity // 2, return_sequences=True)
         )
         self.inference_network = GaussianEncoder(
             input_size=capacity, output_size=latent_size, capacity=capacity,
@@ -58,7 +58,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         h_0 = self.transition_rnn.get_initial_state(trn_x)
 
-        prior_hs, state1, state2 = self.transition_rnn(inputs=mask*trn_x, initial_state=h_0)
+        prior_hs, state1, state2 = self.transition_rnn(inputs=mask * trn_x, initial_state=h_0)
 
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)
 
@@ -74,13 +74,13 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         e_z = tf.random.normal(shape=sigma_phi.shape, dtype=tf.float32)
 
-        z = mu_phi + e_z*sigma_phi
+        z = mu_phi + e_z * sigma_phi
 
         mu_theta, sigma_theta = self.emission_network(z)
 
         e_y = tf.random.normal(shape=sigma_theta.shape, dtype=tf.float32)
 
-        y = mu_theta + e_y*sigma_theta
+        y = mu_theta + e_y * sigma_theta
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
 
         syn_df = pd.DataFrame(x)

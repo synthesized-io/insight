@@ -27,7 +27,7 @@ class StandardDeviation(ColumnMetric):
     def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
 
         rm_outliers = kwargs.get('rm_outliers', 0.0)
-        values = np.sort(sr.values)[int(len(sr)*rm_outliers):int(len(sr)*(1.0-rm_outliers))]
+        values = np.sort(sr.values)[int(len(sr) * rm_outliers):int(len(sr) * (1.0 - rm_outliers))]
         stddev = float(np.nanvar(values)**0.5)
 
         return stddev
@@ -191,4 +191,4 @@ class PredictiveModellingComparison(DataFrameComparison):
         x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
 
         score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
-        return synth_score/score
+        return synth_score / score

@@ -15,7 +15,7 @@ class Generative(tf.Module):
         self.conditions = conditions
         self._trainable_variables = None
         self.reconstruction_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
-        self.regularization_loss = tf.Variable(0.0,  dtype=tf.float32,  trainable=False)
+        self.regularization_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
         self.kl_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
         self.total_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
 

@@ -99,12 +99,12 @@ class PairwiseRuleFactory(object):
         mins = [mins[i] for i in idx]
         categories = [categories[i] for i in idx]
 
-        for i in range(len(idx)-1):
+        for i in range(len(idx) - 1):
             if maxes[i] >= mins[i + 1]:
                 return None
 
         # Make the threshold the midway between the two boundaries
-        threshs = [(lower_max + upper_min)/2 for lower_max, upper_min in zip(maxes[:-1], mins[1:])]
+        threshs = [(lower_max + upper_min) / 2 for lower_max, upper_min in zip(maxes[:-1], mins[1:])]
 
         return RuleMeta(name=str(x.name) + '_' + str(y.name), values=[x, y], function='flag_1',
                         fkwargs=dict(threshs=threshs, categories=categories))
@@ -211,7 +211,7 @@ def identify_rules(df: pd.DataFrame, values: List[ValueMeta], tests: Union[str, 
             continue
 
         rule = None
-        for j in range(i+1, M):
+        for j in range(i + 1, M):
             rule = PairwiseRuleFactory.find_relationship(df, values[i], values[j], tests)
 
             # If we have found a rule, add it to the list of values and move to the next value

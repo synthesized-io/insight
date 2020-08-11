@@ -78,7 +78,7 @@ class DecomposedContinuousMeta(ValueMeta):
 
         if self.integer is None:
             self.integer = (df.loc[:, self.name].dtype.kind == 'i') or \
-                           df.loc[:, self.name].apply(lambda x: x.is_integer()).all()
+                df.loc[:, self.name].apply(lambda x: x.is_integer()).all()
         elif self.integer and df.loc[:, self.name].dtype.kind != 'i':
             raise NotImplementedError
 

@@ -127,8 +127,8 @@ def eradicate_attacks_iteration(df_orig, df_synth, attacks, schema, t_closeness=
                 if schema[k].categorical:
                     ind = ind & (df[k] == v["value"])
                 else:
-                    ind = ind & ((df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT) &
-                                 (df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT))
+                    ind = ind & ((df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT)
+                                 & (df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT))
             ind_final = ind_final | ind
         df = df[~ind_final]
         return df
@@ -182,7 +182,7 @@ def get_df_subset(df, knowledge, schema):
                 ind = ind | (df[k] == v["value"])
         else:
             ind = ind | (df[k] <= v["value"] + v["upper"] * NEAREST_NEIGHBOUR_MULT) & (
-                    df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT)
+                df[k] >= v["value"] - v["lower"] * NEAREST_NEIGHBOUR_MULT)
     df = df[ind]
     return df
 

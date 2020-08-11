@@ -13,5 +13,5 @@ from .value_operations import ValueOps
 
 __all__ = [
     'AssociatedCategoricalValue', 'CategoricalValue', 'ContinuousValue', 'DateValue', 'DecomposedContinuousValue',
-    'IdentifierValue', 'NanValue', 'RuleValue',  'Value',  'ValueFactory', 'ValueOps', 'ValueFactoryConfig'
+    'IdentifierValue', 'NanValue', 'RuleValue', 'Value', 'ValueFactory', 'ValueOps', 'ValueFactoryConfig'
 ]

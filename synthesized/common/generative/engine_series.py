@@ -242,7 +242,9 @@ class SeriesEngine(Generative):
     def regularization_losses(self):
         return [
             loss
-            for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
+            for module in [
+                self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output
+            ] + self.values
             for loss in module.regularization_losses
         ]
 
