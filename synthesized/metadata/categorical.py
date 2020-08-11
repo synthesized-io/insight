@@ -68,7 +68,6 @@ class CategoricalMeta(ValueMeta):
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().postprocess(df=df)
         assert isinstance(self._categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.is_string:
@@ -76,6 +75,7 @@ class CategoricalMeta(ValueMeta):
 
         if self.pandas_category:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
+        self.set_dtypes(df)
         return df
 
     def _set_categories(self, categories: List):

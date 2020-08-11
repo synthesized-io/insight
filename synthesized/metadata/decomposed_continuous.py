@@ -138,7 +138,7 @@ class DecomposedContinuousMeta(ValueMeta):
 
         if self.float and df.loc[:, self.name].dtype != 'float32':
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='float32')
-
+        self.set_dtypes(df)
         return df
 
 

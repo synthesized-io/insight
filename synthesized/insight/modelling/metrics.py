@@ -4,6 +4,7 @@ from typing import Any, Union, Dict, List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.base import ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.linear_model import LogisticRegression
@@ -11,7 +12,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
     precision_recall_curve, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
-import seaborn as sns
 
 from .preprocessor import ModellingPreprocessor
 from ...metadata import MetaExtractor
@@ -261,12 +261,10 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
     if isinstance(axes, plt.Axes):
         axes = [axes]
     elif axes is None:
-        fig, axes = plt.subplots(1, len(metrics), figsize=(6 * len(metrics), 6))
+        fig, axes = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 5))
         axes = [axes] if len(metrics) == 1 else axes
 
     if len(metrics) != len(axes):
-        print('metrics', metrics)
-        print('axes', axes)
         raise ValueError("Metrics and Axes lengths must be equal")
     axes_dict = {metric: ax for metric, ax in zip(metrics, axes)}
 
@@ -315,7 +313,10 @@ def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y
         cm_annot = _get_cm_annot(cm, cm_norm)
         sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False, ax=ax)
 
-        ax.set_title("Confusion Matrix")
+        if name:
+            ax.set_title(f"Confusion Matrix - {name}")
+        else:
+            ax.set_title("Confusion Matrix")
         ax.set_xlabel("Predicted")
         ax.set_ylabel("Real")
 
