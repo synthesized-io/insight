@@ -42,7 +42,7 @@ class CategoricalMeta(ValueMeta):
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
-            categories=self.categories, similarity_based=self.similarity_based,
+            num_categories=self.num_categories, similarity_based=self.similarity_based,
         )
         return spec
 
