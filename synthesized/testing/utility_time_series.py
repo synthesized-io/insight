@@ -3,7 +3,6 @@ from typing import Tuple, Dict, Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.stattools import acf, pacf
 
 from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
     plot_cross_correlations, plot_series
@@ -148,22 +147,6 @@ def calculate_auto_association(dataset: pd.DataFrame, col: str, max_order: int):
         df_pre, df_post = pd.DataFrame({col: prefix}), pd.DataFrame({col: postfix})
         auto_associations.append(association(df_pre, df_post, col))
     return np.array(auto_associations)
-
-
-def max_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
-              if dtype.kind == "f"]
-    acf_distances = [np.abs((acf(orig[col], fft=True) - acf(synth[col], fft=True))).max()
-                     for col in floats]
-    return max(acf_distances)
-
-
-def max_partial_autocorrelation_distance(orig: pd.DataFrame, synth: pd.DataFrame):
-    floats = [col for dtype, col in zip(orig.dtypes.values, orig.columns.values)
-              if dtype.kind == "f"]
-    pacf_distances = [np.abs((pacf(orig[col]) - pacf(synth[col]))).max()
-                      for col in floats]
-    return max(pacf_distances)
 
 
 def max_categorical_auto_association_distance(orig: pd.DataFrame, synth: pd.DataFrame, max_order=20):

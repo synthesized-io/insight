@@ -296,7 +296,7 @@ class HighDimSynthesizer(Synthesizer):
                     other = self.df_meta.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
-                        dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
+                        dict_synthesized = {key: v.tolist() for key, v in dict_synthesized.items()}
                     else:
                         for c in other.keys():
                             dict_synthesized[c].extend(other[c].tolist())
@@ -310,7 +310,7 @@ class HighDimSynthesizer(Synthesizer):
                     other = self.df_meta.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
-                        dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
+                        dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
                     else:
                         for c in other.keys():
                             dict_synthesized[c].extend(other[c].tolist())
