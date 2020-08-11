@@ -178,7 +178,7 @@ class SeriesSynthesizer(Synthesizer):
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
+        callback: Callable[[Synthesizer, int, dict], bool] = None,
         callback_freq: int = 0, print_status_freq: int = 10, timeout: int = 2500
     ) -> None:
 

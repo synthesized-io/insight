@@ -105,7 +105,7 @@ class Synthesizer(tf.Module):
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
-            callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
+            callback: Callable[[object, int, dict], bool] = None, callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 

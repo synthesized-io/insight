@@ -50,7 +50,7 @@ class HighDimSynthesizer(Synthesizer):
         self.df_meta = df_meta
 
         self.value_factory = ValueFactory(
-            df_meta=df_meta, name='value_factory',  conditions=conditions, config=config.value_factory_config
+            df_meta=df_meta, name='value_factory', conditions=conditions, config=config.value_factory_config
         )
 
         # VAE
@@ -133,7 +133,7 @@ class HighDimSynthesizer(Synthesizer):
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
-            callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
+            callback: Callable[[Synthesizer, int, dict], bool] = None,
             callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
@@ -252,7 +252,7 @@ class HighDimSynthesizer(Synthesizer):
             conditions_dataset = None
 
         if len(columns) == 0:
-            return pd.DataFrame([[], ]*num_rows)
+            return pd.DataFrame([[], ] * num_rows)
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
