@@ -9,6 +9,7 @@ an R^2 value for a regression task; And when the y_label is a categorical value,
 for a binary/multinomial classification task.
 """
 import logging
+from math import sqrt
 from typing import Union, Dict, List, Type, Optional, cast, Tuple
 
 import numpy as np
@@ -111,8 +112,8 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=y_label, dp=dp)
 
-    df_train_pre, df_test_pre = _preprocess_split_data(data, response_variable=y_label, explanatory_variables=x_labels,
-                                                       sample_size=sample_size, preprocessor=preprocessor)
+    df_train_pre, df_test_pre = preprocess_split_data(data, response_variable=y_label, explanatory_variables=x_labels,
+                                                      sample_size=sample_size, preprocessor=preprocessor)
 
     x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
     x_train = df_train_pre[x_labels_pre].to_numpy()
@@ -147,10 +148,11 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
     return score, synth_score, metric, task
 
 
-def _preprocess_split_data(data: pd.DataFrame, response_variable: str, explanatory_variables: List[str],
-                           sample_size: int, preprocessor: ModellingPreprocessor = None):
-    data = data[np.concatenate((explanatory_variables, [response_variable]))]
-    df_train, df_test = _sample_split_data(data, response_variable, explanatory_variables, sample_size)
+def preprocess_split_data(data: pd.DataFrame, response_variable: str, explanatory_variables: Optional[List[str]] = None,
+                          test_size: float = 0.2, sample_size: Optional[int] = None,
+                          preprocessor: ModellingPreprocessor = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    df_train, df_test = sample_split_data(data, response_variable, explanatory_variables, test_size=test_size,
+                                          sample_size=sample_size)
 
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=response_variable)
@@ -164,18 +166,20 @@ def _preprocess_split_data(data: pd.DataFrame, response_variable: str, explanato
     return df_train_pre, df_test_pre
 
 
-def _sample_split_data(data: pd.DataFrame, response_variable: str, explanatory_variables: List[str],
-                       sample_size: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def sample_split_data(data: pd.DataFrame, response_variable: str, explanatory_variables: Optional[List[str]] = None,
+                      test_size: float = 0.2, sample_size: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
-    data = data[np.concatenate((explanatory_variables, [response_variable]))]
-    if sample_size < len(data):
+    if explanatory_variables is not None:
+        data = data[np.concatenate((explanatory_variables, [response_variable]))]
+
+    if sample_size is not None and sample_size < len(data):
         data = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    if all(data[response_variable].value_counts().values > 1):
-        df_train, df_test = train_test_split(data, test_size=0.2, stratify=data[response_variable],
+    if all(data[response_variable].value_counts().values > 1) and data[response_variable].nunique() <= sqrt(len(data)):
+        df_train, df_test = train_test_split(data, test_size=test_size, stratify=data[response_variable],
                                              random_state=RANDOM_SEED)
     else:
-        df_train, df_test = train_test_split(data, test_size=0.2, random_state=RANDOM_SEED)
+        df_train, df_test = train_test_split(data, test_size=test_size, random_state=RANDOM_SEED)
 
         train_unique = df_train[response_variable].unique()
         target_in_train = df_test[response_variable].apply(lambda y: True if y in train_unique else False)

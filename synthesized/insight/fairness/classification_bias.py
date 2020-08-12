@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Union, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
@@ -10,8 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
-from ...testing import ExperimentalEstimator
 from ..modelling import ModellingPreprocessor
+from ..modelling.metrics import classifier_scores_from_df
 from .sensitive_attributes import sensitive_attr_concat_name
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class ClassificationBias:
         self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
 
         self.preprocessor = ModellingPreprocessor(target=target)
-        self.ee = ExperimentalEstimator(target=target)
+        self.df_pre = self.preprocessor.fit_transform(self.df)
 
         try:
             train, test = train_test_split(self.df, test_size=0.4, random_state=42,
@@ -85,23 +86,34 @@ class ClassificationBias:
 
             # Remove sensitive column from columns?
             if remove_sensitive:
-                columns = list(filter(lambda c: c != 'sensitive_attr', self.df.columns))
+                columns = list(filter(lambda c: c not in self.sensitive_attrs, self.df.columns))
             else:
                 columns = self.df.columns
 
-            metrics_to_compute = ['AUC', 'ROC_Curve', 'ConfusionMatrix']
-            results = self.ee.preprocess_classify(self.df[columns], other_dfs=dict(), train_idx=self.train_idx,
-                                                  test_idx=test, classifiers=classifiers,
-                                                  metrics_to_compute=metrics_to_compute, copy_clf=False)
+            metrics_to_compute = ['roc_auc', 'roc_curve', 'confusion_matrix']
+
+            results = []
+            for clf_name, clf in classifiers.items():
+                results_i = classifier_scores_from_df(
+                    df_train=self.df_pre.iloc[self.train_idx][columns],
+                    df_test=self.df_pre.iloc[test][columns],
+                    target=self.target,
+                    clf=clf,
+                    metrics=metrics_to_compute
+                )
+                results_i['Classifier'] = clf_name
+                results.append(results_i)
+            df_results = pd.DataFrame(results)
+
             if len(results) == 0:
                 continue
 
-            for i, clf in enumerate(results['Classifier'].unique()):
+            for i, clf in enumerate(df_results['Classifier'].unique()):
                 # ROC Curves
-                auc = results.loc[results['Classifier'] == clf, 'AUC'].values[0]
+                auc = df_results.loc[df_results['Classifier'] == clf, 'roc_auc'].values[0]
 
                 if plot_results:
-                    x, y, _ = results.loc[results['Classifier'] == clf, 'ROC_Curve'].values[0]
+                    x, y, _ = df_results.loc[df_results['Classifier'] == clf, 'roc_curve'].values[0]
                     axs[i].plot(x, y, label=f"{name} (AUC={auc:.3f})")
                     axs[i].legend(loc='lower right')
                     axs[i].set_title(clf)
@@ -109,25 +121,24 @@ class ClassificationBias:
                     axs[i].set_ylabel('FPR')
 
                 # Confusion Matrix Heatmap
-                cm = results.loc[results['Classifier'] == clf, 'ConfusionMatrix'].values[0]
+                cm = df_results.loc[df_results['Classifier'] == clf, 'confusion_matrix'].values[0]
                 cm_norm = cm / np.sum(cm)
 
                 if plot_results:
-                    oh_encoder = self.ee.oh_encoders[self.target]
-                    if oh_encoder is not None:
-                        cm_annot = self.get_cm_annot(cm, cm_norm)
-                        sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False,
-                                    xticklabels=list(oh_encoder[0].categories_[0]),
-                                    yticklabels=list(oh_encoder[0].categories_[0]),
-                                    ax=axs_hm[i][k])
+                    oh_encoder = self.preprocessor.column_encoders.get(self.target)
+                    xticklabels = list(oh_encoder[0].categories_[0]) if oh_encoder is not None else None
+                    yticklabels = list(oh_encoder[0].categories_[0]) if oh_encoder is not None else None
 
-                        axs_hm[i][k].set_title(f"{clf} - {name}")
-                        axs_hm[i][k].set_xlabel('Real')
-                        axs_hm[i][k].set_ylabel('Predicted')
+                    cm_annot = self.get_cm_annot(cm, cm_norm)
+                    sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False,
+                                xticklabels=xticklabels, yticklabels=yticklabels, ax=axs_hm[i][k])
+
+                    axs_hm[i][k].set_title(f"{clf} - {name}")
+                    axs_hm[i][k].set_xlabel('Real')
+                    axs_hm[i][k].set_ylabel('Predicted')
 
                 # disparate_impact
-                predicted_values = results.loc[results['Classifier'] == clf, 'PredictedValues'].values[0]
-
+                predicted_values = df_results.loc[df_results['Classifier'] == clf, 'predicted_values'].values[0]
                 classification_bias[name][clf] = (auc, cm_norm, predicted_values)
 
         if plot_results:

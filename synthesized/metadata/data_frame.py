@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, Union, Tupl, Sequence
+from typing import Any, Dict, List, Optional, Union, Tuple, Sequence
 
 import numpy as np
 import pandas as pd

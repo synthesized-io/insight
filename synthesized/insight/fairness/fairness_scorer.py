@@ -210,7 +210,7 @@ class FairnessScorer:
                 else:
                     name = sensitive_attr[0]
 
-                score_i = cramers_v(df, name, self.target)
+                score_i = cramers_v(df[name], df[self.target])
                 if score_i is not None:
                     score += score_i
                     count += 1
@@ -235,12 +235,12 @@ class FairnessScorer:
         correlation_pairs = []
         for sensitive_attr in self.sensitive_attrs:
             for v_cat in categorical:
-                corr = cramers_v(df, v_cat.name, sensitive_attr)
+                corr = cramers_v(df[v_cat.name], df[sensitive_attr])
                 if corr is not None and corr > threshold:
                     correlation_pairs.append((v_cat.name, sensitive_attr, corr))
 
             for v_cont in continuous:
-                corr = categorical_logistic_r2(df, v_cont.name, sensitive_attr)
+                corr = categorical_logistic_r2(df[v_cont.name], df[sensitive_attr])
                 if corr is not None and corr > threshold:
                     correlation_pairs.append((v_cont.name, sensitive_attr, corr))
 

@@ -28,8 +28,8 @@ DEFAULT_CLASSIFICATION_PLOT_METRICS = ['roc_curve', 'pr_curve']
 
 
 def classifier_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataFrame,
-                              target: str, clf: ClassifierMixin,
-                              metrics: Optional[Union[str, List[str]]] = 'roc_auc') -> Dict[str, Any]:
+                              target: str, clf: ClassifierMixin,  metrics: Optional[Union[str, List[str]]] = 'roc_auc',
+                              return_predicted: bool = False) -> Dict[str, Any]:
     x_labels = list(filter(lambda v: v != target, df_test.columns))
 
     if df_train is not None:
@@ -40,12 +40,13 @@ def classifier_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.Data
     x_test = df_test[x_labels].to_numpy()
     y_test = df_test[target].to_numpy()
 
-    return classifier_scores(x_train, y_train, x_test, y_test, clf=clf, metrics=metrics)
+    return classifier_scores(x_train, y_train, x_test, y_test, clf=clf, metrics=metrics,
+                             return_predicted=return_predicted)
 
 
 def regressor_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataFrame,
-                             target: str, rgr: RegressorMixin,
-                             metrics: Optional[Union[str, List[str]]] = 'r2_score') -> Dict[str, Any]:
+                             target: str, rgr: RegressorMixin, metrics: Optional[Union[str, List[str]]] = 'r2_score',
+                             return_predicted: bool = False) -> Dict[str, Any]:
     x_labels = list(filter(lambda v: v != target, df_test.columns))
 
     if df_train is not None:
@@ -56,7 +57,8 @@ def regressor_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataF
     x_test = df_test[x_labels].to_numpy()
     y_test = df_test[target].to_numpy()
 
-    return regressor_scores(x_train, y_train, x_test, y_test, rgr=rgr, metrics=metrics)
+    return regressor_scores(x_train, y_train, x_test, y_test, rgr=rgr, metrics=metrics,
+                            return_predicted=return_predicted)
 
 
 def plot_metrics_from_df(df_train: pd.DataFrame, df_test: pd.DataFrame, target: str, clf: ClassifierMixin,
@@ -73,7 +75,8 @@ def plot_metrics_from_df(df_train: pd.DataFrame, df_test: pd.DataFrame, target: 
 
 def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray],
                       x_test: np.ndarray, y_test: np.ndarray,
-                      clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = 'roc_auc') -> Dict[str, Any]:
+                      clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = 'roc_auc',
+                      return_predicted: bool = False) -> Dict[str, Any]:
 
     if isinstance(metrics, str):
         metrics = [metrics]
@@ -161,12 +164,16 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
         if 'confusion_matrix' in metrics:
             results['confusion_matrix'] = confusion_matrix(y_test, y_pred_test)
 
+    if return_predicted:
+        results['predicted_values'] = y_pred_test
+
     return results
 
 
 def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray],
-                     x_test: np.ndarray, y_test: np.ndarray, rgr: RegressorMixin,
-                     metrics: Optional[Union[str, List[str]]] = 'r2_score') -> Dict[str, float]:
+                     x_test: np.ndarray, y_test: np.ndarray,
+                     rgr: RegressorMixin, metrics: Optional[Union[str, List[str]]] = 'r2_score',
+                     return_predicted: bool = False) -> Dict[str, float]:
 
     if isinstance(metrics, str):
         metrics = [metrics]
@@ -197,6 +204,8 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
         results['mean_squared_error'] = mean_squared_error(y_test, f_test)
     if 'r2_score' in metrics:
         results['r2_score'] = r2_score(y_test, f_test)
+    if return_predicted:
+        results['predicted_values'] = f_test
 
     return results
 
