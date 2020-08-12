@@ -129,7 +129,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
     elif y_label in [v.name for v in categorical]:
         y_val = [val for val in categorical if val.name == y_label][0]
-        num_classes = y_val.num_categories
+        num_classes = y_val.num_categories if y_val.nans_valid else y_val.num_categories - 1
         metric = 'roc_auc' if num_classes == 2 else 'macro roc_auc'
         task = 'binary ' if num_classes == 2 else f'multinomial [{num_classes}]'
         scores = classifier_scores(x_train, y_train, x_test, y_test, clf=estimator, metrics='roc_auc')

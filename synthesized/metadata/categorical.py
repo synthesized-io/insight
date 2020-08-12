@@ -114,7 +114,7 @@ class CategoricalMeta(ValueMeta):
         # If categories are not set
         if self._categories is None:
             self._categories = categories
-            self.num_categories = len(categories) if self.nans_valid else len(categories) - 1
+            self.num_categories = len(categories)
             self.idx2category = {i: self._categories[i] for i in range(len(self._categories))}
             self.category2idx = Categories({self._categories[i]: i for i in range(len(self._categories))})
 
