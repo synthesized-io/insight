@@ -23,6 +23,7 @@ class ModellingPreprocessor:
             self.dp = dp
 
         self.column_encoders: Dict[str, BaseEstimator] = dict()
+        self.columns_mapping: Dict[str, List[str]] = dict()
 
         self.is_fitted: bool = False
 
@@ -46,12 +47,17 @@ class ModellingPreprocessor:
                 column = column.fillna('nan').astype(str)
                 if self.target and v.name == self.target:
                     x_i = column.to_numpy().reshape(-1, 1)
-                    self.column_encoders[v.name] = LabelEncoder()
-                    self.column_encoders[v.name].fit(x_i)
+                    encoder = LabelEncoder()
+                    encoder.fit(x_i)
+                    c_name_i = [v.name]
+
                 else:
                     x_i = column.to_numpy().reshape(-1, 1)
-                    self.column_encoders[v.name] = OneHotEncoder(drop='first', sparse=False)
-                    self.column_encoders[v.name].fit(x_i)
+                    encoder = OneHotEncoder(drop='first', sparse=False)
+                    encoder.fit(x_i)
+                    c_name_i = ['{}_{}'.format(v.name, enc) for enc in encoder.categories_[0][1:]]
+
+                self.column_encoders[v.name] = encoder
 
             elif v.name in continuous_names:
                 x_i = column.astype(np.float32).to_numpy().reshape(-1, 1)
@@ -62,8 +68,13 @@ class ModellingPreprocessor:
                     self.column_encoders[v.name] = StandardScaler()
                 self.column_encoders[v.name].fit(x_i)
 
+                c_name_i = [v.name]
+
             else:
+                c_name_i = []
                 logger.debug(f"Ignoring column {v.name} (type {v.__class__.__name__})")
+
+            self.columns_mapping[v.name] = c_name_i
 
         self.is_fitted = True
 

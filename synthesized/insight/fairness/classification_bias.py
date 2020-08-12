@@ -89,39 +89,41 @@ class ClassificationBias:
                 columns = list(filter(lambda c: c not in self.sensitive_attrs, self.df.columns))
             else:
                 columns = self.df.columns
-
+            columns_pre = np.concatenate([self.preprocessor.columns_mapping[c] for c in columns])
             metrics_to_compute = ['roc_auc', 'roc_curve', 'confusion_matrix']
 
             results = []
-            for clf_name, clf in classifiers.items():
+            for clf_name, clf_name in classifiers.items():
+
                 results_i = classifier_scores_from_df(
-                    df_train=self.df_pre.iloc[self.train_idx][columns],
-                    df_test=self.df_pre.iloc[test][columns],
+                    df_train=self.df_pre.iloc[self.train_idx][columns_pre],
+                    df_test=self.df_pre.iloc[test][columns_pre],
                     target=self.target,
-                    clf=clf,
-                    metrics=metrics_to_compute
+                    clf=clf_name,
+                    metrics=metrics_to_compute,
+                    return_predicted=True
                 )
-                results_i['Classifier'] = clf_name
+                results_i['clf_name'] = clf_name
                 results.append(results_i)
             df_results = pd.DataFrame(results)
 
             if len(results) == 0:
                 continue
 
-            for i, clf in enumerate(df_results['Classifier'].unique()):
+            for i, clf_name in enumerate(df_results['clf_name'].unique()):
                 # ROC Curves
-                auc = df_results.loc[df_results['Classifier'] == clf, 'roc_auc'].values[0]
+                auc = df_results.loc[df_results['clf_name'] == clf_name, 'roc_auc'].values[0]
 
                 if plot_results:
-                    x, y, _ = df_results.loc[df_results['Classifier'] == clf, 'roc_curve'].values[0]
+                    x, y, _ = df_results.loc[df_results['clf_name'] == clf_name, 'roc_curve'].values[0]
                     axs[i].plot(x, y, label=f"{name} (AUC={auc:.3f})")
                     axs[i].legend(loc='lower right')
-                    axs[i].set_title(clf)
+                    axs[i].set_title(clf_name)
                     axs[i].set_xlabel('FPR')
                     axs[i].set_ylabel('FPR')
 
                 # Confusion Matrix Heatmap
-                cm = df_results.loc[df_results['Classifier'] == clf, 'confusion_matrix'].values[0]
+                cm = df_results.loc[df_results['clf_name'] == clf_name, 'confusion_matrix'].values[0]
                 cm_norm = cm / np.sum(cm)
 
                 if plot_results:
@@ -133,13 +135,13 @@ class ClassificationBias:
                     sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False,
                                 xticklabels=xticklabels, yticklabels=yticklabels, ax=axs_hm[i][k])
 
-                    axs_hm[i][k].set_title(f"{clf} - {name}")
+                    axs_hm[i][k].set_title(f"{clf_name} - {name}")
                     axs_hm[i][k].set_xlabel('Real')
                     axs_hm[i][k].set_ylabel('Predicted')
 
                 # disparate_impact
-                predicted_values = df_results.loc[df_results['Classifier'] == clf, 'predicted_values'].values[0]
-                classification_bias[name][clf] = (auc, cm_norm, predicted_values)
+                predicted_values = df_results.loc[df_results['clf_name'] == clf_name, 'predicted_values'].values[0]
+                classification_bias[name][clf_name] = (auc, cm_norm, predicted_values)
 
         if plot_results:
             fig.tight_layout()
@@ -158,8 +160,8 @@ class ClassificationBias:
                 continue
 
             auc_diff = cm_diff = di = 0.
-            for clf, clf_results in classification_bias[name].items():
-                auc_all, cm_all, y_all = classification_bias['All'][clf]
+            for clf_name, clf_results in classification_bias[name].items():
+                auc_all, cm_all, y_all = classification_bias['All'][clf_name]
                 auc, cm, predicted_values = clf_results
 
                 auc_diff += abs(auc_all - auc)
