@@ -323,7 +323,8 @@ class MetaExtractor:
         if value is None and num_unique <= sqrt(num_data):  # num_data must be > 161 to be true.
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:  # note the alternative is never possible anyway.
-                    value = CategoricalMeta(name, similarity_based=True, true_categorical=False)
+                    true_categorical = not _is_numeric(col)
+                    value = CategoricalMeta(name, similarity_based=True, true_categorical=true_categorical)
                     reason = "Small (< sqrt(N)) number of distinct values. "
 
         # Return non-numeric value and handle NaNs if necessary
@@ -429,5 +430,15 @@ def _is_not_integer_float(x) -> bool:
 
     if type(x) == float:
         return not x.is_integer()
+    else:
+        return False
+
+
+def _is_numeric(col: pd.Series) -> bool:
+    """Check whether col contains only numeric values"""
+    if col.dtype.kind in ('f', 'i', 'u'):
+        return True
+    elif col.astype(str).str.isnumeric().all():
+        return True
     else:
         return False
