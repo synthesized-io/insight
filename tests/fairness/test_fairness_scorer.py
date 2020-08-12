@@ -1,6 +1,6 @@
 import pandas as pd
 
-from synthesized.fairness import FairnessScorer
+from synthesized.insight.fairness import FairnessScorer
 
 
 def test_fairness_scorer():
