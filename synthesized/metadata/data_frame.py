@@ -26,15 +26,17 @@ class DataFrameMeta:
         self.column_aliases = column_aliases or dict()
         self.association_meta = association_meta
 
-        value_map: Dict[str, ValueMeta] = {v.name: v for v in self.values}
-        if time_value is not None:
-            value_map[time_value.name] = time_value
-            # self.columns = [time_value.name, ] + self.columns
-        if id_value is not None:
-            value_map[id_value.name] = id_value
-            self.columns = [id_value.name, ] + self.columns
+        self._value_map = self.compute_value_map()
 
-        self._value_map = value_map
+    def compute_value_map(self) -> Dict[str, ValueMeta]:
+        value_map: Dict[str, ValueMeta] = {v.name: v for v in self.values}
+        if self.time_value is not None:
+            value_map[self.time_value.name] = self.time_value
+        if self.id_value is not None:
+            value_map[self.id_value.name] = self.id_value
+            self.columns = [self.id_value.name, ] + self.columns
+
+        return value_map
 
     @property
     def all_values(self) -> List[ValueMeta]:
@@ -206,6 +208,8 @@ class DataFrameMeta:
         self.values = []
         for i in range(variables['num_values']):
             self.values.append(ValueMeta.set_variables(variables['value_{}'.format(i)]))
+
+        self._value_map = self.compute_value_map()
 
     @classmethod
     def from_dict(cls, variables: Dict[str, Any]) -> 'DataFrameMeta':
