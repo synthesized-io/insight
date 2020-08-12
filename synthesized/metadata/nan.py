@@ -50,7 +50,8 @@ class NanMeta(ValueMeta):
         column = df[self.value.name]
         if column.dtype.kind not in self.value.pd_types:
             column = self.value.pd_cast(column)
-        df_clean = df[column.notna()]
+        df_clean = df[(~column.isin([np.Inf, -np.Inf])) & column.notna()]
+
         self.value.extract(df=df_clean)
 
     def preprocess(self, df):
