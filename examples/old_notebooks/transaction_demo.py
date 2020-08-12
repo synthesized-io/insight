@@ -72,7 +72,7 @@ class TransactionVectorizer(BaseEstimator, TransformerMixin):
                 res[idx] = row[self.value_column]
             return pd.Series(res)
 
-        return X.groupby(by=self.group_column, sort=True, as_index=False).apply(to_vector)
+        return X.groupby(by=self.group_column, sort=True).apply(to_vector).reset_index(drop=True)
 
     def inverse_transform(self, X):
         def to_transactions(row):
