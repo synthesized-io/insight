@@ -5,8 +5,11 @@ from .data_imputer import DataImputer
 from .highdim import HighDimSynthesizer
 from .meta_extractor import MetaExtractor
 from .synthesizer import Synthesizer
+from . import modelling
+from . import latent
 
 __all__ = [
     'BinaryType', 'CompressionType', 'Binary', 'ModelBinary', 'DatasetBinary', 'ConditionalSampler',
-    'DataFrameMeta', 'DataImputer', 'HighDimSynthesizer', 'MetaExtractor', 'Synthesizer'
+    'DataFrameMeta', 'DataImputer', 'HighDimSynthesizer', 'MetaExtractor', 'Synthesizer', 'modelling',
+    'latent'
 ]
