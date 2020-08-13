@@ -33,7 +33,7 @@ class LearningManager:
     def __init__(
             self, check_frequency: int = 100, use_checkpointing: bool = True,
             checkpoint_path: str = None, max_training_time: float = None,
-            n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
+            n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 2000,
             tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
             stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
             use_engine_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
