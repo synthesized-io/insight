@@ -19,11 +19,11 @@ class HighDimSynthesizer(Synthesizer):
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[['HighDimSynthesizer', int, dict], bool] = None,
-            callback_freq: int = 0, low_memory: bool = False
+            callback_freq: int = 0
     ) -> None:
         self._synthesizer.learn(
             df_train=df_train, num_iterations=num_iterations, callback=callback,
-            callback_freq=callback_freq, low_memory=low_memory
+            callback_freq=callback_freq, low_memory=False
         )
 
     def synthesize(

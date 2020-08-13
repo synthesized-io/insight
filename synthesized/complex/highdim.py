@@ -131,6 +131,7 @@ class HighDimSynthesizer(Synthesizer):
         df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
+    # TODO: implement the low_memory option.
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[[Synthesizer, int, dict], bool] = None,
