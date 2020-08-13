@@ -193,9 +193,9 @@ class ValueFactory:
             self.values.append(Value.set_variables(variables['condition_{}'.format(i)]))
 
     @staticmethod
-    def from_dict(dict_: dict):
+    def from_dict(variables: dict):
         vf = ValueFactory.__new__(ValueFactory)
         vf.name = 'value_factory'
-        vf.set_variables(dict_)
+        vf.set_variables(variables)
 
         return vf

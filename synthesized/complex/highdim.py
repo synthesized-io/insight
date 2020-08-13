@@ -500,43 +500,43 @@ class HighDimSynthesizer(Synthesizer):
         return HighDimSynthesizer.from_dict(variables)
 
     @staticmethod
-    def from_dict(dict_: dict, summarizer_dir: str = None, summarizer_name: str = None):
+    def from_dict(variables: dict, summarizer_dir: str = None, summarizer_name: str = None):
         synth = HighDimSynthesizer.__new__(HighDimSynthesizer)
         super(HighDimSynthesizer, synth).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
         # Data Panel
-        synth.df_meta = DataFrameMeta.from_dict(dict_['df_meta'])
+        synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
 
         # Value Factory
-        synth.value_factory = ValueFactory.from_dict(dict_['value_factory'])
+        synth.value_factory = ValueFactory.from_dict(variables['value_factory'])
 
         # VAE
         synth.engine = HighDimEngine(
             name='vae', values=synth.get_values(), conditions=synth.get_conditions(),
-            latent_size=dict_['latent_size'], network=dict_['network'], capacity=dict_['capacity'],
-            num_layers=dict_['num_layers'], residual_depths=dict_['residual_depths'],
-            batch_norm=dict_['batch_norm'], activation=dict_['activation'], optimizer=dict_['optimizer'],
-            learning_rate=dict_['learning_rate'], decay_steps=dict_['decay_steps'],
-            decay_rate=dict_['decay_rate'], initial_boost=dict_['initial_boost'],
-            clip_gradients=dict_['clip_gradients'], beta=dict_['beta'], weight_decay=dict_['weight_decay']
+            latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
+            num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
+            batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],
+            learning_rate=variables['learning_rate'], decay_steps=variables['decay_steps'],
+            decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
+            clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
         )
-        synth.engine.set_variables(dict_['engine'])
+        synth.engine.set_variables(variables['engine'])
 
         # Batch Sizes
-        synth.batch_size = dict_['batch_size']
-        synth.increase_batch_size_every = dict_['increase_batch_size_every']
-        synth.max_batch_size = dict_['max_batch_size']
-        synth.synthesis_batch_size = dict_['synthesis_batch_size']
+        synth.batch_size = variables['batch_size']
+        synth.increase_batch_size_every = variables['increase_batch_size_every']
+        synth.max_batch_size = variables['max_batch_size']
+        synth.synthesis_batch_size = variables['synthesis_batch_size']
 
         # Input argument placeholder for num_rows
         synth.num_rows = None
 
         # Learning Manager
         synth.learning_manager = None
-        if 'learning_manager' in dict_.keys():
+        if 'learning_manager' in variables.keys():
             synth.learning_manager = LearningManager()
-            synth.learning_manager.set_variables(dict_['learning_manager'])
+            synth.learning_manager.set_variables(variables['learning_manager'])
 
         return synth
