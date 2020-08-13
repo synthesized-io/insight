@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence
 
 import tensorflow as tf
 
@@ -9,7 +9,7 @@ from ..module import tensorflow_name_scoped
 class RuleValue(Value):
 
     def __init__(self, name: str, values: List[Value], num_learned: int):
-        super().__init__(name=name)
+        super().__init__(name=name, meta_names=[name for value in values for name in value.meta_names])
         self.num_learned = num_learned
         self.values = values
 
@@ -29,26 +29,29 @@ class RuleValue(Value):
         return sum(value.learned_output_size() for value in self.values[:self.num_learned])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         x = list()
         index = 0
         for value in self.values:
             num = len(value.learned_input_columns())
             x.append(value.unify_inputs(xs=xs[index: index + num]))
             index += num
-        return tf.concat(values=x, axis=1)
+        return tf.concat(values=x, axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
-        y = tf.split(value=y, num_or_size_splits=splits, axis=1)
-        ys: List[tf.Tensor] = list()
-        for value, y in zip(self.values[:self.num_learned], y):
-            ys.extend(value.output_tensors(y=y, **kwargs))
-        return ys
+        ys = tf.split(value=y, num_or_size_splits=splits, axis=1)
+
+        ot = tuple(
+            tensor
+            for value, y in zip(self.values[:self.num_learned], ys)
+            for tensor in value.output_tensors(y=y, **kwargs)
+        )[::-1]
+        return ot
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         splits = [value.learned_output_size() for value in self.values[:self.num_learned]]
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         losses = list()

@@ -1,11 +1,14 @@
 import logging
-from typing import Optional, Callable, List, Union
+from typing import Optional, Callable, List, Union, Dict, Tuple
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from ..common.values import Value
 from ..common import Synthesizer
+from ..metadata import ValueMeta
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,17 +16,20 @@ logger = logging.getLogger(__name__)
 class DataImputer(Synthesizer):
     """Imputes synthesized values for nans."""
 
-    def __init__(self,
-                 synthesizer: Synthesizer):
+    def __init__(self, synthesizer: Synthesizer):
         """Data Imputer constructor.
 
         Args:
             synthesizer: Synthesizer used to impute data. If not given, will create a HighDim from df.
 
         """
-
         assert not synthesizer.value_factory.produce_nans
+        super().__init__(name='conditional')
         self.synthesizer = synthesizer
+        self.global_step = synthesizer.global_step
+        self.logdir = synthesizer.logdir
+        self.loss_history = synthesizer.loss_history
+        self.writer = synthesizer.writer
 
     def __enter__(self):
         return self.synthesizer.__enter__()
@@ -33,7 +39,7 @@ class DataImputer(Synthesizer):
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[object, int, dict], bool] = Synthesizer.logging, callback_freq: int = 0
+        callback: Callable[[object, int, dict], bool] = None, callback_freq: int = 0
     ) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
@@ -86,3 +92,15 @@ class DataImputer(Synthesizer):
     def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
                    progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         return self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions)
+
+    def get_conditions(self) -> List[Value]:
+        return self.synthesizer.get_conditions()
+
+    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return self.synthesizer.get_value_meta_pairs()
+
+    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
+        return self.synthesizer.get_condition_meta_pairs()
+
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
+        return self.synthesizer.get_losses()

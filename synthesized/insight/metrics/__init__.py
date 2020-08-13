@@ -185,8 +185,8 @@ diff_cramers_v_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(Cra
 diff_categorical_logistic_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()))  # noqa: E501
 
 __all__ = [
-        'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'COLUMN_COMPARISONS',
-        'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS' 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
-        'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison', 'DataFrameVector',
-        'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix', 'RollingColumnMetricVector'
+    'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'COLUMN_COMPARISONS',
+    'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS' 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
+    'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison', 'DataFrameVector',
+    'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix', 'RollingColumnMetricVector'
 ] + [metric_name for metric_name in _Metric.ALL.keys()]

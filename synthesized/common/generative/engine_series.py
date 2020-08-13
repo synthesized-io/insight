@@ -1,5 +1,4 @@
-from collections import OrderedDict
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
 
 import tensorflow as tf
 
@@ -11,7 +10,7 @@ from ..transformations import DenseTransformation
 from ..values import Value, IdentifierValue, ValueOps
 
 
-class SeriesVAE(Generative):
+class SeriesEngine(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
             encoding: str, identifier_label: Optional[str], identifier_value: Optional[IdentifierValue],
@@ -113,32 +112,30 @@ class SeriesVAE(Generative):
         )
         return spec
 
-    def loss(self):
-        if len(self.xs) == 0:
+    def loss(self, xs: Dict[str, Sequence[tf.Tensor]]):
+        if len(xs) == 0:
             return dict(), tf.no_op()
 
-        x = self.value_ops.unified_inputs(self.xs)
+        x = self.value_ops.unified_inputs(xs)
         if self.identifier_label and self.identifier_value:
             identifier = self.identifier_value.unify_inputs(
-                xs=[tensor[:, 0] for tensor in self.xs[self.identifier_label]]
-            )
+                xs=xs[self.identifier_label]
+            )[:, 0, :]
         else:
             identifier = None
 
         #################################
         x = self.linear_input(x)
         x = self.encoder(x)
-        x = self.value_ops.add_conditions(x, conditions=self.xs)
+        x = self.value_ops.add_conditions(x, conditions=xs)
         x = self.encoding(x, identifier=identifier, series_dropout=self.series_dropout)
         x = self.decoder(x)
         y = self.linear_output(x)
         #################################
 
         # Losses
-        self.losses: Dict[str, tf.Tensor] = OrderedDict()
-
         reconstruction_loss = tf.identity(
-            self.value_ops.reconstruction_loss(y, self.xs), name='reconstruction_loss')
+            self.value_ops.reconstruction_loss(y, xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
         regularization_loss = tf.add_n(
             inputs=[self.l2(w) for w in self.regularization_losses],
@@ -147,10 +144,10 @@ class SeriesVAE(Generative):
 
         total_loss = tf.add_n([kl_loss, reconstruction_loss, regularization_loss], name='total_loss')
 
-        self.losses['reconstruction-loss'] = reconstruction_loss
-        self.losses['kl-loss'] = kl_loss
-        self.losses['regularization-loss'] = regularization_loss
-        self.losses['total-loss'] = total_loss
+        self.reconstruction_loss.assign(reconstruction_loss)
+        self.regularization_loss.assign(regularization_loss)
+        self.kl_loss.assign(kl_loss)
+        self.total_loss.assign(total_loss)
 
         # Summaries
         tf.summary.scalar(name='reconstruction-loss', data=reconstruction_loss)
@@ -162,18 +159,22 @@ class SeriesVAE(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def learn(self, xs: Dict[str, List[tf.Tensor]]) -> None:
-        self.xs = xs
-        # Optimization step
-        self.optimizer.optimize(
-            loss=self.loss, variables=self.get_trainable_variables
-        )
+    def learn(self, xs: Dict[str, Sequence[tf.Tensor]]) -> None:
+
+        with tf.GradientTape() as gg:
+            total_loss = self.loss(xs)
+
+        with tf.name_scope("optimization"):
+            gradients = gg.gradient(total_loss, self.trainable_variables)
+            grads_and_vars = list(zip(gradients, self.trainable_variables))
+            self.optimizer.optimize(grads_and_vars)
 
         return
 
-    def encode(self, xs: Dict[str, List[tf.Tensor]], cs: Dict[str, List[tf.Tensor]], n_forecast: int = 0) -> \
-            Tuple[Dict[str, tf.Tensor], Dict[str, List[tf.Tensor]]]:
-        if len(self.xs) == 0:
+    def encode(
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], n_forecast: int = 0
+    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
+        if len(xs) == 0:
             return dict(), tf.no_op()
 
         x = self.value_ops.unified_inputs(xs)
@@ -181,8 +182,7 @@ class SeriesVAE(Generative):
 
         # Get identifier
         if self.identifier_label and self.identifier_value:
-            identifier = self.identifier_value.unify_inputs(xs=[xs[self.identifier_label][0]])
-            identifier = tf.expand_dims(identifier, axis=0)
+            identifier = self.identifier_value.unify_inputs(xs=xs[self.identifier_label])
         else:
             identifier = None
 
@@ -192,7 +192,7 @@ class SeriesVAE(Generative):
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tf.function
-    def _encode(self, x: tf.Tensor, cs: Dict[str, List[tf.Tensor]], identifier: Optional[tf.Tensor],
+    def _encode(self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]], identifier: Optional[tf.Tensor],
                 n_forecast: tf.Tensor = 0) -> Tuple[tf.Tensor, ...]:
 
         x = self.linear_input(x)
@@ -207,8 +207,8 @@ class SeriesVAE(Generative):
         y = tf.squeeze(y, axis=0)
         return latent_space, mean, std, y
 
-    def synthesize(self, n: int, cs: Dict[str, List[tf.Tensor]],
-                   identifier: tf.Tensor = None) -> Dict[str, List[tf.Tensor]]:
+    def synthesize(self, n: int, cs: Dict[str, Sequence[tf.Tensor]],
+                   identifier: tf.Tensor = None) -> Dict[str, Sequence[tf.Tensor]]:
         y, identifier = self._synthesize(n=n, cs=cs, identifier=identifier)
         synthesized = self.value_ops.value_outputs(y, conditions=cs, identifier=identifier)
 
@@ -216,7 +216,7 @@ class SeriesVAE(Generative):
 
     # @tf.function
     def _synthesize(
-            self, n: int, cs: Dict[str, List[tf.Tensor]], identifier: tf.Tensor = None
+            self, n: int, cs: Dict[str, Sequence[tf.Tensor]], identifier: tf.Tensor = None
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
 
         if self.identifier_value is not None:
@@ -241,7 +241,9 @@ class SeriesVAE(Generative):
     def regularization_losses(self):
         return [
             loss
-            for module in [self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output]+self.values
+            for module in [
+                self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output
+            ] + self.values
             for loss in module.regularization_losses
         ]
 

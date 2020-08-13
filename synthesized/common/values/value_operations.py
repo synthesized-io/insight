@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import tensorflow as tf
 
@@ -31,7 +31,7 @@ class ValueOps(tf.Module):
             self.condition_size += value.learned_input_size()
 
     @tensorflow_name_scoped
-    def unified_inputs(self, inputs: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
+    def unified_inputs(self, inputs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         # Concatenate input tensors per value
         x = tf.concat(values=[
             value.unify_inputs(xs=inputs[value.name])
@@ -41,7 +41,7 @@ class ValueOps(tf.Module):
         return x
 
     @tensorflow_name_scoped
-    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, List[tf.Tensor]]) -> tf.Tensor:
+    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         if len(self.conditions) > 0:
             # Condition c
             c = tf.concat(values=[
@@ -55,7 +55,7 @@ class ValueOps(tf.Module):
         return x
 
     @tensorflow_name_scoped
-    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, List[tf.Tensor]]) -> Dict[str, tf.Tensor]:
+    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -76,8 +76,8 @@ class ValueOps(tf.Module):
         return reconstruction_loss
 
     @tensorflow_name_scoped
-    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, List[tf.Tensor]],
-                      identifier: tf.Tensor = None, sample: bool = True) -> Dict[str, List[tf.Tensor]]:
+    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]],
+                      identifier: tf.Tensor = None, sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -85,10 +85,10 @@ class ValueOps(tf.Module):
         )
 
         # Output tensors per value
-        synthesized: Dict[str, List[tf.Tensor]] = OrderedDict()
+        synthesized: Dict[str, Sequence[tf.Tensor]] = OrderedDict()
 
         if identifier is not None and self.identifier_label is not None:
-            synthesized[self.identifier_label] = [identifier]
+            synthesized[self.identifier_label] = (identifier,)
 
         for value, y in zip(self.values, ys):
             synthesized[value.name] = value.output_tensors(y=y, sample=sample)

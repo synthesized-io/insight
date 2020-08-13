@@ -4,7 +4,6 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 from pyemd import emd
-import statsmodels.api as sm
 from scipy.stats import kendalltau, spearmanr, ks_2samp
 
 from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison, DataFrameComparison
@@ -28,7 +27,7 @@ class StandardDeviation(ColumnMetric):
     def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
 
         rm_outliers = kwargs.get('rm_outliers', 0.0)
-        values = np.sort(sr.values)[int(len(sr)*rm_outliers):int(len(sr)*(1.0-rm_outliers))]
+        values = np.sort(sr.values)[int(len(sr) * rm_outliers):int(len(sr) * (1.0 - rm_outliers))]
         stddev = float(np.nanvar(values)**0.5)
 
         return stddev
@@ -74,9 +73,27 @@ class CramersV(TwoColumnMetric):
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        table = sm.stats.Table(pd.crosstab(sr_a, sr_b))
-        expected = table.fittedvalues.to_numpy()
-        real = table.table
+        table_orig = pd.crosstab(sr_a, sr_b)
+        table = np.asarray(table_orig, dtype=np.float64).sum()
+
+        if table.min() == 0:
+            table[table == 0] = 0.5
+
+        n = table.sum()
+        row = table.sum(1) / n
+        col = table.sum(0) / n
+
+        row = pd.Series(data=row, index=table_orig.index)
+        col = pd.Series(data=col, index=table_orig.columns)
+        itab = np.outer(row, col)
+        probs = pd.DataFrame(
+            data=itab, index=table_orig.index, columns=table_orig.columns
+        )
+
+        fit = table.sum() * probs
+        expected = fit.to_numpy()
+
+        real = table
         r, c = real.shape
         n = np.sum(real)
         v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
@@ -174,4 +191,4 @@ class PredictiveModellingComparison(DataFrameComparison):
         x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
 
         score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
-        return synth_score/score
+        return synth_score / score

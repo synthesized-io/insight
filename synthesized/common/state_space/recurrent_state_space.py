@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pandas as pd
 import tensorflow as tf
 
@@ -24,7 +26,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         )
 
         self.inference_rnn = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units=capacity//2, return_sequences=True)
+            tf.keras.layers.LSTM(units=capacity // 2, return_sequences=True)
         )
         self.inference_network = GaussianEncoder(
             input_size=capacity, output_size=latent_size, capacity=capacity,
@@ -48,15 +50,15 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         return (tf.zeros(shape=[shape[0], self.capacity], dtype=tf.float32),
                 tf.zeros(shape=[shape[0], self.capacity], dtype=tf.float32))
 
-    def loss(self) -> tf.Tensor:
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
 
-        x = self.value_ops.unified_inputs(inputs=self.xs)  # [bs, t, i]
+        x = self.value_ops.unified_inputs(inputs=xs)  # [bs, t, i]
         trn_x = tf.concat([x[:, 0:1, :], x[:, 0:-1, :]], axis=1)
         mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=0.25)
 
         h_0 = self.transition_rnn.get_initial_state(trn_x)
 
-        prior_hs, state1, state2 = self.transition_rnn(inputs=mask*trn_x, initial_state=h_0)
+        prior_hs, state1, state2 = self.transition_rnn(inputs=mask * trn_x, initial_state=h_0)
 
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)
 
@@ -72,13 +74,13 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         e_z = tf.random.normal(shape=sigma_phi.shape, dtype=tf.float32)
 
-        z = mu_phi + e_z*sigma_phi
+        z = mu_phi + e_z * sigma_phi
 
         mu_theta, sigma_theta = self.emission_network(z)
 
         e_y = tf.random.normal(shape=sigma_theta.shape, dtype=tf.float32)
 
-        y = mu_theta + e_y*sigma_theta
+        y = mu_theta + e_y * sigma_theta
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
 
         syn_df = pd.DataFrame(x)
@@ -89,7 +91,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         tf.summary.image("Training Data", data=plot_to_image(fig))
         plt.close(fig)
 
-        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
+        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=xs)
         loss = tf.add_n((kl_loss, reconstruction_loss), name='total_loss')
 
         tf.summary.scalar(name='kl_loss', data=kl_loss)

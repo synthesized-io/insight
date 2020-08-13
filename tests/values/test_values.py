@@ -11,7 +11,7 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     n = len(x)
     with tf.summary.record_if(False):
         value.build()
-        input_tensor_output = [tf.constant(value=x)]
+        input_tensor_output = [tf.constant(x)]
         unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
         if y is None:
             output_tensors_output = value.output_tensors(y=unified_tensor_output)
@@ -97,7 +97,7 @@ def test_date():
 
     meta.extract(df)
     df = meta.preprocess(df)
-    input_tensor_output = [tf.constant(value=df[c], dtype=tf.float32) for c in df.columns]
+    input_tensor_output = [df[c] for c in df.columns]
     unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
     assert unified_tensor_output.shape[0] == n
 

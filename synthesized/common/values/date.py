@@ -1,4 +1,4 @@
-from typing import List
+from typing import Sequence
 
 import tensorflow as tf
 
@@ -46,7 +46,7 @@ class DateValue(ContinuousValue):
         return super().learned_output_size()
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
         xs0 = super().unify_inputs(xs=xs[0: 1])
         xs1 = self.hour.unify_inputs(xs=tf.cast(xs[1: 2], dtype=tf.int64))
@@ -68,7 +68,7 @@ class DateValue(ContinuousValue):
             self.built = True
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
-        xs = xs[0: 1]
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+        xs = xs[0:1]
         loss = super().loss(y=y, xs=xs)
         return loss

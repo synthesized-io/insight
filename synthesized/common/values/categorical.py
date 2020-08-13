@@ -1,6 +1,6 @@
 import logging
 from math import log
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Sequence, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -100,12 +100,12 @@ class CategoricalValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> Sequence[tf.Tensor]:
         if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
@@ -126,12 +126,12 @@ class CategoricalValue(Value):
             else:
                 y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
-        y = tf.reshape(y_flat, shape=y.shape[0:-1])
+        y = tf.reshape(y_flat, shape=tf.concat(([-1], y.shape[1:-1]), axis=0))
 
-        return [y]
+        return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None
@@ -151,7 +151,7 @@ class CategoricalValue(Value):
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
-                weights = tf.reshape(weights, shape=xs[0].shape)
+                weights = tf.reshape(weights, shape=target.shape)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
         else:
             weights = 1.0
@@ -160,7 +160,7 @@ class CategoricalValue(Value):
         assert self.num_categories is not None
 
         target = tf.one_hot(
-            indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
+            indices=target, depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
             dtype=tf.float32
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=-1)
@@ -168,13 +168,12 @@ class CategoricalValue(Value):
         tf.summary.scalar(name=self.name, data=loss)
         return loss
 
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
-        assert len(ys) == 1
+    def distribution_loss(self, y: tf.Tensor) -> tf.Tensor:
 
         if self.probabilities is None:
             return tf.constant(value=0.0, dtype=tf.float32)
 
-        samples = ys[0]
+        samples = y
         num_samples = tf.shape(input=samples)[0]
         samples = tf.concat(
             values=(tf.range(start=0, limit=self.num_categories, dtype=tf.int64), samples), axis=0

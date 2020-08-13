@@ -2,22 +2,21 @@ import logging
 import random
 import time
 from random import randrange
-from typing import Callable, List, Union, Dict, Optional, Tuple
+from typing import Callable, List, Union, Dict, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common.values import Value, ValueFactory, IdentifierValue
-from ..common.generative import SeriesVAE
+from ..common.values import Value, ValueFactory
+from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..config import SeriesConfig
-from ..metadata import DataFrameMeta, ValueMeta, IdentifierMeta
+from ..metadata import DataFrameMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class SeriesSynthesizer(Synthesizer):
@@ -39,11 +38,6 @@ class SeriesSynthesizer(Synthesizer):
         if config.lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
         self.lstm_mode = config.lstm_mode
-
-        # if identifier_label:
-        #     min_len = df.groupby(identifier_label).count().min().values[0]
-        #     max_seq_len = min(max_seq_len, min_len)
-
         self.max_seq_len = config.max_seq_len
 
         self.batch_size = config.batch_size
@@ -52,7 +46,7 @@ class SeriesSynthesizer(Synthesizer):
         self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
 
         # VAE
-        self.vae = SeriesVAE(
+        self.engine = SeriesEngine(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             identifier_label=self.df_meta.id_index_name, identifier_value=self.value_factory.identifier_value,
             encoding=self.lstm_mode, latent_size=config.latent_size,
@@ -74,7 +68,7 @@ class SeriesSynthesizer(Synthesizer):
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
         if learning_manager:
-            self.use_vae_loss = True
+            self.use_engine_loss = True
             self.learning_manager = LearningManager()
             self.learning_manager.set_check_frequency(self.batch_size)
             raise NotImplementedError
@@ -85,34 +79,49 @@ class SeriesSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
-    def get_all_values(self) -> List[Value]:
-        return self.value_factory.all_values
-
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values]
-
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
-
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
-        self.vae.xs = data
-        self.vae.loss()
-        return self.vae.losses
-
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, List[tf.Tensor]]:
-        data = {
-            value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype) for name in meta.learned_input_columns()]
-            for value, meta in self.get_value_meta_pairs()
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_all_values()
         }
         return data
 
-    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, List[tf.Tensor]]], List[int]]:
+    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df_conditions[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_conditions()
+        }
+        return data
+
+    def get_all_values(self) -> List[Value]:
+        return self.value_factory.all_values
+
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
+        if data is not None:
+            self.engine.loss(data)
+        losses = {
+            'total-loss': self.engine.total_loss,
+            'kl-loss': self.engine.kl_loss,
+            'regularization-loss': self.engine.regularization_loss,
+            'reconstruction-loss': self.engine.reconstruction_loss
+        }
+        return losses
+
+    def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, Sequence[tf.Tensor]]], List[int]]:
         if self.df_meta.id_index_name is None:
             num_data = [len(df)]
-            groups = [{
-                value.name: [tf.constant(df[name].to_numpy(), dtype=value.dtype)
-                             for name in meta.learned_input_columns()]
-                for value, meta in self.get_value_meta_pairs()
+            groups: List[Dict[str, Sequence[tf.Tensor]]] = [{
+                value.name: tuple([
+                    tf.constant(df[name])
+                    for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+                ])
+                for value in self.get_all_values()
             }]
 
         else:
@@ -120,18 +129,21 @@ class SeriesSynthesizer(Synthesizer):
             num_data = [len(group) for group in groups]
             for n in range(len(groups)):
                 groups[n] = {
-                    value.name: [
-                        tf.constant(groups[n][name], dtype=value.dtype)
-                        for name in (meta.learned_input_columns()
-                                     if not isinstance(meta, IdentifierMeta)
-                                     else [meta.name])
-                    ]
-                    for value, meta in self.get_value_meta_pairs()
+                    value.name: tuple([
+                        tf.constant(groups[n][name])
+                        for m_name in value.meta_names for name in (
+                            self.df_meta[m_name].learned_input_columns()
+                            if not isinstance(self.df_meta[m_name], IdentifierMeta) else [m_name]
+                        )
+                    ])
+                    for value in self.get_all_values()
                 }
 
         return groups, num_data
 
-    def get_group_feed_dict(self, groups, num_data, max_seq_len=None, group=None) -> Dict[str, List[tf.Tensor]]:
+    def get_group_feed_dict(
+            self, groups: List[Dict[str, Sequence[tf.Tensor]]], num_data, max_seq_len=None, group=None
+    ) -> Dict[str, Sequence[tf.Tensor]]:
         group = group if group is not None else randrange(len(num_data))
         data = groups[group]
 
@@ -141,8 +153,13 @@ class SeriesSynthesizer(Synthesizer):
         else:
             batch = tf.range(num_data[group])
 
-        feed_dict = {name: [tf.nn.embedding_lookup(params=val, ids=batch) for val in value_data]
-                     for name, value_data in data.items()}
+        feed_dict: Dict[str, Sequence[tf.Tensor]] = {
+            name: tuple([
+                tf.nn.embedding_lookup(params=val, ids=batch)
+                for val in values
+            ])
+            for name, values in data.items()
+        }
 
         return feed_dict
 
@@ -151,7 +168,7 @@ class SeriesSynthesizer(Synthesizer):
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
             conditions=[value.specification() for value in self.value_factory.get_conditions()],
-            vae=self.vae.specification(), batch_size=self.batch_size
+            engine=self.engine.specification(), batch_size=self.batch_size
         )
         return spec
 
@@ -161,7 +178,7 @@ class SeriesSynthesizer(Synthesizer):
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
+        callback: Callable[[Synthesizer, int, dict], bool] = None,
         callback_freq: int = 0, print_status_freq: int = 10, timeout: int = 2500
     ) -> None:
 
@@ -183,13 +200,11 @@ class SeriesSynthesizer(Synthesizer):
                 feed_dicts = [self.get_group_feed_dict(groups, num_data, max_seq_len=max_seq_len)
                               for _ in range(self.batch_size)]
                 # TODO: Code below will fail if sequences don't have same shape.
+
                 feed_dict = {
                     value.name: [
                         tf.stack([fd[value.name][n] for fd in feed_dicts], axis=0)
-                        for n, name in enumerate(
-                            self.df_meta[value.name].learned_input_columns() if not isinstance(value, IdentifierValue)
-                            else [value.name]
-                        )
+                        for n in range(len(feed_dicts[0][value.name]))
                     ]
                     for value in self.get_all_values()
                 }
@@ -199,16 +214,16 @@ class SeriesSynthesizer(Synthesizer):
                 ):
                     if self.writer is not None and iteration == 1:
                         tf.summary.trace_on(graph=True, profiler=False)
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=feed_dict)
                         tf.summary.trace_export(name="Learn", step=self.global_step)
                         tf.summary.trace_off()
                     else:
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=feed_dict)
 
-                    # if callback(self, iteration, self.vae.losses) is True:
+                    # if callback(self, iteration, self.engine.losses) is True:
                     #     return
                 else:
-                    self.vae.learn(xs=feed_dict)
+                    self.engine.learn(xs=feed_dict)
 
                 if print_status_freq > 0 and iteration % print_status_freq == 0:
                     self._print_learn_stats(self.get_losses(feed_dict), iteration)
@@ -233,55 +248,36 @@ class SeriesSynthesizer(Synthesizer):
             )
         ))
 
-    def synthesize(self, series_length: int = None,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None,
-                   num_series: int = None, series_lengths: List[int] = None
-                   ) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None, num_series: int = 1
+    ) -> pd.DataFrame:
         """Synthesize a dataset from the learned model
 
-        :param series_length: Length of the synthesized series, if all have same length.
-        :param conditions: Conditions.
-        :param progress_callback: Progress bar callback.
-        :param num_series: Number of series to synthesize.
-        :param series_lengths: List of lenghts of each synthesized series, if they are different
-        :return: Synthesized dataframe.
+        Args:
+            num_rows: Length of the synthesized series.
+            num_series: Number of series to synthesize.
+            conditions: Conditions.
+            progress_callback: Progress bar callback.
+
+        Returns: Synthesized dataframe.
         """
-        if num_series is not None:
-            assert series_length is not None, "If 'num_series' is given, 'series_length' must be defined."
-            assert series_lengths is None, "Parameter 'series_lengths' is incompatible with 'num_series'."
-
-            series_lengths = [series_length] * num_series
-
-        elif series_lengths is not None:
-            assert series_length is None, "Parameter 'series_length' is incompatible with 'series_lengths'."
-            assert num_series is None or num_series == len(series_lengths)
-
-            num_series = len(series_lengths)
-
-        else:
-            raise ValueError("Both 'num_series' and 'series_lengths' are None. One or the other is require to"
-                             "synthesize data.")
-
+        series_length = num_rows
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
         columns = self.df_meta.columns
 
-        feed_dict = self.get_conditions_feed_dict(df_conditions, series_length, batch_size=None)
+        feed_dict = self.get_conditions_feed_dict(df_conditions)
         synthesized = None
 
         # Get identifiers to iterate
         if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
             raise ValueError("Number of series to synthesize is bigger than original dataset.")
 
-        print(f'num_series: {num_series}, series_lengths: {series_length}')
-
         with record_summaries_every_n_global_steps(0, self.global_step):
             for identifier in random.sample(range(num_series), num_series):
-                print('synthesizing series.')
-                series_length = series_lengths[identifier]
                 tf_identifier = tf.constant([identifier])
-                other = self.vae.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
-                                            identifier=tf_identifier)
+                other = self.engine.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
+                                               identifier=tf_identifier)
                 other = self.df_meta.split_outputs(other)
                 other = pd.DataFrame.from_dict(other)
                 if synthesized is None:
@@ -311,12 +307,12 @@ class SeriesSynthesizer(Synthesizer):
         for i in range(len(groups)):
 
             feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            encoded_i, decoded_i = self.vae.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
+            encoded_i, decoded_i = self.engine.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
             if len(encoded_i['sample'].shape) == 1:
                 encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
 
             if self.df_meta.id_index_name:
-                identifier = feed_dict[self.df_meta.id_index_name][0]
+                identifier = feed_dict[self.df_meta.id_index_name]
                 decoded_i[self.df_meta.id_index_name] = tf.tile([identifier], [num_data[i] + n_forecast])
 
             if not encoded or not decoded:
@@ -339,4 +335,4 @@ class SeriesSynthesizer(Synthesizer):
         df_encoded = pd.DataFrame.from_records(
             latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
 
-        return df_encoded,  df_synthesized
+        return df_encoded, df_synthesized

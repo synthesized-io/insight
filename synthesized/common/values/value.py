@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 from base64 import b64encode, b64decode
 import pickle
 
@@ -10,10 +10,10 @@ from ..util import make_tf_compatible
 
 
 class Value(tf.Module):
-    def __init__(self, name: str):
+    def __init__(self, name: str, meta_names: List[str] = None):
         super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
-
+        self.meta_names = [name] if meta_names is None else meta_names
         self.built = False
         self.dtype = tf.float32
         self._regularization_losses: List[tf.Tensor] = list()
@@ -56,7 +56,7 @@ class Value(tf.Module):
         return 0
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Unifies input tensors into a single input embedding for a generative model.
 
         Args:
@@ -69,7 +69,7 @@ class Value(tf.Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
         """Turns an output embedding of a generative model into corresponding output tensors.
 
         Args:
@@ -79,10 +79,10 @@ class Value(tf.Module):
             Output tensors, one per `learned_output_columns()`.
 
         """
-        return list()
+        return tuple()
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Computes the reconstruction loss of an output embedding and corresponding input tensors.
 
         Args:
@@ -96,7 +96,7 @@ class Value(tf.Module):
         return tf.constant(value=0.0, dtype=tf.float32)
 
     @tensorflow_name_scoped
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+    def distribution_loss(self, *ys: tf.Tensor) -> tf.Tensor:
         """Computes the distributional distance of sample output embeddings to the target
         distribution.
 

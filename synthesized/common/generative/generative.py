@@ -14,8 +14,10 @@ class Generative(tf.Module):
         self.values = values
         self.conditions = conditions
         self._trainable_variables = None
-        self.xs: Dict[str, tf.Tensor] = dict()
-        self.losses: Dict[str, tf.Tensor] = dict()
+        self.reconstruction_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
+        self.regularization_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
+        self.kl_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
+        self.total_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
 
     @tensorflow_name_scoped
     def learn(self, xs: Dict[str, tf.Tensor]) -> Tuple[Dict[str, tf.Tensor], tf.Operation]:

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Tuple
 
 import pandas as pd
 import tensorflow as tf
@@ -19,11 +19,11 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
             num_layers=1, name='emission'
         )
         self.transition_network = GaussianEncoder(
-            input_size=latent_size+self.value_ops.output_size, output_size=latent_size, capacity=capacity,
+            input_size=latent_size + self.value_ops.output_size, output_size=latent_size, capacity=capacity,
             num_layers=3, name='transition'
         )
         self.inference_network = GaussianEncoder(
-            input_size=latent_size + 2*self.value_ops.output_size, output_size=latent_size, capacity=capacity,
+            input_size=latent_size + 2 * self.value_ops.output_size, output_size=latent_size, capacity=capacity,
             num_layers=3, name='inference'
         )
         self.initial_network = GaussianEncoder(
@@ -37,7 +37,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
         with tf.name_scope('transition'):
             self.transition_network.build(self.latent_size + self.value_ops.output_size)
         with tf.name_scope('inference'):
-            self.inference_network.build(self.latent_size + 2*self.value_ops.output_size)
+            self.inference_network.build(self.latent_size + 2 * self.value_ops.output_size)
         with tf.name_scope('initial'):
             self.initial_network.build(self.value_ops.input_size)
         self.built = True
@@ -61,9 +61,9 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         for i in range(u.shape[1]):
 
-            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i+1, :], x_t=x[:, i:i+1, :])
+            mu_t, sigma_t = self.inference(z_p=z[i], u_t=u[:, i:i + 1, :], x_t=x[:, i:i + 1, :])
             e = self.sample_state(bs=u.shape[0])
-            z.append(mu_t + sigma_t*e)
+            z.append(mu_t + sigma_t * e)
             mu.append(mu_t)
             sigma.append(sigma_t)
 
@@ -92,10 +92,10 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         for i in range(n):
             mu_t, sigma_t = self.transition(z_p=z[i], u_t=x[i])
-            z_t = mu_t + sigma_t*self.sample_state(bs=z_0.shape[0])
+            z_t = mu_t + sigma_t * self.sample_state(bs=z_0.shape[0])
 
             mu_theta_t, sigma_theta_t = self.emission(z_t)
-            x_t = mu_theta_t + sigma_theta_t*self.sample_output(bs=z_0.shape[0])
+            x_t = mu_theta_t + sigma_theta_t * self.sample_output(bs=z_0.shape[0])
 
             z.append(z_t)
             x.append(x_t)
@@ -105,8 +105,8 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
 
         return z_f, x_f
 
-    def loss(self) -> tf.Tensor:
-        x = self.value_ops.unified_inputs(inputs=self.xs)
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        x = self.value_ops.unified_inputs(inputs=xs)
 
         z_0 = self.get_initial_state(x_1=x[:, 0:1, :])
         mu_theta_0, sigma_theta_0 = self.emission(z_t=z_0)
@@ -133,7 +133,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
             mu_1=mu_theta_0, stddev_1=sigma_theta_0, mu_2=tf.zeros(shape=mu_theta_0.shape, dtype=tf.float32),
             stddev_2=tf.ones(shape=sigma_theta_0.shape, dtype=tf.float32)
         )
-        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
+        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=xs)
         loss = tf.add_n((kl_loss, init_kl_loss, reconstruction_loss, normal_kl_loss), name='total_loss')
 
         tf.summary.scalar(name='kl_loss', data=kl_loss)

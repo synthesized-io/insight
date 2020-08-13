@@ -204,7 +204,7 @@ class ScenarioSynthesizer(Synthesizer):
 
     def learn(
         self, df_train: pd.DataFrame = None, num_iterations: Optional[int] = None,
-        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
+        callback: Callable[[Synthesizer, int, dict], bool] = None,
         callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
@@ -245,7 +245,7 @@ class ScenarioSynthesizer(Synthesizer):
 
         columns = [label for value in self.values for label in value.learned_output_columns()]
         if len(columns) == 0:
-            return pd.DataFrame([[], ]*num_rows)
+            return pd.DataFrame([[], ] * num_rows)
 
         fetches = self.synthesized
 

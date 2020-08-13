@@ -33,8 +33,8 @@ class Sanitizer(Synthesizer):
         self.max_synthesis_attempts = 3
         remove_outliers = 0.05
 
-        self.learned_columns = []
-        self.categorical_values = []
+        self.learned_columns: List[str] = []
+        self.categorical_values: List[str] = []
         self.distances: Dict[str, Union[float, None]] = OrderedDict()
         for v in self.synthesizer.get_values():
             if v.learned_output_size() > 0:

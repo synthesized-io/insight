@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import tensorflow as tf
 
@@ -15,12 +15,12 @@ class AssociatedCategoricalValue(Value):
             self, values: List[CategoricalValue], associations: List[List[str]]
     ):
         super(AssociatedCategoricalValue, self).__init__(
-            name='|'.join([v.name for v in values])
+            name='|'.join([v.name for v in values]), meta_names=[name for value in values for name in value.meta_names]
         )
         self.values = values
         logger.debug("Creating Associated value with associations: ")
         for n, association in enumerate(associations):
-            logger.debug(f"{n+1}: {association}")
+            logger.debug(f"{n + 1}: {association}")
         self.associations = associations
         self.dtype = tf.int64
         self.binding_mask: Optional[tf.Tensor] = None
@@ -49,11 +49,11 @@ class AssociatedCategoricalValue(Value):
         return sum([v.learned_output_size() for v in self.values])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        return tf.concat([value.unify_inputs(xs[n:n+1]) for n, value in enumerate(self.values)], axis=-1)
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        return tf.concat([value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values)], axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor) -> Sequence[tf.Tensor]:
         """Outputs the bound categorical values."""
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -76,20 +76,20 @@ class AssociatedCategoricalValue(Value):
             ot.append(tf.math.mod(
                 tf.math.floordiv(
                     y,
-                    tf.cast(tf.reduce_prod([self.values[-m-1].num_categories for m in range(n)]), dtype=tf.int64)
+                    tf.cast(tf.reduce_prod([self.values[-m - 1].num_categories for m in range(n)]), dtype=tf.int64)
                 ),
-                self.values[-n-1].num_categories
+                self.values[-n - 1].num_categories
             ))
 
-        return ot[::-1]
+        return tuple(ot[::-1])
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
             axis=-1
         )
-        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n+1]) for n, v in enumerate(self.values)], axis=None)
+        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n + 1]) for n, v in enumerate(self.values)], axis=None)
 
 
 def tf_joint_probs(*args):
@@ -97,8 +97,8 @@ def tf_joint_probs(*args):
     probs = []
     for n, x in enumerate(args):
         for m in range(n):
-            x = tf.expand_dims(x, axis=-2-m)
-        for m in range(rank-n-1):
+            x = tf.expand_dims(x, axis=-2 - m)
+        for m in range(rank - n - 1):
             x = tf.expand_dims(x, axis=-1)
         probs.append(x)
 
@@ -114,9 +114,9 @@ def tf_masked_probs(jp, mask):
         raise ValueError("Mask shape doesn't match joint probability's shape.")
 
     d = jp * mask
-    for n in range(len(jp.shape)-len(mask.shape), len(jp.shape)):
+    for n in range(len(jp.shape) - len(mask.shape), len(jp.shape)):
         d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
-                jp * mask)
+            jp * mask)
         d += d_a
 
     return d

@@ -1,6 +1,6 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Optional, Tuple, Any, BinaryIO
+from typing import Callable, List, Union, Dict, Optional, Tuple, Any, BinaryIO, Sequence
 
 import numpy as np
 import pandas as pd
@@ -8,18 +8,16 @@ import pickle
 import tensorflow as tf
 
 from .binary_builder import ModelBinary
-from ..metadata import DataFrameMeta, ValueMeta
-from ..common.generative import VAEOld
+from ..metadata import DataFrameMeta
+from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueFactory, ValueFactoryWrapper
+from ..common.values import Value, ValueFactory
 from ..config import HighDimConfig
-
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
 
 
 class HighDimSynthesizer(Synthesizer):
@@ -30,8 +28,8 @@ class HighDimSynthesizer(Synthesizer):
     """
 
     def __init__(
-        self, df_meta: DataFrameMeta, conditions: List[str] = None, summarizer_dir: str = None,
-        summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
+            self, df_meta: DataFrameMeta, conditions: List[str] = None, summarizer_dir: str = None,
+            summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -52,11 +50,11 @@ class HighDimSynthesizer(Synthesizer):
         self.df_meta = df_meta
 
         self.value_factory = ValueFactory(
-            df_meta=df_meta, name='value_factory',  conditions=conditions, config=config.value_factory_config
+            df_meta=df_meta, name='value_factory', conditions=conditions, config=config.value_factory_config
         )
 
         # VAE
-        self.vae = VAEOld(
+        self.engine = HighDimEngine(
             name='vae', values=self.get_values(), conditions=self.get_conditions(),
             latent_size=config.latent_size, network=config.network, capacity=config.capacity,
             num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
@@ -72,10 +70,10 @@ class HighDimSynthesizer(Synthesizer):
         # Learning Manager
         self.learning_manager: Optional[LearningManager] = None
         if config.learning_manager:
-            use_vae_loss = False if config.custom_stop_metric else True
+            use_engine_loss = False if config.custom_stop_metric else True
             self.learning_manager = LearningManager(
-                max_training_time=config.max_training_time, use_vae_loss=use_vae_loss,
-                custom_stop_metric=config.custom_stop_metric
+                max_training_time=config.max_training_time, use_engine_loss=use_engine_loss,
+                custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
 
     def get_values(self) -> List[Value]:
@@ -84,38 +82,60 @@ class HighDimSynthesizer(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.value_factory.get_conditions()
 
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.all_values]
+    def get_data_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df_conditions[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_all_values()
+        }
+        return data
 
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return [(v, self.df_meta[v.name]) for v in self.value_factory.get_conditions()]
+    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        data: Dict[str, Sequence[tf.Tensor]] = {
+            value.name: tuple([
+                tf.constant(df_conditions[name])
+                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            ])
+            for value in self.get_conditions()
+        }
+        return data
 
-    def get_losses(self, data: Dict[str, tf.Tensor]) -> tf.Tensor:
-        self.vae.xs = data
-        self.vae.loss()
-        return self.vae.losses
+    def get_losses(self, data: Dict[str, Sequence[tf.Tensor]] = None) -> Dict[str, tf.Tensor]:
+        if data is not None:
+            self.engine.loss(data)
+
+        losses = {
+            'total-loss': self.engine.total_loss,
+            'kl-loss': self.engine.kl_loss,
+            'regularization-loss': self.engine.regularization_loss,
+            'reconstruction-loss': self.engine.reconstruction_loss
+        }
+        return losses
 
     def specification(self) -> dict:
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
             conditions=[value.specification() for value in self.value_factory.get_conditions()],
-            vae=self.vae.specification(), batch_size=self.batch_size
+            engine=self.engine.specification(), batch_size=self.batch_size
         )
         return spec
 
     def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        df = self.df_meta.preprocess(df, max_workers=max_workers)
-        return df
+        """Returns a preprocessed copy of the given DataFrame."""
+        return self.df_meta.preprocess(df, max_workers=max_workers)
 
     def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
         df = self.df_meta.postprocess(df, max_workers=max_workers)
         return df
 
+    # TODO: implement the low_memory option.
     def learn(
-        self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[Synthesizer, int, dict], bool] = Synthesizer.logging,
-        callback_freq: int = 0, low_memory: bool = False
+            self, df_train: pd.DataFrame, num_iterations: Optional[int],
+            callback: Callable[[Synthesizer, int, dict], bool] = None,
+            callback_freq: int = 0, low_memory: bool = False
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -139,75 +159,65 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.set_check_frequency(self.batch_size)
 
         num_data = len(df_train)
+        df_train_pre = self.preprocess(df_train)
+        feed_dict = self.get_data_feed_dict(df_train_pre)
 
-        if not low_memory:
-            df_train = df_train.copy()
-            df_train_pre = self.preprocess(df_train.copy())
-        else:
-            sample_size_lm = min(self.learning_manager.sample_size,
-                                 num_data) if self.learning_manager and self.learning_manager.sample_size else num_data
+        dataset = tf.data.Dataset.from_tensor_slices(
+            feed_dict
+        ).shuffle(buffer_size=num_data, reshuffle_each_iteration=True).repeat(count=None)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
-            iteration = 1
+            iteration = 0
             while keep_learning:
-                batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
+                train = dataset.batch(self.batch_size).prefetch(2)
+                for xs in train:
+                    # Increment iteration number, and check if we reached max num_iterations
+                    self.global_step.assign_add(1)
+                    iteration += 1
+                    if num_iterations:
+                        keep_learning = iteration <= num_iterations
+                    if keep_learning is False:
+                        break
 
-                if low_memory:
-                    feed_dict = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
-                else:
-                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch])
+                    if callback is not None and callback_freq > 0 and (
+                        iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
+                    ):
+                        if self.writer is not None and iteration == 1:
+                            tf.summary.trace_on(graph=True, profiler=False)
+                            self.engine.learn(xs=xs)
+                            tf.summary.trace_export(name="Learn", step=self.global_step)
+                            tf.summary.trace_off()
+                        else:
+                            self.engine.learn(xs=xs)
 
-                if callback is not None and callback_freq > 0 and (
-                    iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
-                ):
-                    if self.writer is not None and iteration == 1:
-                        tf.summary.trace_on(graph=True, profiler=False)
-                        self.vae.learn(xs=feed_dict)
-                        tf.summary.trace_export(name="Learn", step=self.global_step)
-                        tf.summary.trace_off()
+                        losses = self.get_losses()
+                        if callback(self, iteration, losses) is True:
+                            return
                     else:
-                        self.vae.learn(xs=feed_dict)
+                        self.engine.learn(xs=xs)
 
-                    if callback(self, iteration, self.vae.losses) is True:
-                        return
-                else:
-                    self.vae.learn(xs=feed_dict)
-
-                if self.learning_manager:
-                    if low_memory:
-                        batch = np.random.choice(num_data, size=sample_size_lm, replace=False)
-                        data = self.get_data_feed_dict(self.preprocess(df_train.iloc[batch].copy()))
-                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                               data_dict=data, num_data=num_data,
-                                                               df_train_orig=df_train.sample(sample_size_lm)):
-                            break
-                    else:
-                        data = self.get_data_feed_dict(df_train_pre)
-                        if self.learning_manager.stop_learning(iteration, synthesizer=self,
-                                                               data_dict=data, num_data=num_data,
-                                                               df_train_orig=df_train):
-                            break
-
-                # Increase batch size
-                tf.summary.scalar(name='batch_size', data=self.batch_size)
-                if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
-                        iteration % self.increase_batch_size_every == 0:
-                    self.batch_size *= 2
-                    if self.batch_size > self.max_batch_size:
-                        self.batch_size = self.max_batch_size
-                    if self.batch_size == self.max_batch_size:
-                        logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                     if self.learning_manager:
-                        self.learning_manager.set_check_frequency(self.batch_size)
-                    logger.info('Iteration {} :: Batch size increased to {}'.format(iteration, self.batch_size))
+                        if self.learning_manager.stop_learning(
+                                iteration, synthesizer=self, data_dict=feed_dict,
+                                num_data=num_data, df_train_orig=df_train
+                        ):
+                            keep_learning = False
+                            break
 
-                # Increment iteration number, and check if we reached max num_iterations
-                iteration += 1
-                if num_iterations:
-                    keep_learning = iteration < num_iterations
+                    # Increase batch size
+                    tf.summary.scalar(name='batch_size', data=self.batch_size)
+                    if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
+                            iteration % self.increase_batch_size_every == 0:
+                        self.batch_size *= 2
+                        if self.batch_size > self.max_batch_size:
+                            self.batch_size = self.max_batch_size
 
-                self.global_step.assign_add(1)
+                        if self.batch_size == self.max_batch_size:
+                            logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
+                        if self.learning_manager:
+                            self.learning_manager.set_check_frequency(self.batch_size)
+                        break
 
     def synthesize(
             self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
@@ -230,51 +240,85 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
+        if type(conditions) is dict:
+            conditions = pd.DataFrame(index=np.arange(num_rows), data=conditions)
+
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
         columns = self.df_meta.columns
 
+        if df_conditions is not None and len(df_conditions) > 0:
+            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
+            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
+        else:
+            conditions_dataset = None
+
         if len(columns) == 0:
-            return pd.DataFrame([[], ]*num_rows)
+            return pd.DataFrame([[], ] * num_rows)
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
-            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
-            synthesized = self.vae.synthesize(num_rows, cs=feed_dict)
+            synthesized = None
+            if conditions_dataset is None:
+                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict())
+            else:
+                for cs in conditions_dataset.batch(batch_size=num_rows).take(1):
+                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs)
+            assert synthesized is not None
             synthesized = self.df_meta.split_outputs(synthesized)
-
             df_synthesized = pd.DataFrame.from_dict(synthesized)
             if progress_callback is not None:
                 progress_callback(98)
 
         else:
-            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows)
-            synthesized = self.vae.synthesize(num_rows % self.synthesis_batch_size, cs=feed_dict)
-            dict_synthesized = self.df_meta.split_outputs(synthesized)
-            dict_synthesized = {k: v.numpy().tolist() for k, v in dict_synthesized.items()}
+            dict_synthesized = None
+            if num_rows % self.synthesis_batch_size > 0:
+                synthesized = None
+                if conditions_dataset is None:
+                    synthesized = self.engine.synthesize(
+                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict()
+                    )
+                else:
+                    for cs in conditions_dataset.batch(batch_size=num_rows % self.synthesis_batch_size).take(1):
+                        synthesized = self.engine.synthesize(
+                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs
+                        )
+                assert synthesized is not None
+                dict_synthesized = self.df_meta.split_outputs(synthesized)
+                dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
-            feed_dict = self.get_conditions_feed_dict(df_conditions, num_rows=self.synthesis_batch_size)
             n_batches = num_rows // self.synthesis_batch_size
-            conditions_data = self.get_conditions_data(df_conditions)
 
-            for k in range(n_batches):
-                if len(conditions_data) > 0:
-                    feed_dict.update({
-                        name: tf.constant(
-                            condition_data[k * self.synthesis_batch_size: (k + 1) * self.synthesis_batch_size],
-                            dtype=tf.float32)
-                        for name, condition_data in conditions_data.items()
-                        if condition_data.shape == (num_rows,)
-                    })
-                other = self.vae.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=feed_dict)
-                other = self.df_meta.split_outputs(other)
-                for c in dict_synthesized.keys():
-                    dict_synthesized[c].extend(other[c].numpy().tolist())
+            if conditions_dataset:
+                conditions_dataset = conditions_dataset.batch(batch_size=self.synthesis_batch_size).take(n_batches)
+                for k, cs in enumerate(conditions_dataset):
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs)
+                    other = self.df_meta.split_outputs(other)
+                    if dict_synthesized is None:
+                        dict_synthesized = other
+                        dict_synthesized = {key: v.tolist() for key, v in dict_synthesized.items()}
+                    else:
+                        for c in other.keys():
+                            dict_synthesized[c].extend(other[c].tolist())
 
-                if progress_callback is not None:
-                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                    progress_callback(round((k + 1) * 98.0 / n_batches))
+                    if progress_callback is not None:
+                        # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                        progress_callback(round((k + 1) * 98.0 / n_batches))
+            else:
+                for k in range(n_batches):
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict())
+                    other = self.df_meta.split_outputs(other)
+                    if dict_synthesized is None:
+                        dict_synthesized = other
+                        dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
+                    else:
+                        for c in other.keys():
+                            dict_synthesized[c].extend(other[c].tolist())
+
+                    if progress_callback is not None:
+                        # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                        progress_callback(round((k + 1) * 98.0 / n_batches))
 
             df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
@@ -289,8 +333,9 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None) \
-            -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def encode(
+            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
 
         Args:
@@ -306,9 +351,19 @@ class HighDimSynthesizer(Synthesizer):
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
+        if df_conditions is not None and len(df_conditions) > 0:
+            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
+            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
+        else:
+            conditions_dataset = None
 
-        encoded, decoded = self.vae.encode(xs=data, cs=conditions_data)
+        if conditions_dataset is not None:
+            encoded, decoded = None, None
+            for cs in conditions_dataset.batch(num_rows).take(1):
+                encoded, decoded = self.engine.encode(xs=data, cs=cs)
+            assert encoded is not None and decoded is not None
+        else:
+            encoded, decoded = self.engine.encode(xs=data, cs=dict())
 
         columns = self.df_meta.columns
         decoded = self.df_meta.split_outputs(decoded)
@@ -321,8 +376,9 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_encoded, df_synthesized
 
-    def encode_deterministic(self, df_encode: pd.DataFrame,
-                             conditions: Union[dict, pd.DataFrame] = None) -> pd.DataFrame:
+    def encode_deterministic(
+            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+    ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
 
         Args:
@@ -332,15 +388,25 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             Pandas DataFrame of decoded space corresponding to input data
         """
-        df_encode = df_encode.copy()
         df_encode = self.df_meta.preprocess(df=df_encode)
         df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        conditions_data = self.get_conditions_feed_dict(df_conditions, num_rows=num_rows, batch_size=None)
+        if df_conditions is not None and len(df_conditions) > 0:
+            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
+            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
+        else:
+            conditions_dataset = None
 
-        decoded = self.vae.encode_deterministic(xs=data, cs=conditions_data)
+        if conditions_dataset is not None:
+            decoded = None
+            for cs in conditions_dataset.batch(num_rows).take(1):
+                decoded = self.engine.encode_deterministic(xs=data, cs=cs)
+            assert decoded is not None
+        else:
+            decoded = self.engine.encode_deterministic(xs=data, cs=dict())
+
         decoded = self.df_meta.split_outputs(decoded)
         columns = self.df_meta.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
@@ -357,22 +423,22 @@ class HighDimSynthesizer(Synthesizer):
             value_factory=self.value_factory.get_variables(),
 
             # VAE
-            vae=self.vae.get_variables(),
-            latent_size=self.vae.latent_size,
-            network=self.vae.network,
-            capacity=self.vae.capacity,
-            num_layers=self.vae.num_layers,
-            residual_depths=self.vae.residual_depths,
-            batch_norm=self.vae.batch_norm,
-            activation=self.vae.activation,
-            optimizer=self.vae.optimizer_name,
-            learning_rate=self.vae.learning_rate,
-            decay_steps=self.vae.decay_steps,
-            decay_rate=self.vae.decay_rate,
-            initial_boost=self.vae.initial_boost,
-            clip_gradients=self.vae.clip_gradients,
-            beta=self.vae.beta,
-            weight_decay=self.vae.weight_decay,
+            engine=self.engine.get_variables(),
+            latent_size=self.engine.latent_size,
+            network=self.engine.network,
+            capacity=self.engine.capacity,
+            num_layers=self.engine.num_layers,
+            residual_depths=self.engine.residual_depths,
+            batch_norm=self.engine.batch_norm,
+            activation=self.engine.activation,
+            optimizer=self.engine.optimizer_name,
+            learning_rate=self.engine.learning_rate,
+            decay_steps=self.engine.decay_steps,
+            decay_rate=self.engine.decay_rate,
+            initial_boost=self.engine.initial_boost,
+            clip_gradients=self.engine.clip_gradients,
+            beta=self.engine.beta,
+            weight_decay=self.engine.weight_decay,
 
             # HighDim
             batch_size=self.batch_size,
@@ -393,7 +459,7 @@ class HighDimSynthesizer(Synthesizer):
         self.value_factory.set_variables(variables['value_factory'])
 
         # VAE
-        self.vae.set_variables(variables['vae'])
+        self.engine.set_variables(variables['engine'])
 
         # Batch Sizes
         self.batch_size = variables['batch_size']
@@ -432,24 +498,24 @@ class HighDimSynthesizer(Synthesizer):
             raise ValueError("The body of the given Binary Model is empty")
         variables = pickle.loads(model_binary.get_body())
 
-        return HighDimSynthesizerWrapper(variables)
+        return HighDimSynthesizer.from_dict(variables)
 
-
-class HighDimSynthesizerWrapper(HighDimSynthesizer):
-    def __init__(self, variables, summarizer_dir: str = None, summarizer_name: str = None):
-        super(HighDimSynthesizer, self).__init__(
+    @staticmethod
+    def from_dict(variables: dict, summarizer_dir: str = None, summarizer_name: str = None):
+        synth = HighDimSynthesizer.__new__(HighDimSynthesizer)
+        super(HighDimSynthesizer, synth).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
         # Data Panel
-        self.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
+        synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
 
         # Value Factory
-        self.value_factory = ValueFactoryWrapper(name='value_factory', variables=variables['value_factory'])
+        synth.value_factory = ValueFactory.from_dict(variables['value_factory'])
 
         # VAE
-        self.vae = VAEOld(
-            name='vae', values=self.get_values(), conditions=self.get_conditions(),
+        synth.engine = HighDimEngine(
+            name='vae', values=synth.get_values(), conditions=synth.get_conditions(),
             latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
             num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
             batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],
@@ -457,19 +523,21 @@ class HighDimSynthesizerWrapper(HighDimSynthesizer):
             decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
             clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
         )
-        self.vae.set_variables(variables['vae'])
+        synth.engine.set_variables(variables['engine'])
 
         # Batch Sizes
-        self.batch_size = variables['batch_size']
-        self.increase_batch_size_every = variables['increase_batch_size_every']
-        self.max_batch_size = variables['max_batch_size']
-        self.synthesis_batch_size = variables['synthesis_batch_size']
+        synth.batch_size = variables['batch_size']
+        synth.increase_batch_size_every = variables['increase_batch_size_every']
+        synth.max_batch_size = variables['max_batch_size']
+        synth.synthesis_batch_size = variables['synthesis_batch_size']
 
         # Input argument placeholder for num_rows
-        self.num_rows: Optional[tf.Tensor] = None
+        synth.num_rows = None
 
         # Learning Manager
-        self.learning_manager: Optional[LearningManager] = None
+        synth.learning_manager = None
         if 'learning_manager' in variables.keys():
-            self.learning_manager = LearningManager()
-            self.learning_manager.set_variables(variables['learning_manager'])
+            synth.learning_manager = LearningManager()
+            synth.learning_manager.set_variables(variables['learning_manager'])
+
+        return synth

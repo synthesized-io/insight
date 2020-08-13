@@ -26,6 +26,7 @@ from .sampling import SamplingMeta
 from .value_meta import ValueMeta
 from ..config import MetaExtractorConfig, AddressParams, BankParams, CompoundAddressParams, PersonParams
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,7 +164,7 @@ class MetaExtractor:
                     value = CategoricalMeta(name, produce_nans=name in produce_nans_for)
                 elif forced_type == TypeOverride.CONTINUOUS:
                     value = ContinuousMeta(name)
-                    if any(pd.to_numeric(df[name]).isin([np.NaN, np.Inf, -np.Inf])):
+                    if any(pd.to_numeric(df[name]).isin([np.Inf, -np.Inf])) or any(pd.to_numeric(df[name]).isna()):
                         value = NanMeta(name, value, produce_nans=name in produce_nans_for,
                                         produce_infs=name in produce_infs_for)
                 elif forced_type == TypeOverride.DATE:

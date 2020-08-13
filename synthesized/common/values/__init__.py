@@ -3,7 +3,7 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue
-from .factory import ValueFactory, ValueFactoryConfig, ValueFactoryWrapper
+from .factory import ValueFactory, ValueFactoryConfig
 from .identifier import IdentifierValue
 from .nan import NanValue
 from .rule import RuleValue
@@ -13,6 +13,5 @@ from .value_operations import ValueOps
 
 __all__ = [
     'AssociatedCategoricalValue', 'CategoricalValue', 'ContinuousValue', 'DateValue', 'DecomposedContinuousValue',
-    'IdentifierValue', 'NanValue', 'RuleValue',  'Value',  'ValueFactory', 'ValueFactoryWrapper',
-    'ValueOps', 'ValueFactoryConfig'
+    'IdentifierValue', 'NanValue', 'RuleValue', 'Value', 'ValueFactory', 'ValueOps', 'ValueFactoryConfig'
 ]

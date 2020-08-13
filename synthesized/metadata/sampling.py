@@ -34,6 +34,7 @@ class SamplingMeta(ValueMeta):
         self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=dropna)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
+        self.num_categories = len(self.categories)
 
     def learned_input_columns(self) -> List[str]:
         return []

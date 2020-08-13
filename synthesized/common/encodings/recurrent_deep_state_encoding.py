@@ -32,7 +32,7 @@ class RecurrentDSSEncoding(Encoding):
             input_size=self.capacity, output_size=self.encoding_size, name='transition_distribution'
         )
         self.inference_rnn = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units=self.capacity//2, return_sequences=True)
+            tf.keras.layers.LSTM(units=self.capacity // 2, return_sequences=True)
         )
         self.inference_network = GaussianTransformation(
             input_size=self.capacity, output_size=self.encoding_size, name='inference_distribution'
@@ -43,7 +43,7 @@ class RecurrentDSSEncoding(Encoding):
         self.transition_rnn.build(input_shape=(None, None, self.input_size))
 
         self.inference_network.build(input_shape=(None, None, self.capacity))
-        self.inference_rnn.build(input_shape=(None, None, self.input_size+self.capacity))
+        self.inference_rnn.build(input_shape=(None, None, self.input_size + self.capacity))
 
         self.built = True
 
@@ -69,7 +69,7 @@ class RecurrentDSSEncoding(Encoding):
 
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)  # shape: ([bs, t, e], [bs, t, e])
 
-        inference_inputs = tf.concat([x, prior_hs], axis=2)   # shape: [bs, t, 2*c]
+        inference_inputs = tf.concat([x, prior_hs], axis=2)   # shape: [bs, t, 2 * c]
         posterior_hs = self.inference_rnn(inference_inputs)
         mu_phi, sigma_phi = self.inference_network(posterior_hs)  # shape: ([bs, t, e], [bs, t, e])
 
@@ -80,7 +80,7 @@ class RecurrentDSSEncoding(Encoding):
         tf.summary.scalar(name='kl_loss', data=kl_loss)
         tf.summary.scalar(name='transition_regularization', data=transition_regularization)
 
-        kl_loss = kl_loss + self.transition_regularization*transition_regularization
+        kl_loss = kl_loss + self.transition_regularization * transition_regularization
 
         self.add_loss(kl_loss)
 
