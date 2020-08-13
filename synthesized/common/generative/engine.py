@@ -117,8 +117,6 @@ class HighDimEngine(Generative):
         #################################
 
         # Losses
-        # self.losses: Dict[str, tf.Tensor] = OrderedDict()
-
         reconstruction_loss = tf.identity(
             self.value_ops.reconstruction_loss(y=y, inputs=xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
@@ -229,7 +227,7 @@ class HighDimEngine(Generative):
             cs: Condition tensor per column.
 
         Returns:
-            Dictionary of dictionary of output tensors per column
+            Dictionary of output tensors per column
 
         """
         if len(xs) == 0:

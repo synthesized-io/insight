@@ -134,7 +134,6 @@ class SeriesEngine(Generative):
         #################################
 
         # Losses
-
         reconstruction_loss = tf.identity(
             self.value_ops.reconstruction_loss(y, xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
