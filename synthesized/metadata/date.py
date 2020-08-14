@@ -125,7 +125,6 @@ class DateMeta(ContinuousMeta):
             if self.name + name in df.columns:
                 df.drop([self.name + name], axis=1, inplace=True)
 
-        self.set_dtypes(df)
         return df
 
 
