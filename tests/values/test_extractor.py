@@ -278,7 +278,7 @@ def test_vf_missing_strings():
 
     value = df_meta.all_values[0]
     assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['a', 'b', 'c']
+    assert value.categories == ['nan', 'a', 'b', 'c']
     assert value.nans_valid
 
 

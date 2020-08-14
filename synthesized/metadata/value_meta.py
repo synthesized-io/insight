@@ -1,7 +1,6 @@
 from typing import Any, Dict, List
 from base64 import b64encode, b64decode
 
-import numpy as np
 import pickle
 import pandas as pd
 
@@ -9,7 +8,7 @@ import pandas as pd
 class ValueMeta:
     def __init__(self, name: str):
         self.name = name
-        self.in_dtypes: Dict[str, np.dtype] = dict()
+        self.in_dtypes: Dict[str, str] = dict()
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-4].lower() + "_meta"
@@ -56,7 +55,7 @@ class ValueMeta:
         assert all(name in df.columns for name in self.columns())
 
         for name in self.columns():
-            self.in_dtypes[name] = df[name].dtype
+            self.in_dtypes[name] = str(df[name].dtype)
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         """Pre-processes a data frame to prepare it as input for a generative model. This may
@@ -98,7 +97,7 @@ class ValueMeta:
 
     def set_dtypes(self, df: pd.DataFrame):
         for name, col_dtype in self.in_dtypes.items():
-            if df[name].dtype != col_dtype:
+            if str(df[name].dtype) != str(col_dtype):
                 df.loc[:, self.name] = df.loc[:, self.name].astype(col_dtype)
 
     def get_variables(self) -> Dict[str, Any]:
