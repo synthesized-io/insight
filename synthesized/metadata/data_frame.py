@@ -277,8 +277,8 @@ class DataFrameMeta:
 
         self._value_map = self.compute_value_map()
 
-        self.categorical: Optional[List[CategoricalMeta]] = None
-        self.continuous: Optional[List[ValueMeta]] = None
+        self.categorical = None
+        self.continuous = None
 
     @classmethod
     def from_dict(cls, variables: Dict[str, Any]) -> 'DataFrameMeta':
