@@ -33,6 +33,9 @@ class DataFrameMeta:
 
         self._value_map = self.compute_value_map()
 
+        self.categorical: Optional[List[CategoricalMeta]] = None
+        self.continuous: Optional[List[ValueMeta]] = None
+
     def compute_value_map(self) -> Dict[str, ValueMeta]:
         value_map: Dict[str, ValueMeta] = {v.name: v for v in self.values}
         if self.time_value is not None:
@@ -42,9 +45,6 @@ class DataFrameMeta:
             self.columns = [self.id_value.name, ] + self.columns
 
         return value_map
-
-        self.categorical: Optional[List[CategoricalMeta]] = None
-        self.continuous: Optional[List[ValueMeta]] = None
 
     @property
     def all_values(self) -> List[ValueMeta]:
