@@ -9,6 +9,17 @@ from ..metadata import MetaExtractor
 
 
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:
+    """Generates a latent space representation for a given DataFrame using the HighDimSynthesizer.
+
+    Args:
+        df: The dataframe to generate the latent space for.
+        num_iterations: The number of iterations spent refining the latent space.
+        **kwargs: Keyword arguments to pass to the HighDimConfig
+
+    Returns:
+        The latent space as a pandas dataframe.
+
+    """
     logger = logging.getLogger()
     log_level = logger.level
     logger.setLevel(50)
@@ -36,7 +47,7 @@ def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.Da
         synthesizer: A synthesizer that has (optionally) been train on some set of data.
         df_orig: All of the data that the synthesizer has already been trained on.
         df_new: New data that the synthesizer has not yet been trained on.
-        learn_kwargs: kwargs passed to the learn method of the synthesizer.
+        **kwargs: kwargs passed to the learn method of the synthesizer.
 
     """
     with synthesizer as synth:
@@ -46,7 +57,18 @@ def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.Da
     return total_latent_space_usage(df_latent, usage_type='mean')
 
 
-def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> pd.DataFrame:
+def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'mean') -> pd.DataFrame:
+    """Calculates the 'usage' of each dimension in the latent space. This is normally a score between 0 and 1.
+
+    A score less than 0.1 would represent an unused latent dimension.
+
+    Args:
+        df_latent: The dataset encoded into a latent space as a pandas dataframe.
+        usage_type: There are two methods to calculate the usage: 'mean' or 'stddev'.
+
+    Returns:
+        The usage in each dimension of the latent space as a pandas dataframe.
+    """
     if usage_type == 'stddev':
         ldu = 1.0 - (df_latent.filter(like='s', axis='columns')**2).describe().loc['mean'].round(3).to_numpy()
     elif usage_type == 'mean':
@@ -61,7 +83,7 @@ def latent_dimension_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') 
     return ldu.sort_values(by='usage').reset_index(drop=True)
 
 
-def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'stddev') -> float:
+def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'mean') -> float:
     ldu = latent_dimension_usage(df_latent=df_latent, usage_type=usage_type)
 
     if usage_type == 'stddev':

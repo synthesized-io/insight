@@ -62,7 +62,7 @@ class Binary:
         """Pickle body and metadata then store in binary file.
 
         Args:
-            fp:
+            fp: The binary file to write to.
         """
         binary_object = {
             'meta_data': {
@@ -86,7 +86,7 @@ class Binary:
         """Populate binary object from binary file.
 
         Args:
-            fp:
+            fp: The binary file to read from.
         """
         binary = fp.read()
 
@@ -122,7 +122,8 @@ class Binary:
     def _set_body(self, body: bytes):
         """Compress body of binary, and set in binary.
 
-        :param str body: uncompressed byte array to store in binary
+        Args:
+            body: uncompressed byte array to store in binary
         """
         if self.body_compression == CompressionType.GZIP:
             body = gzip.compress(body)
@@ -133,14 +134,17 @@ class Binary:
         self.body = body
 
     def get_id(self):
+        """Returns a string identifying the binary object."""
         return f"{self.author}_{self.creation_date.strftime('%m-%d-%Y-%H-%M-%S')}"
 
 
 class ModelBinary(Binary):
+    """An instance of a binary for synthesizer models."""
     def __init__(self, *args, **kwargs):
         super().__init__(binary_type=BinaryType.MODEL, *args, **kwargs)
 
 
 class DatasetBinary(Binary):
+    """An instance of a binary for datasets."""
     def __init__(self, *args, **kwargs):
         super().__init__(binary_type=BinaryType.DATASET, *args, **kwargs)
