@@ -28,7 +28,7 @@ DEFAULT_CLASSIFICATION_PLOT_METRICS = ['roc_curve', 'pr_curve']
 
 
 def classifier_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataFrame,
-                              target: str, clf: ClassifierMixin,  metrics: Optional[Union[str, List[str]]] = 'roc_auc',
+                              target: str, clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = 'roc_auc',
                               return_predicted: bool = False) -> Dict[str, Any]:
     x_labels = list(filter(lambda v: v != target, df_test.columns))
 
