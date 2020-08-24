@@ -4,6 +4,7 @@ import pandas as pd
 
 
 class Synthesizer:
+    """The base Synthesizer class."""
     def __init__(self):
         self._synthesizer = None
 

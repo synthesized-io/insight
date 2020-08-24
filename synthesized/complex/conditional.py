@@ -25,7 +25,7 @@ class ConditionalSampler(Synthesizer):
 
     def __init__(self,
                  synthesizer: Synthesizer,
-                 *explicit_marginals: Tuple[str, Dict[Any, float]],
+                 *explicit_marginals: Tuple[str, Dict[str, float]],
                  min_sampled_ratio: float = 0.001,
                  synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
