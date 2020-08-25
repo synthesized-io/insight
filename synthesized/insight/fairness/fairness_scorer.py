@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class FairnessScorer:
-    def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str], target: str, n_bins: int = 5,
+    def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  detect_sensitive: bool = False, detect_hidden: bool = False):
         """FairnessScorer constructor.
 
@@ -34,7 +34,17 @@ class FairnessScorer:
                 attributes.
         """
         self.df = df.copy()
-        self.sensitive_attrs: List[str] = sensitive_attrs if isinstance(sensitive_attrs, list) else [sensitive_attrs]
+        if isinstance(sensitive_attrs, list):
+            self.sensitive_attrs: List[str] = sensitive_attrs
+        elif isinstance(sensitive_attrs, str):
+            self.sensitive_attrs = [sensitive_attrs]
+        elif sensitive_attrs is None:
+            if detect_sensitive is False:
+                raise ValueError("If no 'sensitive_attr' is given, 'detect_sensitive' must be set to True.")
+            self.sensitive_attrs = []
+        else:
+            raise TypeError("Given type of 'sensitive_attrs' not valid.")
+
         self.target = target
         self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
         self.n_bins = n_bins
