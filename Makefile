@@ -15,8 +15,11 @@ build: $(SRC)
 test:  venv
 	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
+integration-test:  venv
+	$(PYTHON) -m pytest -v -m "integration" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
+
 unit-test: venv
-	$(PYTHON) -m pytest -v -m "not integration" --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v -m "unit" --cov=synthesized  --cov-report=term-missing
 
 lint: venv
 	$(PYTHON) -m mypy --ignore-missing-import synthesized

@@ -51,11 +51,19 @@ jobs:
       # https://nose.readthedocs.io
       - run:
           name: Run tests
-          command: make test
+          command: make unit-test
+          no_output_timeout: 5m
+
+      - store_test_results:
+          path: unit-test-results
+
+      - run:
+          name: Run tests
+          command: make integration-test
           no_output_timeout: 20m
 
       - store_test_results:
-          path: test-results
+          path: integration-test-results
 
       - run:
           name: Package

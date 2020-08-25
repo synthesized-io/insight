@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -6,6 +8,7 @@ from synthesized.common.values import Value, CategoricalValue, ContinuousValue, 
 from synthesized.metadata import DateMeta
 
 
+@pytest.mark.unit
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     assert isinstance(value.specification(), dict)
     n = len(x)
@@ -32,6 +35,7 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
         value.set_variables(variables)
 
 
+@pytest.mark.unit
 def test_categorical():
     value = CategoricalValue(
         name='categorical', num_categories=8, probabilities=None,
@@ -44,6 +48,7 @@ def test_categorical():
     )
 
 
+@pytest.mark.unit
 def test_categorical_similarity():
     value = CategoricalValue(
         name='categorical', num_categories=8, probabilities=None,
@@ -56,11 +61,13 @@ def test_categorical_similarity():
     )
 
 
+@pytest.mark.unit
 def test_continuous():
     value = ContinuousValue(name='continuous')
     _test_value(value=value, x=np.random.randn(4,))
 
 
+@pytest.mark.unit
 def test_nan():
     cont_value = ContinuousValue(name='continuous')
     value = NanValue(name='nan', value=cont_value)
@@ -73,6 +80,7 @@ def test_nan():
                 )
 
 
+@pytest.mark.unit
 def test_nan_inf():
     cont_value = ContinuousValue(name='continuous')
     value = NanValue(name='nan', value=cont_value)
@@ -86,6 +94,7 @@ def test_nan_inf():
     )
 
 
+@pytest.mark.unit
 def test_date():
     value = DateValue(name='date')
 
