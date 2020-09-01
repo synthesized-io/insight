@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
 from ..modelling import ModellingPreprocessor
-from ..modelling.metrics import classifier_scores_from_df
+from ..metrics.modelling_metrics import classifier_scores_from_df
 from .sensitive_attributes import sensitive_attr_concat_name
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
-from .modelling import CLASSIFIERS, REGRESSORS, predictive_modelling_comparison, predictive_modelling_score
-from .metrics import logistic_regression_r2
+from .modelling import CLASSIFIERS, REGRESSORS
 from .preprocessor import ModellingPreprocessor
+from .modelling import check_model_type, preprocess_split_data
 
-__all__ = ['CLASSIFIERS', 'REGRESSORS', 'predictive_modelling_comparison', 'predictive_modelling_score',
-           'logistic_regression_r2', 'ModellingPreprocessor']
+__all__ = ['CLASSIFIERS', 'REGRESSORS', 'ModellingPreprocessor', 'check_model_type', 'preprocess_split_data']

@@ -1,6 +1,6 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Mapping, Type, Union
+from typing import Any, Dict, List, Mapping, Optional, Type, Union
 from itertools import combinations, permutations
 
 import pandas as pd
@@ -508,3 +508,53 @@ class TwoColumnMetricMatrix(DataFrameMatrix):
                 matrix[col_a][col_b] = self.metric(df[col_a], df[col_b], **kwargs)
 
         return matrix.astype(np.float32)
+
+
+class ModellingMetric(_Metric):
+
+    def __init__(self):
+        _register(self, ModellingMetric)
+        super(ModellingMetric, self).__init__()
+
+
+class ClassificationMetric(ModellingMetric, ABC):
+    ALL: Dict[str, Type['ClassificationMetric']] = {}
+    tags = ["modelling", "classification"]
+    plot = False
+
+    def __init__(self):
+        _register(self, ClassificationMetric)
+        super(ClassificationMetric, self).__init__()
+
+    @staticmethod
+    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
+        pass
+
+
+class ClassificationPlotMetric(ModellingMetric, ABC):
+    ALL: Dict[str, Type['ClassificationPlotMetric']] = {}
+    tags = ["modelling", "classification", "plot"]
+    plot = True
+
+    def __init__(self):
+        _register(self, ClassificationPlotMetric)
+        super(ClassificationPlotMetric, self).__init__()
+
+    @staticmethod
+    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[Any]:
+        pass
+
+
+class RegressionMetric(ModellingMetric, ABC):
+    ALL: Dict[str, Type['RegressionMetric']] = {}
+    tags = ["modelling", "regression"]
+
+    def __init__(self):
+        _register(self, RegressionMetric)
+        super(RegressionMetric, self).__init__()
+
+    @staticmethod
+    def __call__(y_true: np.ndarray, y_pred: np.ndarray, **kwargs) -> Union[float]:
+        pass
