@@ -56,7 +56,7 @@ jobs:
 
       - run:
           name: Run Slow Tests
-          command: make fast-test
+          command: make slow-test
           no_output_timeout: 30m
 
       - run:
