@@ -15,9 +15,6 @@ build: $(SRC)
 test:  venv
 	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
-check-marked-tests: venv
-	$(PYTHON) -m pytest -m "not (fast or slow)" --cov=synthesized  --cov-report=term-missing
-
 fast-test: venv
 	$(PYTHON) -m pytest -v -m "fast" --cov=synthesized  --cov-report=term-missing
 

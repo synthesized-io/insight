@@ -50,11 +50,6 @@ jobs:
       # https://pytest.org
       # https://nose.readthedocs.io
       - run:
-          name: Check Marked Tests
-          command: make check-marked-tests
-          no_output_timeout: 1m
-
-      - run:
           name: Run Fast Tests
           command: make fast-test
           no_output_timeout: 1m
