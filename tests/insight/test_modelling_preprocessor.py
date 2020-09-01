@@ -11,7 +11,7 @@ def test_modelling_preprocessor():
     p.fit_transform(data)
 
 
-def test_predictive_modelling_score():
+def test_predictive_modelling_score_clf():
     n = 1000
     data = pd.DataFrame({
         'x1': np.random.randn(n),
@@ -22,7 +22,7 @@ def test_predictive_modelling_score():
 
     target = 'y'
     x_labels = list(filter(lambda c: c != target, data.columns))
-    predictive_modelling_score(data, target, x_labels, 'Logistic')
+    predictive_modelling_score(data, model='Logistic', y_label=target, x_labels=x_labels)
 
 
 def test_predictive_modelling_score_rgr():
@@ -36,5 +36,5 @@ def test_predictive_modelling_score_rgr():
 
     target = 'y'
     x_labels = list(filter(lambda c: c != target, data.columns))
-    predictive_modelling_score(data, target, x_labels, 'Linear')
+    predictive_modelling_score(data, model='Linear', y_label=target, x_labels=x_labels)
 
