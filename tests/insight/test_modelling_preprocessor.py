@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from synthesized.insight.modelling import ModellingPreprocessor, predictive_modelling_score
+from synthesized.insight.modelling import ModellingPreprocessor
+from synthesized.insight.metrics import predictive_modelling_score
 
 
 def test_modelling_preprocessor():
