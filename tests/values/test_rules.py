@@ -19,6 +19,7 @@ def setup():
     pass
 
 
+@pytest.mark.slow
 def test_piecewise_detection():
     # Create flags
     df = pd.DataFrame(np.random.randn(10**5, 20))
@@ -37,7 +38,7 @@ def test_piecewise_detection():
         assert isinstance(values[i], RuleValue)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skip
 def test_piecewise_generation():
     # Create flags
@@ -65,6 +66,7 @@ def test_piecewise_generation():
     assert abs((synthesized['4'] < 0).sum() - (synthesized['19'] == 2).sum()) <= MAX_ERRORS
 
 
+@pytest.mark.slow
 def test_pulse_detection():
     df = pd.DataFrame(np.random.randn(10**5, 20))
     df.loc[:, 15] = (df.loc[:, 0] > 0.0) & (df.loc[:, 0] < 1.0)
@@ -82,7 +84,7 @@ def test_pulse_detection():
         assert isinstance(values[i], RuleValue)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skip
 def test_pulse_generation():
     df = pd.DataFrame(np.random.randn(10**5, 20))
@@ -105,7 +107,7 @@ def test_pulse_generation():
     assert abs(((synthesized['3'] > -.5) & (synthesized['3'] < 0)).sum() - (synthesized['18'] == 7).sum()) <= MAX_ERRORS
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.parametrize('rule', PairwiseRuleFactory.continuous_categorical_tests +
                          PairwiseRuleFactory.continuous_categorical_tests +
                          PairwiseRuleFactory.categorical_categorical_tests)

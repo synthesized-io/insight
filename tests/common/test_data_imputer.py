@@ -8,6 +8,7 @@ from synthesized.complex import DataImputer
 NANS_PROP_TEST = 0.5
 
 
+@pytest.mark.slow
 def test_continuous_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.normal(loc=0, scale=1, size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
@@ -23,6 +24,7 @@ def test_continuous_nans_imputation():
     assert df_original['x'].isna().sum() == 0
 
 
+@pytest.mark.slow
 def test_categorical_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.choice(['a', 'b', 'c'], size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
@@ -38,6 +40,7 @@ def test_categorical_nans_imputation():
     assert df_original['x'].isna().sum() == 0
 
 
+@pytest.mark.slow
 def test_continuous_outliers_imputation():
     n = 1000
     x = np.random.normal(loc=0, scale=1, size=n)
@@ -57,6 +60,7 @@ def test_continuous_outliers_imputation():
     assert np.sum(df_original['x'].values > 10) == 0
 
 
+@pytest.mark.slow
 def test_mixed_dtypes_nan_imputation():
     num_iterations = 50
 

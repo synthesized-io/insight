@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.complex import ConditionalSampler
 
 
+@pytest.mark.slow
 def test_categorical_sampling():
     num_rows = 1000
     df_original = pd.DataFrame({'x': np.random.randn(num_rows), 'y': np.random.choice(['a', 'b', 'c'], num_rows)})
@@ -21,6 +23,7 @@ def test_categorical_sampling():
         assert np.isclose(y_marginals[k], value_counts[k], atol=0.02)
 
 
+@pytest.mark.slow
 def test_continuous_sampling():
     num_rows = 1000
     df_original = pd.DataFrame({'x': np.random.randn(num_rows), 'y': np.random.choice(['a', 'b', 'c'], num_rows)})

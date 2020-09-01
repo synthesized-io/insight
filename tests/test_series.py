@@ -6,7 +6,7 @@ from synthesized import SeriesSynthesizer, MetaExtractor
 from synthesized.config import SeriesConfig
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_basic():
     r = np.random.normal(loc=0, scale=1, size=1000)
     df_original = pd.DataFrame({'r': r})
@@ -18,7 +18,7 @@ def test_series_basic():
     assert len(df_synthesized1) == 200
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_synthesis_identifier():
     r = np.random.normal(loc=0, scale=1, size=900)
     t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
@@ -33,7 +33,7 @@ def test_series_synthesis_identifier():
     assert df_synthesized1['c'].nunique() == 3
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_lstm():
     r = np.random.normal(loc=0, scale=1, size=900)
     t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
@@ -48,7 +48,7 @@ def test_series_lstm():
     assert len(df_synthesized1) == 200
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_basic_vrae():
     r = np.random.normal(loc=0, scale=1, size=900)
     t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
@@ -63,7 +63,7 @@ def test_series_basic_vrae():
     assert len(df_synthesized1) == 200
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_rdssm():
     r = np.random.normal(loc=0, scale=1, size=900)
     t = pd.date_range(start='01-01-2020', periods=300).repeat(3)
@@ -80,7 +80,7 @@ def test_series_rdssm():
 
 # TODO: Fails in CircleCI, works in local
 @pytest.mark.skip(reason="Fails in CircleCI, works in local.")
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_encode_lstm():
     r = np.random.normal(loc=0, scale=1, size=100)
     c = np.random.choice([1, 2, 3], 100)
@@ -96,7 +96,7 @@ def test_series_encode_lstm():
 
 # TODO: Fails in CircleCI, works in local
 @pytest.mark.skip(reason="Fails in CircleCI, works in local.")
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_encode_vrae():
     r = np.random.normal(loc=0, scale=1, size=100)
     c = np.random.choice([1, 2, 3], 100)
@@ -111,7 +111,7 @@ def test_series_encode_vrae():
 
 
 @pytest.mark.skip(reason="Encoding not implemented for DSS.")
-@pytest.mark.integration
+@pytest.mark.slow
 def test_series_encode_dss():
     r = np.random.normal(loc=0, scale=1, size=100)
     c = np.random.choice([1, 2, 3], 100)

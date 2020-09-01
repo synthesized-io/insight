@@ -50,20 +50,19 @@ jobs:
       # https://pytest.org
       # https://nose.readthedocs.io
       - run:
-          name: Run tests
-          command: make unit-test
-          no_output_timeout: 5m
-
-      - store_test_results:
-          path: unit-test-results
+          name: Check Marked Tests
+          command: make check-marked-tests
+          no_output_timeout: 1m
 
       - run:
-          name: Run tests
-          command: make integration-test
-          no_output_timeout: 20m
+          name: Run Fast Tests
+          command: make fast-test
+          no_output_timeout: 1m
 
-      - store_test_results:
-          path: integration-test-results
+      - run:
+          name: Run Slow Tests
+          command: make fast-test
+          no_output_timeout: 30m
 
       - run:
           name: Package

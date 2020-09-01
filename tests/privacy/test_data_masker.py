@@ -1,12 +1,14 @@
 import random
 import string
 
-import pandas as pd
 from faker import Faker
+import pandas as pd
+import pytest
 
 from synthesized.privacy import DataMasker
 
 
+@pytest.mark.slow
 def test_data_masker():
     data = pd.read_csv('data/credit_with_categoricals.csv')
     fkr = Faker()

@@ -15,11 +15,14 @@ build: $(SRC)
 test:  venv
 	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
-integration-test:  venv
-	$(PYTHON) -m pytest -v -m "integration" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
+check-marked-tests: venv
+	$(PYTHON) -m pytest -m "not (fast or slow)" --cov=synthesized  --cov-report=term-missing
 
-unit-test: venv
-	$(PYTHON) -m pytest -v -m "unit" --cov=synthesized  --cov-report=term-missing
+fast-test: venv
+	$(PYTHON) -m pytest -v -m "fast" --cov=synthesized  --cov-report=term-missing
+
+slow-test:  venv
+	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
 lint: venv
 	$(PYTHON) -m mypy --ignore-missing-import synthesized

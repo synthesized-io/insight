@@ -1,11 +1,13 @@
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
+import pytest
 
 from synthesized.testing.linkage_attack import Column
 from synthesized.testing.linkage_attack import t_closeness_check, find_neighbour_distances, \
     find_eq_class_fuzzy, find_eq_class
 
 
+@pytest.mark.slow
 def test_t_closeness_check():
     schema = {
         'key1': Column(key_attribute=True, sensitive=True, categorical=False),
@@ -27,6 +29,7 @@ def test_t_closeness_check():
     assert len(t_closeness_check(df, schema, threshold=0.2)) == 0
 
 
+@pytest.mark.slow
 def test_find_boundaries():
     df = pd.DataFrame.from_records([
         {'key1': 1, 'key2': 2, 'attr1': 3, 'attr2': 4},
@@ -54,6 +57,7 @@ def test_find_boundaries():
     assert up == {'key1': 5., 'key2': 5.}
 
 
+@pytest.mark.slow
 def test_find_eq_class():
     df = pd.DataFrame.from_records([
         {'key1': 1, 'key2': 'a', 'attr1': 3, 'attr2': 4},
@@ -70,6 +74,7 @@ def test_find_eq_class():
     assert_frame_equal(df_expected, found)
 
 
+@pytest.mark.slow
 def test_find_eq_class_fuzzy():
     df1 = pd.DataFrame.from_records([
         {'key1': 1, 'key2': 'a', 'attr1': 3, 'attr2': 4},
