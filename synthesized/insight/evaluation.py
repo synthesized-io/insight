@@ -20,13 +20,15 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
     Args
         df_orig: Original DataFrame.
         df_synth: Synthesized DataFrame.
+        df_meta: DataFrameMeta to calculate metrics on.
         column_names: List of columns used to compute the 'break_metric'.
+        metrics_to_compute: List of metrics to be computed.
 
     Returns
-        bool: True if criteria are met to stop learning.
+        A dictionary containing all the computed metrics.
     """
     if column_names is None:
-        column_names_df: List[str] = df_orig.columns
+        column_names_df: List[str] = list(df_orig.columns)
     else:
         column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
 
