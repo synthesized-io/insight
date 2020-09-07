@@ -59,6 +59,9 @@ jobs:
           command: make slow-test
           no_output_timeout: 30m
 
+      - store_test_results:
+          path: test-results
+
       - run:
           name: Package
           command: make build

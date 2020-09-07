@@ -16,10 +16,10 @@ test:  venv
 	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
 
 fast-test: venv
-	$(PYTHON) -m pytest -v -m "fast" --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v -m "fast" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit-fast.xml
 
 slow-test:  venv
-	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
+	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit-slow.xml
 
 lint: venv
 	$(PYTHON) -m mypy --ignore-missing-import synthesized
