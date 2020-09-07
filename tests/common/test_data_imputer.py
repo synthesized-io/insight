@@ -41,26 +41,6 @@ def test_categorical_nans_imputation():
 
 
 @pytest.mark.slow
-def test_continuous_outliers_imputation():
-    n = 1000
-    x = np.random.normal(loc=0, scale=1, size=n)
-    df_original = pd.DataFrame({
-        'x': np.where(np.random.uniform(size=n) < 0.98, x, np.random.normal(loc=0, scale=50, size=n)),
-        'y': 0.5 * x
-    })
-    df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-
-    data_imputer = DataImputer(synthesizer=synthesizer)
-    df_synthesized = data_imputer.impute_outliers(df_original, outliers_percentile=0.05)
-    assert np.sum(df_synthesized['x'].values > 10) == 0
-
-    data_imputer.impute_outliers(df_original, inplace=True, outliers_percentile=0.05)
-    assert np.sum(df_original['x'].values > 10) == 0
-
-
-@pytest.mark.slow
 def test_mixed_dtypes_nan_imputation():
     num_iterations = 50
 
