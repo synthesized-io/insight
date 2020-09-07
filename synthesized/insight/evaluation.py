@@ -30,6 +30,9 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame,
     else:
         column_names_df = list(filter(lambda c: c in df_orig.columns, column_names))
 
+    if metrics_to_compute is None:
+        metrics_to_compute = []
+
     df_orig = df_orig.loc[:, column_names_df].copy()
     df_synth = df_synth.loc[:, column_names_df].copy()
     results = dict()

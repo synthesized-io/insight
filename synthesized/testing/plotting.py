@@ -537,7 +537,7 @@ def sequence_line_plot(x, t, ax):
 
 
 def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, unique_threshold: int = 30,
-                       ax: plt.Axes = None, sample_size: int = 10_000) -> float:
+                        ax: plt.Axes = None, sample_size: int = 10_000) -> float:
 
     if ax is None:
         fig, ax = plt.subplots(1, 1)
@@ -559,7 +559,7 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
 
         sns.distplot(orig_vc_values, color=COLOR_ORIG, label='orig', ax=ax)
         sns.distplot(synth_vc_values, color=COLOR_SYNTH, label='synth', ax=ax)
-        # dist = kolmogorov_smirnov_distance(orig_vc, synth_vc, key)
+        dist = kolmogorov_smirnov_distance(orig_vc, synth_vc, key)
 
     else:
         # We sample orig and synth them so that they have the same size to make the plots more comprehensive
@@ -569,10 +569,10 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
 
         ax = sns.countplot(x=key, hue='dataset', data=concatenated,
                            palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
-        # dist = earth_movers_distance(orig_vc, synth_vc, key)
+        dist = earth_movers_distance(orig_vc, synth_vc, key)
 
     ax.legend()
-    # return float(dist or 0.0)
+    return float(dist or 0.0)
 
 
 def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: DataFrameMeta = None,
@@ -604,4 +604,3 @@ def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: Dat
     bar_plot_results(current_result, ax=ax)
 
     return current_result
-

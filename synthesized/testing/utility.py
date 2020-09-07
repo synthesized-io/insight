@@ -15,7 +15,7 @@ import pandas as pd
 
 from ..common.synthesizer import Synthesizer
 from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, bar_plot_results
+    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot
 from ..insight import metrics
 from ..insight.metrics import TwoColumnComparison, TwoColumnComparisonMatrix
 from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix
