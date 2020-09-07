@@ -35,4 +35,4 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
     )
 
 
-__all__ = ['CLASSIFIERS', 'REGRESSORS']
+__all__ = ['CLASSIFIERS', 'REGRESSORS', 'predictive_modelling_score', 'predictive_modelling_comparison']

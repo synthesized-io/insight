@@ -1,16 +1,19 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from synthesized.insight.modelling import ModellingPreprocessor
 from synthesized.insight.metrics import predictive_modelling_score
 
 
+@pytest.mark.fast
 def test_modelling_preprocessor():
     data = pd.read_csv('data/credit_with_categoricals.csv')
     p = ModellingPreprocessor(target='SeriousDlqin2yrs')
     p.fit_transform(data)
 
 
+@pytest.mark.fast
 def test_predictive_modelling_score_clf():
     n = 1000
     data = pd.DataFrame({
@@ -25,6 +28,7 @@ def test_predictive_modelling_score_clf():
     predictive_modelling_score(data, model='Logistic', y_label=target, x_labels=x_labels)
 
 
+@pytest.mark.fast
 def test_predictive_modelling_score_rgr():
     n = 1000
     data = pd.DataFrame({
