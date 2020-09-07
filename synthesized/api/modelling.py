@@ -2,8 +2,9 @@ from typing import List
 
 import pandas as pd
 
-from ..insight.modelling import predictive_modelling_score as _predictive_modelling_score
-from ..insight.modelling import predictive_modelling_comparison as _predictive_modelling_comparison
+from ..insight.metrics import predictive_modelling_score as _predictive_modelling_score
+from ..insight.metrics import predictive_modelling_comparison as _predictive_modelling_comparison
+from ..insight.modelling import CLASSIFIERS, REGRESSORS
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[str], model: str):
@@ -23,7 +24,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
         The score, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
     """
 
-    return _predictive_modelling_score(data=data, y_label=y_label, x_labels=x_labels, model=model)
+    return _predictive_modelling_score(df=data, model=model, y_label=y_label, x_labels=x_labels)
 
 
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
@@ -45,5 +46,8 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
         Score 1, Score 2, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
     """
     return _predictive_modelling_comparison(
-        data=data, synth_data=synth_data, y_label=y_label, x_labels=x_labels, model=model
+        df_old=data, df_new=synth_data, model=model, y_label=y_label, x_labels=x_labels
     )
+
+
+__all__ = ['CLASSIFIERS', 'REGRESSORS', 'predictive_modelling_score', 'predictive_modelling_comparison']

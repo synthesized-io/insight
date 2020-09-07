@@ -6,8 +6,20 @@ from .metrics import CramersV
 from .metrics import KolmogorovSmirnovDistance
 from .metrics import EarthMoversDistance
 from .metrics import CategoricalLogisticR2
-from .metrics import PredictiveModellingScore
-from .metrics import PredictiveModellingComparison
+
+from .modelling_metrics import PredictiveModellingScore
+from .modelling_metrics import PredictiveModellingComparison
+from .modelling_metrics import Accuracy
+from .modelling_metrics import Precision
+from .modelling_metrics import Recall
+from .modelling_metrics import F1Score
+from .modelling_metrics import ROC_AUC
+from .modelling_metrics import ROC_Curve
+from .modelling_metrics import PR_Curve
+from .modelling_metrics import ConfusionMatrix
+from .modelling_metrics import MeanAbsoluteError
+from .modelling_metrics import MeanSquaredError
+from .modelling_metrics import R2_Score
 
 from .vectors import DiffVector
 from .vectors import FractionalDiffVector
@@ -42,6 +54,11 @@ from .metrics_base import DataFrameMatrix  # noqa: F401
 from .metrics_base import DataFrameComparisonMatrix  # noqa: F401
 from .metrics_base import TwoColumnMetricMatrix
 from .metrics_base import TwoColumnComparisonMatrix
+
+from .metrics_base import ModellingMetric
+from .metrics_base import ClassificationMetric
+from .metrics_base import RegressionMetric
+from .metrics_base import ClassificationPlotMetric
 
 
 _CORE_METRICS = [
@@ -184,9 +201,31 @@ diff_spearman_rho_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMe
 diff_cramers_v_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CramersV()))
 diff_categorical_logistic_correlation_matrix = TwoColumnComparisonMatrix(DiffTwoColumnMetricAdapter(CategoricalLogisticR2()))  # noqa: E501
 
+# Modelling Metrics
+# -----------------------------------------------------------------------------
+# Classification
+accuracy = Accuracy()
+precision = Precision()
+recall = Recall()
+f1_score = F1Score()
+roc_auc = ROC_AUC()
+
+# Classification - Plot
+roc_curve = ROC_Curve()
+pr_curve = PR_Curve()
+confusion_matrix = ConfusionMatrix()
+
+# Regression
+mean_absolute_error = MeanAbsoluteError()
+mean_squared_error = MeanSquaredError()
+r2_score = R2_Score()
+
+
 __all__ = [
     'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'COLUMN_COMPARISONS',
-    'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS' 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
+    'TWO_COLUMN_COMPARISONS', 'DATA_FRAME_COMPARISONS', 'ColumnMetric', 'TwoColumnMetric', 'DataFrameMetric',
     'ColumnComparison', 'TwoColumnComparison', 'DataFrameComparison', 'DataFrameVector',
-    'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix', 'RollingColumnMetricVector'
-] + [metric_name for metric_name in _Metric.ALL.keys()]
+    'DataFrameComparisonVector', 'DataFrameMatrix', 'DataFrameComparisonMatrix', 'RollingColumnMetricVector',
+    'ModellingMetric', 'ClassificationMetric', 'RegressionMetric', 'ClassificationPlotMetric'
+]
+__all__.extend([metric_name for metric_name in _Metric.ALL.keys()])

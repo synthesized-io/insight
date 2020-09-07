@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 import pandas as pd
 
 from ..metadata import MetaExtractor, DataFrameMeta
-from ..metadata import ContinuousMeta, CategoricalMeta, DecomposedContinuousMeta, NanMeta, ValueMeta, AssociationMeta
+from ..metadata import CategoricalMeta, NanMeta, ValueMeta
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -32,29 +32,7 @@ def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
 def categorical_or_continuous_values(df_or_dp: Union[pd.DataFrame, DataFrameMeta]) \
         -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
     dp = MetaExtractor.extract(df=df_or_dp) if isinstance(df_or_dp, pd.DataFrame) else df_or_dp
-    values = dp.values
-    categorical: List[CategoricalMeta] = list()
-    continuous: List[ValueMeta] = list()
-
-    for value in values:
-        if isinstance(value, CategoricalMeta):
-            if value.true_categorical:
-                categorical.append(value)
-            else:
-                continuous.append(value)
-        elif isinstance(value, AssociationMeta):
-            for associated_value in value.values:
-                if associated_value.true_categorical:
-                    categorical.append(associated_value)
-                else:
-                    continuous.append(associated_value)
-        elif isinstance(value, ContinuousMeta) or isinstance(value, DecomposedContinuousMeta):
-            continuous.append(value)
-        elif isinstance(value, NanMeta):
-            if isinstance(value.value, ContinuousMeta) or isinstance(value.value, DecomposedContinuousMeta):
-                continuous.append(value)
-
-    return categorical, continuous
+    return dp.get_categorical_and_continuous()
 
 
 def describe_dataset(df: pd.DataFrame) -> pd.DataFrame:

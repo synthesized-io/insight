@@ -21,7 +21,7 @@ from ..insight.evaluation import calculate_evaluation_metrics
 from ..insight.metrics import TwoColumnComparison, TwoColumnComparisonMatrix
 from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix
 from ..insight.metrics import ColumnComparison, ColumnComparisonVector
-from ..insight.modelling import predictive_modelling_comparison
+from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..insight.dataset import categorical_or_continuous_values
 
 logger = logging.getLogger(__name__)

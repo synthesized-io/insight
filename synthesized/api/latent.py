@@ -67,3 +67,6 @@ def total_latent_space_usage(df_latent: pd.DataFrame, usage_type: str = 'mean') 
 
     """
     return _total_latent_space_usage(df_latent=df_latent, usage_type=usage_type)
+
+
+__all__ = ['get_latent_space', 'latent_dimension_usage', 'total_latent_space_usage']

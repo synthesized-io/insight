@@ -19,7 +19,7 @@ class Value(tf.Module):
         self._regularization_losses: List[tf.Tensor] = list()
 
     def __str__(self) -> str:
-        return self.__class__.__name__[:-5].lower()
+        return self.__class__.__name__[:-5].lower() + "_value"
 
     @property
     def name(self):

@@ -34,6 +34,9 @@ class CategoricalMeta(ValueMeta):
 
     @property
     def categories(self):
+        if self.nans_valid:
+            return self._categories
+
         if self.is_string:
             return [c for c in self._categories if c != 'nan']
         else:
@@ -68,7 +71,6 @@ class CategoricalMeta(ValueMeta):
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().postprocess(df=df)
         assert isinstance(self._categories, list)
         df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
         if self.is_string:
@@ -76,6 +78,7 @@ class CategoricalMeta(ValueMeta):
 
         if self.pandas_category:
             df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
+        self.set_dtypes(df)
         return df
 
     def _set_categories(self, categories: List):

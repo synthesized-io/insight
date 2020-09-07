@@ -1,13 +1,19 @@
 """This module contains various metrics used across synthesized."""
+import logging
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
 from pyemd import emd
 from scipy.stats import kendalltau, spearmanr, ks_2samp
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.linear_model import LogisticRegression
 
-from .metrics_base import ColumnMetric, TwoColumnMetric, DataFrameMetric, ColumnComparison, DataFrameComparison
-from ..modelling import predictive_modelling_score, predictive_modelling_comparison, logistic_regression_r2
+from .metrics_base import ColumnMetric, TwoColumnMetric, ColumnComparison
+from ..modelling import ModellingPreprocessor
+from ...metadata import MetaExtractor
+
+logger = logging.getLogger(__name__)
 
 
 class Mean(ColumnMetric):
@@ -162,33 +168,44 @@ class EarthMoversDistance(ColumnComparison):
         return emd(p, q, distances)
 
 
-class PredictiveModellingScore(DataFrameMetric):
-    name = "predictive_modelling_score"
-    tags = ["modelling"]
+def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
+                           max_sample_size: int = 10_000, **kwargs) -> Union[None, float]:
+    dp = kwargs.get('vf')
+    if dp is None:
+        dp = MetaExtractor.extract(df=df)
+    categorical, continuous = dp.get_categorical_and_continuous()
+    if y_label not in [v.name for v in categorical]:
+        return None
+    if len(x_labels) == 0:
+        return None
 
-    def __call__(self, df: pd.DataFrame, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
-        if len(df.columns) < 2:
-            raise ValueError
-        model = model or 'Linear'
-        y_label = y_label or df.columns[-1]
-        x_labels = x_labels if x_labels is not None else [col for col in df.columns if col != y_label]
+    df = df[x_labels + [y_label]].dropna()
+    df = df.sample(min(max_sample_size, len(df)))
 
-        score, metric, task = predictive_modelling_score(df, y_label, x_labels, model)
-        return score
+    if df[y_label].nunique() < 2:
+        return None
 
+    df_pre = ModellingPreprocessor.preprocess(df, target=y_label, dp=dp)
+    x_labels_pre = list(filter(lambda v: v != y_label, df_pre.columns))
 
-class PredictiveModellingComparison(DataFrameComparison):
-    name = "predictive_modelling_comparison"
-    tags = ["modelling"]
+    x_array = df_pre[x_labels_pre].to_numpy()
+    y_array = df[y_label].to_numpy()
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, **kwargs) -> Union[None, float]:
-        if len(df_old.columns) < 2:
-            raise ValueError
-        model = model or 'Linear'
-        y_label = y_label or df_old.columns[-1]
-        x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
+    rg = LogisticRegression()
+    rg.fit(x_array, y_array)
 
-        score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
-        return synth_score / score
+    labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
+    oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
+
+    lp = rg.predict_log_proba(x_array)
+    llf = np.sum(oh_labels * lp)
+
+    rg = LogisticRegression()
+    rg.fit(np.ones_like(y_array).reshape(-1, 1), y_array)
+
+    lp = rg.predict_log_proba(x_array)
+    llnull = np.sum(oh_labels * lp)
+
+    psuedo_r2 = 1 - (llf / llnull)
+
+    return psuedo_r2

@@ -70,4 +70,5 @@ class NanMeta(ValueMeta):
         nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
         df.loc[~nan_inf, :] = self.value.postprocess(df=df.loc[~nan_inf, :])
 
+        self.set_dtypes(df)
         return df
