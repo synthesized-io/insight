@@ -216,7 +216,8 @@ class ConditionalSampler(Synthesizer):
         # Synthesize missing rows
         if len(marginal_counts_to_synthesize) > 0:
             df_out = df_out.append(self.synthesize_from_joined_counts(
-                marginal_counts_to_synthesize, marginals_keys, conditions=conditions  # TODO: progress_callback
+                marginal_counts_to_synthesize, marginals_keys, conditions=conditions,
+                progress_callback=progress_callback
             ))
 
         return df_out.sample(frac=1).reset_index(drop=True)
