@@ -576,8 +576,7 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
 
 
 def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: DataFrameMeta = None,
-                          ax: plt.Axes = None, sample_size: int = None,
-                          metrics_to_compute: List[str] = None) -> Dict[str, float]:
+                          ax: plt.Axes = None, sample_size: int = None) -> Dict[str, float]:
 
     if sample_size is not None:
         if sample_size < len(df_test):
@@ -588,7 +587,7 @@ def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: Dat
     if dp is None:
         dp = MetaExtractor.extract(pd.concat((df_test, df_synth)))
 
-    standard_metrics = calculate_evaluation_metrics(df_test, df_synth, dp, metrics_to_compute=metrics_to_compute)
+    standard_metrics = calculate_evaluation_metrics(df_test, df_synth, dp)
 
     current_result = dict()
     for name, val in standard_metrics.items():
