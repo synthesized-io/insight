@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skip
 def test_datasets_quick():
     passed = True
@@ -38,6 +38,7 @@ def test_datasets_quick():
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
 
 
+@pytest.mark.slow
 def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
 
@@ -53,7 +54,7 @@ def test_unittest_dataset_quick():
         assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv').dropna()
     df_meta = MetaExtractor.extract(df=df_original)

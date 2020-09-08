@@ -50,9 +50,14 @@ jobs:
       # https://pytest.org
       # https://nose.readthedocs.io
       - run:
-          name: Run tests
-          command: make test
-          no_output_timeout: 20m
+          name: Run Fast Tests
+          command: make fast-test
+          no_output_timeout: 1m
+
+      - run:
+          name: Run Slow Tests
+          command: make slow-test
+          no_output_timeout: 30m
 
       - store_test_results:
           path: test-results

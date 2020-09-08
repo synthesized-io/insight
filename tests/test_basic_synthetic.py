@@ -9,7 +9,7 @@ from synthesized.config import HighDimConfig
 from synthesized.common.values import ContinuousValue
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_continuous_variable_generation():
     r = np.random.normal(loc=5000, scale=1000, size=1000)
     df_original = pd.DataFrame({'r': r})
@@ -21,7 +21,7 @@ def test_continuous_variable_generation():
     assert distribution_distance < 0.3
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_categorical_similarity_variable_generation():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
@@ -33,7 +33,7 @@ def test_categorical_similarity_variable_generation():
     assert distribution_distance < 0.3
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_categorical_variable_generation():
     r = np.random.normal(loc=5, scale=1, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
@@ -45,7 +45,7 @@ def test_categorical_variable_generation():
     assert distribution_distance < 0.3
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_nan_producing():
     r = np.random.normal(loc=0, scale=1, size=1000)
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.2))
@@ -59,7 +59,7 @@ def test_nan_producing():
     assert df_synthesized['r'].isna().sum() > 0
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_inf_not_producing():
     r = np.random.normal(loc=0, scale=1, size=1000)
     df_original = pd.DataFrame({'r': r}, dtype=np.float32)
@@ -74,7 +74,7 @@ def test_inf_not_producing():
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() == 0
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_inf_producing():
     r = np.random.normal(loc=0, scale=1, size=1000)
     df_original = pd.DataFrame({'r': r}, dtype=np.float32)
@@ -89,6 +89,7 @@ def test_inf_producing():
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() > 0
 
 
+@pytest.mark.slow
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
@@ -97,6 +98,7 @@ def test_type_overrides():
     assert type(synthesizer.get_values()[0]) == ContinuousValue
 
 
+@pytest.mark.slow
 def test_encode():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
@@ -107,6 +109,7 @@ def test_encode():
     assert df_synthesized.shape == df_original.shape
 
 
+@pytest.mark.slow
 def test_encode_deterministic():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})

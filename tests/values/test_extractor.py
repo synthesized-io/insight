@@ -2,6 +2,7 @@ import datetime
 
 import numpy as np
 import pandas as pd
+import pytest
 import hypothesis.strategies as st
 from hypothesis import given, event, settings, HealthCheck, seed, example
 from hypothesis.extra.pandas import column, data_frames, range_indexes
@@ -11,6 +12,7 @@ from synthesized.metadata import MetaExtractor, ContinuousMeta, CategoricalMeta,
 from synthesized.config import MetaExtractorConfig
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None)
 @given(df=data_frames(
@@ -36,6 +38,7 @@ def test_vf_floats(df):
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None)
 @given(df=data_frames(
@@ -61,6 +64,7 @@ def test_vf_floats_inf(df):
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
@@ -94,6 +98,7 @@ def test_vf_datetimes(df):
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
@@ -122,6 +127,7 @@ def test_vf_text(df):
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
@@ -152,6 +158,7 @@ def test_vf_text_floats(df):
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
@@ -189,6 +196,7 @@ def test_vf_na_int(df):
 
 # Normal Data Columns
 # ----------------------------------------------------------------------
+@pytest.mark.fast
 def test_vf_int64():
     df = pd.DataFrame({'int64': list(range(0, 1000))})
 
@@ -197,6 +205,7 @@ def test_vf_int64():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_string():
     df = pd.DataFrame({'string': list('abcde')*200})
 
@@ -205,6 +214,7 @@ def test_vf_string():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_uint8():
     df = pd.DataFrame({'uint8': np.arange(0, 1000).astype('u1')})
 
@@ -213,6 +223,7 @@ def test_vf_uint8():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_float():
     df = pd.DataFrame({'float64': np.arange(0.0, 1000.0)})
 
@@ -221,6 +232,7 @@ def test_vf_float():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_bool():
     df = pd.DataFrame({'bool': [True, False]*500})
 
@@ -229,6 +241,7 @@ def test_vf_bool():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_bool_constant():
     df = pd.DataFrame({'bool_false': [False, ]*1000})
 
@@ -237,6 +250,7 @@ def test_vf_bool_constant():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_dates():
     df = pd.DataFrame({'dates': pd.date_range('now', periods=1000).values})
 
@@ -245,6 +259,7 @@ def test_vf_dates():
     df_meta.postprocess(df=df_p)
 
 
+@pytest.mark.fast
 def test_vf_category_string():
     df = pd.DataFrame({'category_string': pd.Categorical(list("ABCDE")*200)})
 
@@ -255,7 +270,7 @@ def test_vf_category_string():
 
 # Missing Value Data Columns
 # ----------------------------------------------------------------------
-
+@pytest.mark.fast
 def test_vf_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([1, 1, 1, 0]*250)/np.array([1, 1, 1, 0]*250) * np.arange(0, 1000)})
 
@@ -269,6 +284,7 @@ def test_vf_missing_ints():
     assert value.value.integer
 
 
+@pytest.mark.fast
 def test_vf_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', 'c', None]*100})
 
@@ -282,6 +298,7 @@ def test_vf_missing_strings():
     assert value.nans_valid
 
 
+@pytest.mark.fast
 def test_vf_missing_categories():
     df = pd.DataFrame({'missing_strings': pd.Categorical(['a', 'b', 1, None]*100)})
 
@@ -295,6 +312,7 @@ def test_vf_missing_categories():
     assert value.nans_valid
 
 
+@pytest.mark.fast
 def test_vf_double_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', np.NaN, None]*100})
 
@@ -308,6 +326,7 @@ def test_vf_double_missing_strings():
     assert value.nans_valid
 
 
+@pytest.mark.fast
 def test_vf_double_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, np.NaN, None]*2)})
 
@@ -319,6 +338,7 @@ def test_vf_double_missing_ints():
     assert isinstance(value, NanMeta)
 
 
+@pytest.mark.fast
 def test_vf_associated_columns():
     df = pd.DataFrame({
         'car_brand': ['Porsche', 'Volkwagen', 'BMW', 'Porsche', 'Volkwagen', 'BMW']*2,

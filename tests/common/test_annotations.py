@@ -1,9 +1,11 @@
 import pandas as pd
+import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtractorConfig
 
 
+@pytest.mark.slow
 def test_annotations():
     data = pd.read_csv('data/annotations_nd.csv')
     person_params = PersonParams(
@@ -45,6 +47,7 @@ def test_annotations():
     assert df_synthesized.shape == data.shape
 
 
+@pytest.mark.slow
 def test_addresses_from_file():
     data = pd.read_csv('data/annotations_nd.csv')
 

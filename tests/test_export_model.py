@@ -38,7 +38,7 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, 
     return df_synthesized, df_synthesized2
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_continuous_variable_generation():
     r = np.random.normal(loc=5000, scale=1000, size=1000)
     df_original = pd.DataFrame({'r': r})
@@ -50,7 +50,7 @@ def test_continuous_variable_generation():
     assert np.isclose(distribution_distance, distribution_distance2, atol=atol)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_categorical_similarity_variable_generation():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
@@ -62,7 +62,7 @@ def test_categorical_similarity_variable_generation():
     assert np.isclose(distribution_distance, distribution_distance2, atol=atol)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_categorical_variable_generation():
     r = np.random.normal(loc=5, scale=1, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
@@ -74,7 +74,7 @@ def test_categorical_variable_generation():
     assert np.isclose(distribution_distance, distribution_distance2, atol=atol)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_nan_producing():
     r = np.random.normal(loc=0, scale=1, size=1000)
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.2))
@@ -89,6 +89,7 @@ def test_nan_producing():
                       atol=atol)
 
 
+@pytest.mark.slow
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
