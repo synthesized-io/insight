@@ -104,8 +104,10 @@ class Synthesizer(tf.Module):
         return False
 
     def learn(
-            self, df_train: pd.DataFrame, num_iterations: Optional[int],
-            callback: Callable[[object, int, dict], bool] = None, callback_freq: int = 0
+            self, df_train: pd.DataFrame,
+            num_iterations: Optional[int],
+            callback: Callable[[object, int, dict], bool] = None,
+            callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -123,8 +125,10 @@ class Synthesizer(tf.Module):
         raise NotImplementedError
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            self, num_rows: int,
+            conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None,
+            **kwargs
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 

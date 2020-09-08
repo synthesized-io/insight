@@ -1,4 +1,5 @@
-from typing import Union, Callable, Optional, Dict
+from typing import Union, Callable, Optional, Tuple, Dict
+import warnings
 
 import pandas as pd
 
@@ -17,6 +18,7 @@ class ConditionalSampler(Synthesizer):
 
     def __init__(self,
                  synthesizer: Synthesizer,
+                 *explicit_marginals: Tuple[str, Dict[str, float]],
                  min_sampled_ratio: float = 0.001,
                  synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
@@ -29,6 +31,13 @@ class ConditionalSampler(Synthesizer):
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
             synthesis_batch_size: Synthesis batch size
         """
+        self.explicit_marginals: Optional[Dict[str, Dict[str, float]]] = None
+        if len(explicit_marginals) > 0:
+            warnings.warn("Argument 'explicit_marginals' is no moved to synthesize(). This will raise "
+                          "an Error in future versions", DeprecationWarning)
+            for col, cond in explicit_marginals:
+                self.explicit_marginals[col] = cond
+
         super().__init__()
         self._conditional_sampler = _ConditionalSampler(
             synthesizer._synthesizer, min_sampled_ratio=min_sampled_ratio, synthesis_batch_size=synthesis_batch_size
@@ -72,6 +81,9 @@ class ConditionalSampler(Synthesizer):
             The generated data.
 
         """
+        if self.explicit_marginals is not None and explicit_marginals is None:
+            explicit_marginals = self.explicit_marginals
+
         return self._conditional_sampler.synthesize(
             num_rows=num_rows, conditions=conditions, progress_callback=progress_callback,
             explicit_marginals=explicit_marginals

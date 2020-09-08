@@ -77,7 +77,7 @@ class ConditionalSampler(Synthesizer):
         if progress_callback is not None:
             progress_callback(0)
 
-        if explicit_marginals is None:
+        if explicit_marginals is None or len(explicit_marginals) == 0:
             return self.synthesizer.synthesize(num_rows, conditions=conditions, progress_callback=progress_callback)
 
         # For the sake of performance we will not really sample from "condition" distribution,
