@@ -34,9 +34,8 @@ class ConditionalSampler(Synthesizer):
         self.explicit_marginals: Optional[Dict[str, Dict[str, float]]] = None
         if len(explicit_marginals) > 0:
             warnings.warn("Argument 'explicit_marginals' is no moved to synthesize(). This will raise "
-                          "an Error in future versions", DeprecationWarning)
-            for col, cond in explicit_marginals:
-                self.explicit_marginals[col] = cond
+                          "an TypeError in future versions", DeprecationWarning)
+            self.explicit_marginals = {col: cond for col, cond in explicit_marginals}
 
         super().__init__()
         self._conditional_sampler = _ConditionalSampler(
@@ -83,6 +82,12 @@ class ConditionalSampler(Synthesizer):
         """
         if self.explicit_marginals is not None and explicit_marginals is None:
             explicit_marginals = self.explicit_marginals
+
+        if isinstance(explicit_marginals, tuple):
+            warnings.warn("Argument 'explicit_marginals' needs to be a Dict instead of a Tuple. This will raise "
+                          "an TypeError in future versions", DeprecationWarning)
+            for col, cond in explicit_marginals:
+                self.explicit_marginals[col] = cond
 
         return self._conditional_sampler.synthesize(
             num_rows=num_rows, conditions=conditions, progress_callback=progress_callback,

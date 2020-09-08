@@ -127,8 +127,7 @@ class Synthesizer(tf.Module):
     def synthesize(
             self, num_rows: int,
             conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None,
-            **kwargs
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
