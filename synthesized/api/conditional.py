@@ -1,4 +1,4 @@
-from typing import Union, Callable, Optional, Tuple, Dict
+from typing import Union, Callable, Optional, Dict
 
 import pandas as pd
 
@@ -9,15 +9,14 @@ from ..complex.conditional import ConditionalSampler as _ConditionalSampler
 class ConditionalSampler(Synthesizer):
     """Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
 
-        Example:
-            >>> cond = ConditionalSampler(synthesizer, ('SeriousDlqin2yrs', {'0': 0.3, '1': 0.7}),
-            >>>                                        ('age', {'[0.0, 50.0)': 0.5, '[50.0, 100.0)': 0.5}))
-            >>> cond.synthesize(num_rows=10))
+    Example:
+        >>> cond = ConditionalSampler(synthesizer)
+        >>> cond.synthesize(num_rows=100, explicit_marginals={'SeriousDlqin2yrs': {'0': 0.3, '1': 0.7},
+        >>>                                                   'age': {'[0.0, 50.0)': 0.5, '[50.0, 100.0)': 0.5}}))
     """
 
     def __init__(self,
                  synthesizer: Synthesizer,
-                 *explicit_marginals: Tuple[str, Dict[str, float]],
                  min_sampled_ratio: float = 0.001,
                  synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
@@ -32,8 +31,7 @@ class ConditionalSampler(Synthesizer):
         """
         super().__init__()
         self._conditional_sampler = _ConditionalSampler(
-            synthesizer._synthesizer, *explicit_marginals,
-            min_sampled_ratio=min_sampled_ratio, synthesis_batch_size=synthesis_batch_size
+            synthesizer._synthesizer, min_sampled_ratio=min_sampled_ratio, synthesis_batch_size=synthesis_batch_size
         )
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -58,18 +56,52 @@ class ConditionalSampler(Synthesizer):
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                   progress_callback: Callable[[int], None] = None,
+                   explicit_marginals: Dict[str, Dict[str, float]] = None) -> pd.DataFrame:
         """Generate the given number of new data rows according to the ConditionalSynthesizer's explicit marginals.
 
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
+            explicit_marginals: A dict of desired marginal distributions per column.
+                Distributions defined as density per category or bin. The result will be sampled
+                from the synthesizer conditionally on these marginals.
 
         Returns:
             The generated data.
 
         """
         return self._conditional_sampler.synthesize(
-            num_rows=num_rows, conditions=conditions, progress_callback=progress_callback
+            num_rows=num_rows, conditions=conditions, progress_callback=progress_callback,
+            explicit_marginals=explicit_marginals
+        )
+
+    def alter_distributions(self,
+                            df: pd.DataFrame,
+                            num_rows: int,
+                            explicit_marginals: Dict[str, Dict[str, float]] = None,
+                            conditions: Union[dict, pd.DataFrame] = None,
+                            progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
+        """Given a DataFrame, drop and/or generate new samples so that the output distributions are
+         defined by explicit marginals.
+
+        Args:
+            df: Original DataFrame
+            num_rows: The number of rows to generate.
+            conditions: The condition values for the generated rows.
+            progress_callback: Progress bar callback.
+            explicit_marginals: A dict of desired marginal distributions per column.
+                Distributions defined as density per category or bin. The result will be sampled
+                from the synthesizer conditionally on these marginals.
+
+        Returns:
+            The generated data.
+
+        """
+
+        return self._conditional_sampler.alter_distributions(
+            df=df, num_rows=num_rows, explicit_marginals=explicit_marginals,
+            conditions=conditions, progress_callback=progress_callback,
         )
