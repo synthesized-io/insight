@@ -10,5 +10,5 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.slow
 def test_data_quality_by_chunk():
-    data = pd.read_csv('data/credit_with_categoricals.csv')
+    data = pd.read_csv('data/credit_with_categoricals.csv').sample(10_000)
     dataset_quality_by_chunk(df=data, n=2)
