@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 import logging
 
 import numpy as np
@@ -128,3 +128,34 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
         KL.append(d * np.sum(Y * np.log(Y / Y2)))
 
     return np.sum(KL)
+
+
+def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None) -> pd.DataFrame:
+
+    if synth is None:
+        df_meta = MetaExtractor.extract(df)
+        synth = HighDimSynthesizer(df_meta=df_meta)
+
+    size = len(df) // n
+
+    df_cumulative = pd.DataFrame()
+    df_results = pd.DataFrame(index=pd.Index(data=[], name='num_rows', dtype=int))
+
+    with synth as synthesizer:
+        for i in range(n):
+            chunk = df.iloc[i * size:(i + 1) * size]
+
+            synthesizer.learn(df_train=chunk, num_iterations=None)
+            df_cumulative = df_cumulative.append(chunk)
+
+            df_latent, df_synthesized = synth.encode(df_encode=df_cumulative)
+            ldu = latent_dimension_usage(df_latent, usage_type='mean')
+
+            df_results = df_results.append(
+                pd.DataFrame(
+                    data={'quality': sum(ldu[ldu['usage'] > 0.1]['usage'])},
+                    index=pd.Index(data=[(i + 1) * size], name='num_rows')
+                )
+            )
+
+    return df_results
