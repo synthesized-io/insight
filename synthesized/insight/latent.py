@@ -154,7 +154,7 @@ def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[High
             df_results = df_results.append(
                 pd.DataFrame(
                     data={'quality': sum(ldu[ldu['usage'] > 0.1]['usage'])},
-                    index=pd.Index(data=[(i+1) * size], name='num_rows')
+                    index=pd.Index(data=[(i + 1) * size], name='num_rows')
                 )
             )
 
