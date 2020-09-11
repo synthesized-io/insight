@@ -1,9 +1,9 @@
+import gc
 import re
 from abc import ABC
 from collections import Counter
 from itertools import product
-from typing import Any, Dict, Tuple, Union, Callable, List, Optional
-import gc
+from typing import Dict, Tuple, Union, Callable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,23 +18,19 @@ class ConditionalSampler(Synthesizer):
     """Samples from the synthesizer conditionally on explicitly defined marginals of some columns.
 
     Example:
-        >>> cond = ConditionalSampler(synthesizer, ('SeriousDlqin2yrs', {'0': 0.3, '1': 0.7}),
-        >>>                                        ('age', {'[0.0, 50.0)': 0.5, '[50.0, 100.0)': 0.5}))
-        >>> cond.synthesize(num_rows=10))
+        >>> cond = ConditionalSampler(synthesizer)
+        >>> cond.synthesize(num_rows=100, explicit_marginals={'SeriousDlqin2yrs': {'0': 0.3, '1': 0.7},
+        >>>                                                   'age': {'[0.0, 50.0)': 0.5, '[50.0, 100.0)': 0.5}}))
     """
 
     def __init__(self,
                  synthesizer: Synthesizer,
-                 *explicit_marginals: Tuple[str, Dict[str, float]],
                  min_sampled_ratio: float = 0.001,
                  synthesis_batch_size: Optional[int] = 16384):
         """Create ConditionalSampler.
 
         Args:
             synthesizer: An underlying synthesizer
-            *explicit_marginals: A dict of desired marginal distributions per column.
-                Distributions defined as density per category or bin. The result will be sampled
-                from the synthesizer conditionally on these marginals.
             min_sampled_ratio: Stop synthesis if ratio of successfully sampled records is less than given value.
             synthesis_batch_size: Synthesis batch size
         """
@@ -45,29 +41,12 @@ class ConditionalSampler(Synthesizer):
         self.loss_history = synthesizer.loss_history
         self.writer = synthesizer.writer
 
-        self._validate_explicit_marginals(explicit_marginals)
-
-        # For simplicity let's store distributions in a dict where key is a column:
-        self.explicit_marginals: Dict[str, Dict[Any, float]] = {}
-        for col, cond in explicit_marginals:
-            self.explicit_marginals[col] = cond
-
-        self.conditional_columns: List[str] = []
-        self.all_columns: List[str] = synthesizer.value_factory.columns
-        # Let's compute cartesian product of all probs for each column
-        # to get probs for the joined distribution:
-        category_probs = []
-        for column, distr in explicit_marginals:
-            self.conditional_columns.append(column)
-            category_probs.append([(category, prob) for category, prob in distr.items()])
-        category_combinations = product(*category_probs)
-        rows = [
-            tuple(zip(*comb))
-            for comb in category_combinations
-        ]
-        self.joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         self.min_sampled_ratio = min_sampled_ratio
         self.synthesis_batch_size = synthesis_batch_size
+
+        self.all_columns: List[str] = self.synthesizer.value_factory.columns
+        self.continuous_columns = {v.name for v in self.synthesizer.get_values()
+                                   if (isinstance(v, ContinuousValue) or isinstance(v, NanValue))}
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Callable[[object, int, dict], bool] = None, callback_freq: int = 0) -> None:
@@ -78,19 +57,54 @@ class ConditionalSampler(Synthesizer):
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                   progress_callback: Callable[[int], None] = None,
+                   explicit_marginals: Dict[str, Dict[str, float]] = None) -> pd.DataFrame:
+        """Generate the given number of new data rows according to the ConditionalSynthesizer's explicit marginals.
+
+        Args:
+            num_rows: The number of rows to generate.
+            conditions: The condition values for the generated rows.
+            progress_callback: Progress bar callback.
+            explicit_marginals: A dict of desired marginal distributions per column.
+                Distributions defined as density per category or bin. The result will be sampled
+                from the synthesizer conditionally on these marginals.
+
+        Returns:
+            The generated data.
+
+        """
 
         if progress_callback is not None:
             progress_callback(0)
+
+        if explicit_marginals is None or len(explicit_marginals) == 0:
+            return self.synthesizer.synthesize(num_rows, conditions=conditions, progress_callback=progress_callback)
+
         # For the sake of performance we will not really sample from "condition" distribution,
         # but will rather sample directly from synthesizer and filter records so they distribution is conditional
-
-        # Counters represent hom many instances of each condition we need to sample
-        marginal_counts = Counter({c: int(round(p * num_rows)) for c, p in self.joined_marginal_probs.items()})
+        self._validate_explicit_marginals(explicit_marginals)
+        marginal_counts = self.get_joined_marginal_counts(explicit_marginals, num_rows)
 
         # Let's adjust counts so they sum up to `num_rows`:
         any_key = list(marginal_counts.keys())[0]
         marginal_counts[any_key] += num_rows - sum(marginal_counts.values())
+
+        marginals_keys = {k: list(v.keys()) for k, v in explicit_marginals.items()}
+
+        return self.synthesize_from_joined_counts(marginal_counts, marginals_keys,
+                                                  conditions=conditions, progress_callback=progress_callback)
+
+    def synthesize_from_joined_counts(
+            self,
+            marginal_counts: Dict[Tuple, int],
+            marginals_keys: Dict[str, List[str]],
+            conditions: Union[dict, pd.DataFrame] = None,
+            progress_callback: Callable[[int], None] = None,
+    ) -> pd.DataFrame:
+        """Given joint counts, synthesize dataset."""
+
+        marginal_counts = marginal_counts.copy()
+        num_rows = sum(marginal_counts.values())
 
         # The result is a list of result arrays
         result = []
@@ -109,9 +123,7 @@ class ConditionalSampler(Synthesizer):
             df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions)
 
             # In order to filter our data frame we need keys that we will look up in counts:
-            df_key = df_synthesized[self.conditional_columns]
-            df_key = self._map_continuous_columns(df_key)
-            df_key = df_key.astype(str)
+            df_key = self.map_key_columns(df_synthesized, marginals_keys)
 
             n_added = 0
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
@@ -139,8 +151,91 @@ class ConditionalSampler(Synthesizer):
 
         return pd.DataFrame.from_records(result, columns=self.all_columns).sample(frac=1).reset_index(drop=True)
 
-    def _map_continuous_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Looks for continuous columns and map values into bins that are defined in `self.conditions`.
+    def alter_distributions(self,
+                            df: pd.DataFrame,
+                            num_rows: int,
+                            explicit_marginals: Dict[str, Dict[str, float]] = None,
+                            conditions: Union[dict, pd.DataFrame] = None,
+                            progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+        """Given a DataFrame, drop and/or generate new samples so that the output distributions are
+         defined by explicit marginals.
+
+        Args:
+            df: Original DataFrame
+            num_rows: The number of rows to generate.
+            conditions: The condition values for the generated rows.
+            progress_callback: Progress bar callback.
+            explicit_marginals: A dict of desired marginal distributions per column.
+                Distributions defined as density per category or bin. The result will be sampled
+                from the synthesizer conditionally on these marginals.
+
+        Returns:
+            The generated data.
+
+        """
+
+        if progress_callback is not None:
+            progress_callback(0)
+
+        if explicit_marginals is None:
+            return self.synthesizer.synthesize(num_rows, conditions=conditions, progress_callback=progress_callback)
+
+        conditional_columns = list(explicit_marginals.keys())
+        marginals_keys = {k: list(v.keys()) for k, v in explicit_marginals.items()}
+
+        # For the sake of performance we will not really sample from "condition" distribution,
+        # but will rather sample directly from synthesizer and filter records so they distribution is conditional
+        self._validate_explicit_marginals(explicit_marginals)
+        marginal_counts = self.get_joined_marginal_counts(explicit_marginals, num_rows)
+
+        df_key = self.map_key_columns(df, marginals_keys)
+        orig_key_groups = df_key.groupby(conditional_columns).groups
+        marginal_counts_original_df = Counter({k: len(v) for k, v in orig_key_groups.items()})
+
+        marginal_counts_to_synthesize: Dict[Tuple[str, ...], int] = Counter()
+        marginal_counts_from_original: Dict[Tuple[str, ...], int] = Counter()
+
+        for k in marginal_counts.keys():
+            diff = marginal_counts[k] - marginal_counts_original_df[k]
+            if diff > 0:
+                marginal_counts_to_synthesize[k] = diff
+                marginal_counts_from_original[k] = marginal_counts_original_df[k]
+            elif diff < 0:
+                marginal_counts_from_original[k] = marginal_counts[k]
+
+        # Create an empty copy of the input DataFrame
+        df_out = df.head(0)
+
+        # Get rows from original dataset
+        if len(marginal_counts_from_original) > 0:
+            idx = []
+            for k in marginal_counts_from_original.keys():
+                idx.extend(np.random.choice(orig_key_groups[k], size=marginal_counts_from_original[k], replace=False))
+            df_out = df_out.append(df[df.index.isin(idx)])
+
+        # Synthesize missing rows
+        if len(marginal_counts_to_synthesize) > 0:
+            df_out = df_out.append(self.synthesize_from_joined_counts(
+                marginal_counts_to_synthesize, marginals_keys, conditions=conditions,
+                progress_callback=progress_callback
+            ))
+
+        return df_out.sample(frac=1).reset_index(drop=True)
+
+    def map_key_columns(self, df: pd.DataFrame, marginals_keys: Dict[str, List[str]]) -> pd.DataFrame:
+        """Get key dataframe. Transform the continuous columns into intervals, and convert all key
+        columns into strings.
+
+        """
+        conditional_columns = list(marginals_keys.keys())
+        df_key = df[conditional_columns]
+        df_key = self._map_continuous_columns(df_key, marginals_keys)
+        df_key = df_key.astype(str)
+        return df_key
+
+    def _map_continuous_columns(self, df: pd.DataFrame,
+                                marginals_keys: Dict[str, List[str]]) -> pd.DataFrame:
+        """Looks for continuous columns and map values into bins that are defined in `explicit_marginals`.
 
         Args:
             df: Input data frame.
@@ -150,20 +245,19 @@ class ConditionalSampler(Synthesizer):
 
         """
         df = df.copy()
+        conditional_columns: List[str] = list(marginals_keys.keys())
 
         mapping = {}
-        continuous_columns = {v.name for v in self.synthesizer.get_values()
-                              if (isinstance(v, ContinuousValue) or isinstance(v, NanValue))}
-        for col in continuous_columns:
-            if col in self.explicit_marginals:
+        for col in self.continuous_columns:
+            if col in conditional_columns:
                 intervals = []
-                for str_interval in self.explicit_marginals[col].keys():
+                for str_interval in marginals_keys[col]:
                     interval = FloatInterval.parse(str_interval)
                     intervals.append(interval)
                 mapping[col] = intervals
 
-        for col in self.conditional_columns:
-            if col in continuous_columns:
+        for col in conditional_columns:
+            if col in self.continuous_columns:
                 def map_value(value: float):
                     intervals = mapping[col]
                     for interval in intervals:
@@ -173,11 +267,11 @@ class ConditionalSampler(Synthesizer):
 
         return df
 
-    def _validate_explicit_marginals(self, explicit_marginals):
+    def _validate_explicit_marginals(self, explicit_marginals: Dict[str, Dict[str, float]]):
         values = self.synthesizer.df_meta.values
         values_name = [value.name for value in values]
 
-        for col, cond in explicit_marginals:
+        for col, cond in explicit_marginals.items():
             if not np.isclose(sum(cond.values()), 1.0):
                 raise ValueError("Marginal probabilities do not add up to 1 for '{}'".format(col))
             if col not in values_name:
@@ -192,6 +286,23 @@ class ConditionalSampler(Synthesizer):
                     elif category not in categories:
                         raise ValueError("Category '{}' for column '{}' not found in learned data. Available options "
                                          "are: '{}'".format(category, col, ', '.join(categories)))
+
+    @staticmethod
+    def get_joined_marginal_counts(explicit_marginals: Dict[str, Dict[str, float]],
+                                   num_rows: int) -> Dict[Tuple, int]:
+
+        # Let's compute cartesian product of all probs for each column
+        # to get probs for the joined distribution:
+        category_probs = []
+        for column, distr in explicit_marginals.items():
+            category_probs.append([(category, prob) for category, prob in distr.items()])
+        category_combinations = product(*category_probs)
+        rows = [
+            tuple(zip(*comb))
+            for comb in category_combinations
+        ]
+        joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
+        return Counter({c: int(round(p * num_rows)) for c, p in joined_marginal_probs.items()})
 
     def get_values(self) -> List[Value]:
         return self.synthesizer.get_values()
