@@ -2,11 +2,13 @@ from typing import Callable, Optional, Union
 
 import pandas as pd
 
+from ..common import Synthesizer as _Synthesizer
+
 
 class Synthesizer:
     """The base Synthesizer class."""
     def __init__(self):
-        self._synthesizer = None
+        self._synthesizer = _Synthesizer("synthesizer")
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -43,3 +45,9 @@ class Synthesizer:
 
         """
         raise NotImplementedError
+
+    def __enter__(self):
+        self._synthesizer.__enter__()
+
+    def __exit__(self):
+        self._synthesizer.__exit__()
