@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 class FairnessScorer:
+    """This class analyzes a given DataFrame, looks for biases and quantifies its fairness. There are two ways to
+     compute this:
+        * distributions_score: Returns the biases and fairness score by analyzing the distribution difference between
+            sensitive variables and the target variable.
+        * classification_score: Computes few classification tasks for different classifiers and evaluates their
+            performance on those sub-samples given by splitting the data-set by sensitive sub-samples.
+
+    Example:
+        >>> data = pd.read_csv('data/templates/claim_prediction.csv')
+        >>> sensitive_attributes = ["age", "sex", "children", "region"]
+        >>> target = "insuranceclaim"
+
+        >>> fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
+        >>> dist_score, dist_biases = fairness_scorer.distributions_score()
+    """
+
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  detect_sensitive: bool = False, detect_hidden: bool = False):
         """FairnessScorer constructor.
@@ -84,6 +100,74 @@ class FairnessScorer:
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
 
+    def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
+                            mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
+        """ Returns the biases and fairness score by analyzing the distribution difference between
+        sensitive variables and the target variable."""
+
+        biases = []
+        score = 0.
+        count = 0
+
+        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
+            if max_combinations else len(self.sensitive_attrs) + 1
+        # Compute biases for all combinations of sensitive attributes
+        for k in range(1, max_combinations + 1):
+            for sensitive_attr in combinations(self.sensitive_attrs, k):
+                df_count = self.get_rates(list(sensitive_attr))
+
+                if mode == 'diff':
+                    df_dist = self.difference_distance(df_count)
+                elif mode == 'emd':
+                    df_dist = self.emd_distance(df_count)
+                else:
+                    raise ValueError(f"Given mode='{mode}' not supported")
+
+                if weighted:
+                    score += np.sum(df_dist['Distance'].abs() * df_dist['Count']) / df_dist['Count'].sum()
+                else:
+                    score += np.average(df_dist['Distance'].abs())
+
+                biases.extend(self.format_bias(df_dist))
+                count += 1
+
+        df_biases = pd.DataFrame(biases) if len(biases) > 0 else None
+        if df_biases is not None:
+            df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
+                'distance', ascending=False).reset_index(drop=True)
+
+        score /= count
+        return score, df_biases
+
+    def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
+                             min_count: int = 100, max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
+        """ Computes few classification tasks for different classifiers and evaluates their performance on
+        sub-samples given by splitting the data-set into sensitive sub-samples."""
+
+        clf_scores = []
+
+        if classifiers is None:
+            classifiers = {
+                'LogisticRegression': LogisticRegression(max_iter=500),
+                'RandomForest': RandomForestClassifier(),
+                'GradientBoostingClassifier': GradientBoostingClassifier(),
+                'NeuralNetwork': MLPClassifier(hidden_layer_sizes=(64, 32, 16), max_iter=1000)
+            }
+
+        biases = []
+
+        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
+            if max_combinations else len(self.sensitive_attrs) + 1
+        # Compute biases for all combinations of sensitive attributes
+        for k in range(1, max_combinations + 1):
+            for sensitive_attr in combinations(self.sensitive_attrs, k):
+                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
+                clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
+                clf_scores.append(clf_score)
+                biases.extend(biases_i)
+
+        return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
+
     def get_sensitive_attrs(self) -> List[str]:
         return self.sensitive_attrs
 
@@ -137,69 +221,6 @@ class FairnessScorer:
             fmt_bias.append(bias_i)
 
         return fmt_bias
-
-    def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
-        biases = []
-        score = 0.
-        count = 0
-
-        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
-            if max_combinations else len(self.sensitive_attrs) + 1
-        # Compute biases for all combinations of sensitive attributes
-        for k in range(1, max_combinations + 1):
-            for sensitive_attr in combinations(self.sensitive_attrs, k):
-                df_count = self.get_rates(list(sensitive_attr))
-
-                if mode == 'diff':
-                    df_dist = self.difference_distance(df_count)
-                elif mode == 'emd':
-                    df_dist = self.emd_distance(df_count)
-                else:
-                    raise ValueError(f"Given mode='{mode}' not supported")
-
-                if weighted:
-                    score += np.sum(df_dist['Distance'].abs() * df_dist['Count']) / df_dist['Count'].sum()
-                else:
-                    score += np.average(df_dist['Distance'].abs())
-
-                biases.extend(self.format_bias(df_dist))
-                count += 1
-
-        df_biases = pd.DataFrame(biases) if len(biases) > 0 else None
-        if df_biases is not None:
-            df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
-                'distance', ascending=False).reset_index(drop=True)
-
-        score /= count
-        return score, df_biases
-
-    def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
-                             min_count: int = 100, max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
-        clf_scores = []
-
-        if classifiers is None:
-            classifiers = {
-                'LogisticRegression': LogisticRegression(max_iter=500),
-                'RandomForest': RandomForestClassifier(),
-                'GradientBoostingClassifier': GradientBoostingClassifier(),
-                'NeuralNetwork': MLPClassifier(hidden_layer_sizes=(64, 32, 16), max_iter=1000)
-            }
-
-        biases = []
-
-        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
-            if max_combinations else len(self.sensitive_attrs) + 1
-        # Compute biases for all combinations of sensitive attributes
-        for k in range(1, max_combinations + 1):
-            for sensitive_attr in combinations(self.sensitive_attrs, k):
-
-                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
-                clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
-                clf_scores.append(clf_score)
-                biases.extend(biases_i)
-
-        return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
 
     def cramers_v_score(self) -> float:
         df = self.df.copy()
