@@ -1,6 +1,6 @@
 import logging
 import math
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict
 
 import matplotlib as mpl
 from matplotlib.colors import SymLogNorm
@@ -12,7 +12,9 @@ from sklearn.preprocessing import OneHotEncoder
 from matplotlib import cm
 from matplotlib.axes import Axes, SubplotBase
 
+from ..metadata import DataFrameMeta, MetaExtractor
 from ..insight.metrics import kolmogorov_smirnov_distance, earth_movers_distance
+from ..insight.evaluation import calculate_evaluation_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -293,8 +295,6 @@ def bar_plot_results(current_result, ax: Union[Axes, SubplotBase] = None):
     else:
         plt.xticks(rotation=10)
 
-    plt.show()
-
 
 def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000, ax: Union[Axes, SubplotBase] = None):
     col_test = col_test.dropna()
@@ -536,8 +536,8 @@ def sequence_line_plot(x, t, ax):
     sns.lineplot(x=t, y=x, ax=ax)
 
 
-def plt_dist_orig_snyh(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, unique_threshold: int = 30,
-                       ax: plt.Axes = None) -> float:
+def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, unique_threshold: int = 30,
+                        ax: plt.Axes = None, sample_size: int = 10_000) -> float:
 
     if ax is None:
         fig, ax = plt.subplots(1, 1)
@@ -554,16 +554,16 @@ def plt_dist_orig_snyh(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, 
         if start == end:
             start, end = min(all_vc), max(all_vc)
 
-        orig_vc = orig_vc[key].values[(start <= orig_vc) & (orig_vc <= end)]
-        synth_vc = synth_vc[key].values[(start <= synth_vc) & (synth_vc <= end)]
+        orig_vc_values = orig_vc.loc[(start <= orig_vc[key]) & (orig_vc[key] <= end), key].values
+        synth_vc_values = synth_vc.loc[(start <= synth_vc[key]) & (synth_vc[key] <= end), key].values
 
-        sns.distplot(orig_vc[key], color=COLOR_ORIG, label='orig', ax=ax)
-        sns.distplot(synth_vc[key], color=COLOR_SYNTH, label='synth', ax=ax)
+        sns.distplot(orig_vc_values, color=COLOR_ORIG, label='orig', ax=ax)
+        sns.distplot(synth_vc_values, color=COLOR_SYNTH, label='synth', ax=ax)
         dist = kolmogorov_smirnov_distance(orig_vc, synth_vc, key)
 
     else:
         # We sample orig and synth them so that they have the same size to make the plots more comprehensive
-        sample_size = min(len(orig_vc), len(synth_vc))
+        sample_size = min(len(orig_vc), len(synth_vc), sample_size)
         concatenated = pd.concat([orig_vc.assign(dataset='orig').sample(sample_size),
                                   synth_vc.assign(dataset='synth').sample(sample_size)])
 
@@ -573,3 +573,33 @@ def plt_dist_orig_snyh(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str, 
 
     ax.legend()
     return float(dist or 0.0)
+
+
+def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: DataFrameMeta = None,
+                          ax: plt.Axes = None, sample_size: int = None) -> Dict[str, float]:
+
+    if sample_size is not None:
+        if sample_size < len(df_test):
+            df_test = df_test.sample(sample_size)
+        if sample_size < len(df_synth):
+            df_synth = df_synth.sample(sample_size)
+
+    if dp is None:
+        dp = MetaExtractor.extract(pd.concat((df_test, df_synth)))
+
+    standard_metrics = calculate_evaluation_metrics(df_test, df_synth, dp)
+
+    current_result = dict()
+    for name, val in standard_metrics.items():
+        if len(val) > 0 and not np.all(val.isna()):
+            x = val.to_numpy()
+            x_avg, x_max = float(np.nanmean(x)), float(np.nanmax(x))
+        else:
+            x_avg, x_max = 0., 0.
+
+        current_result[f'{name}_avg'] = x_avg
+        current_result[f'{name}_max'] = x_max
+
+    bar_plot_results(current_result, ax=ax)
+
+    return current_result

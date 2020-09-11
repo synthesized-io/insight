@@ -15,14 +15,14 @@ import pandas as pd
 
 from ..common.synthesizer import Synthesizer
 from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, bar_plot_results
+    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot
 from ..insight import metrics
-from ..insight.evaluation import calculate_evaluation_metrics
 from ..insight.metrics import TwoColumnComparison, TwoColumnComparisonMatrix
 from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix
 from ..insight.metrics import ColumnComparison, ColumnComparisonVector
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..insight.dataset import categorical_or_continuous_values
+from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +63,8 @@ class UtilityTesting:
         set_plotting_style()
 
     def show_standard_metrics(self, ax=None):
-        standard_metrics = calculate_evaluation_metrics(self.df_test, self.df_synth, self.dp)
-
-        current_result = dict()
-        for name, val in standard_metrics.items():
-            if len(val) > 0:
-                x = val.values
-                avg, max = float(np.nanmean(x)), float(np.nanmax(x))
-            else:
-                avg, max = 0., 0.
-            current_result[f'{name}_avg'] = avg
-            current_result[f'{name}_max'] = max
-
-        bar_plot_results(current_result, ax=ax)
+        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.dp, ax=ax)
+        plt.show()
 
         return current_result
 
@@ -87,6 +76,7 @@ class UtilityTesting:
             remove_outliers: Percent of outliers to remove.
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
+            sample_size: Maximum sample size tot show distributions.
         """
         rows = math.ceil(len(self.plotable_values) / cols)
         if not figsize:
