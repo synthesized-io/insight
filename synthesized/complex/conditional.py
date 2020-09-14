@@ -3,7 +3,7 @@ import re
 from abc import ABC
 from collections import Counter
 from itertools import product
-from typing import Dict, Tuple, Union, Callable, List, Optional
+from typing import Any, Dict, Tuple, Union, Callable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -189,7 +189,8 @@ class ConditionalSampler(Synthesizer):
         marginal_counts = self.get_joined_marginal_counts(explicit_marginals, num_rows)
 
         df_key = self.map_key_columns(df, marginals_keys)
-        orig_key_groups = df_key.groupby(conditional_columns).groups
+        orig_key_groups = self._keys_to_tuple(df_key.groupby(conditional_columns).groups)
+
         marginal_counts_original_df = Counter({k: len(v) for k, v in orig_key_groups.items()})
 
         marginal_counts_to_synthesize: Dict[Tuple[str, ...], int] = Counter()
@@ -290,7 +291,6 @@ class ConditionalSampler(Synthesizer):
     @staticmethod
     def get_joined_marginal_counts(explicit_marginals: Dict[str, Dict[str, float]],
                                    num_rows: int) -> Dict[Tuple, int]:
-
         # Let's compute cartesian product of all probs for each column
         # to get probs for the joined distribution:
         category_probs = []
@@ -303,6 +303,19 @@ class ConditionalSampler(Synthesizer):
         ]
         joined_marginal_probs = {row[0]: np.product(row[1]) for row in rows}
         return Counter({c: int(round(p * num_rows)) for c, p in joined_marginal_probs.items()})
+
+    @staticmethod
+    def _keys_to_tuple(d: Dict[Union[str, Tuple[str, ...]], Any]) -> Dict[Tuple[str, ...], Any]:
+        """For a given dict, ensure that keys are tuples of strings not strings"""
+
+        new_dict: Dict[Tuple[str, ...], Any] = dict()
+        for k in list(d.keys()):
+            if isinstance(k, str):
+                new_dict[(k,)] = d.pop(k)
+            else:
+                new_dict[k] = d[k]
+
+        return new_dict
 
     def get_values(self) -> List[Value]:
         return self.synthesizer.get_values()
