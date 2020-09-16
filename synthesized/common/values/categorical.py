@@ -18,7 +18,7 @@ class CategoricalValue(Value):
     def __init__(
         self, name: str, num_categories: int,
         # Optional
-        similarity_based: bool = False, nans_valid: bool = False, produce_nans: bool = False,
+        similarity_based: bool = False, nans_valid: bool = False,
         # Scenario
         probabilities=None, embedding_size: int = None,
         config: CategoricalConfig = CategoricalConfig()
@@ -27,7 +27,6 @@ class CategoricalValue(Value):
         self.num_categories: int = num_categories
         self.similarity_based = similarity_based
         self.nans_valid: bool = nans_valid
-        self.produce_nans = produce_nans
 
         self.probabilities = probabilities
 
@@ -62,7 +61,7 @@ class CategoricalValue(Value):
             embedding_size=self.embedding_size,
             similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
-            produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
+            embedding_initialization=self.embedding_initialization
         )
         return spec
 
@@ -105,16 +104,17 @@ class CategoricalValue(Value):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> Sequence[tf.Tensor]:
-        if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True,
+                       produce_nans: bool = True, **kwargs) -> Sequence[tf.Tensor]:
+        if self.nans_valid is True and produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
-            self.produce_nans = True
+            produce_nans = True
 
         # Choose argmax class
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
-        if self.produce_nans:
+        if produce_nans:
             if sample:
                 y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
             else:

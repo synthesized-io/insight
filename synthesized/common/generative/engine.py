@@ -168,13 +168,14 @@ class HighDimEngine(Generative):
     @tf.function
     @tensorflow_name_scoped
     def encode(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
     ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
             xs: Input tensor per column.
             cs: Condition tensor per column.
+            produce_nans: Whether to produce NaNs.
 
         Returns:
             Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
@@ -185,7 +186,7 @@ class HighDimEngine(Generative):
 
         x = self.value_ops.unified_inputs(xs)
         latent_space, mean, std, y = self._encode(x=x, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, produce_nans=produce_nans)
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
@@ -218,13 +219,14 @@ class HighDimEngine(Generative):
 
     @tensorflow_name_scoped
     def encode_deterministic(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
     ) -> Dict[str, Sequence[tf.Tensor]]:
         """Deterministic encoding for VAE.
 
         Args:
             xs: Input tensor per column.
             cs: Condition tensor per column.
+            produce_nans: Whether to produce NaNs
 
         Returns:
             Dictionary of output tensors per column
@@ -235,7 +237,7 @@ class HighDimEngine(Generative):
 
         x = self.value_ops.unified_inputs(xs)
         y = self._encode_deterministic(x=x, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False, produce_nans=produce_nans)
 
         return synthesized
 
@@ -265,19 +267,22 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> Dict[str, Sequence[tf.Tensor]]:
+    def synthesize(
+            self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
+    ) -> Dict[str, Sequence[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
             n: Number of instances to generate.
             cs: Condition tensor per column.
+            produce_nans: Whether to produce NaNs
 
         Returns:
             Output tensor per column.
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs)
+        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, produce_nans=produce_nans)
 
         return synthesized
 

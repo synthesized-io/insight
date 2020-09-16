@@ -57,6 +57,7 @@ class ConditionalSampler(Synthesizer):
     def synthesize(self,
                    num_rows: int,
                    conditions: Union[dict, pd.DataFrame] = None,
+                   produce_nans: bool = False,
                    progress_callback: Callable[[int], None] = None,
                    explicit_marginals: Dict[str, Dict[str, float]] = None) -> pd.DataFrame:
         """Generate the given number of new data rows according to the ConditionalSynthesizer's explicit marginals.
@@ -64,6 +65,7 @@ class ConditionalSampler(Synthesizer):
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
                 Distributions defined as density per category or bin. The result will be sampled
@@ -78,7 +80,8 @@ class ConditionalSampler(Synthesizer):
             progress_callback(0)
 
         if explicit_marginals is None or len(explicit_marginals) == 0:
-            return self.synthesizer.synthesize(num_rows, conditions=conditions, progress_callback=progress_callback)
+            return self.synthesizer.synthesize(num_rows, conditions=conditions, produce_nans=produce_nans,
+                                               progress_callback=progress_callback)
 
         # For the sake of performance we will not really sample from "condition" distribution,
         # but will rather sample directly from synthesizer and filter records so they distribution is conditional
@@ -209,7 +212,7 @@ class ConditionalSampler(Synthesizer):
 
         # Get rows from original dataset
         if len(marginal_counts_from_original) > 0:
-            idx = []
+            idx: List = []
             for k in marginal_counts_from_original.keys():
                 idx.extend(np.random.choice(orig_key_groups[k], size=marginal_counts_from_original[k], replace=False))
             df_out = df_out.append(df[df.index.isin(idx)])

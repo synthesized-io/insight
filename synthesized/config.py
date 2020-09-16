@@ -123,7 +123,6 @@ class NanConfig:
 @dataclass
 class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
-    produce_nans: bool = False
 
     @property
     def value_factory_config(self):

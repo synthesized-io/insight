@@ -132,7 +132,7 @@ class Sanitizer(Synthesizer):
         return df_synthesized
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None, n_columns_intersect: int = None
     ) -> pd.DataFrame:
 
@@ -140,7 +140,7 @@ class Sanitizer(Synthesizer):
             progress_callback(0)
 
         df_synthesized = self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions,
-                                                     progress_callback=progress_callback)
+                                                     produce_nans=produce_nans, progress_callback=progress_callback)
 
         if progress_callback is not None:
             progress_callback(99)

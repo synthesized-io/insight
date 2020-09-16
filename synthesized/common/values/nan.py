@@ -15,7 +15,7 @@ class NanValue(Value):
 
     def __init__(
         self, name: str, value: Value, config: NanConfig = NanConfig(),
-        embedding_size: int = None, produce_nans: bool = False, produce_infs: bool = False
+        embedding_size: int = None
     ):
         super().__init__(name=name)
 
@@ -29,9 +29,6 @@ class NanValue(Value):
         self.embedding_size = embedding_size
         self.embedding_initialization = 'orthogonal-small'
         self.weight = config.nan_weight
-
-        self.produce_nans = produce_nans
-        self.produce_infs = produce_infs
 
         shape = (self.num_categories, self.embedding_size)
         initializer = get_initializer(initializer='normal')
@@ -49,7 +46,7 @@ class NanValue(Value):
     def specification(self):
         spec = super().specification()
         spec.update(
-            value=self.value.specification(), produce_nans=self.produce_nans,
+            value=self.value.specification(),
             embedding_size=self.embedding_size
         )
         return spec
@@ -105,7 +102,8 @@ class NanValue(Value):
         return x
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> Sequence[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, produce_nans: bool = False, produce_infs: bool = False,
+                       **kwargs) -> Sequence[tf.Tensor]:
         # NaN classification part
         if sample:
             nan = tf.squeeze(tf.random.categorical(logits=y[:, :self.num_categories], num_samples=1), axis=-1)
@@ -116,11 +114,11 @@ class NanValue(Value):
         ys = list(self.value.output_tensors(y=y[:, self.num_categories:], **kwargs))
 
         for n, y in enumerate(ys):
-            if self.produce_nans:
+            if produce_nans:
                 # Replace wrapped value with NaNs
                 ys[n] = tf.where(condition=tf.math.equal(x=nan, y=1), x=np.nan, y=ys[n])
 
-            if self.produce_infs:
+            if produce_infs:
                 # Replace wrapped value with Infs
                 ys[n] = tf.where(condition=tf.math.equal(x=nan, y=2), x=np.inf, y=ys[n])
                 ys[n] = tf.where(condition=tf.math.equal(x=nan, y=3), x=-np.inf, y=ys[n])

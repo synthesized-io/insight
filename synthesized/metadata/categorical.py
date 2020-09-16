@@ -12,7 +12,7 @@ class CategoricalMeta(ValueMeta):
     def __init__(
         self, name: str,
         # Optional
-        similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
+        similarity_based: bool = False, pandas_category: bool = False,
         # Scenario
         categories: List = None, probabilities=None, true_categorical: bool = True
     ):
@@ -28,7 +28,6 @@ class CategoricalMeta(ValueMeta):
 
         self.similarity_based = similarity_based
         self.pandas_category = pandas_category
-        self.produce_nans = produce_nans
         self.true_categorical = true_categorical
         self.is_string = False
 

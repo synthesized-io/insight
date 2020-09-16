@@ -10,7 +10,7 @@ from .value_meta import ValueMeta
 class NanMeta(ValueMeta):
 
     def __init__(
-        self, name: str, value: ValueMeta, produce_nans: bool = False, produce_infs: bool = False
+        self, name: str, value: ValueMeta
     ):
         super().__init__(name=name)
 
@@ -20,9 +20,6 @@ class NanMeta(ValueMeta):
 
         self.embedding_initialization = 'orthogonal-small'
 
-        self.produce_nans = produce_nans
-        self.produce_infs = produce_infs
-
     def __str__(self):
         string = super().__str__()
         string += '-' + str(self.value)
@@ -31,7 +28,7 @@ class NanMeta(ValueMeta):
     def specification(self):
         spec = super().specification()
         spec.update(
-            value=self.value.specification(), produce_nans=self.produce_nans
+            value=self.value.specification()
         )
         return spec
 

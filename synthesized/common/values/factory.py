@@ -30,7 +30,6 @@ class ValueFactory:
         self.config = config
 
         self.capacity = config.capacity
-        self.produce_nans = config.produce_nans
 
         # Values
         self.columns = list(df_meta.columns)
@@ -76,7 +75,7 @@ class ValueFactory:
                 raise ValueError
             return CategoricalValue(
                 vm.name, num_categories=vm.num_categories, similarity_based=vm.similarity_based,
-                nans_valid=vm.nans_valid, produce_nans=self.produce_nans, config=self.config.categorical_config
+                nans_valid=vm.nans_valid, config=self.config.categorical_config
             )
         elif isinstance(vm, DateMeta):
             return DateValue(
@@ -87,10 +86,7 @@ class ValueFactory:
             value = self.create_value(vm.value)
             if value is None:
                 raise ValueError
-            return NanValue(
-                vm.name, value=value, config=self.config.nan_config, produce_nans=self.produce_nans or vm.produce_nans,
-                produce_infs=vm.produce_infs
-            )
+            return NanValue(vm.name, value=value, config=self.config.nan_config)
         elif isinstance(vm, ContinuousMeta):
             return ContinuousValue(
                 vm.name, config=self.config.continuous_config
@@ -107,8 +103,7 @@ class ValueFactory:
                     raise ValueError
                 return CategoricalValue(
                     vm.name, num_categories=vm.postcode.num_categories, similarity_based=vm.postcode.similarity_based,
-                    nans_valid=vm.postcode.nans_valid, produce_nans=vm.postcode.produce_nans or self.produce_nans,
-                    config=self.config.categorical_config
+                    nans_valid=vm.postcode.nans_valid, config=self.config.categorical_config
                 )
         elif isinstance(vm, CompoundAddressMeta):
             return self.create_value(vm.postcode)
@@ -118,8 +113,7 @@ class ValueFactory:
                     raise ValueError
                 return CategoricalValue(
                     vm.name, num_categories=vm.gender.num_categories, similarity_based=vm.gender.similarity_based,
-                    nans_valid=vm.gender.nans_valid, produce_nans=vm.gender.produce_nans or self.produce_nans,
-                    config=self.config.categorical_config
+                    nans_valid=vm.gender.nans_valid, config=self.config.categorical_config
                 )
         elif isinstance(vm, BankNumberMeta):
             # TODO: create BankNumberMeta logic
@@ -162,7 +156,6 @@ class ValueFactory:
         variables: Dict[str, Any] = dict(
             name=self.name,
             columns=self.columns,
-            produce_nans=self.produce_nans,
             identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
         )
 
@@ -180,7 +173,6 @@ class ValueFactory:
         assert self.name == variables['name']
 
         self.columns = variables['columns']
-        self.produce_nans = variables['produce_nans']
         self.identifier_value = Value.set_variables(variables['identifier_value']) \
             if variables['identifier_value'] is not None else None
 

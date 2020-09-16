@@ -5,8 +5,8 @@ import re
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
+# from Cython.Build import cythonize
+# from Cython.Distutils import build_ext
 
 __version__ = ''
 exec(open('synthesized/version.py').read())
@@ -67,6 +67,6 @@ setup(
     license='Proprietary',
     packages=packages,
     install_requires=install_requires,
-    ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
-    cmdclass={'build_ext': build_ext}
+    # ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
+    # cmdclass={'build_ext': build_ext}
 )

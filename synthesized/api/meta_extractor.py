@@ -25,8 +25,8 @@ class MetaExtractor:
     def extract(
             cls, df: pd.DataFrame, config: MetaExtractorConfig = MetaExtractorConfig(),
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
-            type_overrides: Dict[str, TypeOverride] = None, produce_nans_for: List[str] = None,
-            produce_infs_for: List[str] = None, address_params: AddressParams = None, bank_params: BankParams = None,
+            type_overrides: Dict[str, TypeOverride] = None,
+            address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None, person_params: PersonParams = None
     ) -> DataFrameMeta:
         """Extracts the DataFrame metadata with the provided configuration options.
@@ -37,8 +37,6 @@ class MetaExtractor:
             column_aliases: Optional dictionary mapping pairs of column aliases.
             associations: Optional dictionary assigning strict associations between categories.
             type_overrides: Optional dictionary mapping column names to desired TypeOverrides.
-            produce_nans_for: An optional list of columns to enable the output of NaN values for.
-            produce_infs_for: An optional list of columns to enable the output of Inf values for.
             address_params: Parameters for Address annotations.
             bank_params: Parameters for Bank Account annotations.
             compound_address_params: Parameters for Compound Address annotations.
@@ -51,7 +49,7 @@ class MetaExtractor:
         df_meta._df_meta = _MetaExtractor.extract(
             df=df, config=config, id_index=None, time_index=None, column_aliases=column_aliases,
             associations=associations, type_overrides=type_overrides, find_rules=None,
-            produce_nans_for=produce_nans_for, produce_infs_for=produce_infs_for, address_params=address_params,
+            address_params=address_params,
             bank_params=bank_params, compound_address_params=compound_address_params, person_params=person_params,
         )
         return df_meta
@@ -59,7 +57,6 @@ class MetaExtractor:
     def extract_dataframe_meta(
             self, df: pd.DataFrame, column_aliases: Dict[str, str] = None,
             associations: Dict[str, List[str]] = None, type_overrides: Dict[str, TypeOverride] = None,
-            produce_nans_for: List[str] = None, produce_infs_for: List[str] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
             compound_address_params: CompoundAddressParams = None, person_params: PersonParams = None
     ) -> DataFrameMeta:
@@ -72,8 +69,6 @@ class MetaExtractor:
             column_aliases: Optional dictionary mapping pairs of column aliases.
             associations: Optional dictionary assigning strict associations between categories.
             type_overrides: Optional dictionary mapping column names to desired TypeOverrides.
-            produce_nans_for: An optional list of columns to enable the output of NaN values for.
-            produce_infs_for: An optional list of columns to enable the output of Inf values for.
             address_params: Parameters for Address annotations.
             bank_params: Parameters for Bank Account annotations.
             compound_address_params: Parameters for Compound Address annotations.
@@ -85,8 +80,7 @@ class MetaExtractor:
         df_meta = DataFrameMeta()
         df_meta._df_meta = self._meta_extractor.extract(
             df=df, id_index=None, time_index=None, column_aliases=column_aliases, associations=associations,
-            type_overrides=type_overrides, find_rules=None, produce_nans_for=produce_nans_for,
-            produce_infs_for=produce_infs_for, address_params=address_params, bank_params=bank_params,
+            type_overrides=type_overrides, find_rules=None, address_params=address_params, bank_params=bank_params,
             compound_address_params=compound_address_params, person_params=person_params
         )
         return df_meta
