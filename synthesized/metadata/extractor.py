@@ -254,8 +254,9 @@ class MetaExtractor:
         if num_unique <= 1:
             return ConstantMeta(name), "num_unique <= 1. "
 
-        # Categorical value if small number of distinct values
-        elif num_unique <= self.config.categorical_threshold_log_multiplier * log(num_data):
+        # Categorical value if small number of distinct values (or if data-set is too small)
+        elif num_unique <= max(float(self.config.min_num_unique),
+                               self.config.categorical_threshold_log_multiplier * log(num_data)):
             # is_nan = df.isna().any()
             if _column_does_not_contain_genuine_floats(col):
                 if num_unique > 2:
@@ -328,6 +329,7 @@ class MetaExtractor:
             numeric_data = col
         else:
             numeric_data = None
+
         # Return numeric value and handle NaNs if necessary
         if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
             value = ContinuousMeta(name)

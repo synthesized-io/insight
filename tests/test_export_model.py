@@ -1,4 +1,5 @@
 import tempfile
+from typing import Any, Dict
 import shutil
 
 import numpy as np
@@ -14,8 +15,10 @@ from synthesized.common.values import ContinuousValue
 atol = 0.05
 
 
-def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, highdim_kwargs=None):
+def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, highdim_kwargs: Dict[str, Any] = None,
+                          synthesize_kwargs: Dict[str, Any] = None):
     highdim_kwargs = dict() if highdim_kwargs is None else highdim_kwargs
+    synthesize_kwargs = dict() if synthesize_kwargs is None else synthesize_kwargs
 
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
@@ -24,7 +27,7 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, 
     config = HighDimConfig(**highdim_kwargs)
     with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
         synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), **synthesize_kwargs)
 
         with open(temp_fname, 'wb') as f:
             synthesizer.export_model(f)
@@ -32,7 +35,7 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, 
     with open(temp_fname, 'rb') as f:
         synthesizer2 = HighDimSynthesizer.import_model(f)
 
-    df_synthesized2 = synthesizer2.synthesize(num_rows=len(df_original))
+    df_synthesized2 = synthesizer2.synthesize(num_rows=len(df_original), **synthesize_kwargs)
     shutil.rmtree(temp_dir)
 
     return df_synthesized, df_synthesized2
@@ -81,10 +84,10 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
 
-    df_synthesized, df_synthesized2 = export_model_given_df(df_original, highdim_kwargs=dict(produce_nans=True))
+    df_synthesized, df_synthesized2 = export_model_given_df(df_original, synthesize_kwargs=dict(produce_nans=True))
 
     assert df_synthesized['r'].isna().sum() > 0
-    assert np.isclose(np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
+    assert np.isclose(np.sum(np.isnan(df_synthesized['r'])) / len(df_synthesized),
                       np.sum(np.isnan(df_synthesized2['r'])) / len(df_synthesized2),
                       atol=atol)
 
