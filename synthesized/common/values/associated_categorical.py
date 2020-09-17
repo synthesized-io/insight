@@ -35,7 +35,7 @@ class AssociatedCategoricalValue(Value):
             categories=self.categories, embedding_size=self.embedding_size,
             similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
-            produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
+            embedding_initialization=self.embedding_initialization
         )
         return spec
 

@@ -127,6 +127,7 @@ class Synthesizer(tf.Module):
     def synthesize(
             self, num_rows: int,
             conditions: Union[dict, pd.DataFrame] = None,
+            produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
@@ -134,6 +135,7 @@ class Synthesizer(tf.Module):
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
             progress_callback: A callback that receives current percentage of the progress.
 
         Returns:

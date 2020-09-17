@@ -76,8 +76,8 @@ class ValueOps(tf.Module):
         return reconstruction_loss
 
     @tensorflow_name_scoped
-    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]],
-                      identifier: tf.Tensor = None, sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
+    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]], identifier: tf.Tensor = None,
+                      sample: bool = True, produce_nans: bool = False) -> Dict[str, Sequence[tf.Tensor]]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -91,7 +91,7 @@ class ValueOps(tf.Module):
             synthesized[self.identifier_label] = (identifier,)
 
         for value, y in zip(self.values, ys):
-            synthesized[value.name] = value.output_tensors(y=y, sample=sample)
+            synthesized[value.name] = value.output_tensors(y=y, sample=sample, produce_nans=produce_nans)
 
         for value in self.conditions:
             synthesized[value.name] = conditions[value.name]

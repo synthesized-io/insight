@@ -96,7 +96,7 @@ class FairnessScorer:
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
-        sensitive_attrs = cls.detect_sensitive_attrs(df.columns)
+        sensitive_attrs = cls.detect_sensitive_attrs(list(df.columns))
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
 

@@ -8,7 +8,7 @@ from .value_meta import ValueMeta
 
 class SamplingMeta(ValueMeta):
 
-    def __init__(self, name: str, uniform: bool = False, smoothing: float = None, produce_nans=False):
+    def __init__(self, name: str, uniform: bool = False, smoothing: float = None):
         super().__init__(name=name)
 
         if uniform:
@@ -20,7 +20,6 @@ class SamplingMeta(ValueMeta):
         else:
             self.smoothing = smoothing
 
-        self.produce_nans = produce_nans
         self.categories: Optional[pd.Series] = None
 
     def specification(self) -> dict:
@@ -30,8 +29,7 @@ class SamplingMeta(ValueMeta):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        dropna = False if self.produce_nans else False if all(df.loc[:, self.name].isna()) else True
-        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=dropna)
+        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True)
         self.categories **= self.smoothing
         self.categories /= self.categories.sum()
         self.num_categories = len(self.categories)

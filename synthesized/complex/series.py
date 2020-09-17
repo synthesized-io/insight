@@ -249,7 +249,7 @@ class SeriesSynthesizer(Synthesizer):
         ))
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None, num_series: int = 1
     ) -> pd.DataFrame:
         """Synthesize a dataset from the learned model
@@ -258,6 +258,7 @@ class SeriesSynthesizer(Synthesizer):
             num_rows: Length of the synthesized series.
             num_series: Number of series to synthesize.
             conditions: Conditions.
+            produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
 
         Returns: Synthesized dataframe.

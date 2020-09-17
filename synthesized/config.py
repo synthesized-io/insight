@@ -64,6 +64,7 @@ class PersonMetaConfig:
 class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
     categorical_threshold_log_multiplier: float = 2.5
     parsing_nan_fraction_threshold: float = 0.25
+    min_num_unique: int = 10
 
     @property
     def value_factory_config(self):
@@ -123,7 +124,6 @@ class NanConfig:
 @dataclass
 class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, DecomposedContinuousConfig):
     capacity: int = 128
-    produce_nans: bool = False
 
     @property
     def value_factory_config(self):

@@ -52,10 +52,9 @@ def test_nan_producing():
     r[indices] = np.nan
     df_original = pd.DataFrame({'r': r})
     df_meta = MetaExtractor.extract(df=df_original)
-    config = HighDimConfig(produce_nans=True)
-    with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
-        synthesizer.learn(num_iterations=2500, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
+        synthesizer.learn(num_iterations=100, df_train=df_original)
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True)
     assert df_synthesized['r'].isna().sum() > 0
 
 
@@ -67,26 +66,11 @@ def test_inf_not_producing():
     df_original.iloc[indices] = np.inf
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
     df_original.iloc[indices] = -np.inf
-    df_meta = MetaExtractor.extract(df=df_original, produce_infs_for=None)
+    df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=2500, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() == 0
-
-
-@pytest.mark.slow
-def test_inf_producing():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    df_original = pd.DataFrame({'r': r}, dtype=np.float32)
-    indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
-    df_original.iloc[indices] = np.inf
-    indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
-    df_original.iloc[indices] = -np.inf
-    df_meta = MetaExtractor.extract(df=df_original, produce_infs_for=['r'])
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=2500, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
-    assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() > 0
 
 
 @pytest.mark.slow

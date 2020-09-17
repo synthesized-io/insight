@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Callable, List, Union, Dict, Tuple
+from typing import Optional, Callable, List, Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -23,7 +23,6 @@ class DataImputer(Synthesizer):
             synthesizer: Synthesizer used to impute data. If not given, will create a HighDim from df.
 
         """
-        assert not synthesizer.value_factory.produce_nans
         super().__init__(name='conditional')
         self.synthesizer = synthesizer
         self.global_step = synthesizer.global_step
@@ -88,10 +87,6 @@ class DataImputer(Synthesizer):
 
         self._impute_mask(df, outliers, inplace=True)
         return df
-
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
-        return self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions)
 
     def get_conditions(self) -> List[Value]:
         return self.synthesizer.get_conditions()

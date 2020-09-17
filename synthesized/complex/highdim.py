@@ -220,7 +220,7 @@ class HighDimSynthesizer(Synthesizer):
                         break
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
+            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
@@ -228,6 +228,7 @@ class HighDimSynthesizer(Synthesizer):
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
 
         Returns:
@@ -261,10 +262,12 @@ class HighDimSynthesizer(Synthesizer):
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             synthesized = None
             if conditions_dataset is None:
-                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict())
+                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict(),
+                                                     produce_nans=produce_nans)
             else:
                 for cs in conditions_dataset.batch(batch_size=num_rows).take(1):
-                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs)
+                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs,
+                                                         produce_nans=produce_nans)
             assert synthesized is not None
             synthesized = self.df_meta.split_outputs(synthesized)
             df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -277,12 +280,14 @@ class HighDimSynthesizer(Synthesizer):
                 synthesized = None
                 if conditions_dataset is None:
                     synthesized = self.engine.synthesize(
-                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict()
+                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict(),
+                        produce_nans=produce_nans
                     )
                 else:
                     for cs in conditions_dataset.batch(batch_size=num_rows % self.synthesis_batch_size).take(1):
                         synthesized = self.engine.synthesize(
-                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs
+                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs,
+                            produce_nans=produce_nans
                         )
                 assert synthesized is not None
                 dict_synthesized = self.df_meta.split_outputs(synthesized)
@@ -293,7 +298,8 @@ class HighDimSynthesizer(Synthesizer):
             if conditions_dataset:
                 conditions_dataset = conditions_dataset.batch(batch_size=self.synthesis_batch_size).take(n_batches)
                 for k, cs in enumerate(conditions_dataset):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs)
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs,
+                                                   produce_nans=produce_nans)
                     other = self.df_meta.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
@@ -307,7 +313,8 @@ class HighDimSynthesizer(Synthesizer):
                         progress_callback(round((k + 1) * 98.0 / n_batches))
             else:
                 for k in range(n_batches):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict())
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict(),
+                                                   produce_nans=produce_nans)
                     other = self.df_meta.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
@@ -334,13 +341,14 @@ class HighDimSynthesizer(Synthesizer):
         return df_synthesized
 
     def encode(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
 
         Args:
-            df_encode: Input dataset
+            df_encode: Input dataset.
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
 
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
@@ -360,10 +368,10 @@ class HighDimSynthesizer(Synthesizer):
         if conditions_dataset is not None:
             encoded, decoded = None, None
             for cs in conditions_dataset.batch(num_rows).take(1):
-                encoded, decoded = self.engine.encode(xs=data, cs=cs)
+                encoded, decoded = self.engine.encode(xs=data, cs=cs, produce_nans=produce_nans)
             assert encoded is not None and decoded is not None
         else:
-            encoded, decoded = self.engine.encode(xs=data, cs=dict())
+            encoded, decoded = self.engine.encode(xs=data, cs=dict(), produce_nans=produce_nans)
 
         columns = self.df_meta.columns
         decoded = self.df_meta.split_outputs(decoded)
@@ -377,13 +385,14 @@ class HighDimSynthesizer(Synthesizer):
         return df_encoded, df_synthesized
 
     def encode_deterministic(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False
     ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
 
         Args:
             df_encode: Input dataset
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
 
         Returns:
             Pandas DataFrame of decoded space corresponding to input data
@@ -402,10 +411,10 @@ class HighDimSynthesizer(Synthesizer):
         if conditions_dataset is not None:
             decoded = None
             for cs in conditions_dataset.batch(num_rows).take(1):
-                decoded = self.engine.encode_deterministic(xs=data, cs=cs)
+                decoded = self.engine.encode_deterministic(xs=data, cs=cs, produce_nans=produce_nans)
             assert decoded is not None
         else:
-            decoded = self.engine.encode_deterministic(xs=data, cs=dict())
+            decoded = self.engine.encode_deterministic(xs=data, cs=dict(), produce_nans=produce_nans)
 
         decoded = self.df_meta.split_outputs(decoded)
         columns = self.df_meta.columns
