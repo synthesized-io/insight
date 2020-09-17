@@ -150,11 +150,18 @@ class EarthMoversDistance(ColumnComparison):
         space = set(old).union(set(new))
         if len(space) > 1e4:
             return np.nan
+        try:
+            old_unique, counts = np.unique(old, return_counts=True)
+        except TypeError:
+            old_unique, counts = np.unique(old.astype(str), return_counts=True)
 
-        old_unique, counts = np.unique(old, return_counts=True)
         old_counts = dict(zip(old_unique, counts))
 
-        new_unique, counts = np.unique(new, return_counts=True)
+        try:
+            new_unique, counts = np.unique(new, return_counts=True)
+        except TypeError:
+            new_unique, counts = np.unique(new.astype(str), return_counts=True)
+
         new_counts = dict(zip(new_unique, counts))
 
         p = np.array([float(old_counts[x]) if x in old_counts else 0.0 for x in space])
