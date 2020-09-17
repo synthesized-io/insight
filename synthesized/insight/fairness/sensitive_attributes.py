@@ -22,7 +22,7 @@ class SensitiveNamesDetector:
             SensitiveNames.Age: ['age', 'DOB', 'birth', 'youth', 'elder', 'senior'],
             SensitiveNames.Gender: ['gender', 'sex'],
             SensitiveNames.Ethnicity: ['race', 'color', 'ethnic', 'breed', 'culture'],
-            SensitiveNames.Nationality: ['nation', 'geography', 'location', 'native', 'country'],
+            SensitiveNames.Nationality: ['nation', 'geography', 'location', 'native', 'country', 'region'],
             SensitiveNames.Religion: ['religion', 'creed', 'cult', 'doctrine'],
             SensitiveNames.FamilyStatus: ['family', 'house', 'marital', 'children', 'partner', 'pregnant'],
             SensitiveNames.Disability: ['disability', 'impairment'],
