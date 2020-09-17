@@ -53,7 +53,7 @@ class AssociatedCategoricalValue(Value):
         return tf.concat([value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values)], axis=-1)
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor) -> Sequence[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
         """Outputs the bound categorical values."""
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
