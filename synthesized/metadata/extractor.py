@@ -327,6 +327,7 @@ class MetaExtractor:
                 numeric_data = None
         elif col.dtype.kind in ('f', 'i'):
             numeric_data = col
+
         else:
             numeric_data = None
 
@@ -336,8 +337,8 @@ class MetaExtractor:
             reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
                      f"rate > {1.0 - self.config.parsing_nan_fraction_threshold}. "
 
-            is_nan = col.isna().any()
-            is_inf = col.isin([np.Inf, -np.Inf]).any()
+            is_nan = numeric_data.isna().any()
+            is_inf = numeric_data.isin([np.Inf, -np.Inf]).any()
 
             if is_nan or is_inf:
                 value = NanMeta(name, value)
