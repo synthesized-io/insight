@@ -57,7 +57,7 @@ class NanMeta(ValueMeta):
     def preprocess(self, df):
         df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
-        nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
+        nan_inf = df.loc[:, self.value.name].isna() | df.loc[:, self.value.name].isin([np.Inf, -np.Inf])
         if sum(~nan_inf) > 0:
             df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
         df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
@@ -67,7 +67,7 @@ class NanMeta(ValueMeta):
     def postprocess(self, df):
         df = super().postprocess(df=df)
 
-        nan_inf = df.loc[:, self.value.name].isin([np.NaN, pd.NaT, np.Inf, -np.Inf])
+        nan_inf = df.loc[:, self.value.name].isna() | df.loc[:, self.value.name].isin([np.Inf, -np.Inf])
         df.loc[~nan_inf, :] = self.value.postprocess(df=df.loc[~nan_inf, :])
 
         self.set_dtypes(df)
