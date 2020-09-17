@@ -259,7 +259,7 @@ class LearningManager:
         if len(column_names) == 0:
             return False
 
-        df_synth = synthesizer.synthesize(num_rows=sample_size)
+        df_synth = synthesizer.synthesize(num_rows=sample_size, produce_nans=True)
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
                                              column_names=column_names, df_meta=synthesizer.df_meta)
 
