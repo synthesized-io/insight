@@ -135,10 +135,10 @@ class FairnessScorer:
                 biases.extend(self.format_bias(df_dist))
                 count += 1
 
-        df_biases = pd.DataFrame(biases) if len(biases) > 0 else None
-        if df_biases is not None:
-            df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
-                'distance', ascending=False).reset_index(drop=True)
+        df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
+        df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
+            'distance', ascending=False).reset_index(drop=True)
+        df_biases = df_biases[df_biases['value'] != 'Total']
 
         score /= count
         return score, df_biases
