@@ -79,8 +79,8 @@ class CramersV(TwoColumnMetric):
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        table_orig = pd.crosstab(sr_a, sr_b)
-        table = np.asarray(table_orig, dtype=np.float64).sum()
+        table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
+        table = np.asarray(table_orig, dtype=np.float64)
 
         if table.min() == 0:
             table[table == 0] = 0.5
