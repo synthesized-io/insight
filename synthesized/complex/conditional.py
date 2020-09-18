@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
 from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
 from ..metadata import ValueMeta
@@ -102,6 +103,7 @@ class ConditionalSampler(Synthesizer):
             marginal_counts: Dict[Tuple, int],
             marginals_keys: Dict[str, List[str]],
             conditions: Union[dict, pd.DataFrame] = None,
+            produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None,
     ) -> pd.DataFrame:
         """Given joint counts, synthesize dataset."""
@@ -123,7 +125,8 @@ class ConditionalSampler(Synthesizer):
             n_prefetch = min(n_prefetch, int(1e6))
 
             # Synthesis:
-            df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions)
+            df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions,
+                                                         produce_nans=produce_nans)
 
             # In order to filter our data frame we need keys that we will look up in counts:
             df_key = self.map_key_columns(df_synthesized, marginals_keys)
@@ -157,6 +160,7 @@ class ConditionalSampler(Synthesizer):
     def alter_distributions(self,
                             df: pd.DataFrame,
                             num_rows: int,
+                            produce_nans: bool = False,
                             explicit_marginals: Dict[str, Dict[str, float]] = None,
                             conditions: Union[dict, pd.DataFrame] = None,
                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
@@ -166,6 +170,7 @@ class ConditionalSampler(Synthesizer):
         Args:
             df: Original DataFrame
             num_rows: The number of rows to generate.
+            produce_nans: Whether to produce NaNs.
             conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
@@ -181,7 +186,8 @@ class ConditionalSampler(Synthesizer):
             progress_callback(0)
 
         if explicit_marginals is None:
-            return self.synthesizer.synthesize(num_rows, conditions=conditions, progress_callback=progress_callback)
+            return self.synthesizer.synthesize(num_rows, conditions=conditions, produce_nans=produce_nans,
+                                               progress_callback=progress_callback)
 
         conditional_columns = list(explicit_marginals.keys())
         marginals_keys = {k: list(v.keys()) for k, v in explicit_marginals.items()}
@@ -215,12 +221,19 @@ class ConditionalSampler(Synthesizer):
             idx: List = []
             for k in marginal_counts_from_original.keys():
                 idx.extend(np.random.choice(orig_key_groups[k], size=marginal_counts_from_original[k], replace=False))
-            df_out = df_out.append(df[df.index.isin(idx)])
+            df_sample = df[df.index.isin(idx)]
+
+            # Impute nans if we want the output to not have nans
+            if not produce_nans and any(df_sample.isna()):
+                data_imputer = DataImputer(self.synthesizer)
+                data_imputer.impute_nans(df_sample, inplace=True)
+
+            df_out = df_out.append(df_sample)
 
         # Synthesize missing rows
         if len(marginal_counts_to_synthesize) > 0:
             df_out = df_out.append(self.synthesize_from_joined_counts(
-                marginal_counts_to_synthesize, marginals_keys, conditions=conditions,
+                marginal_counts_to_synthesize, marginals_keys, conditions=conditions, produce_nans=produce_nans,
                 progress_callback=progress_callback
             ))
 

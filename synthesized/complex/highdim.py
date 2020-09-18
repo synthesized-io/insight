@@ -421,7 +421,7 @@ class HighDimSynthesizer(Synthesizer):
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.postprocess(df=df_synthesized)
 
-        return df_synthesized
+        return df_synthesized.set_index(df_encode.index)
 
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()

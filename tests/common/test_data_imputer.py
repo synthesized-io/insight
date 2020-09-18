@@ -36,6 +36,9 @@ def test_categorical_nans_imputation():
     df_synthesized = data_imputer.impute_nans(df_original)
     assert df_synthesized['x'].isna().sum() == 0
 
+    # Make sure everything not imputed is same as in original
+    assert all((df_original == df_synthesized) == ~df_original.isna())
+
     data_imputer.impute_nans(df_original, inplace=True)
     assert df_original['x'].isna().sum() == 0
 
