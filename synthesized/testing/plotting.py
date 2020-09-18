@@ -313,7 +313,11 @@ def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000
 
     ax = sns.countplot(x=col_test.name, hue='dataset', data=concatenated,
                        palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=15)
+    tick_labels = ax.get_xticklabels()
+    for tl in tick_labels:
+        tl.set_text(tl.get_text()[:25])  # some labels are too long to show completely
+
+    ax.set_xticklabels(tick_labels, rotation=15, ha='right')
     ax.set_title(title)
     plt.legend()
 
