@@ -71,8 +71,6 @@ class FairnessScorer:
                 logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's not found in"
                                f"given DataFrame.")
                 self.sensitive_attrs.remove(sensitive_attr)
-        if len(self.sensitive_attrs) == 0:
-            raise ValueError("Number of sensitive attributes in the given DataFrame must be greater than zero.")
 
         if target not in df.columns:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
@@ -90,6 +88,9 @@ class FairnessScorer:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
                 self.add_sensitive_attr(new_sensitive_attr)
 
+        if len(self.sensitive_attrs) == 0:
+            logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
+
         # self.df.fillna('NaN', inplace=True)
         self.df.dropna(inplace=True)
         self.binarize_columns(self.df)
@@ -104,6 +105,9 @@ class FairnessScorer:
                             mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
         """ Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
+
+        if len(self.sensitive_attrs) == 0:
+            return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
         biases = []
         score = 0.
@@ -131,10 +135,10 @@ class FairnessScorer:
                 biases.extend(self.format_bias(df_dist))
                 count += 1
 
-        df_biases = pd.DataFrame(biases) if len(biases) > 0 else None
-        if df_biases is not None:
-            df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
-                'distance', ascending=False).reset_index(drop=True)
+        df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
+        df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
+            'distance', ascending=False).reset_index(drop=True)
+        df_biases = df_biases[df_biases['value'] != 'Total']
 
         score /= count
         return score, df_biases
@@ -143,6 +147,9 @@ class FairnessScorer:
                              min_count: int = 100, max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples."""
+
+        if len(self.sensitive_attrs) == 0:
+            return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
         clf_scores = []
 
