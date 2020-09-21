@@ -44,16 +44,20 @@ class DataImputer(Synthesizer):
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    def _impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
+    def _impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, produce_nans: bool = False,
+                     inplace: bool = False) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
-        to_impute_indexes = df[mask.sum(axis=1) > 0].index
-        df_encoded = self.synthesizer.encode_deterministic(df.iloc[to_impute_indexes])
-        df_encoded = df_encoded.set_index(to_impute_indexes)
+        rows_to_impute = mask.sum(axis=1) > 0
+        if rows_to_impute.sum() == 0:
+            return df
+
+        df_encoded = self.synthesizer.encode_deterministic(df[rows_to_impute], produce_nans=produce_nans)
 
         for col in df.columns:
-            df.loc[to_impute_indexes, col] = df_encoded.loc[to_impute_indexes, col]
+            index_to_impute = mask[mask[col]].index
+            df.loc[df.index.isin(index_to_impute), col] = df_encoded.loc[df_encoded.index.isin(index_to_impute), col]
 
         return df
 
@@ -66,7 +70,7 @@ class DataImputer(Synthesizer):
             logger.warning("Given df doesn't contain NaNs. Returning it as it is.")
             return df
 
-        self._impute_mask(df, nans, inplace=True)
+        self._impute_mask(df, nans, inplace=True, produce_nans=False)
         return df
 
     def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05,
