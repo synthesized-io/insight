@@ -69,9 +69,9 @@ class AssociatedCategoricalValue(Value):
 
         joint = tf_joint_probs(*probs)
         masked = tf_masked_probs(joint, self.binding_mask)
-        flattened = tf.reshape(masked, (masked.shape[0], -1))
+        flattened = tf.reshape(masked, (-1, tf.reduce_prod(masked.shape[1:])))
 
-        y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=flattened.shape[0:-1])
+        y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=(-1,))
         ot = [tf.math.mod(y, self.values[-1].num_categories)]
         for n in range(1, len(self.values)):
             ot.append(tf.math.mod(

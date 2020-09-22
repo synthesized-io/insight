@@ -97,6 +97,11 @@ class DataFrameMeta:
         if self.time_value:
             values = values + [self.time_value]
 
+        if self.association_meta is not None:
+            values = [
+                v for v in values if v.name not in [av.name for av in self.association_meta.values]
+            ] + [self.association_meta]
+
         x = self.convert_tf_to_np_dict({
             col_name: outputs[vm.name][n]
             for vm in values
