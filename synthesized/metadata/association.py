@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 class AssociationMeta(ValueMeta):
     def __init__(
-            self, values: List[CategoricalMeta], associations: List[List[str]]
+            self, values: List[CategoricalMeta], associations: List[List[str]],
+            binding_mask: Optional[np.ndarray] = None
     ):
         super(AssociationMeta, self).__init__(name='|'.join([v.name for v in values]))
         self.values = values
@@ -22,7 +23,7 @@ class AssociationMeta(ValueMeta):
             logger.debug(f"{n + 1}: {association}")
         self.associations = associations
         self.dtype = tf.int64
-        self.binding_mask: Optional[tf.Tensor] = None
+        self.binding_mask: Optional[np.ndarray] = binding_mask
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -45,7 +46,9 @@ class AssociationMeta(ValueMeta):
             for v in self.values:
                 df2[v.name] = df2[v.name].map(v.category2idx)
 
-            counts = np.zeros(shape=[df2[v].nunique() for v in associated_values])
+            a_dfmeta = {v.name: v for v in self.values}
+
+            counts = np.zeros(shape=[a_dfmeta[v].num_categories for v in associated_values])
 
             for i, row in df2.iterrows():
                 idx = tuple(v for v in row.values)
@@ -59,7 +62,7 @@ class AssociationMeta(ValueMeta):
 
             final_mask *= np.broadcast_to(mask, [v.num_categories for v in self.values])
 
-        self.binding_mask = tf.constant(final_mask, dtype=tf.float32)
+        self.binding_mask = final_mask
 
     def learned_input_columns(self) -> List[str]:
         return [col for value in self.values for col in value.learned_input_columns()]

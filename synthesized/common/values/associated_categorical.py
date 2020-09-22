@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
 import tensorflow as tf
 
 from .categorical import CategoricalValue
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class AssociatedCategoricalValue(Value):
     def __init__(
-            self, values: List[CategoricalValue], associations: List[List[str]]
+            self, values: List[CategoricalValue], associations: List[List[str]], binding_mask: np.ndarray
     ):
         super(AssociatedCategoricalValue, self).__init__(
             name='|'.join([v.name for v in values]), meta_names=[name for value in values for name in value.meta_names]
@@ -23,7 +24,7 @@ class AssociatedCategoricalValue(Value):
             logger.debug(f"{n + 1}: {association}")
         self.associations = associations
         self.dtype = tf.int64
-        self.binding_mask: Optional[tf.Tensor] = None
+        self.binding_mask: tf.Tensor = tf.constant(binding_mask, dtype=tf.float32)
 
     def __str__(self) -> str:
         string = super().__str__()
