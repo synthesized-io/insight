@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
 import tensorflow as tf
