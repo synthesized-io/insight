@@ -38,16 +38,16 @@ class AssociationMeta(ValueMeta):
             v.extract(df=df)
 
         final_mask = np.ones(shape=[v.num_categories for v in self.values])
+        a_dfmeta = {v.name: v for v in self.values}
+        df_associated = df[a_dfmeta.keys()].copy()
+
+        for v in self.values:
+            df_associated[v.name] = df_associated[v.name].map(v.category2idx)
 
         for associated_values in self.associations:
             associated_values = list(associated_values)
             associated_values.sort(key=lambda x: [v.name for v in self.values].index(x))
-            df2 = df[associated_values].copy()
-            for v in self.values:
-                df2[v.name] = df2[v.name].map(v.category2idx)
-
-            a_dfmeta = {v.name: v for v in self.values}
-
+            df2 = df_associated[associated_values].copy()
             counts = np.zeros(shape=[a_dfmeta[v].num_categories for v in associated_values])
 
             for i, row in df2.iterrows():
