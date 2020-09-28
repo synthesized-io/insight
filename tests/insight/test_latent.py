@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from synthesized.insight.latent import dataset_quality_by_chunk
-from synthesized.testing import testing_progress_bar
+from synthesized.testing.utils import testing_progress_bar
 
 logger = logging.getLogger(__name__)
 

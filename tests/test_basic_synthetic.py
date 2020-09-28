@@ -6,7 +6,7 @@ from scipy.stats import ks_2samp
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.metadata import TypeOverride
 from synthesized.common.values import ContinuousValue
-from synthesized.testing import testing_progress_bar
+from synthesized.testing.utils import testing_progress_bar
 
 
 @pytest.mark.slow

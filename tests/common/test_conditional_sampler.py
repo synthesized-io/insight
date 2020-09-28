@@ -4,7 +4,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.complex import ConditionalSampler
-from synthesized.testing import testing_progress_bar
+from synthesized.testing.utils import testing_progress_bar
 
 
 @pytest.mark.slow

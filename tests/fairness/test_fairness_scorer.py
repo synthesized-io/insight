@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from synthesized.insight.fairness import FairnessScorer
-from synthesized.testing import testing_progress_bar
+from synthesized.testing.utils import testing_progress_bar
 
 
 def test_fairness_scorer():

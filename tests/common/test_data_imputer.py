@@ -4,7 +4,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.complex import DataImputer
-from synthesized.testing import testing_progress_bar
+from synthesized.testing.utils import testing_progress_bar
 
 NANS_PROP_TEST = 0.5
 
