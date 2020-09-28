@@ -1,4 +1,5 @@
 import os
+import logging
 
 import pandas as pd
 import pytest
@@ -6,7 +7,7 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.config import HighDimConfig
-import logging
+from synthesized.testing import testing_progress_bar
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def test_datasets_quick():
                 df_meta = MetaExtractor.extract(df=df_original)
                 with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
                     synthesizer.learn(num_iterations=10, df_train=df_original)
-                    df_synthesized = synthesizer.synthesize(num_rows=10000)
+                    df_synthesized = synthesizer.synthesize(num_rows=10000, progress_callback=testing_progress_bar)
                     assert len(df_synthesized) == 10000
 
             except Exception as exc:
@@ -49,7 +50,8 @@ def test_unittest_dataset_quick():
         df_meta=df_meta, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})
+        df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1},
+                                                progress_callback=testing_progress_bar)
         assert len(df_synthesized) == 10000
         assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
 
@@ -63,7 +65,7 @@ def test_unittest_dataset():
         logger.info("LEARN")
         synthesizer.learn(num_iterations=None, df_train=df_original, callback_freq=0, callback=lambda a, b, c: False)
         logger.info("SYNTHESIZE")
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
         assert len(df_synthesized) == len(df_original)
 
     distances = [

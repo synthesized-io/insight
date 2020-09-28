@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 import logging
 
 import numpy as np
@@ -130,11 +130,18 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
     return np.sum(KL)
 
 
-def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None) -> pd.DataFrame:
+def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
+                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
+    if progress_callback is not None:
+        progress_callback(0)
 
     if synth is None:
         df_meta = MetaExtractor.extract(df)
         synth = HighDimSynthesizer(df_meta=df_meta)
+
+    if progress_callback is not None:
+        progress_callback(5)
 
     size = len(df) // n
 
@@ -157,5 +164,8 @@ def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[High
                     index=pd.Index(data=[(i + 1) * size], name='num_rows')
                 )
             )
+
+            if progress_callback is not None:
+                progress_callback((i + 1) * 100 // n)
 
     return df_results
