@@ -40,13 +40,36 @@ class AddressRecord:
             self.house_name
         )
 
+    @property
+    def full_address(self):
+        address_str = ""
+        if self.flat:
+            address_str += f"{self.flat} "
+        if self.house_number:
+            address_str += f"{self.house_number} "
+        if self.house_name:
+            address_str += f"{self.house_name}, "
+        if self.street:
+            address_str += f"{self.street}, "
+        if self.district:
+            address_str += f"{self.district}, "
+        if self.postcode:
+            address_str += f"{self.postcode} "
+        if self.city:
+            address_str += f"{self.city} "
+        if self.county:
+            address_str += f"{self.county}"
+
+        return address_str
+
 
 class AddressMeta(ValueMeta):
-    postcode_regex = re.compile(r'^[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}$')
+    postcode_regex = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
 
     def __init__(self, name, postcode_level: int = 0, postcode_label: str = None,
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
+                 full_address_label: str = None,
                  config: AddressMetaConfig = AddressMetaConfig()):
 
         super().__init__(name=name)
@@ -55,14 +78,16 @@ class AddressMeta(ValueMeta):
             raise NotImplementedError
 
         self.postcode_level = postcode_level
-        self.county_label = county_label
         self.postcode_label = postcode_label
+        self.county_label = county_label
         self.city_label = city_label
         self.district_label = district_label
         self.street_label = street_label
         self.house_number_label = house_number_label
         self.flat_label = flat_label
         self.house_name_label = house_name_label
+        self.full_address_label = full_address_label
+
         self.config = config
 
         addresses_file = config.addresses_file
@@ -74,26 +99,36 @@ class AddressMeta(ValueMeta):
             else:
                 addresses_file = os.path.expanduser(addresses_file)
 
+        # Generate fake addresses
         if addresses_file is None:
             self.fake: bool = True
             self.fkr = faker.Faker(locale='en_GB')
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
+
+        # Generate real addresses from random postcode
+        elif (self.postcode_label is None and self.full_address_label is None) or not self.config.learn_postcodes:
+            self.fake = False
+            logger.info("Loading address dictionary from '{}'".format(addresses_file))
+            self.postcodes = self._load_postcodes_dict(addresses_file)
+            self.postcode = None
+
+        # Generate real addresses and learn postcode
         else:
             self.fake = False
             logger.info("Loading address dictionary from '{}'".format(addresses_file))
             self.postcodes = self._load_postcodes_dict(addresses_file)
-
-            assert postcode_label is not None
-            self.postcode = CategoricalMeta(name=postcode_label)
+            name = postcode_label or full_address_label
+            assert name is not None
+            self.postcode = CategoricalMeta(name=name)
 
         self.dtype = tf.int64
-        assert self.fake or self.postcode
 
     def columns(self) -> List[str]:
         columns = [
             self.county_label, self.postcode_label, self.city_label, self.district_label,
-            self.street_label, self.house_number_label, self.flat_label, self.house_name_label
+            self.street_label, self.house_number_label, self.flat_label, self.house_name_label,
+            self.full_address_label
         ]
         return np.unique([c for c in columns if c is not None]).tolist()
 
@@ -103,11 +138,26 @@ class AddressMeta(ValueMeta):
         if self.fake:
             return
 
-        contains_nans = (df.loc[:, self.postcode_label].isna().sum() > 0)
+        if self.postcode_label or self.full_address_label:
+            contains_nans = (df.loc[:, self.postcode_label or self.full_address_label].isna().sum() > 0)
 
         if len(self.postcodes) == 0:
             for n, row in df.dropna().iterrows():
-                postcode = row[self.postcode_label]
+                if self.postcode_label is not None:
+                    postcode = row[self.postcode_label]
+
+                # If we don't have postcode but we have full address, extract postcode via regex
+                elif self.full_address_label is not None:
+                    postcode = row[self.full_address_label]
+                    m = re.search(self.postcode_regex, postcode)
+                    if not m:
+                        contains_nans = True
+                        continue
+                    postcode = m.group(0)
+
+                else:
+                    raise ValueError("One of 'postcode_label' and 'full_address_label' must be given")
+
                 postcode_key = self._get_postcode_key(postcode)
                 if postcode_key == 'nan':
                     contains_nans = True
@@ -143,23 +193,31 @@ class AddressMeta(ValueMeta):
             if contains_nans:
                 unique_postcodes.append(np.nan)
 
-            postcode_data = pd.DataFrame({self.postcode_label: unique_postcodes})
+            postcode_data = pd.DataFrame({self.postcode_label or self.full_address_label: unique_postcodes})
             self.postcode.extract(df=postcode_data)
 
     def learned_input_columns(self) -> List[str]:
-        if self.fake is False and self.postcode is not None:
+        if self.postcode is not None:
             return self.postcode.learned_input_columns()
         else:
             return []
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if self.fake is False and self.postcode_label is not None:
+
+        if self.postcode_label is not None:
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].fillna('nan')
             df.loc[:, self.postcode_label] = df.loc[:, self.postcode_label].apply(self._get_postcode_key)
 
-            if self.postcode:
-                df = self.postcode.preprocess(df=df)
+        elif self.full_address_label is not None:
+            df.loc[:, self.full_address_label] = df.loc[:, self.full_address_label].fillna('nan')
+            df.loc[:, self.full_address_label] = df.loc[:, self.full_address_label].apply(self.get_postcode)
+            df.loc[:, self.full_address_label] = \
+                df.loc[:, self.full_address_label].apply(self._get_postcode_key)
 
+        if self.postcode:
+            df = self.postcode.preprocess(df=df)
+
+        df = df[self.learned_input_columns()]
         return super().preprocess(df=df)
 
     def _get_postcode_key(self, postcode: str):
@@ -208,7 +266,7 @@ class AddressMeta(ValueMeta):
         return d
 
     def learned_output_columns(self) -> List[str]:
-        if self.fake is False and self.postcode is not None:
+        if self.postcode is not None:
             return self.postcode.learned_output_columns()
         else:
             return []
@@ -216,37 +274,50 @@ class AddressMeta(ValueMeta):
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.fake:
+            address_records = [AddressRecord(
+                postcode=self.fkr.postcode() if self.postcode_label else None,
+                county=self.fkr.county() if self.county_label else None,
+                city=self.fkr.city() if self.city_label else None,
+                district=self.fkr.city() if self.district_label else None,
+                street=self.fkr.street_name() if self.street_label else None,
+                house_number=self.fkr.building_number() if self.house_number_label else None,
+                flat=self.fkr.secondary_address() if self.flat_label else None,
+                house_name=self.fkr.last_name() + " " + self.fkr.street_suffix() if self.house_name_label else None
+            ) for _ in range(len(df))]
+
+            if self.full_address_label:
+                df[self.full_address_label] = [address_record.full_address for address_record in address_records]
+
             if self.postcode_label is not None:
-                df[self.postcode_label] = [self.fkr.postcode() for _ in range(len(df))]
+                df[self.postcode_label] = [address_record.postcode for address_record in address_records]
 
             if self.county_label is not None:
-                df[self.county_label] = None
+                df[self.county_label] = [address_record.county for address_record in address_records]
 
             if self.city_label is not None:
-                df[self.city_label] = [self.fkr.city() for _ in range(len(df))]
+                df[self.city_label] = [address_record.city for address_record in address_records]
 
             if self.district_label is not None:
-                df[self.district_label] = None
+                df[self.district_label] = [address_record.district for address_record in address_records]
 
             if self.street_label is not None:
-                df[self.street_label] = [self.fkr.street_name() for _ in range(len(df))]
+                df[self.street_label] = [address_record.street for address_record in address_records]
 
             if self.house_number_label is not None:
-                df[self.house_number_label] = [self.fkr.building_number() for _ in range(len(df))]
+                df[self.house_number_label] = [address_record.house_number for address_record in address_records]
 
             if self.flat_label is not None:
-                df[self.flat_label] = [self.fkr.secondary_address() for _ in range(len(df))]
+                df[self.flat_label] = [address_record.flat for address_record in address_records]
 
             if self.house_name_label is not None:
-                df[self.house_name_label] = None
+                df[self.house_name_label] = [address_record.house_name for address_record in address_records]
+
         else:
-            if self.postcodes is None or isinstance(self.postcodes, set):
-                raise NotImplementedError
             if self.postcode is None:
                 postcode = np.random.choice(a=list(self.postcodes), size=len(df))
             else:
                 df = self.postcode.postprocess(df=df)
-                postcode = df[self.postcode_label].astype(dtype='str').to_numpy()
+                postcode = df[self.postcode_label or self.full_address_label].astype(dtype='str').to_numpy()
 
             def sample_address(postcode_key):
                 if postcode_key in self.postcodes.keys():
@@ -255,7 +326,8 @@ class AddressMeta(ValueMeta):
 
             addresses = np.vectorize(sample_address)(postcode)
 
-            df[self.postcode_label] = list(map(lambda a: a.postcode, addresses))
+            if self.postcode_label is not None:
+                df[self.postcode_label] = list(map(lambda a: a.postcode, addresses))
 
             if self.county_label is not None:
                 df[self.county_label] = list(map(lambda a: a.county, addresses))
@@ -278,4 +350,11 @@ class AddressMeta(ValueMeta):
             if self.house_name_label:
                 df[self.house_name_label] = list(map(lambda a: a.house_name, addresses))
 
+            if self.full_address_label is not None:
+                df[self.full_address_label] = list(map(lambda a: a.full_address, addresses))
+
         return df
+
+    def get_postcode(self, x):
+        g = self.postcode_regex.search(x)
+        return g.group(0) if g else 'nan'

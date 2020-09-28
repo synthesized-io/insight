@@ -6,7 +6,7 @@ from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtr
 
 
 @pytest.mark.slow
-def test_annotations():
+def test_annotations_all():
     data = pd.read_csv('data/annotations_nd.csv')
     person_params = PersonParams(
         gender_label=None,
@@ -15,6 +15,8 @@ def test_annotations():
         lastname_label='Last Name',
         email_label='Email address',
         mobile_number_label='Mobile No.',
+        username_label='username',
+        password_label='password',
     )
 
     bank_params = BankParams(
@@ -30,7 +32,8 @@ def test_annotations():
         street_label=['STREET', 'PA_STREET'],
         house_number_label=None,
         flat_label=['FLAT', 'PA_FLAT'],
-        house_name_label=['HOUSENAME', 'PA_HOUSENAME']
+        house_name_label=['HOUSENAME', 'PA_HOUSENAME'],
+        full_address_label=['Full Address', None],
     )
 
     df_meta = MetaExtractor.extract(
@@ -61,13 +64,29 @@ def test_addresses_from_file():
         street_label='STREET',
         house_number_label='HOUSENUMBER',
         flat_label='FLAT',
-        house_name_label='HOUSENAME'
+        house_name_label='HOUSENAME',
+        full_address_label='Full Address',
     )
 
     df_meta = MetaExtractor.extract(
         df=data,
         config=meta_extractor_config,
         address_params=address_params
+    )
+
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
+        synthesizer.learn(df_train=data, num_iterations=10)
+        df_synthesized = synthesizer.synthesize(num_rows=len(data))
+
+    assert df_synthesized.shape == data.shape
+
+    # Use real postcodes but do not learn them
+    meta_extractor_config = MetaExtractorConfig(addresses_file='data/addresses.jsonl.gz', learn_postcodes=False)
+
+    df_meta = MetaExtractor.extract(
+        df=data,
+        config=meta_extractor_config,
+        address_params=address_params,
     )
 
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:

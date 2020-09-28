@@ -14,7 +14,7 @@ from .value import Value
 from ...config import ValueFactoryConfig
 from ...metadata import DataFrameMeta, ValueMeta
 from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
-    CompoundAddressMeta, BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
+    BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +105,6 @@ class ValueFactory:
                     vm.name, num_categories=vm.postcode.num_categories, similarity_based=vm.postcode.similarity_based,
                     nans_valid=vm.postcode.nans_valid, config=self.config.categorical_config
                 )
-        elif isinstance(vm, CompoundAddressMeta):
-            return self.create_value(vm.postcode)
         elif isinstance(vm, PersonMeta):
             if isinstance(vm.gender, CategoricalMeta):
                 if vm.gender.num_categories is None:

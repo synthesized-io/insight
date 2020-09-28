@@ -160,6 +160,9 @@ class HighDimSynthesizer(Synthesizer):
 
         num_data = len(df_train)
         df_train_pre = self.preprocess(df_train)
+        if self.engine.value_ops.input_size == 0:
+            return
+
         feed_dict = self.get_data_feed_dict(df_train_pre)
 
         dataset = tf.data.Dataset.from_tensor_slices(
@@ -255,6 +258,9 @@ class HighDimSynthesizer(Synthesizer):
 
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
+
+        if self.engine.value_ops.input_size == 0:
+            return self.postprocess(pd.DataFrame([[], ] * num_rows))
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)

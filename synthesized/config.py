@@ -14,11 +14,13 @@ class AddressParams:
     house_number_label: Union[str, List[str], None] = None
     flat_label: Union[str, List[str], None] = None
     house_name_label: Union[str, List[str], None] = None
+    full_address_label: Union[str, List[str], None] = None
 
 
 @dataclass
 class AddressMetaConfig:
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+    learn_postcodes: bool = False
 
     @property
     def address_meta_config(self):
@@ -33,12 +35,6 @@ class BankParams:
 
 
 @dataclass
-class CompoundAddressParams:
-    address_label: Optional[str] = None
-    postcode_regex: Optional[str] = None
-
-
-@dataclass
 class PersonParams:
     title_label: Union[str, List[str], None] = None
     gender_label: Union[str, List[str], None] = None
@@ -46,6 +42,8 @@ class PersonParams:
     firstname_label: Union[str, List[str], None] = None
     lastname_label: Union[str, List[str], None] = None
     email_label: Union[str, List[str], None] = None
+    username_label: Union[str, List[str], None] = None
+    password_label: Union[str, List[str], None] = None
     mobile_number_label: Union[str, List[str], None] = None
     home_number_label: Union[str, List[str], None] = None
     work_number_label: Union[str, List[str], None] = None

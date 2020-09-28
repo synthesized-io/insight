@@ -1,3 +1,5 @@
+import random
+import string
 from typing import List
 
 import faker
@@ -12,9 +14,11 @@ from ..config import PersonMetaConfig
 class PersonMeta(ValueMeta):
 
     def __init__(self, name, title_label=None, gender_label=None, name_label=None,
-                 firstname_label=None, lastname_label=None, email_label=None,
+                 firstname_label=None, lastname_label=None,
+                 email_label=None, username_label=None, password_label=None,
                  mobile_number_label=None, home_number_label=None, work_number_label=None,
                  config: PersonMetaConfig = PersonMetaConfig()):
+
         super().__init__(name=name)
 
         self.title_label = title_label
@@ -23,6 +27,8 @@ class PersonMeta(ValueMeta):
         self.firstname_label = firstname_label
         self.lastname_label = lastname_label
         self.email_label = email_label
+        self.username_label = username_label
+        self.password_label = password_label
         self.mobile_number_label = mobile_number_label
         self.home_number_label = home_number_label
         self.work_number_label = work_number_label
@@ -50,7 +56,8 @@ class PersonMeta(ValueMeta):
     def columns(self) -> List[str]:
         columns = [
             self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
-            self.email_label, self.mobile_number_label, self.home_number_label, self.work_number_label
+            self.email_label, self.username_label, self.password_label,
+            self.mobile_number_label, self.home_number_label, self.work_number_label
         ]
         return np.unique([c for c in columns if c is not None]).tolist()
 
@@ -90,7 +97,10 @@ class PersonMeta(ValueMeta):
             # If the mapping didn't produce 'F' and 'M', generate them randomly:
             if len(set(self.genders) - set(df[self.title_label + '_gender'].unique())) != 0:
                 df[self.title_label + '_gender'] = np.random.choice(self.genders, len(df))
+
             df = self.gender.preprocess(df=df)
+
+        df = df[self.learned_input_columns()]
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -131,6 +141,10 @@ class PersonMeta(ValueMeta):
             df.loc[:, self.email_label] = firstname.str.lower() \
                 .str.cat(others=lastname.str.lower(), sep='.')
             df.loc[:, self.email_label] += '@example.com'
+        if self.username_label is not None:
+            df.loc[:, self.username_label] = self.generate_usernames(firstname, lastname)
+        if self.password_label is not None:
+            df.loc[:, self.password_label] = [self.generate_password() for _ in range(len(df))]
         if self.mobile_number_label is not None:
             df.loc[:, self.mobile_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         if self.home_number_label is not None:
@@ -138,3 +152,20 @@ class PersonMeta(ValueMeta):
         if self.work_number_label is not None:
             df.loc[:, self.work_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
         return df
+
+    @staticmethod
+    def generate_usernames(firstname: pd.Series, lastname: pd.Series) -> pd.Series:
+        username = firstname + lastname
+        while username.nunique() < len(firstname):
+            vc = username.value_counts()
+            duplicates = list(vc[vc > 1].index)
+
+            username[username.isin(duplicates)] = username[username.isin(duplicates)].apply(
+                lambda x: x + str(random.randint(0, 100)))
+
+        return username.str.lower()
+
+    @staticmethod
+    def generate_password(pwd_length: int = 12) -> str:
+        possible_chars = string.ascii_letters + string.digits
+        return ''.join(random.choice(possible_chars) for _ in range(pwd_length))

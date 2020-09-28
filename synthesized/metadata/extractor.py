@@ -12,7 +12,6 @@ from .address import AddressMeta
 from .association import AssociationMeta
 from .bank import BankNumberMeta
 from .categorical import CategoricalMeta
-from .compound_address import CompoundAddressMeta
 from .constant import ConstantMeta
 from .continuous import ContinuousMeta
 from .data_frame import DataFrameMeta
@@ -24,7 +23,7 @@ from .nan import NanMeta
 from .person import PersonMeta
 from .sampling import SamplingMeta
 from .value_meta import ValueMeta
-from ..config import MetaExtractorConfig, AddressParams, BankParams, CompoundAddressParams, PersonParams
+from ..config import MetaExtractorConfig, AddressParams, BankParams, PersonParams
 
 
 logger = logging.getLogger(__name__)
@@ -50,15 +49,13 @@ class MetaExtractor:
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
-            compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
     ) -> DataFrameMeta:
         extractor = cls(config)
         dataframe_meta = extractor.extract_dataframe_meta(
             df=df, id_index=id_index, time_index=time_index, column_aliases=column_aliases, associations=associations,
             type_overrides=type_overrides, find_rules=find_rules,
-            address_params=address_params, bank_params=bank_params, compound_address_params=compound_address_params,
-            person_params=person_params
+            address_params=address_params, bank_params=bank_params, person_params=person_params
         )
         return dataframe_meta
 
@@ -68,7 +65,6 @@ class MetaExtractor:
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
-            compound_address_params: CompoundAddressParams = None,
             person_params: PersonParams = None
     ) -> DataFrameMeta:
         column_aliases = column_aliases or dict()
@@ -99,8 +95,6 @@ class MetaExtractor:
             values.extend(self._identify_annotations(df, 'bank', bank_params))
         if address_params is not None:
             values.extend(self._identify_annotations(df, 'address', address_params, self.config.address_meta_config))
-        if compound_address_params is not None:
-            values.extend(self._identify_annotations(df, 'compound_address', compound_address_params))
 
         values.extend(self._identify_values(df, column_aliases, type_overrides, find_rules))
 
@@ -117,8 +111,7 @@ class MetaExtractor:
         values: List[Optional[ValueMeta]] = list()
 
         string_to_meta = {
-            'bank': BankNumberMeta, 'address': AddressMeta, 'person': PersonMeta,
-            'compound_address': CompoundAddressMeta
+            'bank': BankNumberMeta, 'address': AddressMeta, 'person': PersonMeta
         }
 
         if len(labels_matrix) > 0:
