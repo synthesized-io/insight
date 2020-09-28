@@ -4,6 +4,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.complex import DataImputer
+from synthesized.testing.utils import testing_progress_bar
 
 NANS_PROP_TEST = 0.5
 
@@ -20,7 +21,7 @@ def test_continuous_nans_imputation():
     df_synthesized = data_imputer.impute_nans(df_original)
     assert df_synthesized['x'].isna().sum() == 0
 
-    data_imputer.impute_nans(df_original, inplace=True)
+    data_imputer.impute_nans(df_original, inplace=True, progress_callback=testing_progress_bar)
     assert df_original['x'].isna().sum() == 0
 
 
@@ -39,7 +40,7 @@ def test_categorical_nans_imputation():
     # Make sure everything not imputed is same as in original
     assert all((df_original == df_synthesized) == ~df_original.isna())
 
-    data_imputer.impute_nans(df_original, inplace=True)
+    data_imputer.impute_nans(df_original, inplace=True, progress_callback=testing_progress_bar)
     assert df_original['x'].isna().sum() == 0
 
 
@@ -57,8 +58,8 @@ def test_mixed_dtypes_nan_imputation():
     print([df_original[col].dtype for col in df_original.columns])
 
     data_imputer = DataImputer(synthesizer)
-    data_imputer.impute_nans(df_original)  # TypeError: Cannot do inplace boolean setting on mixed-types with a non np.nan value
+    data_imputer.impute_nans(df_original, progress_callback=testing_progress_bar)  # TypeError: Cannot do inplace boolean setting on mixed-types with a non np.nan value
 
     df = pd.concat([df_original, df_synthesized])
     print(df.shape)  # (10009, 11)
-    data_imputer.impute_nans(df)  # RecursionError: maximum recursion depth exceeded
+    data_imputer.impute_nans(df, progress_callback=testing_progress_bar)  # RecursionError: maximum recursion depth exceeded

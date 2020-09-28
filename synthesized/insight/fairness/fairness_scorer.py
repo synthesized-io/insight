@@ -1,6 +1,7 @@
 import logging
 from itertools import combinations
-from typing import Any, Dict, List, Optional, Union, Tuple
+from math import factorial
+from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
 
 from ipywidgets import widgets, HBox, VBox
 import numpy as np
@@ -102,11 +103,16 @@ class FairnessScorer:
         return scorer
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
-        """ Returns the biases and fairness score by analyzing the distribution difference between
+                            mode: str = 'emd', max_combinations: Optional[int] = 3,
+                            progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
+        """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
 
         if len(self.sensitive_attrs) == 0:
+            if progress_callback is not None:
+                progress_callback(0)
+                progress_callback(100)
+
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
         biases = []
@@ -115,6 +121,12 @@ class FairnessScorer:
 
         max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
             if max_combinations else len(self.sensitive_attrs) + 1
+
+        if progress_callback is not None:
+            n = 0
+            progress_callback(0)
+            num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
+
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
@@ -135,20 +147,33 @@ class FairnessScorer:
                 biases.extend(self.format_bias(df_dist))
                 count += 1
 
+                if progress_callback is not None:
+                    n += 1
+                    progress_callback(round(n * 98.0 // num_combinations))
+
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
         df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
             'distance', ascending=False).reset_index(drop=True)
         df_biases = df_biases[df_biases['value'] != 'Total']
 
         score /= count
+
+        if progress_callback is not None:
+            progress_callback(100)
+
         return score, df_biases
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
-                             min_count: int = 100, max_combinations: Optional[int] = 3) -> Tuple[float, pd.DataFrame]:
+                             min_count: int = 100, max_combinations: Optional[int] = 3,
+                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples."""
 
         if len(self.sensitive_attrs) == 0:
+            if progress_callback is not None:
+                progress_callback(0)
+                progress_callback(100)
+
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
         clf_scores = []
@@ -162,9 +187,14 @@ class FairnessScorer:
             }
 
         biases = []
-
         max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
             if max_combinations else len(self.sensitive_attrs) + 1
+
+        if progress_callback is not None:
+            n = 0
+            progress_callback(0)
+            num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
+
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
@@ -172,6 +202,10 @@ class FairnessScorer:
                 clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
                 clf_scores.append(clf_score)
                 biases.extend(biases_i)
+
+                if progress_callback is not None:
+                    n += 1
+                    progress_callback(n * 100 // num_combinations)
 
         return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
 
@@ -362,3 +396,13 @@ class FairnessScorer:
                 df[col] = pd.qcut(df[col], q=self.n_bins, duplicates='drop').astype(str)
             else:
                 df[col] = df[col].astype(str).fillna('NaN')
+
+    @staticmethod
+    def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
+        n = len(iterable)
+        num_combinations = 0
+
+        for r in range(1, max_combinations + 1):
+            num_combinations += int(factorial(n) / factorial(n - r) / factorial(r))
+
+        return num_combinations

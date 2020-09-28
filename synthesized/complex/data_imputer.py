@@ -45,23 +45,41 @@ class DataImputer(Synthesizer):
         )
 
     def _impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, produce_nans: bool = False,
-                     inplace: bool = False) -> pd.DataFrame:
+                     inplace: bool = False, progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
         if not inplace:
             df = df.copy()
 
         rows_to_impute = mask.sum(axis=1) > 0
+
+        # If there's nothing to impute
         if rows_to_impute.sum() == 0:
+            if progress_callback is not None:
+                progress_callback(100)
             return df
 
         df_encoded = self.synthesizer.encode_deterministic(df[rows_to_impute], produce_nans=produce_nans)
+        if progress_callback is not None:
+            # 60% of time is spent on encode_deterministic()
+            progress_callback(60)
 
-        for col in df.columns:
+        n_columns = len(df.columns)
+        for i, col in enumerate(df.columns):
             index_to_impute = mask[mask[col]].index
             df.loc[df.index.isin(index_to_impute), col] = df_encoded.loc[df_encoded.index.isin(index_to_impute), col]
 
+            if progress_callback is not None:
+                # Remaining 40% time is spent on imputing columns
+                progress_callback(60 + (i + 1) * 40 // n_columns)
+
         return df
 
-    def impute_nans(self, df: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
+    def impute_nans(self, df: pd.DataFrame, inplace: bool = False,
+                    progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
+        if progress_callback is not None:
+            progress_callback(0)
+
         if not inplace:
             df = df.copy()
 
@@ -70,11 +88,15 @@ class DataImputer(Synthesizer):
             logger.warning("Given df doesn't contain NaNs. Returning it as it is.")
             return df
 
-        self._impute_mask(df, nans, inplace=True, produce_nans=False)
+        self._impute_mask(df, nans, inplace=True, produce_nans=False, progress_callback=progress_callback)
         return df
 
-    def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05,
-                        inplace: bool = False) -> pd.DataFrame:
+    def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05, inplace: bool = False,
+                        progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
+        if progress_callback is not None:
+            progress_callback(0)
+
         if not inplace:
             df = df.copy()
 
@@ -89,7 +111,7 @@ class DataImputer(Synthesizer):
                 column[column > end] = end
                 column[column < start] = start
 
-        self._impute_mask(df, outliers, inplace=True)
+        self._impute_mask(df, outliers, inplace=True, progress_callback=progress_callback)
         return df
 
     def get_conditions(self) -> List[Value]:
