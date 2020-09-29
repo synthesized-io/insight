@@ -217,7 +217,6 @@ class AddressMeta(ValueMeta):
         if self.postcode:
             df = self.postcode.preprocess(df=df)
 
-        df = df[self.learned_input_columns()]
         return super().preprocess(df=df)
 
     def _get_postcode_key(self, postcode: str):

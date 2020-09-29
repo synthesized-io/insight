@@ -73,6 +73,10 @@ class ValueMeta:
             Pre-processed data frame.
 
         """
+        for c in self.not_learned_columns:
+            if c in df.columns:
+                df.drop(c, axis=1, inplace=True)
+
         assert all(name in df.columns for name in self.learned_input_columns())
         return df
 
@@ -94,6 +98,11 @@ class ValueMeta:
         """
         assert all(name in df.columns for name in self.learned_output_columns())
         return df
+
+    @property
+    def not_learned_columns(self):
+        """Get those columns that are covered by this value but not learned in the generative model."""
+        return list(filter(lambda c: c not in self.learned_input_columns(), self.columns()))
 
     def set_dtypes(self, df: pd.DataFrame):
         for name, col_dtype in self.in_dtypes.items():

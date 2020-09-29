@@ -100,7 +100,6 @@ class PersonMeta(ValueMeta):
 
             df = self.gender.preprocess(df=df)
 
-        df = df[self.learned_input_columns()]
         return super().preprocess(df=df)
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
