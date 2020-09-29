@@ -123,8 +123,8 @@ class FairnessScorer:
         score = 0.
         count = 0
 
-        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
-            if max_combinations else len(self.sensitive_attrs) + 1
+        max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
+            if max_combinations else len(self.sensitive_attrs)
 
         if progress_callback is not None:
             n = 0
@@ -191,8 +191,8 @@ class FairnessScorer:
             }
 
         biases = []
-        max_combinations = min(max_combinations, len(self.sensitive_attrs) + 1) \
-            if max_combinations else len(self.sensitive_attrs) + 1
+        max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
+            if max_combinations else len(self.sensitive_attrs)
 
         if progress_callback is not None:
             n = 0
