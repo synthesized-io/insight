@@ -13,6 +13,20 @@ from synthesized.config import MetaExtractorConfig
 
 
 @pytest.mark.slow
+def test_pre_post_processing():
+    df = pd.read_csv('data/unittest.csv')
+    df_meta = MetaExtractor.extract(df=df)
+
+    df_pre = df_meta.preprocess(df=df)
+    df_post = df_meta.postprocess(df=df_pre)
+    assert df.shape == df_post.shape
+
+    df_pre = df_meta.preprocess(df=df, max_workers=None)
+    df_post = df_meta.postprocess(df=df_pre, max_workers=None)
+    assert df.shape == df_post.shape
+
+
+@pytest.mark.slow
 @seed(42)
 @settings(deadline=None)
 @given(df=data_frames(
