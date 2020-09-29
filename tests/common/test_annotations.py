@@ -94,3 +94,49 @@ def test_addresses_from_file():
         df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
     assert df_synthesized.shape == data.shape
+
+
+@pytest.mark.slow
+def test_pre_post_processing():
+    df = pd.read_csv('data/annotations_nd.csv')
+    person_params = PersonParams(
+        gender_label=None,
+        title_label='Title (Tab selection)',
+        firstname_label='First Name',
+        lastname_label='Last Name',
+        email_label='Email address',
+        mobile_number_label='Mobile No.',
+        username_label='username',
+        password_label='password',
+    )
+
+    bank_params = BankParams(
+        sort_code_label='Sort code',
+        account_label='Bank Account Number',
+    )
+
+    address_params = AddressParams(
+        postcode_label='POSTCODE',
+        county_label='COUNTY',
+        city_label='POSTTOWN',
+        district_label='DISTRICT',
+        street_label='STREET',
+        house_number_label='HOUSENUMBER',
+        flat_label='FLAT',
+        house_name_label='HOUSENAME',
+        full_address_label='Full Address',
+    )
+
+    df_meta = MetaExtractor.extract(
+            df=df,
+            address_params=address_params,
+            bank_params=bank_params,
+            person_params=person_params
+        )
+    df_pre = df_meta.preprocess(df=df)
+    df_post = df_meta.postprocess(df=df_pre)
+    assert df.shape == df_post.shape
+
+    df_pre = df_meta.preprocess(df=df, max_workers=None)
+    df_post = df_meta.postprocess(df=df_pre, max_workers=None)
+    assert df.shape == df_post.shape
