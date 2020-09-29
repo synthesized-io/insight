@@ -63,7 +63,6 @@ class FairnessScorer:
             raise TypeError("Given type of 'sensitive_attrs' not valid.")
 
         self.target = target
-        self.sensitive_attrs_and_target = np.concatenate((self.sensitive_attrs, [self.target]))
         self.n_bins = n_bins
 
         # Check sensitive attrs
@@ -76,6 +75,7 @@ class FairnessScorer:
         if target not in df.columns:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
 
+        # Detect any sensitive column
         if detect_sensitive:
             columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
             new_sensitive_attrs = self.detect_sensitive_attrs(columns)
@@ -83,6 +83,7 @@ class FairnessScorer:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
                 self.add_sensitive_attr(new_sensitive_attr)
 
+        # Detect hidden correlations
         if detect_hidden:
             corr = self.other_correlations()
             for new_sensitive_attr, _, _ in corr:
@@ -92,7 +93,6 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        # self.df.fillna('NaN', inplace=True)
         self.df.dropna(inplace=True)
         self.binarize_columns(self.df)
 
@@ -101,6 +101,10 @@ class FairnessScorer:
         sensitive_attrs = cls.detect_sensitive_attrs(list(df.columns))
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
+
+    @property
+    def sensitive_attrs_and_target(self) -> List[str]:
+        return np.concatenate((self.sensitive_attrs, [self.target]))
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
                             mode: str = 'emd', max_combinations: Optional[int] = 3,
@@ -392,7 +396,7 @@ class FairnessScorer:
 
     def binarize_columns(self, df: pd.DataFrame):
         for col in self.sensitive_attrs_and_target:
-            if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > 5:
+            if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
                 df[col] = pd.qcut(df[col], q=self.n_bins, duplicates='drop').astype(str)
             else:
                 df[col] = df[col].astype(str).fillna('NaN')
