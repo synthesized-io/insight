@@ -1,6 +1,7 @@
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
+import numpy as np
 import tensorflow as tf
 
 from .categorical import CategoricalValue
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class AssociatedCategoricalValue(Value):
     def __init__(
-            self, values: List[CategoricalValue], associations: List[List[str]]
+            self, values: List[CategoricalValue], associations: List[List[str]], binding_mask: np.ndarray
     ):
         super(AssociatedCategoricalValue, self).__init__(
             name='|'.join([v.name for v in values]), meta_names=[name for value in values for name in value.meta_names]
@@ -23,7 +24,7 @@ class AssociatedCategoricalValue(Value):
             logger.debug(f"{n + 1}: {association}")
         self.associations = associations
         self.dtype = tf.int64
-        self.binding_mask: Optional[tf.Tensor] = None
+        self.binding_mask: tf.Tensor = tf.constant(binding_mask, dtype=tf.float32)
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -68,9 +69,9 @@ class AssociatedCategoricalValue(Value):
 
         joint = tf_joint_probs(*probs)
         masked = tf_masked_probs(joint, self.binding_mask)
-        flattened = tf.reshape(masked, (masked.shape[0], -1))
+        flattened = tf.reshape(masked, (-1, tf.reduce_prod(masked.shape[1:])))
 
-        y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=flattened.shape[0:-1])
+        y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=(-1,))
         ot = [tf.math.mod(y, self.values[-1].num_categories)]
         for n in range(1, len(self.values)):
             ot.append(tf.math.mod(

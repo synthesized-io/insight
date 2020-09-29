@@ -62,8 +62,11 @@ class ValueFactory:
                     self.values.append(value)
 
         if len(associated_values) > 0 and df_meta.association_meta is not None:
+            if df_meta.association_meta.binding_mask is None:
+                raise ValueError('AssocationMeta has no binding mask.')
             self.values.append(AssociatedCategoricalValue(
-                values=associated_values, associations=df_meta.association_meta.associations
+                values=associated_values, associations=df_meta.association_meta.associations,
+                binding_mask=df_meta.association_meta.binding_mask
             ))
 
         if df_meta.id_value is not None:

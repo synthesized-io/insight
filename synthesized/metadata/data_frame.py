@@ -97,6 +97,11 @@ class DataFrameMeta:
         if self.time_value:
             values = values + [self.time_value]
 
+        if self.association_meta is not None:
+            values = [
+                v for v in values if v.name not in [av.name for av in self.association_meta.values]
+            ] + [self.association_meta]
+
         x = self.convert_tf_to_np_dict({
             col_name: outputs[vm.name][n]
             for vm in values
@@ -268,8 +273,9 @@ class DataFrameMeta:
         self.time_index_name = variables['id_index']
         self.time_value = ValueMeta.set_variables(variables['time_value']) \
             if variables['time_value'] is not None else None
+
         self.association_meta = ValueMeta.set_variables(variables['association_meta']) \
-            if variables['time_value'] is not None else None
+            if variables['association_meta'] is not None else None
 
         self.values = []
         for i in range(variables['num_values']):

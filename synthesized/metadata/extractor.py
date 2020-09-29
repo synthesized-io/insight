@@ -99,6 +99,8 @@ class MetaExtractor:
         values.extend(self._identify_values(df, column_aliases, type_overrides, find_rules))
 
         association_meta = self.create_associations(values, associations)
+        if association_meta is not None:
+            association_meta.extract(df)
 
         return DataFrameMeta(values=values, id_value=identifier_value, time_value=time_value,
                              column_aliases=column_aliases, association_meta=association_meta)
