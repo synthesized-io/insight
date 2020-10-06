@@ -95,6 +95,8 @@ class FairnessScorer:
 
         self.df.dropna(inplace=True)
         self.binarize_columns(self.df)
+        self.values_str_to_list: Dict[str, List] = dict()
+        self.names_str_to_list: Dict[str, List] = dict()
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
@@ -107,7 +109,7 @@ class FairnessScorer:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3,
+                            mode: str = 'emd', max_combinations: Optional[int] = 3, as_str: bool = True,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
@@ -165,10 +167,14 @@ class FairnessScorer:
         if progress_callback is not None:
             progress_callback(100)
 
+        if not as_str:
+            df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+            df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+
         return score, df_biases
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
-                             min_count: int = 100, max_combinations: Optional[int] = 3,
+                             min_count: int = 100, max_combinations: Optional[int] = 3, as_str: bool = True,
                              progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples."""
@@ -211,7 +217,15 @@ class FairnessScorer:
                     n += 1
                     progress_callback(n * 100 // num_combinations)
 
-        return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
+        score = float(np.nanmean(clf_scores))
+        score = 0. if np.isnan(score) else score
+        df_biases = pd.DataFrame(biases)
+
+        if not as_str:
+            df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+            df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+
+        return score, df_biases
 
     def get_sensitive_attrs(self) -> List[str]:
         return self.sensitive_attrs
@@ -222,14 +236,22 @@ class FairnessScorer:
     def add_sensitive_attr(self, sensitive_attr: str):
         self.sensitive_attrs.append(sensitive_attr)
 
-    def get_rates(self, sensitive_attr: Union[List[str], str]) -> pd.DataFrame:
+    def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
         df = self.df.copy()
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
+        self.names_str_to_list[name] = sensitive_attr
+
         if type(sensitive_attr) == list and len(sensitive_attr) > 1:
-            df[name] = df[sensitive_attr].apply(
-                lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
-                axis=1)
+            name_col = []
+            for r in df.iterrows():
+                sensitive_attr_values = [r[1][sa] for sa in sensitive_attr]
+                sensitive_attr_name = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                if sensitive_attr_name not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_name] = sensitive_attr_values
+                name_col.append(sensitive_attr_name)
+
+            df[name] = name_col
             df.drop(sensitive_attr, axis=1, inplace=True)
 
         df_count = df.groupby([name, self.target]).count()[['Count']]
