@@ -14,7 +14,6 @@ from ..insight import metrics
 from ..insight.metrics import TwoColumnComparison, TwoColumnComparisonMatrix
 from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix
 from ..insight.metrics import ColumnComparison, ColumnComparisonVector
-from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 
 logger = logging.getLogger(__name__)
 
