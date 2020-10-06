@@ -109,7 +109,7 @@ class FairnessScorer:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3, as_str: bool = True,
+                            mode: str = 'emd', max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
@@ -161,20 +161,18 @@ class FairnessScorer:
         df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
             'distance', ascending=False).reset_index(drop=True)
         df_biases = df_biases[df_biases['value'] != 'Total']
+        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
 
         score /= count
 
         if progress_callback is not None:
             progress_callback(100)
 
-        if not as_str:
-            df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
-            df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
-
         return score, df_biases
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
-                             min_count: int = 100, max_combinations: Optional[int] = 3, as_str: bool = True,
+                             min_count: int = 100, max_combinations: Optional[int] = 3,
                              progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples."""
@@ -219,11 +217,13 @@ class FairnessScorer:
 
         score = float(np.nanmean(clf_scores))
         score = 0. if np.isnan(score) else score
-        df_biases = pd.DataFrame(biases)
 
-        if not as_str:
-            df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
-            df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+        df_biases = pd.DataFrame(biases)
+        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+
+        if progress_callback is not None:
+            progress_callback(100)
 
         return score, df_biases
 
