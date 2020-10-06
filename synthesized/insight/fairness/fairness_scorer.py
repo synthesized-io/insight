@@ -95,6 +95,8 @@ class FairnessScorer:
 
         self.df.dropna(inplace=True)
         self.binarize_columns(self.df)
+        self.values_str_to_list: Dict[str, List] = dict()
+        self.names_str_to_list: Dict[str, List] = dict()
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
@@ -159,6 +161,8 @@ class FairnessScorer:
         df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
             'distance', ascending=False).reset_index(drop=True)
         df_biases = df_biases[df_biases['value'] != 'Total']
+        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
 
         score /= count
 
@@ -211,7 +215,17 @@ class FairnessScorer:
                     n += 1
                     progress_callback(n * 100 // num_combinations)
 
-        return float(np.nanmean(clf_scores)), pd.DataFrame(biases)
+        score = float(np.nanmean(clf_scores))
+        score = 0. if np.isnan(score) else score
+
+        df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
+        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
+        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+
+        if progress_callback is not None:
+            progress_callback(100)
+
+        return score, df_biases
 
     def get_sensitive_attrs(self) -> List[str]:
         return self.sensitive_attrs
@@ -222,14 +236,22 @@ class FairnessScorer:
     def add_sensitive_attr(self, sensitive_attr: str):
         self.sensitive_attrs.append(sensitive_attr)
 
-    def get_rates(self, sensitive_attr: Union[List[str], str]) -> pd.DataFrame:
+    def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
         df = self.df.copy()
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
+        self.names_str_to_list[name] = sensitive_attr
+
         if type(sensitive_attr) == list and len(sensitive_attr) > 1:
-            df[name] = df[sensitive_attr].apply(
-                lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
-                axis=1)
+            name_col = []
+            for r in df.iterrows():
+                sensitive_attr_values = [r[1][sa] for sa in sensitive_attr]
+                sensitive_attr_name = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                if sensitive_attr_name not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_name] = sensitive_attr_values
+                name_col.append(sensitive_attr_name)
+
+            df[name] = name_col
             df.drop(sensitive_attr, axis=1, inplace=True)
 
         df_count = df.groupby([name, self.target]).count()[['Count']]
