@@ -218,7 +218,7 @@ class FairnessScorer:
         score = float(np.nanmean(clf_scores))
         score = 0. if np.isnan(score) else score
 
-        df_biases = pd.DataFrame(biases)
+        df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
         df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
         df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
 
