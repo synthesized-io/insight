@@ -1,6 +1,6 @@
 """This module contains metrics with different 'levels' of detail."""
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Mapping, Optional, Type, Union
+from abc import abstractmethod
+from typing import Any, Dict, List, Mapping, Optional, Union
 from itertools import combinations, permutations
 
 import pandas as pd
@@ -19,8 +19,8 @@ def _register(metric, cls):
     registry[metric.name] = metric
 
 
-class _Metric(ABC):
-    ALL: Mapping[str, Type['_Metric']] = {}
+class _Metric:
+    ALL: Mapping[str, '_Metric'] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 
@@ -28,36 +28,31 @@ class _Metric(ABC):
         _register(self, _Metric)
         super(_Metric, self).__init__()
 
+    def __call__(self, **kwargs) -> Union[int, float, None]:
+        pass
+
 
 class ColumnMetric(_Metric):
-    ALL: Dict[str, Type['ColumnMetric']] = {}
+    ALL: Dict[str, 'ColumnMetric'] = {}
 
     def __init__(self):
         _register(self, ColumnMetric)
-
-        AggregateColumnMetricAdapter(self, 'min')
-        AggregateColumnMetricAdapter(self, 'max')
-        AggregateColumnMetricAdapter(self, 'avg')
         DiffColumnMetricAdapter(self)
         ColumnMetricVector(self)
 
         super(ColumnMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[int, float, None]:
         pass
 
 
 class TwoColumnMetric(_Metric):
-    ALL: Dict[str, Type['TwoColumnMetric']] = {}
+    ALL: Dict[str, 'TwoColumnMetric'] = {}
 
     def __init__(self):
         _register(self, TwoColumnMetric)
 
-        AggregateTwoColumnMetricAdapter(self, 'min')
-        AggregateTwoColumnMetricAdapter(self, 'max')
-        AggregateTwoColumnMetricAdapter(self, 'avg')
-        DiffTwoColumnMetricAdapter(self)
         TwoColumnMetricMatrix(self)
 
         super(TwoColumnMetric, self).__init__()
@@ -98,244 +93,58 @@ class TwoColumnMetric(_Metric):
         return True
 
     @abstractmethod
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         pass
 
 
 class DataFrameMetric(_Metric):
-    ALL: Dict[str, Type['DataFrameMetric']] = {}
+    ALL: Dict[str, 'DataFrameMetric'] = {}
 
     def __init__(self):
         _register(self, DataFrameMetric)
 
-        DiffDataFrameMetricAdapter(self)
-
         super(DataFrameMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[int, float, None]:
         pass
 
 
-class ColumnComparison(_Metric):
-    ALL: Dict[str, Type['ColumnComparison']] = {}
+class TwoDataFrameMetric(_Metric):
+    ALL: Dict[str, 'TwoDataFrameMetric'] = {}
 
     def __init__(self):
-        _register(self, ColumnComparison)
+        _register(self, TwoDataFrameMetric)
 
-        AggregateColumnComparisonAdapter(self, 'min')
-        AggregateColumnComparisonAdapter(self, 'max')
-        AggregateColumnComparisonAdapter(self, 'avg')
-        ColumnComparisonVector(self)
-
-        super(ColumnComparison, self).__init__()
-
-    def check_column_types(self, df_old, df_new, col_name, **kwargs):
-        if "nominal" in self.tags:
-            categorical, _ = categorical_or_continuous_values(kwargs.get('dp', df_old))
-            categorical_columns = [v.name for v in categorical]
-
-            if col_name not in categorical_columns:
-                return False
-
-        if "ordinal" in self.tags:
-            _, continuous = categorical_or_continuous_values(kwargs.get('dp', df_old))
-            continuous_columns = [v.name for v in continuous]
-
-            if col_name not in continuous_columns:
-                return False
-
-        return True
+        super(TwoDataFrameMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        pass
-
-
-class TwoColumnComparison(_Metric):
-    ALL: Dict[str, Type['TwoColumnComparison']] = {}
-
-    def __init__(self):
-        _register(self, TwoColumnComparison)
-
-        AggregateTwoColumnComparisonAdapter(self, 'min')
-        AggregateTwoColumnComparisonAdapter(self, 'max')
-        AggregateTwoColumnComparisonAdapter(self, 'avg')
-        TwoColumnComparisonMatrix(self)
-
-        super(TwoColumnComparison, self).__init__()
-
-    @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
-                 col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        pass
-
-
-class DataFrameComparison(_Metric):
-    ALL: Dict[str, Type['DataFrameComparison']] = {}
-
-    def __init__(self):
-        _register(self, DataFrameComparison)
-
-        super(DataFrameComparison, self).__init__()
-
-    @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[int, float, None]:
         pass
 
 
 # Adapters to transform Metrics into Composite Metrics
 # ----------------------------------------------------
 
-class AggregateColumnMetricAdapter(DataFrameMetric):
-    def __init__(self, metric: ColumnMetric, summary_type: str):
-        if summary_type not in ['min', 'max', 'avg']:
-            raise ValueError
-        self.summary_type = summary_type
-        self.metric = metric
-        self.name = f'{summary_type}_{metric.name}'
-        super(AggregateColumnMetricAdapter, self).__init__()
-
-    def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-        values: List[Union[int, float]] = []
-        for col in df.columns:
-            value = self.metric(df[col], **kwargs)
-            if value is not None:
-                values.append(value)
-
-        if self.summary_type == 'min':
-            return min(values) if len(values) > 0 else None
-        elif self.summary_type == 'max':
-            return max(values) if len(values) > 0 else None
-        else:
-            assert self.summary_type == 'avg'
-            return sum(values) / len(values) if len(values) > 0 else None
-
-
-class DiffColumnMetricAdapter(ColumnComparison):
+class DiffColumnMetricAdapter(TwoColumnMetric):
     def __init__(self, metric: ColumnMetric):
         self.metric = metric
         self.name = f'diff_{metric.name}'
         super().__init__()
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(df_old[col_name], **kwargs)
-        value_new = self.metric(df_new[col_name], **kwargs)
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        value_old = self.metric(sr_a, **kwargs)
+        value_new = self.metric(sr_b, **kwargs)
         if value_old is None or value_new is None:
             return None
         else:
             return value_new - value_old
-
-
-class AggregateTwoColumnMetricAdapter(DataFrameMetric):
-    def __init__(self, metric: TwoColumnMetric, summary_type: str):
-        if summary_type not in ['min', 'max', 'avg']:
-            raise ValueError
-        self.summary_type = summary_type
-        self.metric = metric
-        self.name = f'{summary_type}_{metric.name}'
-        super(AggregateTwoColumnMetricAdapter, self).__init__()
-
-    def __call__(self, df: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-        values: List[Union[int, float]] = []
-        for col_a, col_b in combinations(df.columns, 2):
-            value = self.metric(df[col_a], df[col_b], **kwargs)
-            if value is not None:
-                values.append(value)
-
-        if self.summary_type == 'min':
-            return min(values) if len(values) > 0 else None
-        elif self.summary_type == 'max':
-            return max(values) if len(values) > 0 else None
-        else:
-            assert self.summary_type == 'avg'
-            return sum(values) / len(values) if len(values) > 0 else None
-
-
-class DiffTwoColumnMetricAdapter(TwoColumnComparison):
-    def __init__(self, metric: TwoColumnMetric):
-        self.metric = metric
-        self.name = f'diff_{metric.name}'
-        super(DiffTwoColumnMetricAdapter, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
-                 col_a_name: str, col_b_name: str, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(df_old[col_a_name], df_old[col_b_name], **kwargs)
-        value_new = self.metric(df_new[col_a_name], df_new[col_b_name], **kwargs)
-        if value_old is None or value_new is None:
-            return None
-        else:
-            return value_new - value_old
-
-
-class DiffDataFrameMetricAdapter(DataFrameComparison):
-    def __init__(self, metric: DataFrameMetric):
-        self.metric = metric
-        self.name = f'diff_{metric.name}'
-        super(DiffDataFrameMetricAdapter, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(df_old, **kwargs)
-        value_new = self.metric(df_new, **kwargs)
-        if value_old is None or value_new is None:
-            return None
-        else:
-            return value_new - value_old
-
-
-class AggregateColumnComparisonAdapter(DataFrameComparison):
-    def __init__(self, metric: ColumnComparison, summary_type: str):
-        if summary_type not in ['min', 'max', 'avg']:
-            raise ValueError
-        self.summary_type = summary_type
-        self.metric = metric
-        self.name = f'{summary_type}_{metric.name}'
-        super(AggregateColumnComparisonAdapter, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-        values: List[Union[int, float]] = []
-        for col in df_old.columns:
-            value = self.metric(df_old, df_new, col, **kwargs)
-            if value is not None:
-                values.append(value)
-        if self.summary_type == 'min':
-            return min(values) if len(values) > 0 else None
-        elif self.summary_type == 'max':
-            return max(values) if len(values) > 0 else None
-        else:
-            assert self.summary_type == 'avg'
-            return sum(values) / len(values) if len(values) > 0 else None
-
-
-class AggregateTwoColumnComparisonAdapter(DataFrameComparison):
-    def __init__(self, metric: TwoColumnComparison, summary_type: str):
-        if summary_type not in ['min', 'max', 'avg']:
-            raise ValueError
-        self.summary_type = summary_type
-        self.metric = metric
-        self.name = f'{summary_type}_{metric.name}'
-        super(AggregateTwoColumnComparisonAdapter, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[int, float, None]:
-        values: List[Union[int, float]] = []
-        for col_a, col_b in combinations(df_old.columns, 2):
-            value = self.metric(df_old, df_new, col_a, col_b, **kwargs)
-            if value is not None:
-                values.append(value)
-
-        if self.summary_type == 'min':
-            return min(values) if len(values) > 0 else None
-        elif self.summary_type == 'max':
-            return max(values) if len(values) > 0 else None
-        else:
-            assert self.summary_type == 'avg'
-            return sum(values) / len(values) if len(values) > 0 else None
 
 
 # Vectors that return a series instead of one value
 # ----------------------------------------------------
-class _Vector(ABC):
-    ALL: Mapping[str, Type['_Vector']] = {}
+class _Vector:
+    ALL: Mapping[str, '_Vector'] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 
@@ -343,40 +152,44 @@ class _Vector(ABC):
         _register(self, _Vector)
         super(_Vector, self).__init__()
 
+    @abstractmethod
+    def __call__(self, **kwargs) -> pd.Series:
+        pass
+
 
 class ColumnVector(_Vector):
-    ALL: Mapping[str, Type['ColumnVector']] = {}
+    ALL: Mapping[str, 'ColumnVector'] = {}
 
     def __init__(self):
         _register(self, ColumnVector)
         super().__init__()
 
     @abstractmethod
-    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
+    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[pd.Series, None]:
         pass
 
 
 class DataFrameVector(_Vector):
-    ALL: Mapping[str, Type['DataFrameVector']] = {}
+    ALL: Mapping[str, 'DataFrameVector'] = {}
 
     def __init__(self):
         _register(self, DataFrameVector)
         super().__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
         pass
 
 
-class DataFrameComparisonVector(_Vector):
-    ALL: Mapping[str, Type['DataFrameComparisonVector']] = {}
+class TwoDataFrameVector(_Vector):
+    ALL: Mapping[str, 'TwoDataFrameVector'] = {}
 
     def __init__(self):
-        _register(self, DataFrameComparisonVector)
-        super(DataFrameComparisonVector, self).__init__()
+        _register(self, TwoDataFrameVector)
+        super(TwoDataFrameVector, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
         pass
 
 
@@ -386,20 +199,23 @@ class ColumnMetricVector(DataFrameVector):
         self.name = f'{metric.name}_vector'
         super(ColumnMetricVector, self).__init__()
 
-    def __call__(self, df: pd.DataFrame, **kwargs) -> pd.Series:
+    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+        if df is None:
+            return None
         return df.apply(func=self.metric, axis='index', raw=False, **kwargs)
 
 
-class ColumnComparisonVector(DataFrameComparisonVector):
-    def __init__(self, metric: ColumnComparison):
+class ColumnComparisonVector(TwoDataFrameVector):
+    def __init__(self, metric: TwoColumnMetric):
         self.metric = metric
         self.name = f'{metric.name}_vector'
         super().__init__()
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.Series, None]:
-
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+        if df_old is None or df_new is None:
+            return None
         return pd.Series(
-            data=[self.metric(df_old, df_new, col, **kwargs) for col in df_old.columns], index=df_old.columns,
+            data=[self.metric(df_old[col], df_new[col], **kwargs) for col in df_old.columns], index=df_old.columns,
             name=self.metric.name
         )
 
@@ -410,7 +226,10 @@ class RollingColumnMetricVector(ColumnVector):
         self.name = f'rolling_{metric.name}_vector'
         super().__init__()
 
-    def __call__(self, sr: pd.Series, window: int = 5, **kwargs) -> pd.Series:
+    def __call__(self, sr: pd.Series = None, window: int = 5, **kwargs) -> Union[pd.Series, None]:
+        if sr is None:
+            return None
+
         length = len(sr)
         pad = (window - 1) // 2
         offset = (window - 1) % 2
@@ -429,7 +248,10 @@ class ChainColumnVector(ColumnVector):
         self.name = '|'.join([m.name for m in self.metrics])
         super().__init__()
 
-    def __call__(self, sr: pd.Series, **kwargs) -> pd.Series:
+    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[pd.Series, None]:
+        if sr is None:
+            return None
+
         for metric in self.metrics:
             sr = metric(sr, **kwargs)
 
@@ -438,8 +260,8 @@ class ChainColumnVector(ColumnVector):
 
 # Metrics that return an array instead of one value
 # ----------------------------------------------------
-class _Matrix(ABC):
-    ALL: Mapping[str, Type['_Matrix']] = {}
+class _Matrix:
+    ALL: Mapping[str, '_Matrix'] = {}
     name: Union[str, None] = None
     tags: List[str] = []
 
@@ -447,50 +269,33 @@ class _Matrix(ABC):
         _register(self, _Matrix)
         super(_Matrix, self).__init__()
 
+    @abstractmethod
+    def __call__(self, **kwargs) -> Union[pd.DataFrame, None]:
+        pass
+
 
 class DataFrameMatrix(_Matrix):
-    ALL: Dict[str, Type['DataFrameMatrix']] = {}
+    ALL: Dict[str, 'DataFrameMatrix'] = {}
 
     def __init__(self):
         _register(self, DataFrameMatrix)
         super(DataFrameMatrix, self).__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame, **kwargs) -> Union[pd.DataFrame, None]:
+    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
         pass
 
 
-class DataFrameComparisonMatrix(_Matrix):
-    ALL: Dict[str, Type['DataFrameMatrix']] = {}
+class TwoDataFrameMatrix(_Matrix):
+    ALL: Dict[str, 'DataFrameMatrix'] = {}
 
     def __init__(self):
-        _register(self, DataFrameComparisonMatrix)
-        super(DataFrameComparisonMatrix, self).__init__()
+        _register(self, TwoDataFrameMatrix)
+        super(TwoDataFrameMatrix, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.DataFrame, None]:
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
         pass
-
-
-class TwoColumnComparisonMatrix(DataFrameComparisonMatrix):
-    def __init__(self, metric: TwoColumnComparison):
-        self.metric = metric
-        self.name = f'{metric.name}_matrix'
-        super(TwoColumnComparisonMatrix, self).__init__()
-
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, **kwargs) -> Union[pd.DataFrame, None]:
-        columns = df_old.columns
-        matrix = pd.DataFrame(index=columns, columns=columns)
-
-        if 'symmetric' in self.tags:
-            for col_a, col_b in combinations(columns, 2):
-                matrix[col_a][col_b] = matrix[col_b][col_a] = self.metric(df_old, df_new, col_a_name=col_a,
-                                                                          col_b_name=col_b, **kwargs)
-        else:
-            for col_a, col_b in permutations(columns, 2):
-                matrix[col_a][col_b] = self.metric(df_old, df_new, col_a_name=col_a, col_b_name=col_b, **kwargs)
-
-        return matrix.astype(np.float32)
 
 
 class TwoColumnMetricMatrix(DataFrameMatrix):
@@ -499,7 +304,10 @@ class TwoColumnMetricMatrix(DataFrameMatrix):
         self.name = f'{metric.name}_matrix'
         super(TwoColumnMetricMatrix, self).__init__()
 
-    def __call__(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
+        if df is None:
+            return None
+
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 
@@ -513,15 +321,38 @@ class TwoColumnMetricMatrix(DataFrameMatrix):
         return matrix.astype(np.float32)
 
 
+class DiffMetricMatrix(TwoDataFrameMatrix):
+    def __init__(self, metric: DataFrameMatrix):
+        self.metric = metric
+        self.name = f'diff_{metric.name}'
+        super().__init__()
+
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
+        if df_old is None or df_new is None:
+            return None
+
+        matrix_old = self.metric(df=df_old, **kwargs)
+        matrix_new = self.metric(df=df_new, **kwargs)
+
+        if matrix_old is None or matrix_new is None:
+            return None
+
+        return matrix_new - matrix_old
+
+
 class ModellingMetric(_Metric):
 
     def __init__(self):
         _register(self, ModellingMetric)
         super(ModellingMetric, self).__init__()
 
+    @abstractmethod
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
+        pass
 
-class ClassificationMetric(ModellingMetric, ABC):
-    ALL: Dict[str, Type['ClassificationMetric']] = {}
+
+class ClassificationMetric(ModellingMetric):
+    ALL: Dict[str, 'ClassificationMetric'] = {}
     tags = ["modelling", "classification"]
     plot = False
 
@@ -529,14 +360,14 @@ class ClassificationMetric(ModellingMetric, ABC):
         _register(self, ClassificationMetric)
         super(ClassificationMetric, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    @abstractmethod
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
         pass
 
 
-class ClassificationPlotMetric(ModellingMetric, ABC):
-    ALL: Dict[str, Type['ClassificationPlotMetric']] = {}
+class ClassificationPlotMetric(ModellingMetric):
+    ALL: Dict[str, 'ClassificationPlotMetric'] = {}
     tags = ["modelling", "classification", "plot"]
     plot = True
 
@@ -544,20 +375,20 @@ class ClassificationPlotMetric(ModellingMetric, ABC):
         _register(self, ClassificationPlotMetric)
         super(ClassificationPlotMetric, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    @abstractmethod
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[Any]:
         pass
 
 
-class RegressionMetric(ModellingMetric, ABC):
-    ALL: Dict[str, Type['RegressionMetric']] = {}
+class RegressionMetric(ModellingMetric):
+    ALL: Dict[str, 'RegressionMetric'] = {}
     tags = ["modelling", "regression"]
 
     def __init__(self):
         _register(self, RegressionMetric)
         super(RegressionMetric, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: np.ndarray, **kwargs) -> Union[float]:
+    @abstractmethod
+    def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
         pass

@@ -9,7 +9,7 @@ from scipy.stats import kendalltau, spearmanr, ks_2samp
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 
-from .metrics_base import ColumnMetric, TwoColumnMetric, ColumnComparison
+from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
 from ...metadata import MetaExtractor
 
@@ -20,7 +20,10 @@ class Mean(ColumnMetric):
     name = "mean"
     tags = ["ordinal"]
 
-    def __call__(self, sr: pd.Series, **kwargs) -> float:
+    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[float, None]:
+        if sr is None:
+            return None
+
         mean = float(np.nanmean(sr.values))
 
         return mean
@@ -30,7 +33,9 @@ class StandardDeviation(ColumnMetric):
     name = "standard_deviation"
     tags = ["ordinal"]
 
-    def __call__(self, sr: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr is None:
+            return None
 
         rm_outliers = kwargs.get('rm_outliers', 0.0)
         values = np.sort(sr.values)[int(len(sr) * rm_outliers):int(len(sr) * (1.0 - rm_outliers))]
@@ -43,7 +48,10 @@ class KendellTauCorrelation(TwoColumnMetric):
     name = "kendell_tau_correlation"
     tags = ["ordinal", "symmetric"]
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
+            return None
+
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
@@ -59,7 +67,10 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
     name = "spearman_rho_correlation"
     tags = ["ordinal", "symmetric"]
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
+            return None
+
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
@@ -75,7 +86,10 @@ class CramersV(TwoColumnMetric):
     name = "cramers_v"
     tags = ["nominal", "symmetric"]
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
+            return None
+
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
@@ -110,7 +124,10 @@ class CramersV(TwoColumnMetric):
 class CategoricalLogisticR2(TwoColumnMetric):
     name = "categorical_logistic_correlation"
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
+            return None
+
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
@@ -120,15 +137,18 @@ class CategoricalLogisticR2(TwoColumnMetric):
         return r2
 
 
-class KolmogorovSmirnovDistance(ColumnComparison):
+class KolmogorovSmirnovDistance(TwoColumnMetric):
     name = "kolmogorov_smirnov_distance"
     tags = ["ordinal"]
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        if not super(KolmogorovSmirnovDistance, self).check_column_types(df_old, df_new, col_name, **kwargs):
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
             return None
-        column_old_clean = pd.to_numeric(df_old[col_name], errors='coerce').dropna()
-        column_new_clean = pd.to_numeric(df_new[col_name], errors='coerce').dropna()
+
+        if not super(KolmogorovSmirnovDistance, self).check_column_types(sr_a, sr_b, **kwargs):
+            return None
+        column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
+        column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
             return np.nan
 
@@ -136,16 +156,19 @@ class KolmogorovSmirnovDistance(ColumnComparison):
         return ks_distance
 
 
-class EarthMoversDistance(ColumnComparison):
+class EarthMoversDistance(TwoColumnMetric):
     name = "earth_movers_distance"
     tags = ["nominal"]
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, col_name: str, **kwargs) -> Union[int, float, None]:
-        if not super(EarthMoversDistance, self).check_column_types(df_old, df_new, col_name, **kwargs):
+    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+        if sr_a is None or sr_b is None:
             return None
 
-        old = df_old[col_name].to_numpy()
-        new = df_new[col_name].to_numpy()
+        if not super(EarthMoversDistance, self).check_column_types(sr_a, sr_b, **kwargs):
+            return None
+
+        old = sr_a.to_numpy()
+        new = sr_b.to_numpy()
 
         space = set(old).union(set(new))
         if len(space) > 1e4:

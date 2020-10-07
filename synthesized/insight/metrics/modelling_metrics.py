@@ -15,7 +15,7 @@ from sklearn.utils.validation import check_is_fitted
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
 from ...metadata import MetaExtractor, DataFrameMeta, ValueMeta
 
-from .metrics_base import DataFrameMetric, DataFrameComparison, ClassificationMetric, ClassificationPlotMetric, \
+from .metrics_base import DataFrameMetric, TwoDataFrameMetric, ClassificationMetric, ClassificationPlotMetric, \
     RegressionMetric
 
 logger = logging.getLogger(__name__)
@@ -30,8 +30,11 @@ class PredictiveModellingScore(DataFrameMetric):
     name = "predictive_modelling_score"
     tags = ["modelling"]
 
-    def __call__(self, df: pd.DataFrame, model: str = None, y_label: str = None,
+    def __call__(self, df: pd.DataFrame = None, model: str = None, y_label: str = None,
                  x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+        if df is None:
+            return None
+
         if len(df.columns) < 2:
             raise ValueError
         model = model or 'Linear'
@@ -42,12 +45,15 @@ class PredictiveModellingScore(DataFrameMetric):
         return score
 
 
-class PredictiveModellingComparison(DataFrameComparison):
+class PredictiveModellingComparison(TwoDataFrameMetric):
     name = "predictive_modelling_comparison"
     tags = ["modelling"]
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame, model: str = None, y_label: str = None,
+    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, model: str = None, y_label: str = None,
                  x_labels: List[str] = None, **kwargs) -> Union[None, float]:
+        if df_old is None or df_new is None:
+            return None
+
         if len(df_old.columns) < 2:
             raise ValueError
         model = model or 'Linear'
@@ -61,20 +67,18 @@ class PredictiveModellingComparison(DataFrameComparison):
 class Accuracy(ClassificationMetric):
     name = "accuracy"
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_pred is not None
+        assert y_true is not None and y_pred is not None
         return accuracy_score(y_true, y_pred)
 
 
 class Precision(ClassificationMetric):
     name = "precision"
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_pred is not None
+        assert y_true is not None and y_pred is not None
         if kwargs.get('multiclass', False) is False:
             return precision_score(y_true, y_pred)
         else:
@@ -84,10 +88,9 @@ class Precision(ClassificationMetric):
 class Recall(ClassificationMetric):
     name = "recall"
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_pred is not None
+        assert y_true is not None and y_pred is not None
         if kwargs.get('multiclass', False) is False:
             return recall_score(y_true, y_pred)
         else:
@@ -97,10 +100,9 @@ class Recall(ClassificationMetric):
 class F1Score(ClassificationMetric):
     name = "f1_score"
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_pred is not None
+        assert y_true is not None and y_pred is not None
         if kwargs.get('multiclass', False) is False:
             return f1_score(y_true, y_pred)
         else:
@@ -110,10 +112,9 @@ class F1Score(ClassificationMetric):
 class ROC_AUC(ClassificationMetric):
     name = "roc_auc"
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_pred_proba is not None
+        assert y_true is not None and y_pred_proba is not None
         if kwargs.get('multiclass', False) is False:
             return roc_auc_score(y_true, y_pred_proba)
         else:
@@ -127,10 +128,9 @@ class ROC_Curve(ClassificationPlotMetric):
         self.plot = True
         super(ROC_Curve, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
-        assert y_pred_proba is not None
+        assert y_true is not None and y_pred_proba is not None
         if kwargs.get('multiclass', False) is False:
             return roc_curve(y_true, y_pred_proba)
         else:
@@ -145,10 +145,9 @@ class PR_Curve(ClassificationPlotMetric):
         self.plot = True
         super(PR_Curve, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
-        assert y_pred_proba is not None
+        assert y_true is not None and y_pred_proba is not None
         if kwargs.get('multiclass', False) is False:
             return precision_recall_curve(y_true, y_pred_proba)
         else:
@@ -163,10 +162,9 @@ class ConfusionMatrix(ClassificationPlotMetric):
         self.plot = True
         super(ConfusionMatrix, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[int, float, None]:
-        assert y_pred is not None
+        assert y_true is not None and y_pred is not None
         return confusion_matrix(y_true, y_pred)
 
 
@@ -176,8 +174,8 @@ class MeanAbsoluteError(RegressionMetric):
     def __init__(self):
         super(MeanAbsoluteError, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: np.ndarray, **kwargs) -> Union[float]:
+    def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
+        assert y_true is not None and y_pred is not None
         return mean_absolute_error(y_true, y_pred)
 
 
@@ -187,8 +185,8 @@ class MeanSquaredError(RegressionMetric):
     def __init__(self):
         super(MeanSquaredError, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: np.ndarray, **kwargs) -> Union[float]:
+    def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
+        assert y_true is not None and y_pred is not None
         return mean_squared_error(y_true, y_pred)
 
 
@@ -198,8 +196,8 @@ class R2_Score(RegressionMetric):
     def __init__(self):
         super(R2_Score, self).__init__()
 
-    @staticmethod
-    def __call__(y_true: np.ndarray, y_pred: np.ndarray, **kwargs) -> Union[float]:
+    def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
+        assert y_true is not None and y_pred is not None
         return r2_score(y_true, y_pred)
 
 
@@ -405,8 +403,8 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
         # metric() and metric.__call__() are the same, but the second raises lint error
-        results[metric_name] = metric.__call__(y_true=y_test, y_pred=y_pred_test, y_pred_proba=f_proba_test,
-                                               multiclass=multiclass)
+        results[metric_name] = metric(y_true=y_test, y_pred=y_pred_test,
+                                      y_pred_proba=f_proba_test, multiclass=multiclass)
 
     if return_predicted:
         results['predicted_values'] = y_pred_test
@@ -446,8 +444,7 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
 
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
-        # metric() and metric.__call__() are the same, but the second raises lint error
-        results[metric_name] = metric.__call__(y_true=y_test, y_pred=f_test)
+        results[metric_name] = metric(y_true=y_test, y_pred=f_test)
 
     if return_predicted:
         results['predicted_values'] = f_test

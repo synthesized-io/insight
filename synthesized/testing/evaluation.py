@@ -69,7 +69,7 @@ class Evaluation:
 
 # -- training functions
 def synthesize_and_plot(
-        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.DataFrameComparison] = None,
+        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.TwoDataFrameMetric] = None,
         test_data: Optional[pd.DataFrame] = None, plot_basic: bool = True, plot_losses: bool = False,
         plot_distances: bool = False, show_distributions: bool = False, show_distribution_distances: bool = False,
         show_emd_distances: bool = False, show_correlation_distances: bool = False,
@@ -164,19 +164,19 @@ def synthesize_and_plot(
     # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
+        testing.show_second_order_metric_distances(metrics.kendell_tau_correlation, max_p_value=MAX_PVAL)
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
         testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
     if show_cramers_v_distances:
         display(Markdown("## Show Cramer's V distances"))
-        testing.show_second_order_metric_distances(metrics.diff_cramers_v)
+        testing.show_second_order_metric_distances(metrics.cramers_v)
     if show_cramers_v_matrix:
         display(Markdown("## Show Cramer's V matrices"))
         testing.show_second_order_metric_matrices(metrics.cramers_v)
     if show_logistic_rsquared_distances:
         display(Markdown("## Show Logistic R^2 distances"))
-        testing.show_second_order_metric_distances(metrics.diff_categorical_logistic_correlation,
+        testing.show_second_order_metric_distances(metrics.categorical_logistic_correlation,
                                                    continuous_input_only=True, categorical_output_only=True)
     if show_logistic_rsquared_matrix:
         display(Markdown("## Show Logistic R^2 matrices"))
@@ -188,7 +188,7 @@ def synthesize_and_plot(
 
 # -- training functions
 def synthesize_and_plot_time_series(
-        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.DataFrameComparison],
+        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.TwoDataFrameMetric],
         test_data: Optional[pd.DataFrame] = None, col: str = "x", max_lag: int = 10, plot_basic: bool = True,
         plot_losses: bool = False, plot_distances: bool = False, show_distributions: bool = False,
         show_distribution_distances: bool = False, show_emd_distances: bool = False,
@@ -329,8 +329,8 @@ def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
     # display(Markdown("data length {}".format(len(data)))
     print("data length {}".format(len(data)))
     train, test = train_test_split(data, test_size=0.5)
-
-    synthesizer = HighDimSynthesizer(df=data)
+    df_meta = MetaExtractor.extract(data)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
     testing = UtilityTesting(synthesizer, test, train, test)
 
     results = testing.show_standard_metrics(ax=ax)

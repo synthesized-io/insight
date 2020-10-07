@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Union
 import math
 import logging
 
@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 
 from ..metadata import DataFrameMeta
 from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, plot_standard_metrics
+    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, \
+    plot_standard_metrics
 from ..insight import metrics
-from ..insight.metrics import TwoColumnComparison, TwoColumnComparisonMatrix
-from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix
-from ..insight.metrics import ColumnComparison, ColumnComparisonVector
+from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix, DiffMetricMatrix
+from ..insight.metrics import TwoDataFrameVector, ColumnComparisonVector
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class Assessor:
         for i, col in enumerate(self.categorical):
             ax = fig.add_subplot(gs[n // cols, n % cols])
 
-            emd_distance = metrics.earth_movers_distance(self.df_orig, self.df_synth, col, dp=self.df_meta)
+            emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
             title = f'{col} (EMD Dist={emd_distance:.3f})'
             categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
             n += 1
@@ -87,7 +87,7 @@ class Assessor:
         for i, col in enumerate(self.continuous):
             ax = fig.add_subplot(gs[n // 2, n % 2])
 
-            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig, self.df_synth, col, dp=self.df_meta)
+            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
             title = f'{col} (KS Dist={ks_distance:.3f})'
             continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
             n += 1
@@ -95,7 +95,7 @@ class Assessor:
         plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
         plt.show()
 
-    def show_first_order_metric_distances(self, metric: ColumnComparison, **kwargs):
+    def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):
         if metric.name is None:
             raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
@@ -154,7 +154,7 @@ class Assessor:
 
         plot_second_order_metric_matrices(matrix_orig, matrix_synth, metric.name, symmetric=is_symmetric)
 
-    def show_second_order_metric_distances(self, metric: TwoColumnComparison, **kwargs) -> Tuple[float, float]:
+    def show_second_order_metric_distances(self, metric: TwoColumnMetric, **kwargs) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -165,8 +165,10 @@ class Assessor:
 
         logger.debug(f"Showing distances for second-order metric ({metric.name}).")
 
-        metric_matrix = TwoColumnComparisonMatrix(metric)
-        distances = np.abs(metric_matrix(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs))
+        metric_matrix = TwoColumnMetricMatrix(metric)
+        diff_metric_matrix = DiffMetricMatrix(metric_matrix)
+
+        distances = np.abs(diff_metric_matrix(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs))
 
         result = []
         for i in range(len(distances.index)):
@@ -193,15 +195,13 @@ class Assessor:
 
         return corr_dist_max, corr_dist_avg
 
-    def metric_mean_max(self, metric, **kwargs):
-        if isinstance(metric, ColumnComparison):
+    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector], **kwargs):
+        if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
-        elif isinstance(metric, TwoColumnComparison):
-            metric = TwoColumnComparisonMatrix(metric)
 
         x = metric(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs)
 
-        if len(x) > 0:
+        if x is not None and len(x) > 0:
             x = x.values
             return float(np.nanmean(x)), float(np.nanmax(x))
         else:
