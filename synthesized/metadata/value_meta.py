@@ -105,9 +105,9 @@ class ValueMeta:
         return list(filter(lambda c: c not in self.learned_input_columns(), self.columns()))
 
     def set_dtypes(self, df: pd.DataFrame):
-        for name, col_dtype in self.in_dtypes.items():
-            if str(df[name].dtype) != str(col_dtype):
-                df.loc[:, self.name] = df.loc[:, self.name].astype(col_dtype)
+        for col_name, col_dtype in self.in_dtypes.items():
+            if str(df[col_name].dtype) != str(col_dtype):
+                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype)
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(

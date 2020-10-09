@@ -114,7 +114,7 @@ class CategoricalValue(Value):
         # Choose argmax class
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
-        if produce_nans:
+        if self.nans_valid and produce_nans:
             if sample:
                 y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
             else:
