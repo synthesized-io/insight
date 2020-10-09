@@ -85,6 +85,11 @@ class TimeSeriesUtilityTesting:
         sr_orig = metric_vector(sr=xs_orig[col], **kwargs)
         sr_synth = metric_vector(sr=xs_synth[col], **kwargs)
 
+        if sr_orig is None:
+            raise ValueError("Failed to calculate metric vector for original data frame")
+        if sr_synth is None:
+            raise ValueError("Failed to calculate metric vector for synthetic data frame.")
+
         rows = 1
         width = 20
         height = 8 * rows + 3

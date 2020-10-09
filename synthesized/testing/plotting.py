@@ -139,7 +139,7 @@ def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: A
     error_msg = "Original and synthetic data must have the same data types."
     assert (original.dtypes.values == synthetic.dtypes.values).all(), error_msg
     dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
-    distances = [kolmogorov_smirnov_distance(original, synthetic, col) for col in original.columns]
+    distances = [kolmogorov_smirnov_distance(original[col], synthetic[col]) for col in original.columns]
     plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
     plot.set_xticklabels(plot.get_xticklabels(), rotation=30)
     plot.set_title("KS distance by column")
@@ -563,7 +563,7 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
 
         sns.distplot(orig_vc_values, color=COLOR_ORIG, label='orig', ax=ax)
         sns.distplot(synth_vc_values, color=COLOR_SYNTH, label='synth', ax=ax)
-        dist = kolmogorov_smirnov_distance(orig_vc, synth_vc, key)
+        dist = kolmogorov_smirnov_distance(orig_vc[key], synth_vc[key])
 
     else:
         # We sample orig and synth them so that they have the same size to make the plots more comprehensive
@@ -573,7 +573,7 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
 
         ax = sns.countplot(x=key, hue='dataset', data=concatenated,
                            palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
-        dist = earth_movers_distance(orig_vc, synth_vc, key)
+        dist = earth_movers_distance(orig_vc[key], synth_vc[key])
 
     ax.legend()
     return float(dist or 0.0)

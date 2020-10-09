@@ -1,27 +1,19 @@
-# -*- coding: utf-8 -*-
-#
-# Produced by: Synthesized Ltd
-#
-# The testing environment
-"""This module contains tools for utility testing."""
 from enum import Enum
-import logging
-import math
 from typing import Tuple, Union
+import math
+import logging
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
-from ..common.synthesizer import Synthesizer
+from ..metadata import DataFrameMeta
 from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot
+    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, \
+    plot_standard_metrics
 from ..insight import metrics
 from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix, DiffMetricMatrix
-from ..insight.metrics import ColumnComparisonVector, TwoDataFrameVector
-from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
-from ..insight.dataset import categorical_or_continuous_values
-from ..testing.plotting import plot_standard_metrics
+from ..insight.metrics import TwoDataFrameVector, ColumnComparisonVector
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +28,10 @@ class DisplayType(Enum):
     CONTINUOUS = 3
 
 
-class UtilityTesting:
+class Assessor:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
-    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame):
+    def __init__(self, df_meta: DataFrameMeta, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
         """Create an instance of UtilityTesting.
 
         Args:
@@ -48,12 +40,11 @@ class UtilityTesting:
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
-        self.df_orig = df_orig.copy()
-        self.df_test = df_test.copy()
-        self.df_synth = df_synth.copy()
+        self.df_orig = df_orig
+        self.df_synth = df_synth
 
-        self.dp = synthesizer.df_meta
-        categorical, continuous = categorical_or_continuous_values(self.dp)
+        self.df_meta = df_meta
+        categorical, continuous = self.df_meta.get_categorical_and_continuous()
 
         self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
         self.plotable_values = self.categorical + self.continuous
@@ -62,7 +53,7 @@ class UtilityTesting:
         set_plotting_style()
 
     def show_standard_metrics(self, ax=None):
-        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.dp, ax=ax)
+        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.df_meta, ax=ax)
         plt.show()
 
         return current_result
@@ -82,13 +73,13 @@ class UtilityTesting:
             figsize = (14, 5 * rows + 2)
 
         fig = plt.figure(figsize=figsize)
-        gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.2)
+        gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.3)
         n = 0
 
         for i, col in enumerate(self.categorical):
             ax = fig.add_subplot(gs[n // cols, n % cols])
 
-            emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.dp)
+            emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
             title = f'{col} (EMD Dist={emd_distance:.3f})'
             categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
             n += 1
@@ -96,7 +87,7 @@ class UtilityTesting:
         for i, col in enumerate(self.continuous):
             ax = fig.add_subplot(gs[n // 2, n % 2])
 
-            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.dp)
+            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
             title = f'{col} (KS Dist={ks_distance:.3f})'
             continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
             n += 1
@@ -104,35 +95,13 @@ class UtilityTesting:
         plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
         plt.show()
 
-    def utility(self, target: str, model: str = 'GradientBoosting') -> float:
-        """Compute utility.
-
-        Utility is a score of estimator trained on synthetic data.
-
-        Args:
-            target: Response variable
-            model: The estimator to use (converted to classifier or regressor).
-
-        Returns: Utility score.
-        """
-
-        orig_score, synth_score, metric, task = predictive_modelling_comparison(
-            self.df_orig, self.df_synth, model=model, y_label=target,
-            x_labels=[col for col in self.df_orig.columns if col != target]
-        )
-
-        print(metric, " (orig):", orig_score)
-        print(metric, " (synth):", synth_score)
-
-        return synth_score
-
     def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):
         if metric.name is None:
             raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_test, self.df_synth, dp=self.dp, **kwargs)
+        result = metric_vector(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -161,7 +130,7 @@ class UtilityTesting:
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, dp=self.dp, **kwargs)
+            matrix = metric_matrix(df, dp=self.df_meta, **kwargs)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
@@ -178,12 +147,12 @@ class UtilityTesting:
 
             return matrix
 
-        matrix_test = filtered_metric_matrix(self.df_test)
+        matrix_orig = filtered_metric_matrix(self.df_orig)
         matrix_synth = filtered_metric_matrix(self.df_synth)
 
         is_symmetric = True if 'symmetric' in metric.tags else False
 
-        plot_second_order_metric_matrices(matrix_test, matrix_synth, metric.name, symmetric=is_symmetric)
+        plot_second_order_metric_matrices(matrix_orig, matrix_synth, metric.name, symmetric=is_symmetric)
 
     def show_second_order_metric_distances(self, metric: TwoColumnMetric, **kwargs) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
@@ -198,7 +167,8 @@ class UtilityTesting:
 
         metric_matrix = TwoColumnMetricMatrix(metric)
         diff_metric_matrix = DiffMetricMatrix(metric_matrix)
-        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.dp, **kwargs))
+
+        distances = np.abs(diff_metric_matrix(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs))
 
         result = []
         for i in range(len(distances.index)):
@@ -229,7 +199,7 @@ class UtilityTesting:
         if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
 
-        x = metric(self.df_orig, self.df_synth, dp=self.dp, **kwargs)
+        x = metric(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs)
 
         if x is not None and len(x) > 0:
             x = x.values

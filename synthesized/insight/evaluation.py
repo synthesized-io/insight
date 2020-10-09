@@ -37,13 +37,17 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, 
     emd_distances = metrics.earth_movers_distance_vector(df_orig, df_synth, dp=df_meta)
 
     # Calculate 2nd order metrics for categorical/continuous
-    corr_distances = np.abs(metrics.diff_kendell_tau_correlation_matrix(
-        df_orig, df_synth, dp=df_meta, max_p_value=MAX_PVAL
-    ))
-    logistic_corr_distances = np.abs(metrics.diff_categorical_logistic_correlation_matrix(
-        df_orig, df_synth, dp=df_meta, continuous_input_only=True
-    ))
-    cramers_v_distances = np.abs(metrics.diff_cramers_v_matrix(df_orig, df_synth, dp=df_meta))
+    corr_distances = np.abs(
+        metrics.diff_kendell_tau_correlation_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta, max_p_value=MAX_PVAL)
+    )
+
+    logistic_corr_distances = np.abs(
+        metrics.diff_categorical_logistic_correlation_matrix(
+            df_old=df_orig, df_new=df_synth, dp=df_meta, continuous_input_only=True
+        )
+    )
+
+    cramers_v_distances = np.abs(metrics.diff_cramers_v_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta))
 
     stop_metrics = {
         'ks_distance': ks_distances,
