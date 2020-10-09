@@ -15,7 +15,7 @@ def test_continuous_variable_generation():
     df_original = pd.DataFrame({'r': r})
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10000, df_train=df_original)
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
@@ -27,7 +27,7 @@ def test_categorical_similarity_variable_generation():
     df_original = pd.DataFrame({'r': list(map(int, r))})
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10000, df_train=df_original)
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
@@ -39,7 +39,7 @@ def test_categorical_variable_generation():
     df_original = pd.DataFrame({'r': list(map(int, r))})
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10000, df_train=df_original)
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
@@ -69,7 +69,7 @@ def test_inf_not_producing():
     df_original.iloc[indices] = -np.inf
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=2500, df_train=df_original)
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() == 0
 
