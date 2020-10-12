@@ -47,16 +47,26 @@ def test_categorical_variable_generation():
 
 @pytest.mark.slow
 def test_nan_producing():
-    r = np.random.normal(loc=0, scale=1, size=1000)
-    indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.2))
-    r[indices] = np.nan
-    df_original = pd.DataFrame({'r': r})
+    size = 1000
+    x = np.random.normal(loc=0, scale=1, size=size)
+    x_nan = np.random.normal(loc=0, scale=1, size=size)
+    indices = np.random.choice(np.arange(size), replace=False, size=int(size * 0.33))
+    x_nan[indices] = np.nan
+    df_original = pd.DataFrame({
+        'x': x,
+        'x_nan': x_nan,
+        'y': np.random.choice(['A', 'B'], size=size),
+        'y_nan': np.random.choice(['A', 'B', np.nan], size=size)
+    })
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=100, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True,
                                                 progress_callback=testing_progress_bar)
-    assert df_synthesized['r'].isna().sum() > 0
+    assert df_synthesized['x_nan'].isna().sum() > 0
+    assert df_synthesized['y_nan'].isna().sum() > 0
+    assert df_synthesized['x'].isna().sum() == 0
+    assert df_synthesized['y'].isna().sum() == 0
 
 
 @pytest.mark.slow
