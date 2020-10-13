@@ -5,27 +5,21 @@ from synthesized.insight.fairness import FairnessScorer
 from synthesized.testing.utils import testing_progress_bar
 
 
-def test_fairness_scorer_single_attr():
-    """Fairness score for a single sensitive attribute"""
-    data = pd.read_csv('data/credit_small.csv')
-    sensitive_attributes = ["age"]
-    target = "SeriousDlqin2yrs"
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "file_name,sensitive_attributes,target",
+    [
+        pytest.param("data/credit_small.csv", ["age"], "SeriousDlqin2yrs", id="binary_target"),
+        pytest.param("data/credit_small.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines", id="continuous_target"),
+        pytest.param("data/credit_small.csv", ["age"], "effort", id="multiple_categories_target"),
+        pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
+                     id="claim_multiple_attrs"),
+        pytest.param("data/templates/claim_prediction.csv", [], "insuranceclaim", id="no_sensitive_attrs"),
+    ]
+)
+def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target):
 
-    fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
-    dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
-    clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
-
-    assert 0. <= dist_score <= 1.
-    assert 0. <= clf_score <= 1.
-
-    assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
-    assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
-
-
-def test_fairness_scorer_multiple_attrs():
-    data = pd.read_csv('data/templates/claim_prediction.csv')
-    sensitive_attributes = ["age", "sex", "children", "region"]
-    target = "insuranceclaim"
+    data = pd.read_csv(file_name)
 
     fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
     dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
@@ -51,23 +45,6 @@ def test_fairness_scorer_detect_sensitive():
 
     assert 0. <= dist_score <= 1.
     assert 0. <= clf_score <= 1.
-
-    assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
-    assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
-
-
-@pytest.mark.slow
-def test_fairness_scorer_no_sensitive_attrs():
-    data = pd.read_csv('data/templates/claim_prediction.csv')
-    sensitive_attributes = []
-    target = "insuranceclaim"
-
-    fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
-    dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
-    clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
-
-    assert dist_score == 0. and len(dist_biases) == 0
-    assert clf_score == 0. and len(clf_biases) == 0
 
     assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
     assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
