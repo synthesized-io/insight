@@ -9,9 +9,9 @@ from synthesized.testing.utils import testing_progress_bar
 @pytest.mark.parametrize(
     "file_name,sensitive_attributes,target",
     [
-        pytest.param("data/credit_small.csv", ["age"], "SeriousDlqin2yrs", id="binary_target"),
-        pytest.param("data/credit_small.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines", id="continuous_target"),
-        pytest.param("data/credit_small.csv", ["age"], "effort", id="multiple_categories_target"),
+        pytest.param("data/credit_with_categoricals.csv", ["age"], "SeriousDlqin2yrs", id="binary_target"),
+        pytest.param("data/credit_with_categoricals.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines", id="continuous_target"),
+        pytest.param("data/credit_with_categoricals.csv", ["age"], "effort", id="multiple_categories_target"),
         pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
                      id="claim_multiple_attrs"),
         pytest.param("data/templates/claim_prediction.csv", [], "insuranceclaim", id="no_sensitive_attrs"),
@@ -19,7 +19,7 @@ from synthesized.testing.utils import testing_progress_bar
 )
 def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target):
 
-    data = pd.read_csv(file_name)
+    data = pd.read_csv(file_name).sample(10_000)
 
     fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
     dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
