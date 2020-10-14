@@ -19,7 +19,9 @@ from synthesized.testing.utils import testing_progress_bar
 )
 def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target):
 
-    data = pd.read_csv(file_name).sample(10_000)
+    data = pd.read_csv(file_name)
+    sample_size = 10_000
+    data = data.sample(sample_size) if len(data) > sample_size else data
 
     fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
     dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
