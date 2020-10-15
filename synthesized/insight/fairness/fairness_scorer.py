@@ -255,13 +255,18 @@ class FairnessScorer:
             name_col = []
             for r in df.iterrows():
                 sensitive_attr_values = [r[1][sa] for sa in sensitive_attr]
-                sensitive_attr_name = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
-                if sensitive_attr_name not in self.values_str_to_list.keys():
-                    self.values_str_to_list[sensitive_attr_name] = sensitive_attr_values
-                name_col.append(sensitive_attr_name)
+                sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                if sensitive_attr_str not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
+                name_col.append(sensitive_attr_str)
 
             df[name] = name_col
             df.drop(sensitive_attr, axis=1, inplace=True)
+
+        elif len(sensitive_attr) == 1:
+            for sensitive_attr_str in df[name].unique():
+                if sensitive_attr_str not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_str] = [sensitive_attr_str]
 
         df_count = df.groupby([name, self.target]).count()[['Count']]
 
