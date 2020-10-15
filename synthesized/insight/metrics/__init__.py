@@ -7,8 +7,8 @@ from .metrics import KolmogorovSmirnovDistance
 from .metrics import EarthMoversDistance
 from .metrics import CategoricalLogisticR2
 
-from .modelling_metrics import PredictiveModellingScore
-from .modelling_metrics import PredictiveModellingComparison
+from .modelling_metrics import predictive_modelling_score
+from .modelling_metrics import predictive_modelling_comparison
 from .modelling_metrics import Accuracy
 from .modelling_metrics import Precision
 from .modelling_metrics import Recall
@@ -56,7 +56,7 @@ from itertools import chain
 
 _CORE_METRICS = [
     Mean, StandardDeviation, KendellTauCorrelation, SpearmanRhoCorrelation, CramersV, KolmogorovSmirnovDistance,
-    EarthMoversDistance, CategoricalLogisticR2, PredictiveModellingScore, PredictiveModellingComparison
+    EarthMoversDistance, CategoricalLogisticR2
 ]
 
 # As we dynamically create Min/Max/Avg/Diff metrics, we must register the classes globally
@@ -97,11 +97,11 @@ earth_movers_distance = EarthMoversDistance()
 
 # DataFrameMetrics
 # -----------------------------------------------------------------------------
-predictive_modelling_score = PredictiveModellingScore()
+# predictive_modelling_score = PredictiveModellingScore()
 
 # TwoDataFrameMetrics
 # -----------------------------------------------------------------------------
-predictive_modelling_comparison = PredictiveModellingComparison()
+# predictive_modelling_comparison = PredictiveModellingComparison()
 
 # DataFrameMetricVectors
 # -----------------------------------------------------------------------------
@@ -155,6 +155,7 @@ __all__ = [
     'ALL', 'COLUMN_METRICS', 'TWO_COLUMN_METRICS', 'DATA_FRAME_METRICS', 'TWO_DATA_FRAME_METRICS', 'ColumnMetric',
     'TwoColumnMetric', 'DataFrameMetric', 'TwoDataFrameMetric', 'DataFrameVector',
     'TwoDataFrameVector', 'DataFrameMatrix', 'TwoDataFrameMatrix', 'DiffMetricMatrix', 'RollingColumnMetricVector',
-    'ModellingMetric', 'ClassificationMetric', 'RegressionMetric', 'ClassificationPlotMetric'
+    'ModellingMetric', 'ClassificationMetric', 'RegressionMetric', 'ClassificationPlotMetric',
+    'predictive_modelling_score', 'predictive_modelling_comparison'
 ]
 __all__.extend([metric_name for metric_name in chain(_Metric.ALL.keys(), _Vector.ALL.keys(), _Matrix.ALL.keys())])
