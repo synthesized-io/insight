@@ -38,7 +38,7 @@ class FairnessScorer:
     """
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
-                 detect_sensitive: bool = False, detect_hidden: bool = False):
+                 target_n_bins: int = 2, detect_sensitive: bool = False, detect_hidden: bool = False):
         """FairnessScorer constructor.
 
         Args:
@@ -64,6 +64,7 @@ class FairnessScorer:
 
         self.target = target
         self.n_bins = n_bins
+        self.target_n_bins = target_n_bins
 
         # Check sensitive attrs
         for sensitive_attr in self.sensitive_attrs:
@@ -109,7 +110,7 @@ class FairnessScorer:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3,
+                            mode: Optional[str] = None, max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
@@ -124,6 +125,10 @@ class FairnessScorer:
         biases = []
         score = 0.
         count = 0
+
+        n_unique = self.df[self.target].nunique()
+        if mode is None:
+            mode = 'diff' if n_unique == 2 else 'emd'
 
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
             if max_combinations else len(self.sensitive_attrs)
@@ -158,11 +163,13 @@ class FairnessScorer:
                     progress_callback(round(n * 98.0 // num_combinations))
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
-        df_biases = df_biases[(df_biases['distance'] >= min_dist) & (df_biases['count'] >= min_count)].sort_values(
-            'distance', ascending=False).reset_index(drop=True)
+        df_biases = df_biases[(df_biases['distance'].abs() >= min_dist) & (df_biases['count'] >= min_count)]\
+            .sort_values('distance', ascending=False).reset_index(drop=True)
         df_biases = df_biases[df_biases['value'] != 'Total']
-        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
-        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+        df_biases['name'] = df_biases['name'].apply(
+            lambda x: self.names_str_to_list[x] if x in self.names_str_to_list else x)
+        df_biases['value'] = df_biases['value'].map(
+            lambda x: self.values_str_to_list[x] if x in self.values_str_to_list else x)
 
         score /= count
 
@@ -219,8 +226,10 @@ class FairnessScorer:
         score = 0. if np.isnan(score) else score
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
-        df_biases['name'] = df_biases['name'].map(self.names_str_to_list)
-        df_biases['value'] = df_biases['value'].map(self.values_str_to_list)
+        df_biases['name'] = df_biases['name'].apply(
+            lambda x: self.names_str_to_list[x] if x in self.names_str_to_list else x)
+        df_biases['value'] = df_biases['value'].map(
+            lambda x: self.values_str_to_list[x] if x in self.values_str_to_list else x)
 
         if progress_callback is not None:
             progress_callback(100)
@@ -246,24 +255,35 @@ class FairnessScorer:
             name_col = []
             for r in df.iterrows():
                 sensitive_attr_values = [r[1][sa] for sa in sensitive_attr]
-                sensitive_attr_name = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
-                if sensitive_attr_name not in self.values_str_to_list.keys():
-                    self.values_str_to_list[sensitive_attr_name] = sensitive_attr_values
-                name_col.append(sensitive_attr_name)
+                sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                if sensitive_attr_str not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
+                name_col.append(sensitive_attr_str)
 
             df[name] = name_col
             df.drop(sensitive_attr, axis=1, inplace=True)
+
+        elif len(sensitive_attr) == 1:
+            for sensitive_attr_str in df[name].unique():
+                if sensitive_attr_str not in self.values_str_to_list.keys():
+                    self.values_str_to_list[sensitive_attr_str] = [sensitive_attr_str]
 
         df_count = df.groupby([name, self.target]).count()[['Count']]
 
         for t in df[self.target].unique():
             df_count.loc[('Total', t), 'Count'] = sum(df_count['Count'][:, t])
 
-        sensitive_unique = df_count.index.get_level_values(0).unique()
-
         df_count['Rate'] = 0.
-        for attr in sensitive_unique:
-            df_count['Rate'][attr] = df_count['Count'][attr] / df_count['Count'][attr].sum()
+        rate_idx = list(df_count.columns).index('Rate')
+        count_idx = list(df_count.columns).index('Count')
+
+        attr_count_sum: Dict[str, int] = dict()
+        for idx, row in df_count.iterrows():
+            attr = idx[0]
+            if attr not in attr_count_sum.keys():
+                attr_count_sum[attr] = df_count['Count'][attr].sum()
+
+            row[rate_idx] = row[count_idx] / attr_count_sum[attr]
 
         return df_count
 
@@ -352,10 +372,19 @@ class FairnessScorer:
     @staticmethod
     def difference_distance(df_count: pd.DataFrame) -> pd.DataFrame:
         df_count = df_count.copy()
+
+        unique_classes = df_count.index.get_level_values(1).unique()
+        if len(unique_classes) != 2:
+            raise ValueError("Difference mode is only supported for binary targets.")
+
+        idx0, majority_class = df_count['Count'].idxmax()
+        assert idx0 == 'Total'
+        df_count = df_count[df_count.index.get_level_values(1) == majority_class]
+        df_count = df_count.set_index(df_count.index.get_level_values(0), drop=True)
+
         df_count['Distance'] = 0.
         for idx in df_count.index:
-            l0, l1 = idx
-            df_count['Distance'][idx] = df_count['Rate'][idx] - df_count['Rate'][('Total', l1)]
+            df_count['Distance'][idx] = df_count['Rate'][idx] - df_count['Rate']['Total']
         df_count.drop('Total', inplace=True)
         return df_count
 
@@ -419,7 +448,8 @@ class FairnessScorer:
     def binarize_columns(self, df: pd.DataFrame):
         for col in self.sensitive_attrs_and_target:
             if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
-                df[col] = pd.qcut(df[col], q=self.n_bins, duplicates='drop').astype(str)
+                n_bins = self.target_n_bins if col == self.target else self.n_bins
+                df[col] = pd.qcut(df[col], q=n_bins, duplicates='drop').astype(str)
             else:
                 df[col] = df[col].astype(str).fillna('NaN')
 
