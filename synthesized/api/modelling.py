@@ -21,10 +21,10 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: List[
             'Logistic' only applies to categorical response variables.
 
     Returns:
-        The score, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
+        The score, metric ('r2_score' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
     """
 
-    return _predictive_modelling_score(df=data, model=model, y_label=y_label, x_labels=x_labels)
+    return _predictive_modelling_score(data=data, model=model, y_label=y_label, x_labels=x_labels)
 
 
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
@@ -43,10 +43,10 @@ def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame
             'Logistic' only applies to categorical response variables.
 
     Returns:
-        Score 1, Score 2, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
+        Score 1, Score 2, metric ('r2_score' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
     """
     return _predictive_modelling_comparison(
-        df_old=data, df_new=synth_data, model=model, y_label=y_label, x_labels=x_labels
+        data=data, synth_data=synth_data, model=model, y_label=y_label, x_labels=x_labels
     )
 
 
