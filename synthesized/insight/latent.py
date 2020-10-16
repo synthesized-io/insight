@@ -103,7 +103,7 @@ def density(x, m, v):
 
 def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame, new_data: pd.DataFrame,
                          num_dims: int = 10):
-    dims = latent_dimension_usage(df_latent_orig, 'mean')['dimension'][-10:].to_list()[::-1]
+    dims = latent_dimension_usage(df_latent_orig, 'mean')['dimension'][-num_dims:].to_list()[::-1]
     df_latent, df_syn = synth.encode(new_data)
 
     mean = df_latent.loc[:, [f'm_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
@@ -116,7 +116,7 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
     N2 = len(df_latent_orig)
     KL = []
 
-    for dim in dims[:num_dims]:
+    for dim in dims:
         m, v = mean[dim].to_numpy()[:N], stddev[dim].to_numpy()[:N] ** 2
         m_orig, v_orig = orig_mean[dim].to_numpy()[:N2], orig_stddev[dim].to_numpy()[:N2] ** 2
 
@@ -130,7 +130,7 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
     return np.sum(KL)
 
 
-def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
+def dataset_quality_by_chunk_old(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
                              progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
 
     if progress_callback is not None:
@@ -167,5 +167,49 @@ def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[High
 
             if progress_callback is not None:
                 progress_callback((i + 1) * 100 // n)
+
+    return df_results
+
+
+def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
+                               progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+
+    if progress_callback is not None:
+        progress_callback(0)
+
+    if synth is None:
+        df_meta = MetaExtractor.extract(df)
+        synth = HighDimSynthesizer(df_meta=df_meta)
+
+    with synth as synthesizer:
+        synthesizer.learn(df_train=df, num_iterations=None)
+
+    if progress_callback is not None:
+        progress_callback(50)
+
+    size = len(df) // n
+    df_latent, df_synthesized = synth.encode(df_encode=df)
+
+    df_cumulative = pd.DataFrame()
+    df_results = pd.DataFrame(index=pd.Index(data=[], name='num_rows', dtype=int))
+
+    with synth as synthesizer:
+        for i in range(n):
+            chunk = df.iloc[i * size:(i + 1) * size]
+            df_cumulative = df_cumulative.append(chunk)
+
+            quality = latent_kl_difference(
+                synth=synthesizer, df_latent_orig=df_latent, new_data=df_cumulative, num_dims=16
+            )
+
+            df_results = df_results.append(
+                pd.DataFrame(
+                    data={'quality': quality},
+                    index=pd.Index(data=[(i + 1) * size], name='num_rows')
+                )
+            )
+
+            if progress_callback is not None:
+                progress_callback(50 + (i + 1) * 50 // n)
 
     return df_results
