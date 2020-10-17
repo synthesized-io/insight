@@ -131,7 +131,7 @@ def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame
 
 
 def dataset_quality_by_chunk_old(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
-                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                                 progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
 
     if progress_callback is not None:
         progress_callback(0)
@@ -172,7 +172,7 @@ def dataset_quality_by_chunk_old(df: pd.DataFrame, n: int = 10, synth: Optional[
 
 
 def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
-                               progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
 
     if progress_callback is not None:
         progress_callback(0)
