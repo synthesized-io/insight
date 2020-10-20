@@ -173,6 +173,17 @@ def dataset_quality_by_chunk_old(df: pd.DataFrame, n: int = 10, synth: Optional[
 
 def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[HighDimSynthesizer] = None,
                              progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+    """Segments a dataframe into chunks and computes the quality score over an increasing number of chunks
+
+    Args:
+        df: The dataframe to compute the quality score with
+        n: The number of chunks to split the data frame into.
+        synth: Optional. A synthesizer that has been trained on a similar data frame.
+        progress_callback: A progress callback for the frontend.
+
+    Returns:
+        A dataframe with the column "quality" and index "num_rows".
+    """
 
     if progress_callback is not None:
         progress_callback(0)
@@ -181,8 +192,8 @@ def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[High
         df_meta = MetaExtractor.extract(df)
         synth = HighDimSynthesizer(df_meta=df_meta)
 
-    with synth as synthesizer:
-        synthesizer.learn(df_train=df, num_iterations=None)
+        with synth as synthesizer:
+            synthesizer.learn(df_train=df, num_iterations=None)
 
     if progress_callback is not None:
         progress_callback(50)
