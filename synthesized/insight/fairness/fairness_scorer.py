@@ -164,8 +164,8 @@ class FairnessScorer:
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
         df_biases = df_biases[(df_biases['distance'].abs() >= min_dist) & (df_biases['count'] >= min_count)]
-        df_biases = df_biases.set_index(df_biases['distance'].abs().sort_values(ascending=False).index)\
-            .sort_index().reset_index(drop=True)
+        df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
+            .reset_index(drop=True)
 
         df_biases = df_biases[df_biases['value'] != 'Total']
         df_biases['name'] = df_biases['name'].apply(
