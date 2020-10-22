@@ -220,7 +220,10 @@ class ConditionalSampler(Synthesizer):
         if len(marginal_counts_from_original) > 0:
             idx: List = []
             for k in marginal_counts_from_original.keys():
-                idx.extend(np.random.choice(orig_key_groups[k], size=marginal_counts_from_original[k], replace=False))
+                if marginal_counts_from_original[k] > 0:
+                    idx.extend(np.random.choice(orig_key_groups[k], size=marginal_counts_from_original[k],
+                                                replace=False))
+
             df_sample = df[df.index.isin(idx)]
 
             # Impute nans if we want the output to not have nans
