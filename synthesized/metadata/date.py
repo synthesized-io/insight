@@ -23,6 +23,9 @@ class DateMeta(ContinuousMeta):
         self.date_format: Optional[str] = None
         self.original_dtype = None
 
+    def pd_cast(self, col: pd.Series) -> pd.Series:
+        return self.to_datetime(col)
+
     def specification(self):
         spec = super().specification()
         spec.update(
@@ -77,8 +80,9 @@ class DateMeta(ContinuousMeta):
             except TypeError:
                 break
 
-        if not self.date_format:
-            return pd.to_datetime(col)
+        has_nans = col.isna().any()
+        if not self.date_format or has_nans:
+            return pd.to_datetime(col, format=self.date_format)
         return col
 
     def from_datetime(self, col: pd.Series) -> pd.Series:
@@ -103,14 +107,20 @@ class DateMeta(ContinuousMeta):
         df[self.name + '-dow'] = df.loc[:, self.name].dt.weekday
         df[self.name + '-day'] = df.loc[:, self.name].dt.day - 1
         df[self.name + '-month'] = df.loc[:, self.name].dt.month - 1
+
+        nan_inf = df[self.name].isna()
         if self.min_date is None:
-            previous_date = df.loc[:, self.name].copy()
+            previous_date = df.loc[~nan_inf, self.name].copy()
             previous_date[0] = self.start_date
             previous_date[1:] = previous_date[:-1]
-            df.loc[:, self.name] = (df.loc[:, self.name] - previous_date).dt.total_seconds() / 86400
+            df.loc[~nan_inf, self.name] = (df.loc[~nan_inf, self.name] - previous_date).dt.total_seconds() / 86400
         else:
-            df.loc[:, self.name] = (df.loc[:, self.name] - self.min_date).dt.total_seconds() / 86400
-        return super().preprocess(df=df)
+            df.loc[~nan_inf, self.name] = (df.loc[~nan_inf, self.name] - self.min_date).dt.total_seconds() / 86400
+
+
+        df.loc[~nan_inf, :] = super().preprocess(df=df.loc[~nan_inf, :])
+        return df
+
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
