@@ -5,6 +5,7 @@ import pandas as pd
 
 from .value_meta import ValueMeta
 from .continuous import ContinuousMeta
+from .categorical import CategoricalMeta
 
 
 class DateMeta(ContinuousMeta):
@@ -22,6 +23,11 @@ class DateMeta(ContinuousMeta):
         self.pd_types = ('M',)
         self.date_format: Optional[str] = None
         self.original_dtype = None
+
+        self.hour = CategoricalMeta(name=(self.name + '-hour'), categories=list(range(24)), similarity_based=True)
+        self.dow = CategoricalMeta(name=(self.name + '-dow'), categories=list(range(7)), similarity_based=True)
+        self.day = CategoricalMeta(name=(self.name + '-day'), categories=list(range(31)), similarity_based=True)
+        self.month = CategoricalMeta(name=(self.name + '-month'), categories=list(range(12)), similarity_based=True)
 
     def pd_cast(self, col: pd.Series) -> pd.Series:
         return self.to_datetime(col)
@@ -58,6 +64,12 @@ class DateMeta(ContinuousMeta):
             elif column.min() != self.min_date:
                 raise NotImplementedError
             column = (column - self.min_date).dt.total_seconds() / (24 * 60 * 60)
+
+        df = pd.concat((df, _split_datetime(df[self.name])), 1)
+        self.hour.extract(df)
+        self.dow.extract(df)
+        self.day.extract(df)
+        self.month.extract(df)
 
         super().extract(df=pd.DataFrame.from_dict({self.name: column}))
 
@@ -103,10 +115,11 @@ class DateMeta(ContinuousMeta):
         if df.loc[:, self.name].dtype.kind != 'M':
             df.loc[:, self.name] = self.to_datetime(df.loc[:, self.name])
 
-        df[self.name + '-hour'] = df.loc[:, self.name].dt.hour
-        df[self.name + '-dow'] = df.loc[:, self.name].dt.weekday
-        df[self.name + '-day'] = df.loc[:, self.name].dt.day - 1
-        df[self.name + '-month'] = df.loc[:, self.name].dt.month - 1
+        df = pd.concat((df, _split_datetime(df[self.name])), 1)
+        df = self.hour.preprocess(df)
+        df = self.dow.preprocess(df)
+        df = self.day.preprocess(df)
+        df = self.month.preprocess(df)
 
         nan_inf = df[self.name].isna()
         if self.min_date is None:
@@ -241,3 +254,17 @@ class TimeIndexMeta(ValueMeta):
                 min = nan_count
                 best = freq
         return best
+
+def _split_datetime(col: pd.Series):
+    """Split datetime column into separatehour, dow, day and month fields."""
+
+    if col.dtype.kind != 'M':
+        col = pd.to_datetime(col)
+
+    return pd.DataFrame({
+                f'{col.name}-hour': col.dt.hour,
+                f'{col.name}-dow': col.dt.weekday,
+                f'{col.name}-day': col.dt.day,
+                f'{col.name}-month': col.dt.month
+                })
+
