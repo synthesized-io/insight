@@ -60,7 +60,7 @@ class TwoColumnMetric(_Metric):
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs):
         dp_or_df = kwargs.get('dp')
         if dp_or_df is None:
-            dp_or_df = pd.DataFrame([sr_a, sr_b])
+            dp_or_df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
 
         if "nominal" in self.tags:
             categorical, _ = categorical_or_continuous_values(dp_or_df)
@@ -76,14 +76,14 @@ class TwoColumnMetric(_Metric):
             if sr_a.name not in continuous_columns or sr_b.name not in continuous_columns:
                 return False
 
-        if kwargs.get('continuous_input_only', False):
+        if kwargs.get('continuous_input_only', False) or "continuous_input_only" in self.tags:
             _, continuous = categorical_or_continuous_values(dp_or_df)
             continuous_columns = [v.name for v in continuous]
 
             if sr_a.name not in continuous_columns:
                 return False
 
-        if kwargs.get('categorical_output_only', False):
+        if kwargs.get('categorical_output_only', False) or "categorical_output_only" in self.tags:
             categorical, _ = categorical_or_continuous_values(dp_or_df)
             categorical_columns = [v.name for v in categorical]
 
