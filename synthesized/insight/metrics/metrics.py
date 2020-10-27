@@ -123,6 +123,7 @@ class CramersV(TwoColumnMetric):
 
 class CategoricalLogisticR2(TwoColumnMetric):
     name = "categorical_logistic_correlation"
+    tags = ["continuous_input_only", "categorical_output_only"]
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
@@ -131,7 +132,7 @@ class CategoricalLogisticR2(TwoColumnMetric):
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        df = pd.DataFrame(data=[sr_a, sr_b])
+        df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
         r2 = logistic_regression_r2(df, y_label=sr_b.name, x_labels=[sr_a.name], **kwargs)
 
         return r2
