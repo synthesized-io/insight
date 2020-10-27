@@ -77,7 +77,6 @@ class NanMeta(ValueMeta):
             if sum(~nan_inf) > 0:
                 df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
 
-
         else:
             raise TypeError(f"{type(self.value)} is not supported by NanMeta")
 

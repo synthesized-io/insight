@@ -127,10 +127,8 @@ class DateMeta(ContinuousMeta):
         else:
             df.loc[~nan_inf, self.name] = (df.loc[~nan_inf, self.name] - self.min_date).dt.total_seconds() / 86400
 
-
         df.loc[~nan_inf, :] = super().preprocess(df=df.loc[~nan_inf, :])
         return df
-
 
     def postprocess(self, df):
         df = super().postprocess(df=df)
@@ -252,6 +250,7 @@ class TimeIndexMeta(ValueMeta):
                 best = freq
         return best
 
+
 def _split_datetime(col: pd.Series):
     """Split datetime column into separatehour, dow, day and month fields."""
 
@@ -259,9 +258,8 @@ def _split_datetime(col: pd.Series):
         col = pd.to_datetime(col)
 
     return pd.DataFrame({
-                f'{col.name}-hour': col.dt.hour,
-                f'{col.name}-dow': col.dt.weekday,
-                f'{col.name}-day': col.dt.day,
-                f'{col.name}-month': col.dt.month
-                })
-
+        f'{col.name}-hour': col.dt.hour,
+        f'{col.name}-dow': col.dt.weekday,
+        f'{col.name}-day': col.dt.day,
+        f'{col.name}-month': col.dt.month
+    })
