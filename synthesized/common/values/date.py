@@ -16,17 +16,18 @@ class DateValue(ContinuousValue):
     ):
         super().__init__(name=name, config=continuous_config)
 
+        # Number of categories includes NaN category
         self.hour = CategoricalValue(
-            name=(self.name + '-hour'), num_categories=24, similarity_based=True, config=categorical_config
+            name=(self.name + '-hour'), num_categories=25, similarity_based=True, config=categorical_config
         )
         self.dow = CategoricalValue(
-            name=(self.name + '-dow'), num_categories=7, similarity_based=True, config=categorical_config
+            name=(self.name + '-dow'), num_categories=8, similarity_based=True, config=categorical_config
         )
         self.day = CategoricalValue(
-            name=(self.name + '-day'), num_categories=31, similarity_based=True, config=categorical_config
+            name=(self.name + '-day'), num_categories=32, similarity_based=True, config=categorical_config
         )
         self.month = CategoricalValue(
-            name=(self.name + '-month'), num_categories=12, similarity_based=True, config=categorical_config
+            name=(self.name + '-month'), num_categories=13, similarity_based=True, config=categorical_config
         )
 
     def specification(self):
@@ -70,5 +71,5 @@ class DateValue(ContinuousValue):
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         xs = xs[0:1]
-        loss = super().loss(y=y, xs=xs)
+        loss = super().loss(y=y, xs=xs, mask=mask)
         return loss
