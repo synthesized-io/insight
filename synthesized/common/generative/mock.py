@@ -1,7 +1,7 @@
 """Mock Synthesizer"""
 from synthesized.common.synthesizer import Synthesizer
 from synthesized.metadata import DataFrameMeta
-from typing import Optional
+from typing import Optional, Union, Callable
 import pandas as pd
 import numpy as np
 
@@ -25,10 +25,21 @@ class MockSynthesizer(Synthesizer):
     def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
         return self.df_meta.postprocess(df, max_workers=max_workers)
 
-    def learn(self, df: pd.DataFrame, **kwargs) -> None:
-        self._df = self.preprocess(df)
+    def learn(
+            self, df_train: pd.DataFrame,
+            num_iterations: Optional[int],
+            callback: Callable[[object, int, dict], bool] = None,
+            callback_freq: int = 0
+    ) -> None:
+        self._df = self.preprocess(df_train)
 
-    def synthesize(self, num_rows: int, produce_nans: bool = False, **kwargs) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int,
+            conditions: Union[dict, pd.DataFrame] = None,
+            produce_nans: bool = False,
+            progress_callback: Callable[[int], None] = None
+    ) -> pd.DataFrame:
+
         if num_rows <= 0:
             raise ValueError(f"num_rows must be greater than zero, not {num_rows}.")
 
