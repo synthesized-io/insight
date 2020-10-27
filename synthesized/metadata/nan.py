@@ -47,7 +47,12 @@ class NanMeta(ValueMeta):
 
         column = df[self.value.name]
         if column.dtype.kind not in self.value.pd_types:
-            column = self.value.pd_cast(column)
+            if type(self.value) is DateMeta:
+                column = self.value.to_datetime(column)
+            elif type(self.value) is ContinuousMeta:
+                column = self.value.pd_cast(column)
+            else:
+                raise TypeError(f"{type(self.value)} is not supported by NanMeta")
 
         try:
             df_clean = df[(~column.isin([np.Inf, -np.Inf])) & column.notna()]
@@ -59,22 +64,24 @@ class NanMeta(ValueMeta):
         self.value.extract(df=df_clean)
 
     def preprocess(self, df):
-        #df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
-        df.loc[:, self.value.name] = self.value.pd_cast(df.loc[:, self.value.name])
 
-        if df[self.value.name].dtype.kind == 'M':
+        if type(self.value) is DateMeta:
             df = self.value.preprocess(df)
             # convert NaT to NaN
             df.loc[df[self.value.name].isna(), self.value.name] = np.nan
 
-        else:
+        elif isinstance(self.value, ContinuousMeta):
+            df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
             nan_inf = df.loc[:, self.value.name].isna() | df.loc[:, self.value.name].isin([np.Inf, -np.Inf])
 
             if sum(~nan_inf) > 0:
                 df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
 
-        df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
 
+        else:
+            raise TypeError(f"{type(self.value)} is not supported by NanMeta")
+
+        df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
         return super().preprocess(df=df)
 
     def postprocess(self, df):
