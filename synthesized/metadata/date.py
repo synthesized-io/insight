@@ -24,13 +24,10 @@ class DateMeta(ContinuousMeta):
         self.date_format: Optional[str] = None
         self.original_dtype = None
 
-        self.hour = CategoricalMeta(name=(self.name + '-hour'), categories=list(range(24)), similarity_based=True)
-        self.dow = CategoricalMeta(name=(self.name + '-dow'), categories=list(range(7)), similarity_based=True)
-        self.day = CategoricalMeta(name=(self.name + '-day'), categories=list(range(31)), similarity_based=True)
-        self.month = CategoricalMeta(name=(self.name + '-month'), categories=list(range(12)), similarity_based=True)
-
-    def pd_cast(self, col: pd.Series) -> pd.Series:
-        return self.to_datetime(col)
+        self.hour = CategoricalMeta(name=(self.name + '-hour'), similarity_based=True)
+        self.dow = CategoricalMeta(name=(self.name + '-dow'), similarity_based=True)
+        self.day = CategoricalMeta(name=(self.name + '-day'), similarity_based=True)
+        self.month = CategoricalMeta(name=(self.name + '-month'), similarity_based=True)
 
     def specification(self):
         spec = super().specification()
