@@ -127,7 +127,8 @@ class DateMeta(ContinuousMeta):
         else:
             df.loc[~nan_inf, self.name] = (df.loc[~nan_inf, self.name] - self.min_date).dt.total_seconds() / 86400
 
-        df.loc[~nan_inf, :] = super().preprocess(df=df.loc[~nan_inf, :])
+        if sum(~nan_inf) > 0:
+            df.loc[~nan_inf, :] = super().preprocess(df=df.loc[~nan_inf, :])
         return df
 
     def postprocess(self, df):
