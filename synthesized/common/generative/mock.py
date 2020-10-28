@@ -1,9 +1,11 @@
 """Mock Synthesizer"""
-from synthesized.common.synthesizer import Synthesizer
-from synthesized.metadata import DataFrameMeta
 from typing import Optional, Union, Callable
+
 import pandas as pd
 import numpy as np
+
+from ..synthesizer import Synthesizer
+from ...metadata import DataFrameMeta
 
 
 class MockSynthesizer(Synthesizer):
