@@ -89,6 +89,7 @@ jobs:
             done;
 
 workflows:
+  version: 2
   build-test-publish:
     jobs:
       - build
