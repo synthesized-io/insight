@@ -89,13 +89,12 @@ jobs:
             done;
 
 workflows:
-  version: 2
   build-test-publish:
     jobs:
       - build
       - test:
-        requires:
-          - build
+          requires:
+            - build
       - publish:
-        requires:
-          - test
+          requires:
+            - test
