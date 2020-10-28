@@ -79,9 +79,7 @@ class DateMeta(ContinuousMeta):
         )
         for date_format in formats:
             try:
-                def str_to_datetime(in_datetime):
-                    return datetime.strptime(in_datetime, date_format)
-                col = col.apply(str_to_datetime)
+                col.apply(lambda x: datetime.strptime(x, date_format))
                 self.date_format = date_format
                 break
             except ValueError:
@@ -90,7 +88,9 @@ class DateMeta(ContinuousMeta):
                 break
 
         has_nans = col.isna().any()
-        if not self.date_format or has_nans:
+        if not has_nans and self.date_format:
+            col = col.apply(lambda x: datetime.strptime(x, self.date_format))
+        elif not self.date_format or has_nans:
             return pd.to_datetime(col, format=self.date_format)
         return col
 
