@@ -55,7 +55,9 @@ class KendellTauCorrelation(TwoColumnMetric):
         if not super().check_column_types(sr_a, sr_b, **kwargs):
             return None
 
-        corr, p_value = kendalltau(sr_a.values, sr_b.values)
+        sr_a = pd.to_numeric(sr_a, errors='coerce')
+        sr_b = pd.to_numeric(sr_b, errors='coerce')
+        corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
 
         if p_value <= kwargs.get('max_p_value', 1.0):
             return corr
