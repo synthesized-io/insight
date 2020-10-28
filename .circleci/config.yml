@@ -45,7 +45,7 @@ jobs:
     steps:
       # Reuse the workspace from the build job
       - attach_workspace:
-        at: .
+          at: .
 
       - run:
           name: Linter
@@ -71,7 +71,7 @@ jobs:
     steps:
       # Reuse the workspace from the build job
       - attach_workspace:
-        at: .
+          at: .
 
       - run:
           name: Package
