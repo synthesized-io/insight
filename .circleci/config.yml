@@ -39,10 +39,10 @@ jobs:
             - .
 
   test:
-    - docker:
+    docker:
         - image: circleci/python:3.6.9
 
-    - steps:
+    steps:
       # Reuse the workspace from the build job
       - attach_workspace:
         at: .
