@@ -296,6 +296,12 @@ class MetaExtractor:
                     assert date_data.dtype.kind == 'M'
                     value = DateMeta(name)
                     reason = "Column dtype is 'O' and convertable to datetime. "
+
+                    # deal with NaT (do we need to deal with inf)?
+                    if num_nan:
+                        value = NanMeta(name, value)
+                        reason += " And contains NaTs. "
+
             except (ValueError, TypeError, OverflowError):
                 pass
 

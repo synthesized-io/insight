@@ -5,6 +5,7 @@ import pandas as pd
 
 from .continuous import ContinuousMeta
 from .value_meta import ValueMeta
+from .date import DateMeta
 
 
 class NanMeta(ValueMeta):
@@ -46,19 +47,40 @@ class NanMeta(ValueMeta):
 
         column = df[self.value.name]
         if column.dtype.kind not in self.value.pd_types:
-            column = self.value.pd_cast(column)
-        df_clean = df[(~column.isin([np.Inf, -np.Inf])) & column.notna()]
+            if type(self.value) is DateMeta:
+                column = self.value.to_datetime(column)
+            elif type(self.value) is ContinuousMeta:
+                column = self.value.pd_cast(column)
+            else:
+                raise TypeError(f"{type(self.value)} is not supported by NanMeta")
+
+        try:
+            df_clean = df[(~column.isin([np.Inf, -np.Inf])) & column.notna()]
+        except OverflowError:
+            # comparing date to inf throws an OverflowError
+            # catch exception when column is datetime
+            df_clean = df[column.notna()]
 
         self.value.extract(df=df_clean)
 
     def preprocess(self, df):
-        df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
 
-        nan_inf = df.loc[:, self.value.name].isna() | df.loc[:, self.value.name].isin([np.Inf, -np.Inf])
-        if sum(~nan_inf) > 0:
-            df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
+        if type(self.value) is DateMeta:
+            df = self.value.preprocess(df)
+            # convert NaT to NaN
+            df.loc[df[self.value.name].isna(), self.value.name] = np.nan
+
+        elif isinstance(self.value, ContinuousMeta):
+            df.loc[:, self.value.name] = pd.to_numeric(df.loc[:, self.value.name], errors='coerce')
+            nan_inf = df.loc[:, self.value.name].isna() | df.loc[:, self.value.name].isin([np.Inf, -np.Inf])
+
+            if sum(~nan_inf) > 0:
+                df.loc[~nan_inf, :] = self.value.preprocess(df=df.loc[~nan_inf, :])
+
+        else:
+            raise TypeError(f"{type(self.value)} is not supported by NanMeta")
+
         df.loc[:, self.value.name] = df.loc[:, self.value.name].astype(np.float32)
-
         return super().preprocess(df=df)
 
     def postprocess(self, df):
