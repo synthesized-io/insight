@@ -10,10 +10,11 @@ from synthesized.testing.utils import testing_progress_bar
     "file_name,sensitive_attributes,target",
     [
         pytest.param("data/credit_with_categoricals.csv", ["age"], "SeriousDlqin2yrs", id="binary_target"),
-        pytest.param("data/credit_with_categoricals.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines", id="continuous_target"),
+        pytest.param("data/credit_with_categoricals.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines",
+                     id="continuous_target"),
         pytest.param("data/credit_with_categoricals.csv", ["age"], "effort", id="multiple_categories_target"),
         pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
-                     id="claim_multiple_attrs"),
+                     id="claim_prediction"),
         pytest.param("data/templates/claim_prediction.csv", [], "insuranceclaim", id="no_sensitive_attrs"),
     ]
 )
@@ -36,7 +37,7 @@ def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target):
 
 @pytest.mark.slow
 def test_fairness_scorer_detect_sensitive():
-    data = pd.read_csv('data/templates/claim_prediction.csv')
+    data = pd.read_csv("data/templates/claim_prediction.csv")
     target = "insuranceclaim"
 
     fairness_scorer = FairnessScorer.init_detect_sensitive(data, target=target)
@@ -50,3 +51,11 @@ def test_fairness_scorer_detect_sensitive():
 
     assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
     assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
+
+
+@pytest.mark.fast
+def test_detect_sensitive():
+    attrs = ["i", "love", "sex", "in", "any", "location"]
+
+    sensitive_attrs = FairnessScorer.detect_sensitive_attrs(attrs)
+    assert sensitive_attrs == ["sex", "location"]

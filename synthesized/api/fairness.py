@@ -40,13 +40,13 @@ class FairnessScorer:
                                                 detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
 
     def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
-                            mode: str = 'emd', max_combinations: Optional[int] = 3,
+                            max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
 
         return self._fairness_scorer.distributions_score(min_dist=min_dist, min_count=min_count, weighted=weighted,
-                                                         mode=mode, max_combinations=max_combinations,
+                                                         max_combinations=max_combinations,
                                                          progress_callback=progress_callback)
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,

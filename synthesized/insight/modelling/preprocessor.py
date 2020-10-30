@@ -127,6 +127,13 @@ class ModellingPreprocessor:
         self.fit(data)
         return self.transform(data)
 
+    @property
+    def processed_columns(self):
+        if not self.is_fitted:
+            raise ValueError("Preprocessor has not been fit yet. Call 'fit()' before accessing 'processed_columns'")
+
+        return np.concatenate([self.columns_mapping.values()])
+
     @classmethod
     def preprocess(cls, data: pd.DataFrame, target: Optional[str], dp: DataFrameMeta = None) -> pd.DataFrame:
         preprocessor = cls(target=target, dp=dp)
