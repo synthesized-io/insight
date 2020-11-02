@@ -1,14 +1,19 @@
 from typing import Type, Union, List, Optional
 from collections import defaultdict, OrderedDict
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
+from value_meta import ValueMeta
+from .date import DateMeta
+from .categorical import CategoricalMeta
+from .continuous import ContinuousMeta
 
 # Can each ValueMeta have multiple transformers?
-# Transformers should transform DataFrameMeta too? 
+# Transformers should transform DataFrameMeta too?
 # Then call extract? Quite complex recursive..
 
 class Transformer(TransformerMixin):
@@ -56,6 +61,10 @@ class Transformer(TransformerMixin):
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
         raise NotImplementedError
 
+    @classmethod
+    def from_meta(cls, meta: ValueMeta, **kwargs):
+        raise NotImplementedError
+
 class QuantileTransformer(Transformer):
     """
     Transform a continuous distribution using the quantile transform.
@@ -73,6 +82,8 @@ class QuantileTransformer(Transformer):
         self.noise = noise
 
     def fit(self, x: pd.DataFrame) -> Transformer:
+        if len(x) < self._transformer.n_quantiles:
+            self._transformer = self._transformer.set_params(n_quantiles=len(x))
         self._transformer.fit(x[[self.name]])
         return self
 
@@ -86,10 +97,16 @@ class QuantileTransformer(Transformer):
         x[self.name] = self._transformer.inverse_transform(x[[self.name]])
         return x
 
+    @classmethod
+    def from_meta(cls, meta, **kwargs):
+        if not isinstance(meta, ContinuousMeta):
+            raise TypeError(f"'{cls}' can only be instantiated from ContinuousMeta, not '{type(meta)}'")
+        return cls(meta.name, **kwargs)
+
 
 class CategoricalTransformer(Transformer):
     """
-    Map nominal values into integers.
+    Map nominal values onto integers.
 
     Attributes:
         name (str) : the data frame column to transform.
@@ -107,6 +124,11 @@ class CategoricalTransformer(Transformer):
         if self.categories is None:
             self.categories = x[self.name].unique()
 
+        try:
+            self.categories = list(sorted(self.categories))
+        except TypeError:
+            pass
+
         for idx, cat in enumerate(self.categories):
             self.category_to_idx[cat] = idx+1
             self.idx_to_category[idx+1] = cat
@@ -120,6 +142,12 @@ class CategoricalTransformer(Transformer):
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
         x[self.name] = x[self.name].apply(lambda x: self.idx_to_category[x])
         return x
+
+    @classmethod
+    def from_meta(cls, meta):
+        if not isinstance(meta, CategoricalMeta):
+            raise TypeError(f"'{cls}' can only be instantiated from CategoricalMeta, not '{type(meta)}'")
+        return cls(meta.name, meta.categories)
 
 class DateTransformer(Transformer):
     """
@@ -136,9 +164,11 @@ class DateTransformer(Transformer):
     def fit(self, x: pd.DataFrame) -> 'Transformer':
 
         x = x[self.name]
+
+        if self.date_format is None:
+            self.date_format = get_date_format(x)
         if x.dtype.kind != 'M':
             x = pd.to_datetime(x, format=self.date_format)
-
         if self.start_date is None:
             self.start_date = x.min()
 
@@ -151,8 +181,14 @@ class DateTransformer(Transformer):
         return x
 
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = (pd.to_timedelta(x[self.name], unit=self.unit) + self.start_date).astype(str)
+        x[self.name] = (pd.to_timedelta(x[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
         return x
+
+    @classmethod
+    def from_meta(cls, meta, **kwargs):
+        if not isinstance(meta, DateMeta):
+            raise TypeError(f"'{cls}' can only be instantiated from DateMeta, not '{type(meta)}'")
+        return cls(meta.name, meta.date_format, start_date=meta.start_date, **kwargs)
 
 class DateCategoricalTransformer(Transformer):
     """
@@ -172,6 +208,8 @@ class DateCategoricalTransformer(Transformer):
     def fit(self, x: pd.DataFrame) -> 'Transformer':
 
         x = x[self.name]
+        if self.date_format is None:
+            self.date_format = get_date_format(x)
         x = self.split_datetime(x)
 
         for transformer in self._transformers.values():
@@ -195,6 +233,12 @@ class DateCategoricalTransformer(Transformer):
                 f'{self.name}_day', f'{self.name}_month'], inplace=True)
         return x
 
+    @classmethod
+    def from_meta(cls, meta, **kwargs):
+        if not isinstance(meta, DateMeta):
+            raise TypeError(f"'{cls}' can only be initialised from DateMeta, not '{type(meta)}'")
+        return cls(meta.name, meta.date_format, **kwargs)
+
     def split_datetime(self, col: pd.Series) -> pd.DataFrame:
         """Split datetime column into separate hour, dow, day and month fields."""
 
@@ -208,12 +252,80 @@ class DateCategoricalTransformer(Transformer):
             f'{col.name}_month': col.dt.month
         })
 
+class DataFrameTransformer(Transformer):
+    """Transform an entire data frame.
 
+    Uses data frame meta values and configuration parameters
+    to assign transformers to each column.
 
+    Attributes:
+        data_frame_meta (DataFrameMeta) : output of DataFrameMeta.extract
+        config: (dict) : configuration
+    """
+
+    def __init__(self, data_frame_meta, config):
+        self.data_frame_meta = data_frame_meta
+        self.config = config
+        self.transformers = OrderedDict()
+
+    def _create_transformers(self) -> None:
+
+        column_meta = self.data_frame_meta.compute_value_map()
+
+        for name, meta in column_meta.items():
+            transformers = self.config['meta'][meta.__class__.__name__]
+
+            self.transformers[name] = []
+            for idx, transformer in enumerate(transformers):
+                try:
+                    kwargs = self.config[transformer]
+                except KeyError:
+                    kwargs = {}
+
+                if meta.name != name:
+                    raise ValueError
+                self.transformers[name].append(transformer.from_meta(meta, **kwargs))
+
+    def fit(self, x: pd.DataFrame) -> 'Transformer':
+        self._create_transformers()
+        return self
+
+    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        for name, transformers in self.transformers.items():
+            for transformer in transformers:
+                transformer = transformer.fit(x)
+                x = transformer.transform(x)
+        return x
+
+    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        for name, transformers in self.transformers.items():
+            for transformer in reversed(transformers):
+                x = transformer.inverse_transform(x)
+        return x
 
 #class NanTransformer(Transformer):
 #    """Creates a Boolean field to indicate the presence of a NaN value."""
 #
 #    def __init__
 
+
+def get_date_format(x: pd.Series) -> pd.Series:
+    """Infer date format."""
+    formats = (
+            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
+            '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
+            '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
+            '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
+    )
+    parsed_format = None
+    for date_format in formats:
+        try:
+            x = x.apply(lambda x: datetime.strptime(x, date_format))
+            parsed_format = date_format
+        except ValueError:
+            pass
+        except TypeError:
+            break
+
+    return parsed_format
 
