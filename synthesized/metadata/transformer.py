@@ -1,5 +1,5 @@
 from typing import Type, Union, List, Optional
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import pandas as pd
 import numpy as np
@@ -28,6 +28,24 @@ class Transformer(TransformerMixin):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
+        self._transformers = OrderedDict()
+
+    def register_transformer(self, name: str, transformer: 'Transformer') -> None:
+        if not isinstance(transformer, Transformer):
+            raise TypeError(f"cannot assign '{type(transformer)}' object to transformer '{name}'",
+                    "(synthesized.metadata.transformer.Transformer required)")
+        self._transformers[name] = transformer
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if isinstance(value, Transformer):
+            self.register_transformer(name, value)
+        object.__setattr__(self, name, value)
+
+    def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
+        if not inverse:
+            return self.transform(x)
+        else:
+            return self.inverse_transform(x)
 
     def fit(self, x: [pd.Series, pd.DataFrame]) -> 'Transformer':
         return self
@@ -105,59 +123,85 @@ class CategoricalTransformer(Transformer):
 
 class DateTransformer(Transformer):
     """
-    Transform datetime fields.
-
-    Extracts hour, day-of-week, day and month from a datetime
+    Transform datetime64 field to a continuous representation.
+    Values are normalised to a timedelta relative to first datetime in data.
     """
 
-    def __init__(self, name: str, date_format: str = None,
-            continuous_transformer: Type[Transformer] = QuantileTransformer,
-            continuous_transformer_kwargs: dict = {},
-            categorical_transformer: Type[Transformer] = CategoricalTransformer,
-            categorical_transformer_kwargs: dict = {}):
-        super().__init__(name=name)
+    def __init__(self, name: str, date_format: str = None, unit: str = 'days', start_date: str = None):
+        super().__init__(name)
         self.date_format = date_format
-        self.transformers = {
-                f'{self.name}': continuous_transformer(f'{self.name}', **continuous_transformer_kwargs),
-                f'{self.name}_hour': categorical_transformer(f'{self.name}_hour', **categorical_transformer_kwargs),
-                f'{self.name}_dow': categorical_transformer(f'{self.name}_dow', **categorical_transformer_kwargs),
-                f'{self.name}_day': categorical_transformer(f'{self.name}_day', **categorical_transformer_kwargs),
-                f'{self.name}_month': categorical_transformer(f'{self.name}_month', **categorical_transformer_kwargs),
-        }
+        self.unit = unit
+        self.start_date = start_date
 
     def fit(self, x: pd.DataFrame) -> 'Transformer':
+
         x = x[self.name]
         if x.dtype.kind != 'M':
-            x = pd.to_datetime(x, self.date_format)
-        date_df = self.split_datetime(x)
-        date_df[self.name] = self.normalise_datetime(x)
-        for transformer in self.transformers.values():
-            transformer.fit(date_df)
+            x = pd.to_datetime(x, format=self.date_format)
+
+        if self.start_date is None:
+            self.start_date = x.min()
+
+        return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+        if x[self.name].dtype.kind != 'M':
+            x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+        x[self.name] = (x[self.name] - self.start_date).dt.components[self.unit]
+        return x
+
+    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x[self.name] = (pd.to_timedelta(x[self.name], unit=self.unit) + self.start_date).astype(str)
+        return x
+
+class DateCategoricalTransformer(Transformer):
+    """
+    Creates hour, day-of-week, day and month values from a datetime, and
+    transforms using CategoricalTransformer.
+    """
+
+    def __init__(self, name: str, date_format: str = None):
+        super().__init__(name=name)
+        self.date_format = date_format
+
+        self.hour_transform = CategoricalTransformer(f'{self.name}_hour')
+        self.dow_transform = CategoricalTransformer(f'{self.name}_dow')
+        self.day_transform = CategoricalTransformer(f'{self.name}_day')
+        self.month_transform = CategoricalTransformer(f'{self.name}_month')
+
+    def fit(self, x: pd.DataFrame) -> 'Transformer':
+
+        x = x[self.name]
+        x = self.split_datetime(x)
+
+        for transformer in self._transformers.values():
+            transformer.fit(x)
+
+        return self
+
+    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+
+        if x[self.name].dtype.kind != 'M':
+            x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+
         x = pd.concat((x, self.split_datetime(x[self.name])), axis=1)
-        return x
-        x[self.name] = self.normalise_datetime(x[self.name])
-        return x
-        for transformer in self.transformers.values():
+
+        for transformer in self._transformers.values():
             x = transformer.transform(x)
         return x
 
-    @staticmethod
-    def normalise_datetime(col: pd.Series) -> pd.Series:
-        """Normalise datetime series to number of days relative to the first date"""
-        return (col - col.min()).dt.days
+    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
+                f'{self.name}_day', f'{self.name}_month'], inplace=True)
+        return x
 
-    @staticmethod
-    def split_datetime(col: pd.Series) -> pd.DataFrame:
+    def split_datetime(self, col: pd.Series) -> pd.DataFrame:
         """Split datetime column into separate hour, dow, day and month fields."""
 
         if col.dtype.kind != 'M':
-            col = pd.to_datetime(col)
+            col = pd.to_datetime(col, format=self.date_format)
 
         return pd.DataFrame({
-            f'{col.name}': col,
             f'{col.name}_hour': col.dt.hour,
             f'{col.name}_dow': col.dt.weekday,
             f'{col.name}_day': col.dt.day,
