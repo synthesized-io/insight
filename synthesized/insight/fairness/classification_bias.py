@@ -93,13 +93,13 @@ class ClassificationBias:
             metrics_to_compute = ['roc_auc', 'roc_curve', 'confusion_matrix']
 
             results = []
-            for clf_name, clf_name in classifiers.items():
+            for clf_name, clf in classifiers.items():
 
                 results_i = classifier_scores_from_df(
                     df_train=self.df_pre.iloc[self.train_idx][columns_pre],
                     df_test=self.df_pre.iloc[test][columns_pre],
                     target=self.target,
-                    clf=clf_name,
+                    clf=clf,
                     metrics=metrics_to_compute,
                     return_predicted=True
                 )

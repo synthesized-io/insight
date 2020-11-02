@@ -50,7 +50,6 @@ class FairnessScorer:
             detect_hidden: Whether to try to detect sensitive attributes from hidden correlations with other sensitive
                 attributes.
         """
-        self.df = df.copy()
         if isinstance(sensitive_attrs, list):
             self.sensitive_attrs: List[str] = sensitive_attrs
         elif isinstance(sensitive_attrs, str):
@@ -94,10 +93,24 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.df.dropna(inplace=True)
-        self.binarize_columns(self.df)
+        self.set_df(df)
+
         self.values_str_to_list: Dict[str, List] = dict()
         self.names_str_to_list: Dict[str, List] = dict()
+
+    def set_df(self, df: pd.DataFrame):
+        if not all(c in df.columns for c in self.sensitive_attrs_and_target):
+            raise ValueError("Given DF must contain same columns as initial DF.")
+
+        self.df = df.copy()
+        self.df.dropna(inplace=True)
+        self.binarize_columns(self.df)
+
+        # Majority class is the reference. If a sub-sample has a larger proportion of majority class,
+        #   it will have negative bias and vice versa
+        target_vc = self.df[self.target].value_counts(normalize=True)
+        self.majority_class = target_vc.idxmax()
+        self.majority_class_rate = target_vc[self.majority_class]
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
@@ -109,7 +122,7 @@ class FairnessScorer:
     def sensitive_attrs_and_target(self) -> List[str]:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
-    def distributions_score(self, min_dist: float = 0.1, min_count: float = 50, weighted: bool = False,
+    def distributions_score(self, min_dist: float = 0.1, min_count: float = 100, weighted: bool = False,
                             mode: Optional[str] = None, max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
@@ -386,7 +399,7 @@ class FairnessScorer:
 
         df_count['Distance'] = 0.
         for idx in df_count.index:
-            df_count['Distance'][idx] = df_count['Rate'][idx] - df_count['Rate']['Total']
+            df_count['Distance'][idx] = df_count['Rate']['Total'] - df_count['Rate'][idx]
         df_count.drop('Total', inplace=True)
         return df_count
 
