@@ -303,11 +303,22 @@ class DataFrameTransformer(Transformer):
                 x = transformer.inverse_transform(x)
         return x
 
-#class NanTransformer(Transformer):
-#    """Creates a Boolean field to indicate the presence of a NaN value."""
-#
-#    def __init__
+class NanTransformer(Transformer):
+    """Creates a Boolean field to indicate the presence of a NaN value."""
 
+    def __init__(self, name: str):
+        self.name = name
+
+    def fit(self, x: pd.DataFrame) -> 'Transformer':
+        return self
+
+    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x[f'{self.name}_nan'] = x.isna().astype(int)
+        return x
+
+    def inverse_transform(self, x:pd.DataFrame) -> pd.DataFrame:
+        x.drop(columns=[f'{self.name}_nan'], inplace=True)
+        return x
 
 def get_date_format(x: pd.Series) -> pd.Series:
     """Infer date format."""
