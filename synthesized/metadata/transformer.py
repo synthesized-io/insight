@@ -1,4 +1,4 @@
-from typing import Type, Union, List, Optional
+from typing import List, Optional
 from collections import defaultdict, OrderedDict
 from datetime import datetime
 
@@ -11,10 +11,9 @@ from value_meta import ValueMeta
 from .date import DateMeta
 from .categorical import CategoricalMeta
 from .continuous import ContinuousMeta
+from .data_frame import DataFrameMeta
+from .nan import NanMeta
 
-# Can each ValueMeta have multiple transformers?
-# Transformers should transform DataFrameMeta too?
-# Then call extract? Quite complex recursive..
 
 class Transformer(TransformerMixin):
     """
@@ -29,7 +28,7 @@ class Transformer(TransformerMixin):
           transformation, defaults to None.
     """
 
-    def __init__(self, name: str, dtypes: Optional[List]=None):
+    def __init__(self, name: str, dtypes: Optional[List] = None):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
@@ -38,7 +37,7 @@ class Transformer(TransformerMixin):
     def register_transformer(self, name: str, transformer: 'Transformer') -> None:
         if not isinstance(transformer, Transformer):
             raise TypeError(f"cannot assign '{type(transformer)}' object to transformer '{name}'",
-                    "(synthesized.metadata.transformer.Transformer required)")
+                            "(synthesized.metadata.transformer.Transformer required)")
         self._transformers[name] = transformer
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -63,7 +62,8 @@ class Transformer(TransformerMixin):
 
     @classmethod
     def from_meta(cls, meta: ValueMeta, **kwargs):
-        raise NotImplementedError
+        return cls(meta.name, **kwargs)
+
 
 class QuantileTransformer(Transformer):
     """
@@ -71,12 +71,12 @@ class QuantileTransformer(Transformer):
 
     Attributes:
         name (str) : the data frame column to transform.
-	n_quantiles (int, optional). Number of quantiles to compute, defaults to 1000.
-	output_distribution (str). Marginal distribution for the transformed data.
-          Either 'uniform' or 'normal', defaults to 'normal'.
+        n_quantiles (int, optional). Number of quantiles to compute, defaults to 1000.
+        output_distribution (str). Marginal distribution for the transformed data.
+            Either 'uniform' or 'normal', defaults to 'normal'.
     """
 
-    def __init__(self, name: str, n_quantiles: int = 1000, output_distribution: str ='normal', noise: float = 1e-7):
+    def __init__(self, name: str, n_quantiles: int = 1000, output_distribution: str = 'normal', noise: float = 1e-7):
         super().__init__(name=name)
         self._transformer = _QuantileTransformer(n_quantiles, output_distribution)
         self.noise = noise
@@ -84,13 +84,25 @@ class QuantileTransformer(Transformer):
     def fit(self, x: pd.DataFrame) -> Transformer:
         if len(x) < self._transformer.n_quantiles:
             self._transformer = self._transformer.set_params(n_quantiles=len(x))
+
+        if self.noise:
+            x[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(x)))
+
         self._transformer.fit(x[[self.name]])
         return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         if self.noise:
             x[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(x)))
+
+        positive = (x[self.name] > 0.0).all()
+        nonnegative = (x[self.name] >= 0.0).all()
+
+        if nonnegative and not positive:
+            x[self.name] = np.maximum(x[self.name], 0.001)
+
         x[self.name] = self._transformer.transform(x[[self.name]])
+
         return x
 
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
@@ -110,7 +122,7 @@ class CategoricalTransformer(Transformer):
 
     Attributes:
         name (str) : the data frame column to transform.
-	categories (list, optional). list of unique categories, defaults to None
+        categories (list, optional). list of unique categories, defaults to None
             If None, categories are extracted from the data.
     """
 
@@ -118,24 +130,36 @@ class CategoricalTransformer(Transformer):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
-        self.category_to_idx = defaultdict(lambda : 0)
+        self.category_to_idx = defaultdict(lambda: 0)
 
     def fit(self, x: pd.DataFrame) -> 'Transformer':
+
         if self.categories is None:
-            self.categories = x[self.name].unique()
+            categories = x[self.name].unique()
+        else:
+            categories = np.array(self.categories)
 
         try:
-            self.categories = list(sorted(self.categories))
+            categories.sort()
         except TypeError:
             pass
 
-        for idx, cat in enumerate(self.categories):
-            self.category_to_idx[cat] = idx+1
-            self.idx_to_category[idx+1] = cat
+        # check for NaN and delete to put at front of category array
+        try:
+            categories = np.delete(categories, np.isnan(categories))
+        except TypeError:
+            pass
+        categories = np.array([np.nan, *categories])
+
+        for idx, cat in enumerate(categories[1:]):
+            self.category_to_idx[cat] = idx + 1
+            self.idx_to_category[idx + 1] = cat
 
         return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
+        x.loc[x[self.name].isna(), self.name] = x[self.name].astype(str)
         x[self.name] = x[self.name].apply(lambda x: self.category_to_idx[x])
         return x
 
@@ -148,6 +172,7 @@ class CategoricalTransformer(Transformer):
         if not isinstance(meta, CategoricalMeta):
             raise TypeError(f"'{cls}' can only be instantiated from CategoricalMeta, not '{type(meta)}'")
         return cls(meta.name, meta.categories)
+
 
 class DateTransformer(Transformer):
     """
@@ -190,6 +215,7 @@ class DateTransformer(Transformer):
             raise TypeError(f"'{cls}' can only be instantiated from DateMeta, not '{type(meta)}'")
         return cls(meta.name, meta.date_format, start_date=meta.start_date, **kwargs)
 
+
 class DateCategoricalTransformer(Transformer):
     """
     Creates hour, day-of-week, day and month values from a datetime, and
@@ -230,7 +256,7 @@ class DateCategoricalTransformer(Transformer):
 
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
         x.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
-                f'{self.name}_day', f'{self.name}_month'], inplace=True)
+                        f'{self.name}_day', f'{self.name}_month'], inplace=True)
         return x
 
     @classmethod
@@ -252,42 +278,73 @@ class DateCategoricalTransformer(Transformer):
             f'{col.name}_month': col.dt.month
         })
 
-class DataFrameTransformer(Transformer):
-    """Transform an entire data frame.
 
-    Uses data frame meta values and configuration parameters
-    to assign transformers to each column.
+class NanTransformer(Transformer):
+    """Creates a Boolean field to indicate the presence of a NaN value."""
 
-    Attributes:
-        data_frame_meta (DataFrameMeta) : output of DataFrameMeta.extract
-        config: (dict) : configuration
-    """
+    def __init__(self, name: str):
+        self.name = name
 
-    def __init__(self, data_frame_meta, config):
+    def fit(self, x: pd.DataFrame) -> 'Transformer':
+        return self
+
+    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x[f'{self.name}_nan'] = x[self.name].isna().astype(int)
+        return x
+
+    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x.drop(columns=[f'{self.name}_nan'], inplace=True)
+        return x
+
+    @classmethod
+    def from_meta(cls, meta: ValueMeta) -> 'Transformer':
+        return cls(meta.name)
+
+
+class TransformerFactory():
+    def __init__(self, data_frame_meta: DataFrameMeta, transformer_config=None):
+
         self.data_frame_meta = data_frame_meta
-        self.config = config
-        self.transformers = OrderedDict()
 
-    def _create_transformers(self) -> None:
+        if transformer_config is None:
+            self.config = meta_transformer_config
+        else:
+            self.config = transformer_config
 
+    def create_transformers(self):
+        transformers = OrderedDict()
         column_meta = self.data_frame_meta.compute_value_map()
 
         for name, meta in column_meta.items():
-            transformers = self.config['meta'][meta.__class__.__name__]
+            transformers[name] = []
 
-            self.transformers[name] = []
-            for idx, transformer in enumerate(transformers):
+            if isinstance(meta, NanMeta):
+                meta = meta.value
+                transformers[name].append(NanTransformer.from_meta(meta))
+
+            meta_transformers = self.config['meta'][meta.__class__.__name__]
+
+            for idx, transformer in enumerate(meta_transformers):
                 try:
-                    kwargs = self.config[transformer]
+                    kwargs = self.config[f'{name}.{transformer}']
                 except KeyError:
                     kwargs = {}
 
-                if meta.name != name:
-                    raise ValueError
-                self.transformers[name].append(transformer.from_meta(meta, **kwargs))
+                transformers[name].append(transformer.from_meta(meta, **kwargs))
+
+        return transformers
+
+
+class DataFrameTransformer(Transformer):
+
+    def __init__(self, data_frame_meta, factory=TransformerFactory, config=None):
+        self.data_frame_meta = data_frame_meta
+        self.config = config
+        self._factory = factory(data_frame_meta, config)
+        self.transformers = OrderedDict()
 
     def fit(self, x: pd.DataFrame) -> 'Transformer':
-        self._create_transformers()
+        self.transformers = self._factory.create_transformers()
         return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
@@ -303,30 +360,14 @@ class DataFrameTransformer(Transformer):
                 x = transformer.inverse_transform(x)
         return x
 
-class NanTransformer(Transformer):
-    """Creates a Boolean field to indicate the presence of a NaN value."""
-
-    def __init__(self, name: str):
-        self.name = name
-
-    def fit(self, x: pd.DataFrame) -> 'Transformer':
-        return self
-
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[f'{self.name}_nan'] = x.isna().astype(int)
-        return x
-
-    def inverse_transform(self, x:pd.DataFrame) -> pd.DataFrame:
-        x.drop(columns=[f'{self.name}_nan'], inplace=True)
-        return x
 
 def get_date_format(x: pd.Series) -> pd.Series:
     """Infer date format."""
     formats = (
-            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
-            '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
-            '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
-            '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
+        '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
+        '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
+        '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
+        '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
     )
     parsed_format = None
     for date_format in formats:
@@ -340,3 +381,22 @@ def get_date_format(x: pd.Series) -> pd.Series:
 
     return parsed_format
 
+
+meta_transformer_config = {
+    'meta': {
+        'ContinuousMeta': [QuantileTransformer],
+        'CategoricalMeta': [CategoricalTransformer],
+        'DateMeta': [DateCategoricalTransformer, DateTransformer, QuantileTransformer]
+    },
+    'ContinuousMeta.QuantileTransformer': {
+        'n_quantiles': 1000,
+        'distribution': 'normal'
+    },
+    'DateMeta.DateTransformer': {
+        'unit': 'days'
+    },
+    'DateMeta.QuantileTransformer': {
+        'n_quantiles': 1000,
+        'distribution': 'normal'
+    },
+}
