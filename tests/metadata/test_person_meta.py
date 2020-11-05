@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 from synthesized.metadata import PersonMeta
-from synthesized.config import PersonMetaConfig
 
 logger = logging.getLogger(__name__)
 
