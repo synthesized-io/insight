@@ -53,7 +53,7 @@ class ClassificationBias:
 
         self.tests = {'All': test.index}
         for sensitive_values, indices in df.groupby(self.sensitive_attrs).indices.items():
-            if min_count is not None and len(indices) <= min_count:
+            if min_count is not None and len(indices) < min_count:
                 continue
 
             self.tests[sensitive_values] = indices

@@ -90,7 +90,7 @@ class FairnessScorer:
 
         # Detect hidden correlations
         if detect_hidden:
-            corr = self.other_correlations()
+            corr = self.other_correlations(df)
             for new_sensitive_attr, _, _ in corr:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
                 self.add_sensitive_attr(new_sensitive_attr)
@@ -105,13 +105,15 @@ class FairnessScorer:
 
     def set_df(self, df: pd.DataFrame, positive_class: str = None):
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
-            raise ValueError("Given DF must contain same columns as initial DF.")
+            raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
 
-        self.df = df.copy()
-        self.df.dropna(inplace=True)
-        self.binarize_columns(self.df)
+        self.df_bin = df.copy()
+        other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df_bin.columns))
+        self.df_bin.drop(other_columns, axis=1)
+        self.df_bin.dropna(inplace=True)
 
-        self.target_vc = self.df[self.target].value_counts(normalize=True)
+        self.binarize_columns(self.df_bin)
+        self.target_vc = self.df_bin[self.target].value_counts(normalize=True)
 
         if len(self.target_vc) <= 2:
             if positive_class is None:
@@ -149,7 +151,7 @@ class FairnessScorer:
         biases = []
         score = 0.
 
-        n_unique = self.df[self.target].nunique()
+        n_unique = len(self.target_vc)
         if mode is None:
             mode = 'diff' if n_unique == 2 else 'emd'
 
@@ -245,7 +247,7 @@ class FairnessScorer:
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
-                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
+                cb = ClassificationBias(self.df_bin, list(sensitive_attr), self.target, min_count=min_count)
                 clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
                 clf_scores.append(clf_score)
                 biases.extend(biases_i)
@@ -278,7 +280,7 @@ class FairnessScorer:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
-        df = self.df.copy()
+        df = self.df_bin.copy()
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
         self.names_str_to_list[name] = sensitive_attr
@@ -342,7 +344,7 @@ class FairnessScorer:
         return fmt_bias
 
     def cramers_v_score(self) -> float:
-        df = self.df.copy()
+        df = self.df_bin.copy()
         cramers_v = CramersV()
         score = 0.
         count = 0
@@ -367,18 +369,19 @@ class FairnessScorer:
 
         return score / count
 
-    def other_correlations(self, threshold: float = 0.5) -> List[Tuple[str, str, float]]:
+    def other_correlations(self, df: pd.DataFrame, threshold: float = 0.5) -> List[Tuple[str, str, float]]:
         """
 
         Args:
-            threshold:
+            df: Original dataframe to compute correlations between sensitive attributes and any other column.
+            threshold: Correlation threshold to be considered a sensitive attribute.
         Returns:
             List of Tuples containing (detected attr, sensitive_attr, correlation_value).
 
         """
-        columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
-        df = self.df.dropna()
-        categorical, continuous = categorical_or_continuous_values(self.df[columns])
+        columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+        df = df.dropna().copy()
+        categorical, continuous = categorical_or_continuous_values(df[columns])
         cramers_v = CramersV()
         categorical_logistic_r2 = CategoricalLogisticR2()
 
@@ -487,12 +490,19 @@ class FairnessScorer:
         return checks, VBox(box)
 
     def binarize_columns(self, df: pd.DataFrame):
-        for col in self.sensitive_attrs_and_target:
+        for col in df.columns:
+            # Convert to numeric
+            n_nans = df[col].isna().sum()
+            col_num = pd.to_numeric(df[col], errors='coerce')
+            if col_num.isna().sum() == n_nans:
+                df[col] = col_num
+
+            # If it's numeric, binarize it
             if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
                 n_bins = self.target_n_bins if col == self.target else self.n_bins
                 df[col] = pd.qcut(df[col], q=n_bins, duplicates='drop').astype(str)
             else:
-                df[col] = df[col].astype(str).fillna('NaN')
+                df[col] = df[col].astype(str).fillna('nan')
 
     @staticmethod
     def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
