@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple, Optional
+from typing import List, Union, Dict
 from dataclasses import dataclass
 from functools import cmp_to_key
 from datetime import datetime
@@ -9,238 +9,168 @@ import scipy.stats
 
 MetaExtractorConfig = {
     'categorical_threshold_log_multiplier': 2.5,
-    'parsing_nan_fraction_threshold': 0.25,
+    'acceptable_nan_frac': 0.25,
     'min_num_unique': 10
 }
 
 
-class _mBuilder():
+class MetaBuilder():
+    """MetaFactory functor."""
+    def __init__(self, min_num_unique, acceptable_nan_frac, categorical_threshold_log_multiplier, **kwargs):
+        self._dtype_builders = {
+            'i': self._IntBuilder,
+            'u': self._IntBuilder,
+            'M': self._DateBuilder,
+            'm': self._TimeDeltaBuilder,
+            '?': self._BoolBuilder,
+            'f': self._FloatBuilder,
+            'O': self._ObjectBuilder
+        }
 
-    def __init__(self):
+        self.min_num_unique = min_num_unique
+        self.acceptable_nan_frac = acceptable_nan_frac
+        self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
         self._meta = None
 
-    def __call__(self, x: pd.Series) -> 'Meta':
-        self._meta = Date(x.name)
-        return self._meta
+        self.kwargs = kwargs
 
-
-class _iBuilder():
-
-    def __init__(self):
-        self._meta = None
-
-    def __call__(self, x: pd.Series) -> 'Meta':
-
-        if x.nunique == 2:
-            self._meta = Bool(x.name)
+    def __call__(self, x: pd.Series):
+        num_unique = x.nunique()
+        if num_unique == 1:
+            return Constant(x.name)
         else:
-            self._meta = Integer(x.name)
+            return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
+
+    def _DateBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+        self._meta = Date(x.name, **kwargs)
+        return self._meta
+
+    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+        self._meta = TimeDelta(x.name, **kwargs)
+        return self._meta
+
+    def _BoolBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+        self._meta = Bool(x.name, **kwargs)
+        return self._meta
+
+    def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+
+        if x.nunique() == 2:
+            self._meta = Bool(x.name, **kwargs)
+        else:
+            self._meta = Integer(x.name, **kwargs)
 
         return self._meta
 
+    def _FloatBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+        self._meta = Float(x.name, **kwargs)
 
-class _fBuilder():
-
-    def __init__(self):
-        self._meta = None
-
-    def __call__(self, x: pd.Series) -> 'Meta':
-        self._meta = Float(x.name)
+        # check if is integer (in case NaNs which cast to float64)
+        # delegate to __IntegerBuilder
+        is_integer = x[~x.isna()].apply(lambda x: x.is_integer()).all()
+        if is_integer:
+            return self._IntBuilder(x, **kwargs)
 
         return self._meta
 
+    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+        if isinstance(x.dtype, pd.CategoricalDtype):
+            categories = x.categories.tolist()
+            if x.ordered:
+                self._meta = Ordinal(x.name, categories=categories, **kwargs)
+            else:
+                self._meta = Categorical(x.name, categories=categories, **kwargs)
 
-class _oBuilder():
+        else:
+            self._meta = Categorical(x.name, **kwargs)
+        return self._meta
 
-    def __init__(self):
-        self._meta = None
-
-    def __call__(self, x: pd.Series) -> 'Meta':
+    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
         try:
             pd.to_datetime(x)
-            self._meta = Date(x.name)
+            self._meta = self._DateBuilder(x, **kwargs)
         except (ValueError, TypeError, OverflowError):
-            pass
 
+            n_unique = x.nunique()
+            n_rows = len(x)
 
-class _cBuilder():
+            x_numeric = pd.to_numeric(x, errors='coerce')
+            num_nan = x_numeric.isna().sum()
 
-    def __init__(self):
-        self._meta = None
+            if isinstance(x.dtype, pd.CategoricalDtype):
+                self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
-    def __call__(self, x: pd.Series) -> 'Meta':
-        if x.ordered:
-            self._meta = Ordinal(x.name)
-        else:
-            self._meta = Categorical(x.name)
+            elif num_nan / n_rows < self.acceptable_nan_frac:
+                self._meta = self._FloatBuilder(x)
+
+            elif (n_unique <= np.sqrt(n_rows) or
+                  n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+                    and (not MetaBuilder._contains_genuine_floats(x)):
+                self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+
+            else:
+                self._meta = ValueMeta(x.name)
 
         return self._meta
+
+    @staticmethod
+    def _contains_genuine_floats(x: pd.Series) -> bool:
+        return x.dropna().apply(MetaBuilder._is_integer_float).any()
+
+    @staticmethod
+    def _is_integer_float(x) -> bool:
+        """Returns True if x can be represented as an integer."""
+        if isinstance(x, float):
+            return x.is_integer()
+        else:
+            return False
 
 
 class MetaFactory():
 
     def __init__(self, config=None):
 
-        self._builders = {}
         if config is None:
             self.config = MetaExtractorConfig
         else:
             self.config = config
 
-    def create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
-        meta = Meta(name)
-        for col in x.columns:
-            child = self.identify_value(x[col], col)[0]
-            meta.register_child(child)
+        self._builder = MetaBuilder(**self.config)
+
+    @classmethod
+    def create_meta(cls, x: pd.DataFrame, name: str = 'df', config=None) -> 'Meta':
+        obj = cls(config)
+        return obj._create_meta(x, name)
+
+    def _create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
+
+        if isinstance(x, pd.DataFrame):
+            meta = DataFrameMeta(name)
+            for col in x.columns:
+                try:
+                    child = self._create_meta(x[col], col)
+                    meta.register_child(child)
+                except TypeError as e:
+                    print(f"Warning. Unable to interpret Meta for '{col}'", e)
+
+        elif isinstance(x, pd.Series):
+            if x.dtype.kind not in self._builder._dtype_builders:
+                raise TypeError(f"'{x.dtype}' is unsupported")
+            meta = self._builder(x)
 
         return meta
 
-    def infer_meta(self, x: pd.Series, name: str = None) -> Tuple[Optional['Meta'], Optional[str]]:
-        """Autodetect the meta describing a data frame column."""
 
-        if name is None:
-            name = x.name
+class MetaExtractor(MetaFactory):
+    def __init__(self, config=None):
+        super().__init__(config)
 
-        num_unique = x.nunique()
-        if num_unique <= 1:
-            return Constant(name)
-
-        # ========== Non-numeric values ==========
-
-        # Categorical value if small number of distinct values (or if data-set is too small)
-        elif num_unique <= max(float(self.config['min_num_unique']),
-                               self.config['categorical_threshold_log_multiplier'] * np.log(num_data)):
-            # is_nan = df.isna().any()
-            if _column_does_not_contain_genuine_floats(col):
-                if num_unique > 2:
-                    value = Categorical(name, similarity_based=True)
-                    reason = "Small (< log(N)) number of distinct values. "
-                else:
-                    value = Categorical(name,)
-                    reason = "Small (< log(N)) number of distinct values (= 2). "
-
-        # Date value
-        elif col.dtype.kind == 'M':  # 'm' timedelta
-            value = Date(name)
-            reason = "Column dtype kind is 'M'. "
-
-        # Boolean value
-        elif col.dtype.kind == 'b':
-            # is_nan = df.isna().any()
-            value = Bool(name)
-            reason = "Column dtype kind is 'b'. "
-
-        # Continuous value if integer (reduced variability makes similarity-categorical more likely)
-        elif col.dtype.kind in ['i', 'u']:
-            value = Integer(name)
-            reason = f"Column dtype kind is '{col.dtype.kind}'. "
-
-        # Categorical value if object type has attribute 'categories'
-        elif col.dtype.kind == 'O' and hasattr(col.dtype, 'categories'):
-            # is_nan = df.isna().any()
-            if num_unique > 2:
-                value = Categorical(name)
-                reason = "Column dtype kind is 'O' and has 'categories' (> 2). "
-            else:
-                value = Categorical(name, similarity_based=False)
-                reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
-
-        # Date value if object type can be parsed
-        elif col.dtype.kind == 'O' and excl_nan_dtype.kind not in ['f', 'i']:
-            try:
-                date_data = pd.to_datetime(col)
-                num_nan = date_data.isna().sum()
-                if num_nan / num_data < self.config['parsing_nan_fraction_threshold']:
-                    assert date_data.dtype.kind == 'M'
-                    value = Date(name)
-                    reason = "Column dtype is 'O' and convertable to datetime. "
-
-            except (ValueError, TypeError, OverflowError):
-                pass
-
-        # Similarity-based categorical value if not too many distinct values
-        if value is None and num_unique <= np.sqrt(num_data):  # num_data must be > 161 to be true.
-            if _column_does_not_contain_genuine_floats(col):
-                if num_unique > 2:  # note the alternative is never possible anyway.
-                    value = Categorical(name, similarity_based=True)
-                    reason = "Small (< sqrt(N)) number of distinct values. "
-
-        # Return non-numeric value and handle NaNs if necessary
-        if value is not None:
-            return value, reason
-
-        # ========== Numeric value ==========
-        # Try parsing if object type
-        if col.dtype.kind == 'O':
-            numeric_data = pd.to_numeric(col, errors='coerce')
-            num_nan = numeric_data.isna().sum()
-            if num_nan / num_data < self.config['parsing_nan_fraction_threshold']:
-                assert numeric_data.dtype.kind in ('f', 'i')
-            else:
-                numeric_data = None
-        elif col.dtype.kind in ('f', 'i'):
-            numeric_data = col
-
-        else:
-            numeric_data = None
-
-        # Return numeric value and handle NaNs if necessary
-        if numeric_data is not None and numeric_data.dtype.kind in ('f', 'i'):
-            value = Float(name)
-            reason = f"Converted to numeric dtype ({numeric_data.dtype.kind}) with success " + \
-                     f"rate > {1.0 - self.config['parsing_nan_fraction_threshold']}. "
-
-            return value, reason
-
-        # ========== Fallback values ==========
-
-        # Sampling value otherwise
-        value = Meta(name)
-        reason = "No other criteria met. "
-
-        return value, reason
-
-
-def _column_does_not_contain_genuine_floats(col: pd.Series) -> bool:
-    """Returns TRUE of the input column contains genuine floats, that would exclude integers with type float.
-
-        e.g.:
-            _column_does_not_contain_genuine_floats(['A', 'B', 'C']) returns True
-            _column_does_not_contain_genuine_floats([1.0, 3.0, 2.0]) returns True
-            _column_does_not_contain_genuine_floats([1.0, 3.2, 2.0]) returns False
-
-    :param col: input pd.Series
-    :return: bool
-    """
-
-    return not col.dropna().apply(_is_not_integer_float).any()
-
-
-def _is_not_integer_float(x) -> bool:
-    """Returns whether 'x' is a float and is not integer.
-
-        e.g.:
-            _is_not_integer_float(3.0) = False
-            _is_not_integer_float(3.2) = True
-
-    :param x: input
-    :return: bool
-    """
-
-    if type(x) == float:
-        return not x.is_integer()
-    else:
-        return False
-
-
-def _is_numeric(col: pd.Series) -> bool:
-    """Check whether col contains only numeric values"""
-    if col.dtype.kind in ('f', 'i', 'u'):
-        return True
-    elif col.astype(str).str.isnumeric().all():
-        return True
-    else:
-        return False
+    @classmethod
+    def extract(cls, x: pd.DataFrame, config=None) -> 'DataFrameMeta':
+        factory = cls(config)
+        df_meta = factory._create_meta(x)
+        df_meta.extract(x)
+        return df_meta
 
 
 @dataclass
@@ -268,11 +198,35 @@ class Meta():
             self.register_child(value)
         object.__setattr__(self, name, value)
 
+    def __getitem__(self, value):
+        if self.children:
+            for child in self.children:
+                if child.name == value:
+                    return child[value]
+        elif value == self.name:
+            return self
+        else:
+            raise KeyError(f"'{value}' is not a registered Meta.")
+
     def to_json(self):
         raise NotImplementedError
 
     def from_json(self):
         raise NotImplementedError
+
+
+@dataclass(repr=False)
+class DataFrameMeta(Meta):
+    id_index: str = None
+    time_index: str = None
+    column_aliases: Dict[str, str] = None
+
+    @property
+    def column_meta(self) -> pd.Series:
+        col_meta = {}
+        for child in self.children:
+            col_meta[child.name] = child
+        return pd.Series(col_meta)
 
 
 @dataclass
@@ -372,7 +326,7 @@ class Affine(Ordinal):
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         super().extract(x)
-        if (np.diff(x[self.name]) > 0).all():
+        if (np.diff(x[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
             self.monotonic = False
@@ -388,9 +342,12 @@ class Date(Affine):
     date_format: str = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
         if self.date_format is None:
             self.date_format = get_date_format(x[self.name])
+
+        x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+        super().extract(x)
+        x[self.name] = x[self.name].dt.strftime(self.date_format)
 
 
 @dataclass
@@ -420,6 +377,7 @@ class TimeDelta(Scale):
 @dataclass
 class Bool(Scale):
     dtype: str = 'boolean'
+    categories = (0, 1)
 
 
 @dataclass
