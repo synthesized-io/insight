@@ -7,6 +7,7 @@ from ipywidgets import widgets, HBox, VBox
 import numpy as np
 import pandas as pd
 from pyemd import emd
+from scipy.stats import binom
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -38,17 +39,21 @@ class FairnessScorer:
     """
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
-                 target_n_bins: int = 2, detect_sensitive: bool = False, detect_hidden: bool = False):
+                 target_n_bins: int = 2, detect_sensitive: bool = False, detect_hidden: bool = False,
+                 positive_class: str = None):
         """FairnessScorer constructor.
 
         Args:
             df: Input DataFrame to be scored.
             sensitive_attrs: Given sensitive attributes.
             target: Target variable.
-            n_bins: Number of bins for sensitive attributes/target to be binarized.
+            n_bins: Number of bins for sensitive attributes to be binarized.
+            target_n_bins: Number of bins for target to be binarized.
             detect_sensitive: Whether to try to detect sensitive attributes from the column names.
             detect_hidden: Whether to try to detect sensitive attributes from hidden correlations with other sensitive
                 attributes.
+            positive_class: The sign of the biases depends on this class (positive biases have higher rate of this
+                class). If not given, minority class will be used. Only used for binomial target variables.
         """
         if isinstance(sensitive_attrs, list):
             self.sensitive_attrs: List[str] = sensitive_attrs
@@ -93,12 +98,12 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.set_df(df)
+        self.set_df(df, positive_class=positive_class)
 
         self.values_str_to_list: Dict[str, List] = dict()
         self.names_str_to_list: Dict[str, List] = dict()
 
-    def set_df(self, df: pd.DataFrame):
+    def set_df(self, df: pd.DataFrame, positive_class: str = None):
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain same columns as initial DF.")
 
@@ -106,11 +111,16 @@ class FairnessScorer:
         self.df.dropna(inplace=True)
         self.binarize_columns(self.df)
 
-        # Majority class is the reference. If a sub-sample has a larger proportion of majority class,
-        #   it will have negative bias and vice versa
-        target_vc = self.df[self.target].value_counts(normalize=True)
-        self.majority_class = target_vc.idxmax()
-        self.majority_class_rate = target_vc[self.majority_class]
+        self.target_vc = self.df[self.target].value_counts(normalize=True)
+
+        if len(self.target_vc) <= 2:
+            if positive_class is None:
+                # If target class is not given, we'll use minority class as usually it is the target.
+                self.positive_class = self.target_vc.idxmin()
+            elif positive_class not in self.target_vc.keys():
+                raise ValueError(f"Given positive_class '{positive_class}' is not present in dataframe.")
+            else:
+                self.positive_class = positive_class
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
@@ -122,8 +132,9 @@ class FairnessScorer:
     def sensitive_attrs_and_target(self) -> List[str]:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
-    def distributions_score(self, min_dist: float = 0.1, min_count: float = 100, weighted: bool = False,
-                            mode: Optional[str] = None, max_combinations: Optional[int] = 3,
+    def distributions_score(self, max_pval: float = 0.05, min_dist: Optional[float] = None,
+                            min_count: Optional[int] = 50, weighted: bool = False, mode: Optional[str] = None,
+                            max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
@@ -137,7 +148,6 @@ class FairnessScorer:
 
         biases = []
         score = 0.
-        count = 0
 
         n_unique = self.df[self.target].nunique()
         if mode is None:
@@ -145,11 +155,11 @@ class FairnessScorer:
 
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
             if max_combinations else len(self.sensitive_attrs)
+        num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
 
         if progress_callback is not None:
             n = 0
             progress_callback(0)
-            num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
 
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
@@ -157,11 +167,14 @@ class FairnessScorer:
                 df_count = self.get_rates(list(sensitive_attr))
 
                 if mode == 'diff':
-                    df_dist = self.difference_distance(df_count)
+                    df_dist = self.difference_distance(df_count, max_pval=max_pval)
                 elif mode == 'emd':
                     df_dist = self.emd_distance(df_count)
                 else:
                     raise ValueError(f"Given mode='{mode}' not supported")
+
+                if len(df_dist) == 0:
+                    continue
 
                 if weighted:
                     score += np.sum(df_dist['Distance'].abs() * df_dist['Count']) / df_dist['Count'].sum()
@@ -169,14 +182,18 @@ class FairnessScorer:
                     score += np.average(df_dist['Distance'].abs())
 
                 biases.extend(self.format_bias(df_dist))
-                count += 1
 
                 if progress_callback is not None:
                     n += 1
                     progress_callback(round(n * 98.0 // num_combinations))
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'distance', 'count'])
-        df_biases = df_biases[(df_biases['distance'].abs() >= min_dist) & (df_biases['count'] >= min_count)]
+
+        if min_dist is not None:
+            df_biases = df_biases[df_biases['distance'].abs() >= min_dist]
+        if min_count is not None:
+            df_biases = df_biases[df_biases['count'] >= min_count]
+
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
             .reset_index(drop=True)
 
@@ -186,7 +203,7 @@ class FairnessScorer:
         df_biases['value'] = df_biases['value'].map(
             lambda x: self.values_str_to_list[x] if x in self.values_str_to_list else x)
 
-        score /= count
+        score = score / num_combinations
 
         if progress_callback is not None:
             progress_callback(100)
@@ -194,7 +211,7 @@ class FairnessScorer:
         return score, df_biases
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
-                             min_count: int = 100, max_combinations: Optional[int] = 3,
+                             min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,
                              progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples."""
@@ -384,24 +401,33 @@ class FairnessScorer:
 
         return correlation_pairs
 
-    @staticmethod
-    def difference_distance(df_count: pd.DataFrame) -> pd.DataFrame:
+    def difference_distance(self, df_count: pd.DataFrame, max_pval: float = 0.05):
         df_count = df_count.copy()
 
-        unique_classes = df_count.index.get_level_values(1).unique()
-        if len(unique_classes) != 2:
-            raise ValueError("Difference mode is only supported for binary targets.")
+        if len(self.target_vc) <= 2:
+            df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]
 
-        idx0, majority_class = df_count['Count'].idxmax()
-        assert idx0 == 'Total'
-        df_count = df_count[df_count.index.get_level_values(1) == majority_class]
-        df_count = df_count.set_index(df_count.index.get_level_values(0), drop=True)
+        df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, max_pval=max_pval)
+        df_count.dropna(inplace=True)
+        if 'Total' in df_count.index.get_level_values(0):
+            df_count.drop('Total', inplace=True)
 
-        df_count['Distance'] = 0.
-        for idx in df_count.index:
-            df_count['Distance'][idx] = df_count['Rate']['Total'] - df_count['Rate'][idx]
-        df_count.drop('Total', inplace=True)
         return df_count
+
+    def get_row_distance(self, row: pd.Series, max_pval: float = 0.05) -> float:
+        p = self.target_vc[row.name[1]]
+        n_i = int(row['Count'] / row['Rate'])
+        k_i = int(row['Count'])
+
+        if k_i / n_i > p:
+            pval = 1 - binom.cdf(k_i - 1, n_i, p)
+        else:
+            pval = binom.cdf(k_i, n_i, p)
+
+        if pval >= max_pval:
+            return np.nan
+
+        return k_i / n_i - p
 
     @staticmethod
     def emd_distance(df_count: pd.DataFrame) -> pd.DataFrame:
