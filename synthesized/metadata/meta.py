@@ -2,6 +2,7 @@ from typing import List, Union, Dict
 from dataclasses import dataclass
 from functools import cmp_to_key
 from datetime import datetime
+import importlib
 
 import numpy as np
 import pandas as pd
@@ -137,19 +138,14 @@ class MetaFactory():
 
         self._builder = MetaBuilder(**self.config)
 
-    @classmethod
-    def create_meta(cls, x: pd.DataFrame, name: str = 'df', config=None) -> 'Meta':
-        obj = cls(config)
-        return obj._create_meta(x, name)
-
-    def _create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
+    def create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
 
         if isinstance(x, pd.DataFrame):
             meta = DataFrameMeta(name)
             for col in x.columns:
                 try:
-                    child = self._create_meta(x[col], col)
-                    meta.register_child(child)
+                    child = self.create_meta(x[col], col)
+                    setattr(meta, child.name, child)
                 except TypeError as e:
                     print(f"Warning. Unable to interpret Meta for '{col}'", e)
 
@@ -168,17 +164,17 @@ class MetaExtractor(MetaFactory):
     @classmethod
     def extract(cls, x: pd.DataFrame, config=None) -> 'DataFrameMeta':
         factory = cls(config)
-        df_meta = factory._create_meta(x)
+        df_meta = factory.create_meta(x)
         df_meta.extract(x)
         return df_meta
 
 
-@dataclass
+@dataclass()
 class Meta():
 
     name: str
     children: List['Meta'] = None
-    is_root = True
+    _is_root = True
 
     def __post_init__(self):
         if self.children is None:
@@ -192,7 +188,7 @@ class Meta():
         self.children.append(child)
 
     def __setattr__(self, name, value):
-        if isinstance(value, Meta) and self.is_root:
+        if isinstance(value, Meta) and self._is_root:
             if self.children is None:
                 self.children = []
             self.register_child(value)
@@ -214,8 +210,29 @@ class Meta():
     def from_json(self):
         raise NotImplementedError
 
+    def to_dict(self) -> dict:
+        d = {self.name: {}}
+        if self._is_root:
+            d[self.name][self.__class__.__name__] = {child.name: {child.__class__.__name__: child.to_dict()} for child in self.children}
+        else:
+            return self.__dict__
+        return d
 
-@dataclass(repr=False)
+    @classmethod
+    def from_dict(cls, d):
+        meta_module = importlib.import_module("synthesized.metadata.meta")
+        name = list(d.keys())[0]
+        for name, attr in d[name].items():
+            if name in meta_module.__dict__:
+                cls = getattr(meta_module, name)(**attr)
+            if isinstance(attr, dict):
+                setattr(cls, name, cls.from_dict(attr))
+            else:
+                setattr(cls, name, attr)
+
+        return cls
+
+
 class DataFrameMeta(Meta):
     id_index: str = None
     time_index: str = None
@@ -233,7 +250,11 @@ class DataFrameMeta(Meta):
 class ValueMeta(Meta):
 
     dtype: str = None
-    is_root: bool = False
+    _is_root: bool = False
+
+    def extract(self, x: pd.DataFrame) -> 'Meta':
+        self.dtype = x[self.name].dtype
+        return self
 
 
 @dataclass
@@ -243,7 +264,7 @@ class Nominal(ValueMeta):
     probabilities: List[float] = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-
+        super().extract(x)
         if self.categories is None:
             value_counts = x[self.name].value_counts(normalize=True, dropna=False)
             self.categories = value_counts.index.values.tolist()
