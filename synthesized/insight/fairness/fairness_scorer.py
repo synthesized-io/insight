@@ -441,7 +441,8 @@ class FairnessScorer:
         distances = []
         for group, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
-            dist, pval = ks_2samp(target, target_group)
+            target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
+            dist, pval = ks_2samp(target, target_rest)
             if pval < alpha:
                 if np.mean(target_group) < self.target_mean:
                     dist = -dist
@@ -465,17 +466,20 @@ class FairnessScorer:
         return df_count
 
     def get_row_distance(self, row: pd.Series, alpha: float = 0.05) -> float:
+        if row.name[0] == 'Total':
+            return 0.
+
         p = self.target_vc[row.name[1]]
-        # n = int(self.target_vc * self.target_vc)
-        # std_error = np.sqrt(p * (1 - p) / n) / np.sqrt(n)
+        k = p * self.len_df
+        k_i = row['Count']
+        n_i = k_i / row['Rate']
+        # Get p without the current subsample
+        p_rest = (k - k_i) / (self.len_df - n_i)
 
-        n_i = int(row['Count'] / row['Rate'])
-        k_i = int(row['Count'])
-
-        if k_i / n_i > p:
-            pval = 1 - binom.cdf(k_i - 1, n_i, p)
+        if k_i / n_i > p_rest:
+            pval = 1 - binom.cdf(k_i - 1, n_i, p_rest)
         else:
-            pval = binom.cdf(k_i, n_i, p)
+            pval = binom.cdf(k_i, n_i, p_rest)
 
         if pval >= alpha:
             return np.nan
@@ -490,7 +494,8 @@ class FairnessScorer:
 
         for sensitive_value in df_count.index.get_level_values(0).unique():
             p_counts = df_count['Count'][sensitive_value].to_dict()
-            q_counts = df_count['Count']['Total'].to_dict()
+            # Remove counts in current subsample
+            q_counts = {k: v - p_counts.get(k, 0) for k, v in df_count['Count']['Total'].to_dict().items()}
 
             p = np.array([float(p_counts[x]) if x in p_counts else 0.0 for x in space])
             q = np.array([float(q_counts[x]) if x in q_counts else 0.0 for x in space])
@@ -553,8 +558,15 @@ class FairnessScorer:
 
         # If it's numeric
         if df[self.target].dtype.kind in ('i', 'u', 'f'):
+            num_unique = df[self.target].nunique()
             if self.target_n_bins is None:
-                return VariableType.Continuous
+                # Even if it's numerical, well considered binary/multinomial if it has few unique values
+                if num_unique <= 2:
+                    return VariableType.Binary
+                elif num_unique <= 5:
+                    return VariableType.Multinomial
+                else:
+                    return VariableType.Continuous
 
             if df[self.target].nunique() > self.target_n_bins:
                 df[self.target] = pd.cut(df[self.target], bins=self.target_n_bins, duplicates='drop').astype(str)
