@@ -252,7 +252,7 @@ class FairnessScorer:
 
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
-        if self.target_variable_type == VariableType.Binary:
+        if self.target_variable_type != VariableType.Binary:
             raise NotImplementedError("Classification score only available for Binary target distributions.")
 
         clf_scores = []
