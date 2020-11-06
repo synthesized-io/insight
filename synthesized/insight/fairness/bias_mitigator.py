@@ -55,8 +55,8 @@ class BiasMitigator:
             self.fairness_scorer.set_df(df)
 
         self.vc_all = self.fairness_scorer.target_vc
-        if len(self.vc_all) != 2:
-            raise ValueError('Bias Mitigation is only available for binary class target variables.')
+        if len(self.vc_all) > 2:
+            raise ValueError('Bias Mitigation is not available for multinomial target distributions.')
 
         self.max_class = self.vc_all.idxmax()
         self.min_class = self.vc_all.idxmin()

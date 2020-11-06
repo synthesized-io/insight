@@ -27,7 +27,7 @@ def test_bias_mitigator():
     target = 'income'
     df = generate_biased_data()
 
-    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
+    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=2)
     score_0, df_biases_0 = fs_0.distributions_score(progress_callback=testing_progress_bar)
 
     df_meta = MetaExtractor.extract(df)
@@ -40,7 +40,7 @@ def test_bias_mitigator():
                                                            n_loops=5, progress_callback=testing_progress_bar,
                                                            produce_nans=False)
 
-    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
+    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=2)
     score_f, df_biases_f = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert score_f < score_0
