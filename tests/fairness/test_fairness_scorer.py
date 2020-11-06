@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from synthesized.insight.fairness import FairnessScorer
+from synthesized.insight.fairness.fairness_scorer import VariableType
 from synthesized.testing.utils import testing_progress_bar
 
 
@@ -25,14 +26,19 @@ def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target):
     data = data.sample(sample_size) if len(data) > sample_size else data
 
     fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
+
+    # Distributions Score
     dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
-    clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
 
     assert 0. <= dist_score <= 1.
-    assert 0. <= clf_score <= 1.
-
     assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
-    assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
+
+    # Classification score
+    if fairness_scorer.target_variable_type == VariableType.Binary:
+        clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
+
+        assert 0. <= clf_score <= 1.
+        assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
 
 
 @pytest.mark.slow

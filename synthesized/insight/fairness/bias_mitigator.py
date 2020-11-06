@@ -94,7 +94,7 @@ class BiasMitigator:
         for idx, row in dist_biases.iterrows():
             marginal_counts = self.get_marginal_counts(row, marginal_counts, marginal_softener=marginal_softener)
 
-        marginal_keys = {col: list(self.fairness_scorer.df_bin[col].unique())
+        marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                          for col in self.fairness_scorer.sensitive_attrs_and_target}
 
         cond = ConditionalSampler(self.synthesizer, min_sampled_ratio=0, synthesis_batch_size=262_144)
@@ -175,8 +175,8 @@ class BiasMitigator:
         values_w_colons = bias['value_w_colons']
         distance = bias['distance']
 
-        vc_this = self.fairness_scorer.df_bin.loc[np.all(
-            [self.fairness_scorer.df_bin[col] == v for col, v in zip(self.sensitive_attrs, values_w_colons) if v != ':'],
+        vc_this = self.fairness_scorer.df.loc[np.all(
+            [self.fairness_scorer.df[col] == v for col, v in zip(self.sensitive_attrs, values_w_colons) if v != ':'],
             axis=0), self.target].value_counts()
 
         vc_this = Counter(vc_this.to_dict())

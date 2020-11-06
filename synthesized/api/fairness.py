@@ -45,13 +45,13 @@ class FairnessScorer:
                                                 target_n_bins=target_n_bins, detect_sensitive=detect_sensitive,
                                                 detect_hidden=detect_hidden, positive_class=positive_class)
 
-    def distributions_score(self, max_pval: float = 0.05, min_dist: Optional[float] = 0.1,
+    def distributions_score(self, alpha: float = 0.05, min_dist: Optional[float] = 0.1,
                             min_count: Optional[int] = 50, weighted: bool = False, max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable."""
 
-        return self._fairness_scorer.distributions_score(max_pval=max_pval, min_dist=min_dist, min_count=min_count,
+        return self._fairness_scorer.distributions_score(alpha=alpha, min_dist=min_dist, min_count=min_count,
                                                          weighted=weighted, max_combinations=max_combinations,
                                                          progress_callback=progress_callback)
 

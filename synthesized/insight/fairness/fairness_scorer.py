@@ -1,3 +1,4 @@
+from enum import Enum
 import logging
 from itertools import combinations
 from math import factorial
@@ -7,7 +8,7 @@ from ipywidgets import widgets, HBox, VBox
 import numpy as np
 import pandas as pd
 from pyemd import emd
-from scipy.stats import binom
+from scipy.stats import binom, ks_2samp
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -19,6 +20,12 @@ from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 
 logger = logging.getLogger(__name__)
+
+
+class VariableType(Enum):
+    Binary = 0
+    Multinomial = 1
+    Continuous = 2
 
 
 class FairnessScorer:
@@ -39,7 +46,7 @@ class FairnessScorer:
     """
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
-                 target_n_bins: int = 2, detect_sensitive: bool = False, detect_hidden: bool = False,
+                 target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
                  positive_class: str = None):
         """FairnessScorer constructor.
 
@@ -48,13 +55,14 @@ class FairnessScorer:
             sensitive_attrs: Given sensitive attributes.
             target: Target variable.
             n_bins: Number of bins for sensitive attributes to be binarized.
-            target_n_bins: Number of bins for target to be binarized.
+            target_n_bins: Number of bins for target to be binarized, if None will use it as it is.
             detect_sensitive: Whether to try to detect sensitive attributes from the column names.
             detect_hidden: Whether to try to detect sensitive attributes from hidden correlations with other sensitive
                 attributes.
             positive_class: The sign of the biases depends on this class (positive biases have higher rate of this
                 class). If not given, minority class will be used. Only used for binomial target variables.
         """
+
         if isinstance(sensitive_attrs, list):
             self.sensitive_attrs: List[str] = sensitive_attrs
         elif isinstance(sensitive_attrs, str):
@@ -107,22 +115,28 @@ class FairnessScorer:
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
 
-        self.df_bin = df.copy()
-        other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df_bin.columns))
-        self.df_bin.drop(other_columns, axis=1)
-        self.df_bin.dropna(inplace=True)
+        self.df = df.copy()
+        other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
+        self.df.drop(other_columns, axis=1)
+        self.df.dropna(inplace=True)
 
-        self.binarize_columns(self.df_bin)
-        self.target_vc = self.df_bin[self.target].value_counts(normalize=True)
+        self.binarize_sensitive_attr(self.df)
+        self.target_variable_type = self.manipulate_target_variable(self.df)
 
-        if len(self.target_vc) <= 2:
-            if positive_class is None:
-                # If target class is not given, we'll use minority class as usually it is the target.
-                self.positive_class = self.target_vc.idxmin()
-            elif positive_class not in self.target_vc.keys():
-                raise ValueError(f"Given positive_class '{positive_class}' is not present in dataframe.")
-            else:
-                self.positive_class = positive_class
+        self.len_df = len(self.df)
+
+        if self.target_variable_type in (VariableType.Binary, VariableType.Multinomial):
+            self.target_vc = self.df[self.target].value_counts(normalize=True)
+            if len(self.target_vc) <= 2:
+                if positive_class is None:
+                    # If target class is not given, we'll use minority class as usually it is the target.
+                    self.positive_class = self.target_vc.idxmin()
+                elif positive_class not in self.target_vc.keys():
+                    raise ValueError(f"Given positive_class '{positive_class}' is not present in dataframe.")
+                else:
+                    self.positive_class = positive_class
+        else:
+            self.target_mean = self.df[self.target].mean()
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
@@ -134,12 +148,20 @@ class FairnessScorer:
     def sensitive_attrs_and_target(self) -> List[str]:
         return np.concatenate((self.sensitive_attrs, [self.target]))
 
-    def distributions_score(self, max_pval: float = 0.05, min_dist: Optional[float] = None,
-                            min_count: Optional[int] = 50, weighted: bool = False, mode: Optional[str] = None,
-                            max_combinations: Optional[int] = 3,
+    def distributions_score(self, alpha: float = 0.05, min_dist: Optional[float] = None,
+                            min_count: Optional[int] = 50, weighted: bool = False, max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
-        sensitive variables and the target variable."""
+        sensitive variables and the target variable.
+
+        Args:
+            alpha: Maximum p-value to accept a bias
+            min_dist: If set, any bias with smaller distance than min_dist will be ignored.
+            min_count: If set, any bias with less samples than min_count will be ignored.
+            weighted: Whether to weight the average of biases on the size of each sample.
+            max_combinations: Max number of combinations of sensitive attributes to be considered.
+            progress_callback: Progress bar callback.
+        """
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -150,10 +172,6 @@ class FairnessScorer:
 
         biases = []
         score = 0.
-
-        n_unique = len(self.target_vc)
-        if mode is None:
-            mode = 'diff' if n_unique == 2 else 'emd'
 
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
             if max_combinations else len(self.sensitive_attrs)
@@ -166,14 +184,15 @@ class FairnessScorer:
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
-                df_count = self.get_rates(list(sensitive_attr))
 
-                if mode == 'diff':
-                    df_dist = self.difference_distance(df_count, max_pval=max_pval)
-                elif mode == 'emd':
-                    df_dist = self.emd_distance(df_count)
+                if self.target_variable_type == VariableType.Binary:
+                    df_dist = self.difference_distance(list(sensitive_attr), alpha=alpha)
+                elif self.target_variable_type == VariableType.Multinomial:
+                    df_dist = self.emd_distance(list(sensitive_attr))
+                elif self.target_variable_type == VariableType.Continuous:
+                    df_dist = self.ks_distance(list(sensitive_attr))
                 else:
-                    raise ValueError(f"Given mode='{mode}' not supported")
+                    raise ValueError("Target variable type not supported")
 
                 if len(df_dist) == 0:
                     continue
@@ -216,7 +235,15 @@ class FairnessScorer:
                              min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,
                              progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
-        sub-samples given by splitting the data-set into sensitive sub-samples."""
+        sub-samples given by splitting the data-set into sensitive sub-samples.
+
+        Args:
+            threshold: If set, any bias with smaller outcome than threshold will be ignored.
+            classifiers: Dictionary of classifiers to perform tasks on.
+            min_count: If set, any bias with less samples than min_count will be ignored.
+            max_combinations: Max number of combinations of sensitive attributes to be considered.
+            progress_callback: Progress bar callback.
+        """
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -224,6 +251,9 @@ class FairnessScorer:
                 progress_callback(100)
 
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
+
+        if self.target_variable_type == VariableType.Binary:
+            raise NotImplementedError("Classification score only available for Binary target distributions.")
 
         clf_scores = []
 
@@ -247,7 +277,7 @@ class FairnessScorer:
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
-                cb = ClassificationBias(self.df_bin, list(sensitive_attr), self.target, min_count=min_count)
+                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
                 clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
                 clf_scores.append(clf_score)
                 biases.extend(biases_i)
@@ -280,7 +310,7 @@ class FairnessScorer:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
-        df = self.df_bin.copy()
+        df = self.df.copy()
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
         self.names_str_to_list[name] = sensitive_attr
@@ -344,7 +374,7 @@ class FairnessScorer:
         return fmt_bias
 
     def cramers_v_score(self) -> float:
-        df = self.df_bin.copy()
+        df = self.df.copy()
         cramers_v = CramersV()
         score = 0.
         count = 0
@@ -404,21 +434,41 @@ class FairnessScorer:
 
         return correlation_pairs
 
-    def difference_distance(self, df_count: pd.DataFrame, max_pval: float = 0.05):
-        df_count = df_count.copy()
+    def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
+        groups = self.df.groupby(sensitive_attr).groups
+        target = self.df[self.target]
+
+        distances = []
+        for group, idxs in groups.items():
+            target_group = self.df.loc[self.df.index.isin(idxs), self.target]
+            dist, pval = ks_2samp(target, target_group)
+            if pval < alpha:
+                if np.mean(target_group) < self.target_mean:
+                    dist = -dist
+
+                distances.append([group, len(idxs), dist])
+
+        name = sensitive_attr_concat_name(sensitive_attr)
+        return pd.DataFrame(distances, columns=[name, 'Count', 'Distance']).set_index(name)
+
+    def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
+        df_count = self.get_rates(list(sensitive_attr))
 
         if len(self.target_vc) <= 2:
             df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]
 
-        df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, max_pval=max_pval)
+        df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, alpha=alpha)
         df_count.dropna(inplace=True)
         if 'Total' in df_count.index.get_level_values(0):
             df_count.drop('Total', inplace=True)
 
         return df_count
 
-    def get_row_distance(self, row: pd.Series, max_pval: float = 0.05) -> float:
+    def get_row_distance(self, row: pd.Series, alpha: float = 0.05) -> float:
         p = self.target_vc[row.name[1]]
+        # n = int(self.target_vc * self.target_vc)
+        # std_error = np.sqrt(p * (1 - p) / n) / np.sqrt(n)
+
         n_i = int(row['Count'] / row['Rate'])
         k_i = int(row['Count'])
 
@@ -427,13 +477,14 @@ class FairnessScorer:
         else:
             pval = binom.cdf(k_i, n_i, p)
 
-        if pval >= max_pval:
+        if pval >= alpha:
             return np.nan
 
         return k_i / n_i - p
 
-    @staticmethod
-    def emd_distance(df_count: pd.DataFrame) -> pd.DataFrame:
+    def emd_distance(self, sensitive_attr: List[str]) -> pd.DataFrame:
+        df_count = self.get_rates(list(sensitive_attr))
+
         emd_dist = []
         space = df_count.index.get_level_values(1).unique()
 
@@ -489,9 +540,36 @@ class FairnessScorer:
 
         return checks, VBox(box)
 
-    def binarize_columns(self, df: pd.DataFrame):
-        for col in df.columns:
-            # Convert to numeric
+    def manipulate_target_variable(self, df: pd.DataFrame, inplace: bool = True) -> VariableType:
+        """Check the target variable column, binarize it if needed, and return target variable type"""
+        if not inplace:
+            df = df.copy()
+
+        # Convert to numeric
+        n_nans = df[self.target].isna().sum()
+        col_num = pd.to_numeric(df[self.target], errors='coerce')
+        if col_num.isna().sum() == n_nans:
+            df[self.target] = col_num
+
+        # If it's numeric
+        if df[self.target].dtype.kind in ('i', 'u', 'f'):
+            if self.target_n_bins is None:
+                return VariableType.Continuous
+
+            if df[self.target].nunique() > self.target_n_bins:
+                df[self.target] = pd.cut(df[self.target], bins=self.target_n_bins, duplicates='drop').astype(str)
+
+        else:
+            df[self.target] = df[self.target].astype(str).fillna('nan')
+
+        return VariableType.Binary if df[self.target].nunique() == 2 else VariableType.Multinomial
+
+    def binarize_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True):
+        if not inplace:
+            df = df.copy()
+
+        for col in self.sensitive_attrs:
+            # Try to convert it to numeric
             n_nans = df[col].isna().sum()
             col_num = pd.to_numeric(df[col], errors='coerce')
             if col_num.isna().sum() == n_nans:
@@ -499,8 +577,7 @@ class FairnessScorer:
 
             # If it's numeric, binarize it
             if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
-                n_bins = self.target_n_bins if col == self.target else self.n_bins
-                df[col] = pd.qcut(df[col], q=n_bins, duplicates='drop').astype(str)
+                df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
             else:
                 df[col] = df[col].astype(str).fillna('nan')
 
