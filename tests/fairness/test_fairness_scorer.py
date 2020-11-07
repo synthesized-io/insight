@@ -8,7 +8,7 @@ from synthesized.testing.utils import testing_progress_bar
 
 @pytest.mark.slow
 @pytest.mark.parametrize(
-    "file_name,sensitive_attributes,target",
+    "file_name,sensitive_attributes,target,mode",
     [
         pytest.param("data/credit_with_categoricals.csv", ["age"], "SeriousDlqin2yrs", None, id="binary_target"),
         pytest.param("data/credit_with_categoricals.csv", ["age"], "RevolvingUtilizationOfUnsecuredLines", None,
