@@ -22,12 +22,19 @@ def generate_biased_data(n: int = 1000):
 
 
 @pytest.mark.slow
-def test_bias_mitigator():
+@pytest.mark.parametrize(
+    "n_bins",
+    [
+        pytest.param(2, id="binary_target"),
+        pytest.param(5, id="multinomial_target"),
+    ]
+)
+def test_bias_mitigator(n_bins):
     sensitive_attrs = ['age', 'gender']
     target = 'income'
     df = generate_biased_data()
 
-    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=2)
+    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=n_bins)
     score_0, df_biases_0 = fs_0.distributions_score(progress_callback=testing_progress_bar)
 
     df_meta = MetaExtractor.extract(df)
@@ -35,12 +42,13 @@ def test_bias_mitigator():
     synthesizer.learn(df_train=df, num_iterations=250)
 
     _ = BiasMitigator(synthesizer, fairness_scorer=fs_0)
-    bias_mitigator = BiasMitigator.from_dataframe(synthesizer, df=df, sensitive_attrs=sensitive_attrs, target=target)
-    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, chunk_size=5, marginal_softener=0.25, bias_min_dist=0.1,
-                                                           n_loops=5, progress_callback=testing_progress_bar,
+    bias_mitigator = BiasMitigator.from_dataframe(synthesizer, df=df, sensitive_attrs=sensitive_attrs, target=target,
+                                                  n_bins=n_bins)
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, chunk_size=5, marginal_softener=0.25,
+                                                           n_loops=10, progress_callback=testing_progress_bar,
                                                            produce_nans=False)
 
-    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=2)
+    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=n_bins)
     score_f, df_biases_f = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert score_f < score_0
