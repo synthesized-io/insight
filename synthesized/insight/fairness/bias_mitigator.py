@@ -58,11 +58,6 @@ class BiasMitigator:
 
         self.vc_all = self.fairness_scorer.target_vc
         self.len_df = self.fairness_scorer.len_df
-        # if len(self.vc_all) > 2:
-        #     raise ValueError('Bias Mitigation is not available for multinomial target distributions.')
-
-        # self.max_class = self.vc_all.idxmax()
-        # self.min_class = self.vc_all.idxmin()
 
     def mitigate_biases(self, df: pd.DataFrame, n_biases: int = 5, marginal_softener: float = 0.25,
                         alpha: float = 0.05, get_independent: bool = False,
