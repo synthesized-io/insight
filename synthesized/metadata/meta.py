@@ -218,7 +218,7 @@ class Meta():
 
     def to_dict(self) -> dict:
         d = {self.name: {}}
-        if self._is_root:
+        if isinstance(self, Meta) and not isinstance(self, ValueMeta):
             d[self.name][self.__class__.__name__] = {child.name: {child.__class__.__name__: child.to_dict()} for child in self.children}
         else:
             return self.__dict__
@@ -227,16 +227,23 @@ class Meta():
     @classmethod
     def from_dict(cls, d):
         meta_module = importlib.import_module("synthesized.metadata.meta")
-        name = list(d.keys())[0]
-        for name, attr in d[name].items():
-            if name in meta_module.__dict__:
-                cls = getattr(meta_module, name)(**attr)
-            if isinstance(attr, dict):
-                setattr(cls, name, cls.from_dict(attr))
-            else:
-                setattr(cls, name, attr)
 
-        return cls
+        if isinstance(d, dict):
+            name = list(d.keys())[0]
+
+            # check if a Meta subclass
+            if name in meta_module.__dict__:
+                cls = getattr(meta_module, name)(name)
+                if isinstance(cls, ValueMeta):
+                    cls = getattr(meta_module, name)(**d[name])
+                else:
+                    for attr_name, attrs in d[name].items():
+                        setattr(cls, attr_name, cls.from_dict(attrs))
+
+            return cls
+
+        else:
+            return d
 
 
 class DataFrameMeta(Meta):
