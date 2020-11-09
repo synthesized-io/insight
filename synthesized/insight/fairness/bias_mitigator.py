@@ -30,6 +30,7 @@ class BiasMitigator:
         self.target = self.fairness_scorer.target
         self.sensitive_attrs = self.fairness_scorer.sensitive_attrs
         self.synthesizer = synthesizer
+        self.cond_sampler = ConditionalSampler(synthesizer, min_sampled_ratio=0, synthesis_batch_size=262_144)
         self.update_df()
 
     @classmethod
@@ -121,9 +122,9 @@ class BiasMitigator:
             marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
-            cond = ConditionalSampler(self.synthesizer, min_sampled_ratio=0, synthesis_batch_size=262_144)
-            df_cond = cond.synthesize_from_joined_counts(marginal_counts=marginal_counts, produce_nans=produce_nans,
-                                                         marginal_keys=marginal_keys, max_trials=100)
+            df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
+                                                                      produce_nans=produce_nans,
+                                                                      marginal_keys=marginal_keys)
 
             df = pd.concat((df, df_cond)).sample(frac=1.).reset_index(drop=True)
 
