@@ -5,7 +5,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from .fairness_scorer import FairnessScorer
+from .fairness_scorer import FairnessScorer, VariableType
 from ...common import Synthesizer
 from ...complex import ConditionalSampler, DataImputer
 
@@ -23,6 +23,9 @@ class BiasMitigator:
             synthesizer: An underlying synthesizer.
             fairness_scorer: The fairness score to compute distribution biases from.
         """
+        if fairness_scorer.target_variable_type != VariableType.Binary:
+            raise NotImplementedError("Bias mitigator only supports binary target distributions.")
+
         self.fairness_scorer = fairness_scorer
         self.target = self.fairness_scorer.target
         self.sensitive_attrs = self.fairness_scorer.sensitive_attrs
@@ -41,7 +44,7 @@ class BiasMitigator:
             sensitive_attrs: Given sensitive attributes.
         """
 
-        fairness_scorer = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
+        fairness_scorer = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target, target_n_bins=2)
         bias_mitigator = cls(synthesizer=synthesizer, fairness_scorer=fairness_scorer)
         return bias_mitigator
 
@@ -51,7 +54,7 @@ class BiasMitigator:
         if df is not None:
             self.fairness_scorer.set_df(df)
 
-        self.vc_all = self.fairness_scorer.df[self.target].value_counts(normalize=True)
+        self.vc_all = self.fairness_scorer.target_vc
         if len(self.vc_all) > 2:
             raise ValueError('Bias Mitigation is not available for multinomial target distributions.')
 
