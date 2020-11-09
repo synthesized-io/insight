@@ -138,6 +138,9 @@ class MetaFactory():
 
         self._builder = MetaBuilder(**self.config)
 
+    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> 'Meta':
+        return self.create_meta(x)
+
     def create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
 
         if isinstance(x, pd.DataFrame):
@@ -185,6 +188,9 @@ class Meta():
             child.extract(x)
 
     def register_child(self, child: 'Meta') -> None:
+        if not isinstance(child, Meta):
+            raise TypeError(f"cannot assign '{type(child)}' as child Meta '{child.name}'",
+                            "(synthesized.metadata.meta.Meta required)")
         self.children.append(child)
 
     def __setattr__(self, name, value):
@@ -267,7 +273,7 @@ class Nominal(ValueMeta):
         super().extract(x)
         if self.categories is None:
             value_counts = x[self.name].value_counts(normalize=True, dropna=False)
-            self.categories = value_counts.index.values.tolist()
+            self.categories = value_counts.index.tolist()
         if self.probabilities is None:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
         return self
@@ -277,6 +283,8 @@ class Nominal(ValueMeta):
             return self.probabilities[self.categories.index(x)]
         except ValueError:
             if np.isnan(x):
+                if not pd.isna(self.categories).any():
+                    return 0.0
                 try:
                     return self.probabilities[np.isnan(self.categories).argmax()]
                 except TypeError:
@@ -312,9 +320,7 @@ class Ordinal(Categorical):
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         super().extract(x)
-
         self.categories = sorted(self.categories)
-
         if self.min is None:
             self.min = self.categories[0]
         if self.max is None:
