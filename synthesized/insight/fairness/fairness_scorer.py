@@ -198,7 +198,9 @@ class FairnessScorer:
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'target', 'distance', 'count'])
         df_biases = df_biases[df_biases['value'] != 'Total']
 
-        if weighted:
+        if len(df_biases) == 0:
+            score = 1.
+        elif weighted:
             score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / df_biases['count'].sum()
         else:
             score = 1 - df_biases['distance'].abs().mean()
