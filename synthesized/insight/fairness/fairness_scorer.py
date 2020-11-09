@@ -193,7 +193,7 @@ class FairnessScorer:
 
                 if progress_callback is not None:
                     n += 1
-                    progress_callback(round(n * 98.0 // num_combinations))
+                    progress_callback(round(n * 98.0 / num_combinations))
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'target', 'distance', 'count'])
         df_biases = df_biases[df_biases['value'] != 'Total']
@@ -294,7 +294,7 @@ class FairnessScorer:
 
                 if progress_callback is not None:
                     n += 1
-                    progress_callback(n * 100 // num_combinations)
+                    progress_callback(round(n * 98 / num_combinations))
 
         score = float(np.nanmean(clf_scores))
         score = 0. if np.isnan(score) else score

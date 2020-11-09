@@ -166,7 +166,7 @@ class BiasMitigator:
             prev_len = len(df)
 
             if progress_callback is not None:
-                progress_callback(round(i * 98 // n_loops))
+                progress_callback(round(i * 98 / n_loops))
 
         if progress_callback is not None:
             progress_callback(100)
