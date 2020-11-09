@@ -148,7 +148,7 @@ class FairnessScorer:
 
     @property
     def sensitive_attrs_and_target(self) -> List[str]:
-        return np.concatenate((self.sensitive_attrs, [self.target]))
+        return list(np.concatenate((self.sensitive_attrs, [self.target])))
 
     def distributions_score(self, mode: Optional[str] = None, alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
@@ -176,8 +176,6 @@ class FairnessScorer:
             return 0., pd.DataFrame([], columns=['name', 'value', 'target', 'distance', 'count'])
 
         biases = []
-        score = 0.
-
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
             if max_combinations else len(self.sensitive_attrs)
         num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
@@ -191,15 +189,6 @@ class FairnessScorer:
             for sensitive_attr in combinations(self.sensitive_attrs, k):
 
                 df_dist = self.calculate_distance(list(sensitive_attr), mode=mode, alpha=alpha)
-
-                if len(df_dist) == 0:
-                    continue
-
-                if weighted:
-                    score += np.sum(df_dist['Distance'].abs() * df_dist['Count']) / df_dist['Count'].sum()
-                else:
-                    score += np.average(df_dist['Distance'].abs())
-
                 biases.extend(self.format_bias(df_dist))
 
                 if progress_callback is not None:
@@ -207,6 +196,12 @@ class FairnessScorer:
                     progress_callback(round(n * 98.0 // num_combinations))
 
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'target', 'distance', 'count'])
+        df_biases = df_biases[df_biases['value'] != 'Total']
+
+        if weighted:
+            score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / df_biases['count'].sum()
+        else:
+            score = 1 - df_biases['distance'].abs().mean()
 
         if min_dist is not None:
             df_biases = df_biases[df_biases['distance'].abs() >= min_dist]
@@ -216,18 +211,14 @@ class FairnessScorer:
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
             .reset_index(drop=True)
 
-        df_biases = df_biases[df_biases['value'] != 'Total']
         df_biases['name'] = df_biases['name'].apply(
             lambda x: self.names_str_to_list[x] if x in self.names_str_to_list else x)
         df_biases['value'] = df_biases['value'].map(
             lambda x: self.values_str_to_list[x] if x in self.values_str_to_list else x)
 
-        score = score / num_combinations
-
         if progress_callback is not None:
             progress_callback(100)
 
-        score = 1. - score
         return score, df_biases
 
     def calculate_distance(self, sensitive_attr: List[str], mode: Optional[str] = None,
@@ -371,6 +362,9 @@ class FairnessScorer:
         return df_count
 
     def format_bias(self, bias: pd.DataFrame) -> List[Dict[str, Any]]:
+        if len(bias) == 0:
+            return []
+
         fmt_bias = []
 
         nlevels = bias.index.nlevels
@@ -462,7 +456,7 @@ class FairnessScorer:
         for group, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
             target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
-            dist, pval = ks_2samp(target, target_rest)
+            dist, pval = ks_2samp(target_group, target_rest)
             if pval < alpha:
                 if np.mean(target_group) < self.target_mean:
                     dist = -dist
