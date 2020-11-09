@@ -34,7 +34,7 @@ class BiasMitigator:
 
     @classmethod
     def from_dataframe(cls, synthesizer: Synthesizer, df: pd.DataFrame, target: str,
-                       sensitive_attrs: List[str], n_bins: int = 10,
+                       sensitive_attrs: List[str], n_bins: int = 5,
                        target_n_bins: Optional[int] = None) -> 'BiasMitigator':
         """Given a DataFrame, build a Bias Mitigator.
 

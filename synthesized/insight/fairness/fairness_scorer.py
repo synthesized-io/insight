@@ -152,7 +152,7 @@ class FairnessScorer:
 
     def distributions_score(self, mode: Optional[str] = None, alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
-                            weighted: bool = False, max_combinations: Optional[int] = 3,
+                            weighted: bool = True, max_combinations: Optional[int] = 3,
                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable.
