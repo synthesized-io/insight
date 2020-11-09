@@ -185,7 +185,7 @@ class ConditionalSampler(Synthesizer):
 
             # If after 3 loops we were not able to generate anything,
             if n_trials > 3 and n_missing == num_rows:
-                logger.warning(f"Synthesis stopped after 3 trials without being able to generate any samples.")
+                logger.warning("Synthesis stopped after 3 trials without being able to generate any samples.")
                 break
 
             logger.debug(f"Loop finished, {n_added} added samples, ")
