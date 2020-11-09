@@ -450,7 +450,6 @@ class FairnessScorer:
 
     def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         groups = self.df.groupby(sensitive_attr).groups
-        target = self.df[self.target]
 
         distances = []
         for group, idxs in groups.items():
