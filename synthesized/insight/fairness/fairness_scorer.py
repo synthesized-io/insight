@@ -190,19 +190,7 @@ class FairnessScorer:
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
 
-                if self.target_variable_type == VariableType.Binary:
-                    df_dist = self.difference_distance(list(sensitive_attr), alpha=alpha)
-                elif self.target_variable_type == VariableType.Multinomial:
-                    if mode is not None and mode == 'ovr':
-                        df_dist = self.difference_distance(list(sensitive_attr), alpha=alpha)
-                    elif mode is None or mode == 'emd':
-                        df_dist = self.emd_distance(list(sensitive_attr))
-                    else:
-                        raise ValueError(f"Given mode '{mode}' not recognized.")
-                elif self.target_variable_type == VariableType.Continuous:
-                    df_dist = self.ks_distance(list(sensitive_attr))
-                else:
-                    raise ValueError("Target variable type not supported")
+                df_dist = self.calculate_distance(list(sensitive_attr), mode=mode, alpha=alpha)
 
                 if len(df_dist) == 0:
                     continue
@@ -241,6 +229,26 @@ class FairnessScorer:
 
         score = 1. - score
         return score, df_biases
+
+    def calculate_distance(self, sensitive_attr: List[str], mode: Optional[str] = None,
+                           alpha: float = 0.05) -> pd.DataFrame:
+        """Check input values and decide which type of distance is computed for each case."""
+
+        if self.target_variable_type == VariableType.Binary:
+            df_dist = self.difference_distance(sensitive_attr, alpha=alpha)
+        elif self.target_variable_type == VariableType.Multinomial:
+            if mode is not None and mode == 'ovr':
+                df_dist = self.difference_distance(sensitive_attr, alpha=alpha)
+            elif mode is None or mode == 'emd':
+                df_dist = self.emd_distance(sensitive_attr)
+            else:
+                raise ValueError(f"Given mode '{mode}' not recognized.")
+        elif self.target_variable_type == VariableType.Continuous:
+            df_dist = self.ks_distance(sensitive_attr)
+        else:
+            raise ValueError("Target variable type not supported")
+
+        return df_dist
 
     def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
                              min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,

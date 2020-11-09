@@ -1,6 +1,6 @@
 from collections import Counter
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -34,7 +34,8 @@ class BiasMitigator:
 
     @classmethod
     def from_dataframe(cls, synthesizer: Synthesizer, df: pd.DataFrame, target: str,
-                       sensitive_attrs: List[str], n_bins: int = 10) -> 'BiasMitigator':
+                       sensitive_attrs: List[str], n_bins: int = 10,
+                       target_n_bins: Optional[int] = None) -> 'BiasMitigator':
         """Given a DataFrame, build a Bias Mitigator.
 
         Args:
@@ -42,11 +43,12 @@ class BiasMitigator:
             df: Pandas DataFrame containing the data to mitigate biases.
             target: Name of the column containing the target feature.
             sensitive_attrs: Given sensitive attributes.
-            n_bins: Number of bins for sensitive attributes and target to be binned.
+            n_bins: Number of bins for sensitive attributes to be binned.
+            target_n_bins: Number of bins for target to be binned, if None will use it as it is.
         """
 
         fairness_scorer = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target,
-                                         n_bins=n_bins, target_n_bins=n_bins)
+                                         n_bins=n_bins, target_n_bins=(target_n_bins or n_bins))
         bias_mitigator = cls(synthesizer=synthesizer, fairness_scorer=fairness_scorer)
         return bias_mitigator
 
@@ -190,7 +192,7 @@ class BiasMitigator:
 
         return bias_out
 
-    def get_marginal_counts(self, bias, marginal_counts: Dict[Tuple[str, ...], int] = None,
+    def get_marginal_counts(self, bias: pd.Series, marginal_counts: Dict[Tuple[str, ...], int] = None,
                             marginal_softener: float = 0.25, use_colons: bool = True) -> Dict[Tuple[str, ...], int]:
 
         if not 0 < marginal_softener <= 1.:
@@ -217,8 +219,8 @@ class BiasMitigator:
         return marginal_counts
 
     @staticmethod
-    def get_top_independent_biases(df_biases, n=10):
-        affected = dict()
+    def get_top_independent_biases(df_biases: pd.DataFrame, n: int = 10) -> pd.DataFrame:
+        affected: Dict[str, List[Any]] = dict()
 
         top_biases = df_biases.head(0)
 
