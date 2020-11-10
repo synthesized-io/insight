@@ -462,11 +462,16 @@ class FairnessScorer:
                 if np.mean(target_group) < self.target_mean:
                     dist = -dist
 
-                if isinstance(sensitive_attr_values, list) and len(sensitive_attr_values) > 1:
+                print("isinstance(sensitive_attr_values, list)", isinstance(sensitive_attr_values, list))
+                print("isinstance(sensitive_attr_values, tuple)", isinstance(sensitive_attr_values, tuple))
+                if isinstance(sensitive_attr_values, tuple) and len(sensitive_attr_values) > 1:
                     sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
                 else:
                     sensitive_attr_str = sensitive_attr_values
                     sensitive_attr_values = [sensitive_attr_values]
+
+                print("sensitive_attr_str", sensitive_attr_str)
+                print("sensitive_attr_values", sensitive_attr_values)
 
                 self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
                 distances.append([sensitive_attr_str, len(idxs), dist])
