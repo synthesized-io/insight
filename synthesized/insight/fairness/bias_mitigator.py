@@ -204,9 +204,15 @@ class BiasMitigator:
 
         values_w_colons = bias['value_w_colons'] if use_colons else bias['value']
 
-        vc_this = self.fairness_scorer.df.loc[np.all(
-            [self.fairness_scorer.df[col] == v for col, v in zip(self.sensitive_attrs, values_w_colons) if v != ':'],
-            axis=0), self.target].value_counts()
+        if use_colons:
+            vc_this = self.fairness_scorer.df.loc[np.all(
+                [self.fairness_scorer.df[col] == v for col, v in zip(self.sensitive_attrs, values_w_colons) if v != ':'],
+                axis=0), self.target].value_counts()
+        else:
+            vc_this = self.fairness_scorer.df.loc[np.all(
+                [self.fairness_scorer.df[col] == v for col, v in zip(bias['name'], values_w_colons) if
+                 v != ':'],
+                axis=0), self.target].value_counts()
 
         vc_this = Counter(vc_this.to_dict())
 
