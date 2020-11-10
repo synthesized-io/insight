@@ -33,13 +33,17 @@ def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target, mo
 
     assert 0. <= dist_score <= 1.
     assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
+    assert all([isinstance(v, list) for v in dist_biases['name'].values])
+    assert all([isinstance(v, list) for v in dist_biases['value'].values])
 
     # Classification score
     if fairness_scorer.target_variable_type == VariableType.Binary:
         clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
 
         assert 0. <= clf_score <= 1.
-        assert not any([dist_biases[c].isna().any() for c in clf_biases.columns])
+        assert not any([clf_biases[c].isna().any() for c in clf_biases.columns])
+        assert all([isinstance(v, list) for v in dist_biases['name'].values])
+        assert all([isinstance(v, list) for v in dist_biases['value'].values])
 
 
 @pytest.mark.slow

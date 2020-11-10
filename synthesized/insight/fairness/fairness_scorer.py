@@ -120,7 +120,7 @@ class FairnessScorer:
         self.df.drop(other_columns, axis=1)
         self.df.dropna(inplace=True)
 
-        self.bin_sensitive_attr(self.df)
+        self.bin_sensitive_attr(self.df, inplace=True)
         self.target_variable_type = self.manipulate_target_variable(self.df)
 
         self.len_df = len(self.df)
@@ -454,7 +454,7 @@ class FairnessScorer:
         groups = self.df.groupby(sensitive_attr).groups
 
         distances = []
-        for group, idxs in groups.items():
+        for sensitive_attr_values, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
             target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
             dist, pval = ks_2samp(target_group, target_rest)
@@ -462,9 +462,18 @@ class FairnessScorer:
                 if np.mean(target_group) < self.target_mean:
                     dist = -dist
 
-                distances.append([group, len(idxs), dist])
+                if isinstance(sensitive_attr_values, list) and len(sensitive_attr_values) > 1:
+                    sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                else:
+                    sensitive_attr_str = sensitive_attr_values
+                    sensitive_attr_values = [sensitive_attr_values]
+
+                self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
+                distances.append([sensitive_attr_str, len(idxs), dist])
 
         name = sensitive_attr_concat_name(sensitive_attr)
+        self.names_str_to_list[name] = sensitive_attr
+
         return pd.DataFrame(distances, columns=[name, 'Count', 'Distance']).set_index(name)
 
     def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
@@ -595,7 +604,7 @@ class FairnessScorer:
 
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
-    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True):
+    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
@@ -611,6 +620,8 @@ class FairnessScorer:
                 df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
             else:
                 df[col] = df[col].astype(str).fillna('nan')
+
+        return df
 
     @staticmethod
     def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
