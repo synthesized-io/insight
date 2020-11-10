@@ -468,9 +468,6 @@ class FairnessScorer:
                     sensitive_attr_str = sensitive_attr_values
                     sensitive_attr_values = [sensitive_attr_values]
 
-                print("sensitive_attr_str", sensitive_attr_str)
-                print("sensitive_attr_values", sensitive_attr_values)
-
                 self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
                 distances.append([sensitive_attr_str, len(idxs), dist])
 
