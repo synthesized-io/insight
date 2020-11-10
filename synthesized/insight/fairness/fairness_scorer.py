@@ -201,7 +201,7 @@ class FairnessScorer:
         if len(df_biases) == 0:
             score = 1.
         elif weighted:
-            score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / df_biases['count'].sum()
+            score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / (num_combinations * self.len_df)
         else:
             score = 1 - df_biases['distance'].abs().mean()
 
