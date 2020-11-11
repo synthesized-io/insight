@@ -105,7 +105,7 @@ class MetaBuilder():
                 self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             else:
-                self._meta = ValueMeta(x.name)
+                self._meta = Nominal(x.name)
 
         return self._meta
 
