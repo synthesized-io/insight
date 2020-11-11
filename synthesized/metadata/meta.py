@@ -304,7 +304,7 @@ class Nominal(ValueMeta):
         try:
             return self.probabilities[self.categories.index(x)]
         except ValueError:
-            if np.isnan(x):
+            if pd.isna(x):
                 if not pd.isna(self.categories).any():
                     return 0.0
                 try:
