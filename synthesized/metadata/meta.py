@@ -172,75 +172,81 @@ class MetaExtractor(MetaFactory):
         return df_meta
 
 
-@dataclass()
+@dataclass(repr=False)
 class Meta():
 
     name: str
-    children: List['Meta'] = None
-    _is_root = True
+    _children: List['Meta'] = None
 
     def __post_init__(self):
-        if self.children is None:
-            self.children = []
+        if self._children is None:
+            self._children = []
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name={self.name})'
+
+    def __str__(self):
+        return f"{TreePrinter().print(self)}"
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        for child in self.children:
+        for child in self._children:
             child.extract(x)
 
     def register_child(self, child: 'Meta') -> None:
         if not isinstance(child, Meta):
             raise TypeError(f"cannot assign '{type(child)}' as child Meta '{child.name}'",
                             "(synthesized.metadata.meta.Meta required)")
-        self.children.append(child)
+        self._children.append(child)
 
     def __setattr__(self, name, value):
-        if isinstance(value, Meta) and self._is_root:
-            if self.children is None:
-                self.children = []
+        if isinstance(value, Meta) and not isinstance(self, ValueMeta):
+            if self._children is None:
+                self._children = []
             self.register_child(value)
         object.__setattr__(self, name, value)
 
     def __getitem__(self, value):
-        if self.children:
-            for child in self.children:
-                if child.name == value:
-                    return child[value]
-        elif value == self.name:
-            return self
-        else:
-            raise KeyError(f"'{value}' is not a registered Meta.")
+        return getattr(self, value)
 
-    def to_json(self):
-        raise NotImplementedError
+    def __iter__(self):
+        for child in self._children:
+            yield child
 
-    def from_json(self):
-        raise NotImplementedError
+    def __len__(self):
+        return len(self._children)
 
-    def to_dict(self) -> dict:
-        d = {self.name: {}}
-        if isinstance(self, Meta) and not isinstance(self, ValueMeta):
-            d[self.name][self.__class__.__name__] = {child.name: {child.__class__.__name__: child.to_dict()} for child in self.children}
-        else:
-            return self.__dict__
+    def _tree_to_dict(self, meta: 'Meta') -> dict:
+        if isinstance(meta, ValueMeta):
+            d = {}
+            for key, value in meta.__dict__.items():
+                if not isinstance(value, Meta) and not key.startswith('_'):
+                    d[key] = value
+            return d
+        elif isinstance(meta, Meta):
+            return {m.name: m.to_dict() for m in meta}
+
+    def to_dict(self):
+        d = {self.__class__.__name__: self._tree_to_dict(self)}
+        for key, value in self.__dict__.items():
+            if not isinstance(value, Meta) and not key.startswith('_'):
+                d[self.__class__.__name__][key] = value
         return d
 
     @classmethod
     def from_dict(cls, d):
-        meta_module = importlib.import_module("synthesized.metadata.meta")
-
+        module = importlib.import_module("synthesized.metadata.meta")
         if isinstance(d, dict):
             name = list(d.keys())[0]
-
-            # check if a Meta subclass
-            if name in meta_module.__dict__:
-                cls = getattr(meta_module, name)(name)
+            if name in module.__dict__:
+                cls = getattr(module, name)(name)
                 if isinstance(cls, ValueMeta):
-                    cls = getattr(meta_module, name)(**d[name])
+                    cls = getattr(module, name)(**d[name])
                 else:
                     for attr_name, attrs in d[name].items():
                         setattr(cls, attr_name, cls.from_dict(attrs))
-
-            return cls
+                return cls
+            else:
+                raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
 
         else:
             return d
@@ -259,18 +265,20 @@ class DataFrameMeta(Meta):
         return pd.Series(col_meta)
 
 
-@dataclass
+@dataclass(repr=False)
 class ValueMeta(Meta):
 
     dtype: str = None
-    _is_root: bool = False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         self.dtype = x[self.name].dtype
         return self
 
 
-@dataclass
+@dataclass(repr=False)
 class Nominal(ValueMeta):
 
     categories: List[str] = None
@@ -303,7 +311,7 @@ class Nominal(ValueMeta):
         return self.probability(np.nan)
 
 
-@dataclass
+@dataclass(repr=False)
 class Constant(Nominal):
 
     value = None
@@ -313,13 +321,13 @@ class Constant(Nominal):
         self.value = x[self.name].dropna().iloc[0]
 
 
-@dataclass
+@dataclass(repr=False)
 class Categorical(Nominal):
 
     similarity_based: bool = True
 
 
-@dataclass
+@dataclass(repr=False)
 class Ordinal(Categorical):
 
     min: Union[str, float, int] = None
@@ -352,7 +360,7 @@ class Ordinal(Categorical):
         return sorted(x, key=key)
 
 
-@dataclass
+@dataclass(repr=False)
 class Affine(Ordinal):
 
     distribution: scipy.stats.rv_continuous = None
@@ -369,7 +377,7 @@ class Affine(Ordinal):
     #     return self.distribution.pdf(x)
 
 
-@dataclass
+@dataclass(repr=False)
 class Date(Affine):
 
     dtype: str = 'datetime64[ns]'
@@ -384,7 +392,7 @@ class Date(Affine):
         x[self.name] = x[self.name].dt.strftime(self.date_format)
 
 
-@dataclass
+@dataclass(repr=False)
 class Scale(Affine):
 
     nonnegative: bool = None
@@ -398,25 +406,79 @@ class Scale(Affine):
         return self
 
 
-@dataclass
+@dataclass(repr=False)
 class Integer(Scale):
     dtype: str = 'int64'
 
 
-@dataclass
+@dataclass(repr=False)
 class TimeDelta(Scale):
     dtype: str = 'timedelta64[ns]'
 
 
-@dataclass
+@dataclass(repr=False)
 class Bool(Scale):
     dtype: str = 'boolean'
     categories = (0, 1)
 
 
-@dataclass
+@dataclass(repr=False)
 class Float(Scale):
     dtype: str = 'float64'
+
+
+@dataclass(repr=False)
+class AddressMeta(Meta):
+    street: Nominal = None
+    number: Integer = None
+    postcode: Nominal = None
+    name: Nominal = None
+    flat: Nominal = None
+    city: Nominal = None
+    county: Nominal = None
+    postcode: Nominal = None
+
+
+@dataclass(repr=False)
+class BankMeta(Meta):
+    account_number: Nominal = None
+    sort_code: Nominal = None
+
+
+@dataclass(repr=False)
+class PersonMeta(Meta):
+    title: Categorical = None
+    first_name: Nominal = None
+    last_name: Nominal = None
+    email: Nominal = None
+    age: Integer = None
+    gender: Categorical = None
+    mobile_telephone: Nominal = None
+    home_telephone: Nominal = None
+    work_telephone: Nominal = None
+
+
+class TreePrinter():
+    """Pretty print the tree structure of a Meta."""
+    def __init__(self):
+        self.depth = 0
+        self.string = ''
+
+    def _print(self, tree: Meta):
+        if not isinstance(tree, Meta):
+            raise TypeError(f"tree must be 'Meta' not {type(tree)}")
+        for child in tree:
+            self.string += f'{self.depth * "    "}' + repr(child) + '\n'
+            if len(child):
+                self.string += self.depth * "    " + '|\n' + self.depth * "    " + '----' + '\n'
+                self.depth += 1
+                self._print(child)
+
+        self.depth -= 1
+
+    def print(self, tree):
+        self._print(tree)
+        return self.string
 
 
 def get_date_format(x: pd.Series) -> pd.Series:
