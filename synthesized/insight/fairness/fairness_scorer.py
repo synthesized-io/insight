@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 import logging
 from itertools import combinations
@@ -609,19 +610,50 @@ class FairnessScorer:
             df = df.copy()
 
         for col in self.sensitive_attrs:
-            # Try to convert it to numeric
-            n_nans = df[col].isna().sum()
-            col_num = pd.to_numeric(df[col], errors='coerce')
-            if col_num.isna().sum() == n_nans:
-                df[col] = col_num
+            # Try to convert it to numeric if it isn't
+            if df[col].dtype.kind not in ('i', 'u', 'f'):
+                n_nans = df[col].isna().sum()
+                col_num = pd.to_numeric(df[col], errors='coerce')
+                if col_num.isna().sum() == n_nans:
+                    df[col] = col_num
 
-            # If it's numeric, binned it
-            if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
-                df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
+            # Try to convert it to date
+            if df[col].dtype.kind == 'O':
+                n_nans = df[col].isna().sum()
+                col_date = pd.to_datetime(df[col], errors='coerce')
+                if col_date.isna().sum() == n_nans:
+                    df[col] = col_date
+
+            num_unique = df[col].nunique()
+            # If it's numeric, bin it
+            if df[col].dtype.kind in ('i', 'u', 'f'):
+                if num_unique > self.n_bins:
+                    df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
+
+            # If it's date, bin it
+            elif df[col].dtype.kind == 'M':
+                df[col] = self.bin_date_column(df[col])
+
+            # If it's a sampling value, discard it
+            elif num_unique <= np.sqrt(len(df)):
+                df.drop(col, axis=1, inplace=True)
+                self.sensitive_attrs.remove(col)
+                logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")
+
             else:
                 df[col] = df[col].astype(str).fillna('nan')
 
         return df
+
+    def bin_date_column(self, column: pd.Series, date_format: str = "%Y-%m-%d") -> pd.Series:
+        assert column.dtype.kind == "M"
+        column, edges_num = pd.cut(column, bins=self.n_bins, retbins=True, duplicates='drop')
+
+        edges_str = [datetime.strftime(pd.to_datetime(d), date_format) for d in edges_num]
+        edges = {pd.Interval(edges_num[i], edges_num[i + 1]): "{} to {}".format(edges_str[i], edges_str[i + 1])
+                 for i in range(len(edges_num) - 1)}
+
+        return column.map(edges).astype(str)
 
     @staticmethod
     def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
