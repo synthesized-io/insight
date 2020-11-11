@@ -626,8 +626,9 @@ class FairnessScorer:
 
             num_unique = df[col].nunique()
             # If it's numeric, bin it
-            if df[col].dtype.kind in ('i', 'u', 'f') and num_unique > self.n_bins:
-                df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
+            if df[col].dtype.kind in ('i', 'u', 'f'):
+                if num_unique > self.n_bins:
+                    df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
 
             # If it's date, bin it
             elif df[col].dtype.kind == 'M':
