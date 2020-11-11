@@ -182,6 +182,10 @@ class Meta():
         if self._children is None:
             self._children = []
 
+    @property
+    def children(self) -> List['Meta']:
+        return self._children
+
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name})'
 
@@ -272,6 +276,9 @@ class ValueMeta(Meta):
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
+
+    def __str__(self):
+        return repr(self)
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         self.dtype = x[self.name].dtype
@@ -399,7 +406,7 @@ class Scale(Affine):
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         super().extract(x)
-        if (x[self.name] >= 0).all():
+        if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
