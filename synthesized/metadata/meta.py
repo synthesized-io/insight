@@ -364,7 +364,7 @@ class Ordinal(Categorical):
 
     def sort(self, x: pd.Series) -> pd.Series:
         key = cmp_to_key(self._predicate)
-        return sorted(x, key=key)
+        return pd.Series(sorted(x, key=key, reverse=True))
 
 
 @dataclass(repr=False)
