@@ -97,11 +97,11 @@ class MetaBuilder():
                 self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             elif num_nan / n_rows < self.acceptable_nan_frac:
-                self._meta = self._FloatBuilder(x)
+                self._meta = self._FloatBuilder(x_numeric)
 
             elif (n_unique <= np.sqrt(n_rows) or
                   n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
-                    and (not MetaBuilder._contains_genuine_floats(x)):
+                    and (not MetaBuilder._contains_genuine_floats(x_numeric)):
                 self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             else:
