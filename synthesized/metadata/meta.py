@@ -23,7 +23,7 @@ class MetaBuilder():
             'u': self._IntBuilder,
             'M': self._DateBuilder,
             'm': self._TimeDeltaBuilder,
-            '?': self._BoolBuilder,
+            'b': self._BoolBuilder,
             'f': self._FloatBuilder,
             'O': self._ObjectBuilder
         }
