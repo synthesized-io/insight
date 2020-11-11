@@ -1,7 +1,25 @@
 import pandas as pd
+import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Nominal, Categorical, Float, MetaExtractor
+from synthesized.metadata.meta import Meta, Nominal, Categorical, Float, MetaExtractor, Ordinal
+
+
+@pytest.fixture
+def nominal():
+    return Nominal(
+        'nominal',
+        categories=['A', 'B', 'C', 'D', np.nan],
+        probabilities=[0.1, 0.2, 0.3, 0.3, 0.1]
+    )
+
+
+@pytest.fixture
+def ordinal():
+    return Ordinal(
+        'ordinal',
+        categories=['A', 'B', 'C', 'D']
+    )
 
 
 @pytest.fixture
@@ -76,3 +94,21 @@ def test_to_dict(nested_meta, nested_dict_meta):
 def test_from_dict(nested_meta, nested_dict_meta):
     m = Meta.from_dict(nested_dict_meta)
     assert m == nested_meta
+
+
+@pytest.mark.fast
+def test_nominal_probability(nominal):
+    assert nominal.probability('A') == 0.1
+    assert nominal.probability('B') == 0.2
+    assert nominal.probability('C') == 0.3
+    assert nominal.probability('D') == 0.3
+    assert nominal.probability(np.nan) == 0.1
+    assert nominal.probability('F') == 0.0
+
+@pytest.mark.fast
+def test_ordinal_less_than(ordinal):
+    assert ordinal.less_than('A', 'B') is True
+    assert ordinal.less_than('C', 'B') is False
+
+    x = pd.Series(['A', 'D', 'D', 'C', 'B', 'A'])
+    assert (ordinal.sort(x) == pd.Series(['A', 'A', 'B', 'C', 'D', 'D'])).all()
