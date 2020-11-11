@@ -55,12 +55,7 @@ class MetaBuilder():
         return self._meta
 
     def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-
-        if x.nunique() == 2:
-            self._meta = Bool(x.name, **kwargs)
-        else:
-            self._meta = Integer(x.name, **kwargs)
-
+        self._meta = Integer(x.name, **kwargs)
         return self._meta
 
     def _FloatBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
