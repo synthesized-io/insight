@@ -609,15 +609,24 @@ class FairnessScorer:
             df = df.copy()
 
         for col in self.sensitive_attrs:
-            # Try to convert it to numeric
-            n_nans = df[col].isna().sum()
-            col_num = pd.to_numeric(df[col], errors='coerce')
-            if col_num.isna().sum() == n_nans:
-                df[col] = col_num
+            # Try to convert it to numeric if it isn't
+            if df[col].dtype.kind not in ('i', 'u', 'f'):
+                n_nans = df[col].isna().sum()
+                col_num = pd.to_numeric(df[col], errors='coerce')
+                if col_num.isna().sum() == n_nans:
+                    df[col] = col_num
 
+            num_unique = df[col].nunique()
             # If it's numeric, binned it
-            if df[col].dtype.kind in ('i', 'u', 'f') and df[col].nunique() > self.n_bins:
+            if df[col].dtype.kind in ('i', 'u', 'f') and num_unique > self.n_bins:
                 df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
+
+            # If it's a sampling value, discard it
+            elif num_unique <= np.sqrt(len(df)):
+                df.drop(col, axis=1, inplace=True)
+                self.sensitive_attrs.remove(col)
+                logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")
+
             else:
                 df[col] = df[col].astype(str).fillna('nan')
 
