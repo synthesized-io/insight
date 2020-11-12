@@ -167,6 +167,9 @@ class MetaFactory():
                 raise TypeError(f"'{x.dtype}' is unsupported")
             meta = self._builder(x)
 
+        else:
+            raise TypeError(f"Cannot create meta from {type(x)}")
+
         return meta
 
 
@@ -302,13 +305,16 @@ class Nominal(ValueMeta):
     probabilities: List[float] = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
-        value_counts = x[self.name].value_counts(normalize=True, dropna=False)
+        value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
         if self.categories is None:
             self.categories = value_counts.index.tolist()
+            try:
+                self.categories = sorted(self.categories)
+            except TypeError:
+                pass
         if self.probabilities is None:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
-        return self
+        return super().extract(x)
 
     def probability(self, x: Union[str, float, int]) -> float:
         try:
@@ -334,8 +340,8 @@ class Constant(Nominal):
     value = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
         self.value = x[self.name].dropna().iloc[0]
+        return super().extract(x)
 
 
 @dataclass(repr=False)
@@ -351,8 +357,7 @@ class Ordinal(Categorical):
     max: Union[str, float, int] = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
-        self.categories = sorted(self.categories)
+        self = super().extract(x)
         if self.min is None:
             self.min = self.categories[0]
         if self.max is None:
@@ -384,11 +389,11 @@ class Affine(Ordinal):
     monotonic: bool = False
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
         if (np.diff(x[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
             self.monotonic = False
+        return super().extract(x)
 
     # def probability(self, x):
     #     return self.distribution.pdf(x)
@@ -405,8 +410,9 @@ class Date(Affine):
             self.date_format = get_date_format(x[self.name])
 
         x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
-        super().extract(x)
+        self = super().extract(x)
         x[self.name] = x[self.name].dt.strftime(self.date_format)
+        return self
 
 
 @dataclass(repr=False)
@@ -415,12 +421,11 @@ class Scale(Affine):
     nonnegative: bool = None
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
-        super().extract(x)
         if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
-        return self
+        return super().extract(x)
 
 
 @dataclass(repr=False)
