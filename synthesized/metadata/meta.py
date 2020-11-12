@@ -83,9 +83,9 @@ class MetaBuilder():
 
     def _ObjectBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
         try:
-            pd.to_datetime(x)
+            get_date_format(x)
             self._meta = self._DateBuilder(x, **kwargs)
-        except (ValueError, TypeError, OverflowError):
+        except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
             n_unique = x.nunique()
             n_rows = len(x)
@@ -96,13 +96,16 @@ class MetaBuilder():
             if isinstance(x.dtype, pd.CategoricalDtype):
                 self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
-            elif num_nan / n_rows < self.acceptable_nan_frac:
-                self._meta = self._FloatBuilder(x_numeric)
-
             elif (n_unique <= np.sqrt(n_rows) or
                   n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
                     and (not MetaBuilder._contains_genuine_floats(x_numeric)):
                 self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+
+            elif num_nan / n_rows < self.acceptable_nan_frac:
+                if MetaBuilder._contains_genuine_floats(x_numeric):
+                    self._meta = self._FloatBuilder(x_numeric)
+                else:
+                    self._meta = self._IntBuilder(x_numeric)
 
             else:
                 self._meta = Nominal(x.name)
@@ -501,4 +504,10 @@ def get_date_format(x: pd.Series) -> pd.Series:
         except TypeError:
             break
 
+    if parsed_format is None:
+        raise UnknownDateFormatError("Unable to infer date format.")
     return parsed_format
+
+
+class UnknownDateFormatError(Exception):
+    pass
