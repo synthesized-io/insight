@@ -39,13 +39,12 @@ class MetaBuilder():
     def _default_categorical(func):
         @functools.wraps(func)
         def wrapper(self, x: pd.Series) -> 'Meta':
-            n_unique, n_rows = x.nunique(), len(x)
+            n_unique = x.nunique()
             if n_unique == 1:
                 return Constant(x.name)
-            elif (n_unique <= np.sqrt(n_rows) or
-                    n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+            elif n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x))) \
                     and (not MetaBuilder._contains_genuine_floats(x)):
-                return Categorical(x, similarity_based=True if n_unique > 2 else False)
+                return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
             else:
                 return func(self, x, **self.kwargs)
         return wrapper
