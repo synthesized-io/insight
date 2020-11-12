@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Nominal, Categorical, Float, MetaExtractor, Ordinal
+from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, MetaBuilder, MetaExtractorConfig
 
 
 @pytest.fixture
@@ -105,6 +105,7 @@ def test_nominal_probability(nominal):
     assert nominal.probability(np.nan) == 0.1
     assert nominal.probability('F') == 0.0
 
+
 @pytest.mark.fast
 def test_ordinal_less_than(ordinal):
     assert ordinal.less_than('A', 'B') is True
@@ -112,3 +113,34 @@ def test_ordinal_less_than(ordinal):
 
     x = pd.Series(['A', 'D', 'D', 'C', 'B', 'A'])
     assert (ordinal.sort(x) == pd.Series(['A', 'A', 'B', 'C', 'D', 'D'])).all()
+
+
+data_meta = [
+    (pd.Series(['1.2', 2, 'a']), Nominal),
+    (pd.Series(['1.2', '1.2']), Constant),
+    (pd.Series([True, False]), Bool),
+    (pd.Series(['A', 'B']), Categorical),
+    (pd.Series(['1', '2', '3']), Categorical),
+    (pd.Series(['A', 'B', 'C'], dtype=pd.CategoricalDtype(categories=['A', 'B', 'C'], ordered=False)), Categorical),
+    (pd.Series(['A', 'B', 'C'], dtype=pd.CategoricalDtype(categories=['A', 'B', 'C'], ordered=True)), Ordinal),
+    (pd.Series([1, 2]), Categorical),
+    (pd.Series([1.0, 2.0]), Categorical),
+    (pd.Series(['1', 1, 1.0]), Categorical),
+    (pd.Series(['1', '2.0', '3']), Categorical),
+    (pd.Series(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']), Integer),
+    (pd.Series([1.2, 2.3]), Float),
+    (pd.Series([1, 2.3]), Float),
+    (pd.Series(['1', '2.3', '3.1']), Float),
+    (pd.Series(['1.2', 2.3]), Float),
+    (pd.Series(["2013/02/01", "2013/02/03"]), Date),
+    (pd.Series([226, 232], dtype='timedelta64[ns]'), TimeDelta)
+]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    "data, meta", data_meta
+)
+def test_default_builder(data, meta):
+    builder = MetaBuilder(**MetaExtractorConfig)
+    assert type(builder(data)) == meta
