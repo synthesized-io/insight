@@ -71,8 +71,8 @@ class MetaBuilder():
 
     def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
         if isinstance(x.dtype, pd.CategoricalDtype):
-            categories = x.categories.tolist()
-            if x.ordered:
+            categories = x.cat.categories.tolist()
+            if x.cat.ordered:
                 self._meta = Ordinal(x.name, categories=categories, **kwargs)
             else:
                 self._meta = Categorical(x.name, categories=categories, **kwargs)
@@ -291,8 +291,8 @@ class Nominal(ValueMeta):
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
         super().extract(x)
+        value_counts = x[self.name].value_counts(normalize=True, dropna=False)
         if self.categories is None:
-            value_counts = x[self.name].value_counts(normalize=True, dropna=False)
             self.categories = value_counts.index.tolist()
         if self.probabilities is None:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
