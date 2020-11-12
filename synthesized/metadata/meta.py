@@ -1,4 +1,4 @@
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional, Callable, Any
 from dataclasses import dataclass
 from functools import cmp_to_key
 from datetime import datetime
@@ -16,9 +16,23 @@ MetaExtractorConfig = {
 }
 
 
+def _default_categorical(func):
+    @functools.wraps(func)
+    def wrapper(cls, x: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
+        n_unique = x.nunique()
+        if n_unique == 1:
+            return Constant(x.name)
+        elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(x))) \
+                and (not MetaBuilder._contains_genuine_floats(x)):
+            return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
+        else:
+            return func(cls, x, **cls.kwargs)
+    return wrapper
+
+
 class MetaBuilder():
     """MetaFactory functor."""
-    def __init__(self, min_num_unique, acceptable_nan_frac, categorical_threshold_log_multiplier, **kwargs):
+    def __init__(self, min_num_unique: int, acceptable_nan_frac: float, categorical_threshold_log_multiplier: float, **kwargs):
         self._dtype_builders = {
             'i': self._IntBuilder,
             'u': self._IntBuilder,
@@ -32,71 +46,52 @@ class MetaBuilder():
         self.min_num_unique = min_num_unique
         self.acceptable_nan_frac = acceptable_nan_frac
         self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
-        self._meta = None
 
         self.kwargs = kwargs
 
-    def _default_categorical(func):
-        @functools.wraps(func)
-        def wrapper(self, x: pd.Series) -> 'Meta':
-            n_unique = x.nunique()
-            if n_unique == 1:
-                return Constant(x.name)
-            elif n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x))) \
-                    and (not MetaBuilder._contains_genuine_floats(x)):
-                return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
-            else:
-                return func(self, x, **self.kwargs)
-        return wrapper
-
-    def __call__(self, x: pd.Series):
+    def __call__(self, x: pd.Series) -> 'Meta':
         return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
 
-    def _DateBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-        self._meta = Date(x.name, **kwargs)
-        return self._meta
+    def _DateBuilder(self, x: pd.Series, **kwargs) -> 'Date':
+        return Date(x.name, **kwargs)
 
-    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-        self._meta = TimeDelta(x.name, **kwargs)
-        return self._meta
+    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> 'TimeDelta':
+        return TimeDelta(x.name, **kwargs)
 
-    def _BoolBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-        self._meta = Bool(x.name, **kwargs)
-        return self._meta
+    def _BoolBuilder(self, x: pd.Series, **kwargs) -> 'Bool':
+        return Bool(x.name, **kwargs)
 
     @_default_categorical
-    def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-        self._meta = Integer(x.name, **kwargs)
-        return self._meta
+    def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Integer':
+        return Integer(x.name, **kwargs)
 
     @_default_categorical
-    def _FloatBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+    def _FloatBuilder(self, x: pd.Series, **kwargs) -> Union['Float', 'Integer']:
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
         if self._contains_genuine_floats(x):
-            return Float(x.name, **kwargs)
+            meta = Float(x.name, **kwargs)
         else:
-            self._meta = self._IntBuilder(x, **kwargs)
+            meta = self._IntBuilder(x, **kwargs)
+        return meta
 
-        return self._meta
-
-    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> Union['Ordinal', 'Categorical']:
         if isinstance(x.dtype, pd.CategoricalDtype):
             categories = x.cat.categories.tolist()
             if x.cat.ordered:
-                self._meta = Ordinal(x.name, categories=categories, **kwargs)
+                meta = Ordinal(x.name, categories=categories, **kwargs)  # type: Union[Ordinal, Categorical]
             else:
-                self._meta = Categorical(x.name, categories=categories, **kwargs)
+                meta = Categorical(x.name, categories=categories, **kwargs)
 
         else:
-            self._meta = Categorical(x.name, **kwargs)
-        return self._meta
+            meta = Categorical(x.name, **kwargs)
+        return meta
 
-    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
+    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> Union['Nominal', 'Date', 'Categorical', 'Float', 'Integer']:
         try:
             get_date_format(x)
-            self._meta = self._DateBuilder(x, **kwargs)
+            meta = self._DateBuilder(x, **kwargs)  # type: Union[Nominal, Date, Categorical, Float, Integer]
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
             n_unique = x.nunique()
@@ -106,30 +101,30 @@ class MetaBuilder():
             num_nan = x_numeric.isna().sum()
 
             if isinstance(x.dtype, pd.CategoricalDtype):
-                self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+                meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             elif (n_unique <= np.sqrt(n_rows) or
                   n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
                     and (not MetaBuilder._contains_genuine_floats(x_numeric)):
-                self._meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+                meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             elif num_nan / n_rows < self.acceptable_nan_frac:
                 if MetaBuilder._contains_genuine_floats(x_numeric):
-                    self._meta = self._FloatBuilder(x_numeric)
+                    meta = self._FloatBuilder(x_numeric)
                 else:
-                    self._meta = self._IntBuilder(x_numeric)
+                    meta = self._IntBuilder(x_numeric)
 
             else:
-                self._meta = Nominal(x.name)
+                meta = Nominal(x.name)
 
-        return self._meta
+        return meta
 
     @staticmethod
     def _contains_genuine_floats(x: pd.Series) -> bool:
         return (~x.dropna().apply(MetaBuilder._is_integer_float)).any()
 
     @staticmethod
-    def _is_integer_float(x) -> bool:
+    def _is_integer_float(x: Any) -> bool:
         """Returns True if x can be represented as an integer."""
         try:
             return float(x).is_integer()
@@ -139,7 +134,7 @@ class MetaBuilder():
 
 class MetaFactory():
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[dict] = None):
 
         if config is None:
             self.config = MetaExtractorConfig
@@ -151,10 +146,14 @@ class MetaFactory():
     def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> 'Meta':
         return self.create_meta(x)
 
-    def create_meta(self, x: pd.DataFrame, name: str = 'df') -> 'Meta':
+    def create_meta(self, x: Union[pd.DataFrame, pd.DataFrame], name: Optional[str] = 'df') -> 'Meta':
+
+        if name is None:
+            # to please mypy...
+            raise ValueError("name must not be None")
 
         if isinstance(x, pd.DataFrame):
-            meta = DataFrameMeta(name)
+            meta = DataFrameMeta(name)  # type: Union[DataFrameMeta, Meta]
             for col in x.columns:
                 try:
                     child = self.create_meta(x[col], col)
@@ -174,14 +173,13 @@ class MetaFactory():
 
 
 class MetaExtractor(MetaFactory):
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[dict] = None):
         super().__init__(config)
 
     @classmethod
-    def extract(cls, x: pd.DataFrame, config=None) -> 'DataFrameMeta':
+    def extract(cls, x: pd.DataFrame, config: Optional[dict] = None) -> 'Meta':
         factory = cls(config)
-        df_meta = factory.create_meta(x)
-        df_meta.extract(x)
+        df_meta = factory.create_meta(x).extract(x)  # type: Meta
         return df_meta
 
 
@@ -189,7 +187,8 @@ class MetaExtractor(MetaFactory):
 class Meta():
 
     name: str
-    _children: List['Meta'] = None
+    _children: Optional[List['Meta']] = None
+    _extracted = False
 
     def __post_init__(self):
         if self._children is None:
@@ -208,6 +207,8 @@ class Meta():
     def extract(self, x: pd.DataFrame) -> 'Meta':
         for child in self._children:
             child.extract(x)
+        self._extracted = True
+        return self
 
     def register_child(self, child: 'Meta') -> None:
         if not isinstance(child, Meta):
@@ -250,7 +251,7 @@ class Meta():
         return d
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d: dict):
         module = importlib.import_module("synthesized.metadata.meta")
         if isinstance(d, dict):
             name = list(d.keys())[0]
@@ -269,10 +270,27 @@ class Meta():
             return d
 
 
+class MetaNotExtractedError(Exception):
+    pass
+
+
+def requires_extract(func):
+    @functools.wraps(func)
+    def wrapper(cls, *args, **kwargs):
+        func_name = func.__name__
+        class_name = cls.__class__.__name__
+        if not cls._extracted:
+            raise MetaNotExtractedError(f"Must call {class_name}.extract() before {class_name}.{func_name}()")
+        else:
+            return func(cls, *args, **kwargs)
+    return wrapper
+
+
+@dataclass(repr=False)
 class DataFrameMeta(Meta):
-    id_index: str = None
-    time_index: str = None
-    column_aliases: Dict[str, str] = None
+    id_index: Optional[str] = None
+    time_index: Optional[str] = None
+    column_aliases: Optional[Dict[str, str]] = None
 
     @property
     def column_meta(self) -> pd.Series:
@@ -285,7 +303,7 @@ class DataFrameMeta(Meta):
 @dataclass(repr=False)
 class ValueMeta(Meta):
 
-    dtype: str = None
+    dtype: Optional[str] = None
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
@@ -293,30 +311,37 @@ class ValueMeta(Meta):
     def __str__(self):
         return repr(self)
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'ValueMeta':
         self.dtype = x[self.name].dtype
+        self._extracted = True
         return self
 
 
 @dataclass(repr=False)
 class Nominal(ValueMeta):
 
-    categories: List[str] = None
-    probabilities: List[float] = None
+    categories: Optional[List[str]] = None
+    probabilities: Optional[List[float]] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
-        value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
+    def __post_init__(self):
         if self.categories is None:
+            self.categories = []
+        if self.probabilities is None:
+            self.probabilities = []
+
+    def extract(self, x: pd.DataFrame) -> 'Nominal':
+        value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
+        if not self.categories:
             self.categories = value_counts.index.tolist()
             try:
                 self.categories = sorted(self.categories)
             except TypeError:
                 pass
-        if self.probabilities is None:
+        if not self.probabilities:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
         return super().extract(x)
 
-    def probability(self, x: Union[str, float, int]) -> float:
+    def probability(self, x: Any) -> float:
         try:
             return self.probabilities[self.categories.index(x)]
         except ValueError:
@@ -337,9 +362,9 @@ class Nominal(ValueMeta):
 @dataclass(repr=False)
 class Constant(Nominal):
 
-    value = None
+    value: Optional[Any] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'Constant':
         self.value = x[self.name].dropna().iloc[0]
         return super().extract(x)
 
@@ -347,16 +372,16 @@ class Constant(Nominal):
 @dataclass(repr=False)
 class Categorical(Nominal):
 
-    similarity_based: bool = True
+    similarity_based: Optional[bool] = True
 
 
 @dataclass(repr=False)
 class Ordinal(Categorical):
 
-    min: Union[str, float, int] = None
-    max: Union[str, float, int] = None
+    min: Optional[Union[str, float, int]] = None
+    max: Optional[Union[str, float, int]] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'Ordinal':
         self = super().extract(x)
         if self.min is None:
             self.min = self.categories[0]
@@ -364,12 +389,12 @@ class Ordinal(Categorical):
             self.max = self.categories[-1]
         return self
 
-    def less_than(self, x, y) -> bool:
+    def less_than(self, x: Any, y: Any) -> bool:
         if x not in self.categories or y not in self.categories:
-            raise ValueError
+            raise ValueError(f"x={x} or y={y} are not valid categories.")
         return self.categories.index(x) < self.categories.index(y)
 
-    def _predicate(self, x, y) -> int:
+    def _predicate(self, x: Any, y: Any) -> int:
         if self.less_than(x, y):
             return 1
         elif x == y:
@@ -385,10 +410,10 @@ class Ordinal(Categorical):
 @dataclass(repr=False)
 class Affine(Ordinal):
 
-    distribution: scipy.stats.rv_continuous = None
-    monotonic: bool = False
+    distribution: Optional[scipy.stats.rv_continuous] = None
+    monotonic: Optional[bool] = False
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'Affine':
         if (np.diff(x[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
@@ -402,10 +427,10 @@ class Affine(Ordinal):
 @dataclass(repr=False)
 class Date(Affine):
 
-    dtype: str = 'datetime64[ns]'
-    date_format: str = None
+    dtype: Optional[str] = 'datetime64[ns]'
+    date_format: Optional[str] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'Date':
         if self.date_format is None:
             self.date_format = get_date_format(x[self.name])
 
@@ -418,9 +443,9 @@ class Date(Affine):
 @dataclass(repr=False)
 class Scale(Affine):
 
-    nonnegative: bool = None
+    nonnegative: Optional[bool] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self, x: pd.DataFrame) -> 'Scale':
         if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
             self.nonnegative = True
         else:
@@ -430,77 +455,75 @@ class Scale(Affine):
 
 @dataclass(repr=False)
 class Integer(Scale):
-    dtype: str = 'int64'
+    dtype: Optional[str] = 'int64'
 
 
 @dataclass(repr=False)
 class TimeDelta(Scale):
-    dtype: str = 'timedelta64[ns]'
+    dtype: Optional[str] = 'timedelta64[ns]'
 
 
 @dataclass(repr=False)
 class Bool(Scale):
-    dtype: str = 'boolean'
-    categories = (0, 1)
+    dtype: Optional[str] = 'boolean'
 
 
 @dataclass(repr=False)
 class Float(Scale):
-    dtype: str = 'float64'
+    dtype: Optional[str] = 'float64'
 
 
 @dataclass(repr=False)
 class AddressMeta(Meta):
-    street: Nominal = None
-    number: Integer = None
-    postcode: Nominal = None
-    name: Nominal = None
-    flat: Nominal = None
-    city: Nominal = None
-    county: Nominal = None
-    postcode: Nominal = None
+    street: Optional[Nominal] = None
+    number: Optional[Integer] = None
+    postcode: Optional[Nominal] = None
+    house_name: Optional[Nominal] = None
+    flat: Optional[Nominal] = None
+    city: Optional[Nominal] = None
+    county: Optional[Nominal] = None
 
 
 @dataclass(repr=False)
 class BankMeta(Meta):
-    account_number: Nominal = None
-    sort_code: Nominal = None
+    account_number: Optional[Nominal] = None
+    sort_code: Optional[Nominal] = None
 
 
 @dataclass(repr=False)
 class PersonMeta(Meta):
-    title: Categorical = None
-    first_name: Nominal = None
-    last_name: Nominal = None
-    email: Nominal = None
-    age: Integer = None
-    gender: Categorical = None
-    mobile_telephone: Nominal = None
-    home_telephone: Nominal = None
-    work_telephone: Nominal = None
+    title: Optional[Categorical] = None
+    first_name: Optional[Nominal] = None
+    last_name: Optional[Nominal] = None
+    email: Optional[Nominal] = None
+    age: Optional[Integer] = None
+    gender: Optional[Categorical] = None
+    mobile_telephone: Optional[Nominal] = None
+    home_telephone: Optional[Nominal] = None
+    work_telephone: Optional[Nominal] = None
 
 
 class TreePrinter():
     """Pretty print the tree structure of a Meta."""
     def __init__(self):
-        self.depth = 0
-        self.string = ''
+        self._depth = 0
+        self._string = ''
 
     def _print(self, tree: Meta):
         if not isinstance(tree, Meta):
             raise TypeError(f"tree must be 'Meta' not {type(tree)}")
         for child in tree:
-            self.string += f'{self.depth * "    "}' + repr(child) + '\n'
+            self._string += f'{self._depth * "    "}' + repr(child) + '\n'
             if len(child):
-                self.string += self.depth * "    " + '|\n' + self.depth * "    " + '----' + '\n'
-                self.depth += 1
+                self._string += self._depth * "    " + '|\n' + self._depth * "    " + '----' + '\n'
+                self._depth += 1
                 self._print(child)
 
-        self.depth -= 1
+        self._depth -= 1
 
     def print(self, tree):
         self._print(tree)
-        return self.string
+        return self._string
 
 
 def get_date_format(x: pd.Series) -> pd.Series:
