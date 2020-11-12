@@ -10,7 +10,7 @@ from synthesized.insight.fairness import BiasMitigator, FairnessScorer
 from synthesized.testing.utils import testing_progress_bar
 
 
-def generate_biased_data(n: int = 500, nans_prop: Optional[float] = 0.25, date_format: str = "%Y-%m-%d"):
+def generate_biased_data(n: int = 500, nans_prop: Optional[float] = 0.2, date_format: str = "%Y-%m-%d"):
     x = np.random.randn(n)
     y = x + 0.5 * np.random.randn(n)
 
