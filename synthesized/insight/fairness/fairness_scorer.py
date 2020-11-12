@@ -48,7 +48,7 @@ class FairnessScorer:
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
-                 positive_class: str = None):
+                 positive_class: str = None, drop_dates: bool = False):
         """FairnessScorer constructor.
 
         Args:
@@ -78,6 +78,7 @@ class FairnessScorer:
         self.target = target
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
+        self.drop_dates = drop_dates
 
         # Check sensitive attrs
         for sensitive_attr in self.sensitive_attrs:
@@ -118,9 +119,9 @@ class FairnessScorer:
 
         self.df = df.copy()
         other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
-        self.df.drop(other_columns, axis=1)
+        self.df.drop(other_columns, axis=1, inplace=True)
 
-        self.bin_sensitive_attr(self.df, inplace=True)
+        self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates)
         self.target_variable_type = self.manipulate_target_variable(self.df)
 
         self.len_df = len(self.df)
@@ -464,6 +465,7 @@ class FairnessScorer:
 
                 if isinstance(sensitive_attr_values, tuple) and len(sensitive_attr_values) > 1:
                     sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                    sensitive_attr_values = list(sensitive_attr_values)
                 else:
                     sensitive_attr_str = sensitive_attr_values
                     sensitive_attr_values = [sensitive_attr_values]
@@ -604,7 +606,8 @@ class FairnessScorer:
 
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
-    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True,
+                           drop_dates: bool = False) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
@@ -631,7 +634,12 @@ class FairnessScorer:
 
             # If it's date, bin it
             elif df[col].dtype.kind == 'M':
-                df[col] = self.bin_date_column(df[col])
+                if drop_dates:
+                    df.drop(col, axis=1, inplace=True)
+                    self.sensitive_attrs.remove(col)
+                    logging.info(f"Sensitive attribute '{col}' dropped as it is a date value and 'drop_dates=True'.")
+                else:
+                    df[col] = self.bin_date_column(df[col])
 
             # If it's a sampling value, discard it
             elif num_unique <= np.sqrt(len(df)):

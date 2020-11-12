@@ -47,9 +47,9 @@ class BiasMitigator:
             n_bins: Number of bins for sensitive attributes to be binned.
             target_n_bins: Number of bins for target to be binned, if None will use it as it is.
         """
-
         fairness_scorer = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target,
-                                         n_bins=n_bins, target_n_bins=(target_n_bins or n_bins))
+                                         n_bins=n_bins, target_n_bins=(target_n_bins or n_bins),
+                                         drop_dates=True)
         bias_mitigator = cls(synthesizer=synthesizer, fairness_scorer=fairness_scorer)
         return bias_mitigator
 
