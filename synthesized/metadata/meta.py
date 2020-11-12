@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from functools import cmp_to_key
 from datetime import datetime
 import importlib
+import functools
 
 import numpy as np
 import pandas as pd
@@ -35,12 +36,22 @@ class MetaBuilder():
 
         self.kwargs = kwargs
 
+    def _default_categorical(func):
+        @functools.wraps(func)
+        def wrapper(self, x: pd.Series) -> 'Meta':
+            n_unique, n_rows = x.nunique(), len(x)
+            if n_unique == 1:
+                return Constant(x.name)
+            elif (n_unique <= np.sqrt(n_rows) or
+                    n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+                    and (not MetaBuilder._contains_genuine_floats(x)):
+                return Categorical(x, similarity_based=True if n_unique > 2 else False)
+            else:
+                return func(self, x, **self.kwargs)
+        return wrapper
+
     def __call__(self, x: pd.Series):
-        num_unique = x.nunique()
-        if num_unique == 1:
-            return Constant(x.name)
-        else:
-            return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
+        return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
 
     def _DateBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
         self._meta = Date(x.name, **kwargs)
@@ -54,18 +65,20 @@ class MetaBuilder():
         self._meta = Bool(x.name, **kwargs)
         return self._meta
 
+    @_default_categorical
     def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
         self._meta = Integer(x.name, **kwargs)
         return self._meta
 
+    @_default_categorical
     def _FloatBuilder(self, x: pd.Series, **kwargs) -> 'Meta':
-        self._meta = Float(x.name, **kwargs)
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
-        is_integer = x[~x.isna()].apply(lambda x: x.is_integer()).all()
-        if is_integer:
-            return self._IntBuilder(x, **kwargs)
+        if self._contains_genuine_floats(x):
+            return Float(x.name, **kwargs)
+        else:
+            self._meta = self._IntBuilder(x, **kwargs)
 
         return self._meta
 
@@ -114,14 +127,14 @@ class MetaBuilder():
 
     @staticmethod
     def _contains_genuine_floats(x: pd.Series) -> bool:
-        return x.dropna().apply(MetaBuilder._is_integer_float).any()
+        return (~x.dropna().apply(MetaBuilder._is_integer_float)).any()
 
     @staticmethod
     def _is_integer_float(x) -> bool:
         """Returns True if x can be represented as an integer."""
-        if isinstance(x, float):
-            return x.is_integer()
-        else:
+        try:
+            return float(x).is_integer()
+        except (ValueError, TypeError):
             return False
 
 
