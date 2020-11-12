@@ -119,7 +119,6 @@ class FairnessScorer:
         self.df = df.copy()
         other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
         self.df.drop(other_columns, axis=1)
-        self.df.dropna(inplace=True)
 
         self.bin_sensitive_attr(self.df, inplace=True)
         self.target_variable_type = self.manipulate_target_variable(self.df)
@@ -570,10 +569,8 @@ class FairnessScorer:
 
         return checks, VBox(box)
 
-    def manipulate_target_variable(self, df: pd.DataFrame, inplace: bool = True) -> VariableType:
+    def manipulate_target_variable(self, df: pd.DataFrame) -> VariableType:
         """Check the target variable column, binned it if needed, and return target variable type"""
-        if not inplace:
-            df = df.copy()
 
         # Convert to numeric
         n_nans = df[self.target].isna().sum()
@@ -594,6 +591,8 @@ class FairnessScorer:
                     self.target_n_bins = num_unique
                     return VariableType.Multinomial
                 else:
+                    # Only drop nans if present in target distribution.
+                    df.drop(index=df[df[self.target].isna()].index, axis=0, inplace=True)
                     return VariableType.Continuous
 
             if num_unique > self.target_n_bins:

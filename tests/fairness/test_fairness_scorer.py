@@ -18,6 +18,7 @@ from synthesized.testing.utils import testing_progress_bar
         pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
                      None, id="claim_prediction"),
         pytest.param("data/templates/claim_prediction.csv", [], "insuranceclaim", None, id="no_sensitive_attrs"),
+        pytest.param("data/biased_data_mixed_types.csv", ["age", "gender", "DOB"], "income", None, id="mixed_types"),
     ]
 )
 def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target, mode):
