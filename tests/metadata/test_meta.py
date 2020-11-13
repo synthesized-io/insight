@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, MetaBuilder, MetaFactory, MetaExtractorConfig
+from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, _MetaBuilder, MetaFactory, MetaExtractorConfig
 
 
 @pytest.fixture
@@ -201,7 +201,7 @@ data_meta = [
     "data, meta", data_meta
 )
 def test_default_builder(data, meta):
-    builder = MetaBuilder(**MetaExtractorConfig)
+    builder = _MetaBuilder(**MetaExtractorConfig)
     assert type(builder(data)) == meta
 
 
@@ -210,7 +210,7 @@ def test_meta_factory(df_unittest, df_unittest_column_meta):
     df_meta = MetaFactory()(df_unittest)
     assert type(df_meta) == DataFrameMeta
     assert len(df_meta.children) == 11
-    assert df_meta.column_meta.to_dict() == df_unittest_column_meta
+    assert df_meta.column_meta == df_unittest_column_meta
 
 
 @pytest.mark.fast
