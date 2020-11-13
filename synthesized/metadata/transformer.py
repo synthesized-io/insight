@@ -7,7 +7,11 @@ import numpy as np
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from meta import Meta, DataFrameMeta, Affine, ValueMeta
+from .meta import Meta, DataFrameMeta, Affine, ValueMeta
+
+
+class TransformerNotFitError(Exception):
+    pass
 
 
 class Transformer(TransformerMixin):
@@ -28,6 +32,7 @@ class Transformer(TransformerMixin):
         self.name = name
         self.dtypes = dtypes
         self._transformers = None
+        self._fitted = False
 
     def __repr__(self):
 
@@ -61,6 +66,8 @@ class Transformer(TransformerMixin):
             return self.inverse_transform(x)
 
     def fit(self, x: [pd.Series, pd.DataFrame]) -> 'Transformer':
+        if not self._fitted:
+            self._fitted = True
         return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
@@ -103,7 +110,7 @@ class QuantileTransformer(Transformer):
             x[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(x)))
 
         self._transformer.fit(x[[self.name]])
-        return self
+        return super().fit(x)
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         if self.noise:
@@ -167,7 +174,7 @@ class CategoricalTransformer(Transformer):
             self.category_to_idx[cat] = idx + 1
             self.idx_to_category[idx + 1] = cat
 
-        return self
+        return super().fit(x)
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
@@ -207,7 +214,7 @@ class DateTransformer(Transformer):
         if self.start_date is None:
             self.start_date = x.min()
 
-        return self
+        return super().fit(x)
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         if x[self.name].dtype.kind != 'M':
@@ -249,7 +256,7 @@ class DateCategoricalTransformer(Transformer):
         for transformer in self.transformers:
             transformer.fit(x)
 
-        return self
+        return super().fit(x)
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
 
@@ -290,9 +297,6 @@ class NanTransformer(Transformer):
 
     def __init__(self, name: str):
         super().__init__(name)
-
-    def fit(self, x: pd.DataFrame) -> 'Transformer':
-        return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         x[f'{self.name}_nan'] = x[self.name].isna().astype(int)
