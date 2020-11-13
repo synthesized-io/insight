@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, MetaBuilder, MetaExtractor, MetaFactory, MetaExtractorConfig
+from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, MetaBuilder, MetaFactory, MetaExtractorConfig
 
 
 @pytest.fixture
@@ -104,8 +104,8 @@ def nested_dict_meta():
                         'Float': {
                             'name': 'child1',
                             'dtype': 'float64',
-                            'categories': None,
-                            'probabilities': None,
+                            'categories': [],
+                            'probabilities': [],
                             'similarity_based': True,
                             'min': None,
                             'max': None,
@@ -225,12 +225,12 @@ def test_extract(nominal_data, ordinal_data, scale_data, date_data):
 
     meta = MetaFactory().create_meta(scale_data[0])
     meta = meta.extract(scale_data[0].to_frame())
-    meta.categories = None
-    meta.probabilities = None
+    meta.categories = []
+    meta.probabilities = []
     assert meta == scale_data[1]
 
     meta = MetaFactory().create_meta(date_data[0])
     meta = meta.extract(date_data[0].to_frame())
-    meta.categories = None
-    meta.probabilities = None
+    meta.categories = []
+    meta.probabilities = []
     assert meta == date_data[1]
