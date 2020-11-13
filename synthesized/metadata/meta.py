@@ -17,21 +17,40 @@ MetaExtractorConfig = {
 
 
 def _default_categorical(func):
+    """
+    MetaBuilder function decorator.
+
+    Modifies the behaviour of a MetaBuilder function to return either a
+    Categorical or Constant meta regardless of the underlying dtype. The decorated
+    function will return either:
+
+    1. Constant, for data with one unique value
+    2. Categorical, for data with:
+        number of unique values <= max(_MetaBuilder.min_num_unique, _MetaBuilder.categorical_threshold_log_multiplier * np.log(len(x))
+        and if there are no genuine floats in the data
+    3. Meta, i.e the return type of the decorated function if the these conditions are not met
+    """
     @functools.wraps(func)
     def wrapper(cls, x: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
         n_unique = x.nunique()
         if n_unique == 1:
             return Constant(x.name)
         elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(x))) \
-                and (not MetaBuilder._contains_genuine_floats(x)):
+                and (not _MetaBuilder._contains_genuine_floats(x)):
             return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
         else:
             return func(cls, x, **cls.kwargs)
     return wrapper
 
 
-class MetaBuilder():
-    """MetaFactory functor."""
+class _MetaBuilder():
+    """
+    A functor class used internally by MetaFactory.
+
+    Implements methods that return a derived Meta instance for a given pd.Series.
+    The underyling numpy dtype (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
+    determines the method that is called, and therefore the Meta that is returned.
+    """
     def __init__(self, min_num_unique: int, acceptable_nan_frac: float, categorical_threshold_log_multiplier: float, **kwargs):
         self._dtype_builders = {
             'i': self._IntBuilder,
@@ -105,11 +124,11 @@ class MetaBuilder():
 
             elif (n_unique <= np.sqrt(n_rows) or
                   n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
-                    and (not MetaBuilder._contains_genuine_floats(x_numeric)):
+                    and (not self._contains_genuine_floats(x_numeric)):
                 meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
             elif num_nan / n_rows < self.acceptable_nan_frac:
-                if MetaBuilder._contains_genuine_floats(x_numeric):
+                if self._contains_genuine_floats(x_numeric):
                     meta = self._FloatBuilder(x_numeric)
                 else:
                     meta = self._IntBuilder(x_numeric)
@@ -121,7 +140,7 @@ class MetaBuilder():
 
     @staticmethod
     def _contains_genuine_floats(x: pd.Series) -> bool:
-        return (~x.dropna().apply(MetaBuilder._is_integer_float)).any()
+        return (~x.dropna().apply(_MetaBuilder._is_integer_float)).any()
 
     @staticmethod
     def _is_integer_float(x: Any) -> bool:
@@ -132,8 +151,12 @@ class MetaBuilder():
             return False
 
 
-class MetaFactory():
+class UnsupportedDtypeError(Exception):
+    pass
 
+
+class MetaFactory():
+    """Factory class to create Meta instances from pd.Series and pd.DataFrame objects."""
     def __init__(self, config: Optional[dict] = None):
 
         if config is None:
@@ -141,12 +164,28 @@ class MetaFactory():
         else:
             self.config = config
 
-        self._builder = MetaBuilder(**self.config)
+        self._builder = _MetaBuilder(**self.config)
 
-    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> 'Meta':
+    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union['DataFrameMeta', 'ValueMeta']:
         return self.create_meta(x)
 
-    def create_meta(self, x: Union[pd.DataFrame, pd.DataFrame], name: Optional[str] = 'df') -> 'Meta':
+    def create_meta(self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df') -> Union['DataFrameMeta', 'ValueMeta']:
+        """
+        Instantiate a Meta object from a pandas series or data frame.
+
+        The underlying numpy dtype kind (e.g 'i', 'M', 'f') is used to determine the dervied Meta object for a series.
+
+        Args:
+            x: a pandas series or data frame for which to create the Meta instance
+            name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
+
+        Returns:
+            A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
+
+        Raises:
+            UnsupportedDtypeError: The data type of the pandas series is not supported.
+            TypeError: An error occured during instantiation of a ValueMeta.
+        """
 
         if name is None:
             # to please mypy...
@@ -173,11 +212,27 @@ class MetaFactory():
 
 
 class MetaExtractor(MetaFactory):
+    """Extract the DataFrameMeta for a data frame"""
     def __init__(self, config: Optional[dict] = None):
         super().__init__(config)
 
     @classmethod
-    def extract(cls, x: pd.DataFrame, config: Optional[dict] = None) -> 'Meta':
+    def extract(cls, x: pd.DataFrame, config: Optional[dict] = None) -> 'DataFrameMeta':
+        """
+        Instantiate and extract the DataFrameMeta that describes a data frame.
+
+        Args:
+            x: the data frame to instantiate and extract DataFrameMeta.
+            config: Optional; The configuration parameters to MetaFactory.
+
+        Returns:
+            A DataFrameMeta instance for which all child meta have been extracted.
+
+        Raises:
+            UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
+            TypeError: An error occured during instantiation of a ValueMeta.
+        """
+
         factory = cls(config)
         df_meta = factory.create_meta(x).extract(x)  # type: Meta
         return df_meta
@@ -185,6 +240,50 @@ class MetaExtractor(MetaFactory):
 
 @dataclass(repr=False)
 class Meta():
+    """
+    Base class for meta information that describes a dataset.
+
+    Implements a hierarchical tree structure to describe arbitrary nested
+    relations between data. Instances of Meta act as root nodes in the tree,
+    and each branch can lead to another Meta or a leaf node, see ValueMeta.
+
+    Attributes:
+        name: a descriptive name.
+
+    Examples:
+        Custom nested structures can be easily built with this class, for example:
+
+        >>> customer = Meta('customer')
+
+        Add the leaf ValueMeta:
+
+        >>> customer.age = Integer('age')
+        >>> customer.title = Nominal('title')
+        >>> customer.first_name = Nominal('first_name')
+
+        Add address meta which acts as a root:
+
+        >>> customer.address = Meta('customer_address')
+
+        Add associated ValueMeta:
+
+        >>> customer.address.street = Nominal('street')
+        >>> customer.address.number = Nominal('number')
+
+        >>> customer.bank = Meta('bank')
+        >>> customer.bank.account = Nominal('account')
+        >>> customer.bank.sort_code = Nominal('sort_code')
+
+        Pretty print the tree structure:
+
+        >>> print(customer)
+
+        Meta objects are iterable, and allow iterating through the
+        children:
+
+        >>> for child_meta in customer:
+        >>>     print(child_meta.name)
+    """
 
     name: str
     _children: Optional[List['Meta']] = None
@@ -196,15 +295,17 @@ class Meta():
 
     @property
     def children(self) -> List['Meta']:
+        """Return the children of this Meta."""
         return self._children
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name})'
 
     def __str__(self):
-        return f"{TreePrinter().print(self)}"
+        return f"{_TreePrinter().print(self)}"
 
     def extract(self, x: pd.DataFrame) -> 'Meta':
+        """Extract the children of this Meta."""
         for child in self._children:
             child.extract(x)
         self._extracted = True
@@ -234,6 +335,7 @@ class Meta():
         return len(self._children)
 
     def _tree_to_dict(self, meta: 'Meta') -> dict:
+        """Convert nested Meta to dictionary"""
         if isinstance(meta, ValueMeta):
             d = {}
             for key, value in meta.__dict__.items():
@@ -244,6 +346,65 @@ class Meta():
             return {m.name: m.to_dict() for m in meta}
 
     def to_dict(self):
+        """
+        Convert the Meta to a dictionary.
+
+        The tree structure is converted to the following form:
+
+        Meta.__class.__.__name__: {
+            attr: value,
+            value_meta_attr: {
+                value_meta_attr.__class__.__name__: (**value_meta_attr.__dict__}
+                )
+            }
+        }
+
+        Examples:
+            >>> customer = Meta('customer')
+            >>> customer.title = Nominal('title')
+            >>> customer.address = Meta('customer_address')
+            >>> customer.address.street = Nominal('street')
+
+            Convert to dictionary:
+
+            >>> customer.to_dict()
+            {
+                'Meta': {
+                    'age': {
+                        'Integer': {
+                            'name': 'age',
+                            'dtype': 'int64',
+                            'categories': [],
+                            'probabilities': [],
+                            'similarity_based': True,
+                            'min': None,
+                            'max': None,
+                            'distribution': None,
+                            'monotonic': False,
+                            'nonnegative': None
+                        }
+                    },
+                    'customer_address': {
+                        'Meta': {
+                            'street': {
+                                'Nominal': {
+                                    'name': 'street',
+                                    'dtype': None,
+                                    'categories': [],
+                                    'probabilities': []
+                                }
+                            }
+                            'name': 'customer_address'
+                        }
+                    }
+                    'name': 'customer'
+                }
+            }
+
+
+        See also:
+            Meta.from_dict: construct a Meta from a dictionary
+        """
         d = {self.__class__.__name__: self._tree_to_dict(self)}
         for key, value in self.__dict__.items():
             if not isinstance(value, Meta) and not key.startswith('_'):
@@ -252,6 +413,14 @@ class Meta():
 
     @classmethod
     def from_dict(cls, d: dict):
+        """
+        Construct a Meta from a dictionary.
+
+        See example in Meta.to_dict() for the required structure.
+
+        See also:
+            Meta.to_dict: convert a Meta to a dictionary
+        """
         module = importlib.import_module("synthesized.metadata.meta")
         if isinstance(d, dict):
             name = list(d.keys())[0]
@@ -275,6 +444,13 @@ class MetaNotExtractedError(Exception):
 
 
 def requires_extract(func):
+    """
+    ValueMeta function decorator.
+
+    Decorated bound methods of a ValueMeta raise a
+    MetaNotExtractedError if ValueMeta.extract() has not
+    been called.
+    """
     @functools.wraps(func)
     def wrapper(cls, *args, **kwargs):
         func_name = func.__name__
@@ -288,21 +464,45 @@ def requires_extract(func):
 
 @dataclass(repr=False)
 class DataFrameMeta(Meta):
+    """
+    Meta to describe an abitrary data frame.
+
+    Each column is described by a derived ValueMeta object.
+
+    Attributes:
+        id_index: NotImplemented
+
+        time_index: NotImplemented
+
+        column_aliases: dictionary mapping column names to an alias.
+    """
     id_index: Optional[str] = None
     time_index: Optional[str] = None
     column_aliases: Optional[Dict[str, str]] = None
 
     @property
-    def column_meta(self) -> pd.Series:
+    def column_meta(self) -> dict:
+        """
+        Get column <-> ValueMeta mapping
+        """
         col_meta = {}
         for child in self.children:
             col_meta[child.name] = child
-        return pd.Series(col_meta)
+        return col_meta
 
 
 @dataclass(repr=False)
 class ValueMeta(Meta):
+    """
+    Base class for meta information that describes a pandas series.
 
+    ValueMeta objects act as leaf nodes in the Meta hierarchy. Derived
+    classes must implement extract. All attributes should be set in extract.
+
+    Attributes:
+        name: The pd.Series name that this ValueMeta describes.
+        dtype: Optional; The numpy dtype that this meta describes.
+    """
     dtype: Optional[str] = None
 
     def __repr__(self):
@@ -319,17 +519,30 @@ class ValueMeta(Meta):
 
 @dataclass(repr=False)
 class Nominal(ValueMeta):
+    """
+    Nominal meta.
 
+    Nominal describes any data that can be categorised, but has
+    no quantitative interpretation, i.e it can only be given a name.
+    Nominal data cannot be orderer nor compared, and there is no notion
+    of 'closeness', e.g blood types ['AA', 'B', 'AB', 'O'].
+
+    Attributes:
+        categories: Optional; list of category names.
+        probabilites: Optional; list of probabilites (relative frequencies) of each category.
+    """
     categories: Optional[List[str]] = None
     probabilities: Optional[List[float]] = None
 
     def __post_init__(self):
+        super().__post_init__()
         if self.categories is None:
             self.categories = []
         if self.probabilities is None:
             self.probabilities = []
 
     def extract(self, x: pd.DataFrame) -> 'Nominal':
+        """Extract the categories and their relative frequencies from a data frame, if not already set."""
         value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
         if not self.categories:
             self.categories = value_counts.index.tolist()
@@ -342,6 +555,7 @@ class Nominal(ValueMeta):
         return super().extract(x)
 
     def probability(self, x: Any) -> float:
+        """Get the probability mass of the category x."""
         try:
             return self.probabilities[self.categories.index(x)]
         except ValueError:
@@ -356,12 +570,20 @@ class Nominal(ValueMeta):
 
     @property
     def nan_freq(self) -> float:
+        """Get NaN frequency."""
         return self.probability(np.nan)
 
 
 @dataclass(repr=False)
 class Constant(Nominal):
+    """
+    Constant meta.
 
+    Constant describes data that has only a single value.
+
+    Attributes:
+        value: Optional; the constant value.
+    """
     value: Optional[Any] = None
 
     def extract(self, x: pd.DataFrame) -> 'Constant':
@@ -371,13 +593,34 @@ class Constant(Nominal):
 
 @dataclass(repr=False)
 class Categorical(Nominal):
+    """
+    Categorical meta.
 
+    Categorical describes nominal data that can have a property of 'closeness', e.g
+    a vocabulary where words with similar semantic meaning could be grouped together.
+
+    Attributes:
+        similarity_based:
+
+    See also:
+        Nominal
+    """
     similarity_based: Optional[bool] = True
 
 
 @dataclass(repr=False)
 class Ordinal(Categorical):
+    """
+    Ordinal meta.
 
+    Ordinal meta describes categorical data that can be compared and ordered,
+    and data can be arranged on a relative scale, e.g
+    the Nandos scale: ['extra mild', 'mild', 'medium', 'hot', 'extra hot']
+
+    Attributes:
+        min: Optional; the minimum category
+        max: Optional; the maximum category
+    """
     min: Optional[Union[str, float, int]] = None
     max: Optional[Union[str, float, int]] = None
 
@@ -390,6 +633,7 @@ class Ordinal(Categorical):
         return self
 
     def less_than(self, x: Any, y: Any) -> bool:
+        """Return True if x < y"""
         if x not in self.categories or y not in self.categories:
             raise ValueError(f"x={x} or y={y} are not valid categories.")
         return self.categories.index(x) < self.categories.index(y)
@@ -403,12 +647,28 @@ class Ordinal(Categorical):
             return -1
 
     def sort(self, x: pd.Series) -> pd.Series:
+        """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
         return pd.Series(sorted(x, key=key, reverse=True))
 
 
 @dataclass(repr=False)
 class Affine(Ordinal):
+    """
+    Affine meta.
+
+    Affine describes data that can live in an affine space, where
+    there is a notion of relative distance between points. Here, only
+    the operation of subtraction is permitted between data points. Addition
+    of points is not valid, however relative differences can be added to points.
+    e.g Given two dates, they can be subtracted to get a relative time delta, but
+    it makes no sense to add them.
+
+    Attributes:
+        distribution: NotImplemented
+
+        monotonic: Optional; True if data is monotonic, else False
+    """
 
     distribution: Optional[scipy.stats.rv_continuous] = None
     monotonic: Optional[bool] = False
@@ -426,7 +686,15 @@ class Affine(Ordinal):
 
 @dataclass(repr=False)
 class Date(Affine):
+    """
+    Date meta.
 
+    Date meta describes affine data than can be interpreted as a datetime,
+    e.g the string '4/20/2020'.
+
+    Attributes:
+        date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
+    """
     dtype: Optional[str] = 'datetime64[ns]'
     date_format: Optional[str] = None
 
@@ -442,7 +710,18 @@ class Date(Affine):
 
 @dataclass(repr=False)
 class Scale(Affine):
+    """
+    Scale meta.
 
+    Scale describes data that can live in a vector space. Data points
+    can be reached through linear combinations of other points,
+    and points can also be multiplied by scalars.
+
+    This describes pretty much most continuous types.
+
+    Attributes:
+        nonnegative: Optional; True if data is nonnegative, else False.
+    """
     nonnegative: Optional[bool] = None
 
     def extract(self, x: pd.DataFrame) -> 'Scale':
@@ -503,8 +782,8 @@ class PersonMeta(Meta):
     work_telephone: Optional[Nominal] = None
 
 
-class TreePrinter():
-    """Pretty print the tree structure of a Meta."""
+class _TreePrinter():
+    """Helper class to pretty print the tree structure of a Meta."""
     def __init__(self):
         self._depth = 0
         self._string = ''
@@ -522,6 +801,7 @@ class TreePrinter():
         self._depth -= 1
 
     def print(self, tree):
+        """Print the tree."""
         self._print(tree)
         return self._string
 
