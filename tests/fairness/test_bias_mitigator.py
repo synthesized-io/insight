@@ -10,7 +10,7 @@ from synthesized.insight.fairness import BiasMitigator, FairnessScorer
 from synthesized.testing.utils import testing_progress_bar
 
 
-def generate_biased_data(n: int = 500, nans_prop: Optional[float] = 0.2, date_format: str = "%Y-%m-%d"):
+def generate_biased_data(n: int = 1000, nans_prop: Optional[float] = 0.2, date_format: str = "%Y-%m-%d"):
     x = np.random.randn(n)
     y = x + 0.5 * np.random.randn(n)
 
@@ -28,30 +28,46 @@ def generate_biased_data(n: int = 500, nans_prop: Optional[float] = 0.2, date_fo
 
 
 @pytest.mark.slow
-def test_bias_mitigator_multinomial_target():
+def test_bias_mitigator_mixed_types():
     sensitive_attrs = ['age', 'gender', 'DOB']
     target = 'income'
-    df = generate_biased_data()
-
-    # Compute score without NaNs initially as otherwise nans-imputation will add bias
-    fs_0 = FairnessScorer(df.dropna(), sensitive_attrs=sensitive_attrs, target=target)
-    score_0, df_biases_0 = fs_0.distributions_score(progress_callback=testing_progress_bar)
+    df = generate_biased_data(n=1000, nans_prop=0.2)
 
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta)
-    synthesizer.learn(df_train=df, num_iterations=500)
+    synthesizer.learn(df_train=df, num_iterations=10)
 
-    # Test __init__()
+    # Test BiasMitigator.__init__()
     n_bins = 5
     _ = BiasMitigator(synthesizer, fairness_scorer=FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target,
                                                                   target_n_bins=n_bins, n_bins=n_bins))
-    # Test from_dataframe()
+
+    # Test bias mitigation with nans and dates
     bias_mitigator = BiasMitigator.from_dataframe(synthesizer, df=df, sensitive_attrs=sensitive_attrs, target=target)
-    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=50, progress_callback=testing_progress_bar,
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=5, progress_callback=testing_progress_bar,
                                                            produce_nans=False)
 
+
+@pytest.mark.slow
+def test_bias_mitigator_check_score():
+    sensitive_attrs = ['age', 'gender']
+    target = 'income'
+    df = generate_biased_data(n=1000, nans_prop=0.)
+
+    # Compute initial score
+    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
+    score_0, _ = fs_0.distributions_score(progress_callback=testing_progress_bar)
+
+    df_meta = MetaExtractor.extract(df)
+    synthesizer = HighDimSynthesizer(df_meta)
+    synthesizer.learn(df_train=df, num_iterations=1000)
+
+    # Test bias mitigation with nans and dates
+    bias_mitigator = BiasMitigator.from_dataframe(synthesizer, df=df, sensitive_attrs=sensitive_attrs, target=target)
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, progress_callback=testing_progress_bar, produce_nans=False)
+
     fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
-    score_f, df_biases_f = fs_f.distributions_score(progress_callback=testing_progress_bar)
+    score_f, _ = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert score_f > score_0
     assert not df_unbiased.isna().any(axis=None)
