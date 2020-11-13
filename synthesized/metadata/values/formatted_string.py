@@ -9,22 +9,31 @@ from ...config import FormattedStringMetaConfig
 
 class FormattedStringMeta(ValueMeta):
 
-    def __init__(self, name: str, formatted_string_label: str = None, regex: str = None,
+    def __init__(self, name: str, formatted_string_label: str = None,
+                 regex: str = None, length: str = None, characters: str = None,
                  config: FormattedStringMetaConfig = FormattedStringMetaConfig()):
         super().__init__(name=name)
 
-        check_regex(regex)
         self.formatted_string_label: str = formatted_string_label if formatted_string_label is not None else name
         assert self.formatted_string_label is not None
 
-        if regex is None:
-            # If regex is not given, check if we can get regex from config.label_to_regex
-            if config.label_to_regex is None or self.formatted_string_label not in config.label_to_regex:
-                raise ValueError("All 'formatted_string_labels' must have a regex defined in config.label_to_regex.")
-            self.regex: str = config.label_to_regex[self.formatted_string_label]
+        if regex is not None:
+            self.regex = regex
+
+        elif length is not None and characters is not None:
+            self.regex = r'[%s]{%s}' % (characters, length)
+
+        # If regex is not given, check if we can get regex from config.label_to_regex
+        elif config.label_to_regex is not None and self.formatted_string_label in config.label_to_regex:
+            self.regex = config.label_to_regex[self.formatted_string_label]
 
         else:
-            self.regex = regex
+            raise ValueError(f"Could not get regex for formatted string {name}.")
+
+        check_regex(self.regex)
+
+    def __str__(self):
+        return "formatted_string"
 
     def extract(self, df: pd.DataFrame) -> None:
         pass
@@ -62,4 +71,4 @@ def check_regex(regex):
     try:
         generate_str_from_regex(regex)
     except Exception as e:
-        raise ValueError(f"Given regex '{regex}' not valid: {e.msg}.")
+        raise ValueError(f"Given regex '{regex}' not valid: {e}.")

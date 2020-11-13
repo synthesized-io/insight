@@ -6,9 +6,21 @@ import pandas as pd
 
 
 class ValueMeta:
-    def __init__(self, name: str):
+    def __init__(self, name: str, **kwargs):
         self.name = name
         self.in_dtypes: Dict[str, str] = dict()
+
+    @classmethod
+    def from_dict(cls, kwargs: Dict[str, Any]):
+        kwargs = kwargs.copy()
+
+        value_type = kwargs.pop('type')
+        assert value_type == cls.__name__.lower()[:-4], \
+            f"Expected name '{cls.__name__.lower()[:-4]}', given '{value_type}'"
+        name = kwargs.pop('name')
+
+        value_meta = cls(name=name, **{k: v for k, v in kwargs.items()})
+        return value_meta
 
     def __str__(self) -> str:
         return self.__class__.__name__[:-4].lower() + "_meta"
