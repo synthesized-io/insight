@@ -8,22 +8,14 @@ import pandas as pd
 import treelib as tl
 from dataclasses import fields
 
-from .address import AddressMeta
-from .association import AssociationMeta
-from .bank import BankNumberMeta
-from .categorical import CategoricalMeta
-from .constant import ConstantMeta
-from .continuous import ContinuousMeta
-from .data_frame import DataFrameMeta
-from .date import DateMeta, TimeIndexMeta
-from .enumeration import EnumerationMeta
-from .identifier import IdentifierMeta
 from .identify_rules import identify_rules
-from .nan import NanMeta
-from .person import PersonMeta
-from .sampling import SamplingMeta
-from .value_meta import ValueMeta
-from ..config import MetaExtractorConfig, AddressParams, BankParams, PersonParams
+from .data_frame import DataFrameMeta
+from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
+    DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, TimeIndexMeta, \
+    ValueMeta
+from .validity_values import Numerical
+from .validity_rules import NumericalRules
+from ..config import MetaExtractorConfig, AddressParams, BankParams, PersonParams, FormattedStringParams
 
 
 logger = logging.getLogger(__name__)
@@ -49,13 +41,14 @@ class MetaExtractor:
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
-            person_params: PersonParams = None
+            person_params: PersonParams = None, formatted_string_params: FormattedStringParams = None,
     ) -> DataFrameMeta:
         extractor = cls(config)
         dataframe_meta = extractor.extract_dataframe_meta(
             df=df, id_index=id_index, time_index=time_index, column_aliases=column_aliases, associations=associations,
             type_overrides=type_overrides, find_rules=find_rules,
-            address_params=address_params, bank_params=bank_params, person_params=person_params
+            address_params=address_params, bank_params=bank_params, person_params=person_params,
+            formatted_string_params=formatted_string_params
         )
         return dataframe_meta
 
@@ -65,7 +58,7 @@ class MetaExtractor:
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
             address_params: AddressParams = None, bank_params: BankParams = None,
-            person_params: PersonParams = None
+            person_params: PersonParams = None, formatted_string_params: FormattedStringParams = None
     ) -> DataFrameMeta:
         column_aliases = column_aliases or dict()
         associations = associations or dict()
@@ -89,12 +82,7 @@ class MetaExtractor:
             time_value.extract(df)
             time_value.set_index(df)
 
-        if person_params is not None:
-            values.extend(self._identify_annotations(df, 'person', person_params, self.config.person_meta_config))
-        if bank_params is not None:
-            values.extend(self._identify_annotations(df, 'bank', bank_params))
-        if address_params is not None:
-            values.extend(self._identify_annotations(df, 'address', address_params, self.config.address_meta_config))
+        self._identify_annotations(df, address_params, bank_params, person_params, formatted_string_params)
 
         values.extend(self._identify_values(df, column_aliases, type_overrides, find_rules))
 
@@ -105,19 +93,41 @@ class MetaExtractor:
         return DataFrameMeta(values=values, id_value=identifier_value, time_value=time_value,
                              column_aliases=column_aliases, association_meta=association_meta)
 
+    def extract_validity_df_meta(self, df: pd.DataFrame) -> DataFrameMeta:
+        values = self._identify_validity(df)
+        return DataFrameMeta(values=values)
+
+    def _identify_annotations(self, df: pd.DataFrame, address_params: AddressParams = None,
+                              bank_params: BankParams = None, person_params: PersonParams = None,
+                              formatted_string_params: FormattedStringParams = None) -> List[ValueMeta]:
+
+        values: List[ValueMeta] = []
+        if person_params is not None:
+            values.extend(self._identify_annotation(df, 'person', person_params, self.config.person_meta_config))
+        if bank_params is not None:
+            values.extend(self._identify_annotation(df, 'bank', bank_params))
+        if address_params is not None:
+            values.extend(self._identify_annotation(df, 'address', address_params, self.config.address_meta_config))
+        if formatted_string_params is not None:
+            values.extend(self._identify_annotation(df, 'formatted_string', formatted_string_params,
+                                                    self.config.formatted_string_meta_config))
+
+        return values
+
     @staticmethod
-    def _identify_annotations(df: pd.DataFrame, annotation: str, params, config=None):
+    def _identify_annotation(df: pd.DataFrame, annotation: str, params, config=None) -> List[ValueMeta]:
         labels = {f.name: _get_formated_label(params.__getattribute__(f.name)) for f in fields(params)}
 
         labels_matrix = _get_labels_matrix([label for label in labels.values()])
-        values: List[Optional[ValueMeta]] = list()
+        values: List[ValueMeta] = list()
 
         string_to_meta = {
-            'bank': BankNumberMeta, 'address': AddressMeta, 'person': PersonMeta
+            'bank': BankNumberMeta, 'address': AddressMeta, 'person': PersonMeta,
+            'formatted_string': FormattedStringMeta
         }
 
         if len(labels_matrix) > 0:
-            for i, bank in enumerate(labels_matrix):
+            for i in range(len(labels_matrix)):
                 kwargs = {k: v[i] if v is not None else None for k, v in labels.items()}
                 if config is not None:
                     kwargs['config'] = config
@@ -187,6 +197,25 @@ class MetaExtractor:
 
         # Identify deterministic rules
         values = identify_rules(values=values, df=df, tests=find_rules)
+        return values
+
+    def _identify_validity(self, df: pd.DataFrame, address_params: AddressParams = None,
+                           bank_params: BankParams = None, person_params: PersonParams = None,
+                           formatted_string_params: FormattedStringParams = None) -> List[ValueMeta]:
+        values: List[ValueMeta] = []
+
+        self._identify_annotations(df, address_params, bank_params, person_params, formatted_string_params)
+
+        for c in df.columns:
+            if df[c].dtypes.kind in ('f', 'i', 'u'):
+                value = Numerical(name=c)
+                for i, Rule in enumerate(NumericalRules):
+                    rule = Rule.extract(f"numerical_rule_{i}", df.loc[:, c])
+                    if rule is not None:
+                        value.add_validity_rule(rule)
+
+                values.append(value)
+
         return values
 
     @staticmethod

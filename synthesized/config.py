@@ -1,4 +1,4 @@
-from typing import Union, List, Optional, Callable
+from typing import Dict, Union, List, Optional, Callable
 
 from dataclasses import dataclass, fields, field
 import pandas as pd
@@ -54,11 +54,27 @@ class PersonParams:
 @dataclass
 class PersonMetaConfig:
     dict_cache_size: int = 10000
+    mobile_number_format: str = '07xxxxxxxx'
+    home_number_format: str = '01xxxxxxxx'
+    work_number_format: str = '07xxxxxxxx'
 
     @property
     def person_meta_config(self):
         return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
 
+@dataclass
+class FormattedStringParams:
+    formatted_string_label: Optional[List[str]] = None
+
+
+@dataclass
+class FormattedStringMetaConfig:
+    label_to_regex: Optional[Dict[str, str]] = None
+
+    @property
+    def formatted_string_meta_config(self):
+        return FormattedStringMetaConfig(**{f.name: self.__getattribute__(f.name)
+                                            for f in fields(FormattedStringMetaConfig)})
 
 @dataclass
 class MetaFactoryConfig:
@@ -80,7 +96,7 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):

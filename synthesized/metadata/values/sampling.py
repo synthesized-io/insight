@@ -8,7 +8,8 @@ from .value_meta import ValueMeta
 
 class SamplingMeta(ValueMeta):
 
-    def __init__(self, name: str, uniform: bool = False, smoothing: float = None):
+    def __init__(self, name: str, uniform: bool = False, smoothing: float = None,
+                 categories: List[str] = None, probabilities: List[float] = None):
         super().__init__(name=name)
 
         if uniform:
@@ -22,6 +23,15 @@ class SamplingMeta(ValueMeta):
 
         self.categories: Optional[pd.Series] = None
 
+        if categories is not None:
+            if probabilities is not None:
+                if len(categories) != len(probabilities):
+                    raise ValueError("Given 'categories' and 'probs' must have same length.")
+                self.categories = pd.Series({category: prob for category, prob in zip(categories, probabilities)})
+
+            else:
+                self.categories = pd.Series({category: 1 / len(categories) for category in categories})
+
     def specification(self) -> dict:
         spec = super().specification()
         spec.update(smoothing=self.smoothing)
@@ -29,10 +39,10 @@ class SamplingMeta(ValueMeta):
 
     def extract(self, df: pd.DataFrame) -> None:
         super().extract(df=df)
-        self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True)
-        self.categories **= self.smoothing
-        self.categories /= self.categories.sum()
-        self.num_categories = len(self.categories)
+        if self.categories is None:
+            self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True)
+            self.categories **= self.smoothing
+            self.categories /= self.categories.sum()
 
     def learned_input_columns(self) -> List[str]:
         return []
