@@ -1,4 +1,4 @@
-from typing import List, Union, Dict, Optional, Callable, Any
+from typing import List, Union, Dict, Optional, Any
 from dataclasses import dataclass
 from functools import cmp_to_key
 from datetime import datetime
