@@ -642,7 +642,7 @@ class FairnessScorer:
                     df[col] = self.bin_date_column(df[col])
 
             # If it's a sampling value, discard it
-            elif num_unique <= np.sqrt(len(df)):
+            elif num_unique > np.sqrt(len(df)):
                 df.drop(col, axis=1, inplace=True)
                 self.sensitive_attrs.remove(col)
                 logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")

@@ -33,7 +33,8 @@ def test_bias_mitigator_multinomial_target():
     target = 'income'
     df = generate_biased_data()
 
-    fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
+    # Compute score without NaNs initially as otherwise nans-imputation will add bias
+    fs_0 = FairnessScorer(df.dropna(), sensitive_attrs=sensitive_attrs, target=target)
     score_0, df_biases_0 = fs_0.distributions_score(progress_callback=testing_progress_bar)
 
     df_meta = MetaExtractor.extract(df)
