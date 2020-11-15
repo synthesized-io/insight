@@ -41,7 +41,7 @@ jobs:
   test:
     docker:
         - image: circleci/python:3.6.9
-    parallelism: 5
+    parallelism: 8
     steps:
       # Reuse the workspace from the build job
       - attach_workspace:
