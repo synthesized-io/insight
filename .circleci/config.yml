@@ -53,7 +53,7 @@ jobs:
 
       - run:
           name: Run Tests
-          command: circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
+          command: circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml
           no_output_timeout: 30m
 
       - run:
