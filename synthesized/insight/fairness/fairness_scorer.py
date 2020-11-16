@@ -324,6 +324,9 @@ class FairnessScorer:
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
         df = self.df.copy()
+        df.drop(index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
+                axis=0, inplace=True)
+
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
         self.names_str_to_list[name] = sensitive_attr
@@ -458,7 +461,6 @@ class FairnessScorer:
             axis=0
         ).groupby(sensitive_attr).groups
 
-        logger.info(groups)
         distances = []
         for sensitive_attr_values, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
