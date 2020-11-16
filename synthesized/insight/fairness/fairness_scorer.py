@@ -452,8 +452,13 @@ class FairnessScorer:
         return correlation_pairs
 
     def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
-        groups = self.df.groupby(sensitive_attr).groups
+        # ignore rows which have nans in any of the given sensitive attrs
+        groups = self.df.drop(
+            index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
+            axis=0
+        ).groupby(sensitive_attr).groups
 
+        logger.info(groups)
         distances = []
         for sensitive_attr_values, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
