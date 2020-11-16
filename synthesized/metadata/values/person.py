@@ -41,9 +41,11 @@ class PersonMeta(ValueMeta):
 
         fkr = faker.Faker(locale='en_GB')
         dict_cache_size = config.dict_cache_size
-        self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
-        self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
-        self.last_name_cache = np.array(list({fkr.last_name() for _ in range(dict_cache_size)}))
+        self.male_first_name_cache = np.array(list({fkr.first_name_male().replace("'", "")
+                                                    for _ in range(dict_cache_size)}))
+        self.female_first_name_cache = np.array(list({fkr.first_name_female().replace("'", "")
+                                                      for _ in range(dict_cache_size)}))
+        self.last_name_cache = np.array(list({fkr.last_name().replace("'", "") for _ in range(dict_cache_size)}))
 
         self.mobile_number_format = config.mobile_number_format
         self.home_number_format = config.home_number_format
@@ -183,7 +185,7 @@ class PersonMeta(ValueMeta):
     @staticmethod
     def generate_password(pwd_length_min: int = 8, pwd_length_max: int = 16) -> str:
         pwd_length = random.randint(pwd_length_min, pwd_length_max)
-        possible_chars = string.ascii_letters + string.digits + string.punctuation
+        possible_chars = string.ascii_letters + string.digits
         return ''.join(random.choice(possible_chars) for _ in range(pwd_length))
 
     @staticmethod

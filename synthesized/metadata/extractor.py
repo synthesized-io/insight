@@ -13,8 +13,6 @@ from .data_frame import DataFrameMeta
 from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
     DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, TimeIndexMeta, \
     ValueMeta
-from .validity_values import Numerical
-from .validity_rules import NumericalRules
 from ..config import MetaExtractorConfig, AddressParams, BankParams, PersonParams, FormattedStringParams
 
 
@@ -92,10 +90,6 @@ class MetaExtractor:
 
         return DataFrameMeta(values=values, id_value=identifier_value, time_value=time_value,
                              column_aliases=column_aliases, association_meta=association_meta)
-
-    def extract_validity_df_meta(self, df: pd.DataFrame) -> DataFrameMeta:
-        values = self._identify_validity(df)
-        return DataFrameMeta(values=values)
 
     def _identify_annotations(self, df: pd.DataFrame, address_params: AddressParams = None,
                               bank_params: BankParams = None, person_params: PersonParams = None,
@@ -197,25 +191,6 @@ class MetaExtractor:
 
         # Identify deterministic rules
         values = identify_rules(values=values, df=df, tests=find_rules)
-        return values
-
-    def _identify_validity(self, df: pd.DataFrame, address_params: AddressParams = None,
-                           bank_params: BankParams = None, person_params: PersonParams = None,
-                           formatted_string_params: FormattedStringParams = None) -> List[ValueMeta]:
-        values: List[ValueMeta] = []
-
-        self._identify_annotations(df, address_params, bank_params, person_params, formatted_string_params)
-
-        for c in df.columns:
-            if df[c].dtypes.kind in ('f', 'i', 'u'):
-                value = Numerical(name=c)
-                for i, Rule in enumerate(NumericalRules):
-                    rule = Rule.extract(f"numerical_rule_{i}", df.loc[:, c])
-                    if rule is not None:
-                        value.add_validity_rule(rule)
-
-                values.append(value)
-
         return values
 
     @staticmethod

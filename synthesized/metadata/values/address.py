@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 class AddressRecord:
     def __init__(self, postcode, county, city, district, street, house_number, flat, house_name):
-        self.postcode = postcode
-        self.county = county
-        self.city = city
-        self.district = district
-        self.street = street
-        self.house_number = house_number
-        self.flat = flat
-        self.house_name = house_name
+        self.postcode = postcode.replace("'", "")
+        self.county = county.replace("'", "")
+        self.city = city.replace("'", "")
+        self.district = district.replace("'", "")
+        self.street = street.replace("'", "")
+        self.house_number = house_number.replace("'", "")
+        self.flat = flat.replace("'", "")
+        self.house_name = house_name.replace("'", "")
 
     def __repr__(self):
         return "<AddressRecord {} {} {} {} {} {} {} {}>".format(
