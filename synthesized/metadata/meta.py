@@ -1,5 +1,5 @@
-from typing import List, Union, Dict, Optional, Any
-from dataclasses import dataclass
+from typing import List, Union, Dict, Optional, Any, TypedDict, TypeVar, Type
+from dataclasses import dataclass, field
 from functools import cmp_to_key
 from datetime import datetime
 import importlib
@@ -9,241 +9,39 @@ import numpy as np
 import pandas as pd
 import scipy.stats
 
-MetaExtractorConfig = {
-    'categorical_threshold_log_multiplier': 2.5,
-    'acceptable_nan_frac': 0.25,
-    'min_num_unique': 10
-}
+from .exceptions import MetaNotExtractedError, UnsupportedDtypeError, UnknownDateFormatError
+
+T = TypeVar('T', bound='Meta')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta')
+NominalType = TypeVar('NominalType', bound='Nominal')
+OrdinalType = TypeVar('OrdinalType', bound='Ordinal')
+AffineType = TypeVar('AffineType', bound='Affine')
 
 
-class UnsupportedDtypeError(Exception):
-    pass
-
-
-class UnknownDateFormatError(Exception):
-    pass
-
-
-class MetaNotExtractedError(Exception):
-    pass
-
-
-def _default_categorical(func):
+class MetaExtractorConfig(TypedDict):
     """
-    MetaBuilder function decorator.
+    Configuration parameters for MetaFactory.
 
-    Modifies the behaviour of a MetaBuilder function to return either a
-    Categorical or Constant meta regardless of the underlying dtype. The decorated
-    function will return either:
+    Attributes:
+        categorical_threshold_log_multiplier: if number of unique values
+        in a pd.Series is below this value a Categorical meta is returned.
 
-    1. Constant, for data with one unique value
-    2. Categorical, for data with:
-        number of unique values <= max(_MetaBuilder.min_num_unique, _MetaBuilder.categorical_threshold_log_multiplier * np.log(len(x))
-        and if there are no genuine floats in the data
-    3. Meta, i.e the return type of the decorated function if the these conditions are not met
+        min_nim_unique: if number of unique values in pd.Series
+        is below this a Categorical meta is returned.
+
+        acceptable_nan_frac: when interpreting a series of type 'O',
+        data is cast to numeric and non numeric types are cast to
+        NaNs. If the frequency of NaNs is below this threshold, and
+        Categorcial meta has not been inferred, then Float or Integer meta
+        is returned.
+
+
+    See also:
+        MetaFactory.default_config
     """
-    @functools.wraps(func)
-    def wrapper(cls, x: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
-        n_unique = x.nunique()
-        if n_unique == 1:
-            return Constant(x.name)
-        elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(x))) \
-                and (not _MetaBuilder._contains_genuine_floats(x)):
-            return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
-        else:
-            return func(cls, x, **cls.kwargs)
-    return wrapper
-
-
-class _MetaBuilder():
-    """
-    A functor class used internally by MetaFactory.
-
-    Implements methods that return a derived Meta instance for a given pd.Series.
-    The underyling numpy dtype (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
-    determines the method that is called, and therefore the Meta that is returned.
-    """
-    def __init__(self, min_num_unique: int, acceptable_nan_frac: float, categorical_threshold_log_multiplier: float, **kwargs):
-        self._dtype_builders = {
-            'i': self._IntBuilder,
-            'u': self._IntBuilder,
-            'M': self._DateBuilder,
-            'm': self._TimeDeltaBuilder,
-            'b': self._BoolBuilder,
-            'f': self._FloatBuilder,
-            'O': self._ObjectBuilder
-        }
-
-        self.min_num_unique = min_num_unique
-        self.acceptable_nan_frac = acceptable_nan_frac
-        self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
-
-        self.kwargs = kwargs
-
-    def __call__(self, x: pd.Series) -> 'Meta':
-        return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
-
-    def _DateBuilder(self, x: pd.Series, **kwargs) -> 'Date':
-        return Date(x.name, **kwargs)
-
-    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> 'TimeDelta':
-        return TimeDelta(x.name, **kwargs)
-
-    def _BoolBuilder(self, x: pd.Series, **kwargs) -> 'Bool':
-        return Bool(x.name, **kwargs)
-
-    @_default_categorical
-    def _IntBuilder(self, x: pd.Series, **kwargs) -> 'Integer':
-        return Integer(x.name, **kwargs)
-
-    @_default_categorical
-    def _FloatBuilder(self, x: pd.Series, **kwargs) -> Union['Float', 'Integer']:
-
-        # check if is integer (in case NaNs which cast to float64)
-        # delegate to __IntegerBuilder
-        if self._contains_genuine_floats(x):
-            meta = Float(x.name, **kwargs)
-        else:
-            meta = self._IntBuilder(x, **kwargs)
-        return meta
-
-    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> Union['Ordinal', 'Categorical']:
-        if isinstance(x.dtype, pd.CategoricalDtype):
-            categories = x.cat.categories.tolist()
-            if x.cat.ordered:
-                meta = Ordinal(x.name, categories=categories, **kwargs)  # type: Union[Ordinal, Categorical]
-            else:
-                meta = Categorical(x.name, categories=categories, **kwargs)
-
-        else:
-            meta = Categorical(x.name, **kwargs)
-        return meta
-
-    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> Union['Nominal', 'Date', 'Categorical', 'Float', 'Integer']:
-        try:
-            get_date_format(x)
-            meta = self._DateBuilder(x, **kwargs)  # type: Union[Nominal, Date, Categorical, Float, Integer]
-        except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
-
-            n_unique = x.nunique()
-            n_rows = len(x)
-
-            x_numeric = pd.to_numeric(x, errors='coerce')
-            num_nan = x_numeric.isna().sum()
-
-            if isinstance(x.dtype, pd.CategoricalDtype):
-                meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
-
-            elif (n_unique <= np.sqrt(n_rows) or
-                  n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
-                    and (not self._contains_genuine_floats(x_numeric)):
-                meta = self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
-
-            elif num_nan / n_rows < self.acceptable_nan_frac:
-                if self._contains_genuine_floats(x_numeric):
-                    meta = self._FloatBuilder(x_numeric)
-                else:
-                    meta = self._IntBuilder(x_numeric)
-
-            else:
-                meta = Nominal(x.name)
-
-        return meta
-
-    @staticmethod
-    def _contains_genuine_floats(x: pd.Series) -> bool:
-        return (~x.dropna().apply(_MetaBuilder._is_integer_float)).any()
-
-    @staticmethod
-    def _is_integer_float(x: Any) -> bool:
-        """Returns True if x can be represented as an integer."""
-        try:
-            return float(x).is_integer()
-        except (ValueError, TypeError):
-            return False
-
-
-class MetaFactory():
-    """Factory class to create Meta instances from pd.Series and pd.DataFrame objects."""
-    def __init__(self, config: Optional[dict] = None):
-
-        if config is None:
-            self.config = MetaExtractorConfig
-        else:
-            self.config = config
-
-        self._builder = _MetaBuilder(**self.config)
-
-    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union['DataFrameMeta', 'ValueMeta']:
-        return self.create_meta(x)
-
-    def create_meta(self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df') -> Union['DataFrameMeta', 'ValueMeta']:
-        """
-        Instantiate a Meta object from a pandas series or data frame.
-
-        The underlying numpy dtype kind (e.g 'i', 'M', 'f') is used to determine the dervied Meta object for a series.
-
-        Args:
-            x: a pandas series or data frame for which to create the Meta instance
-            name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
-
-        Returns:
-            A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
-
-        Raises:
-            UnsupportedDtypeError: The data type of the pandas series is not supported.
-            TypeError: An error occured during instantiation of a ValueMeta.
-        """
-
-        if name is None:
-            # to please mypy...
-            raise ValueError("name must not be None")
-
-        if isinstance(x, pd.DataFrame):
-            meta = DataFrameMeta(name)  # type: Union[DataFrameMeta, Meta]
-            for col in x.columns:
-                try:
-                    child = self.create_meta(x[col], col)
-                    setattr(meta, child.name, child)
-                except TypeError as e:
-                    print(f"Warning. Unable to interpret Meta for '{col}'", e)
-
-        elif isinstance(x, pd.Series):
-            if x.dtype.kind not in self._builder._dtype_builders:
-                raise TypeError(f"'{x.dtype}' is unsupported")
-            meta = self._builder(x)
-
-        else:
-            raise TypeError(f"Cannot create meta from {type(x)}")
-
-        return meta
-
-
-class MetaExtractor(MetaFactory):
-    """Extract the DataFrameMeta for a data frame"""
-    def __init__(self, config: Optional[dict] = None):
-        super().__init__(config)
-
-    @classmethod
-    def extract(cls, x: pd.DataFrame, config: Optional[dict] = None) -> 'DataFrameMeta':
-        """
-        Instantiate and extract the DataFrameMeta that describes a data frame.
-
-        Args:
-            x: the data frame to instantiate and extract DataFrameMeta.
-            config: Optional; The configuration parameters to MetaFactory.
-
-        Returns:
-            A DataFrameMeta instance for which all child meta have been extracted.
-
-        Raises:
-            UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
-            TypeError: An error occured during instantiation of a ValueMeta.
-        """
-
-        factory = cls(config)
-        df_meta = factory.create_meta(x).extract(x)  # type: Meta
-        return df_meta
+    categorical_threshold_log_multiplier: float
+    min_num_unique: int
+    acceptable_nan_frac: float
 
 
 @dataclass(repr=False)
@@ -294,55 +92,51 @@ class Meta():
     """
 
     name: str
-    _children: Optional[List['Meta']] = None
+    _children: List['Meta'] = field(default_factory=list)
     _extracted = False
 
-    def __post_init__(self):
-        if self._children is None:
-            self._children = []
-
     @property
-    def children(self) -> List['Meta']:
+    def children(self: T) -> List['Meta']:
         """Return the children of this Meta."""
         return self._children
 
-    def __repr__(self):
+    def __repr__(self: T):
         return f'{self.__class__.__name__}(name={self.name})'
 
-    def __str__(self):
+    def __str__(self: T):
         return f"{_TreePrinter().print(self)}"
 
-    def extract(self, x: pd.DataFrame) -> 'Meta':
+    def extract(self: T, x: pd.DataFrame) -> T:
         """Extract the children of this Meta."""
         for child in self._children:
             child.extract(x)
         self._extracted = True
         return self
 
-    def register_child(self, child: 'Meta') -> None:
+    def register_child(self: T, child: 'Meta') -> None:
         if not isinstance(child, Meta):
             raise TypeError(f"cannot assign '{type(child)}' as child Meta '{child.name}'",
                             "(synthesized.metadata.meta.Meta required)")
         self._children.append(child)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self: T, name, value):
         if isinstance(value, Meta) and not isinstance(self, ValueMeta):
             if self._children is None:
                 self._children = []
             self.register_child(value)
         object.__setattr__(self, name, value)
 
-    def __getitem__(self, value):
+    def __getitem__(self: T, value):
         return getattr(self, value)
 
-    def __iter__(self):
+    def __iter__(self: T):
         for child in self._children:
             yield child
 
-    def __len__(self):
+    def __len__(self: T):
         return len(self._children)
 
-    def _tree_to_dict(self, meta: 'Meta') -> dict:
+    def _tree_to_dict(self: T, meta: 'Meta') -> dict:
         """Convert nested Meta to dictionary"""
         if isinstance(meta, ValueMeta):
             d = {}
@@ -353,7 +147,7 @@ class Meta():
         elif isinstance(meta, Meta):
             return {m.name: m.to_dict() for m in meta}
 
-    def to_dict(self):
+    def to_dict(self: T):
         """
         Convert the Meta to a dictionary.
 
@@ -420,7 +214,7 @@ class Meta():
         return d
 
     @classmethod
-    def from_dict(cls, d: dict):
+    def from_dict(cls: Type[T], d: dict) -> T:
         """
         Construct a Meta from a dictionary.
 
@@ -433,13 +227,13 @@ class Meta():
         if isinstance(d, dict):
             name = list(d.keys())[0]
             if name in module.__dict__:
-                cls = getattr(module, name)(name)
-                if isinstance(cls, ValueMeta):
-                    cls = getattr(module, name)(**d[name])
+                meta = getattr(module, name)(name)
+                if isinstance(meta, ValueMeta):
+                    meta = getattr(module, name)(**d[name])
                 else:
                     for attr_name, attrs in d[name].items():
-                        setattr(cls, attr_name, cls.from_dict(attrs))
-                return cls
+                        setattr(meta, attr_name, meta.from_dict(attrs))
+                return meta
             else:
                 raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
 
@@ -515,7 +309,7 @@ class ValueMeta(Meta):
     def __str__(self):
         return repr(self)
 
-    def extract(self, x: pd.DataFrame) -> 'ValueMeta':
+    def extract(self: ValueMetaType, x: pd.DataFrame) -> ValueMetaType:
         self.dtype = x[self.name].dtype
         self._extracted = True
         return self
@@ -535,17 +329,10 @@ class Nominal(ValueMeta):
         categories: Optional; list of category names.
         probabilites: Optional; list of probabilites (relative frequencies) of each category.
     """
-    categories: Optional[List[str]] = None
-    probabilities: Optional[List[float]] = None
+    categories: List[str] = field(default_factory=list)
+    probabilities: List[float] = field(default_factory=list)
 
-    def __post_init__(self):
-        super().__post_init__()
-        if self.categories is None:
-            self.categories = []
-        if self.probabilities is None:
-            self.probabilities = []
-
-    def extract(self, x: pd.DataFrame) -> 'Nominal':
+    def extract(self: NominalType, x: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
         if not self.categories:
@@ -625,10 +412,10 @@ class Ordinal(Categorical):
         min: Optional; the minimum category
         max: Optional; the maximum category
     """
-    min: Optional[Union[str, float, int]] = None
-    max: Optional[Union[str, float, int]] = None
+    min: Optional[Union[str, float, int, pd.Timestamp]] = None
+    max: Optional[Union[str, float, int, pd.Timestamp]] = None
 
-    def extract(self, x: pd.DataFrame) -> 'Ordinal':
+    def extract(self: OrdinalType, x: pd.DataFrame) -> OrdinalType:
         self = super().extract(x)
         if self.min is None:
             self.min = self.categories[0]
@@ -677,7 +464,7 @@ class Affine(Ordinal):
     distribution: Optional[scipy.stats.rv_continuous] = None
     monotonic: Optional[bool] = False
 
-    def extract(self, x: pd.DataFrame) -> 'Affine':
+    def extract(self: AffineType, x: pd.DataFrame) -> AffineType:
         if (np.diff(x[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
@@ -810,12 +597,235 @@ class _TreePrinter():
         return self._string
 
 
-def get_date_format(x: pd.Series) -> pd.Series:
+def _default_categorical(func):
     """
-    Infer date format of a pd.Series.
+    MetaBuilder function decorator.
+
+    Modifies the behaviour of a MetaBuilder function to return either a
+    Categorical or Constant meta regardless of the underlying dtype. The decorated
+    function will return either:
+
+    1. Constant, for data with one unique value
+    2. Categorical, for data with:
+        number of unique values <= max(_MetaBuilder.min_num_unique, _MetaBuilder.categorical_threshold_log_multiplier * np.log(len(x))
+        and if there are no genuine floats in the data
+    3. Meta, i.e the return type of the decorated function if the these conditions are not met
+    """
+    @functools.wraps(func)
+    def wrapper(cls, x: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
+        n_unique = x.nunique()
+        if n_unique == 1:
+            return Constant(x.name)
+        elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(x))) \
+                and (not _MetaBuilder._contains_genuine_floats(x)):
+            return Categorical(x.name, similarity_based=True if n_unique > 2 else False)
+        else:
+            return func(cls, x, **cls.kwargs)
+    return wrapper
+
+
+class _MetaBuilder():
+    """
+    A functor class used internally by MetaFactory.
+
+    Implements methods that return a derived Meta instance for a given pd.Series.
+    The underyling numpy dtype (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
+    determines the method that is called, and therefore the Meta that is returned.
+    """
+    def __init__(self, min_num_unique: int, acceptable_nan_frac: float, categorical_threshold_log_multiplier: float, **kwargs):
+        self._dtype_builders = {
+            'i': self._IntBuilder,
+            'u': self._IntBuilder,
+            'M': self._DateBuilder,
+            'm': self._TimeDeltaBuilder,
+            'b': self._BoolBuilder,
+            'f': self._FloatBuilder,
+            'O': self._ObjectBuilder
+        }
+
+        self.min_num_unique = min_num_unique
+        self.acceptable_nan_frac = acceptable_nan_frac
+        self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
+
+        self.kwargs = kwargs
+
+    def __call__(self, x: pd.Series) -> ValueMeta:
+        return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
+
+    def _DateBuilder(self, x: pd.Series, **kwargs) -> Date:
+        return Date(x.name, **kwargs)
+
+    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> TimeDelta:
+        return TimeDelta(x.name, **kwargs)
+
+    def _BoolBuilder(self, x: pd.Series, **kwargs) -> Bool:
+        return Bool(x.name, **kwargs)
+
+    @_default_categorical
+    def _IntBuilder(self, x: pd.Series, **kwargs) -> Integer:
+        return Integer(x.name, **kwargs)
+
+    @_default_categorical
+    def _FloatBuilder(self, x: pd.Series, **kwargs) -> Union[Float, Integer]:
+
+        # check if is integer (in case NaNs which cast to float64)
+        # delegate to __IntegerBuilder
+        if self._contains_genuine_floats(x):
+            return Float(x.name, **kwargs)
+        else:
+            return self._IntBuilder(x, **kwargs)
+
+    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> Union[Ordinal, Categorical]:
+        if isinstance(x.dtype, pd.CategoricalDtype):
+            categories = x.cat.categories.tolist()
+            if x.cat.ordered:
+                return Ordinal(x.name, categories=categories, **kwargs)
+            else:
+                return Categorical(x.name, categories=categories, **kwargs)
+
+        else:
+            return Categorical(x.name, **kwargs)
+
+    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> Union[Nominal, Date, Categorical, Float, Integer]:
+        try:
+            get_date_format(x)
+            return self._DateBuilder(x, **kwargs)
+        except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
+
+            n_unique = x.nunique()
+            n_rows = len(x)
+
+            x_numeric = pd.to_numeric(x, errors='coerce')
+            num_nan = x_numeric.isna().sum()
+
+            if isinstance(x.dtype, pd.CategoricalDtype):
+                return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+
+            elif (n_unique <= np.sqrt(n_rows) or
+                  n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+                    and (not self._contains_genuine_floats(x_numeric)):
+                return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+
+            elif num_nan / n_rows < self.acceptable_nan_frac:
+                if self._contains_genuine_floats(x_numeric):
+                    return self._FloatBuilder(x_numeric)
+                else:
+                    return self._IntBuilder(x_numeric)
+
+            else:
+                return Nominal(x.name)
+
+    @staticmethod
+    def _contains_genuine_floats(x: pd.Series) -> bool:
+        return (~x.dropna().apply(_MetaBuilder._is_integer_float)).any()
+
+    @staticmethod
+    def _is_integer_float(x: Any) -> bool:
+        """Returns True if x can be represented as an integer."""
+        try:
+            return float(x).is_integer()
+        except (ValueError, TypeError):
+            return False
+
+
+class MetaFactory():
+    """Factory class to create Meta instances from pd.Series and pd.DataFrame objects."""
+    def __init__(self, config: Optional[MetaExtractorConfig] = None):
+
+        if config is None:
+            self.config = MetaFactory.default_config()
+        else:
+            self.config = config
+
+        self._builder = _MetaBuilder(**self.config)
+
+    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union[ValueMeta, DataFrameMeta]:
+        return self.create_meta(x)
+
+    def create_meta(self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df') -> Union[ValueMeta, DataFrameMeta]:
+        """
+        Instantiate a Meta object from a pandas series or data frame.
+
+        The underlying numpy dtype kind (e.g 'i', 'M', 'f') is used to determine the dervied Meta object for a series.
+
+        Args:
+            x: a pandas series or data frame for which to create the Meta instance
+            name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
+
+        Returns:
+            A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
+
+        Raises:
+            UnsupportedDtypeError: The data type of the pandas series is not supported.
+            TypeError: An error occured during instantiation of a ValueMeta.
+        """
+        if isinstance(x, pd.DataFrame):
+            return self._from_df(x, name)
+        elif isinstance(x, pd.Series):
+            return self._from_series(x)
+        else:
+            raise TypeError(f"Cannot create meta from {type(x)}")
+
+    def _from_series(self, x: pd.Series) -> ValueMeta:
+        if x.dtype.kind not in self._builder._dtype_builders:
+            raise UnsupportedDtypeError(f"'{x.dtype}' is unsupported")
+        return self._builder(x)
+
+    def _from_df(self, x: pd.DataFrame, name: Optional[str] = 'df') -> DataFrameMeta:
+        if name is None:
+            raise ValueError("name must not be a string, not None")
+        meta = DataFrameMeta(name)
+        for col in x.columns:
+            try:
+                child = self._from_series(x[col])
+                setattr(meta, child.name, child)
+            except TypeError as e:
+                print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
+        return meta
+
+    @staticmethod
+    def default_config() -> MetaExtractorConfig:
+        return MetaExtractorConfig(
+            categorical_threshold_log_multiplier=2.5,
+            acceptable_nan_frac=0.25, min_num_unique=10)
+
+
+class MetaExtractor(MetaFactory):
+    """Extract the DataFrameMeta for a data frame"""
+    def __init__(self, config: Optional[MetaExtractorConfig] = None):
+        super().__init__(config)
+
+    @staticmethod
+    def extract(x: pd.DataFrame, config: Optional[MetaExtractorConfig] = None) -> DataFrameMeta:
+        """
+        Instantiate and extract the DataFrameMeta that describes a data frame.
+
+        Args:
+            x: the data frame to instantiate and extract DataFrameMeta.
+            config: Optional; The configuration parameters to MetaFactory.
+
+        Returns:
+            A DataFrameMeta instance for which all child meta have been extracted.
+
+        Raises:
+            UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
+            TypeError: An error occured during instantiation of a ValueMeta.
+        """
+
+        factory = MetaExtractor(config)
+        df_meta = factory._from_df(x).extract(x)
+        return df_meta
+
+
+def get_date_format(x: pd.Series) -> str:
+    """
+    Infer the date format for a series of dates.
+
+    Returns:
+        date format string, e.g "%d/%m/%Y.
 
     Raises:
-        UnknownDateFormatError: if date format cannot be inferred.
+        UnknownDateFormatError: date format cannot be inferred.
     """
     formats = (
         '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
@@ -824,9 +834,13 @@ def get_date_format(x: pd.Series) -> pd.Series:
         '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
     )
     parsed_format = None
+    if x.dtype.kind == 'M':
+        func = datetime.strftime
+    else:
+        func = datetime.strptime  # type: ignore
     for date_format in formats:
         try:
-            x = x.apply(lambda x: datetime.strptime(x, date_format))
+            x = x.apply(lambda x: func(x, date_format))
             parsed_format = date_format
         except ValueError:
             pass

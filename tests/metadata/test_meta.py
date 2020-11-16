@@ -22,15 +22,13 @@ def ordinal_data():
 @pytest.fixture
 def scale_data():
     x = pd.Series(np.random.normal(loc=0, scale=1, size=100), name='scale')
-    return x, Float(name='scale', categories=None, probabilities=None,
-                    min=x.min(), max=x.max(), monotonic=False, nonnegative=False)
+    return x, Float(name='scale', min=x.min(), max=x.max(), monotonic=False, nonnegative=False)
 
 
 @pytest.fixture
 def date_data():
     x = pd.Series(pd.date_range("01/01/1993", "01/01/2000", periods=100).strftime("%d/%m/%Y"), name='date')
-    return x, Date(name='date', categories=None, probabilities=None,
-                   date_format="%d/%m/%Y", min=pd.Timestamp(year=1993, month=1, day=1),
+    return x, Date(name='date', date_format="%d/%m/%Y", min=pd.Timestamp(year=1993, month=1, day=1),
                    monotonic=True, max=pd.Timestamp(year=2000, month=1, day=1))
 
 
@@ -191,7 +189,7 @@ data_meta = [
     "data, meta", data_meta
 )
 def test_default_builder(data, meta):
-    builder = _MetaBuilder(**MetaExtractorConfig)
+    builder = _MetaBuilder(**MetaFactory.default_config())
     assert type(builder(data)) == meta
 
 
