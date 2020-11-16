@@ -622,7 +622,11 @@ class FairnessScorer:
             # Try to convert it to date
             if df[col].dtype.kind == 'O':
                 n_nans = df[col].isna().sum()
-                col_date = pd.to_datetime(df[col], errors='coerce')
+                try:
+                    col_date = pd.to_datetime(df[col], errors='coerce')
+                except TypeError:  # Argument 'date_string' has incorrect type (expected str, got numpy.str_)
+                    col_date = pd.to_datetime(df[col].astype(str), errors='coerce')
+
                 if col_date.isna().sum() == n_nans:
                     df[col] = col_date
 
