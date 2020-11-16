@@ -1,21 +1,20 @@
 from typing import List, Optional, Union, Dict, TypeVar, Type
 from collections import defaultdict
-from datetime import datetime
-import functools
 import logging
-import copy
 
 import pandas as pd
 import numpy as np
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from .meta import Meta, DataFrameMeta, Nominal, Affine, ValueMeta, Date, Float, Integer, get_date_format
-from .exceptions import *
+from .meta import Meta, DataFrameMeta, Nominal, Affine, Date, Float, Integer, get_date_format
+from .exceptions import NonInvertibleTransformError, UnsupportedMetaError
 
 logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
+
+
 class Transformer(TransformerMixin):
     """
     Base class for data frame transformers.
@@ -56,7 +55,7 @@ class Transformer(TransformerMixin):
         return self
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-         raise NotImplementedError
+        raise NotImplementedError
 
     def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
         raise NonInvertibleTransformError
@@ -355,7 +354,7 @@ class DateTransformer(Transformer):
         self.unit = unit
         self.start_date = start_date
 
-    def fit(self, x: pd.DataFrame) ->  Transformer:
+    def fit(self, x: pd.DataFrame) -> Transformer:
 
         x = x[self.name]
 
@@ -535,6 +534,7 @@ class TransformerFactory():
             return self.config[f'{meta.name}.{transformer}']
         except KeyError:
             return {}
+
 
 meta_transformer_config: Dict[str, Dict] = {
     'meta': {
