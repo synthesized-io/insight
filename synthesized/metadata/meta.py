@@ -19,9 +19,29 @@ AffineType = TypeVar('AffineType', bound='Affine')
 
 
 class MetaExtractorConfig(TypedDict):
+    """
+    Configuration parameters for MetaFactory.
+
+    Attributes:
+        categorical_threshold_log_multiplier: if number of unique values
+        in a pd.Series is below this value a Categorical meta is returned.
+
+        min_nim_unique: if number of unique values in pd.Series
+        is below this a Categorical meta is returned.
+
+        acceptable_nan_frac: when interpreting a series of type 'O',
+        data is cast to numeric and non numeric types are cast to
+        NaNs. If the frequency of NaNs is below this threshold, and
+        Categorcial meta has not been inferred, then Float or Integer meta
+        is returned.
+
+
+    See also:
+        MetaFactory.default_config
+    """
     categorical_threshold_log_multiplier: float
-    acceptable_nan_frac: float
     min_num_unique: int
+    acceptable_nan_frac: float
 
 
 @dataclass(repr=False)
