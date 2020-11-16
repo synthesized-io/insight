@@ -34,14 +34,22 @@ class Transformer(TransformerMixin):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
-        self._transformers: List['Transformer'] = []
         self._fitted = False
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.name})'
+        return f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes})'
 
     def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
         return SequentialTransformer(name=self.name, transformers=[self, other])
+
+    def __eq__(self, other):
+        def attrs(x):
+            return dict(filter(lambda x: not x[0].startswith('_'), x.__dict__.items()))
+        try:
+            np.testing.assert_equal(attrs(self), attrs(other))
+            return True
+        except AssertionError:
+            return False
 
     def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
         if not inverse:
@@ -134,9 +142,9 @@ class SequentialTransformer(Transformer):
 
         super().__init__(name, dtypes)
 
-        if not transformers:
+        self._transformers: List[Transformer] = []
+        if transformers is None:
             transformers = []
-
         self.transformers = transformers
 
     def __iter__(self):
@@ -146,8 +154,7 @@ class SequentialTransformer(Transformer):
         return self.transformers[idx]
 
     def __repr__(self):
-        nl = '\n    '
-        return f'{self.__class__.__name__}({nl}{nl.join([repr(t) for t in self.transformers])})'
+        return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, transformers={self.transformers})'
 
     def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
         if isinstance(other, SequentialTransformer):
@@ -217,11 +224,13 @@ class HistogramTransformer(Transformer):
     See also:
         pd.cut
     """
-    def __init__(self, name: str, bins: Union[List, int], inplace=True, **kwargs):
+    def __init__(self, name: str, bins: Union[List, int], **kwargs):
         super().__init__(name)
         self.bins = bins
         self.kwargs = kwargs
-        self.inplace = inplace
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, bins={self.bins}, kwargs={repr(self.kwargs)}))'
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         x[self.name] = pd.cut(x[self.name], self.bins, **self.kwargs)
@@ -243,6 +252,9 @@ class QuantileTransformer(Transformer):
         super().__init__(name=name)
         self._transformer = _QuantileTransformer(n_quantiles, output_distribution)
         self.noise = noise
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, output_distribution="{self._transformer.output_distribution}", noise={self.noise})'
 
     def fit(self, x: pd.DataFrame) -> Transformer:
         if len(x) < self._transformer.n_quantiles:
@@ -292,6 +304,9 @@ class CategoricalTransformer(Transformer):
         self.categories = categories
         self.idx_to_category = {0: np.nan}
         self.category_to_idx: Dict[str, int] = defaultdict(lambda: 0)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
 
     def fit(self, x: pd.DataFrame) -> Transformer:
 
@@ -348,11 +363,14 @@ class DateTransformer(Transformer):
         start_date: Optional; when normalising dates, compare relative to this.
     """
 
-    def __init__(self, name: str, date_format: str = None, unit: str = 'days', start_date: Optional[pd.Timestamp] = None):
+    def __init__(self, name: str, date_format: Optional[str] = None, unit: Optional[str] = 'days', start_date: Optional[pd.Timestamp] = None):
         super().__init__(name)
         self.date_format = date_format
         self.unit = unit
         self.start_date = start_date
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}", unit="{self.unit}", start_date={self.start_date})'
 
     def fit(self, x: pd.DataFrame) -> Transformer:
 
@@ -401,6 +419,9 @@ class DateCategoricalTransformer(SequentialTransformer):
         self.dow_transform = CategoricalTransformer(f'{self.name}_dow')
         self.day_transform = CategoricalTransformer(f'{self.name}_day')
         self.month_transform = CategoricalTransformer(f'{self.name}_month')
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}")'
 
     def fit(self, x: pd.DataFrame) -> Transformer:
 
@@ -457,6 +478,9 @@ class NanTransformer(Transformer):
 
     def __init__(self, name: str):
         super().__init__(name)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name="{self.name}")'
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         x[f'{self.name}_nan'] = x[self.name].isna().astype(int)
