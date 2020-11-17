@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from .meta import Meta, DataFrameMeta, Nominal, Affine, Date, Float, Integer, get_date_format
+from .meta import Meta, DataFrameMeta, Categorical, Nominal, Affine, Date, Float, Integer, get_date_format
 from .exceptions import NonInvertibleTransformError, UnsupportedMetaError
 
 logger = logging.getLogger(__name__)
@@ -311,7 +311,7 @@ class CategoricalTransformer(Transformer):
     def fit(self, x: pd.DataFrame) -> Transformer:
 
         if self.categories is None:
-            categories = x[self.name].unique()
+            categories = Categorical(self.name).extract(x).categories
         else:
             categories = np.array(self.categories)
 
@@ -335,7 +335,7 @@ class CategoricalTransformer(Transformer):
 
     def transform(self, x: pd.DataFrame) -> pd.DataFrame:
         # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
-        x.loc[x[self.name].isna(), self.name] = x[self.name].astype(str)
+        x[self.name] = x[self.name].fillna('nan')
         x[self.name] = x[self.name].apply(lambda x: self.category_to_idx[x])
         return x
 
