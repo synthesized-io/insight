@@ -1,4 +1,4 @@
-from typing import List, Union, Dict, Optional, Any, TypedDict, TypeVar, Type
+from typing import List, Union, Dict, Optional, Any, TypeVar, Type
 from dataclasses import dataclass, field
 from functools import cmp_to_key
 from datetime import datetime
@@ -16,6 +16,7 @@ ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta')
 NominalType = TypeVar('NominalType', bound='Nominal')
 OrdinalType = TypeVar('OrdinalType', bound='Ordinal')
 AffineType = TypeVar('AffineType', bound='Affine')
+
 
 @dataclass
 class MetaExtractorConfig():
@@ -38,6 +39,7 @@ class MetaExtractorConfig():
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
     acceptable_nan_frac: float = 0.25
+
 
 @dataclass(repr=False)
 class Meta():
