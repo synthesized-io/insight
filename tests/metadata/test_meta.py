@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, _MetaBuilder, MetaFactory, MetaExtractorConfig
+from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, _MetaBuilder, MetaFactory
 
 
 @pytest.fixture
@@ -199,7 +199,7 @@ data_meta = [
     "data, meta", data_meta
 )
 def test_default_builder(data, meta):
-    builder = _MetaBuilder(**MetaFactory.default_config())
+    builder = _MetaBuilder(**vars(MetaFactory.default_config()))
     assert type(builder(data)) == meta
 
 
