@@ -48,7 +48,7 @@ class FairnessScorer:
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
-                 positive_class: str = None):
+                 positive_class: str = None, drop_dates: bool = False):
         """FairnessScorer constructor.
 
         Args:
@@ -78,6 +78,7 @@ class FairnessScorer:
         self.target = target
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
+        self.drop_dates = drop_dates
 
         # Check sensitive attrs
         for sensitive_attr in self.sensitive_attrs:
@@ -118,10 +119,9 @@ class FairnessScorer:
 
         self.df = df.copy()
         other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
-        self.df.drop(other_columns, axis=1)
-        self.df.dropna(inplace=True)
+        self.df.drop(other_columns, axis=1, inplace=True)
 
-        self.bin_sensitive_attr(self.df, inplace=True)
+        self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates)
         self.target_variable_type = self.manipulate_target_variable(self.df)
 
         self.len_df = len(self.df)
@@ -324,6 +324,9 @@ class FairnessScorer:
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
         df = self.df.copy()
+        df.drop(index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
+                axis=0, inplace=True)
+
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
         self.names_str_to_list[name] = sensitive_attr
@@ -452,7 +455,11 @@ class FairnessScorer:
         return correlation_pairs
 
     def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
-        groups = self.df.groupby(sensitive_attr).groups
+        # ignore rows which have nans in any of the given sensitive attrs
+        groups = self.df.drop(
+            index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
+            axis=0
+        ).groupby(sensitive_attr).groups
 
         distances = []
         for sensitive_attr_values, idxs in groups.items():
@@ -465,6 +472,7 @@ class FairnessScorer:
 
                 if isinstance(sensitive_attr_values, tuple) and len(sensitive_attr_values) > 1:
                     sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                    sensitive_attr_values = list(sensitive_attr_values)
                 else:
                     sensitive_attr_str = sensitive_attr_values
                     sensitive_attr_values = [sensitive_attr_values]
@@ -570,10 +578,8 @@ class FairnessScorer:
 
         return checks, VBox(box)
 
-    def manipulate_target_variable(self, df: pd.DataFrame, inplace: bool = True) -> VariableType:
+    def manipulate_target_variable(self, df: pd.DataFrame) -> VariableType:
         """Check the target variable column, binned it if needed, and return target variable type"""
-        if not inplace:
-            df = df.copy()
 
         # Convert to numeric
         n_nans = df[self.target].isna().sum()
@@ -594,6 +600,8 @@ class FairnessScorer:
                     self.target_n_bins = num_unique
                     return VariableType.Multinomial
                 else:
+                    # Only drop nans if present in target distribution.
+                    df.drop(index=df[df[self.target].isna()].index, axis=0, inplace=True)
                     return VariableType.Continuous
 
             if num_unique > self.target_n_bins:
@@ -605,7 +613,8 @@ class FairnessScorer:
 
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
-    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True,
+                           drop_dates: bool = False) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
@@ -620,7 +629,11 @@ class FairnessScorer:
             # Try to convert it to date
             if df[col].dtype.kind == 'O':
                 n_nans = df[col].isna().sum()
-                col_date = pd.to_datetime(df[col], errors='coerce')
+                try:
+                    col_date = pd.to_datetime(df[col], errors='coerce')
+                except TypeError:  # Argument 'date_string' has incorrect type (expected str, got numpy.str_)
+                    col_date = pd.to_datetime(df[col].astype(str), errors='coerce')
+
                 if col_date.isna().sum() == n_nans:
                     df[col] = col_date
 
@@ -632,10 +645,15 @@ class FairnessScorer:
 
             # If it's date, bin it
             elif df[col].dtype.kind == 'M':
-                df[col] = self.bin_date_column(df[col])
+                if drop_dates:
+                    df.drop(col, axis=1, inplace=True)
+                    self.sensitive_attrs.remove(col)
+                    logging.info(f"Sensitive attribute '{col}' dropped as it is a date value and 'drop_dates=True'.")
+                else:
+                    df[col] = self.bin_date_column(df[col])
 
             # If it's a sampling value, discard it
-            elif num_unique <= np.sqrt(len(df)):
+            elif num_unique > np.sqrt(len(df)):
                 df.drop(col, axis=1, inplace=True)
                 self.sensitive_attrs.remove(col)
                 logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")

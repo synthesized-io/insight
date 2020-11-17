@@ -18,6 +18,7 @@ from synthesized.testing.utils import testing_progress_bar
         pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
                      None, id="claim_prediction"),
         pytest.param("data/templates/claim_prediction.csv", [], "insuranceclaim", None, id="no_sensitive_attrs"),
+        pytest.param("data/biased_data_mixed_types.csv", ["age", "gender", "DOB"], "income", None, id="mixed_types"),
     ]
 )
 def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target, mode):
@@ -35,6 +36,7 @@ def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target, mo
     assert not any([dist_biases[c].isna().any() for c in dist_biases.columns])
     assert all([isinstance(v, list) for v in dist_biases['name'].values])
     assert all([isinstance(v, list) for v in dist_biases['value'].values])
+    assert not any(['nan' in v for v in dist_biases['value'].values])  # Shouldn't have biases for NaN values.
 
     # Classification score
     if fairness_scorer.target_variable_type == VariableType.Binary:
