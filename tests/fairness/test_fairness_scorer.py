@@ -49,12 +49,19 @@ def test_fairness_scorer_parametrize(file_name, sensitive_attributes, target, mo
 
 
 @pytest.mark.slow
-def test_fairness_scorer_detect_sensitive():
-    data = pd.read_csv("data/templates/claim_prediction.csv")
-    target = "insuranceclaim"
+@pytest.mark.parametrize(
+    "file_name,sensitive_attributes,target",
+    [
+        pytest.param("data/templates/claim_prediction.csv", ["age", "sex", "children", "region"], "insuranceclaim",
+                     id="claim_prediction"),
+        pytest.param("data/credit_with_categoricals.csv", [], "age", id="target_in_sensitive_attrs"),
+    ]
+)
+def test_fairness_scorer_detect_sensitive(file_name, sensitive_attributes, target):
+    data = pd.read_csv(file_name)
 
     fairness_scorer = FairnessScorer.init_detect_sensitive(data, target=target)
-    assert fairness_scorer.get_sensitive_attrs() == ["age", "sex", "children", "region"]
+    assert fairness_scorer.get_sensitive_attrs() == sensitive_attributes
 
     dist_score, dist_biases = fairness_scorer.distributions_score(progress_callback=testing_progress_bar)
     clf_score, clf_biases = fairness_scorer.classification_score(progress_callback=testing_progress_bar)
