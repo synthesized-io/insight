@@ -104,6 +104,6 @@ workflows:
             branches:
               only:  # only branches matching the below regex filters will run
                 - master
-                - r\d\.\d.*
+                - /r\d\.\d.*/
           requires:
             - test
