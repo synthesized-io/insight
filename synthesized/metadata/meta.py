@@ -17,8 +17,8 @@ NominalType = TypeVar('NominalType', bound='Nominal')
 OrdinalType = TypeVar('OrdinalType', bound='Ordinal')
 AffineType = TypeVar('AffineType', bound='Affine')
 
-
-class MetaExtractorConfig(TypedDict):
+@dataclass
+class MetaExtractorConfig():
     """
     Configuration parameters for MetaFactory.
 
@@ -34,15 +34,10 @@ class MetaExtractorConfig(TypedDict):
         NaNs. If the frequency of NaNs is below this threshold, and
         Categorcial meta has not been inferred, then Float or Integer meta
         is returned.
-
-
-    See also:
-        MetaFactory.default_config
     """
-    categorical_threshold_log_multiplier: float
-    min_num_unique: int
-    acceptable_nan_frac: float
-
+    categorical_threshold_log_multiplier: float = 2.5
+    min_num_unique: int = 10
+    acceptable_nan_frac: float = 0.25
 
 @dataclass(repr=False)
 class Meta():
@@ -733,11 +728,11 @@ class MetaFactory():
     def __init__(self, config: Optional[MetaExtractorConfig] = None):
 
         if config is None:
-            self.config = MetaFactory.default_config()
+            self.config = MetaExtractorConfig()
         else:
             self.config = config
 
-        self._builder = _MetaBuilder(**self.config)
+        self._builder = _MetaBuilder(**vars(self.config))
 
     def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union[ValueMeta, DataFrameMeta]:
         return self.create_meta(x)
