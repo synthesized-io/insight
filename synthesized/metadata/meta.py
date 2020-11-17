@@ -11,6 +11,14 @@ from .dtype import DType, NType, OType, AType, SType, RType
 from .exceptions import UnknownDateFormatError
 
 MetaType = TypeVar('MetaType', bound='Meta')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta')
+NominalType = TypeVar('NominalType', bound='Nominal')
+CategoricalType = TypeVar('CategoricalType', bound='Categorical')
+OrdinalType = TypeVar('OrdinalType', bound='Ordinal')
+AffineType = TypeVar('AffineType', bound='Affine')
+ScaleType = TypeVar('ScaleType', bound='Scale')
+RingType = TypeVar('RingType', bound='Ring')
+DateType = TypeVar('DateType', bound='Date')
 
 
 @dataclass(repr=False)
@@ -72,11 +80,12 @@ class Meta(MutableMapping[str, 'Meta']):
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name})'
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: MetaType, x: pd.DataFrame) -> MetaType:
         """Extract the children of this Meta."""
         for child in self.children:
             child.extract(x)
         self._extracted = True
+        return self
 
     def __setattr__(self, name: str, value):
         if isinstance(value, Meta) and not isinstance(self, ValueMeta):
@@ -98,8 +107,8 @@ class Meta(MutableMapping[str, 'Meta']):
         del self._children[k]
 
     def __iter__(self) -> Iterator[str]:
-        for child in self._children:
-            yield child
+        for key in self._children:
+            yield key
 
     def __len__(self) -> int:
         return len(self._children)
@@ -178,9 +187,11 @@ class ValueMeta(Meta, Generic[DType]):
     def __str__(self):
         return repr(self)
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: ValueMetaType, x: pd.DataFrame) -> ValueMetaType:
+        super().extract(x)
         self.dtype = x[self.name].dtype
         self._extracted = True
+        return self
 
 
 @dataclass(repr=False)
@@ -200,7 +211,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     categories: List[NType] = field(default_factory=list)
     probabilities: List[float] = field(default_factory=list)
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: NominalType, x: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(x)
         value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
@@ -212,6 +223,8 @@ class Nominal(ValueMeta[NType], Generic[NType]):
                 pass
         if not self.probabilities:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
+
+        return self
 
     def probability(self, x: Union[NType, np.nan]) -> float:
         """Get the probability mass of the category x."""
@@ -245,9 +258,10 @@ class Constant(Nominal[NType]):
     """
     value: Optional[NType] = None
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: 'Constant', x: pd.DataFrame) -> 'Constant':
         super().extract(x)
         self.value = x[self.name].dropna().iloc[0]
+        return self
 
 
 @dataclass(repr=False)
@@ -283,12 +297,14 @@ class Ordinal(Categorical[OType], Generic[OType]):
     min: Optional[OType] = None
     max: Optional[OType] = None
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: OrdinalType, x: pd.DataFrame) -> OrdinalType:
         super().extract(x)
         if self.min is None:
             self.min = self.categories[0]
         if self.max is None:
             self.max = self.categories[-1]
+
+        return self
 
     def less_than(self, x: Any, y: Any) -> bool:
         """Return True if x < y"""
@@ -330,12 +346,14 @@ class Affine(Ordinal[AType], Generic[AType]):
     distribution: Optional[scipy.stats.rv_continuous] = None
     monotonic: Optional[bool] = False
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: AffineType, x: pd.DataFrame) -> AffineType:
         super().extract(x)
         if (np.diff(x[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
             self.monotonic = False
+
+        return self
 
 
 @dataclass(repr=False)
@@ -352,14 +370,15 @@ class Date(Affine[np.datetime64]):
     dtype = np.datetime64
     date_format: Optional[str] = None
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: DateType, x: pd.DataFrame) -> DateType:
         super().extract(x)
         if self.date_format is None:
             self.date_format = get_date_format(x[self.name])
 
         x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
-
         x[self.name] = x[self.name].dt.strftime(self.date_format)
+
+        return self
 
 
 @dataclass(repr=False)
@@ -378,12 +397,14 @@ class Scale(Affine[SType], Generic[SType]):
     """
     nonnegative: Optional[bool] = None
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: ScaleType, x: pd.DataFrame) -> ScaleType:
         super().extract(x)
         if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
+
+        return self
 
 
 @dataclass(repr=False)
@@ -400,12 +421,14 @@ class TimeDelta(Scale[np.timedelta64]):
 class Ring(Scale[RType], Generic[RType]):
     nonnegative: Optional[bool] = None
 
-    def extract(self, x: pd.DataFrame) -> None:
+    def extract(self: RingType, x: pd.DataFrame) -> RingType:
         super().extract(x)
         if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
+
+        return self
 
 
 @dataclass(repr=False)
