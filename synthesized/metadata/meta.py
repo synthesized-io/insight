@@ -226,7 +226,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         return self
 
-    def probability(self, x: Union[NType, np.nan]) -> float:
+    def probability(self, x: NType) -> float:
         """Get the probability mass of the category x."""
         try:
             return self.probabilities[self.categories.index(x)]
@@ -504,3 +504,14 @@ def get_date_format(x: pd.Series) -> str:
     if parsed_format is None:
         raise UnknownDateFormatError("Unable to infer date format.")
     return parsed_format
+
+
+def func(x: Nominal) -> float:
+    return x.probability(np.nan)
+
+meta: Nominal[str] = Nominal('x')
+
+def do_something_with_meta(x: Meta) -> Meta:
+    return x
+
+do_something_with_meta(meta)

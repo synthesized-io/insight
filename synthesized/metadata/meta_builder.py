@@ -9,7 +9,7 @@ from .meta import Meta, ValueMeta, Categorical, Constant, Bool, Date, TimeDelta,
 from .meta import DataFrameMeta
 from .meta import get_date_format
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from ..config import MetaExtractorConfig
+from ..config import MetaFactoryConfig
 
 
 def _default_categorical(func):
@@ -47,7 +47,7 @@ class _MetaBuilder():
     The underyling numpy dtype (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
     determines the method that is called, and therefore the Meta that is returned.
     """
-    def __init__(self, min_num_unique: int, acceptable_nan_frac: float, categorical_threshold_log_multiplier: float, **kwargs):
+    def __init__(self, min_num_unique: int, parsing_nan_fraction_threshold: float, categorical_threshold_log_multiplier: float, **kwargs):
         self._dtype_builders = {
             'i': self._IntBuilder,
             'u': self._IntBuilder,
@@ -59,7 +59,7 @@ class _MetaBuilder():
         }
 
         self.min_num_unique = min_num_unique
-        self.acceptable_nan_frac = acceptable_nan_frac
+        self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
         self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
 
         self.kwargs = kwargs
@@ -121,7 +121,7 @@ class _MetaBuilder():
                     and (not self._contains_genuine_floats(x_numeric)):
                 return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
-            elif num_nan / n_rows < self.acceptable_nan_frac:
+            elif num_nan / n_rows < self.parsing_nan_fraction_threshold:
                 if self._contains_genuine_floats(x_numeric):
                     return self._FloatBuilder(x_numeric)
                 else:
@@ -145,7 +145,7 @@ class _MetaBuilder():
 
 class MetaFactory():
     """Factory class to create Meta instances from pd.Series and pd.DataFrame objects."""
-    def __init__(self, config: Optional[MetaExtractorConfig] = None):
+    def __init__(self, config: Optional[MetaFactoryConfig] = None):
 
         if config is None:
             self.config = MetaFactory.default_config()
@@ -193,23 +193,23 @@ class MetaFactory():
         for col in x.columns:
             try:
                 child = self._from_series(x[col])
-                setattr(meta, child.name, child)
+                meta[child.name] = child
             except TypeError as e:
                 print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
         return meta
 
     @staticmethod
-    def default_config() -> MetaExtractorConfig:
-        return MetaExtractorConfig()
+    def default_config() -> MetaFactoryConfig:
+        return MetaFactoryConfig()
 
 
 class MetaExtractor(MetaFactory):
     """Extract the DataFrameMeta for a data frame"""
-    def __init__(self, config: Optional[MetaExtractorConfig] = None):
+    def __init__(self, config: Optional[MetaFactoryConfig] = None):
         super().__init__(config)
 
     @staticmethod
-    def extract(x: pd.DataFrame, config: Optional[MetaExtractorConfig] = None) -> DataFrameMeta:
+    def extract(x: pd.DataFrame, config: Optional[MetaFactoryConfig] = None) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
 

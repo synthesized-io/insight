@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta, _MetaBuilder, MetaFactory, MetaExtractorConfig
-
+from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta
+from synthesized.metadata.meta_builder import _MetaBuilder, MetaFactory
+from synthesized.config import MetaFactoryConfig
 
 @pytest.fixture
 def nominal_data():

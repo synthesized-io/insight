@@ -70,6 +70,13 @@ class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
 
 
 @dataclass
+class MetaFactoryConfig():
+    categorical_threshold_log_multiplier: float = 2.5
+    parsing_nan_fraction_threshold: float = 0.25
+    min_num_unique: int = 10
+
+
+@dataclass
 class CategoricalConfig:
     categorical_weight: float = 3.5
     temperature: float = 1.0
