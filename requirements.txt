@@ -13,4 +13,5 @@ simplejson==3.17.2
 treelib==1.6.1
 hypothesis[pandas]==5.23.11
 dataclasses==0.7
+typing_extensions==3.7.4.3
 ipywidgets==7.5.1

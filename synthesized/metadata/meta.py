@@ -1,4 +1,4 @@
-from typing import List, Union, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic
+from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic
 from dataclasses import dataclass, field
 from functools import cmp_to_key
 from datetime import datetime
@@ -226,7 +226,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         return self
 
-    def probability(self, x: NType) -> float:
+    def probability(self, x: Any) -> float:
         """Get the probability mass of the category x."""
         try:
             return self.probabilities[self.categories.index(x)]
@@ -303,6 +303,8 @@ class Ordinal(Categorical[OType], Generic[OType]):
             self.min = self.categories[0]
         if self.max is None:
             self.max = self.categories[-1]
+
+        assert self.min is not None and self.max is not None and self.min < self.max
 
         return self
 

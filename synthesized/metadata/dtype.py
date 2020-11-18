@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Any, Protocol, TypeVar
+from typing import Any, TypeVar
+from typing_extensions import Protocol
 
 DType = TypeVar('DType', covariant=True)
 
@@ -16,34 +17,37 @@ class NominalType(Protocol):
         pass
 
 
-class OrdinalType(NominalType):
+class OrdinalType(NominalType, Protocol):
     @abstractmethod
     def __lt__(self: OType, other: OType) -> bool:
         pass
 
+    @abstractmethod
     def __gt__(self: OType, other: OType) -> bool:
-        return (not self < other) and self != other
+        pass
 
+    @abstractmethod
     def __le__(self: OType, other: OType) -> bool:
-        return self < other or self == other
+        pass
 
+    @abstractmethod
     def __ge__(self: OType, other: OType) -> bool:
-        return not self < other
+        pass
 
 
-class AffineType(OrdinalType):
+class AffineType(OrdinalType, Protocol):
     @abstractmethod
     def __sub__(self: AType, other: AType) -> 'ScaleType':
         pass
 
 
-class ScaleType(AffineType):
+class ScaleType(AffineType, Protocol):
     @abstractmethod
     def __add__(self: SType, other: SType) -> 'ScaleType':
         pass
 
 
-class RingType(ScaleType):
+class RingType(ScaleType, Protocol):
     @abstractmethod
     def __mul__(self: RType, other: RType) -> 'RingType':
         pass
