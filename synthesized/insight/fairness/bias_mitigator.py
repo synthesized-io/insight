@@ -109,8 +109,12 @@ class BiasMitigator:
         else:
             raise ValueError(f"Given type '{type(marginal_softener)}' not understood.")
 
+        if not (0 <= marginal_softener_pos <= 1) or not (0 <= marginal_softener_pos <= 1):
+            raise ValueError(f"Marginal softener value must be in the interval [0., 1.], "
+                             f"given ({marginal_softener_pos}, {marginal_softener_neg})")
+
         # Positive counts - Need to under-sample
-        if len(dist_biases_pos) > 0:
+        if len(dist_biases_pos) > 0 and marginal_softener_pos > 0:
             samples_to_remove: List[int] = []
             for idx, row in dist_biases_pos.iterrows():
                 marginal_counts = self.get_marginal_counts(row, marginal_softener=marginal_softener_pos,
@@ -123,7 +127,7 @@ class BiasMitigator:
             df = df[~df.index.isin(samples_to_remove)]
 
         # Negative counts - Need to generate samples
-        if len(dist_biases_neg) > 0:
+        if len(dist_biases_neg) > 0 and marginal_softener_neg > 0:
             dist_biases_neg['value_w_colons'] = dist_biases_neg.apply(self.add_colon_to_bias, axis=1)
 
             marginal_counts = Counter()
