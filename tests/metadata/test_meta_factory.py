@@ -29,12 +29,6 @@ def df_unittest():
 
 
 @pytest.fixture
-def nominal_data():
-    return pd.Series([1.2, 'A', 2, np.nan] * 25, name='nominal'), \
-        Nominal(name='nominal', categories=[np.nan, 1.2, 2, 'A'], probabilities=[0.25, 0.25, 0.25, 0.25], dtype='object')
-
-
-@pytest.fixture
 def ordinal_data():
     categories = ['extra mild', 'mild', 'medium', 'hot', 'extra hot']
     x = pd.Series(categories * 20, name='ordinal', dtype=pd.CategoricalDtype(categories=categories, ordered=True))
@@ -95,11 +89,7 @@ def test_meta_factory(df_unittest, df_unittest_column_meta):
 
 
 @pytest.mark.fast
-def test_extract(nominal_data, ordinal_data, scale_data, date_data):
-    meta = MetaFactory().create_meta(nominal_data[0])
-    meta = meta.extract(nominal_data[0].to_frame())
-    assert meta == nominal_data[1]
-
+def test_extract(ordinal_data, scale_data, date_data):
     meta = MetaFactory().create_meta(ordinal_data[0])
     meta = meta.extract(ordinal_data[0].to_frame())
     assert meta == ordinal_data[1]
