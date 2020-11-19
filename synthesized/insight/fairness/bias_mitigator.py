@@ -1,6 +1,6 @@
 from collections import Counter
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -62,7 +62,8 @@ class BiasMitigator:
         self.vc_all = self.fairness_scorer.target_vc
         self.len_df = self.fairness_scorer.len_df
 
-    def mitigate_biases(self, df: pd.DataFrame, n_biases: int = 5, marginal_softener: float = 0.25,
+    def mitigate_biases(self, df: pd.DataFrame, n_biases: int = 5,
+                        marginal_softener: Union[float, Tuple[float, float]] = 0.25,
                         alpha: float = 0.05, get_independent: bool = False,
                         produce_nans: bool = False) -> pd.DataFrame:
         """Mitigate n biases
@@ -70,7 +71,8 @@ class BiasMitigator:
         Args:
             df: Pandas DataFrame containing the data to mitigate biases.
             n_biases: Number of biases to mitigate.
-            marginal_softener: Whether to mitigate each bias completely (1.) or just a proportion of it
+            marginal_softener: Whether to mitigate each bias completely (1.) or just a proportion of it. If float, both
+                positive and negative biases will use the same value, if tuple will use (positive, negative).
             alpha: Maximum p-value to accept a bias.
             get_independent: Whether to only mitigate independent biases.
             produce_nans:  Whether the output DF contains NaNs.
@@ -98,11 +100,25 @@ class BiasMitigator:
             dist_biases_pos = dist_biases_pos.head(n_biases)
             dist_biases_neg = dist_biases_neg.head(n_biases)
 
+        if isinstance(marginal_softener, float):
+            marginal_softener_pos = marginal_softener_neg = marginal_softener
+        elif isinstance(marginal_softener, tuple) and \
+                isinstance(marginal_softener[0], float) and isinstance(marginal_softener[1], float):
+            marginal_softener_pos = marginal_softener[0]
+            marginal_softener_neg = marginal_softener[1]
+        else:
+            raise ValueError(f"Given type '{type(marginal_softener)}' not understood.")
+
+        if not (0 <= marginal_softener_pos <= 1) or not (0 <= marginal_softener_pos <= 1):
+            raise ValueError(f"Marginal softener value must be in the interval [0., 1.], "
+                             f"given ({marginal_softener_pos}, {marginal_softener_neg})")
+
         # Positive counts - Need to under-sample
-        if len(dist_biases_pos) > 0:
+        if len(dist_biases_pos) > 0 and marginal_softener_pos > 0:
             samples_to_remove: List[int] = []
             for idx, row in dist_biases_pos.iterrows():
-                marginal_counts = self.get_marginal_counts(row, marginal_softener=0.2, use_colons=False)
+                marginal_counts = self.get_marginal_counts(row, marginal_softener=marginal_softener_pos,
+                                                           use_colons=False)
                 marginals, counts = tuple(marginal_counts.items())[0]
 
                 groups = self.fairness_scorer.df.groupby(list(np.concatenate((row['name'], [self.target])))).groups
@@ -111,13 +127,13 @@ class BiasMitigator:
             df = df[~df.index.isin(samples_to_remove)]
 
         # Negative counts - Need to generate samples
-        if len(dist_biases_neg) > 0:
+        if len(dist_biases_neg) > 0 and marginal_softener_neg > 0:
             dist_biases_neg['value_w_colons'] = dist_biases_neg.apply(self.add_colon_to_bias, axis=1)
 
             marginal_counts = Counter()
             for idx, row in dist_biases_neg.iterrows():
-                marginal_counts = self.get_marginal_counts(row, marginal_counts, marginal_softener=marginal_softener,
-                                                           use_colons=True)
+                marginal_counts = self.get_marginal_counts(row, marginal_counts,
+                                                           marginal_softener=marginal_softener_neg, use_colons=True)
 
             marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
@@ -130,7 +146,8 @@ class BiasMitigator:
 
         return df
 
-    def mitigate_biases_by_chunks(self, df: pd.DataFrame, chunk_size: int = 5, marginal_softener: float = 0.25,
+    def mitigate_biases_by_chunks(self, df: pd.DataFrame, chunk_size: int = 5,
+                                  marginal_softener: Union[float, Tuple[float, float]] = 0.25,
                                   alpha: float = 0.05, n_loops: int = 100, produce_nans: bool = False,
                                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Mitigate biases iteratively in chunks.
@@ -154,17 +171,17 @@ class BiasMitigator:
             data_imputer = DataImputer(self.synthesizer)
             data_imputer.impute_nans(df, inplace=True)
 
-        prev_len = len(df)
+        prev_idx = df.index
 
         for i in range(1, n_loops + 1):
             df = self.mitigate_biases(df, n_biases=chunk_size, marginal_softener=marginal_softener,
                                       alpha=alpha, produce_nans=produce_nans)
 
-            if prev_len == len(df):
+            if len(prev_idx) == len(df.index) and all([prev == curr for prev, curr in zip(prev_idx, df.index)]):
                 logger.info("There are no more biases to remove.")
                 break
 
-            prev_len = len(df)
+            prev_idx = df.index
 
             if progress_callback is not None:
                 progress_callback(round(i * 98 / n_loops))
