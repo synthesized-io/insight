@@ -1,10 +1,58 @@
 from dataclasses import asdict
 
 import pandas as pd
+import numpy as np
 import pytest
 
 from synthesized.metadata.meta import Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta
 from synthesized.metadata.meta_builder import _MetaBuilder, MetaFactory
+
+
+@pytest.fixture
+def df_unittest_column_meta():
+    return {'SeriousDlqin2yrs': Categorical(name='SeriousDlqin2yrs', similarity_based=False),
+            'RevolvingUtilizationOfUnsecuredLines': Float(name='RevolvingUtilizationOfUnsecuredLines'),
+            'age': Integer(name='age'),
+            'NumberOfTime30-59DaysPastDueNotWorse': Categorical(name='NumberOfTime30-59DaysPastDueNotWorse'),
+            'DebtRatio': Float(name='DebtRatio'),
+            'MonthlyIncome': Integer(name='MonthlyIncome'),
+            'NumberOfOpenCreditLinesAndLoans': Integer(name='NumberOfOpenCreditLinesAndLoans'),
+            'NumberOfTimes90DaysLate': Categorical(name='NumberOfTimes90DaysLate'),
+            'NumberRealEstateLoansOrLines': Categorical(name='NumberRealEstateLoansOrLines'),
+            'NumberOfTime60-89DaysPastDueNotWorse': Categorical(name='NumberOfTime60-89DaysPastDueNotWorse'),
+            'NumberOfDependents': Categorical(name='NumberOfDependents')}
+
+
+@pytest.fixture
+def df_unittest():
+    return pd.read_csv('data/unittest.csv', index_col=0)
+
+
+@pytest.fixture
+def nominal_data():
+    return pd.Series([1.2, 'A', 2, np.nan] * 25, name='nominal'), \
+        Nominal(name='nominal', categories=[np.nan, 1.2, 2, 'A'], probabilities=[0.25, 0.25, 0.25, 0.25], dtype='object')
+
+
+@pytest.fixture
+def ordinal_data():
+    categories = ['extra mild', 'mild', 'medium', 'hot', 'extra hot']
+    x = pd.Series(categories * 20, name='ordinal', dtype=pd.CategoricalDtype(categories=categories, ordered=True))
+    x = x.cat.as_ordered()
+    return x, Ordinal(name='ordinal', min='extra mild', max='extra hot', categories=categories, probabilities=len(categories) * [1 / len(categories)], dtype='category')
+
+
+@pytest.fixture
+def scale_data():
+    x = pd.Series(np.random.normal(loc=0, scale=1, size=100), name='scale')
+    return x, Float(name='scale', min=x.min(), max=x.max(), monotonic=False, nonnegative=False)
+
+
+@pytest.fixture
+def date_data():
+    x = pd.Series(pd.date_range("01/01/1993", "01/01/2000", periods=100).strftime("%d/%m/%Y"), name='date')
+    return x, Date(name='date', date_format="%d/%m/%Y", min=pd.Timestamp(year=1993, month=1, day=1),
+                   monotonic=True, max=pd.Timestamp(year=2000, month=1, day=1))
 
 
 data_meta = [

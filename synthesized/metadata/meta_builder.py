@@ -27,15 +27,15 @@ def _default_categorical(func):
     3. Meta, i.e the return type of the decorated function if the these conditions are not met
     """
     @functools.wraps(func)
-    def wrapper(cls, x: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
-        n_unique = x.nunique()
+    def wrapper(cls, sr: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
+        n_unique = sr.nunique()
         if n_unique == 1:
-            return Constant(str(x.name))
-        elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(x))) \
-                and (not _MetaBuilder._contains_genuine_floats(x)):
-            return Categorical(str(x.name), similarity_based=True if n_unique > 2 else False)
+            return Constant(str(sr.name))
+        elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(sr))) \
+                and (not _MetaBuilder._contains_genuine_floats(sr)):
+            return Categorical(str(sr.name), similarity_based=True if n_unique > 2 else False)
         else:
-            return func(cls, x, **cls.kwargs)
+            return func(cls, sr, **cls.kwargs)
     return wrapper
 
 
@@ -64,62 +64,62 @@ class _MetaBuilder():
 
         self.kwargs = kwargs
 
-    def __call__(self, x: pd.Series) -> ValueMeta:
-        return self._dtype_builders[x.dtype.kind](x, **self.kwargs)
+    def __call__(self, sr: pd.Series) -> ValueMeta:
+        return self._dtype_builders[sr.dtype.kind](sr, **self.kwargs)
 
-    def _DateBuilder(self, x: pd.Series, **kwargs) -> Date:
-        return Date(str(x.name), **kwargs)
+    def _DateBuilder(self, sr: pd.Series, **kwargs) -> Date:
+        return Date(str(sr.name), **kwargs)
 
-    def _TimeDeltaBuilder(self, x: pd.Series, **kwargs) -> TimeDelta:
-        return TimeDelta(str(x.name), **kwargs)
+    def _TimeDeltaBuilder(self, sr: pd.Series, **kwargs) -> TimeDelta:
+        return TimeDelta(str(sr.name), **kwargs)
 
-    def _BoolBuilder(self, x: pd.Series, **kwargs) -> Bool:
-        return Bool(str(x.name), **kwargs)
-
-    @_default_categorical
-    def _IntBuilder(self, x: pd.Series, **kwargs) -> Integer:
-        return Integer(str(x.name), **kwargs)
+    def _BoolBuilder(self, sr: pd.Series, **kwargs) -> Bool:
+        return Bool(str(sr.name), **kwargs)
 
     @_default_categorical
-    def _FloatBuilder(self, x: pd.Series, **kwargs) -> Union[Float, Integer]:
+    def _IntBuilder(self, sr: pd.Series, **kwargs) -> Integer:
+        return Integer(str(sr.name), **kwargs)
+
+    @_default_categorical
+    def _FloatBuilder(self, sr: pd.Series, **kwargs) -> Union[Float, Integer]:
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
-        if self._contains_genuine_floats(x):
-            return Float(str(x.name), **kwargs)
+        if self._contains_genuine_floats(sr):
+            return Float(str(sr.name), **kwargs)
         else:
-            return self._IntBuilder(x, **kwargs)
+            return self._IntBuilder(sr, **kwargs)
 
-    def _CategoricalBuilder(self, x: pd.Series, **kwargs) -> Union[Ordinal, Categorical]:
-        if isinstance(x.dtype, pd.CategoricalDtype):
-            categories = x.cat.categories.tolist()
-            if x.cat.ordered:
-                return Ordinal(str(x.name), categories=categories, **kwargs)
+    def _CategoricalBuilder(self, sr: pd.Series, **kwargs) -> Union[Ordinal, Categorical]:
+        if isinstance(sr.dtype, pd.CategoricalDtype):
+            categories = sr.cat.categories.tolist()
+            if sr.cat.ordered:
+                return Ordinal(str(sr.name), categories=categories, **kwargs)
             else:
-                return Categorical(str(x.name), categories=categories, **kwargs)
+                return Categorical(str(sr.name), categories=categories, **kwargs)
 
         else:
-            return Categorical(str(x.name), **kwargs)
+            return Categorical(str(sr.name), **kwargs)
 
-    def _ObjectBuilder(self, x: pd.Series, **kwargs) -> Union[Nominal, Date, Categorical, Float, Integer]:
+    def _ObjectBuilder(self, sr: pd.Series, **kwargs) -> Union[Nominal, Date, Categorical, Float, Integer]:
         try:
-            get_date_format(x)
-            return self._DateBuilder(x, **kwargs)
+            get_date_format(sr)
+            return self._DateBuilder(sr, **kwargs)
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
-            n_unique = x.nunique()
-            n_rows = len(x)
+            n_unique = sr.nunique()
+            n_rows = len(sr)
 
-            x_numeric = pd.to_numeric(x, errors='coerce')
+            x_numeric = pd.to_numeric(sr, errors='coerce')
             num_nan = x_numeric.isna().sum()
 
-            if isinstance(x.dtype, pd.CategoricalDtype):
-                return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+            if isinstance(sr.dtype, pd.CategoricalDtype):
+                return self._CategoricalBuilder(sr, similarity_based=True if n_unique > 2 else False)
 
             elif (n_unique <= np.sqrt(n_rows)
-                  or n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+                  or n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(sr)))) \
                     and (not self._contains_genuine_floats(x_numeric)):
-                return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
+                return self._CategoricalBuilder(sr, similarity_based=True if n_unique > 2 else False)
 
             elif num_nan / n_rows < self.parsing_nan_fraction_threshold:
                 if self._contains_genuine_floats(x_numeric):
@@ -128,11 +128,11 @@ class _MetaBuilder():
                     return self._IntBuilder(x_numeric)
 
             else:
-                return Nominal(str(x.name))
+                return Nominal(str(sr.name))
 
     @staticmethod
-    def _contains_genuine_floats(x: pd.Series) -> bool:
-        return (~x.dropna().apply(_MetaBuilder._is_integer_float)).any()
+    def _contains_genuine_floats(sr: pd.Series) -> bool:
+        return (~sr.dropna().apply(_MetaBuilder._is_integer_float)).any()
 
     @staticmethod
     def _is_integer_float(x: Any) -> bool:
@@ -181,18 +181,18 @@ class MetaFactory():
         else:
             raise TypeError(f"Cannot create meta from {type(x)}")
 
-    def _from_series(self, x: pd.Series) -> ValueMeta:
-        if x.dtype.kind not in self._builder._dtype_builders:
-            raise UnsupportedDtypeError(f"'{x.dtype}' is unsupported")
-        return self._builder(x)
+    def _from_series(self, sr: pd.Series) -> ValueMeta:
+        if sr.dtype.kind not in self._builder._dtype_builders:
+            raise UnsupportedDtypeError(f"'{sr.dtype}' is unsupported")
+        return self._builder(sr)
 
-    def _from_df(self, x: pd.DataFrame, name: Optional[str] = 'df') -> DataFrameMeta:
+    def _from_df(self, df: pd.DataFrame, name: Optional[str] = 'df') -> DataFrameMeta:
         if name is None:
             raise ValueError("name must not be a string, not None")
         meta = DataFrameMeta(name)
-        for col in x.columns:
+        for col in df.columns:
             try:
-                child = self._from_series(x[col])
+                child = self._from_series(df[col])
                 meta[child.name] = child
             except TypeError as e:
                 print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
@@ -209,12 +209,12 @@ class MetaExtractor(MetaFactory):
         super().__init__(config)
 
     @staticmethod
-    def extract(x: pd.DataFrame, config: Optional[MetaFactoryConfig] = None) -> DataFrameMeta:
+    def extract(df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
 
         Args:
-            x: the data frame to instantiate and extract DataFrameMeta.
+            df: the data frame to instantiate and extract DataFrameMeta.
             config: Optional; The configuration parameters to MetaFactory.
 
         Returns:
@@ -226,6 +226,5 @@ class MetaExtractor(MetaFactory):
         """
 
         factory = MetaExtractor(config)
-        df_meta = factory._from_df(x)
-        df_meta.extract(x)
+        df_meta = factory._from_df(df).extract(df)
         return df_meta

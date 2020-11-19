@@ -81,10 +81,10 @@ class Meta(MutableMapping[str, 'Meta']):
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name})'
 
-    def extract(self: MetaType, x: pd.DataFrame) -> MetaType:
+    def extract(self: MetaType, df: pd.DataFrame) -> MetaType:
         """Extract the children of this Meta."""
         for child in self.children:
-            child.extract(x)
+            child.extract(df)
         self._extracted = True
         return self
 
@@ -255,9 +255,9 @@ class ValueMeta(Meta, Generic[DType]):
     def __str__(self):
         return repr(self)
 
-    def extract(self: ValueMetaType, x: pd.DataFrame) -> ValueMetaType:
-        super().extract(x)
-        self.dtype = x[self.name].dtype.name
+    def extract(self: ValueMetaType, df: pd.DataFrame) -> ValueMetaType:
+        super().extract(df)
+        self.dtype = df[self.name].dtype.name
         self._extracted = True
         return self
 
@@ -279,10 +279,10 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     categories: List[NType] = field(default_factory=list)
     probabilities: List[float] = field(default_factory=list)
 
-    def extract(self: NominalType, x: pd.DataFrame) -> NominalType:
+    def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
-        super().extract(x)
-        value_counts = x[self.name].value_counts(normalize=True, dropna=False, sort=False)
+        super().extract(df)
+        value_counts = df[self.name].value_counts(normalize=True, dropna=False, sort=False)
         if not self.categories:
             self.categories = value_counts.index.tolist()
             try:
@@ -326,9 +326,9 @@ class Constant(Nominal[NType]):
     """
     value: Optional[NType] = None
 
-    def extract(self: 'Constant', x: pd.DataFrame) -> 'Constant':
-        super().extract(x)
-        self.value = x[self.name].dropna().iloc[0]
+    def extract(self: 'Constant', df: pd.DataFrame) -> 'Constant':
+        super().extract(df)
+        self.value = df[self.name].dropna().iloc[0]
         return self
 
 
@@ -365,8 +365,8 @@ class Ordinal(Categorical[OType], Generic[OType]):
     min: Optional[OType] = None
     max: Optional[OType] = None
 
-    def extract(self: OrdinalType, x: pd.DataFrame) -> OrdinalType:
-        super().extract(x)
+    def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
+        super().extract(df)
         if self.min is None:
             self.min = list(filter(pd.notnull, self.categories))[0]
         if self.max is None:
@@ -388,10 +388,10 @@ class Ordinal(Categorical[OType], Generic[OType]):
         else:
             return -1
 
-    def sort(self, x: pd.Series) -> pd.Series:
+    def sort(self, sr: pd.Series) -> pd.Series:
         """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
-        return pd.Series(sorted(x, key=key, reverse=True))
+        return pd.Series(sorted(sr, key=key, reverse=True))
 
 
 @dataclass(repr=False)
@@ -414,9 +414,9 @@ class Affine(Ordinal[AType], Generic[AType]):
     distribution: Optional[scipy.stats.rv_continuous] = None
     monotonic: Optional[bool] = False
 
-    def extract(self: AffineType, x: pd.DataFrame) -> AffineType:
-        super().extract(x)
-        if (np.diff(x[self.name]).astype(np.float64) > 0).all():
+    def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
+        super().extract(df)
+        if (np.diff(df[self.name]).astype(np.float64) > 0).all():
             self.monotonic = True
         else:
             self.monotonic = False
@@ -438,13 +438,13 @@ class Date(Affine[np.datetime64]):
     dtype: str = 'datetime64[ns]'
     date_format: Optional[str] = None
 
-    def extract(self: DateType, x: pd.DataFrame) -> DateType:
+    def extract(self: DateType, df: pd.DataFrame) -> DateType:
         if self.date_format is None:
-            self.date_format = get_date_format(x[self.name])
+            self.date_format = get_date_format(df[self.name])
 
-        x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
-        super().extract(x)  # call super here so we can get max, min from datetime.
-        x[self.name] = x[self.name].dt.strftime(self.date_format)
+        df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
+        super().extract(df)  # call super here so we can get max, min from datetime.
+        df[self.name] = df[self.name].dt.strftime(self.date_format)
 
         return self
 
@@ -465,9 +465,9 @@ class Scale(Affine[SType], Generic[SType]):
     """
     nonnegative: Optional[bool] = None
 
-    def extract(self: ScaleType, x: pd.DataFrame) -> ScaleType:
-        super().extract(x)
-        if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
+    def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
+        super().extract(df)
+        if (df[self.name][~pd.isna(df[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
@@ -489,9 +489,9 @@ class TimeDelta(Scale[np.timedelta64]):
 class Ring(Scale[RType], Generic[RType]):
     nonnegative: Optional[bool] = None
 
-    def extract(self: RingType, x: pd.DataFrame) -> RingType:
-        super().extract(x)
-        if (x[self.name][~pd.isna(x[self.name])] >= 0).all():
+    def extract(self: RingType, df: pd.DataFrame) -> RingType:
+        super().extract(df)
+        if (df[self.name][~pd.isna(df[self.name])] >= 0).all():
             self.nonnegative = True
         else:
             self.nonnegative = False
@@ -539,7 +539,7 @@ class PersonMeta(Meta):
     work_telephone: Optional[Nominal] = None
 
 
-def get_date_format(x: pd.Series) -> str:
+def get_date_format(sr: pd.Series) -> str:
     """
     Infer the date format for a series of dates.
 
@@ -556,13 +556,13 @@ def get_date_format(x: pd.Series) -> str:
         '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
     )
     parsed_format = None
-    if x.dtype.kind == 'M':
+    if sr.dtype.kind == 'M':
         func = datetime.strftime
     else:
         func = datetime.strptime  # type: ignore
     for date_format in formats:
         try:
-            x = x.apply(lambda x: func(x, date_format))
+            sr = sr.apply(lambda x: func(x, date_format))
             parsed_format = date_format
         except ValueError:
             pass
