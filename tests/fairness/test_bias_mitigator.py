@@ -52,7 +52,7 @@ def test_bias_mitigator_mixed_types():
 def test_bias_mitigator_check_score():
     sensitive_attrs = ['age', 'gender']
     target = 'income'
-    df = generate_biased_data(n=1000, nans_prop=0.)
+    df = pd.read_csv("data/biased_data.csv")
 
     # Compute initial score
     fs_0 = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
@@ -60,14 +60,15 @@ def test_bias_mitigator_check_score():
 
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta)
-    synthesizer.learn(df_train=df, num_iterations=1000)
+    synthesizer.learn(df_train=df, num_iterations=500)
 
-    # Test bias mitigation with nans and dates
+    # Mitigate Biases
     bias_mitigator = BiasMitigator.from_dataframe(synthesizer, df=df, sensitive_attrs=sensitive_attrs, target=target)
-    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, progress_callback=testing_progress_bar, produce_nans=False)
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=20, produce_nans=False,
+                                                           progress_callback=testing_progress_bar)
 
+    # Compute final score
     fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
     score_f, _ = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert score_f > score_0
-    assert not df_unbiased.isna().any(axis=None)
