@@ -116,8 +116,8 @@ class _MetaBuilder():
             if isinstance(x.dtype, pd.CategoricalDtype):
                 return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 
-            elif (n_unique <= np.sqrt(n_rows) or
-                  n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
+            elif (n_unique <= np.sqrt(n_rows)
+                  or n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(x)))) \
                     and (not self._contains_genuine_floats(x_numeric)):
                 return self._CategoricalBuilder(x, similarity_based=True if n_unique > 2 else False)
 

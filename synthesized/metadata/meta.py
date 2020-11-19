@@ -2,6 +2,7 @@ from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Ite
 from dataclasses import dataclass, field
 from functools import cmp_to_key
 from datetime import datetime
+import importlib
 
 import numpy as np
 import pandas as pd
@@ -122,10 +123,61 @@ class Meta(MutableMapping[str, 'Meta']):
                     d[key] = value
             return d
         elif isinstance(meta, Meta):
-            return {n: m.to_dict() for n, m in meta.items()}
+            return {m: meta[m].to_dict() for m in meta}
 
     def to_dict(self):
-
+        """
+        Convert the Meta to a dictionary.
+        The tree structure is converted to the following form:
+        Meta.__class.__.__name__: {
+            attr: value,
+            value_meta_attr: {
+                value_meta_attr.__class__.__name__: (**value_meta_attr.__dict__}
+                )
+            }
+        }
+        Examples:
+            >>> customer = Meta('customer')
+            >>> customer.title = Nominal('title')
+            >>> customer.address = Meta('customer_address')
+            >>> customer.address.street = Nominal('street')
+            Convert to dictionary:
+            >>> customer.to_dict()
+            {
+                'Meta': {
+                    'age': {
+                        'Integer': {
+                            'name': 'age',
+                            'dtype': 'int64',
+                            'categories': [],
+                            'probabilities': [],
+                            'similarity_based': True,
+                            'min': None,
+                            'max': None,
+                            'distribution': None,
+                            'monotonic': False,
+                            'nonnegative': None
+                        }
+                    },
+                    'customer_address': {
+                        'Meta': {
+                            'street': {
+                                'Nominal': {
+                                    'name': 'street',
+                                    'dtype': None,
+                                    'categories': [],
+                                    'probabilities': []
+                                }
+                            }
+                            'name': 'customer_address'
+                        }
+                    }
+                    'name': 'customer'
+                }
+            }
+        See also:
+            Meta.from_dict: construct a Meta from a dictionary
+        """
         d = {self.__class__.__name__: self._tree_to_dict(self)}
         for key, value in self.__dict__.items():
             if not isinstance(value, Meta) and not key.startswith('_'):
@@ -133,13 +185,29 @@ class Meta(MutableMapping[str, 'Meta']):
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: dict) -> MetaType:
-        meta = cls(**d)
-        if not issubclass(cls, ValueMeta):
-            for attr_name, attrs in d.items():
-                setattr(meta, attr_name, meta.from_dict(attrs))
+    def from_dict(cls: Type['MetaType'], d: dict) -> 'MetaType':
+        """
+        Construct a Meta from a dictionary.
+        See example in Meta.to_dict() for the required structure.
+        See also:
+            Meta.to_dict: convert a Meta to a dictionary
+        """
+        module = importlib.import_module("synthesized.metadata.meta")
+        if isinstance(d, dict):
+            name = list(d.keys())[0]
+            if name in module.__dict__:
+                meta = getattr(module, name)(name)
+                if isinstance(meta, ValueMeta):
+                    meta = getattr(module, name)(**d[name])
+                else:
+                    for attr_name, attrs in d[name].items():
+                        setattr(meta, attr_name, meta.from_dict(attrs))
+                return meta
+            else:
+                raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
 
-        return meta
+        else:
+            return d
 
 
 @dataclass(repr=False)
@@ -179,7 +247,7 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    dtype: Optional[Type[DType]] = None
+    dtype: Optional[str] = None
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
@@ -189,7 +257,7 @@ class ValueMeta(Meta, Generic[DType]):
 
     def extract(self: ValueMetaType, x: pd.DataFrame) -> ValueMetaType:
         super().extract(x)
-        self.dtype = x[self.name].dtype
+        self.dtype = x[self.name].dtype.name
         self._extracted = True
         return self
 
@@ -300,11 +368,9 @@ class Ordinal(Categorical[OType], Generic[OType]):
     def extract(self: OrdinalType, x: pd.DataFrame) -> OrdinalType:
         super().extract(x)
         if self.min is None:
-            self.min = self.categories[0]
+            self.min = list(filter(pd.notnull, self.categories))[0]
         if self.max is None:
-            self.max = self.categories[-1]
-
-        assert self.min is not None and self.max is not None and self.min < self.max
+            self.max = list(filter(pd.notnull, self.categories))[-1]
 
         return self
 
@@ -369,15 +435,15 @@ class Date(Affine[np.datetime64]):
     Attributes:
         date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
     """
-    dtype = np.datetime64
+    dtype: str = 'datetime64[ns]'
     date_format: Optional[str] = None
 
     def extract(self: DateType, x: pd.DataFrame) -> DateType:
-        super().extract(x)
         if self.date_format is None:
             self.date_format = get_date_format(x[self.name])
 
         x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+        super().extract(x)  # call super here so we can get max, min from datetime.
         x[self.name] = x[self.name].dt.strftime(self.date_format)
 
         return self
@@ -411,12 +477,12 @@ class Scale(Affine[SType], Generic[SType]):
 
 @dataclass(repr=False)
 class Integer(Scale[np.int64]):
-    dtype = np.int64
+    dtype: str = 'int64'
 
 
 @dataclass(repr=False)
 class TimeDelta(Scale[np.timedelta64]):
-    dtype = np.timedelta64
+    dtype: str = 'timedelta64'
 
 
 @dataclass(repr=False)
@@ -435,12 +501,12 @@ class Ring(Scale[RType], Generic[RType]):
 
 @dataclass(repr=False)
 class Bool(Ring[np.bool]):
-    dtype = np.bool
+    dtype: str = 'bool'
 
 
 @dataclass(repr=False)
 class Float(Ring[np.float64]):
-    dtype = np.float64
+    dtype: str = 'float64'
 
 
 @dataclass(repr=False)
@@ -506,14 +572,3 @@ def get_date_format(x: pd.Series) -> str:
     if parsed_format is None:
         raise UnknownDateFormatError("Unable to infer date format.")
     return parsed_format
-
-
-def func(x: Nominal) -> float:
-    return x.probability(np.nan)
-
-meta: Nominal[str] = Nominal('x')
-
-def do_something_with_meta(x: Meta) -> Meta:
-    return x
-
-do_something_with_meta(meta)

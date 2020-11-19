@@ -1,15 +1,17 @@
+from dataclasses import asdict
+
 import pandas as pd
 import numpy as np
 import pytest
 
 from synthesized.metadata.meta import Meta, Constant, Date, TimeDelta, Nominal, Categorical, Integer, Float, Ordinal, Bool, DataFrameMeta
 from synthesized.metadata.meta_builder import _MetaBuilder, MetaFactory
-from synthesized.config import MetaFactoryConfig
+
 
 @pytest.fixture
 def nominal_data():
     return pd.Series([1.2, 'A', 2, np.nan] * 25, name='nominal'), \
-        Nominal(name='nominal', categories=[np.nan, 1.2, 2, 'A'], probabilities=[0.25, 0.25, 0.25, 0.25], dtype=object)
+        Nominal(name='nominal', categories=[np.nan, 1.2, 2, 'A'], probabilities=[0.25, 0.25, 0.25, 0.25], dtype='object')
 
 
 @pytest.fixture
@@ -114,9 +116,9 @@ def nested_meta():
     """Setup a Meta object with a nested structure"""
 
     meta = Meta('root')
-    meta.child1 = Categorical('child1', categories=['A', 'B', 'C'], probabilities=[0.1, 0.2, 0.7])
-    meta.child2 = Meta('child2')
-    meta.child2.child1 = Float('child1')
+    meta['child1'] = Categorical('child1', categories=['A', 'B', 'C'], probabilities=[0.1, 0.2, 0.7])
+    meta['child2'] = Meta('child2')
+    meta['child2']['child1'] = Float('child1')
 
     return meta
 
@@ -126,10 +128,10 @@ def test_add_child_meta():
 
     meta = Meta('root')
     child = Nominal('child')
-    meta.child = child
+    meta['child'] = child
 
-    assert hasattr(meta, 'child')
-    assert(meta.children[0] == child)
+    assert 'child' in meta
+    assert meta.children[0] == child
 
 
 @pytest.mark.fast
@@ -190,7 +192,7 @@ data_meta = [
     "data, meta", data_meta
 )
 def test_default_builder(data, meta):
-    builder = _MetaBuilder(**MetaFactory.default_config())
+    builder = _MetaBuilder(**asdict(MetaFactory.default_config()))
     assert type(builder(data)) == meta
 
 
