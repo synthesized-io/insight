@@ -193,21 +193,20 @@ class Meta(MutableMapping[str, 'Meta']):
             Meta.to_dict: convert a Meta to a dictionary
         """
         module = importlib.import_module("synthesized.metadata.meta")
-        if isinstance(d, dict):
-            name = list(d.keys())[0]
-            if name in module.__dict__:
-                meta = getattr(module, name)(name)
-                if isinstance(meta, ValueMeta):
-                    meta = getattr(module, name)(**d[name])
-                else:
-                    for attr_name, attrs in d[name].items():
-                        setattr(meta, attr_name, meta.from_dict(attrs))
-                return meta
+        name = list(d.keys())[0]
+        if name in module.__dict__:
+            meta = getattr(module, name)(name)
+            if isinstance(meta, ValueMeta):
+                meta = getattr(module, name)(**d[name])
             else:
-                raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
-
+                for attr_name, attrs in d[name].items():
+                    if isinstance(attrs, dict):
+                        setattr(meta, attr_name, meta.from_dict(attrs))
+                    else:
+                        setattr(meta, attr_name, attrs)
+            return meta
         else:
-            return d
+            raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
 
 
 @dataclass(repr=False)
@@ -440,7 +439,10 @@ class Date(Affine[np.datetime64]):
 
     def extract(self: DateType, df: pd.DataFrame) -> DateType:
         if self.date_format is None:
-            self.date_format = get_date_format(df[self.name])
+            try:
+                self.date_format = get_date_format(df[self.name])
+            except UnknownDateFormatError:
+                self.date_format = None
 
         df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
         super().extract(df)  # call super here so we can get max, min from datetime.
