@@ -41,32 +41,29 @@ class Meta(MutableMapping[str, 'Meta']):
 
         Add the leaf ValueMeta:
 
-        >>> customer.age = Integer('age')
-        >>> customer.title = Nominal('title')
-        >>> customer.first_name = Nominal('first_name')
+        >>> customer['age'] = Integer('age')
+        >>> customer['title'] = Nominal[str]('title')
+        >>> customer['first_name'] = Nominal[str]('first_name')
 
         Add address meta which acts as a root:
 
-        >>> customer.address = Meta('customer_address')
+        >>> customer['address'] = Meta('customer_address')
 
         Add associated ValueMeta:
 
-        >>> customer.address.street = Nominal('street')
-        >>> customer.address.number = Nominal('number')
+        >>> customer['address']['street'] = Nominal[str]('street')
+        >>> customer['address']['number'] = Nominal[int]('number')
 
-        >>> customer.bank = Meta('bank')
-        >>> customer.bank.account = Nominal('account')
-        >>> customer.bank.sort_code = Nominal('sort_code')
+        >>> customer['bank'] = Meta('bank')
+        >>> customer['bank']['account'] = Nominal[int]('account')
+        >>> customer['bank']['sort_code'] = Nominal[int]('sort_code')
 
-        Pretty print the tree structure:
-
-        >>> print(customer)
 
         Meta objects are iterable, and allow iterating through the
         children:
 
         >>> for child_meta in customer:
-        >>>     print(child_meta.name)
+        >>>     print(child_meta)
     """
 
     name: str
