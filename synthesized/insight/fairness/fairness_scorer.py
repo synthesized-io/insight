@@ -324,8 +324,7 @@ class FairnessScorer:
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
         df = self.df.copy()
-        df.drop(index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
-                axis=0, inplace=True)
+        df.dropna(subset=sensitive_attr, inplace=True)
 
         df['Count'] = 0
         name = sensitive_attr_concat_name(sensitive_attr)
@@ -456,10 +455,7 @@ class FairnessScorer:
 
     def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         # ignore rows which have nans in any of the given sensitive attrs
-        groups = self.df.drop(
-            index=self.df[self.df.loc[:, sensitive_attr].apply(lambda row: row.isin(['nan']).any(), axis=1)].index,
-            axis=0
-        ).groupby(sensitive_attr).groups
+        groups = self.df.dropna(subset=sensitive_attr).groupby(sensitive_attr).groups
 
         distances = []
         for sensitive_attr_values, idxs in groups.items():
