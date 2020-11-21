@@ -1,7 +1,7 @@
 """
 Collection of Metrics that measure the distance, or similarity, between two datasets.
 """
-from typing import Optional, Callable, Tuple, Any
+from typing import Optional, Callable, Tuple
 from dataclasses import dataclass
 from abc import abstractmethod
 
