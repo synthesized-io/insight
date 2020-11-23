@@ -100,9 +100,9 @@ workflows:
           requires:
             - build
       - publish:
-          filters:  # using regex filters requires the entire branch to match
+          filters: # using regex filters requires the entire branch to match
             branches:
-              only:  # only branches matching the below regex filters will run
+              only: # only branches matching the below regex filters will run
                 - master
                 - /r\d\.\d.*/
           requires:
