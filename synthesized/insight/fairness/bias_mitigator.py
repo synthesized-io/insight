@@ -23,9 +23,6 @@ class BiasMitigator:
             synthesizer: An underlying synthesizer.
             fairness_scorer: The fairness score to compute distribution biases from.
         """
-        if fairness_scorer.target_variable_type == VariableType.Continuous:
-            raise NotImplementedError("Bias mitigator not supported for continuous target distributions.")
-
         self.fairness_scorer = fairness_scorer
         self.target = self.fairness_scorer.target
         self.sensitive_attrs = self.fairness_scorer.sensitive_attrs
@@ -77,6 +74,9 @@ class BiasMitigator:
             get_independent: Whether to only mitigate independent biases.
             produce_nans:  Whether the output DF contains NaNs.
         """
+
+        if self.fairness_scorer.target_variable_type == VariableType.Continuous:
+            raise NotImplementedError("Bias mitigation is not supported for continuous target distributions.")
 
         df = df.copy()
 
@@ -262,6 +262,7 @@ class BiasMitigator:
 
         if not 0 < marginal_softener <= 1.:
             raise ValueError(f"Value of marginal_softener must be in the interval (0., 1.], found {marginal_softener}")
+        assert self.vc_all is not None
 
         if marginal_counts is None:
             marginal_counts = Counter()

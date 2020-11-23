@@ -127,6 +127,7 @@ class FairnessScorer:
         self.len_df = len(self.df)
         # Only set positive class for binary/multinomial, even if given.
         self.positive_class = None
+        self.target_vc: Optional[pd.Series] = None
 
         if self.target_variable_type in (VariableType.Binary, VariableType.Multinomial):
             self.target_vc = self.df[self.target].value_counts(normalize=True)
@@ -494,7 +495,7 @@ class FairnessScorer:
         if len(df_count) == 0:
             return df_count
 
-        if len(self.target_vc) <= 2:
+        if self.target_vc is not None and len(self.target_vc) <= 2:
             df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]
 
         df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, alpha=alpha)
@@ -507,6 +508,8 @@ class FairnessScorer:
     def get_row_distance(self, row: pd.Series, alpha: float = 0.05) -> float:
         if row.name[0] == 'Total':
             return 0.
+
+        assert self.target_vc is not None
 
         p = self.target_vc[row.name[1]]
         k = p * self.len_df

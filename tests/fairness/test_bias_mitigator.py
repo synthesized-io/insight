@@ -80,11 +80,13 @@ def test_bias_mitigator_check_score():
 
     assert score_f > score_0
 
-    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df_unbiased, n_loops=2, produce_nans=False, strict=True,
-                                                           progress_callback=testing_progress_bar)
+    # Strict bias mitigation
+    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
+    bias_mitigator = BiasMitigator(synthesizer=synthesizer, fairness_scorer=fs_f)
+    df_unbiased = bias_mitigator.drop_biases(df_unbiased, progress_callback=testing_progress_bar)
 
     # Compute final score
-    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
+    fs_f.set_df(df_unbiased)
     score_f, biases_f = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert len(biases_f[biases_f["distance"].abs() > 0.05]) == 0
