@@ -130,6 +130,9 @@ class FairnessScorer:
 
         if self.target_variable_type in (VariableType.Binary, VariableType.Multinomial):
             self.target_vc = self.df[self.target].value_counts(normalize=True)
+            if len(self.target_vc) == 0:
+                return
+
             if len(self.target_vc) <= 2:
                 if positive_class is None:
                     # If target class is not given, we'll use minority class as usually it is the target.
@@ -487,6 +490,9 @@ class FairnessScorer:
 
     def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         df_count = self.get_rates(list(sensitive_attr))
+
+        if len(df_count) == 0:
+            return df_count
 
         if len(self.target_vc) <= 2:
             df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]

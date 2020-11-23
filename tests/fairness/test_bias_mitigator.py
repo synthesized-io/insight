@@ -47,6 +47,13 @@ def test_bias_mitigator_mixed_types():
     df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=5, progress_callback=testing_progress_bar,
                                                            produce_nans=False)
 
+    # Test bias drop
+    df_unbiased_hard = bias_mitigator.drop_biases(df, progress_callback=testing_progress_bar)
+    fs = FairnessScorer(df_unbiased_hard, sensitive_attrs=sensitive_attrs, target=target, drop_dates=True)
+    _, biases = fs.distributions_score(progress_callback=testing_progress_bar)
+    assert len(biases[biases["distance"].abs() > 0.05]) == 0
+
+
 
 @pytest.mark.slow
 def test_bias_mitigator_check_score():
@@ -72,3 +79,12 @@ def test_bias_mitigator_check_score():
     score_f, _ = fs_f.distributions_score(progress_callback=testing_progress_bar)
 
     assert score_f > score_0
+
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df_unbiased, n_loops=2, produce_nans=False, strict=True,
+                                                           progress_callback=testing_progress_bar)
+
+    # Compute final score
+    fs_f = FairnessScorer(df_unbiased, sensitive_attrs=sensitive_attrs, target=target)
+    score_f, biases_f = fs_f.distributions_score(progress_callback=testing_progress_bar)
+
+    assert len(biases_f[biases_f["distance"].abs() > 0.05]) == 0

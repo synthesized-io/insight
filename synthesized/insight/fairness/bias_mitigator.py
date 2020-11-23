@@ -146,9 +146,47 @@ class BiasMitigator:
 
         return df
 
+    def drop_biases(self, df: pd.DataFrame, mode: Optional[str] = None, alpha: float = 0.05,
+                    min_dist: Optional[float] = 0.05, min_count: Optional[int] = 50,
+                    progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+        """Drop all rows affected by any bias.
+
+        Args:
+            df: Pandas DataFrame containing the data to mitigate biases.
+            mode: Number of biases to mitigate each iteration.
+            alpha: Maximum p-value to accept a bias.
+            min_dist: If set, any bias with smaller distance than min_dist will be ignored.
+            min_count: If set, any bias with less samples than min_count will be ignored.
+            progress_callback: Progress bar callback.
+
+        Returns:
+            Unbiased DataFrame.
+        """
+        if progress_callback is not None:
+            progress_callback(0)
+
+        df = df.copy()
+
+        self.update_df(df)
+        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode=mode, alpha=alpha, min_dist=min_dist,
+                                                                           min_count=min_count)
+
+        idx_to_drop = []
+        for i, (idx, bias) in enumerate(dist_biases.iterrows()):
+            idx_to_drop.extend(self.fairness_scorer.df[self.fairness_scorer.df.apply(
+                lambda row: all([row[name] == value for name, value in zip(bias["name"], bias["value"])]),
+                axis=1)].index)
+
+            if progress_callback is not None:
+                progress_callback(round(i * 98 / len(dist_biases)))
+
+        df.drop(index=idx_to_drop, inplace=True)
+        return df
+
     def mitigate_biases_by_chunks(self, df: pd.DataFrame, chunk_size: int = 5,
-                                  marginal_softener: Union[float, Tuple[float, float]] = 0.25,
-                                  alpha: float = 0.05, n_loops: int = 100, produce_nans: bool = False,
+                                  marginal_softener: Union[float, Tuple[float, float]] = 0.25, alpha: float = 0.05,
+                                  strict: bool = False, strict_kwargs: Dict[str, Any] = None,
+                                  n_loops: int = 100, produce_nans: bool = False,
                                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Mitigate biases iteratively in chunks.
 
@@ -157,9 +195,14 @@ class BiasMitigator:
             chunk_size: Number of biases to mitigate each iteration.
             marginal_softener: Whether to mitigate each bias completely (1.) or just a proportion of it each iteration.
             alpha: Maximum p-value to accept a bias.
+            strict: If true, will drop all rows affected by remaining biases.
+            strict_kwargs: Keyword arguments for struct bias drop.
             n_loops: Maximum number of loops to try to mitigate biases.
             produce_nans:  Whether the output DF contains NaNs.
             progress_callback: Progress bar callback.
+
+        Returns:
+            Unbiased DataFrame.
         """
         if progress_callback is not None:
             progress_callback(0)
@@ -185,6 +228,10 @@ class BiasMitigator:
 
             if progress_callback is not None:
                 progress_callback(round(i * 98 / n_loops))
+
+        if strict:
+            strict_kwargs = strict_kwargs if strict_kwargs is not None else dict()
+            df = self.drop_biases(df, **strict_kwargs)
 
         if progress_callback is not None:
             progress_callback(100)
