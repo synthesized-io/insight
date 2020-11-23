@@ -48,7 +48,7 @@ class FairnessScorer:
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
-                 positive_class: str = None, drop_dates: bool = False):
+                 positive_class: Optional[str] = None, drop_dates: bool = False):
         """FairnessScorer constructor.
 
         Args:
@@ -113,13 +113,15 @@ class FairnessScorer:
         self.values_str_to_list: Dict[str, List] = dict()
         self.names_str_to_list: Dict[str, List] = dict()
 
-    def set_df(self, df: pd.DataFrame, positive_class: str = None):
+    def set_df(self, df: pd.DataFrame, positive_class: Optional[str] = None) -> None:
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
 
         self.df = df.copy()
         other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
         self.df.drop(other_columns, axis=1, inplace=True)
+        if len(self.df) == 0:
+            return
 
         self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates)
         self.target_variable_type = self.manipulate_target_variable(self.df)
@@ -131,9 +133,6 @@ class FairnessScorer:
 
         if self.target_variable_type in (VariableType.Binary, VariableType.Multinomial):
             self.target_vc = self.df[self.target].value_counts(normalize=True)
-            if len(self.target_vc) == 0:
-                return
-
             if len(self.target_vc) <= 2:
                 if positive_class is None:
                     # If target class is not given, we'll use minority class as usually it is the target.
@@ -146,7 +145,7 @@ class FairnessScorer:
             self.target_mean = self.df[self.target].mean()
 
     @classmethod
-    def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5):
+    def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5) -> 'FairnessScorer':
         sensitive_attrs = cls.detect_sensitive_attrs(list(filter(lambda c: c != target, df.columns)))
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
@@ -158,7 +157,7 @@ class FairnessScorer:
     def distributions_score(self, mode: Optional[str] = None, alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
                             weighted: bool = True, max_combinations: Optional[int] = 3,
-                            progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
+                            progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable.
 
@@ -173,7 +172,7 @@ class FairnessScorer:
             progress_callback: Progress bar callback.
         """
 
-        if len(self.sensitive_attrs) == 0:
+        if len(self.sensitive_attrs) == 0 or len(self.df) == 0:
             if progress_callback is not None:
                 progress_callback(0)
                 progress_callback(100)
@@ -248,9 +247,9 @@ class FairnessScorer:
 
         return df_dist
 
-    def classification_score(self, threshold: float = 0.05, classifiers: Dict[str, BaseEstimator] = None,
+    def classification_score(self, threshold: float = 0.05, classifiers: Optional[Dict[str, BaseEstimator]] = None,
                              min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,
-                             progress_callback: Callable[[int], None] = None) -> Tuple[float, pd.DataFrame]:
+                             progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples.
 
@@ -320,10 +319,10 @@ class FairnessScorer:
     def get_sensitive_attrs(self) -> List[str]:
         return self.sensitive_attrs
 
-    def set_sensitive_attrs(self, sensitive_attrs: List[str]):
+    def set_sensitive_attrs(self, sensitive_attrs: List[str]) -> None:
         self.sensitive_attrs = sensitive_attrs
 
-    def add_sensitive_attr(self, sensitive_attr: str):
+    def add_sensitive_attr(self, sensitive_attr: str) -> None:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
@@ -491,9 +490,6 @@ class FairnessScorer:
 
     def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         df_count = self.get_rates(list(sensitive_attr))
-
-        if len(df_count) == 0:
-            return df_count
 
         if self.target_vc is not None and len(self.target_vc) <= 2:
             df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]

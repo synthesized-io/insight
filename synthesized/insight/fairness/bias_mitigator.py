@@ -50,7 +50,7 @@ class BiasMitigator:
         bias_mitigator = cls(synthesizer=synthesizer, fairness_scorer=fairness_scorer)
         return bias_mitigator
 
-    def update_df(self, df: Optional[pd.DataFrame] = None):
+    def update_df(self, df: Optional[pd.DataFrame] = None) -> None:
         """If the dataframe changes, call this function to update DF-related attributes."""
 
         if df is not None:
@@ -148,7 +148,7 @@ class BiasMitigator:
 
     def drop_biases(self, df: pd.DataFrame, mode: Optional[str] = None, alpha: float = 0.05,
                     min_dist: Optional[float] = 0.05, min_count: Optional[int] = 50,
-                    progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                    progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
         """Drop all rows affected by any bias.
 
         Args:
@@ -173,9 +173,8 @@ class BiasMitigator:
 
         idx_to_drop = []
         for i, (idx, bias) in enumerate(dist_biases.iterrows()):
-            idx_to_drop.extend(self.fairness_scorer.df[self.fairness_scorer.df.apply(
-                lambda row: all([row[name] == value for name, value in zip(bias["name"], bias["value"])]),
-                axis=1)].index)
+            idx_to_drop.extend(self.fairness_scorer.df[np.all(self.fairness_scorer.df[bias["name"]] == bias["value"],
+                                                              axis=1)].index)
 
             if progress_callback is not None:
                 progress_callback(round(i * 98 / len(dist_biases)))
@@ -185,9 +184,9 @@ class BiasMitigator:
 
     def mitigate_biases_by_chunks(self, df: pd.DataFrame, chunk_size: int = 5,
                                   marginal_softener: Union[float, Tuple[float, float]] = 0.25, alpha: float = 0.05,
-                                  strict: bool = False, strict_kwargs: Dict[str, Any] = None,
+                                  strict: bool = False, strict_kwargs: Optional[Dict[str, Any]] = None,
                                   n_loops: int = 100, produce_nans: bool = False,
-                                  progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+                                  progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
         """Mitigate biases iteratively in chunks.
 
         Args:
@@ -196,7 +195,7 @@ class BiasMitigator:
             marginal_softener: Whether to mitigate each bias completely (1.) or just a proportion of it each iteration.
             alpha: Maximum p-value to accept a bias.
             strict: If true, will drop all rows affected by remaining biases.
-            strict_kwargs: Keyword arguments for struct bias drop.
+            strict_kwargs: Keyword arguments for strict bias drop.
             n_loops: Maximum number of loops to try to mitigate biases.
             produce_nans:  Whether the output DF contains NaNs.
             progress_callback: Progress bar callback.
@@ -257,7 +256,7 @@ class BiasMitigator:
 
         return bias_out
 
-    def get_marginal_counts(self, bias: pd.Series, marginal_counts: Dict[Tuple[str, ...], int] = None,
+    def get_marginal_counts(self, bias: pd.Series, marginal_counts: Optional[Dict[Tuple[str, ...], int]] = None,
                             marginal_softener: float = 0.25, use_colons: bool = True) -> Dict[Tuple[str, ...], int]:
 
         if not 0 < marginal_softener <= 1.:
