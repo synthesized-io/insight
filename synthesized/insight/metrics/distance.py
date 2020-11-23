@@ -7,27 +7,34 @@ from abc import abstractmethod
 
 import pandas as pd
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, binom_test, beta, norm
 import pyemd
 
 
+@dataclass
+class ConfidenceInterval():
+    value: Tuple[float, float]
+    level: float
+
+
+@dataclass
+class DistanceResult():
+    distance: float
+    p_value: Optional[float] = None
+    interval: Optional[ConfidenceInterval] = None
+
+
 def bootstrap_interval(data, statistic: Callable[..., float], cl: float = 0.95,
-                       n_samples: int = 1000, sample_size=None):
+                       n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the confidence interval of a statistic estimate using the bootstrap method.
 
-    Arguments:
-
+    Args:
         data: Data for which to compute the statistic.
-
         statistic: Function that computes the statistic.
-
         args: Extra arguments to statistic
-
         n_samples: Optional; Number of bootstrap samples to perform.
-
         cl: Optional; Confidence level of the interval.
-
 
     Returns:
         The confidence interval.
@@ -47,28 +54,83 @@ def bootstrap_interval(data, statistic: Callable[..., float], cl: float = 0.95,
     return np.percentile(statistic_samples, percentiles).tolist()
 
 
+def binominal_proportion_interval(p: float, n: int, cl=0.95, method: str = 'clopper-pearson') -> ConfidenceInterval:
+    """
+    Calculate an approximate confidence interval for a binomial proportion of a sample.
+
+    Args:
+        p: Proportion of sucesses.
+        n: Sample size.
+        cl: Optional; Confidence level of the interval.
+        method: Optional; The approximation method used to calculate the interval.
+            One of 'normal', 'clopper-pearson', 'agresti-coull'.
+
+    Returns:
+        A ConfidenceInterval containing the interval and confidence level.
+    """
+
+    k = n * p
+    alpha = 1 - cl
+    z = norm.ppf(1 - alpha / 2)
+
+    if method == 'normal':
+        low = p - z * np.sqrt(p * (1 - p) / n)
+        high = p + z * np.sqrt(p * (1 - p) / n)
+
+    elif method == 'clopper-pearson':
+        low = beta.ppf(alpha / 2, k, n-k+1)
+        high = beta.ppf(1 - alpha / 2, k + 1, n - k)
+
+    elif method == 'agresti-coull':
+        n_ = n + z**2
+        p_ = 1/n_ * (k + z**2 / 2)
+        low = p_ - z * np.sqrt(p_ * (1 - p_) / n_)
+        high = p_ + z * np.sqrt(p_ * (1 - p_) / n_)
+
+    else:
+        raise ValueError("'method' argument must be one of 'normal', 'clopper-pearson', 'agresti-coull'.")
+
+    return ConfidenceInterval((low, high), cl)
+
+
+def binominal_proportion_p_value(p_obs: float, p_null: float, n: int) -> float:
+    """
+    Calculate an exact p-value for an observed binomial proportion of a sample.
+
+    Args:
+        p_obs: Observed proportion of successes.
+        p_null: Expected proportion of sucesses under null hypothesis.
+        n: Sample size.
+
+    Returns:
+        The p-value under the null hypothesis.
+    """
+    k = np.ceil(p_obs * n)
+    return binom_test(k, n, p_null, 'two-sided')
+
+
 def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.ndarray], float],
-                     two_sided: bool = True, n_perm: int = 100) -> float:
+                     n_perm: int = 100, alternative: str = 'two-sided') -> float:
     """
     Perform a two sample permutation test.
 
     Determines the probability of observing t(x, y) or greater under the null hypothesis that x
     and y are from the same distribution.
 
-    Arguments:
+    Args:
         x: First data sample.
-
         y: Second data sample.
-
         t: Callable that returns the test statistic.
-
-        two_sided: If True, a two-sided p-value is returned, else one-sided.
-
+        alternative: Optional; Indicates the alternative hypothesis.
+            One of 'two-sided', 'greater' ,'less',
         n_per: number of permutations.
 
     Returns:
         The p-value of t_obs under the null hypothesis.
     """
+
+    if alternative not in ('two-sided', 'greater', 'less'):
+        raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
 
     t_obs = t(x, y)
     pooled_data = np.concatenate((x, y))
@@ -80,30 +142,16 @@ def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.n
         y_sample = perm[len(x):]
         t_null[i] = t(x_sample, y_sample)
 
-    if two_sided:
-        return np.sum(np.abs(t_null) >= np.abs(t_obs)) / n_perm
+    if alternative == 'two-sided':
+        p = np.sum(np.abs(t_null) >= np.abs(t_obs)) / n_perm
+
+    elif alternative == 'greater':
+        p = np.sum(t_null >= t_obs) / n_perm
 
     else:
-        return np.sum(t_null >= t_obs) / n_perm
+        p = np.sum(t_null < t_obs) / n_perm
 
-
-@dataclass
-class MetricResult():
-    pass
-
-
-@dataclass
-class ConfidenceInterval():
-    value: Tuple[float, float]
-    level: float
-
-
-@dataclass
-class DistanceResult(MetricResult):
-    distance: float
-    p_value: Optional[float] = None
-    interval: Optional[ConfidenceInterval] = None
-
+    return p
 
 class DistanceMetric():
     """
@@ -114,7 +162,7 @@ class DistanceMetric():
     Attributes:
         bootstrappable: bootstrap resampling can be performed for this metric.
     """
-    bootstrappable = True
+    bootstrap_method: Optional[Callable[..., Tuple[float, float]]] = bootstrap_interval
 
     def __call__(self, x: pd.Series, y: pd.Series, p_value: bool = False, interval: bool = False) -> DistanceResult:
         """
@@ -160,10 +208,10 @@ class DistanceMetric():
 
             **kwargs: Optional keyword arguments to synthesized.insight.metrics.distance.bootstrap_interval.
         """
-        if not self.bootstrappable:
+        if not self.bootstrap_method:
             raise TypeError("Unable to perform bootstrap resampling of this metric.")
         else:
-            interval = bootstrap_interval((x, y), lambda x, y: self.distance(x, y, **kwargs))
+            interval = self.bootstrap_method((x, y), lambda x, y: self.distance(x, y, **kwargs))
             return ConfidenceInterval(interval, level)
 
 
@@ -190,7 +238,7 @@ class EarthMoversDistanceBinned(DistanceMetric):
     """
     Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
     """
-    bootstrappable = False
+    bootstrap_method = None
 
     def distance(self, x: pd.Series, y: pd.Series, bins: Optional[Tuple] = None, **kwargs) -> float:
         """
