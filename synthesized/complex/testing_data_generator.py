@@ -1,4 +1,5 @@
 from collections import Counter
+import logging
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -6,13 +7,18 @@ import yaml
 
 from ..metadata import ValueMeta, DataFrameMeta
 
+logger = logging.getLogger(__name__)
+
 
 class TestingDataGenerator:
     def __init__(self, df_meta: DataFrameMeta):
         self.df_meta = df_meta
 
     @classmethod
-    def from_dict(cls, value_kwargs: Optional[List[Dict[str, Any]]], groups_kwargs: Optional[List[Dict[str, Any]]]):
+    def from_dict(cls, value_kwargs: Optional[List[Dict[str, Any]]],
+                  groups_kwargs: Optional[List[Dict[str, Any]]]) -> 'TestingDataGenerator':
+
+        logger.info("Initializing Testing Data Generator.")
         value_meta_dict = {vm.__name__.lower()[:-4]: vm for vm in ValueMeta.__subclasses__()}
 
         values = []
@@ -61,12 +67,14 @@ class TestingDataGenerator:
         if len(duplicated_names) > 0:
             raise ValueError(f"All names must be unique. Given {', '.join(duplicated_names)} are duplicated.")
 
+        logger.info("Extracting meta-information from given rules.")
         df_meta = DataFrameMeta(values=values)
         return cls(df_meta)
 
     @classmethod
     def from_yaml(cls, config_file_name: str):
 
+        logger.info("Reading configuration file.")
         with open(config_file_name, 'r') as fp:
             kwargs = yaml.safe_load(fp)
 
@@ -77,6 +85,7 @@ class TestingDataGenerator:
         return generator
 
     def synthesize(self, num_rows: int) -> pd.DataFrame:
+        logger.info("Generating data.")
         return self.df_meta.postprocess(pd.DataFrame([[], ] * num_rows))
 
     @staticmethod
