@@ -1,28 +1,37 @@
-from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic
-from dataclasses import dataclass, field
+# type: ignore
+from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic, Union, cast
 from functools import cmp_to_key
 from datetime import datetime
-import importlib
 
 import numpy as np
 import pandas as pd
 import scipy.stats
 
-from .dtype import DType, NType, OType, AType, SType, RType
 from .exceptions import UnknownDateFormatError
 
+DType = TypeVar('DType', covariant=True)
+NType = TypeVar("NType", str, bytes, np.character, np.datetime64, np.integer, np.timedelta64, bool, np.bool8,
+                np.float64, covariant=True)
+CType = TypeVar("CType", str, bytes, np.character, np.datetime64, np.integer, np.timedelta64, bool, np.bool8,
+                np.float64, covariant=True)
+OType = TypeVar("OType", np.datetime64, np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
+AType = TypeVar("AType", np.datetime64, np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
+SType = TypeVar("SType", np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
+RType = TypeVar("RType", bool, np.bool8, np.floating, covariant=True)
+
 MetaType = TypeVar('MetaType', bound='Meta')
-ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta')
-NominalType = TypeVar('NominalType', bound='Nominal')
-CategoricalType = TypeVar('CategoricalType', bound='Categorical')
-OrdinalType = TypeVar('OrdinalType', bound='Ordinal')
-AffineType = TypeVar('AffineType', bound='Affine')
-ScaleType = TypeVar('ScaleType', bound='Scale')
-RingType = TypeVar('RingType', bound='Ring')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
+NominalType = TypeVar('NominalType', bound='Nominal[Any]')
+CategoricalType = TypeVar('CategoricalType', bound='Categorical[Any]')
+OrdinalType = TypeVar('OrdinalType', bound='Ordinal[Any]')
+AffineType = TypeVar('AffineType', bound='Affine[Any]')
+ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
+RingType = TypeVar('RingType', bound='Ring[Any]')
 DateType = TypeVar('DateType', bound='Date')
 
+JSON = Union[Dict[str, 'JSON'], List['JSON'], str, int, float, bool, None]
 
-@dataclass(repr=False)
+
 class Meta(MutableMapping[str, 'Meta']):
     """
     Base class for meta information that describes a dataset.
@@ -65,34 +74,29 @@ class Meta(MutableMapping[str, 'Meta']):
         >>> for child_meta in customer:
         >>>     print(child_meta)
     """
-
-    name: str
-    _children: Dict[str, 'Meta'] = field(default_factory=dict)
-    _extracted = False
+    def __init__(self, name: str):
+        self.name = name
+        self._children: Dict[str, 'Meta'] = dict()
+        self._extracted: bool = False
 
     @property
     def children(self) -> List['Meta']:
         """Return the children of this Meta."""
         return [child for child in self.values()]
 
-    def __repr__(self):
+    @children.setter
+    def children(self, children: List['Meta']) -> None:
+        self._children = {child.name: child for child in children}
+
+    def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name})'
 
-    def extract(self: MetaType, df: pd.DataFrame) -> MetaType:
+    def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
         for child in self.children:
             child.extract(df)
         self._extracted = True
         return self
-
-    def __setattr__(self, name: str, value):
-        if isinstance(value, Meta) and not isinstance(self, ValueMeta):
-            self[name] = value
-        else:
-            object.__setattr__(self, name, value)
-
-    def __getattr__(self, name: str):
-        return self.get(name, object.__getattribute__(self, name))
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
@@ -111,18 +115,7 @@ class Meta(MutableMapping[str, 'Meta']):
     def __len__(self) -> int:
         return len(self._children)
 
-    def _tree_to_dict(self, meta: 'Meta') -> dict:
-        """Convert nested Meta to dictionary"""
-        if isinstance(meta, ValueMeta):
-            d = {}
-            for key, value in meta.__dict__.items():
-                if not isinstance(value, Meta) and not key.startswith('_'):
-                    d[key] = value
-            return d
-        elif isinstance(meta, Meta):
-            return {m: meta[m].to_dict() for m in meta}
-
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, JSON]:
         """
         Convert the Meta to a dictionary.
         The tree structure is converted to the following form:
@@ -135,81 +128,91 @@ class Meta(MutableMapping[str, 'Meta']):
         }
         Examples:
             >>> customer = Meta('customer')
-            >>> customer.title = Nominal('title')
-            >>> customer.address = Meta('customer_address')
-            >>> customer.address.street = Nominal('street')
+            >>> customer['title'] = Nominal('title')
+            >>> customer['address'] = Meta('customer_address')
+            >>> customer['address']['street'] = Nominal('street')
             Convert to dictionary:
             >>> customer.to_dict()
             {
-                'Meta': {
+                'name': 'customer',
+                'class': 'Meta',
+                'extracted': False,
+                'children': {
                     'age': {
-                        'Integer': {
-                            'name': 'age',
-                            'dtype': 'int64',
-                            'categories': [],
-                            'probabilities': [],
-                            'similarity_based': True,
-                            'min': None,
-                            'max': None,
-                            'distribution': None,
-                            'monotonic': False,
-                            'nonnegative': None
+                        'name': 'age',
+                        'class': 'Integer',
+                        'extracted': False,
+                        'dtype': 'int64',
+                        'categories': [],
+                        'probabilities': [],
+                        'similarity_based': True,
+                        'min': None,
+                        'max': None,
+                        'distribution': None,
+                        'monotonic': False,
+                        'nonnegative': None
                         }
                     },
                     'customer_address': {
-                        'Meta': {
+                        'name': 'customer_address',
+                        'class': 'Meta',
+                        'extracted': False,
+                        'children': {
                             'street': {
-                                'Nominal': {
-                                    'name': 'street',
-                                    'dtype': None,
-                                    'categories': [],
-                                    'probabilities': []
-                                }
+                                'name': 'street',
+                                'class': 'Nominal',
+                                'extracted': False,
+                                'dtype': None,
+                                'categories': [],
+                                'probabilities': []
                             }
-                            'name': 'customer_address'
                         }
                     }
-                    'name': 'customer'
                 }
             }
         See also:
             Meta.from_dict: construct a Meta from a dictionary
         """
-        d = {self.__class__.__name__: self._tree_to_dict(self)}
-        for key, value in self.__dict__.items():
-            if not isinstance(value, Meta) and not key.startswith('_'):
-                d[self.__class__.__name__][key] = value
+        d = {
+            "name": self.name,
+            "class": self.__class__.__name__,
+            "extracted": self._extracted
+        }
+
+        if len(self.children) > 0:
+            d['children'] = {child.name: child.to_dict() for child in self.children}
+
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: dict) -> 'MetaType':
+    def from_dict(cls: Type['MetaType'], d: Dict[str, JSON]) -> 'MetaType':
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
         See also:
             Meta.to_dict: convert a Meta to a dictionary
         """
-        module = importlib.import_module("synthesized.metadata.meta")
-        name = list(d.keys())[0]
-        if name in module.__dict__:
-            meta = getattr(module, name)(name)
-            if isinstance(meta, ValueMeta):
-                meta = getattr(module, name)(**d[name])
-            else:
-                for attr_name, attrs in d[name].items():
-                    if isinstance(attrs, dict):
-                        setattr(meta, attr_name, meta.from_dict(attrs))
-                    else:
-                        setattr(meta, attr_name, attrs)
-            return meta
-        else:
-            raise ValueError(f"class '{name}' is not a valid Meta in {module}.")
+        name = d["name"]
+        meta_class_name = d.pop("class")
+        extracted = d.pop("extracted")
+        children = d.pop("children") if "children" in d else None
+
+        if type(meta_class_name) is not str:
+            raise ValueError("Dict has invalid 'class' field.")
+
+        meta_class_name = cast(str, meta_class_name)
+        meta_class = STR_TO_META.get(meta_class_name)
+
+        meta = meta_class(**d)
+        if children is not None:
+            meta.children = [Meta.from_dict(child) for child in children.values()]
+
+        return meta
 
 
-@dataclass(repr=False)
 class DataFrameMeta(Meta):
     """
-    Meta to describe an abitrary data frame.
+    Meta to describe an arbitrary data frame.
 
     Each column is described by a derived ValueMeta object.
 
@@ -218,12 +221,17 @@ class DataFrameMeta(Meta):
         time_index: NotImplemented
         column_aliases: dictionary mapping column names to an alias.
     """
-    id_index: Optional[str] = None
-    time_index: Optional[str] = None
-    column_aliases: Optional[Dict[str, str]] = None
+    def __init__(
+            self, name: str, id_index: Optional[str] = None, time_index: Optional[str] = None,
+            column_aliases: Optional[Dict[str, str]] = None
+    ):
+        super().__init__(name=name)
+        self.id_index = id_index
+        self.time_index = time_index
+        self.column_aliases = column_aliases if column_aliases is not None else {}
 
     @property
-    def column_meta(self) -> dict:
+    def column_meta(self) -> Dict[str, Meta]:
         """Get column <-> ValueMeta mapping."""
         col_meta = {}
         for child in self.children:
@@ -231,7 +239,6 @@ class DataFrameMeta(Meta):
         return col_meta
 
 
-@dataclass(repr=False)
 class ValueMeta(Meta, Generic[DType]):
     """
     Base class for meta information that describes a pandas series.
@@ -243,12 +250,16 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    dtype: Optional[str] = None
+    def __init__(
+            self, name: str, dtype: Optional[str] = None
+    ):
+        super().__init__(name=name)
+        self.dtype = dtype
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self)
 
     def extract(self: ValueMetaType, df: pd.DataFrame) -> ValueMetaType:
@@ -258,7 +269,6 @@ class ValueMeta(Meta, Generic[DType]):
         return self
 
 
-@dataclass(repr=False)
 class Nominal(ValueMeta[NType], Generic[NType]):
     """
     Nominal meta.
@@ -272,26 +282,34 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         categories: Optional; list of category names.
         probabilites: Optional; list of probabilites (relative frequencies) of each category.
     """
-    categories: List[NType] = field(default_factory=list)
-    probabilities: List[float] = field(default_factory=list)
+
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[List[NType]] = None,
+            probabilities: Optional[List[float]] = None
+    ):
+        super().__init__(name=name, dtype=dtype)
+        self.categories: Optional[List[NType]] = categories
+        self.probabilities = probabilities
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
         value_counts = df[self.name].value_counts(normalize=True, dropna=False, sort=False)
-        if not self.categories:
+        if self.categories is None:
             self.categories = value_counts.index.tolist()
             try:
                 self.categories = sorted(self.categories)
             except TypeError:
                 pass
-        if not self.probabilities:
+        if self.probabilities is None:
             self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
 
         return self
 
     def probability(self, x: Any) -> float:
         """Get the probability mass of the category x."""
+        if self.probabilities is None:
+            raise
         try:
             return self.probabilities[self.categories.index(x)]
         except ValueError:
@@ -299,7 +317,8 @@ class Nominal(ValueMeta[NType], Generic[NType]):
                 if not pd.isna(self.categories).any():
                     return 0.0
                 try:
-                    return self.probabilities[np.isnan(self.categories).argmax()]
+                    a: float = self.probabilities[np.isnan(self.categories).argmax()]
+                    return a
                 except TypeError:
                     return 0.0
             return 0.0
@@ -310,7 +329,6 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         return self.probability(np.nan)
 
 
-@dataclass(repr=False)
 class Constant(Nominal[NType]):
     """
     Constant meta.
@@ -322,13 +340,12 @@ class Constant(Nominal[NType]):
     """
     value: Optional[NType] = None
 
-    def extract(self: 'Constant', df: pd.DataFrame) -> 'Constant':
+    def extract(self: 'Constant[NType]', df: pd.DataFrame) -> 'Constant[NType]':
         super().extract(df)
         self.value = df[self.name].dropna().iloc[0]
         return self
 
 
-@dataclass(repr=False)
 class Categorical(Nominal[NType], Generic[NType]):
     """
     Categorical meta.
@@ -345,7 +362,6 @@ class Categorical(Nominal[NType], Generic[NType]):
     similarity_based: Optional[bool] = True
 
 
-@dataclass(repr=False)
 class Ordinal(Categorical[OType], Generic[OType]):
     """
     Ordinal meta.
@@ -390,7 +406,6 @@ class Ordinal(Categorical[OType], Generic[OType]):
         return pd.Series(sorted(sr, key=key, reverse=True))
 
 
-@dataclass(repr=False)
 class Affine(Ordinal[AType], Generic[AType]):
     """
     Affine meta.
@@ -404,7 +419,6 @@ class Affine(Ordinal[AType], Generic[AType]):
 
     Attributes:
         distribution: NotImplemented
-
         monotonic: Optional; True if data is monotonic, else False
     """
     distribution: Optional[scipy.stats.rv_continuous] = None
@@ -420,7 +434,6 @@ class Affine(Ordinal[AType], Generic[AType]):
         return self
 
 
-@dataclass(repr=False)
 class Date(Affine[np.datetime64]):
     """
     Date meta.
@@ -448,7 +461,6 @@ class Date(Affine[np.datetime64]):
         return self
 
 
-@dataclass(repr=False)
 class Scale(Affine[SType], Generic[SType]):
     """
     Scale meta.
@@ -474,17 +486,14 @@ class Scale(Affine[SType], Generic[SType]):
         return self
 
 
-@dataclass(repr=False)
 class Integer(Scale[np.int64]):
     dtype: str = 'int64'
 
 
-@dataclass(repr=False)
 class TimeDelta(Scale[np.timedelta64]):
     dtype: str = 'timedelta64'
 
 
-@dataclass(repr=False)
 class Ring(Scale[RType], Generic[RType]):
     nonnegative: Optional[bool] = None
 
@@ -498,44 +507,12 @@ class Ring(Scale[RType], Generic[RType]):
         return self
 
 
-@dataclass(repr=False)
 class Bool(Ring[np.bool]):
     dtype: str = 'bool'
 
 
-@dataclass(repr=False)
 class Float(Ring[np.float64]):
     dtype: str = 'float64'
-
-
-@dataclass(repr=False)
-class AddressMeta(Meta):
-    street: Optional[Nominal] = None
-    number: Optional[Integer] = None
-    postcode: Optional[Nominal] = None
-    house_name: Optional[Nominal] = None
-    flat: Optional[Nominal] = None
-    city: Optional[Nominal] = None
-    county: Optional[Nominal] = None
-
-
-@dataclass(repr=False)
-class BankMeta(Meta):
-    account_number: Optional[Nominal] = None
-    sort_code: Optional[Nominal] = None
-
-
-@dataclass(repr=False)
-class PersonMeta(Meta):
-    title: Optional[Categorical] = None
-    first_name: Optional[Nominal] = None
-    last_name: Optional[Nominal] = None
-    email: Optional[Nominal] = None
-    age: Optional[Integer] = None
-    gender: Optional[Categorical] = None
-    mobile_telephone: Optional[Nominal] = None
-    home_telephone: Optional[Nominal] = None
-    work_telephone: Optional[Nominal] = None
 
 
 def get_date_format(sr: pd.Series) -> str:
@@ -571,3 +548,21 @@ def get_date_format(sr: pd.Series) -> str:
     if parsed_format is None:
         raise UnknownDateFormatError("Unable to infer date format.")
     return parsed_format
+
+
+STR_TO_META: Dict[str, Type['Meta']] = {
+    "Meta": Meta,
+    "ValueMeta": ValueMeta,
+    "Nominal": Nominal,
+    "Categorical": Categorical,
+    "Ordinal": Ordinal,
+    "Affine": Affine,
+    "Scale": Scale,
+    "Ring": Ring,
+    "Constant": Constant,
+    "Date": Date,
+    "Bool": Bool,
+    "Integer": Integer,
+    "TimeDelta": TimeDelta,
+    "Float": Float
+}
