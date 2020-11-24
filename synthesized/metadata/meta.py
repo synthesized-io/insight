@@ -1,5 +1,6 @@
-# type: ignore
-from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic, Union, cast
+from abc import abstractmethod
+from typing import List, Dict, Optional, Any, Type, TypeVar, MutableMapping, Iterator, Generic, cast, Union
+from typing_extensions import Protocol
 from functools import cmp_to_key
 from datetime import datetime
 
@@ -7,17 +8,15 @@ import numpy as np
 import pandas as pd
 import scipy.stats
 
-from .exceptions import UnknownDateFormatError
+from .exceptions import UnknownDateFormatError, MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
-NType = TypeVar("NType", str, bytes, np.character, np.datetime64, np.integer, np.timedelta64, bool, np.bool8,
-                np.float64, covariant=True)
-CType = TypeVar("CType", str, bytes, np.character, np.datetime64, np.integer, np.timedelta64, bool, np.bool8,
-                np.float64, covariant=True)
-OType = TypeVar("OType", np.datetime64, np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
-AType = TypeVar("AType", np.datetime64, np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
-SType = TypeVar("SType", np.integer, np.timedelta64, bool, np.bool8, np.floating, covariant=True)
-RType = TypeVar("RType", bool, np.bool8, np.floating, covariant=True)
+NType = TypeVar("NType", np.character, np.datetime64, np.integer, np.timedelta64, np.bool8, np.float64, covariant=True)
+CType = TypeVar("CType", np.character, np.datetime64, np.integer, np.timedelta64, np.bool8, np.float64, covariant=True)
+OType = TypeVar("OType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
+AType = TypeVar("AType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
+SType = TypeVar("SType", np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
+RType = TypeVar("RType", np.bool8, np.floating, covariant=True)
 
 MetaType = TypeVar('MetaType', bound='Meta')
 ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
@@ -29,7 +28,24 @@ ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
 RingType = TypeVar('RingType', bound='Ring[Any]')
 DateType = TypeVar('DateType', bound='Date')
 
-JSON = Union[Dict[str, 'JSON'], List['JSON'], str, int, float, bool, None]
+KT_contra = TypeVar('KT_contra', contravariant=True)
+VT_co = TypeVar('VT_co', covariant=True)
+
+
+class Container(Protocol[KT_contra]):
+    @abstractmethod
+    def __contains__(self, item: KT_contra) -> bool:
+        pass
+
+
+class Projection(Protocol[KT_contra, VT_co]):
+    @abstractmethod
+    def __contains__(self, item: KT_contra) -> bool:
+        pass
+
+    @abstractmethod
+    def __getitem__(self, item: KT_contra) -> VT_co:
+        pass
 
 
 class Meta(MutableMapping[str, 'Meta']):
@@ -115,7 +131,7 @@ class Meta(MutableMapping[str, 'Meta']):
     def __len__(self) -> int:
         return len(self._children)
 
-    def to_dict(self) -> Dict[str, JSON]:
+    def to_dict(self) -> Dict[str, object]:
         """
         Convert the Meta to a dictionary.
         The tree structure is converted to the following form:
@@ -185,27 +201,32 @@ class Meta(MutableMapping[str, 'Meta']):
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: Dict[str, JSON]) -> 'MetaType':
+    def from_dict(cls: Type['MetaType'], d: Dict[str, object]) -> 'MetaType':
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
         See also:
             Meta.to_dict: convert a Meta to a dictionary
         """
-        name = d["name"]
-        meta_class_name = d.pop("class")
+        name = cast(str, d["name"])
+        d.pop("class")
+
         extracted = d.pop("extracted")
-        children = d.pop("children") if "children" in d else None
+        children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
 
-        if type(meta_class_name) is not str:
-            raise ValueError("Dict has invalid 'class' field.")
+        meta = cls(name=name)
+        for attr, value in d.items():
+            setattr(meta, attr, value)
 
-        meta_class_name = cast(str, meta_class_name)
-        meta_class = STR_TO_META.get(meta_class_name)
+        setattr(meta, '_extracted', extracted)
 
-        meta = meta_class(**d)
         if children is not None:
-            meta.children = [Meta.from_dict(child) for child in children.values()]
+            meta_children = []
+            for child in children.values():
+                class_name = cast(str, child['class'])
+                meta_children.append(STR_TO_META[class_name].from_dict(child))
+
+            meta.children = meta_children
 
         return meta
 
@@ -250,9 +271,7 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    def __init__(
-            self, name: str, dtype: Optional[str] = None
-    ):
+    def __init__(self, name: str, dtype: Optional[str] = None):
         super().__init__(name=name)
         self.dtype = dtype
 
@@ -282,46 +301,51 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         categories: Optional; list of category names.
         probabilites: Optional; list of probabilites (relative frequencies) of each category.
     """
-
     def __init__(
-            self, name: str, dtype: Optional[str] = None, categories: Optional[List[NType]] = None,
-            probabilities: Optional[List[float]] = None
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[NType]] = None,
+            probabilities: Optional[Projection[NType, float]] = None
     ):
         super().__init__(name=name, dtype=dtype)
-        self.categories: Optional[List[NType]] = categories
-        self.probabilities = probabilities
+        self.categories: Optional[Container[NType]] = categories
+        self.probabilities: Optional[Projection[NType, float]] = probabilities
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
-        value_counts = df[self.name].value_counts(normalize=True, dropna=False, sort=False)
+
         if self.categories is None:
-            self.categories = value_counts.index.tolist()
-            try:
-                self.categories = sorted(self.categories)
-            except TypeError:
-                pass
+            self.categories = self.infer_categories(df)
         if self.probabilities is None:
-            self.probabilities = [value_counts[cat] if cat in value_counts else 0.0 for cat in self.categories]
+            self.probabilities = self.infer_probabilities(df)
 
         return self
 
-    def probability(self, x: Any) -> float:
+    def infer_categories(self, df: pd.DataFrame) -> Projection[NType, float]:
+        return cast(Projection[NType, float], df[self.name].unique().tolist())
+
+    def infer_probabilities(self, df: pd.DataFrame) -> Projection[NType, float]:
+        value_counts = df[self.name].value_counts(normalize=True, dropna=False, sort=False)
+        return {cat: value_counts[cat] for cat in value_counts}
+
+    def probability(self, x: Union[NType, None]) -> float:
         """Get the probability mass of the category x."""
-        if self.probabilities is None:
-            raise
-        try:
-            return self.probabilities[self.categories.index(x)]
-        except ValueError:
-            if pd.isna(x):
-                if not pd.isna(self.categories).any():
-                    return 0.0
-                try:
-                    a: float = self.probabilities[np.isnan(self.categories).argmax()]
-                    return a
-                except TypeError:
-                    return 0.0
-            return 0.0
+        if not self._extracted:
+            raise MetaNotExtractedError
+
+        if x is None:
+            return self.nan_freq
+
+        x = cast(NType, x)
+
+        self.probabilities = cast(Projection[NType, float], self.probabilities)
+        self.categories = cast(Container[NType], self.categories)
+
+        if x in self.probabilities:
+            prob: float = self.probabilities.__getitem__(x)
+        else:
+            prob = 0.0
+
+        return prob
 
     @property
     def nan_freq(self) -> float:
@@ -338,7 +362,9 @@ class Constant(Nominal[NType]):
     Attributes:
         value: Optional; the constant value.
     """
-    value: Optional[NType] = None
+    def __init__(self, name: str, value: Optional[NType] = None, dtype: Optional[str] = None):
+        super().__init__(name=name, dtype=dtype)
+        self.value: Optional[NType] = value
 
     def extract(self: 'Constant[NType]', df: pd.DataFrame) -> 'Constant[NType]':
         super().extract(df)
@@ -346,7 +372,7 @@ class Constant(Nominal[NType]):
         return self
 
 
-class Categorical(Nominal[NType], Generic[NType]):
+class Categorical(Nominal[CType], Generic[CType]):
     """
     Categorical meta.
 
@@ -354,12 +380,16 @@ class Categorical(Nominal[NType], Generic[NType]):
     a vocabulary where words with similar semantic meaning could be grouped together.
 
     Attributes:
-        similarity_based:
 
     See also:
         Nominal
     """
-    similarity_based: Optional[bool] = True
+
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[CType]] = None,
+            probabilities: Optional[Projection[CType, float]] = None
+    ):
+        super().__init__(name=name, dtype=dtype, categories=categories, probabilities=probabilities)
 
 
 class Ordinal(Categorical[OType], Generic[OType]):
@@ -374,23 +404,47 @@ class Ordinal(Categorical[OType], Generic[OType]):
         min: Optional; the minimum category
         max: Optional; the maximum category
     """
-    min: Optional[OType] = None
-    max: Optional[OType] = None
+
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[OType]] = None,
+            probabilities: Optional[Projection[OType, float]] = None, min: Optional[OType] = None,
+            max: Optional[OType] = None
+    ):
+        super().__init__(name=name, dtype=dtype, categories=categories, probabilities=probabilities)
+        self.min: Optional[OType] = min
+        self.max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
+        self.categories = cast(Container[OType], self.categories)
+        self.probabilities = cast(Projection[OType, float], self.probabilities)
+
+        unique_sorted = self.sort(pd.Series(df[self.name].unique())).tolist()
+
         if self.min is None:
-            self.min = list(filter(pd.notnull, self.categories))[0]
+            self.min = unique_sorted[0]
         if self.max is None:
-            self.max = list(filter(pd.notnull, self.categories))[-1]
+            self.max = unique_sorted[-1]
 
         return self
 
-    def less_than(self, x: Any, y: Any) -> bool:
+    def less_than(self, x: OType, y: OType) -> bool:
         """Return True if x < y"""
+        if not self._extracted:
+            raise MetaNotExtractedError
+        self.categories = cast(Container[OType], self.categories)
+
         if x not in self.categories or y not in self.categories:
             raise ValueError(f"x={x} or y={y} are not valid categories.")
-        return self.categories.index(x) < self.categories.index(y)
+
+        try:
+            b = x < y
+            if type(b) is not bool:
+                raise TypeError
+            return cast(bool, b)
+
+        except TypeError:
+            raise ValueError(f"x={x} or y={y} are not valid categories.")
 
     def _predicate(self, x: Any, y: Any) -> int:
         if self.less_than(x, y):
@@ -421,8 +475,18 @@ class Affine(Ordinal[AType], Generic[AType]):
         distribution: NotImplemented
         monotonic: Optional; True if data is monotonic, else False
     """
-    distribution: Optional[scipy.stats.rv_continuous] = None
-    monotonic: Optional[bool] = False
+
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[AType]] = None,
+            probabilities: Optional[Projection[AType, float]] = None, min: Optional[AType] = None,
+            max: Optional[AType] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max
+        )
+        self.monotonic = monotonic
+        self.distribution = distribution
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
@@ -444,8 +508,17 @@ class Date(Affine[np.datetime64]):
     Attributes:
         date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
     """
-    dtype: str = 'datetime64[ns]'
-    date_format: Optional[str] = None
+    def __init__(
+            self, name: str, dtype: str = 'datetime64[ns]', categories: Optional[Container[np.datetime64]] = None,
+            probabilities: Optional[Projection[np.datetime64, float]] = None, min: Optional[np.datetime64] = None,
+            max: Optional[np.datetime64] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, date_format: Optional[str] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution
+        )
+        self.date_format = date_format
 
     def extract(self: DateType, df: pd.DataFrame) -> DateType:
         if self.date_format is None:
@@ -474,7 +547,17 @@ class Scale(Affine[SType], Generic[SType]):
     Attributes:
         nonnegative: Optional; True if data is nonnegative, else False.
     """
-    nonnegative: Optional[bool] = None
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[SType]] = None,
+            probabilities: Optional[Projection[SType, float]] = None, min: Optional[SType] = None,
+            max: Optional[SType] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution
+        )
+        self.nonnegative = nonnegative
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
@@ -487,32 +570,77 @@ class Scale(Affine[SType], Generic[SType]):
 
 
 class Integer(Scale[np.int64]):
-    dtype: str = 'int64'
+
+    def __init__(
+            self, name: str, dtype: str = 'int64', categories: Optional[Container[np.int64]] = None,
+            probabilities: Optional[Projection[np.int64, float]] = None, min: Optional[np.int64] = None,
+            max: Optional[np.int64] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution, nonnegative=nonnegative
+        )
 
 
 class TimeDelta(Scale[np.timedelta64]):
-    dtype: str = 'timedelta64'
+
+    def __init__(
+            self, name: str, dtype: str = 'timedelta64[ns]', categories: Optional[Container[np.timedelta64]] = None,
+            probabilities: Optional[Projection[np.timedelta64, float]] = None, min: Optional[np.timedelta64] = None,
+            max: Optional[np.timedelta64] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution, nonnegative=nonnegative
+        )
 
 
 class Ring(Scale[RType], Generic[RType]):
-    nonnegative: Optional[bool] = None
+
+    def __init__(
+            self, name: str, dtype: Optional[str] = None, categories: Optional[Container[RType]] = None,
+            probabilities: Optional[Projection[RType, float]] = None, min: Optional[RType] = None,
+            max: Optional[RType] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution, nonnegative=nonnegative
+        )
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
-        if (df[self.name][~pd.isna(df[self.name])] >= 0).all():
-            self.nonnegative = True
-        else:
-            self.nonnegative = False
-
         return self
 
 
 class Bool(Ring[np.bool]):
-    dtype: str = 'bool'
+
+    def __init__(
+            self, name: str, dtype: str = 'bool', categories: Optional[Container[np.bool]] = None,
+            probabilities: Optional[Projection[np.bool, float]] = None, min: Optional[np.bool] = None,
+            max: Optional[np.bool] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution, nonnegative=nonnegative
+        )
 
 
 class Float(Ring[np.float64]):
-    dtype: str = 'float64'
+
+    def __init__(
+            self, name: str, dtype: str = 'float64', categories: Optional[Container[np.float64]] = None,
+            probabilities: Optional[Projection[np.float64, float]] = None, min: Optional[np.float64] = None,
+            max: Optional[np.float64] = None, monotonic: Optional[bool] = None,
+            distribution: Optional[scipy.stats.rv_continuous] = None, nonnegative: Optional[bool] = None
+    ):
+        super().__init__(
+            name=name, dtype=dtype, categories=categories, probabilities=probabilities, min=min, max=max,
+            monotonic=monotonic, distribution=distribution, nonnegative=nonnegative
+        )
 
 
 def get_date_format(sr: pd.Series) -> str:
