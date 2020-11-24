@@ -19,8 +19,8 @@ class BiasMitigator:
             synthesizer: An underlying synthesizer.
             fairness_scorer: The fairness score to compute distribution biases from.
         """
-        self._bias_mitigator = _BiasMitigator(synthesizer=synthesizer.synthesizer,
-                                              fairness_scorer=fairness_scorer.fairness_scorer)
+        self._bias_mitigator = _BiasMitigator(synthesizer=synthesizer._synthesizer,
+                                              fairness_scorer=fairness_scorer._fairness_scorer)
 
     @classmethod
     def from_dataframe(cls, synthesizer: Synthesizer, df: pd.DataFrame, target: str,

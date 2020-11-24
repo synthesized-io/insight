@@ -51,7 +51,3 @@ class Synthesizer:
 
     def __exit__(self):
         self._synthesizer.__exit__()
-
-    @property
-    def synthesizer(self) -> '_Synthesizer':
-        return self._synthesizer
