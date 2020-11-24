@@ -146,6 +146,30 @@ class BiasMitigator:
 
         return df
 
+    def drop_given_biases(self, df: pd.DataFrame, biases: pd.DataFrame,
+                          progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
+        """Given a dataframe and pre-computed biases, drop all rows from the dataframe affected by those biases.
+
+        Args:
+            df: Pandas DataFrame containing the data to mitigate biases.
+            biases: Biases to be dropped.
+            progress_callback: Progress bar callback.
+
+        Returns:
+            Unbiased DataFrame.
+        """
+
+        idx_to_drop = []
+        for i, (idx, bias) in enumerate(biases.iterrows()):
+            idx_to_drop.extend(self.fairness_scorer.df[np.all(self.fairness_scorer.df[bias["name"]] == bias["value"],
+                                                              axis=1)].index)
+
+            if progress_callback is not None:
+                progress_callback(round(i * 98 / len(biases)))
+
+        df.drop(index=idx_to_drop, inplace=True)
+        return df
+
     def drop_biases(self, df: pd.DataFrame, mode: Optional[str] = None, alpha: float = 0.05,
                     min_dist: Optional[float] = 0.05, min_count: Optional[int] = 50,
                     progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
@@ -171,16 +195,7 @@ class BiasMitigator:
         dist_score, dist_biases = self.fairness_scorer.distributions_score(mode=mode, alpha=alpha, min_dist=min_dist,
                                                                            min_count=min_count)
 
-        idx_to_drop = []
-        for i, (idx, bias) in enumerate(dist_biases.iterrows()):
-            idx_to_drop.extend(self.fairness_scorer.df[np.all(self.fairness_scorer.df[bias["name"]] == bias["value"],
-                                                              axis=1)].index)
-
-            if progress_callback is not None:
-                progress_callback(round(i * 98 / len(dist_biases)))
-
-        df.drop(index=idx_to_drop, inplace=True)
-        return df
+        return self.drop_given_biases(df, dist_biases, progress_callback)
 
     def mitigate_biases_by_chunks(self, df: pd.DataFrame, chunk_size: int = 5,
                                   marginal_softener: Union[float, Tuple[float, float]] = 0.25, alpha: float = 0.05,
