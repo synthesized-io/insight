@@ -27,13 +27,16 @@ def _default_categorical(func):
     3. Meta, i.e the return type of the decorated function if the these conditions are not met
     """
     @functools.wraps(func)
-    def wrapper(cls, sr: pd.Series) -> Union['Constant', 'Categorical', 'Meta']:
+    def wrapper(cls, sr: pd.Series) -> Union['Constant', 'Nominal', 'Categorical', 'Meta']:
         n_unique = sr.nunique()
         if n_unique == 1:
             return Constant(str(sr.name))
         elif n_unique <= max(cls.min_num_unique, cls.categorical_threshold_log_multiplier * np.log(len(sr))) \
                 and (not _MetaBuilder._contains_genuine_floats(sr)):
-            return Categorical(str(sr.name), similarity_based=True if n_unique > 2 else False)
+            if n_unique == 2:
+                return Nominal(str(sr.name))
+            else:
+                return Categorical(str(sr.name))
         else:
             return func(cls, sr, **cls.kwargs)
     return wrapper
