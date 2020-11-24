@@ -148,7 +148,7 @@ class BiasMitigator:
 
     def drop_given_biases(self, df: pd.DataFrame, biases: pd.DataFrame,
                           progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
-        """Given a dataframe and pre-computed biases, all rows from the dataframe affected by these biases.
+        """Given a dataframe and pre-computed biases, drop all rows from the dataframe affected by those biases.
 
         Args:
             df: Pandas DataFrame containing the data to mitigate biases.
