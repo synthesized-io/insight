@@ -64,3 +64,7 @@ class FairnessScorer:
         return self._fairness_scorer.classification_score(threshold=threshold, classifiers=classifiers,
                                                           min_count=min_count, max_combinations=max_combinations,
                                                           progress_callback=progress_callback)
+
+    @property
+    def fairness_scorer(self) -> '_FairnessScorer':
+        return self._fairness_scorer
