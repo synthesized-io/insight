@@ -157,6 +157,7 @@ class BiasMitigator:
         Returns:
             Unbiased DataFrame.
         """
+        df = df.copy()
 
         idx_to_drop = []
         for i, (idx, bias) in enumerate(biases.iterrows()):
