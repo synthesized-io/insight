@@ -86,7 +86,8 @@ class BiasMitigator:
             data_imputer.impute_nans(df, inplace=True)
 
         self.update_df(df)
-        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode='ovr', alpha=alpha)
+        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode='ovr', alpha=alpha,
+                                                                           min_dist=None, min_count=None)
 
         if len(dist_biases) == 0:
             return df
@@ -141,9 +142,7 @@ class BiasMitigator:
             df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
                                                                       produce_nans=produce_nans,
                                                                       marginal_keys=marginal_keys)
-
-            df = pd.concat((df, df_cond)).sample(frac=1.).reset_index(drop=True)
-
+            df = pd.concat((df, df_cond))
         return df
 
     def drop_given_biases(self, df: pd.DataFrame, biases: pd.DataFrame,
@@ -234,7 +233,7 @@ class BiasMitigator:
             df = self.mitigate_biases(df, n_biases=chunk_size, marginal_softener=marginal_softener,
                                       alpha=alpha, produce_nans=produce_nans)
 
-            if len(prev_idx) == len(df.index) and all([prev == curr for prev, curr in zip(prev_idx, df.index)]):
+            if len(prev_idx) == len(df.index) and np.all(prev_idx == df.index):
                 logger.info("There are no more biases to remove.")
                 break
 
@@ -250,7 +249,7 @@ class BiasMitigator:
         if progress_callback is not None:
             progress_callback(100)
 
-        return df
+        return df.reset_index(drop=True)
 
     def add_colon_to_bias(self, bias: pd.Series, add_target: bool = False) -> List[str]:
         bias_names = bias['name']
