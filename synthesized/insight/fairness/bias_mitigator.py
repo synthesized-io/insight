@@ -250,7 +250,7 @@ class BiasMitigator:
         if progress_callback is not None:
             progress_callback(100)
 
-        return df.reset_index(drop=True)
+        return df.sample(frac=1.).reset_index(drop=True)
 
     def add_colon_to_bias(self, bias: pd.Series, add_target: bool = False) -> List[str]:
         bias_names = bias['name']
