@@ -463,6 +463,9 @@ class FairnessScorer:
         for sensitive_attr_values, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
             target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
+            if len(target_group) == 0 or len(target_rest) == 0:
+                continue
+
             dist, pval = ks_2samp(target_group, target_rest)
             if pval < alpha:
                 if np.mean(target_group) < self.target_mean:
