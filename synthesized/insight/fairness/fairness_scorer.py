@@ -177,7 +177,7 @@ class FairnessScorer:
                 progress_callback(0)
                 progress_callback(100)
 
-            return 0., pd.DataFrame([], columns=['name', 'value', 'target', 'distance', 'count'])
+            return 1., pd.DataFrame([], columns=['name', 'value', 'target', 'distance', 'count'])
 
         biases = []
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
@@ -202,17 +202,18 @@ class FairnessScorer:
         df_biases = pd.DataFrame(biases, columns=['name', 'value', 'target', 'distance', 'count'])
         df_biases = df_biases[df_biases['value'] != 'Total']
 
-        if len(df_biases) == 0:
-            score = 1.
-        elif weighted:
-            score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / (num_combinations * self.len_df)
-        else:
-            score = 1 - df_biases['distance'].abs().mean()
-
         if min_dist is not None:
             df_biases = df_biases[df_biases['distance'].abs() >= min_dist]
         if min_count is not None:
             df_biases = df_biases[df_biases['count'] >= min_count]
+
+        # Compute score
+        if len(df_biases) == 0:
+            return 1., pd.DataFrame([], columns=['name', 'value', 'target', 'distance', 'count'])
+        elif weighted:
+            score = 1 - (df_biases['distance'].abs() * df_biases['count']).sum() / (num_combinations * self.len_df)
+        else:
+            score = 1 - df_biases['distance'].abs().mean()
 
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
             .reset_index(drop=True)
