@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 import logging
 from itertools import combinations
-from math import factorial
+from math import factorial, log
 from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
 
 from ipywidgets import widgets, HBox, VBox
@@ -19,6 +19,7 @@ from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
+from ...config import MetaExtractorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -641,10 +642,15 @@ class FairnessScorer:
                 if col_date.isna().sum() == n_nans:
                     df[col] = col_date
 
+            categorical_threshold = max(
+                float(MetaExtractorConfig.min_num_unique),
+                MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
+            )
+
             num_unique = df[col].nunique()
             # If it's numeric, bin it
             if df[col].dtype.kind in ('i', 'u', 'f'):
-                if num_unique > self.n_bins:
+                if num_unique > categorical_threshold:
                     df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
 
             # If it's date, bin it
