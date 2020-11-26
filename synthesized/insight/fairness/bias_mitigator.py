@@ -137,7 +137,7 @@ class BiasMitigator:
                 marginal_counts = self.get_marginal_counts(row, marginal_counts,
                                                            marginal_softener=marginal_softener_neg, use_colons=True)
 
-            marginal_counts = {tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()}
+            marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()})
             marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
