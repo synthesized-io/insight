@@ -48,7 +48,7 @@ class FairnessScorer:
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
                  target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
-                 positive_class: Optional[str] = None, drop_dates: bool = False):
+                 positive_class: Optional[str] = None, drop_dates: bool = True):
         """FairnessScorer constructor.
 
         Args:
@@ -463,6 +463,9 @@ class FairnessScorer:
         for sensitive_attr_values, idxs in groups.items():
             target_group = self.df.loc[self.df.index.isin(idxs), self.target]
             target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
+            if len(target_group) == 0 or len(target_rest) == 0:
+                continue
+
             dist, pval = ks_2samp(target_group, target_rest)
             if pval < alpha:
                 if np.mean(target_group) < self.target_mean:
@@ -614,7 +617,7 @@ class FairnessScorer:
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
     def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True,
-                           drop_dates: bool = False) -> pd.DataFrame:
+                           drop_dates: bool = True) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
 
