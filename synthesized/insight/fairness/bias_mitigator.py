@@ -86,8 +86,9 @@ class BiasMitigator:
             data_imputer.impute_nans(df, inplace=True)
 
         self.update_df(df)
-        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode='ovr', alpha=alpha,
-                                                                           min_dist=None, min_count=None)
+        min_count = min(max(10, int(self.len_df * 0.01)), 50)
+        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode='ovr', alpha=alpha, min_dist=None,
+                                                                           min_count=min_count)
 
         if len(dist_biases) == 0:
             return df
@@ -136,6 +137,7 @@ class BiasMitigator:
                 marginal_counts = self.get_marginal_counts(row, marginal_counts,
                                                            marginal_softener=marginal_softener_neg, use_colons=True)
 
+            marginal_counts = {tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()}
             marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 

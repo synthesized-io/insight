@@ -108,7 +108,7 @@ class ConditionalSampler(Synthesizer):
             conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None,
-            max_trials: Optional[int] = 20
+            max_trials: Optional[int] = 20,
     ) -> pd.DataFrame:
         """Given joint counts, synthesize dataset."""
 
@@ -193,7 +193,15 @@ class ConditionalSampler(Synthesizer):
         if progress_callback is not None:
             progress_callback(100)
 
-        return pd.DataFrame.from_records(result, columns=self.all_columns).sample(frac=1).reset_index(drop=True)
+        df_synth = pd.DataFrame.from_records(result, columns=self.all_columns).sample(frac=1).reset_index(drop=True)
+
+        # Set same dtypes as input
+        in_dtypes = {k: v for value in self.synthesizer.df_meta.all_values for k, v in value.in_dtypes.items()}
+        for col_name, col_dtype in in_dtypes.items():
+            if str(df_synth[col_name].dtype) != str(col_dtype):
+                df_synth.loc[:, col_name] = df_synth.loc[:, col_name].astype(col_dtype)
+
+        return df_synth
 
     def alter_distributions(self,
                             df: pd.DataFrame,
