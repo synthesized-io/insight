@@ -28,7 +28,6 @@ class BiasMitigator:
         self.sensitive_attrs = self.fairness_scorer.sensitive_attrs
         self.synthesizer = synthesizer
         self.cond_sampler = ConditionalSampler(synthesizer, min_sampled_ratio=0, synthesis_batch_size=262_144)
-        self.update_df()
 
     @classmethod
     def from_dataframe(cls, synthesizer: Synthesizer, df: pd.DataFrame, target: str,
@@ -50,18 +49,9 @@ class BiasMitigator:
         bias_mitigator = cls(synthesizer=synthesizer, fairness_scorer=fairness_scorer)
         return bias_mitigator
 
-    def update_df(self, df: Optional[pd.DataFrame] = None) -> None:
-        """If the dataframe changes, call this function to update DF-related attributes."""
-
-        if df is not None:
-            self.fairness_scorer.set_df(df)
-
-        self.vc_all = self.fairness_scorer.target_vc
-        self.len_df = self.fairness_scorer.len_df
-
     def mitigate_biases(self, df: pd.DataFrame, n_biases: int = 5,
                         marginal_softener: Union[float, Tuple[float, float]] = 0.25,
-                        alpha: float = 0.05, get_independent: bool = False,
+                        alpha: float = 0.05, min_dist: Optional[float] = 0.01, get_independent: bool = False,
                         produce_nans: bool = False) -> pd.DataFrame:
         """Mitigate n biases
 
@@ -71,8 +61,9 @@ class BiasMitigator:
             marginal_softener: Whether to mitigate each bias completely (1.) or just a proportion of it. If float, both
                 positive and negative biases will use the same value, if tuple will use (positive, negative).
             alpha: Maximum p-value to accept a bias.
+            min_dist: If set, any bias with smaller distance than min_dist will be ignored.
             get_independent: Whether to only mitigate independent biases.
-            produce_nans:  Whether the output DF contains NaNs.
+            produce_nans: Whether the output DF contains NaNs.
         """
 
         if self.fairness_scorer.target_variable_type == VariableType.Continuous:
@@ -85,23 +76,7 @@ class BiasMitigator:
             data_imputer = DataImputer(self.synthesizer)
             data_imputer.impute_nans(df, inplace=True)
 
-        self.update_df(df)
-        min_count = min(max(10, int(self.len_df * 0.01)), 50)
-        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode='ovr', alpha=alpha, min_dist=None,
-                                                                           min_count=min_count)
-
-        if len(dist_biases) == 0:
-            return df
-
-        dist_biases_pos = dist_biases[dist_biases['distance'] > 0].copy()
-        dist_biases_neg = dist_biases[dist_biases['distance'] < 0].copy()
-        if get_independent:
-            dist_biases_pos = self.get_top_independent_biases(dist_biases_pos, n=n_biases)
-            dist_biases_neg = self.get_top_independent_biases(dist_biases_neg, n=n_biases)
-        else:
-            dist_biases_pos = dist_biases_pos.head(n_biases)
-            dist_biases_neg = dist_biases_neg.head(n_biases)
-
+        # Marginal softener
         if isinstance(marginal_softener, float):
             marginal_softener_pos = marginal_softener_neg = marginal_softener
         elif isinstance(marginal_softener, tuple) and \
@@ -116,6 +91,8 @@ class BiasMitigator:
                              f"given ({marginal_softener_pos}, {marginal_softener_neg})")
 
         # Positive counts - Need to under-sample
+        dist_biases_pos = self.get_biases(df, n_biases=n_biases, positive=True,
+                                          get_independent=get_independent, alpha=alpha, min_dist=min_dist)
         if len(dist_biases_pos) > 0 and marginal_softener_pos > 0:
             samples_to_remove: List[int] = []
             for idx, row in dist_biases_pos.iterrows():
@@ -129,6 +106,8 @@ class BiasMitigator:
             df = df[~df.index.isin(samples_to_remove)]
 
         # Negative counts - Need to generate samples
+        dist_biases_neg = self.get_biases(df, n_biases=n_biases, positive=True,
+                                          get_independent=get_independent, alpha=alpha, min_dist=min_dist)
         if len(dist_biases_neg) > 0 and marginal_softener_neg > 0:
             dist_biases_neg['value_w_colons'] = dist_biases_neg.apply(self.add_colon_to_bias, axis=1)
 
@@ -138,7 +117,7 @@ class BiasMitigator:
                                                            marginal_softener=marginal_softener_neg, use_colons=True)
 
             marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()})
-            marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
+            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique()))
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
             df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
@@ -193,9 +172,8 @@ class BiasMitigator:
 
         df = df.copy()
 
-        self.update_df(df)
-        dist_score, dist_biases = self.fairness_scorer.distributions_score(mode=mode, alpha=alpha, min_dist=min_dist,
-                                                                           min_count=min_count)
+        dist_score, dist_biases = self.fairness_scorer.distributions_score(df, mode=mode, alpha=alpha,
+                                                                           min_dist=min_dist, min_count=min_count)
 
         return self.drop_given_biases(df, dist_biases, progress_callback)
 
@@ -278,7 +256,7 @@ class BiasMitigator:
 
         if not 0 < marginal_softener <= 1.:
             raise ValueError(f"Value of marginal_softener must be in the interval (0., 1.], found {marginal_softener}")
-        assert self.vc_all is not None
+        assert self.fairness_scorer.target_vc is not None
 
         if marginal_counts is None:
             marginal_counts = Counter()
@@ -298,13 +276,37 @@ class BiasMitigator:
         vc_this = Counter(vc_this.to_dict())
 
         target_value = bias['target']
-        target_rate = self.vc_all[target_value]
+        target_rate = self.fairness_scorer.target_vc[target_value]
         count = sum(vc_this.values())
 
         value_count = int(abs((target_rate * count - vc_this[target_value]) / (1 - target_rate)) * marginal_softener)
         marginal_counts[tuple(values_w_colons + [target_value])] += value_count
 
         return marginal_counts
+
+    def get_biases(self, df: pd.DataFrame, n_biases: int, positive: bool, get_independent: bool = False,
+                   mode: str = 'ovr', alpha: float = 0.05, min_dist: Optional[float] = 0.01) -> pd.DataFrame:
+        """Compute biases and return a sample of them."""
+
+        min_count = min(max(10, int(self.fairness_scorer.len_df * 0.01)), 50)
+        dist_score, dist_biases = self.fairness_scorer.distributions_score(
+            df, mode=mode, alpha=alpha, min_dist=min_dist, min_count=min_count, condense_output=False)
+
+        # Sort dist biases by distance * count
+        sorted_idx = (dist_biases['distance'].abs() * dist_biases['count']).sort_values(ascending=False).index
+        dist_biases = dist_biases.reindex(sorted_idx).reset_index(drop=True)
+
+        if positive:
+            dist_biases = dist_biases[dist_biases['distance'] > 0].copy()
+        else:
+            dist_biases = dist_biases[dist_biases['distance'] < 0].copy()
+
+        if get_independent:
+            dist_biases = self.get_top_independent_biases(dist_biases, n=n_biases)
+        else:
+            dist_biases = dist_biases.head(n_biases)
+
+        return dist_biases
 
     @staticmethod
     def get_top_independent_biases(df_biases: pd.DataFrame, n: int = 10) -> pd.DataFrame:
