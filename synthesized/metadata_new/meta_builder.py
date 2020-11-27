@@ -4,7 +4,7 @@ from dataclasses import asdict
 import numpy as np
 import pandas as pd
 
-from .base import Meta, ValueMeta, Ordinal, Nominal
+from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .datetime import Date, TimeDelta, get_date_format
 from .bool import Bool
