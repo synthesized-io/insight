@@ -340,11 +340,12 @@ class FairnessScorer:
         target_totals['Rate'] = target_totals / len(self.df)
         target_totals = target_totals.set_index(pd.MultiIndex.from_tuples([('Total', a) for a in target_totals.index]))
 
-        name = f"({', '.join(sensitive_attr)})"
         index = sensitive_group_target_counts.index.droplevel(-1)
-        index_fmt = index.map(lambda sa: f"({', '.join(sa)})").rename(name)
+        name = sensitive_attr_concat_name(sensitive_attr)
+        self.names_str_to_list[name] = sensitive_attr
 
         if len(sensitive_attr) > 1:
+            index_fmt = index.map(lambda sa: f"({', '.join([str(sa_i) for sa_i in sa])})").rename(name)
             sensitive_group_target_counts = sensitive_group_target_counts.droplevel(sensitive_attr)\
                 .set_index(index_fmt, append=True).swaplevel()
             self.values_str_to_list = {**self.values_str_to_list, **{k: list(v) for k, v in zip(index_fmt, index)}}
