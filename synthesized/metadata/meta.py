@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Dict
 from datetime import datetime
 
 import numpy as np
@@ -42,6 +42,14 @@ class Date(Affine[np.datetime64]):
         df[self.name] = df[self.name].dt.strftime(self.date_format)
 
         return self
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "date_format": self.date_format
+        })
+
+        return d
 
 
 class Integer(Scale[np.int64]):

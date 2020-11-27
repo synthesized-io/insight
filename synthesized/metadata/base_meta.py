@@ -79,57 +79,12 @@ class Meta(MutableMapping[str, 'Meta']):
         """
         Convert the Meta to a dictionary.
         The tree structure is converted to the following form:
-        Meta.__class.__.__name__: {
+        {
             attr: value,
-            value_meta_attr: {
-                value_meta_attr.__class__.__name__: (**value_meta_attr.__dict__}
-                )
+            children: {
+                name: {**value_meta_attr.__dict__}
             }
         }
-        Examples:
-            >>> customer = Meta('customer')
-            >>> customer['title'] = Nominal('title')
-            >>> customer['address'] = Meta('customer_address')
-            >>> customer['address']['street'] = Nominal('street')
-            Convert to dictionary:
-            >>> customer.to_dict()
-            {
-                'name': 'customer',
-                'class': 'Meta',
-                'extracted': False,
-                'children': {
-                    'age': {
-                        'name': 'age',
-                        'class': 'Integer',
-                        'extracted': False,
-                        'dtype': 'int64',
-                        'domain': [],
-                        'probabilities': [],
-                        'similarity_based': True,
-                        'min': None,
-                        'max': None,
-                        'distribution': None,
-                        'monotonic': False,
-                        'nonnegative': None
-                        }
-                    },
-                    'customer_address': {
-                        'name': 'customer_address',
-                        'class': 'Meta',
-                        'extracted': False,
-                        'children': {
-                            'street': {
-                                'name': 'street',
-                                'class': 'Nominal',
-                                'extracted': False,
-                                'dtype': None,
-                                'domain': [],
-                                'probabilities': []
-                            }
-                        }
-                    }
-                }
-            }
         See also:
             Meta.from_dict: construct a Meta from a dictionary
         """

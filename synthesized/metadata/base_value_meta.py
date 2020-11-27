@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, List, cast
+from typing import Any, Generic, TypeVar, Optional, List, cast, Dict
 from functools import cmp_to_key
 
 import numpy as np
@@ -93,6 +93,15 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         return self
 
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "nan_freq": self.nan_freq,
+            "domain": self.domain
+        })
+
+        return d
+
     def infer_domain(self, df: pd.DataFrame) -> Domain[NType]:
         return cast(Domain[NType], df[self.name].unique().tolist())
 
@@ -131,6 +140,15 @@ class Ordinal(Nominal[OType], Generic[OType]):
             self.max = unique_sorted[-1]
 
         return self
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "min": self.min,
+            "max": self.max
+        })
+
+        return d
 
     def less_than(self, x: OType, y: OType) -> bool:
         """Return True if x < y"""

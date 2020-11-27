@@ -38,3 +38,14 @@ class DataFrameMeta(Meta):
         for child in self.children:
             col_meta[child.name] = child
         return col_meta
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "id_index": self.id_index,
+            "time_index": self.time_index,
+            "column_aliases": self.column_aliases,
+            "num_columns": self.num_columns
+        })
+
+        return d
