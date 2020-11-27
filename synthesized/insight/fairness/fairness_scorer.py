@@ -189,7 +189,7 @@ class FairnessScorer:
         if df is not None:  # For backward compatibility we make it optional
             self.set_df(df)
 
-        if len(self.sensitive_attrs) == 0 or len(self.df) == 0:
+        if len(self.sensitive_attrs) == 0 or len(self.df) == 0 or len(self.df.dropna()) == 0:
             if progress_callback is not None:
                 progress_callback(0)
                 progress_callback(100)
@@ -277,19 +277,23 @@ class FairnessScorer:
 
         return df_dist
 
-    def classification_score(self, threshold: float = 0.05, classifiers: Optional[Dict[str, BaseEstimator]] = None,
+    def classification_score(self, df: Optional[pd.DataFrame] = None, threshold: float = 0.05,
+                             classifiers: Optional[Dict[str, BaseEstimator]] = None,
                              min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,
                              progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples.
 
         Args:
+            df: Dataframe to compute fairness.
             threshold: If set, any bias with smaller outcome than threshold will be ignored.
             classifiers: Dictionary of classifiers to perform tasks on.
             min_count: If set, any bias with less samples than min_count will be ignored.
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
+        if df is not None:  # For backward compatibility we make it optional
+            self.set_df(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
