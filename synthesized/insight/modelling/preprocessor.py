@@ -60,7 +60,7 @@ class ModellingPreprocessor:
                 self.column_encoders[v.name] = encoder
 
             elif v.name in continuous_names:
-                x_i = column.astype(np.float32).to_numpy().reshape(-1, 1)
+                x_i = pd.to_numeric(column, errors="coerce").to_numpy().reshape(-1, 1)
                 if isinstance(v, NanMeta):
                     self.column_encoders[v.name] = Pipeline([('imputer', SimpleImputer()),
                                                              ('scaler', StandardScaler())])
@@ -107,7 +107,8 @@ class ModellingPreprocessor:
                     c_name_i = ['{}_{}'.format(v.name, enc) for enc in encoder.categories_[0][1:]]
 
             elif v.name in continuous_names:
-                x_i = self.column_encoders[v.name].transform(column.to_numpy().reshape(-1, 1))
+                x_i = pd.to_numeric(column, errors="coerce").to_numpy().reshape(-1, 1)
+                x_i = self.column_encoders[v.name].transform(x_i)
                 c_name_i = [v.name]
 
             else:
