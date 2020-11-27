@@ -1,13 +1,24 @@
-from typing import Optional, TypeVar, Dict
+from typing import Optional, TypeVar, Dict, Type
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-from .base_value_meta import Domain, Affine, Scale, Ring
+from .base import Domain, Affine, Scale
 from .exceptions import UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='Date')
+
+
+class TimeDelta(Scale[np.timedelta64]):
+    class_name: str = 'TimeDelta'
+    dtype: str = 'timedelta64[ns]'
+
+    def __init__(
+            self, name: str, domain: Optional[Domain[np.timedelta64]] = None, nan_freq: Optional[float] = None,
+            min: Optional[np.timedelta64] = None, max: Optional[np.timedelta64] = None
+    ):
+        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
 
 
 class Date(Affine[np.datetime64]):
@@ -43,6 +54,10 @@ class Date(Affine[np.datetime64]):
 
         return self
 
+    @classmethod
+    def unit_meta(cls) -> Type[TimeDelta]:
+        return TimeDelta
+
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
@@ -50,50 +65,6 @@ class Date(Affine[np.datetime64]):
         })
 
         return d
-
-
-class Integer(Scale[np.int64]):
-    class_name: str = 'Integer'
-    dtype: str = 'int64'
-
-    def __init__(
-            self, name: str, domain: Optional[Domain[np.int64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.int64] = None, max: Optional[np.int64] = None
-    ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
-
-
-class TimeDelta(Scale[np.timedelta64]):
-    class_name: str = 'TimeDelta'
-    dtype: str = 'timedelta64[ns]'
-
-    def __init__(
-            self, name: str, domain: Optional[Domain[np.timedelta64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.timedelta64] = None, max: Optional[np.timedelta64] = None
-    ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
-
-
-class Bool(Ring[np.bool]):
-    class_name: str = 'Bool'
-    dtype: str = 'bool'
-
-    def __init__(
-            self, name: str, domain: Optional[Domain[np.bool]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.bool] = None, max: Optional[np.bool] = None
-    ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
-
-
-class Float(Ring[np.float64]):
-    class_name: str = 'Float'
-    dtype: str = 'float64'
-
-    def __init__(
-            self, name: str, domain: Optional[Domain[np.float64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.float64] = None, max: Optional[np.float64] = None
-    ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
 
 
 def get_date_format(sr: pd.Series) -> str:

@@ -1,15 +1,17 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, List, cast, Dict
+from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type
 from functools import cmp_to_key
 
 import numpy as np
 import pandas as pd
 
-from .base_meta import Meta
-from .exceptions import MetaNotExtractedError
+from .domain import Domain
+from .meta import Meta
+from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
-NType = TypeVar("NType", np.character, np.datetime64, np.integer, np.timedelta64, np.bool8, np.float64, covariant=True)
+NType = TypeVar(
+    "NType", str, np.character, np.datetime64, np.integer, np.timedelta64, np.bool8, np.float64, covariant=True)
 OType = TypeVar("OType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
 AType = TypeVar("AType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
 SType = TypeVar("SType", np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
@@ -21,19 +23,6 @@ OrdinalType = TypeVar('OrdinalType', bound='Ordinal[Any]')
 AffineType = TypeVar('AffineType', bound='Affine[Any]')
 ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
 RingType = TypeVar('RingType', bound='Ring[Any]')
-
-KT = TypeVar('KT')
-VT = TypeVar('VT', covariant=True)
-
-
-class Domain(Generic[KT]):
-    @abstractmethod
-    def __contains__(self, item: KT) -> bool:
-        pass
-
-    @abstractmethod
-    def tolist(self) -> List[KT]:
-        pass
 
 
 class ValueMeta(Meta, Generic[DType]):
@@ -103,7 +92,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         return d
 
     def infer_domain(self, df: pd.DataFrame) -> Domain[NType]:
-        return cast(Domain[NType], df[self.name].unique().tolist())
+        return cast(Domain[NType], df[self.name].unique())
 
 
 class Ordinal(Nominal[OType], Generic[OType]):
@@ -197,7 +186,6 @@ class Affine(Ordinal[AType], Generic[AType]):
 
     """
     class_name: str = 'Affine'
-    unit: Optional['Scale[Any]'] = None
 
     def __init__(
             self, name: str, domain: Optional[Domain[AType]] = None, nan_freq: Optional[float] = None,
@@ -208,6 +196,11 @@ class Affine(Ordinal[AType], Generic[AType]):
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
         return self
+
+    @classmethod
+    @abstractmethod
+    def unit_meta(cls: Type[AffineType]) -> Type['Scale[Any]']:
+        pass
 
 
 class Scale(Affine[SType], Generic[SType]):
@@ -223,7 +216,6 @@ class Scale(Affine[SType], Generic[SType]):
     Attributes:
     """
     class_name: str = 'Scale'
-    unit: Optional['Scale[SType]'] = None
 
     def __init__(
             self, name: str, domain: Optional[Domain[SType]] = None, nan_freq: Optional[float] = None,
@@ -235,6 +227,10 @@ class Scale(Affine[SType], Generic[SType]):
         super().extract(df)
 
         return self
+
+    @classmethod
+    def unit_meta(cls: Type[ScaleType]) -> Type[ScaleType]:
+        return cls
 
 
 class Ring(Scale[RType], Generic[RType]):

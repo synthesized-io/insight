@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 import pandas as pd
 
-from .base_meta import Meta
+from .base import Meta
 
 
 class DataFrameMeta(Meta):
