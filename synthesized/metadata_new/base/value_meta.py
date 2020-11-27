@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, List
+from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, List, Sequence
 from functools import cmp_to_key
 
 import numpy as np
@@ -7,15 +7,13 @@ import pandas as pd
 
 from .domain import Domain
 from .meta import Meta
-from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
-NType = TypeVar(
-    "NType", str, np.character, np.datetime64, np.integer, np.timedelta64, np.bool8, np.float64, covariant=True)
-OType = TypeVar("OType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
-AType = TypeVar("AType", np.datetime64, np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
-SType = TypeVar("SType", np.integer, np.timedelta64, np.bool8, np.floating, covariant=True)
-RType = TypeVar("RType", np.bool8, np.floating, covariant=True)
+NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
+OType = TypeVar("OType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
+AType = TypeVar("AType", np.datetime64, np.timedelta64, int, float, bool, covariant=True)
+SType = TypeVar("SType", np.timedelta64, int, float, bool, covariant=True)
+RType = TypeVar("RType", float, bool, covariant=True)
 
 ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
 NominalType = TypeVar('NominalType', bound='Nominal[Any]')
@@ -118,7 +116,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
             self, name: str, domain: Optional[Domain[OType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq)
+        super().__init__(name=name, domain=domain, nan_freq=nan_freq)  # type: ignore
         self.min: Optional[OType] = min
         self.max: Optional[OType] = max
 
@@ -126,7 +124,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
         super().extract(df)
         self.domain = cast(Domain[OType], self.domain)
 
-        unique_sorted = self.sort(pd.Series(df[self.name].unique())).tolist()
+        unique_sorted = self.sort(self.domain.tolist())
 
         if self.min is None:
             self.min = unique_sorted[0]
@@ -144,23 +142,9 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
         return d
 
+    @abstractmethod
     def less_than(self, x: OType, y: OType) -> bool:
-        """Return True if x < y"""
-        if not self._extracted:
-            raise MetaNotExtractedError
-        self.domain = cast(Domain[OType], self.domain)
-
-        if x not in self.domain or y not in self.domain:
-            raise ValueError(f"x={x} or y={y} are not valid categories.")
-
-        try:
-            b = x < y
-            if type(b) is not bool:
-                raise TypeError
-            return cast(bool, b)
-
-        except TypeError:
-            raise ValueError(f"x={x} or y={y} are not valid categories.")
+        pass
 
     def _predicate(self, x: Any, y: Any) -> int:
         if self.less_than(x, y):
@@ -170,10 +154,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
         else:
             return -1
 
-    def sort(self, sr: pd.Series) -> pd.Series:
+    def sort(self, sr: Sequence[OType]) -> Sequence[OType]:
         """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
-        return pd.Series(sorted(sr, key=key, reverse=True))
+        return sorted(sr, key=key, reverse=True)
 
 
 class Affine(Ordinal[AType], Generic[AType]):
@@ -196,7 +180,7 @@ class Affine(Ordinal[AType], Generic[AType]):
             self, name: str, domain: Optional[Domain[AType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
@@ -226,7 +210,7 @@ class Scale(Affine[SType], Generic[SType]):
             self, name: str, domain: Optional[Domain[SType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
@@ -245,7 +229,7 @@ class Ring(Scale[RType], Generic[RType]):
             self, name: str, domain: Optional[Domain[RType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
