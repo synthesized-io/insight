@@ -2,7 +2,6 @@ from typing import List, Dict, Type, TypeVar, MutableMapping, Iterator, cast
 
 import pandas as pd
 
-
 MetaType = TypeVar('MetaType', bound='Meta')
 
 
