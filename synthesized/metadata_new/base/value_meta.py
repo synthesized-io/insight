@@ -7,6 +7,7 @@ import pandas as pd
 
 from .domain import Domain
 from .meta import Meta
+from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
 NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
@@ -142,9 +143,17 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
         return d
 
-    @abstractmethod
     def less_than(self, x: OType, y: OType) -> bool:
-        pass
+        if not self._extracted:
+            raise MetaNotExtractedError
+
+        self.domain = cast(Domain[OType], self.domain)
+
+        if x not in self.domain or y not in self.domain:
+            raise ValueError(f"x={x} or y={y} are not valid categories.")
+
+        b: bool = x < y
+        return b
 
     def _predicate(self, x: Any, y: Any) -> int:
         if self.less_than(x, y):
