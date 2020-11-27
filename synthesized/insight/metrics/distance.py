@@ -93,7 +93,7 @@ def binominal_proportion_interval(p: float, n: int, cl=0.95, method: str = 'clop
     return ConfidenceInterval((low, high), cl)
 
 
-def binominal_proportion_p_value(p_obs: float, p_null: float, n: int) -> float:
+def binominal_proportion_p_value(p_obs: float, p_null: float, n: int, alternative: str = 'two-sided') -> float:
     """
     Calculate an exact p-value for an observed binomial proportion of a sample.
 
@@ -101,12 +101,14 @@ def binominal_proportion_p_value(p_obs: float, p_null: float, n: int) -> float:
         p_obs: Observed proportion of successes.
         p_null: Expected proportion of sucesses under null hypothesis.
         n: Sample size.
+        alternative: Optional; Indicates the alternative hypothesis.
+            One of 'two-sided', 'greater' ,'less',
 
     Returns:
         The p-value under the null hypothesis.
     """
     k = np.ceil(p_obs * n)
-    return binom_test(k, n, p_null, 'two-sided')
+    return binom_test(k, n, p_null, alternative)
 
 
 def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.ndarray], float],
@@ -196,23 +198,96 @@ class DistanceMetric():
         ...
 
     def p_value(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+        """
+        Return a p-value for this metric using a permutation test. The null hypothesis
+        is that both data samples are from the same distribution.
+
+        Args:
+            x (pd.Series): First distribution.
+            y (pd.Series): Second distribution.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
         return permutation_test(x, y, lambda x, y: self.distance(x, y, **kwargs))
 
-    def interval(self, x: pd.Series, y: pd.Series, level: float = 0.95, **kwargs) -> ConfidenceInterval:
+    def interval(self, x: pd.Series, y: pd.Series, cl: float = 0.95, **kwargs) -> ConfidenceInterval:
         """
         Return a frequentist confidence interval for this metric obtained, via bootstrap resampling.
 
         Args:
-            level: The confidence level of the interval, i.e the fraction of intervals
+            cl: The confidence level of the interval, i.e the fraction of intervals
                    that will contain the true distance estimate.
 
             **kwargs: Optional keyword arguments to synthesized.insight.metrics.distance.bootstrap_interval.
+
+        Returns:
+            The confidence interval.
         """
         if not self.bootstrap_method:
             raise TypeError("Unable to perform bootstrap resampling of this metric.")
         else:
-            interval = self.bootstrap_method((x, y), lambda x, y: self.distance(x, y, **kwargs))
-            return ConfidenceInterval(interval, level)
+            interval = bootstrap_interval((x, y), lambda x, y: self.distance(x, y, **kwargs), cl=cl)
+            return ConfidenceInterval(interval, cl)
+
+
+class BinomialDistance(DistanceMetric):
+    """
+    Difference distance between two binomal data samples.
+    """
+    def distance(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+        """
+        Calculate the difference distance, i.e p_x - p_y, where p_x
+        is the probability of success in sample x and p_y is the
+        probablity of success in sample y.
+
+        Data is assumed to be a series of 1, 0 (success, failure) Bernoulli
+        random variates.
+
+        Args:
+            x: First binomial data sample.
+            y: Second binomial data sample.
+
+        Returns:
+            Difference between p_x and p_y.
+        """
+        return x.mean() - y.mean()
+
+    def p_value(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+        """
+        Calculate a p-value for the null hypothesis that the
+        probability of success is p_y.
+
+        Args:
+            x (pd.Series): First binomial data sample.
+            y (pd.Series): Second binomial data sample.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        p_obs = x.mean()
+        p_null = y.mean()
+        n = len(x)
+        return binominal_proportion_p_value(p_obs, p_null, n)
+
+    def interval(self, x: pd.Series, y: pd.Series, cl: Optional[float] = 0.95, **kwargs) -> ConfidenceInterval:
+        """
+        Calculate a confidence interval for this distance metric.
+
+        Args:
+            x: First binomial data sample.
+            y: Second binomial data sample.
+            cl: Optional; The confidence level of the interval, i.e the fraction of intervals
+                that will contain the true distance estimate.
+
+        Returns:
+            The confidence interval.
+        """
+        p = x.mean()
+        n = len(x)
+        interval = binominal_proportion_interval(p, n, cl, **kwargs)
+        interval.value = interval.value[0] - y.mean(), interval.value[1] - y.mean()
+        return interval
 
 
 class KolmogorovSmirnovDistance(DistanceMetric):
@@ -304,3 +379,17 @@ class EarthMoversDistance(DistanceMetric):
             The earth mover's distance.
         """
         return pyemd.emd_samples(x, y, **kwargs)
+
+
+class HellingerDistance(DistanceMetric):
+
+    def __init__(self, x: pd.Series, y: pd.Series, bins = 'auto'):
+        self.x = x
+        self.y = y
+        self.bins = bins
+
+    @property
+    def distance(self) -> float:
+        x_hist, bins = np.histogram(self.x, bins=self.bins, density=True)
+        y_hist, bins = np.histogram(self.y, bins=bins, density=True)
+        return 1/np.sqrt(2) * np.sqrt(np.sum((np.sqrt(x_hist) - np.sqrt(y_hist))**2))
