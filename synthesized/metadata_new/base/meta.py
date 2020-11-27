@@ -49,7 +49,7 @@ class Meta(MutableMapping[str, 'Meta']):
         self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(name={self.name})'
+        return f'{self.class_name}(name={self.name})'
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""

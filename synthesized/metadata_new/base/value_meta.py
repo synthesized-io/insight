@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type
+from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, List
 from functools import cmp_to_key
 
 import numpy as np
@@ -43,15 +43,20 @@ class ValueMeta(Meta, Generic[DType]):
         super().__init__(name=name)
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
+        return f'{self.class_name}(name={self.name}, dtype={self.dtype})'
 
-    def __str__(self) -> str:
-        return repr(self)
+    @property
+    def children(self) -> List['Meta']:
+        """Return the children of this Meta."""
+        return []
 
-    def extract(self: ValueMetaType, df: pd.DataFrame) -> ValueMetaType:
-        super().extract(df)
-        self._extracted = True
-        return self
+    @children.setter
+    def children(self, children: List['Meta']) -> None:
+        if len(children) > 0:
+            raise ValueError('ValueMeta cannot have children')
+
+    def __setitem__(self, k: str, v: 'Meta') -> None:
+        raise ValueError('ValueMeta cannot have children')
 
 
 class Nominal(ValueMeta[NType], Generic[NType]):
