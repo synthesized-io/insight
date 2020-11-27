@@ -9,6 +9,10 @@ class MetaNotExtractedError(Exception):
     pass
 
 
+class ExtractionError(Exception):
+    pass
+
+
 class UnsupportedDtypeError(Exception):
     pass
 
