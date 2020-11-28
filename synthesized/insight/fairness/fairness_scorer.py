@@ -328,48 +328,31 @@ class FairnessScorer:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
-        df = self.df.copy()
-        df = df[~(df[sensitive_attr] == 'nan').any(1)]
 
-        df['Count'] = 0
+        target = self.target
+        # Get group counts & rates
+        sensitive_group_target_counts = self.df.groupby(sensitive_attr + [target])[target].aggregate(Count='count')
+        sensitive_group_size = self.df.groupby(sensitive_attr).size()
+        sensitive_group_target_counts['Rate'] = sensitive_group_target_counts['Count'] / sensitive_group_size
+
+        # Get total counts & rates
+        target_totals = self.df.groupby(target)[target].aggregate(Count='count')
+        target_totals['Rate'] = target_totals / len(self.df)
+        target_totals = target_totals.set_index(pd.MultiIndex.from_tuples([('Total', a) for a in target_totals.index]))
+
+        index = sensitive_group_target_counts.index.droplevel(-1)
         name = sensitive_attr_concat_name(sensitive_attr)
         self.names_str_to_list[name] = sensitive_attr
 
-        if type(sensitive_attr) == list and len(sensitive_attr) > 1:
-            name_col = []
-            for r in df.iterrows():
-                sensitive_attr_values = [r[1][sa] for sa in sensitive_attr]
-                sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
-                if sensitive_attr_str not in self.values_str_to_list.keys():
-                    self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
-                name_col.append(sensitive_attr_str)
+        if len(sensitive_attr) > 1:
+            index_fmt = index.map(lambda sa: f"({', '.join([str(sa_i) for sa_i in sa])})").rename(name)
+            sensitive_group_target_counts = sensitive_group_target_counts.droplevel(sensitive_attr)\
+                .set_index(index_fmt, append=True).swaplevel()
+            self.values_str_to_list = {**self.values_str_to_list, **{k: list(v) for k, v in zip(index_fmt, index)}}
+        else:
+            self.values_str_to_list = {**self.values_str_to_list, **{k: [k] for k in index}}
 
-            df[name] = name_col
-            df.drop(sensitive_attr, axis=1, inplace=True)
-
-        elif len(sensitive_attr) == 1:
-            for sensitive_attr_str in df[name].unique():
-                if sensitive_attr_str not in self.values_str_to_list.keys():
-                    self.values_str_to_list[sensitive_attr_str] = [sensitive_attr_str]
-
-        df_count = df.groupby([name, self.target]).count()[['Count']]
-
-        for t in df[self.target].unique():
-            df_count.loc[('Total', t), 'Count'] = sum(df_count['Count'][:, t])
-
-        df_count['Rate'] = 0.
-        rate_idx = list(df_count.columns).index('Rate')
-        count_idx = list(df_count.columns).index('Count')
-
-        attr_count_sum: Dict[str, int] = dict()
-        for idx, row in df_count.iterrows():
-            attr = idx[0]
-            if attr not in attr_count_sum.keys():
-                attr_count_sum[attr] = df_count['Count'][attr].sum()
-
-            row[rate_idx] = row[count_idx] / attr_count_sum[attr]
-
-        return df_count
+        return pd.concat((sensitive_group_target_counts, target_totals))
 
     def format_bias(self, bias: pd.DataFrame) -> List[Dict[str, Any]]:
         if len(bias) == 0:
