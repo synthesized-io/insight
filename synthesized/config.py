@@ -59,10 +59,26 @@ class PersonMetaConfig:
 
 
 @dataclass
-class MetaExtractorConfig(AddressMetaConfig, PersonMetaConfig):
+class MetaFactoryConfig():
+    """
+    Attributes:
+        categorical_threshold_log_multiplier: if number of unique values
+            in a pd.Series is below this value a Categorical meta is returned.
+        min_nim_unique: if number of unique values in pd.Series
+            is below this a Categorical meta is returned.
+        acceptable_nan_frac: when interpreting a series of type 'O',
+            data is cast to numeric and non numeric types are cast to
+            NaNs. If the frequency of NaNs is below this threshold, and
+            Categorcial meta has not been inferred, then Float or Integer meta
+            is returned.
+    """
     categorical_threshold_log_multiplier: float = 2.5
     parsing_nan_fraction_threshold: float = 0.25
     min_num_unique: int = 10
+
+
+@dataclass
+class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig):
 
     @property
     def value_factory_config(self):
