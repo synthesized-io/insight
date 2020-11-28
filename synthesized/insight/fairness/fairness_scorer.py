@@ -48,7 +48,7 @@ class FairnessScorer:
     """
 
     def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
-                 target_n_bins: Optional[int] = None, detect_sensitive: bool = False, detect_hidden: bool = False,
+                 target_n_bins: Optional[int] = 5, detect_sensitive: bool = False, detect_hidden: bool = False,
                  positive_class: Optional[str] = None, drop_dates: bool = True):
         """FairnessScorer constructor.
 
@@ -109,6 +109,7 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
+        self.column_bins: Dict[str, List[np.ndarray]] = dict()
         self.set_df(df, positive_class=positive_class)
 
         self.values_str_to_list: Dict[str, List] = dict()
@@ -118,14 +119,23 @@ class FairnessScorer:
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
 
-        self.df = df.copy()
+        self.df = df[~df[self.target].isna()].copy()
+
         other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
         self.df.drop(other_columns, axis=1, inplace=True)
         if len(self.df) == 0:
             return
 
-        self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates)
-        self.target_variable_type = self.manipulate_target_variable(self.df)
+        categorical_threshold = int(max(
+            float(MetaExtractorConfig.min_num_unique),
+            MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
+        ))
+
+        self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates,
+                                categorical_threshold=categorical_threshold)
+
+        self.target_variable_type = self.manipulate_target_variable(self.df,
+                                                                    categorical_threshold=categorical_threshold)
 
         self.len_df = len(self.df)
         # Only set positive class for binary/multinomial, even if given.
@@ -155,25 +165,31 @@ class FairnessScorer:
     def sensitive_attrs_and_target(self) -> List[str]:
         return list(np.concatenate((self.sensitive_attrs, [self.target])))
 
-    def distributions_score(self, mode: Optional[str] = None, alpha: float = 0.05,
+    def distributions_score(self, df: Optional[pd.DataFrame] = None,
+                            mode: Optional[str] = None, alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
-                            weighted: bool = True, max_combinations: Optional[int] = 3,
+                            weighted: bool = True, max_combinations: Optional[int] = 3, condense_output: bool = True,
                             progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
         """Returns the biases and fairness score by analyzing the distribution difference between
         sensitive variables and the target variable.
 
         Args:
+            df: Dataframe to compute fairness.
+            mode: Only used for multinomial target variable. Two modes are available, 'ovr' and 'emd', 'ovr'
+                performs binary class with one-vs-rest, and 'emd' computes earth mover's distance.
             alpha: Maximum p-value to accept a bias
             min_dist: If set, any bias with smaller distance than min_dist will be ignored.
             min_count: If set, any bias with less samples than min_count will be ignored.
             weighted: Whether to weight the average of biases on the size of each sample.
             max_combinations: Max number of combinations of sensitive attributes to be considered.
-            mode: Only used for multinomial target variable. Two modes are available, 'ovr' and 'emd', 'ovr'
-                performs binary class with one-vs-rest, and 'emd' computes earth mover's distance.
+            condense_output: Whether to return one row per group or one per group and target
             progress_callback: Progress bar callback.
         """
 
-        if len(self.sensitive_attrs) == 0 or len(self.df) == 0:
+        if df is not None:  # For backward compatibility we make it optional
+            self.set_df(df)
+
+        if len(self.sensitive_attrs) == 0 or len(self.df) == 0 or len(self.df.dropna()) == 0:
             if progress_callback is not None:
                 progress_callback(0)
                 progress_callback(100)
@@ -216,6 +232,18 @@ class FairnessScorer:
         else:
             score = 1 - df_biases['distance'].abs().mean()
 
+        if condense_output:
+            if self.target_variable_type == VariableType.Binary:
+                df_biases = df_biases[df_biases['target'] == self.positive_class]
+
+            elif self.target_variable_type == VariableType.Multinomial and mode == 'ovr':
+                df_biases['distance'] = df_biases['distance'].abs()
+                df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
+                df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
+                df_biases_out['target'] = 'N/A'
+                df_biases = df_biases_out
+
+        # Sort values
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
             .reset_index(drop=True)
 
@@ -249,19 +277,23 @@ class FairnessScorer:
 
         return df_dist
 
-    def classification_score(self, threshold: float = 0.05, classifiers: Optional[Dict[str, BaseEstimator]] = None,
+    def classification_score(self, df: Optional[pd.DataFrame] = None, threshold: float = 0.05,
+                             classifiers: Optional[Dict[str, BaseEstimator]] = None,
                              min_count: Optional[int] = 50, max_combinations: Optional[int] = 3,
                              progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
         """ Computes few classification tasks for different classifiers and evaluates their performance on
         sub-samples given by splitting the data-set into sensitive sub-samples.
 
         Args:
+            df: Dataframe to compute fairness.
             threshold: If set, any bias with smaller outcome than threshold will be ignored.
             classifiers: Dictionary of classifiers to perform tasks on.
             min_count: If set, any bias with less samples than min_count will be ignored.
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
+        if df is not None:  # For backward compatibility we make it optional
+            self.set_df(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -474,9 +506,6 @@ class FairnessScorer:
     def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         df_count = self.get_rates(list(sensitive_attr))
 
-        if self.target_vc is not None and len(self.target_vc) <= 2:
-            df_count = df_count[df_count.index.get_level_values(1) == self.positive_class]
-
         df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, alpha=alpha)
         df_count.dropna(inplace=True)
         if 'Total' in df_count.index.get_level_values(0):
@@ -566,16 +595,15 @@ class FairnessScorer:
 
         return checks, VBox(box)
 
-    def manipulate_target_variable(self, df: pd.DataFrame) -> VariableType:
+    def manipulate_target_variable(self, df: pd.DataFrame, categorical_threshold: Optional[int] = None) -> VariableType:
         """Check the target variable column, binned it if needed, and return target variable type"""
-
         # Convert to numeric
-        n_nans = df[self.target].isna().sum()
         col_num = pd.to_numeric(df[self.target], errors='coerce')
-        if col_num.isna().sum() == n_nans:
+        if col_num.isna().sum() == 0:
             df[self.target] = col_num
 
         num_unique = df[self.target].nunique()
+        categorical_threshold = categorical_threshold if categorical_threshold is not None else self.target_n_bins
 
         # If it's numeric
         if df[self.target].dtype.kind in ('i', 'u', 'f'):
@@ -584,7 +612,7 @@ class FairnessScorer:
                 if num_unique <= 2:
                     self.target_n_bins = num_unique
                     return VariableType.Binary
-                elif num_unique <= 5:
+                elif num_unique <= categorical_threshold:
                     self.target_n_bins = num_unique
                     return VariableType.Multinomial
                 else:
@@ -592,16 +620,16 @@ class FairnessScorer:
                     df.drop(index=df[df[self.target].isna()].index, axis=0, inplace=True)
                     return VariableType.Continuous
 
-            if num_unique > self.target_n_bins:
-                df[self.target] = pd.cut(df[self.target], bins=self.target_n_bins, duplicates='drop').astype(str)
+            if num_unique > categorical_threshold:
+                df[self.target] = self.bin_column(df[self.target], n_bins=self.target_n_bins)
 
         else:
-            df[self.target] = df[self.target].astype(str).fillna('nan')
+            df[self.target] = df[self.target].astype(str)
             self.target_n_bins = num_unique
 
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
-    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True,
+    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True, categorical_threshold: Optional[int] = None,
                            drop_dates: bool = True) -> pd.DataFrame:
         if not inplace:
             df = df.copy()
@@ -625,16 +653,13 @@ class FairnessScorer:
                 if col_date.isna().sum() == n_nans:
                     df[col] = col_date
 
-            categorical_threshold = max(
-                float(MetaExtractorConfig.min_num_unique),
-                MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
-            )
+            categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
 
             num_unique = df[col].nunique()
             # If it's numeric, bin it
             if df[col].dtype.kind in ('i', 'u', 'f'):
                 if num_unique > categorical_threshold:
-                    df[col] = pd.cut(df[col], bins=self.n_bins, duplicates='drop').astype(str)
+                    df[col] = self.bin_column(df[col], n_bins=self.n_bins)
 
             # If it's date, bin it
             elif df[col].dtype.kind == 'M':
@@ -658,13 +683,33 @@ class FairnessScorer:
 
     def bin_date_column(self, column: pd.Series, date_format: str = "%Y-%m-%d") -> pd.Series:
         assert column.dtype.kind == "M"
-        column, edges_num = pd.cut(column, bins=self.n_bins, retbins=True, duplicates='drop')
+        column, edges_num = pd.cut(column, bins=self.n_bins, retbins=True, duplicates='drop', include_lowest=True)
 
         edges_str = [datetime.strftime(pd.to_datetime(d), date_format) for d in edges_num]
         edges = {pd.Interval(edges_num[i], edges_num[i + 1]): "{} to {}".format(edges_str[i], edges_str[i + 1])
                  for i in range(len(edges_num) - 1)}
 
         return column.map(edges).astype(str)
+
+    def bin_column(self, column: pd.Series, n_bins: int = 5, remove_outliers: float = 0.1) -> pd.Series:
+        name = str(column.name)
+
+        if name not in self.column_bins.keys():
+            column_clean = column.copy().dropna()
+            percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
+            start, end = np.percentile(column_clean, percentiles)
+
+            if start == end:
+                start, end = min(column_clean), max(column_clean)
+
+            column_clean = column_clean[(start <= column_clean) & (column_clean <= end)]
+
+            _, bins = pd.cut(column_clean, bins=n_bins, retbins=True, duplicates='drop', include_lowest=True)
+            assert isinstance(bins, np.ndarray)
+            bins[0], bins[-1] = column.min(), column.max()
+            self.column_bins[name] = bins
+
+        return pd.cut(column, bins=self.column_bins[name], duplicates='drop', include_lowest=True).astype(str)
 
     @staticmethod
     def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
