@@ -78,6 +78,12 @@ def test_bias_mitigator_check_score():
 
     assert score_f > score_0
 
+    # Number of rows
+    df_unbiased = bias_mitigator.resample_df(df_unbiased, num_rows=5000)
+    score_f2, biases = fs.distributions_score(df_unbiased, progress_callback=testing_progress_bar)
+    assert len(df_unbiased) == 5000
+    assert np.isclose(score_f, score_f2, atol=0.025)
+
     # Strict bias mitigation
     df_bias_drop = bias_mitigator.drop_given_biases(df_unbiased, biases=biases,
                                                     progress_callback=testing_progress_bar)

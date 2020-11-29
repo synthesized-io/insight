@@ -360,16 +360,17 @@ class FairnessScorer:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
+        df = self.df[~(self.df[sensitive_attr] == 'nan').any(1)].copy()
 
         target = self.target
         # Get group counts & rates
-        sensitive_group_target_counts = self.df.groupby(sensitive_attr + [target])[target].aggregate(Count='count')
-        sensitive_group_size = self.df.groupby(sensitive_attr).size()
+        sensitive_group_target_counts = df.groupby(sensitive_attr + [target])[target].aggregate(Count='count')
+        sensitive_group_size = df.groupby(sensitive_attr).size()
         sensitive_group_target_counts['Rate'] = sensitive_group_target_counts['Count'] / sensitive_group_size
 
         # Get total counts & rates
-        target_totals = self.df.groupby(target)[target].aggregate(Count='count')
-        target_totals['Rate'] = target_totals / len(self.df)
+        target_totals = df.groupby(target)[target].aggregate(Count='count')
+        target_totals['Rate'] = target_totals / len(df)
         target_totals = target_totals.set_index(pd.MultiIndex.from_tuples([('Total', a) for a in target_totals.index]))
 
         index = sensitive_group_target_counts.index.droplevel(-1)
