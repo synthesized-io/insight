@@ -232,6 +232,31 @@ class BiasMitigator:
 
         return df.sample(frac=1.).reset_index(drop=True)
 
+    def resample_df(self, df: pd.DataFrame, num_rows: int, max_trials: int = 5):
+        self.fairness_scorer.set_df(df)
+
+        for _ in range(max_trials):
+            if len(df) >= num_rows:
+                continue
+
+            n = num_rows - len(df)
+            counts = (self.fairness_scorer.df.groupby(self.fairness_scorer.sensitive_attrs_and_target)[self.target]
+                      .aggregate(count='count') / len(self.fairness_scorer.df) * n).apply(round).astype(int)
+            counts = counts[counts['count'] > 0]
+
+            marginal_counts: Dict[Tuple, int] = Counter(counts['count'].to_dict())
+            marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
+                             for col in self.fairness_scorer.sensitive_attrs_and_target}
+
+            df_synth = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
+                                                                       produce_nans=False, marginal_keys=marginal_keys)
+            df = df.append(df_synth)
+
+        if len(df) > num_rows:
+            df = df.sample(num_rows)
+
+        return df
+
     def add_colon_to_bias(self, bias: pd.Series, add_target: bool = False) -> List[str]:
         bias_names = bias['name']
         bias_values = bias['value']
