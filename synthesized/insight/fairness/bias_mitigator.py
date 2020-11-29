@@ -232,14 +232,16 @@ class BiasMitigator:
 
         return df.sample(frac=1.).reset_index(drop=True)
 
-    def resample_df(self, df: pd.DataFrame, num_rows: int, max_trials: int = 5):
+    def resample_df(self, df: pd.DataFrame, num_rows: int, produce_nans: bool = False,
+                    max_trials: int = 5) -> pd.DataFrame:
         """Given a dataframe, resample it while keeping the same sensitive groups proportion to not add/remove
          any bias.
 
          Args:
              df: Dataframe to resample.
              num_rows: Number of rows of output dataframe.
-             max_trials: Maximum number of trials to oversample the dataframe
+             produce_nans: Whether to include nans in the output.
+             max_trials: Maximum number of trials to over-sample the dataframe.
          """
         self.fairness_scorer.set_df(df)
 
@@ -247,7 +249,7 @@ class BiasMitigator:
             if len(df) >= num_rows:
                 continue
 
-            n = num_rows - len(df)
+            n = 1.1 * (num_rows - len(df))
             counts = (self.fairness_scorer.df.groupby(self.fairness_scorer.sensitive_attrs_and_target)[self.target]
                       .aggregate(count='count') / len(self.fairness_scorer.df) * n).apply(round).astype(int)
             counts = counts[counts['count'] > 0]
@@ -256,8 +258,8 @@ class BiasMitigator:
             marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
-            df_synth = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
-                                                                       produce_nans=False, marginal_keys=marginal_keys)
+            df_synth = self.cond_sampler.synthesize_from_joined_counts(
+                marginal_counts=marginal_counts, produce_nans=produce_nans, marginal_keys=marginal_keys)
             df = df.append(df_synth)
 
         if len(df) > num_rows:
