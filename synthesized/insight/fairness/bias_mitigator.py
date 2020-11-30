@@ -139,6 +139,7 @@ class BiasMitigator:
             Unbiased DataFrame.
         """
         df = df.copy()
+        self.fairness_scorer.set_df(df)
 
         idx_to_drop = []
         for i, (idx, bias) in enumerate(biases.iterrows()):
@@ -247,7 +248,7 @@ class BiasMitigator:
 
         for _ in range(max_trials):
             if len(df) >= num_rows:
-                continue
+                break
 
             n = 1.1 * (num_rows - len(df))
             counts = (self.fairness_scorer.df.groupby(self.fairness_scorer.sensitive_attrs_and_target)[self.target]
@@ -265,7 +266,7 @@ class BiasMitigator:
         if len(df) > num_rows:
             df = df.sample(num_rows)
 
-        return df
+        return df.sample(frac=1.).reset_index(drop=True)
 
     def add_colon_to_bias(self, bias: pd.Series, add_target: bool = False) -> List[str]:
         bias_names = bias['name']
