@@ -608,6 +608,11 @@ class FairnessScorer:
 
         # If it's numeric
         if df[self.target].dtype.kind in ('i', 'u', 'f'):
+            # If we already have bins for the target, bin it and return
+            if self.target in self.column_bins.keys():
+                df[self.target] = self.bin_column(df[self.target])
+                return self.target_variable_type
+
             if self.target_n_bins is None:
                 # Even if it's numerical, well considered binary/multinomial if it has few unique values
                 if num_unique <= 2:
@@ -626,7 +631,8 @@ class FairnessScorer:
 
         else:
             df[self.target] = df[self.target].astype(str)
-            self.target_n_bins = num_unique
+            if self.target_n_bins is None:
+                self.target_n_bins = num_unique
 
         return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
 
@@ -654,9 +660,14 @@ class FairnessScorer:
                 if col_date.isna().sum() == n_nans:
                     df[col] = col_date
 
-            categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
+            # If we already have bins for given column, bin it and continue
+            if col in self.column_bins.keys():
+                df[col] = self.bin_column(df[col])
+                continue
 
+            categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
             num_unique = df[col].nunique()
+
             # If it's numeric, bin it
             if df[col].dtype.kind in ('i', 'u', 'f'):
                 if num_unique > categorical_threshold:
@@ -692,10 +703,11 @@ class FairnessScorer:
 
         return column.map(edges).astype(str)
 
-    def bin_column(self, column: pd.Series, n_bins: int = 5, remove_outliers: float = 0.1) -> pd.Series:
+    def bin_column(self, column: pd.Series, n_bins: Optional[int] = None, remove_outliers: float = 0.1) -> pd.Series:
         name = str(column.name)
 
         if name not in self.column_bins.keys():
+            assert n_bins is not None
             column_clean = column.copy().dropna()
             percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
             start, end = np.percentile(column_clean, percentiles)
