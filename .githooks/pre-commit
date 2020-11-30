@@ -2,8 +2,8 @@
 
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
 
-branch_regex="^SD-[0-9]+-"
-error_msg="Aborting push. Your branch name should start with JIRA Issue ('SD-1111-')"
+branch_regex="^ml-[0-9]+-"
+error_msg="Aborting push. Your branch name should start with JIRA Issue ('ML-1111-')"
 
 if ! echo "$current_branch" | grep -iqE "$branch_regex"; then
     echo "$error_msg" >&2
