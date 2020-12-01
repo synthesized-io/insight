@@ -356,7 +356,7 @@ class ConditionalSampler(Synthesizer):
                                          "are: '{}'".format(category, col, ', '.join(categories)))
 
     def _validate_marginal_counts_and_keys(self, marginal_counts: Dict[Tuple[str, ...], int],
-                                       marginal_keys: Dict[str, List[str]]) -> None:
+                                           marginal_keys: Dict[str, List[str]]) -> None:
         n_keys = len(marginal_keys)
         if not all([n_keys == len(k) for k in marginal_counts.keys()]):
             raise ValueError("The length of the keys of all 'marginal_counts' and 'marginal_keys' must be equal")
