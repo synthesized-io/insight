@@ -1,7 +1,7 @@
 """
 Collection of Metrics that measure the distance, or similarity, between two datasets.
 """
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, Iterable, Union
 from dataclasses import dataclass
 from abc import abstractmethod
 
@@ -23,8 +23,7 @@ class DistanceResult():
     p_value: Optional[float] = None
     interval: Optional[ConfidenceInterval] = None
 
-
-def bootstrap_interval(data, statistic: Callable[..., float], cl: float = 0.95,
+def bootstrap_binned_statistic(data, statistic: Callable[..., float], cl: float = 0.95,
                        n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the confidence interval of a statistic estimate using the bootstrap method.
@@ -35,6 +34,73 @@ def bootstrap_interval(data, statistic: Callable[..., float], cl: float = 0.95,
         args: Extra arguments to statistic
         n_samples: Optional; Number of bootstrap samples to perform.
         cl: Optional; Confidence level of the interval.
+
+    Returns:
+        The confidence interval.
+    """
+
+    statistic_samples = np.empty(n_samples)
+    x_samples = np.random.multinomial(data[0].sum(), data[0] / data[0].sum(), size=n_samples)
+    y_samples = np.random.multinomial(data[1].sum(), data[1] / data[1].sum(), size=n_samples)
+
+    for i in range(n_samples):
+        statistic_samples[i] = statistic(x_samples[i], y_samples[i])
+
+    return statistic_samples
+
+def bootstrap_interval(bootstrap_samples: pd.Series, cl: float = 0.95):
+    """
+    Calculate a confidence interval for a metric from the quantiles of a bootstrapped distribution.
+
+    Args:
+        bootstrap_samples: Bootstrap samples of the metric.
+        cl: Confidence level of the interval.
+
+    Returns:
+        The confidence interval.
+    """
+    percentiles = 100 * (1 - cl) / 2, 100 * (1 - (1 - cl) / 2)
+    return ConfidenceInterval(np.percentile(bootstrap_samples, percentiles).tolist(), cl)
+
+def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str ='two-sided'):
+    """
+    Calculate a p-value using a bootstrapped test statistic distribution
+
+    Args:
+        t_obs: Observed value of the test statistic.
+        t_distribution: Samples of test statistic distribution under the null hypothesis.
+        alternative: Optional; Indicates the alternative hypothesis.
+            One of 'two-sided', 'greater' ,'less',
+
+    Returns:
+        The p-value under the null hypothesis.
+    """
+    if alternative not in ('two-sided', 'greater', 'less'):
+        raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
+
+    n_samples = len(t_distribution)
+
+    if alternative == 'two-sided':
+        p = np.sum(np.abs(t_distribution) >= np.abs(t_obs)) / n_samples
+
+    elif alternative == 'greater':
+        p = np.sum(t_distribution >= t_obs) / n_samples
+
+    else:
+        p = np.sum(t_distribution < t_obs) / n_samples
+
+    return p
+
+def bootstrap_statistic(data, statistic: Callable[..., float], cl: float = 0.95,
+                       n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
+    """
+    Compute the confidence interval of a statistic estimate using the bootstrap method.
+
+    Args:
+        data: Data for which to compute the statistic.
+        statistic: Function that computes the statistic.
+        args: Extra arguments to statistic
+        n_samples: Optional; Number of bootstrap samples to perform.
 
     Returns:
         The confidence interval.
@@ -50,8 +116,7 @@ def bootstrap_interval(data, statistic: Callable[..., float], cl: float = 0.95,
         sample_idxs = [get_sample_idx(x) for x in data]
         statistic_samples[i] = statistic(*[x[idx] for x, idx in zip(data, sample_idxs)])
 
-    percentiles = 100 * (1 - cl) / 2, 100 * (1 - (1 - cl) / 2)
-    return np.percentile(statistic_samples, percentiles).tolist()
+    return statistic_samples
 
 
 def binominal_proportion_interval(p: float, n: int, cl=0.95, method: str = 'clopper-pearson') -> ConfidenceInterval:
@@ -125,7 +190,7 @@ def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.n
         t: Callable that returns the test statistic.
         alternative: Optional; Indicates the alternative hypothesis.
             One of 'two-sided', 'greater' ,'less',
-        n_per: number of permutations.
+        n_perm: number of permutations.
 
     Returns:
         The p-value of t_obs under the null hypothesis.
@@ -157,16 +222,16 @@ def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.n
 
 class DistanceMetric():
     """
-    Base class for distance metrics that compare two distributions.
+    Base class for distance metrics that compare samples from two distributions.
 
     Subclasses must implement a distance method.
-
-    Attributes:
-        bootstrappable: bootstrap resampling can be performed for this metric.
     """
-    bootstrap_method: Optional[Callable[..., Tuple[float, float]]] = bootstrap_interval
 
-    def __call__(self, x: pd.Series, y: pd.Series, p_value: bool = False, interval: bool = False) -> DistanceResult:
+    def __init__(self, x: pd.Series, y: pd.Series, **kwargs):
+        self.x = x
+        self.y = y
+
+    def __call__(self, p_value: bool = False, interval: bool = False) -> DistanceResult:
         """
         Calculate the distance between two distributions.
 
@@ -183,21 +248,23 @@ class DistanceMetric():
         Raises:
             TypeError: interval is True but DistanceMetric.bootstrappable is False.
         """
-        result = DistanceResult(self.distance(x, y))
+        result = DistanceResult(self.distance)
         if p_value:
-            result.p_value = self.p_value(x, y)
+            result.p_value = self.p_value
         if interval:
-            result.interval = self.interval(x, y)
+            result.interval = self.interval()
         return result
 
+    @property
     @abstractmethod
-    def distance(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+    def distance(self) -> float:
         """
         Derived classes must implement this.
         """
         ...
 
-    def p_value(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+    @property
+    def p_value(self) -> float:
         """
         Return a p-value for this metric using a permutation test. The null hypothesis
         is that both data samples are from the same distribution.
@@ -209,9 +276,9 @@ class DistanceMetric():
         Returns:
             The p-value under the null hypothesis.
         """
-        return permutation_test(x, y, lambda x, y: self.distance(x, y, **kwargs))
+        return permutation_test(self.x, self.y, lambda x, y: self._distance_call(x, y))
 
-    def interval(self, x: pd.Series, y: pd.Series, cl: float = 0.95, **kwargs) -> ConfidenceInterval:
+    def interval(self, cl: float = 0.95, **kwargs) -> ConfidenceInterval:
         """
         Return a frequentist confidence interval for this metric obtained, via bootstrap resampling.
 
@@ -224,18 +291,64 @@ class DistanceMetric():
         Returns:
             The confidence interval.
         """
-        if not self.bootstrap_method:
-            raise TypeError("Unable to perform bootstrap resampling of this metric.")
-        else:
-            interval = bootstrap_interval((x, y), lambda x, y: self.distance(x, y, **kwargs), cl=cl)
-            return ConfidenceInterval(interval, cl)
+        samples = bootstrap_statistic((self.x, self.y), lambda x, y: self._distance_call(x, y))
+        interval = bootstrap_interval(samples, cl)
+        return ConfidenceInterval(interval, cl)
+
+    def _distance_call(self, x: pd.Series, y: pd.Series) -> float:
+        cls = type(self)
+        kwargs = {k: v for k, v in self.__dict__.items() if k not in ('x', 'y')}
+        obj = cls(x, y, **kwargs)
+        return obj().distance
+
+
+class BinnedDistanceMetric(DistanceMetric):
+    """
+    Base class for distance metrics that compare counts from two binned distributions.
+
+    Subclasses must implement a distance method.
+    """
+    @property
+    def p_value(self) -> float:
+        """
+        Return a two-sided p-value for this metric using a bootstrapped distribution
+        of the null hypothesis.
+
+        Args:
+            x (pd.Series): First distribution.
+            y (pd.Series): Second distribution.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        ts_distribution = bootstrap_binned_statistic((self.y, self.y), self._distance_call, n_samples=1000)
+        return bootstrap_pvalue(self.distance, ts_distribution)
+
+    def interval(self, cl: float = 0.95, **kwargs) -> ConfidenceInterval:
+        """
+        Return a frequentist confidence interval for this metric obtained via bootstrap resampling.
+
+        Args:
+            cl: The confidence level of the interval, i.e the fraction of intervals
+                   that will contain the true distance estimate.
+
+            **kwargs: Optional keyword arguments to synthesized.insight.metrics.distance.bootstrap_interval.
+
+        Returns:
+            The confidence interval.
+        """
+        samples = bootstrap_binned_statistic((self.x, self.y), lambda x, y: self._distance_call(x, y))
+        interval = bootstrap_interval(samples, cl)
+        return ConfidenceInterval(interval, cl)
 
 
 class BinomialDistance(DistanceMetric):
     """
     Difference distance between two binomal data samples.
     """
-    def distance(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+
+    @property
+    def distance(self) -> float:
         """
         Calculate the difference distance, i.e p_x - p_y, where p_x
         is the probability of success in sample x and p_y is the
@@ -251,9 +364,10 @@ class BinomialDistance(DistanceMetric):
         Returns:
             Difference between p_x and p_y.
         """
-        return x.mean() - y.mean()
+        return self.x.mean() - self.y.mean()
 
-    def p_value(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+    @property
+    def p_value(self) -> float:
         """
         Calculate a p-value for the null hypothesis that the
         probability of success is p_y.
@@ -265,12 +379,12 @@ class BinomialDistance(DistanceMetric):
         Returns:
             The p-value under the null hypothesis.
         """
-        p_obs = x.mean()
-        p_null = y.mean()
-        n = len(x)
+        p_obs = self.x.mean()
+        p_null = self.y.mean()
+        n = len(self.x)
         return binominal_proportion_p_value(p_obs, p_null, n)
 
-    def interval(self, x: pd.Series, y: pd.Series, cl: Optional[float] = 0.95, **kwargs) -> ConfidenceInterval:
+    def interval(self, cl: Optional[float] = 0.95, **kwargs) -> ConfidenceInterval:
         """
         Calculate a confidence interval for this distance metric.
 
@@ -283,10 +397,10 @@ class BinomialDistance(DistanceMetric):
         Returns:
             The confidence interval.
         """
-        p = x.mean()
-        n = len(x)
+        p = self.x.mean()
+        n = len(self.x)
         interval = binominal_proportion_interval(p, n, cl, **kwargs)
-        interval.value = interval.value[0] - y.mean(), interval.value[1] - y.mean()
+        interval.value = interval.value[0] -self.y.mean(), interval.value[1] - self.y.mean()
         return interval
 
 
@@ -294,7 +408,9 @@ class KolmogorovSmirnovDistance(DistanceMetric):
     """
     Kolmogorov-Smirnov (KS) distance between two data samples.
     """
-    def distance(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+
+    @property
+    def distance(self) -> float:
         """
         Calculate the KS distance.
 
@@ -306,16 +422,26 @@ class KolmogorovSmirnovDistance(DistanceMetric):
         Returns:
             The KS distance.
         """
-        return ks_2samp(x, y, **kwargs)[0]
+        return ks_2samp(self.x, self.y)[0]
 
 
 class EarthMoversDistanceBinned(DistanceMetric):
     """
     Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
-    """
-    bootstrap_method = None
 
-    def distance(self, x: pd.Series, y: pd.Series, bins: Optional[Tuple] = None, **kwargs) -> float:
+    The histograms can represent counts of nominal categories or counts on
+    an ordinal range.
+    """
+
+    def __init__(self, x: pd.Series, y: pd.Series, bins: Optional[Tuple] = None):
+        super().__init__(x, y)
+        self.bins = bins
+
+        if self.x.shape != self.y.shape:
+            raise ValueError("x and y must have the same number of bins")
+
+    @property
+    def distance(self) -> float:
         """
         Calculate the EMD between two 1d histograms.
 
@@ -337,23 +463,20 @@ class EarthMoversDistanceBinned(DistanceMetric):
         Raises:
             ValueError: x and y do not have the same number of bins.
         """
-        if x.shape != y.shape:
-            raise ValueError("x and y must have the same number of bins")
-
-        if bins is None:
+        if self.bins is None:
             # if bins not given, histograms are assumed to be counts of nominal categories,
             # and therefore distances betwen bins are meaningless. Set to all distances to
             # unity to model this.
-            distance_metric = 1 - np.eye(len(x))
+            distance_metric = 1 - np.eye(len(self.x))
         else:
             # otherwise, use pair-wise euclidean distances between bin centers for scale data
-            bin_centers = [b[:-1] + np.diff(b) / 2. for b in bins]
+            bin_centers = [b[:-1] + np.diff(b) / 2. for b in self.bins]
             mgrid = np.meshgrid(*bin_centers)
             distance_metric = np.abs(mgrid[0] - mgrid[1]).astype(np.float64)
 
         # normalise counts for consistency with scipy.stats.wasserstein
-        x = x / x.sum()
-        y = y / y.sum()
+        x = self.x / self.x.sum()
+        y = self.y / self.y.sum()
 
         distance = pyemd.emd(x.astype(np.float64), y.astype(np.float64), distance_metric)
         return distance
@@ -363,7 +486,14 @@ class EarthMoversDistance(DistanceMetric):
     """
     Earth movers distance (EMD), aka Wasserstein 1-distance, between samples from two distributions.
     """
-    def distance(self, x: pd.Series, y: pd.Series, **kwargs) -> float:
+    def __init__(self, x: pd.Series, y: pd.Series, emd_kwargs=None):
+        super().__init__(x, y)
+        if emd_kwargs is None:
+            emd_kwargs = {}
+        self.emd_kwargs = emd_kwargs
+
+    @property
+    def distance(self) -> float:
         """
         Calculate the EMD between two 1d histograms.
 
@@ -378,14 +508,13 @@ class EarthMoversDistance(DistanceMetric):
         Returns:
             The earth mover's distance.
         """
-        return pyemd.emd_samples(x, y, **kwargs)
+        return pyemd.emd_samples(self.x, self.y, **self.emd_kwargs)
 
 
 class HellingerDistance(DistanceMetric):
 
-    def __init__(self, x: pd.Series, y: pd.Series, bins = 'auto'):
-        self.x = x
-        self.y = y
+    def __init__(self, x: pd.Series, y: pd.Series, bins: Union[str, int, Iterable] = 'auto'):
+        super().__init__(x, y)
         self.bins = bins
 
     @property
