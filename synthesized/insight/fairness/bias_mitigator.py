@@ -1,5 +1,5 @@
-from collections import Counter
 import logging
+from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -117,8 +117,9 @@ class BiasMitigator:
                                                            marginal_softener=marginal_softener_neg, use_colons=True)
 
             marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()})
-            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique().astype(str)))
-                             for col in self.fairness_scorer.sensitive_attrs_and_target}
+            marginal_keys = {str(col): list(map(str,
+                                                filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique()))
+                                            ) for col in self.fairness_scorer.sensitive_attrs_and_target}
 
             df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
                                                                       produce_nans=produce_nans,
@@ -256,8 +257,9 @@ class BiasMitigator:
             counts = counts[counts['count'] > 0]
 
             marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in counts['count'].to_dict().items()})
-            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique().astype(str)))
-                             for col in self.fairness_scorer.sensitive_attrs_and_target}
+            marginal_keys = {str(col): list(map(str,
+                                                filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique()))
+                                            ) for col in self.fairness_scorer.sensitive_attrs_and_target}
 
             df_synth = self.cond_sampler.synthesize_from_joined_counts(
                 marginal_counts=marginal_counts, produce_nans=produce_nans, marginal_keys=marginal_keys)
