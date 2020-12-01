@@ -379,7 +379,7 @@ class HighDimSynthesizer(Synthesizer):
         else:
             encoded, decoded = self.engine.encode(xs=data, cs=dict(), produce_nans=produce_nans)
 
-        columns = self.df_meta.columns
+        columns = np.concatenate([c.learned_output_columns() for c in self.df_meta.values])
         decoded = self.df_meta.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.postprocess(df=df_synthesized)
