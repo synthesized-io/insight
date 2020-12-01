@@ -85,13 +85,11 @@ jobs:
       - run:
           command: |
             : ${CIRCLE_TOKEN:?"Please provide a CircleCI API token for this orb to work!"} >&2
-            if [[ $(echo $CIRCLE_REPOSITORY_URL | grep github.com) ]]; then
-              VCS_TYPE=github
-            else
-              VCS_TYPE=bitbucket
-            fi
+
+            VCS_TYPE=github
 
             run () {
+              mkdir tmp
               verify_api_key
               parse_jira_key_array
               HAS_JSD_SERVICE_ID=""
@@ -110,14 +108,14 @@ jobs:
 
             verify_api_key () {
               URL="https://circleci.com/api/v2/me?circle-token=${CIRCLE_TOKEN}"
-              fetch $URL /tmp/me.json
+              curl $URL > /tmp/me.json
               jq -e '.login' /tmp/me.json
             }
 
             fetch () {
               URL="$1"
               OFILE="$2"
-              RESP=$(curl -w "%{http_code}" -s CIRCLE_TOKEN --user "${CIRCLE_TOKEN}:" CIRCLE_TOKEN \
+              RESP=$(curl -w "%{http_code}" -s \
               -o "${OFILE}" \
               "${URL}")
 
