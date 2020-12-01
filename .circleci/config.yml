@@ -75,6 +75,17 @@ jobs:
           when: always
       - run:
           command: |
+            curl https://circleci.com/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}/tests -H "Circle-Token: ${CIRCLECI_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
+            echo 'TESTS_SUCCESS="$(($(cat ./test-results.txt | grep "success" | wc -l)))"' > ./circleci-orb-jira.status
+            failed_tests=$(($(cat ./test-results.txt | grep "failure" | wc -l)))
+            echo 'TESTS_FAIL="${failed_tests}"' > ./circleci-orb-jira.status
+            if [ ${failed_tests} -gt 0 ]
+            then
+              exit 1
+            fi
+          name: Fetching Test Summary
+      - run:
+          command: |
             echo 'JIRA_BUILD_STATUS="failed"' > ./circleci-orb-jira.status
           name: JIRA - Setting Failure Condition
           when: on_fail
@@ -149,9 +160,6 @@ jobs:
             }
 
             generate_json_payload_build () {
-              passed=30
-              skipped=5
-              failed=1
               iso_time=$(date '+%Y-%m-%dT%T%z'| sed -e 's/\([0-9][0-9]\)$/:\1/g')
               echo {} | jq \
               --arg time_str "$(date +%s)" \
@@ -171,10 +179,9 @@ jobs:
               --arg repoName "${CIRCLE_PROJECT_REPONAME}" \
               --arg display "${CIRCLE_PROJECT_REPONAME}"  \
               --arg description "${CIRCLE_PROJECT_REPONAME} #${CIRCLE_BUILD_NUM} ${CIRCLE_JOB}" \
-              --arg totalTests "$((${passed}+${skipped}+${failed}))"  \
-              --arg passedTests "${passed}"  \
-              --arg failedTests "${failed}"  \
-              --arg skippedTests "${skipped}"  \
+              --arg totalTests "$((${TESTS_SUCCESS}+${TESTS_FAIL}))"  \
+              --arg passedTests "${TESTS_SUCCESS}"  \
+              --arg failedTests "${TESTS_FAIL}"  \
               --argjson issueKeys "${ISSUE_KEYS}" \
               '
               ($time_str | tonumber) as $time_num |
@@ -194,8 +201,7 @@ jobs:
                     "testInfo": {
                       "totalNumber": $totalTests,
                       "numberPassed": $passedTests,
-                      "numberFailed": $failedTests,
-                      "numberSkipped": $skippedTests
+                      "numberFailed": $failedTests
                     }
                   }
                 ]
