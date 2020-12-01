@@ -66,8 +66,6 @@ jobs:
       - store_artifacts:
           path: test-results
 
-      - jira/notify
-
   publish:
     docker:
       - image: circleci/python:3.6.9
@@ -98,6 +96,8 @@ workflows:
     jobs:
       - build
       - test:
+          post-steps:
+            - jira/notify
           requires:
             - build
       - publish:
