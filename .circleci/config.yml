@@ -78,12 +78,14 @@ jobs:
             prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items[1].job_number')
             echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
-            echo $(cat ./test-results.txt)
-            echo $(cat ./test-results.txt | grep "success" | wc -l)
-            echo $(cat ./test-results.txt | grep "failure" | wc -l)
 
-            echo 'TESTS_SUCCESS="$(cat ./test-results.txt | grep "success" | wc -l)"' >> ./circleci-orb-jira.status
-            echo 'TESTS_FAIL="$(cat ./test-results.txt | grep "failure" | wc -l)"' >> ./circleci-orb-jira.status
+            echo $(cat ./test-results.txt | grep -Ec "success")
+            echo $(cat ./test-results.txt | grep -Ec "failure")
+            echo $(cat test-results.txt| grep -Ec "failure|success")
+
+            echo 'TESTS_SUCCESS='$(cat ./test-results.txt | grep -Ec "success") >> ./circleci-orb-jira.status
+            echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "failure") >> ./circleci-orb-jira.status
+            echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "failure|success") >> ./circleci-orb-jira.status
 
             echo 'done'
 
@@ -170,8 +172,6 @@ jobs:
 
             generate_json_payload_build () {
               iso_time=$(date '+%Y-%m-%dT%T%z'| sed -e 's/\([0-9][0-9]\)$/:\1/g')
-              total_tests=$((TESTS_FAIL + TESTS_SUCCESS))
-              echo $total_tests
               echo {} | jq \
               --arg time_str "$(date +%s)" \
               --arg lastUpdated "${iso_time}" \
@@ -190,7 +190,7 @@ jobs:
               --arg repoName "${CIRCLE_PROJECT_REPONAME}" \
               --arg display "${CIRCLE_PROJECT_REPONAME}"  \
               --arg description "${CIRCLE_PROJECT_REPONAME} #${CIRCLE_BUILD_NUM} ${CIRCLE_JOB}" \
-              --arg totalTests "${total_tests}"  \
+              --arg totalTests "${TESTS_TOTAL}"  \
               --arg passedTests "${TESTS_SUCCESS}"  \
               --arg failedTests "${TESTS_FAIL}"  \
               --argjson issueKeys "${ISSUE_KEYS}" \
