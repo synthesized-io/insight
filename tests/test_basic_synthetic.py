@@ -4,7 +4,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.metadata import TypeOverride
+from synthesized.metadata import TypeOverride, ConstantMeta, SamplingMeta, ContinuousMeta, DataFrameMeta
 from synthesized.common.values import ContinuousValue
 from synthesized.testing.utils import testing_progress_bar
 
@@ -101,6 +101,28 @@ def test_encode():
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         _, df_synthesized = synthesizer.encode(df_original)
+    assert df_synthesized.shape == df_original.shape
+
+
+@pytest.mark.slow
+def test_encode_unlearned_meta():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n), 'z': np.full(n, 1.0)})
+
+    x = ContinuousMeta('x')
+    x.extract(df_original)
+
+    y = SamplingMeta('y')
+    y.extract(df_original)
+
+    z = ConstantMeta('z')
+    z.extract(df_original)
+
+    df_meta = DataFrameMeta([x, y, z])
+
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
+            synthesizer.learn(num_iterations=10, df_train=df_original)
+            _, df_synthesized = synthesizer.encode(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
