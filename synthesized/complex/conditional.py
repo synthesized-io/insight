@@ -114,14 +114,14 @@ class ConditionalSampler(Synthesizer):
 
         # TODO: Remove not learned columns from marginal_counts & marginal_keys
 
+        marginal_counts = marginal_counts.copy()
+        self._validate_marginal_counts_and_keys(marginal_counts, marginal_keys)
+
         max_n_prefetch = int(1e6)
         num_rows = sum(marginal_counts.values())
         if max_trials is not None and num_rows > max_n_prefetch * max_trials:
             logger.warning(f"Given total number of rows to generate is limited to {max_n_prefetch * max_trials}, "
                            f"will generate less samples than asked for.")
-
-        marginal_counts = marginal_counts.copy()
-        self._validate_marginal_counts_keys(marginal_counts, marginal_keys)
 
         contains_colons = any([v == ":" for k in marginal_counts.keys() for v in k])
         num_rows = sum(marginal_counts.values())
@@ -149,7 +149,7 @@ class ConditionalSampler(Synthesizer):
 
             n_added = 0
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
-                key: Tuple[str, ...] = tuple(key_row)  # type: ignore
+                key: Tuple[str, ...] = tuple(key_row)
 
                 # If counter for the instance is positive let's emit the current row:
                 if contains_colons:
@@ -356,10 +356,57 @@ class ConditionalSampler(Synthesizer):
                                          "are: '{}'".format(category, col, ', '.join(categories)))
 
     @staticmethod
-    def _validate_marginal_counts_keys(marginal_counts: Dict[Tuple[str, ...], int], marginal_keys: Dict[str, List[str]]):
+    def _validate_marginal_counts_and_keys(marginal_counts: Dict[Tuple[str, ...], int],
+                                           marginal_keys: Dict[str, List[str]]) -> None:
         n_keys = len(marginal_keys)
         if not all([n_keys == len(k) for k in marginal_counts.keys()]):
             raise ValueError("The length of the keys of all 'marginal_counts' and 'marginal_keys' must be equal")
+
+        ConditionalSampler._validate_marginal_counts(marginal_counts)
+        ConditionalSampler._validate_marginal_keys(marginal_keys)
+
+    @staticmethod
+    def _validate_marginal_counts(marginal_counts: Dict[Tuple[str, ...], int]) -> None:
+        """Validate datatypes of marginal_counts"""
+
+        if not isinstance(marginal_counts, Counter):
+            raise TypeError(f"Given 'marginal_counts' must be type 'Counter', given '{type(marginal_counts)}'")
+
+        for marginals, counts in marginal_counts.items():
+            # Check marginals
+            if not isinstance(marginals, tuple):
+                raise TypeError(f"Given key '{marginals}' of 'marginal_counts' must be type 'tuple', "
+                                f"given '{type(marginals)}'")
+            for marginal in marginals:
+                if not isinstance(marginal, str):
+                    raise TypeError(f"Given marginal '{marginal}' must be type 'str', "
+                                    f"given '{type(marginal)}'")
+
+            # Check counts
+            if not isinstance(counts, int):
+                raise TypeError(f"Given counts '{counts}' for marginals '{marginals}' must be type 'int', "
+                                f"given '{type(counts)}'")
+
+    @staticmethod
+    def _validate_marginal_keys(marginal_keys: Dict[str, List[str]]) -> None:
+        """Validate datatypes of marginal_counts"""
+
+        if not isinstance(marginal_keys, dict):
+            raise TypeError(f"Given 'marginal_keys' must be type 'dict', given '{type(marginal_keys)}'")
+
+        for marginal, keys in marginal_keys.items():
+            if not isinstance(marginal, str):
+                raise TypeError(f"Given key '{marginal}' of 'marginal_keys' must be type 'str', "
+                                f"given '{type(marginal)}'")
+
+            if not isinstance(keys, list):
+                raise TypeError(f"Given value '{keys}' of 'marginal_keys' must be type 'list', "
+                                f"given '{type(keys)}'")
+
+            for key in keys:
+                if not isinstance(key, str):
+                    raise TypeError(f"Given element '{key}' of 'marginal_keys[{marginal}]' must be type 'str', "
+                                    f"given '{type(key)}'")
 
     @staticmethod
     def get_joined_marginal_counts(explicit_marginals: Dict[str, Dict[str, float]],
