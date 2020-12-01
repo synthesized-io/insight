@@ -170,6 +170,8 @@ jobs:
 
             generate_json_payload_build () {
               iso_time=$(date '+%Y-%m-%dT%T%z'| sed -e 's/\([0-9][0-9]\)$/:\1/g')
+              total_tests=$((TESTS_FAIL + TESTS_SUCCESS))
+              echo $total_tests
               echo {} | jq \
               --arg time_str "$(date +%s)" \
               --arg lastUpdated "${iso_time}" \
@@ -188,7 +190,7 @@ jobs:
               --arg repoName "${CIRCLE_PROJECT_REPONAME}" \
               --arg display "${CIRCLE_PROJECT_REPONAME}"  \
               --arg description "${CIRCLE_PROJECT_REPONAME} #${CIRCLE_BUILD_NUM} ${CIRCLE_JOB}" \
-              --arg totalTests "$((${TESTS_SUCCESS}+${TESTS_FAIL}))"  \
+              --arg totalTests "${total_tests}"  \
               --arg passedTests "${TESTS_SUCCESS}"  \
               --arg failedTests "${TESTS_FAIL}"  \
               --argjson issueKeys "${ISSUE_KEYS}" \
