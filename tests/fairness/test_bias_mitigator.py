@@ -48,6 +48,10 @@ def test_bias_mitigator_mixed_types():
     df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=5, progress_callback=testing_progress_bar,
                                                            produce_nans=False)
 
+    # Number of rows
+    df_unbiased = bias_mitigator.resample_df(df_unbiased, num_rows=5000)
+    assert len(df_unbiased) == 5000
+
     # Test bias drop
     df_unbiased_hard = bias_mitigator.drop_biases(df, progress_callback=testing_progress_bar)
     _, biases = fairness_scorer.distributions_score(df_unbiased_hard, progress_callback=testing_progress_bar)

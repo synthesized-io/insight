@@ -117,7 +117,7 @@ class BiasMitigator:
                                                            marginal_softener=marginal_softener_neg, use_colons=True)
 
             marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in marginal_counts.items()})
-            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique()))
+            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique().astype(str)))
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
             df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
@@ -255,8 +255,8 @@ class BiasMitigator:
                       .aggregate(count='count') / len(self.fairness_scorer.df) * n).apply(round).astype(int)
             counts = counts[counts['count'] > 0]
 
-            marginal_counts: Dict[Tuple[str, ...], int] = Counter(counts['count'].to_dict())
-            marginal_keys = {col: list(self.fairness_scorer.df[col].unique())
+            marginal_counts = Counter({tuple([str(k_i) for k_i in k]): v for k, v in counts['count'].to_dict().items()})
+            marginal_keys = {col: list(filter(lambda x: x != 'nan', self.fairness_scorer.df[col].unique().astype(str)))
                              for col in self.fairness_scorer.sensitive_attrs_and_target}
 
             df_synth = self.cond_sampler.synthesize_from_joined_counts(
