@@ -80,7 +80,7 @@ jobs:
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
             echo $(cat ./test-results.txt)
             echo $(cat ./test-results.txt | grep "success" | wc -l)
-            echo
+            echo $(cat ./test-results.txt | grep "failure" | wc -l)
 
             echo 'TESTS_SUCCESS="$(cat ./test-results.txt | grep "success" | wc -l)"' >> ./circleci-orb-jira.status
             echo 'TESTS_FAIL="$(cat ./test-results.txt | grep "failure" | wc -l)"' >> ./circleci-orb-jira.status
