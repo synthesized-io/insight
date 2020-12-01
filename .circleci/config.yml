@@ -129,7 +129,7 @@ jobs:
 
             parse_jira_key_array () {
               # must save as ISSUE_KEYS='["CC-4"]'
-              fetch https://circleci.com/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM} /tmp/job_info.json
+              fetch https://circleci.com/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}?circle-token=${CIRCLE_TOKEN} /tmp/job_info.json
               # see https://jqplay.org/s/TNq7c5ctot
               ISSUE_KEYS=$(cat /tmp/job_info.json | jq '[.all_commit_details[].subject | scan("('[A-Z]{2,30}-[0-9]+')")   | .[] ] + [.all_commit_details[].branch | scan("('[A-Z]{2,30}-[0-9]+')")   | .[] ] + [if .branch then .branch else "" end | scan("('[A-Z]{2,30}-[0-9]+')")  | . [] ] + [if false then .all_commit_details[].body else "" end | scan("('[A-Z]{2,30}-[0-9]+')")   | .[] ]')
               if [ -z "$ISSUE_KEYS" ]; then
@@ -140,7 +140,7 @@ jobs:
             }
 
             check_workflow_status () {
-              URL="https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}"
+              URL="https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}?circle-token=${CIRCLE_TOKEN}"
               fetch $URL /tmp/workflow.json
               export WORKFLOW_STATUS=$(jq -r '.status' /tmp/workflow.json)
               export CIRCLE_PIPELINE_NUMBER=$(jq -r '.pipeline_number' /tmp/workflow.json)
