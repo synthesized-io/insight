@@ -76,6 +76,8 @@ jobs:
       - run:
           command: |
             prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLECI_TOKEN}" | jq '.items[1].job_number')
+            echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
+            curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLECI_TOKEN}"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLECI_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
             echo 'TESTS_SUCCESS="$(($(cat ./test-results.txt | grep "success" | wc -l)))"' > ./circleci-orb-jira.status
             failed_tests=$(($(cat ./test-results.txt | grep "failure" | wc -l)))
