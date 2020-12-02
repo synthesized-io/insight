@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union, Callable, Any, Sequence
+from typing import Optional, Dict, List, Union, Callable, Any
 
 import numpy as np
 import pandas as pd
@@ -264,7 +264,7 @@ class LearningManager:
                                              column_names=column_names, df_meta=synthesizer.df_meta)
 
     def stop_learning_engine_loss(
-            self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, Sequence[tf.Tensor]]
+            self, iteration: int, synthesizer: Synthesizer, df_valid: pd.DataFrame = None
     ) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
@@ -272,7 +272,7 @@ class LearningManager:
         Args
             iteration: Iteration number.
             synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
-            df_train: Preprocessed DataFrame.
+            df_valid: Preprocessed Validation DataFrame (not yet implemented).
             num_data: Validation batch size.
 
         Returns
@@ -294,18 +294,16 @@ class LearningManager:
 
     def stop_learning(
             self, iteration: int, synthesizer: Synthesizer,
-            data_dict: Dict[str, Sequence[tf.Tensor]] = None, num_data: int = None,
-            df_train_orig: pd.DataFrame = None
+            df_valid: pd.DataFrame = None, df_train_orig: pd.DataFrame = None
     ) -> bool:
-        """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return
+        """Given all the parameters, compare current iteration to previous one, evaluate the criteria and return
         accordingly.
 
         Args
             iteration: Iteration number.
             synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
-            data_dict: Dictionary containing tensors and arrays to be used in 'feed_dict' after sampling it down.
-            num_data: Validation batch size.
-            df_train: Preprocessed DataFrame.
+            df_validation: Validation DataFrame to be used with engine loss
+            df_train_orig: Preprocessed DataFrame.
 
         Returns
             bool: True if criteria are met to stop learning.
@@ -314,8 +312,9 @@ class LearningManager:
             return False
 
         if self.use_engine_loss:
-            assert data_dict is not None and num_data is not None
-            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
+            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer)
+        elif df_valid is not None:
+            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer, df_valid=df_valid)
         else:
             assert df_train_orig is not None
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)
