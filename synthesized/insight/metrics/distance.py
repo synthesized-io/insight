@@ -23,8 +23,9 @@ class DistanceResult():
     p_value: Optional[float] = None
     interval: Optional[ConfidenceInterval] = None
 
+
 def bootstrap_binned_statistic(data, statistic: Callable[..., float], cl: float = 0.95,
-                       n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
+                               n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the confidence interval of a statistic estimate using the bootstrap method.
 
@@ -48,6 +49,7 @@ def bootstrap_binned_statistic(data, statistic: Callable[..., float], cl: float 
 
     return statistic_samples
 
+
 def bootstrap_interval(bootstrap_samples: pd.Series, cl: float = 0.95):
     """
     Calculate a confidence interval for a metric from the quantiles of a bootstrapped distribution.
@@ -62,7 +64,8 @@ def bootstrap_interval(bootstrap_samples: pd.Series, cl: float = 0.95):
     percentiles = 100 * (1 - cl) / 2, 100 * (1 - (1 - cl) / 2)
     return ConfidenceInterval(np.percentile(bootstrap_samples, percentiles).tolist(), cl)
 
-def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str ='two-sided'):
+
+def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str = 'two-sided'):
     """
     Calculate a p-value using a bootstrapped test statistic distribution
 
@@ -91,8 +94,9 @@ def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str =
 
     return p
 
+
 def bootstrap_statistic(data, statistic: Callable[..., float], cl: float = 0.95,
-                       n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
+                        n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the confidence interval of a statistic estimate using the bootstrap method.
 
@@ -143,12 +147,12 @@ def binominal_proportion_interval(p: float, n: int, cl=0.95, method: str = 'clop
         high = p + z * np.sqrt(p * (1 - p) / n)
 
     elif method == 'clopper-pearson':
-        low = beta.ppf(alpha / 2, k, n-k+1)
+        low = beta.ppf(alpha / 2, k, n - k + 1)
         high = beta.ppf(1 - alpha / 2, k + 1, n - k)
 
     elif method == 'agresti-coull':
         n_ = n + z**2
-        p_ = 1/n_ * (k + z**2 / 2)
+        p_ = 1 / n_ * (k + z**2 / 2)
         low = p_ - z * np.sqrt(p_ * (1 - p_) / n_)
         high = p_ + z * np.sqrt(p_ * (1 - p_) / n_)
 
@@ -220,6 +224,7 @@ def permutation_test(x: np.ndarray, y: np.ndarray, t: Callable[[np.ndarray, np.n
 
     return p
 
+
 class DistanceMetric():
     """
     Base class for distance metrics that compare samples from two distributions.
@@ -236,8 +241,6 @@ class DistanceMetric():
         Calculate the distance between two distributions.
 
         Args:
-            x: First distribution
-            y: Second distribution
             p_value: If True, a p value is calculated. By default this uses a permutation test unless the derived class
             overrides the DistanceMetric.p_value method,
             interval: If True, a 95% confidence interval is calculated using the bootstrap method.
@@ -268,10 +271,6 @@ class DistanceMetric():
         """
         Return a p-value for this metric using a permutation test. The null hypothesis
         is that both data samples are from the same distribution.
-
-        Args:
-            x (pd.Series): First distribution.
-            y (pd.Series): Second distribution.
 
         Returns:
             The p-value under the null hypothesis.
@@ -314,10 +313,6 @@ class BinnedDistanceMetric(DistanceMetric):
         Return a two-sided p-value for this metric using a bootstrapped distribution
         of the null hypothesis.
 
-        Args:
-            x (pd.Series): First distribution.
-            y (pd.Series): Second distribution.
-
         Returns:
             The p-value under the null hypothesis.
         """
@@ -357,10 +352,6 @@ class BinomialDistance(DistanceMetric):
         Data is assumed to be a series of 1, 0 (success, failure) Bernoulli
         random variates.
 
-        Args:
-            x: First binomial data sample.
-            y: Second binomial data sample.
-
         Returns:
             Difference between p_x and p_y.
         """
@@ -371,10 +362,6 @@ class BinomialDistance(DistanceMetric):
         """
         Calculate a p-value for the null hypothesis that the
         probability of success is p_y.
-
-        Args:
-            x (pd.Series): First binomial data sample.
-            y (pd.Series): Second binomial data sample.
 
         Returns:
             The p-value under the null hypothesis.
@@ -389,8 +376,6 @@ class BinomialDistance(DistanceMetric):
         Calculate a confidence interval for this distance metric.
 
         Args:
-            x: First binomial data sample.
-            y: Second binomial data sample.
             cl: Optional; The confidence level of the interval, i.e the fraction of intervals
                 that will contain the true distance estimate.
 
@@ -400,7 +385,7 @@ class BinomialDistance(DistanceMetric):
         p = self.x.mean()
         n = len(self.x)
         interval = binominal_proportion_interval(p, n, cl, **kwargs)
-        interval.value = interval.value[0] -self.y.mean(), interval.value[1] - self.y.mean()
+        interval.value = interval.value[0] - self.y.mean(), interval.value[1] - self.y.mean()
         return interval
 
 
@@ -413,11 +398,6 @@ class KolmogorovSmirnovDistance(DistanceMetric):
     def distance(self) -> float:
         """
         Calculate the KS distance.
-
-        Args:
-            x: First data sample.
-            y: Second data sample.
-            **kwargs: Optional keyword arguments to scipy.stats.ks_2samp.
 
         Returns:
             The KS distance.
@@ -434,6 +414,19 @@ class EarthMoversDistanceBinned(DistanceMetric):
     """
 
     def __init__(self, x: pd.Series, y: pd.Series, bins: Optional[Tuple] = None):
+        """
+        Args:
+            x: A series representing histogram counts.
+            y: A series representing histogram counts.
+            bins: Optional; If given, this must be a tuple of bin edges for x and y,
+                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                that the data represent counts of nominal categories, with no meaningful
+                distance between bins.
+            kwargs: optional keyword arguments to pyemd.emd.
+
+        Raises:
+            ValueError: x and y do not have the same number of bins.
+        """
         super().__init__(x, y)
         self.bins = bins
 
@@ -448,20 +441,8 @@ class EarthMoversDistanceBinned(DistanceMetric):
         Histograms must have an equal number of bins. They are not required to be normalised,
         and distances between bins are measured using a Euclidean metric.
 
-        Args:
-            x: A series representing histogram counts.
-            y: A series representing histogram counts.
-            bins: Optional; If given, this must be a tuple of bin edges for x and y,
-                i.e the output of np.histogram_bin_edges. If None, then it is assumed
-                that the data represent counts of nominal categories, with no meaningful
-                distance between bins.
-            kwargs: optional keyword arguments to pyemd.emd.
-
         Returns:
             The earth mover's distance.
-
-        Raises:
-            ValueError: x and y do not have the same number of bins.
         """
         if self.bins is None:
             # if bins not given, histograms are assumed to be counts of nominal categories,
@@ -487,6 +468,15 @@ class EarthMoversDistance(DistanceMetric):
     Earth movers distance (EMD), aka Wasserstein 1-distance, between samples from two distributions.
     """
     def __init__(self, x: pd.Series, y: pd.Series, emd_kwargs=None):
+        """
+        Histograms do not have to be normalised, and distances between bins
+        are measured using a Euclidean metric.
+
+        Args:
+            x: A series representing histogram counts.
+            y: A series representing histogram counts.
+            kwargs: optional keyword arguments to pyemd.emd_samples.
+        """
         super().__init__(x, y)
         if emd_kwargs is None:
             emd_kwargs = {}
@@ -497,14 +487,6 @@ class EarthMoversDistance(DistanceMetric):
         """
         Calculate the EMD between two 1d histograms.
 
-        Histograms do not have to be normalised, and distances between bins
-        are measured using a Euclidean metric.
-
-        Args:
-            x: A series representing histogram counts.
-            y: A series representing histogram counts.
-            kwargs: optional keyword arguments to pyemd.emd_samples.
-
         Returns:
             The earth mover's distance.
         """
@@ -512,7 +494,9 @@ class EarthMoversDistance(DistanceMetric):
 
 
 class HellingerDistance(DistanceMetric):
-
+    """
+    Hellinger distance between samples from two distributions.
+    """
     def __init__(self, x: pd.Series, y: pd.Series, bins: Union[str, int, Iterable] = 'auto'):
         super().__init__(x, y)
         self.bins = bins
@@ -521,4 +505,4 @@ class HellingerDistance(DistanceMetric):
     def distance(self) -> float:
         x_hist, bins = np.histogram(self.x, bins=self.bins, density=True)
         y_hist, bins = np.histogram(self.y, bins=bins, density=True)
-        return 1/np.sqrt(2) * np.sqrt(np.sum((np.sqrt(x_hist) - np.sqrt(y_hist))**2))
+        return 1 / np.sqrt(2) * np.sqrt(np.sum((np.sqrt(x_hist) - np.sqrt(y_hist))**2))
