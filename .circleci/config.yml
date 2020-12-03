@@ -301,4 +301,4 @@ workflows:
                 - master
                 - /r\d\.\d.*/
           requires:
-            - test
+            - post-to-jira
