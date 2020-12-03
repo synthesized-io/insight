@@ -89,12 +89,12 @@ class FairnessPreprocessor:
                     self.column_transformers[col] = self.bin_date_column
 
                 if col == self.target:
-                    raise TypeError(f"Datetime target columns not supported")
+                    raise TypeError("Datetime target columns not supported")
 
             # If it's a sampling value, discard it
             elif num_unique > np.sqrt(len(df)):
                 if col == self.target:
-                    raise TypeError(f"Target column ")
+                    raise TypeError("Target column has too many unique non-numerical values to compute fairness.")
 
                 else:
                     self.column_transformers[col] = self.drop_column
