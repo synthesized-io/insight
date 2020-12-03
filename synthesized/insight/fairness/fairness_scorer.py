@@ -1,11 +1,9 @@
-from datetime import datetime
 from enum import Enum
 import logging
 from itertools import combinations
-from math import factorial, log
+from math import factorial
 from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
 
-from ipywidgets import widgets, HBox, VBox
 import numpy as np
 import pandas as pd
 from pyemd import emd
@@ -15,19 +13,13 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
+from .preprocessor import FairnessPreprocessor, VariableType
 from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
-from ...config import MetaExtractorConfig
 
 logger = logging.getLogger(__name__)
-
-
-class VariableType(Enum):
-    Binary = 0
-    Multinomial = 1
-    Continuous = 2
 
 
 class FairnessScorer:
@@ -81,83 +73,30 @@ class FairnessScorer:
         self.target_n_bins = target_n_bins
         self.drop_dates = drop_dates
 
-        # Check sensitive attrs
-        for sensitive_attr in self.sensitive_attrs:
-            if sensitive_attr not in df.columns:
-                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's not found in"
-                               f"given DataFrame.")
-                self.sensitive_attrs.remove(sensitive_attr)
-
-        if target not in df.columns:
-            raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
-
-        # Detect any sensitive column
-        if detect_sensitive:
-            columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
-            new_sensitive_attrs = self.detect_sensitive_attrs(columns)
-            for new_sensitive_attr in new_sensitive_attrs:
-                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
-
-        # Detect hidden correlations
-        if detect_hidden:
-            corr = self.other_correlations(df)
-            for new_sensitive_attr, _, _ in corr:
-                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
+        self.validate_sensitive_attrs_and_target(columns=list(df.columns))
+        self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
 
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.column_bins: Dict[str, List[np.ndarray]] = dict()
-        self.set_df(df, positive_class=positive_class)
+        self.preprocessor = FairnessPreprocessor(sensitive_attrs=self.sensitive_attrs, target=self.target,
+                                                 n_bins=self.n_bins, target_n_bins=self.target_n_bins)
+        self.preprocessor.fit(df, positive_class=positive_class)
+        self.target_variable_type = self.preprocessor.target_variable_type
+        self.positive_class = self.preprocessor.positive_class
 
-        self.values_str_to_list: Dict[str, List] = dict()
-        self.names_str_to_list: Dict[str, List] = dict()
-
-    def set_df(self, df: pd.DataFrame, positive_class: Optional[str] = None) -> None:
-        if not all(c in df.columns for c in self.sensitive_attrs_and_target):
-            raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
-
-        self.df = df[~df[self.target].isna()].copy()
-
-        other_columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, self.df.columns))
-        self.df.drop(other_columns, axis=1, inplace=True)
-        if len(self.df) == 0:
-            return
-
-        categorical_threshold = int(max(
-            float(MetaExtractorConfig.min_num_unique),
-            MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
-        ))
-
-        self.bin_sensitive_attr(self.df, inplace=True, drop_dates=self.drop_dates,
-                                categorical_threshold=categorical_threshold)
-
-        self.target_variable_type = self.manipulate_target_variable(self.df,
-                                                                    categorical_threshold=categorical_threshold)
-
-        self.len_df = len(self.df)
-        # Only set positive class for binary/multinomial, even if given.
-        self.positive_class = None
-        self.target_vc: Optional[pd.Series] = None
-
-        if self.target_variable_type in (VariableType.Binary, VariableType.Multinomial):
-            self.target_vc = self.df[self.target].value_counts(normalize=True)
-            if len(self.target_vc) <= 2:
-                if positive_class is None:
-                    # If target class is not given, we'll use minority class as usually it is the target.
-                    self.positive_class = self.target_vc.idxmin()
-                elif positive_class not in self.target_vc.keys():
-                    raise ValueError(f"Given positive_class '{positive_class}' is not present in dataframe.")
-                else:
-                    self.positive_class = positive_class
-        else:
-            self.target_mean = self.df[self.target].mean()
+        self.values_str_to_list: Dict[str, List[str]] = dict()
+        self.names_str_to_list: Dict[str, List[str]] = dict()
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5) -> 'FairnessScorer':
-        sensitive_attrs = cls.detect_sensitive_attrs(list(filter(lambda c: c != target, df.columns)))
+        """Create a new FairnessScorer and automatically detect sensitive attributes.
+        Args:
+            df: Input DataFrame to be scored.
+            target: Target variable.
+            n_bins: Number of bins for sensitive attributes to be binned.
+        """
+        sensitive_attrs = cls.detect_sensitive_attrs(list(df.columns), target=target)
         scorer = cls(df, sensitive_attrs, target, n_bins)
         return scorer
 
@@ -165,7 +104,7 @@ class FairnessScorer:
     def sensitive_attrs_and_target(self) -> List[str]:
         return list(np.concatenate((self.sensitive_attrs, [self.target])))
 
-    def distributions_score(self, df: Optional[pd.DataFrame] = None,
+    def distributions_score(self, df: pd.DataFrame,
                             mode: Optional[str] = None, alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
                             weighted: bool = True, max_combinations: Optional[int] = 3, condense_output: bool = True,
@@ -186,10 +125,9 @@ class FairnessScorer:
             progress_callback: Progress bar callback.
         """
 
-        if df is not None:  # For backward compatibility we make it optional
-            self.set_df(df)
+        df_pre = self.preprocessor.transform(df)
 
-        if len(self.sensitive_attrs) == 0 or len(self.df) == 0 or len(self.df.dropna()) == 0:
+        if len(self.sensitive_attrs) == 0 or len(df_pre) == 0 or len(df_pre.dropna()) == 0:
             if progress_callback is not None:
                 progress_callback(0)
                 progress_callback(100)
@@ -201,15 +139,15 @@ class FairnessScorer:
             if max_combinations else len(self.sensitive_attrs)
         num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
 
+        n = 0
         if progress_callback is not None:
-            n = 0
             progress_callback(0)
 
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
 
-                df_dist = self.calculate_distance(list(sensitive_attr), mode=mode, alpha=alpha)
+                df_dist = self.calculate_distance(df_pre, list(sensitive_attr), mode=mode, alpha=alpha)
                 biases.extend(self.format_bias(df_dist))
 
                 if progress_callback is not None:
@@ -257,21 +195,21 @@ class FairnessScorer:
 
         return score, df_biases
 
-    def calculate_distance(self, sensitive_attr: List[str], mode: Optional[str] = None,
+    def calculate_distance(self, df: pd.DataFrame, sensitive_attr: List[str], mode: Optional[str] = None,
                            alpha: float = 0.05) -> pd.DataFrame:
         """Check input values and decide which type of distance is computed for each case."""
 
         if self.target_variable_type == VariableType.Binary:
-            df_dist = self.difference_distance(sensitive_attr, alpha=alpha)
+            df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
         elif self.target_variable_type == VariableType.Multinomial:
             if mode is not None and mode == 'ovr':
-                df_dist = self.difference_distance(sensitive_attr, alpha=alpha)
+                df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
             elif mode is None or mode == 'emd':
-                df_dist = self.emd_distance(sensitive_attr)
+                df_dist = self.emd_distance(df, sensitive_attr)
             else:
                 raise ValueError(f"Given mode '{mode}' not recognized.")
         elif self.target_variable_type == VariableType.Continuous:
-            df_dist = self.ks_distance(sensitive_attr)
+            df_dist = self.ks_distance(df, sensitive_attr)
         else:
             raise ValueError("Target variable type not supported")
 
@@ -292,8 +230,7 @@ class FairnessScorer:
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
-        if df is not None:  # For backward compatibility we make it optional
-            self.set_df(df)
+        df_pre = self.preprocessor.transform(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -319,15 +256,15 @@ class FairnessScorer:
         max_combinations = min(max_combinations, len(self.sensitive_attrs)) \
             if max_combinations else len(self.sensitive_attrs)
 
+        n = 0
+        num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
         if progress_callback is not None:
-            n = 0
             progress_callback(0)
-            num_combinations = self.get_num_combinations(self.sensitive_attrs, max_combinations)
 
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
-                cb = ClassificationBias(self.df, list(sensitive_attr), self.target, min_count=min_count)
+                cb = ClassificationBias(df_pre, list(sensitive_attr), self.target, min_count=min_count)
                 clf_score, biases_i = cb.classifier_bias(threshold=threshold, classifiers=classifiers)
                 clf_scores.append(clf_score)
                 biases.extend(biases_i)
@@ -359,8 +296,8 @@ class FairnessScorer:
     def add_sensitive_attr(self, sensitive_attr: str) -> None:
         self.sensitive_attrs.append(sensitive_attr)
 
-    def get_rates(self, sensitive_attr: List[str]) -> pd.DataFrame:
-        df = self.df[~(self.df[sensitive_attr] == 'nan').any(1)].copy()
+    def get_rates(self, df: pd.DataFrame, sensitive_attr: List[str]) -> pd.DataFrame:
+        df = df[~(df[sensitive_attr] == 'nan').any(1)].copy()
 
         target = self.target
         # Get group counts & rates
@@ -413,31 +350,153 @@ class FairnessScorer:
 
         return fmt_bias
 
-    def cramers_v_score(self) -> float:
-        df = self.df.copy()
-        cramers_v = CramersV()
-        score = 0.
-        count = 0
+    def ks_distance(self, df: pd.DataFrame, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
+        # ignore rows which have nans in any of the given sensitive attrs
+        groups = df[~(df[sensitive_attr] == 'nan').any(1)].groupby(sensitive_attr).groups
+        distances = []
+        for sensitive_attr_values, idxs in groups.items():
+            target_group = df.loc[df.index.isin(idxs), self.target]
+            target_rest = df.loc[~df.index.isin(idxs), self.target]
+            if len(target_group) == 0 or len(target_rest) == 0:
+                continue
 
-        # Compute biases for all combinations of sensitive attributes
-        for k in range(1, len(self.sensitive_attrs) + 1):
-            for sensitive_attr_tuple in combinations(self.sensitive_attrs, k):
-                sensitive_attr = list(sensitive_attr_tuple)
+            dist, pval = ks_2samp(target_group, target_rest)
+            if pval < alpha:
+                if np.mean(target_group) < df[self.target].mean():
+                    dist = -dist
 
-                if type(sensitive_attr) == list and len(sensitive_attr) > 1:
-                    name = sensitive_attr_concat_name(sensitive_attr)
-                    df[name] = df[sensitive_attr].apply(
-                        lambda x: "({})".format(', '.join([str(x[attr]) for attr in sensitive_attr])),
-                        axis=1)
+                if isinstance(sensitive_attr_values, tuple) and len(sensitive_attr_values) > 1:
+                    sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
+                    sensitive_attr_values = list(sensitive_attr_values)
                 else:
-                    name = sensitive_attr[0]
+                    sensitive_attr_str = sensitive_attr_values
+                    sensitive_attr_values = [sensitive_attr_values]
 
-                score_i = cramers_v(df[name], df[self.target])
-                if score_i is not None:
-                    score += score_i
-                    count += 1
+                self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
+                distances.append([sensitive_attr_str, len(idxs), dist])
 
-        return score / count
+        name = sensitive_attr_concat_name(sensitive_attr)
+        self.names_str_to_list[name] = sensitive_attr
+
+        return pd.DataFrame(distances, columns=[name, 'Count', 'Distance']).set_index(name)
+
+    def difference_distance(self, df: pd.DataFrame, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
+
+        df_count = self.get_rates(df, list(sensitive_attr))
+
+        len_df = len(df)
+        target_vc = df[self.target].value_counts(normalize=True).to_dict()
+
+        df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, alpha=alpha,
+                                              len_df=len_df, target_vc=target_vc)
+        df_count.dropna(inplace=True)
+        if 'Total' in df_count.index.get_level_values(0):
+            df_count.drop('Total', inplace=True)
+
+        return df_count
+
+    @staticmethod
+    def get_row_distance(row: pd.Series, alpha: float, len_df: int, target_vc: Dict[str, float]) -> float:
+        if row.name[0] == 'Total':
+            return 0.
+
+        assert target_vc is not None
+
+        p = target_vc[row.name[1]]
+        k = p * len_df
+        k_i = row['Count']
+        n_i = k_i / row['Rate']
+        # Get p without the current subsample
+        p_rest = (k - k_i) / (len_df - n_i)
+
+        if k_i / n_i > p_rest:
+            pval = 1 - binom.cdf(k_i - 1, n_i, p_rest)
+        else:
+            pval = binom.cdf(k_i, n_i, p_rest)
+
+        if pval >= alpha:
+            return np.nan
+
+        return k_i / n_i - p
+
+    def emd_distance(self, df: pd.DataFrame, sensitive_attr: List[str]) -> pd.DataFrame:
+        df_count = self.get_rates(df, list(sensitive_attr))
+
+        emd_dist = []
+        space = df_count.index.get_level_values(1).unique()
+
+        for sensitive_value in df_count.index.get_level_values(0).unique():
+            p_counts = df_count['Count'][sensitive_value].to_dict()
+            # Remove counts in current subsample
+            q_counts = {k: v - p_counts.get(k, 0) for k, v in df_count['Count']['Total'].to_dict().items()}
+
+            p = np.array([float(p_counts[x]) if x in p_counts else 0.0 for x in space])
+            q = np.array([float(q_counts[x]) if x in q_counts else 0.0 for x in space])
+
+            p /= np.sum(p)
+            q /= np.sum(q)
+
+            distance_space = 1 - np.eye(len(space))
+
+            emd_dist.append({
+                df_count.index.names[0]: sensitive_value,
+                'Distance': emd(p, q, distance_space),
+                'Count': df_count['Count'][sensitive_value].sum()
+            })
+        return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
+
+    def validate_sensitive_attrs_and_target(self, columns: List[str]) -> None:
+        # Check sensitive attrs in df.columns
+        for sensitive_attr in self.sensitive_attrs:
+            if sensitive_attr not in columns:
+                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's not found in"
+                               f"given DataFrame.")
+                self.sensitive_attrs.remove(sensitive_attr)
+
+            elif sensitive_attr == self.target:
+                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's equal"
+                               f"to given target.")
+                self.sensitive_attrs.remove(sensitive_attr)
+
+        # Check target in df.columns
+        if self.target not in columns:
+            raise ValueError(f"Target variable '{self.target}' not found in the given DataFrame.")
+
+        # If target in sensitive_attrs, drop it
+        if self.target in self.sensitive_attrs:
+            self.sensitive_attrs.remove(self.target)
+
+        if len(self.sensitive_attrs) == 0:
+            logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
+
+    def detect_other_sensitive(self, df: pd.DataFrame, detect_sensitive: bool, detect_hidden: bool) -> None:
+        # Detect other hidden sensitive attrs
+        if detect_sensitive:
+            columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+            new_sensitive_attrs = self.detect_sensitive_attrs(columns)
+            for new_sensitive_attr in new_sensitive_attrs:
+                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
+                self.add_sensitive_attr(new_sensitive_attr)
+
+        # Detect hidden correlations
+        if detect_hidden:
+            corr = self.other_correlations(df)
+            for new_sensitive_attr, _, _ in corr:
+                logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
+                self.add_sensitive_attr(new_sensitive_attr)
+
+    @staticmethod
+    def detect_sensitive_attrs(names: List[str], target: Optional[str] = None) -> List[str]:
+        if target:
+            names = list(filter(lambda c: c != target, names))
+
+        detector = SensitiveNamesDetector()
+        names_dict = detector.detect_names_dict(names)
+        if len(names_dict) > 0:
+            logger.info("Sensitive columns detected: "
+                        "{}".format(', '.join([f"'{k}' (bias type: {v})" for k, v in names_dict.items()])))
+
+        return [attr for attr in names_dict.keys()]
 
     def other_correlations(self, df: pd.DataFrame, threshold: float = 0.5) -> List[Tuple[str, str, float]]:
         """
@@ -473,256 +532,6 @@ class FairnessScorer:
                            f"'{sensitive_attr}'.")
 
         return correlation_pairs
-
-    def ks_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
-        # ignore rows which have nans in any of the given sensitive attrs
-        groups = self.df[~(self.df[sensitive_attr] == 'nan').any(1)].groupby(sensitive_attr).groups
-        distances = []
-        for sensitive_attr_values, idxs in groups.items():
-            target_group = self.df.loc[self.df.index.isin(idxs), self.target]
-            target_rest = self.df.loc[~self.df.index.isin(idxs), self.target]
-            if len(target_group) == 0 or len(target_rest) == 0:
-                continue
-
-            dist, pval = ks_2samp(target_group, target_rest)
-            if pval < alpha:
-                if np.mean(target_group) < self.target_mean:
-                    dist = -dist
-
-                if isinstance(sensitive_attr_values, tuple) and len(sensitive_attr_values) > 1:
-                    sensitive_attr_str = "({})".format(', '.join([str(sa) for sa in sensitive_attr_values]))
-                    sensitive_attr_values = list(sensitive_attr_values)
-                else:
-                    sensitive_attr_str = sensitive_attr_values
-                    sensitive_attr_values = [sensitive_attr_values]
-
-                self.values_str_to_list[sensitive_attr_str] = sensitive_attr_values
-                distances.append([sensitive_attr_str, len(idxs), dist])
-
-        name = sensitive_attr_concat_name(sensitive_attr)
-        self.names_str_to_list[name] = sensitive_attr
-
-        return pd.DataFrame(distances, columns=[name, 'Count', 'Distance']).set_index(name)
-
-    def difference_distance(self, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
-        df_count = self.get_rates(list(sensitive_attr))
-
-        df_count['Distance'] = df_count.apply(self.get_row_distance, axis=1, alpha=alpha)
-        df_count.dropna(inplace=True)
-        if 'Total' in df_count.index.get_level_values(0):
-            df_count.drop('Total', inplace=True)
-
-        return df_count
-
-    def get_row_distance(self, row: pd.Series, alpha: float = 0.05) -> float:
-        if row.name[0] == 'Total':
-            return 0.
-
-        assert self.target_vc is not None
-
-        p = self.target_vc[row.name[1]]
-        k = p * self.len_df
-        k_i = row['Count']
-        n_i = k_i / row['Rate']
-        # Get p without the current subsample
-        p_rest = (k - k_i) / (self.len_df - n_i)
-
-        if k_i / n_i > p_rest:
-            pval = 1 - binom.cdf(k_i - 1, n_i, p_rest)
-        else:
-            pval = binom.cdf(k_i, n_i, p_rest)
-
-        if pval >= alpha:
-            return np.nan
-
-        return k_i / n_i - p
-
-    def emd_distance(self, sensitive_attr: List[str]) -> pd.DataFrame:
-        df_count = self.get_rates(list(sensitive_attr))
-
-        emd_dist = []
-        space = df_count.index.get_level_values(1).unique()
-
-        for sensitive_value in df_count.index.get_level_values(0).unique():
-            p_counts = df_count['Count'][sensitive_value].to_dict()
-            # Remove counts in current subsample
-            q_counts = {k: v - p_counts.get(k, 0) for k, v in df_count['Count']['Total'].to_dict().items()}
-
-            p = np.array([float(p_counts[x]) if x in p_counts else 0.0 for x in space])
-            q = np.array([float(q_counts[x]) if x in q_counts else 0.0 for x in space])
-
-            p /= np.sum(p)
-            q /= np.sum(q)
-
-            distance_space = 1 - np.eye(len(space))
-
-            emd_dist.append({
-                df_count.index.names[0]: sensitive_value,
-                'Distance': emd(p, q, distance_space),
-                'Count': df_count['Count'][sensitive_value].sum()
-            })
-        return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
-
-    @staticmethod
-    def detect_sensitive_attrs(names: List[str]) -> List[str]:
-        detector = SensitiveNamesDetector()
-        names_dict = detector.detect_names_dict(names)
-        if len(names_dict) > 0:
-            logger.info("Sensitive columns detected: "
-                        "{}".format(', '.join([f"'{k}' (bias type: {v})" for k, v in names_dict.items()])))
-
-        return [attr for attr in names_dict.keys()]
-
-    def check_box(self, columns: List[str], box_cols: int = 3) -> Tuple[Dict[str, Any], Any]:
-        columns = list(filter(lambda c: c != self.target, columns))
-        checks = dict()
-        box = []
-        for i in range(int(np.ceil(len(columns) / box_cols))):
-            row = []
-            for j in range(box_cols):
-                idx = i * box_cols + j
-                if idx >= len(columns):
-                    break
-                column = columns[idx]
-                check = widgets.Checkbox(
-                    value=True if column in self.sensitive_attrs else False,
-                    description=column,
-                    disabled=False
-                )
-                checks[column] = check
-                row.append(check)
-            box.append(HBox(row))
-        VBox(box)
-
-        return checks, VBox(box)
-
-    def manipulate_target_variable(self, df: pd.DataFrame, categorical_threshold: Optional[int] = None) -> VariableType:
-        """Check the target variable column, binned it if needed, and return target variable type"""
-        # Convert to numeric
-        col_num = pd.to_numeric(df[self.target], errors='coerce')
-        if col_num.isna().sum() == 0:
-            df[self.target] = col_num
-
-        num_unique = df[self.target].nunique()
-        categorical_threshold = categorical_threshold if categorical_threshold is not None else self.target_n_bins
-
-        # If it's numeric
-        if df[self.target].dtype.kind in ('i', 'u', 'f'):
-            # If we already have bins for the target, bin it and return
-            if self.target in self.column_bins.keys():
-                df[self.target] = self.bin_column(df[self.target])
-                return self.target_variable_type
-
-            if self.target_n_bins is None:
-                # Even if it's numerical, well considered binary/multinomial if it has few unique values
-                if num_unique <= 2:
-                    self.target_n_bins = num_unique
-                    return VariableType.Binary
-                elif num_unique <= categorical_threshold:
-                    self.target_n_bins = num_unique
-                    return VariableType.Multinomial
-                else:
-                    # Only drop nans if present in target distribution.
-                    df.drop(index=df[df[self.target].isna()].index, axis=0, inplace=True)
-                    return VariableType.Continuous
-
-            if num_unique > categorical_threshold:
-                df[self.target] = self.bin_column(df[self.target], n_bins=self.target_n_bins)
-
-        else:
-            df[self.target] = df[self.target].astype(str)
-            if self.target_n_bins is None:
-                self.target_n_bins = num_unique
-
-        return VariableType.Binary if num_unique == 2 else VariableType.Multinomial
-
-    def bin_sensitive_attr(self, df: pd.DataFrame, inplace: bool = True, categorical_threshold: Optional[int] = None,
-                           drop_dates: bool = True) -> pd.DataFrame:
-        if not inplace:
-            df = df.copy()
-
-        for col in self.sensitive_attrs:
-            # Try to convert it to numeric if it isn't
-            if df[col].dtype.kind not in ('i', 'u', 'f'):
-                n_nans = df[col].isna().sum()
-                col_num = pd.to_numeric(df[col], errors='coerce')
-                if col_num.isna().sum() == n_nans:
-                    df[col] = col_num
-
-            # Try to convert it to date
-            if df[col].dtype.kind == 'O':
-                n_nans = df[col].isna().sum()
-                try:
-                    col_date = pd.to_datetime(df[col], errors='coerce')
-                except TypeError:  # Argument 'date_string' has incorrect type (expected str, got numpy.str_)
-                    col_date = pd.to_datetime(df[col].astype(str), errors='coerce')
-
-                if col_date.isna().sum() == n_nans:
-                    df[col] = col_date
-
-            # If we already have bins for given column, bin it and continue
-            if col in self.column_bins.keys():
-                df[col] = self.bin_column(df[col])
-                continue
-
-            categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
-            num_unique = df[col].nunique()
-
-            # If it's numeric, bin it
-            if df[col].dtype.kind in ('i', 'u', 'f'):
-                if num_unique > categorical_threshold:
-                    df[col] = self.bin_column(df[col], n_bins=self.n_bins)
-
-            # If it's date, bin it
-            elif df[col].dtype.kind == 'M':
-                if drop_dates:
-                    df.drop(col, axis=1, inplace=True)
-                    self.sensitive_attrs.remove(col)
-                    logging.info(f"Sensitive attribute '{col}' dropped as it is a date value and 'drop_dates=True'.")
-                else:
-                    df[col] = self.bin_date_column(df[col])
-
-            # If it's a sampling value, discard it
-            elif num_unique > np.sqrt(len(df)):
-                df.drop(col, axis=1, inplace=True)
-                self.sensitive_attrs.remove(col)
-                logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")
-
-            else:
-                df[col] = df[col].astype(str).fillna('nan')
-
-        return df
-
-    def bin_date_column(self, column: pd.Series, date_format: str = "%Y-%m-%d") -> pd.Series:
-        assert column.dtype.kind == "M"
-        column, edges_num = pd.cut(column, bins=self.n_bins, retbins=True, duplicates='drop', include_lowest=True)
-
-        edges_str = [datetime.strftime(pd.to_datetime(d), date_format) for d in edges_num]
-        edges = {pd.Interval(edges_num[i], edges_num[i + 1]): "{} to {}".format(edges_str[i], edges_str[i + 1])
-                 for i in range(len(edges_num) - 1)}
-
-        return column.map(edges).astype(str)
-
-    def bin_column(self, column: pd.Series, n_bins: Optional[int] = None, remove_outliers: float = 0.1) -> pd.Series:
-        name = str(column.name)
-
-        if name not in self.column_bins.keys():
-            assert n_bins is not None
-            column_clean = column.copy().dropna()
-            percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
-            start, end = np.percentile(column_clean, percentiles)
-
-            if start == end:
-                start, end = min(column_clean), max(column_clean)
-
-            column_clean = column_clean[(start <= column_clean) & (column_clean <= end)]
-
-            _, bins = pd.cut(column_clean, bins=n_bins, retbins=True, duplicates='drop', include_lowest=True)
-            assert isinstance(bins, np.ndarray)
-            bins[0], bins[-1] = column.min(), column.max()
-            self.column_bins[name] = bins
-
-        return pd.cut(column, bins=self.column_bins[name], duplicates='drop', include_lowest=True).astype(str)
 
     @staticmethod
     def get_num_combinations(iterable: Sized, max_combinations: int) -> int:
