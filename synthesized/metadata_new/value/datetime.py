@@ -4,8 +4,10 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from .base import Domain, Affine, Scale
-from .exceptions import UnknownDateFormatError
+from .continuous import Integer
+from .categorical import String
+from ..base import Domain, Affine, Scale
+from ..exceptions import UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='Date')
 
@@ -40,6 +42,10 @@ class Date(Affine[np.datetime64]):
     ):
         super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
         self.date_format = date_format
+        self[name + '_dow'] = String(name + '_dow')
+        self[name + '_day'] = Integer(name + '_day')
+        self[name + '_month'] = Integer(name + '_month')
+        self[name + '_year'] = Integer(name + '_year')
 
     def extract(self: DateType, df: pd.DataFrame) -> DateType:
         if self.date_format is None:
@@ -49,6 +55,11 @@ class Date(Affine[np.datetime64]):
                 self.date_format = None
 
         df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
+        df[self.name + '_dow'] = df[self.name].dt.day_name()
+        df[self.name + '_day'] = df[self.name].dt.day
+        df[self.name + '_month'] = df[self.name].dt.month
+        df[self.name + '_year'] = df[self.name].dt.year
+
         super().extract(df)  # call super here so we can get max, min from datetime.
         df[self.name] = df[self.name].dt.strftime(self.date_format)
 

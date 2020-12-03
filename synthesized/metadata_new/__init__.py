@@ -7,11 +7,12 @@ from .base import Scale
 from .base import Ring
 from .base import Domain
 
-from .bool import Bool
-from .categorical import String
-from .continuous import Integer
-from .continuous import Float
-from .datetime import Date, TimeDelta
+from .value import Bool
+from .value import String
+from .value import Integer
+from .value import Float
+from .value import Date
+from .value import TimeDelta
 
 from .data_frame_meta import DataFrameMeta
 from .meta_builder import MetaExtractor

@@ -2,8 +2,9 @@ from typing import Optional, List, cast, Dict
 
 import pandas as pd
 
-from .base import Ordinal, Domain
-from .exceptions import MetaNotExtractedError, ExtractionError
+from ..base import Ordinal
+from ..base.domain import Domain, CategoricalDomain
+from ..exceptions import MetaNotExtractedError, ExtractionError
 
 
 class OrderedString(Ordinal[str]):
@@ -45,3 +46,6 @@ class OrderedString(Ordinal[str]):
             raise ValueError(f"x={x} or y={y} are not valid categories.")
 
         return self.order.index(x) < self.order.index(y)
+
+    def infer_domain(self, df: pd.DataFrame) -> Domain[str]:
+        return CategoricalDomain(categories=cast(List[str], self.order))

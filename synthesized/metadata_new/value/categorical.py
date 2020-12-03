@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .base import Domain, Nominal
+from ..base import Domain, Nominal
 
 
 class String(Nominal[str]):

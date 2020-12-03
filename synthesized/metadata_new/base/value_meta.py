@@ -1,13 +1,12 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, List, Sequence
+from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, Union, Sequence
 from functools import cmp_to_key
 
 import numpy as np
 import pandas as pd
 
-from .domain import Domain
+from .domain import Domain, CategoricalDomain, OrderedDomain
 from .meta import Meta
-from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
 NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
@@ -44,19 +43,6 @@ class ValueMeta(Meta, Generic[DType]):
     def __repr__(self) -> str:
         return f'{self.class_name}(name={self.name}, dtype={self.dtype})'
 
-    @property
-    def children(self) -> List['Meta']:
-        """Return the children of this Meta."""
-        return []
-
-    @children.setter
-    def children(self, children: List['Meta']) -> None:
-        if len(children) > 0:
-            raise ValueError('ValueMeta cannot have children')
-
-    def __setitem__(self, k: str, v: 'Meta') -> None:
-        raise ValueError('ValueMeta cannot have children')
-
 
 class Nominal(ValueMeta[NType], Generic[NType]):
     """
@@ -74,7 +60,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
     def __init__(self, name: str, domain: Optional[Domain[NType]] = None, nan_freq: Optional[float] = None):
         super().__init__(name=name)
-        self.domain: Optional[Domain[NType]] = domain
+        self._domain: Optional[Domain[NType]] = domain
         self.nan_freq = nan_freq
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
@@ -89,17 +75,30 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         return self
 
+    @property
+    def domain(self) -> Optional[Domain[NType]]:
+        return self._domain
+
+    @domain.setter
+    def domain(self, x: Union[Dict[str, object], Optional[Domain[NType]]]):
+        if type(x) is dict:
+            x = cast(Dict[str, object], x)
+            self._domain = Domain.STR_TO_DOMAIN[cast(str, x['domain_type'])].from_dict(x)
+        else:
+            x = cast(Optional[Domain[NType]], x)
+            self._domain = x
+
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
             "nan_freq": self.nan_freq,
-            "domain": self.domain
+            "domain": self.domain if self.domain is None else self.domain.to_dict()
         })
 
         return d
 
     def infer_domain(self, df: pd.DataFrame) -> Domain[NType]:
-        return cast(Domain[NType], df[self.name].unique())
+        return CategoricalDomain(categories=df[self.name].unique().tolist())
 
 
 class Ordinal(Nominal[OType], Generic[OType]):
@@ -128,12 +127,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
         super().extract(df)
         self.domain = cast(Domain[OType], self.domain)
 
-        unique_sorted = self.sort(self.domain)  # type: ignore
-
-        if self.min is None:
-            self.min = unique_sorted[0]
-        if self.max is None:
-            self.max = unique_sorted[-1]
+        categories = self.sort(df[self.name].unique())
+        min_cat, max_cat = categories[0], categories[-1]
+        self.min = min_cat
+        self.max = max_cat
 
         return self
 
@@ -147,16 +144,6 @@ class Ordinal(Nominal[OType], Generic[OType]):
         return d
 
     def less_than(self, x: OType, y: OType) -> bool:
-        if not self._extracted:
-            raise MetaNotExtractedError
-
-        self.domain = cast(Domain[OType], self.domain)
-
-        if x not in self.domain or y not in self.domain:
-            if np.isnan(x) or np.isnan(y):
-                return False
-            else:
-                raise ValueError(f"x={x} or y={y} are not valid categories.")
 
         b: bool = x < y
         return b
@@ -173,6 +160,11 @@ class Ordinal(Nominal[OType], Generic[OType]):
         """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
+
+    def infer_domain(self, df: pd.DataFrame) -> Domain[OType]:
+        categories = self.sort(df[self.name].unique())
+        min_cat, max_cat = categories[0], categories[-1]
+        return OrderedDomain(min=min_cat, max=max_cat)
 
 
 class Affine(Ordinal[AType], Generic[AType]):
