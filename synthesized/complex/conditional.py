@@ -2,6 +2,7 @@ import gc
 import re
 from abc import ABC
 from collections import Counter
+from datetime import datetime
 from itertools import product
 import logging
 from typing import Any, Dict, Tuple, Union, Callable, List, Optional
@@ -12,8 +13,8 @@ import tensorflow as tf
 
 from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
-from ..common.values import ContinuousValue, CategoricalValue, NanValue, Value
-from ..metadata import ValueMeta
+from ..common.values import Value
+from ..metadata import CategoricalMeta, ContinuousMeta, DateMeta, NanMeta
 
 logger = logging.getLogger(__name__)
 
@@ -49,26 +50,36 @@ class ConditionalSampler(Synthesizer):
         self.synthesis_batch_size = synthesis_batch_size
 
         self.all_columns: List[str] = self.synthesizer.value_factory.columns
-        self.continuous_columns = {v.name for v in self.synthesizer.get_values()
-                                   if (isinstance(v, ContinuousValue) or isinstance(v, NanValue))}
+
+        self.date_fmt: Dict[str, Optional[str]] = dict()
+        self.continuous_columns = []
+        self.date_columns = []
+        for v in self.synthesizer.df_meta.all_values:
+            if isinstance(v, DateMeta):
+                self.date_columns.append(v.name)
+                self.date_fmt[v.name] = v.date_format
+            elif isinstance(v, (ContinuousMeta, NanMeta)):
+                self.continuous_columns.append(v.name)
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
-              callback: Callable[[object, int, dict], bool] = None, callback_freq: int = 0) -> None:
+              callback: Optional[Callable[[object, int, dict], bool]] = None, callback_freq: int = 0) -> None:
         self.synthesizer.learn(
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
     def synthesize(self,
                    num_rows: int,
-                   conditions: Union[dict, pd.DataFrame] = None,
+                   conditions: Optional[Union[dict, pd.DataFrame]] = None,
                    produce_nans: bool = False,
                    progress_callback: Callable[[int], None] = None,
-                   explicit_marginals: Dict[str, Dict[str, float]] = None) -> pd.DataFrame:
+                   explicit_marginals: Optional[Dict[str, Dict[str, float]]] = None,
+                   date_fmt: Optional[str] = None) -> pd.DataFrame:
         """Generate the given number of new data rows according to the ConditionalSynthesizer's explicit marginals.
 
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
+            date_fmt: If conditons include dates, it's format.
             produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
@@ -98,13 +109,14 @@ class ConditionalSampler(Synthesizer):
 
         marginal_keys = {k: list(v.keys()) for k, v in explicit_marginals.items()}
 
-        return self.synthesize_from_joined_counts(marginal_counts, marginal_keys,
+        return self.synthesize_from_joined_counts(marginal_counts, marginal_keys, date_fmt=date_fmt,
                                                   conditions=conditions, progress_callback=progress_callback)
 
     def synthesize_from_joined_counts(
             self,
             marginal_counts: Dict[Tuple[str, ...], int],
             marginal_keys: Dict[str, List[str]],
+            date_fmt: Optional[str] = None,
             conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None,
@@ -145,7 +157,7 @@ class ConditionalSampler(Synthesizer):
                                                          produce_nans=produce_nans)
 
             # In order to filter our data frame we need keys that we will look up in counts:
-            df_key = self.map_key_columns(df_synthesized, marginal_keys)
+            df_key = self.map_key_columns(df_synthesized, marginal_keys, date_fmt=date_fmt)
 
             n_added = 0
             for key_row, row in zip(df_key.to_numpy(), df_synthesized.to_numpy()):
@@ -199,7 +211,7 @@ class ConditionalSampler(Synthesizer):
         in_dtypes = {k: v for value in self.synthesizer.df_meta.all_values for k, v in value.in_dtypes.items()}
         for col_name, col_dtype in in_dtypes.items():
             if str(df_synth[col_name].dtype) != str(col_dtype):
-                df_synth.loc[:, col_name] = df_synth.loc[:, col_name].astype(col_dtype)
+                df_synth.loc[:, col_name] = df_synth.loc[:, col_name].astype(col_dtype, errors='ignore')
 
         return df_synth
 
@@ -208,6 +220,7 @@ class ConditionalSampler(Synthesizer):
                             num_rows: int,
                             produce_nans: bool = False,
                             explicit_marginals: Dict[str, Dict[str, float]] = None,
+                            date_fmt: Optional[str] = None,
                             conditions: Union[dict, pd.DataFrame] = None,
                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Given a DataFrame, drop and/or generate new samples so that the output distributions are
@@ -243,7 +256,7 @@ class ConditionalSampler(Synthesizer):
         self._validate_explicit_marginals(explicit_marginals)
         marginal_counts = self.get_joined_marginal_counts(explicit_marginals, num_rows)
 
-        df_key = self.map_key_columns(df, marginal_keys)
+        df_key = self.map_key_columns(df, marginal_keys, date_fmt=date_fmt)
         orig_key_groups = self._keys_to_tuple(df_key.groupby(conditional_columns).groups)
 
         marginal_counts_original_df = Counter({k: len(v) for k, v in orig_key_groups.items()})
@@ -288,19 +301,20 @@ class ConditionalSampler(Synthesizer):
 
         return df_out.sample(frac=1).reset_index(drop=True)
 
-    def map_key_columns(self, df: pd.DataFrame, marginal_keys: Dict[str, List[str]]) -> pd.DataFrame:
+    def map_key_columns(self, df: pd.DataFrame, marginal_keys: Dict[str, List[str]],
+                        date_fmt: Optional[str] = None) -> pd.DataFrame:
         """Get key dataframe. Transform the continuous columns into intervals, and convert all key
         columns into strings.
 
         """
         conditional_columns = list(marginal_keys.keys())
         df_key = df[conditional_columns]
-        df_key = self._map_continuous_columns(df_key, marginal_keys)
+        df_key = self._map_continuous_columns(df_key, marginal_keys, date_fmt=date_fmt)
         df_key = df_key.astype(str)
         return df_key
 
-    def _map_continuous_columns(self, df: pd.DataFrame,
-                                marginal_keys: Dict[str, List[str]]) -> pd.DataFrame:
+    def _map_continuous_columns(self, df: pd.DataFrame, marginal_keys: Dict[str, List[str]],
+                                date_fmt: Optional[str] = None) -> pd.DataFrame:
         """Looks for continuous columns and map values into bins that are defined in `explicit_marginals`.
 
         Args:
@@ -323,19 +337,35 @@ class ConditionalSampler(Synthesizer):
                     intervals.append(interval)
                 mapping[col] = intervals
 
+        # Find date -> str mappings
+        for col in self.date_columns:
+            if col in conditional_columns:
+                date_fmt = date_fmt if date_fmt is not None else self.date_fmt[col]
+                if date_fmt is None:
+                    raise ValueError(f"Could not infer date format for column '{col}', please provide it")
+                intervals = []
+                for str_interval in marginal_keys[col]:
+                    interval = DateInterval.parse(str_interval, date_fmt=date_fmt)
+                    intervals.append(interval)
+                mapping[col] = intervals
+
         # Apply mappings
         for col in conditional_columns:
-            if col in self.continuous_columns:
-                def map_value(value: float):
+            if col in np.concatenate((self.continuous_columns, self.date_columns)):
+                def map_value(value: float) -> str:
                     intervals = mapping[col]
                     for interval in intervals:
                         if interval.is_in(value):
                             return str(interval)
+                    return ''
+
+                if col in self.date_columns:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
                 df[col] = df[col].apply(map_value)
 
         return df
 
-    def _validate_explicit_marginals(self, explicit_marginals: Dict[str, Dict[str, float]]):
+    def _validate_explicit_marginals(self, explicit_marginals: Dict[str, Dict[str, float]]) -> None:
         values = self.synthesizer.df_meta.values
         values_name = [value.name for value in values]
 
@@ -346,14 +376,10 @@ class ConditionalSampler(Synthesizer):
                 raise ValueError("Column '{}' not found in learned values for the given synthesizer.".format(col))
 
             v = values[values_name.index(col)]
-            if isinstance(v, CategoricalValue):
-                categories = [str(c) for c in v.categories if c is not np.nan]
+            if isinstance(v, CategoricalMeta):
                 for category in cond.keys():
                     if not isinstance(category, str):
                         raise TypeError("Given bins must be strings. Bin {} is not a string".format(category))
-                    elif category not in categories:
-                        raise ValueError("Category '{}' for column '{}' not found in learned data. Available options "
-                                         "are: '{}'".format(category, col, ', '.join(categories)))
 
     @staticmethod
     def _validate_marginal_counts_and_keys(marginal_counts: Dict[Tuple[str, ...], int],
@@ -443,45 +469,40 @@ class ConditionalSampler(Synthesizer):
     def get_conditions(self) -> List[Value]:
         return self.synthesizer.get_conditions()
 
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return self.synthesizer.get_value_meta_pairs()
-
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return self.synthesizer.get_condition_meta_pairs()
-
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         return self.synthesizer.get_losses()
 
 
-class FloatEndpoint(ABC):
-    def __init__(self, value: float):
+class Endpoint(ABC):
+    def __init__(self, value: Union[float, datetime], value_str: Optional[str] = None):
         self.value = value
+        self.value_str = value_str if value_str is not None else str(value)
 
     def to_str(self, is_left: bool) -> str:
         pass
 
-    def as_left_in(self, value: float) -> bool:
+    def as_left_in(self, value: Union[float, datetime]) -> bool:
         pass
 
-    def as_right_in(self, value: float) -> bool:
+    def as_right_in(self, value: Union[float, datetime]) -> bool:
         pass
 
 
-class Inclusive(FloatEndpoint):
-    def __init__(self, value: float):
-        super().__init__(value)
+class Inclusive(Endpoint):
+    def __init__(self, value: Union[float, datetime], value_str: Optional[str] = None):
+        super().__init__(value, value_str=value_str)
 
-    def as_left_in(self, value: float) -> bool:
-        return value >= self.value
+    def as_left_in(self, value: Union[float, datetime]) -> bool:
+        return value >= self.value  # type: ignore
 
-    def as_right_in(self, value: float) -> bool:
-        return value <= self.value
+    def as_right_in(self, value: Union[float, datetime]) -> bool:
+        return value <= self.value  # type: ignore
 
     def to_str(self, is_left: bool) -> str:
         if is_left:
-            return '[{}'.format(self.value)
+            return '[{}'.format(self.value_str)
         else:
-            return '{}]'.format(self.value)
+            return '{}]'.format(self.value_str)
 
     def __eq__(self, other):
         return self.value == other.value
@@ -490,21 +511,21 @@ class Inclusive(FloatEndpoint):
         return "Inclusive({})".format(self.value)
 
 
-class Exclusive(FloatEndpoint):
-    def __init__(self, value: float):
-        super().__init__(value)
+class Exclusive(Endpoint):
+    def __init__(self, value: Union[float, datetime], value_str: Optional[str] = None):
+        super().__init__(value, value_str=value_str)
 
-    def as_left_in(self, value: float) -> bool:
-        return value > self.value
+    def as_left_in(self, value: Union[float, datetime]) -> bool:
+        return value > self.value  # type: ignore
 
-    def as_right_in(self, value: float) -> bool:
-        return value < self.value
+    def as_right_in(self, value: Union[float, datetime]) -> bool:
+        return value < self.value  # type: ignore
 
     def to_str(self, is_left: bool) -> str:
         if is_left:
-            return '({}'.format(self.value)
+            return '({}'.format(self.value_str)
         else:
-            return '{})'.format(self.value)
+            return '{})'.format(self.value_str)
 
     def __eq__(self, other):
         return self.value == other.value
@@ -518,8 +539,8 @@ class FloatInterval:
 
     RE = re.compile(r'([\[\(])(\S+\.\S+),\s(\S+\.\S+)([\]\)])')
 
-    def __init__(self, left: FloatEndpoint, right: FloatEndpoint):
-        assert left.value < right.value
+    def __init__(self, left: Endpoint, right: Endpoint):
+        assert left.value < right.value  # type: ignore
         self.left = left
         self.right = right
 
@@ -535,26 +556,75 @@ class FloatInterval:
     def __str__(self) -> str:
         return '{left}, {right}'.format(left=self.left.to_str(is_left=True), right=self.right.to_str(is_left=False))
 
+    @staticmethod
+    def create_left_endpoint(left: Union[float, datetime], left_bracket: str,
+                             left_s: Optional[str] = None) -> Endpoint:
+        if left_bracket == '[':
+            left_endpoint: Endpoint = Inclusive(left, left_s)
+        elif left_bracket == '(':
+            left_endpoint = Exclusive(left, left_s)
+        else:
+            assert False
+
+        return left_endpoint
+
+    @staticmethod
+    def create_right_endpoint(right: Union[float, datetime], right_bracket: str,
+                              right_s: Optional[str] = None) -> Endpoint:
+
+        if right_bracket == ']':
+            right_endpoint: Endpoint = Inclusive(right, right_s)
+        elif right_bracket == ')':
+            right_endpoint = Exclusive(right, right_s)
+        else:
+            assert False
+
+        return right_endpoint
+
     @classmethod
-    def parse(cls, s: str):
+    def parse(cls, s: str) -> 'FloatInterval':
         m = FloatInterval.RE.match(s)
-        assert m
+        if m is None:
+            raise ValueError(f"Can't match given string '{s}'")
 
         left_bracket, left_s, right_s, right_bracket = m.groups()
         left, right = float(left_s), float(right_s)
 
-        if left_bracket == '[':
-            left_endpoint: FloatEndpoint = Inclusive(left)
-        elif left_bracket == '(':
-            left_endpoint = Exclusive(left)
-        else:
-            assert False
+        left_endpoint = FloatInterval.create_left_endpoint(left, left_bracket, left_s)
+        right_endpoint = FloatInterval.create_right_endpoint(right, right_bracket, right_s)
+        return cls(left_endpoint, right_endpoint)
 
-        if right_bracket == ']':
-            right_endpoint: FloatEndpoint = Inclusive(right)
-        elif right_bracket == ')':
-            right_endpoint = Exclusive(right)
-        else:
-            assert False
 
-        return FloatInterval(left_endpoint, right_endpoint)
+class DateInterval(FloatInterval):
+    """Models an interval of date values."""
+
+    def __init__(self, left: Endpoint, right: Endpoint, date_fmt: str = "%Y-%m-%d"):
+        super().__init__(left=left, right=right)
+        self.date_fmt = date_fmt
+
+    def is_in(self, value: Union[str, datetime]) -> bool:  # type: ignore
+        value_date: datetime = datetime.strptime(value, self.date_fmt) if isinstance(value, str) else value
+        return self.left.as_left_in(value_date) and self.right.as_right_in(value_date)
+
+    def __repr__(self):
+        return 'DateInterval({}, {})'.format(self.left, self.right)
+
+    @staticmethod
+    def get_interval_fmt(date_fmt: str = "%Y-%m-%d"):
+        date_fmt_re = re.sub(r"%\w", r"[0-9]+", date_fmt)
+        return re.compile(r"([\[\(])({0}),\s({0})([\]\)])".format(date_fmt_re))
+
+    @classmethod
+    def parse(cls, s: str, date_fmt: str = "%Y-%m-%d") -> 'DateInterval':
+
+        date_re = DateInterval.get_interval_fmt(date_fmt)
+        m = date_re.match(s)
+        if m is None:
+            raise ValueError(f"Can't match given string '{s}'")
+
+        left_bracket, left_s, right_s, right_bracket = m.groups()
+        left, right = datetime.strptime(left_s, date_fmt), datetime.strptime(right_s, date_fmt)
+        left_endpoint = FloatInterval.create_left_endpoint(left, left_bracket, left_s)
+        right_endpoint = FloatInterval.create_right_endpoint(right, right_bracket, right_s)
+
+        return cls(left_endpoint, right_endpoint)

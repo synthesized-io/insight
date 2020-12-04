@@ -107,7 +107,7 @@ class ValueMeta:
     def set_dtypes(self, df: pd.DataFrame):
         for col_name, col_dtype in self.in_dtypes.items():
             if str(df[col_name].dtype) != str(col_dtype):
-                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype)
+                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(
