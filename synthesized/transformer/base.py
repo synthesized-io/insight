@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
 
+# TODO: It looks to me like Transformer and SequentialTransformer should form one single class.
+#       Transformer can then be described as:
+#       class Transformer(MutableSequence['Transformer'], TransformerMixin)
+#       This way, any transformer could be seen as a list containing itself and the __add__ method is simplified:
+#       ie. Tf_A + Tf_B ---> [Tf_A] + [Tf_B] = [Tf_A, Tf_B]
+
 class Transformer(TransformerMixin):
     """
     Base class for data frame transformers.

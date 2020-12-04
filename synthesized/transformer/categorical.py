@@ -8,6 +8,7 @@ from .base import Transformer
 from ..metadata_new import Nominal
 
 
+# Todo: we need to think about how to correctly use the nominal type here (Nominal.categories) doesnt exist.
 class CategoricalTransformer(Transformer):
     """
     Map nominal values onto integers.
@@ -39,6 +40,7 @@ class CategoricalTransformer(Transformer):
         except TypeError:
             pass
 
+        # Todo: I was under the impression that we wouldn't be handling nans anywhere except for the NanTransformer.
         # check for NaN and delete to put at front of category array
         try:
             categories = np.delete(categories, np.isnan(categories))

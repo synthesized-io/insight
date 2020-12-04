@@ -112,6 +112,9 @@ class DateTransformerConfig:
         )
 
 
+# Todo: How do we implement logic/mappings which depend on the values of the ValueMetas? ie. an Integer with only 4
+#       unique values should be mapped to the categorical transformer. Perhaps we should just have custom logic by
+#       creating different TransformerFactory classes?
 @dataclass
 class MetaTransformerConfig(QuantileTransformerConfig, DateTransformerConfig):
     Float: Union[str, List[str]] = 'QuantileTransformer'

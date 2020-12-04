@@ -30,6 +30,8 @@ class DataFrameTransformer(SequentialTransformer):
         return obj
 
 
+# Todo: We should consider how we could serialize the config class. Maybe each Transformer could have the "class_name"
+#       property and we implement something similar to the Meta.STR_TO_META.
 class TransformerFactory:
     def __init__(self, transformer_config: Optional[MetaExtractorConfig] = None):
 
