@@ -518,8 +518,9 @@ class HellingerDistance(DistanceMetric):
 
     @property
     def distance(self) -> float:
-        x_hist, bins = np.histogram(self.x, bins=self.bins, density=False)
-        y_hist, bins = np.histogram(self.y, bins=bins, density=False)
+        y_hist, bins = np.histogram(self.y, bins=self.bins, density=False)
+        x_hist, bins = np.histogram(self.x, bins=bins, density=False)
+
         return HellingerDistanceBinned(x_hist, y_hist, bins).distance
 
 
@@ -537,4 +538,4 @@ class HellingerDistanceBinned(BinnedDistanceMetric):
             x = np.nan_to_num(self.x / self.x.sum()) / np.diff(self.bins)
             y = np.nan_to_num(self.y / self.y.sum()) / np.diff(self.bins)
 
-        return np.sqrt(1 - np.sum(np.sqrt(x * y) * np.diff(self.bins)))
+        return np.sqrt(min(1, abs(1 - np.sum(np.sqrt(x * y) * np.diff(self.bins)))))
