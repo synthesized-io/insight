@@ -11,6 +11,6 @@ faker==5.0.0
 simplejson==3.17.2
 treelib==1.6.1
 hypothesis[pandas]==5.41.4
-dataclasses==0.8
+dataclasses==0.6
 typing_extensions==3.7.4.3
 ipywidgets==7.5.1
