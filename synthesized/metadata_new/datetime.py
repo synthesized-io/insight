@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar, Dict, Type
+from typing import Optional, TypeVar, Dict, Type, cast
 from datetime import datetime
 
 import numpy as np
@@ -53,6 +53,9 @@ class Date(Affine[np.datetime64]):
         df[self.name] = df[self.name].dt.strftime(self.date_format)
 
         return self
+
+    def infer_domain(self, df: pd.DataFrame) -> Domain[np.datetime64]:
+        return cast(Domain[np.datetime64], pd.to_datetime(df[self.name], format=self.date_format).unique())
 
     @classmethod
     def unit_meta(cls) -> Type[TimeDelta]:

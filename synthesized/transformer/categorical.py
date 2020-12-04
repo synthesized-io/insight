@@ -8,7 +8,6 @@ from .base import Transformer
 from ..metadata_new import Nominal
 
 
-# Todo: we need to think about how to correctly use the nominal type here (Nominal.categories) doesnt exist.
 class CategoricalTransformer(Transformer):
     """
     Map nominal values onto integers.
@@ -31,14 +30,9 @@ class CategoricalTransformer(Transformer):
     def fit(self, x: pd.DataFrame) -> Transformer:
 
         if self.categories is None:
-            categories = Nominal(self.name).extract(x).categories  # type: ignore
+            categories = Nominal(self.name).extract(x).domain  # type: ignore
         else:
             categories = np.array(self.categories)
-
-        try:
-            categories.sort()
-        except TypeError:
-            pass
 
         # Todo: I was under the impression that we wouldn't be handling nans anywhere except for the NanTransformer.
         # check for NaN and delete to put at front of category array
@@ -46,9 +40,9 @@ class CategoricalTransformer(Transformer):
             categories = np.delete(categories, np.isnan(categories))
         except TypeError:
             pass
-        categories = np.array([np.nan, *categories])
+        categories = np.array([np.nan, *categories])  # type: ignore
 
-        for idx, cat in enumerate(categories[1:]):
+        for idx, cat in enumerate(categories[1:]):  # type: ignore
             self.category_to_idx[cat] = idx + 1
             self.idx_to_category[idx + 1] = cat
 
@@ -66,4 +60,4 @@ class CategoricalTransformer(Transformer):
 
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'CategoricalTransformer':
-        return cls(meta.name, meta.categories)  # type: ignore
+        return cls(meta.name, meta.domain)  # type: ignore

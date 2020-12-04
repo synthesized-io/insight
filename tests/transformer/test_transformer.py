@@ -18,17 +18,17 @@ def df_unittest():
 @pytest.fixture
 def df_unittest_transformers():
     return [
-        CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1]),
+        QuantileTransformer(name="SeriousDlqin2yrs", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        CategoricalTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 98]),
+        QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="DebtRatio", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07), NanTransformer(name="MonthlyIncome")]),
         QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        CategoricalTransformer(name="NumberOfTimes90DaysLate", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 98]),
-        CategoricalTransformer(name="NumberRealEstateLoansOrLines", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 17]),
-        CategoricalTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 98]),
-        CategoricalTransformer(name="NumberOfDependents", categories=[0.0, 1.0, 2.0, np.nan, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 20.0])
+        QuantileTransformer(name="NumberOfTimes90DaysLate", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        QuantileTransformer(name="NumberRealEstateLoansOrLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        SequentialTransformer(name="NumberOfDependents", transformers=[QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07), NanTransformer(name="NumberOfDependents")])
     ]
 
 

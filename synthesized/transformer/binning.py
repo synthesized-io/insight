@@ -4,8 +4,7 @@ import pandas as pd
 
 from .base import Transformer
 
-# ToDo: No from_meta method yet. Though i feel like this class is very similar to the HistogramModel class.
-#       (Maybe there is some subtle difference)
+
 class BinningTransformer(Transformer):
     """
     Bin continous values into discrete bins.

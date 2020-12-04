@@ -3,10 +3,10 @@ from typing import Optional, Dict, cast
 from dataclasses import asdict
 
 from .exceptions import UnsupportedMetaError
-from .base import Transformer, SequentialTransformer
+from .base import Transformer, SequentialTransformer, _transformer_registry
 from .nan import NanTransformer
 from ..metadata_new import Meta, DataFrameMeta, Affine
-from ..config import MetaExtractorConfig
+from ..config import MetaTransformerConfig
 
 
 class DataFrameTransformer(SequentialTransformer):
@@ -33,12 +33,12 @@ class DataFrameTransformer(SequentialTransformer):
 # Todo: We should consider how we could serialize the config class. Maybe each Transformer could have the "class_name"
 #       property and we implement something similar to the Meta.STR_TO_META.
 class TransformerFactory:
-    def __init__(self, transformer_config: Optional[MetaExtractorConfig] = None):
+    def __init__(self, transformer_config: Optional[MetaTransformerConfig] = None):
 
         if transformer_config is None:
-            self.config: Dict[str, object] = asdict(MetaExtractorConfig())
+            self.config = MetaTransformerConfig()
         else:
-            self.config = asdict(transformer_config)
+            self.config = transformer_config
 
     def create_transformers(self, meta: Meta) -> Transformer:
 
@@ -51,26 +51,28 @@ class TransformerFactory:
         return transformer
 
     def _from_meta(self, meta: Meta) -> Transformer:
+
         try:
-            meta_transformer = self.config[meta.__class__.__name__]
+            transformer_class_name = getattr(self.config, meta.__class__.__name__)
         except KeyError:
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
-        if isinstance(meta_transformer, list):
+        if isinstance(transformer_class_name, list):
             transformer = SequentialTransformer(f'Sequential({meta.name})')
-            for t in meta_transformer:
-                kwargs = self._get_transformer_kwargs(meta, t)
-                transformer.add_transformer(t.from_meta(meta, **kwargs))
+            for name in transformer_class_name:
+                t = _transformer_registry[name]
+                transformer.add_transformer(t.from_meta(meta))
         else:
-            transformer = meta_transformer.from_meta(meta, **self._get_transformer_kwargs(meta, meta_transformer))  #type: ignore
+            transformer_cls = _transformer_registry[transformer_class_name]
+            transformer = transformer_cls.from_meta(meta)  # type: ignore
 
         if isinstance(meta, Affine) and meta.nan_freq > 0:  # type: ignore
             transformer += NanTransformer.from_meta(meta)
 
         return transformer  # type: ignore
 
-    def _get_transformer_kwargs(self, meta: Meta, transformer: str) -> Dict[str, object]:
+    def _get_transformer_kwargs(self, transformer: str) -> Dict[str, object]:
         try:
-            return cast(Dict[str, object], self.config[meta.name])
+            return cast(Dict[str, object], asdict(self.config.get_transformer_config(transformer)))
         except KeyError:
             return {}

@@ -12,12 +12,14 @@ logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
+_transformer_registry = {}
 
 # TODO: It looks to me like Transformer and SequentialTransformer should form one single class.
 #       Transformer can then be described as:
 #       class Transformer(MutableSequence['Transformer'], TransformerMixin)
 #       This way, any transformer could be seen as a list containing itself and the __add__ method is simplified:
 #       ie. Tf_A + Tf_B ---> [Tf_A] + [Tf_B] = [Tf_A, Tf_B]
+
 
 class Transformer(TransformerMixin):
     """
@@ -39,6 +41,10 @@ class Transformer(TransformerMixin):
         self.name = name
         self.dtypes = dtypes
         self._fitted = False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        _transformer_registry[cls.__name__] = cls
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes})'
