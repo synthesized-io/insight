@@ -29,6 +29,6 @@ venv: $(VENV_ACTIVATE)
 
 $(VENV_ACTIVATE): requirements.txt requirements-dev.txt
 	test -d $(VENV_NAME) || virtualenv --python=python3 $(VENV_NAME)
-	$(PYTHON) -m pip install -U pip
+	$(PYTHON) -m pip install -U pip==20.2
 	$(PYTHON) -m pip install -r requirements-dev.txt
 	touch $(VENV_ACTIVATE)
