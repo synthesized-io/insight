@@ -3,9 +3,11 @@ import numpy as np
 import pytest
 import types
 
-from synthesized.metadata.transformer import Transformer, SequentialTransformer, TransformerFactory, QuantileTransformer, DataFrameTransformer, DateCategoricalTransformer, DateTransformer, CategoricalTransformer, NanTransformer, HistogramTransformer
-from synthesized.metadata.meta import MetaExtractor
-from synthesized.metadata.exceptions import NonInvertibleTransformError
+from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.transformer import Transformer, SequentialTransformer, TransformerFactory, QuantileTransformer
+from synthesized.transformer import DataFrameTransformer, DateCategoricalTransformer, DateTransformer
+from synthesized.transformer import CategoricalTransformer, NanTransformer, BinningTransformer
+from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
 @pytest.fixture
@@ -79,7 +81,7 @@ def test_transformer_factory(df_unittest, df_unittest_transformers):
         (DateCategoricalTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (DateTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
-        (HistogramTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]}))
+        (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]}))
     ])
 def test_transformer(transformer, data):
     transformer.fit(data)

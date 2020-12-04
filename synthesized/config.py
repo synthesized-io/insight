@@ -1,8 +1,10 @@
 from typing import Union, List, Optional, Callable
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 import pandas as pd
 
+
+# Meta Config Classes ----------------------------------------
 
 @dataclass
 class AddressParams:
@@ -59,7 +61,7 @@ class PersonMetaConfig:
 
 
 @dataclass
-class MetaFactoryConfig():
+class MetaFactoryConfig:
     """
     Attributes:
         categorical_threshold_log_multiplier: if number of unique values
@@ -81,9 +83,53 @@ class MetaFactoryConfig():
 class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig):
 
     @property
-    def value_factory_config(self):
+    def meta_extractor_config(self):
         return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
 
+
+# Transformer Config Classes ----------------------------------------
+
+@dataclass
+class QuantileTransformerConfig:
+    n_quantiles: int = 1000
+    distribution: str = 'normal'
+
+    @property
+    def quantile_transformer_config(self):
+        return QuantileTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(QuantileTransformerConfig)}
+        )
+
+
+@dataclass
+class DateTransformerConfig:
+    unit: str = 'days'
+
+    @property
+    def date_transformer_config(self):
+        return DateTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
+        )
+
+
+@dataclass
+class MetaTransformerConfig(QuantileTransformerConfig, DateTransformerConfig):
+    Float: Union[str, List[str]] = 'QuantileTransformer'
+    Integer: Union[str, List[str]] = 'QuantileTransformer'
+    Bool: Union[str, List[str]] = 'CategoricalTransformer'
+    Categorical: Union[str, List[str]] = 'CategoricalTransformer'
+    Date: Union[str, List[str]] = field(
+        default=['DateCategoricalTransformer', 'DateTransformer', 'QuantileTransformer']
+    )
+
+    @property
+    def meta_transformer_config(self):
+        return MetaTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(MetaTransformerConfig)}
+        )
+
+
+# Value Config Classes ----------------------------------------
 
 @dataclass
 class CategoricalConfig:
@@ -173,6 +219,8 @@ class LearningManagerConfig:
     def learning_manager_config(self):
         return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
+
+# Synthesizer Config Classes ----------------------------------------
 
 @dataclass
 class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
