@@ -1,7 +1,7 @@
 #!/bin/sh
 
-commit_regex='(sd-[0-9]+|merge)'
-error_msg="Aborting commit. Your commit message is missing either a JIRA Issue ('SD-1111') or 'Merge'"
+commit_regex='(ml-[0-9]+|merge)'
+error_msg="Aborting commit. Your commit message is missing either a JIRA Issue ('ML-1111') or 'Merge'"
 
 if ! grep -iqE "$commit_regex" "$1"; then
     echo "$error_msg" >&2

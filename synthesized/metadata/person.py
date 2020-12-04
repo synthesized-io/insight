@@ -94,9 +94,9 @@ class PersonMeta(ValueMeta):
             if self.title_label == self.gender_label:
                 df[self.title_label + '_gender'] = df[self.title_label].map(self.gender_mapping)
 
-            # If the mapping didn't produce 'F' and 'M', generate them randomly:
-            if len(set(self.genders) - set(df[self.title_label + '_gender'].unique())) != 0:
-                df[self.title_label + '_gender'] = np.random.choice(self.genders, len(df))
+                # If the mapping didn't produce 'F' and 'M', generate them randomly:
+                if len(set(self.genders) - set(df[self.title_label + '_gender'].unique())) != 0:
+                    df[self.title_label + '_gender'] = np.random.choice(self.genders, len(df))
 
             df = self.gender.preprocess(df=df)
 

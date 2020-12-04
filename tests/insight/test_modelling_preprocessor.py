@@ -20,6 +20,7 @@ def test_predictive_modelling_score_clf():
         'x1': np.random.randn(n),
         'x2': np.where(np.random.uniform(size=n) < 0.8, np.random.randn(n), np.nan),
         'x3': np.random.choice(['a', 'b', 'c', 'd'], size=n),
+        'x4': np.where(np.random.uniform(size=n) < 0.8, np.random.randint(1e5, size=n).astype(str), ''),
         'y': np.random.choice([0, 1], size=n)
     })
 
@@ -41,4 +42,3 @@ def test_predictive_modelling_score_rgr():
     target = 'y'
     x_labels = list(filter(lambda c: c != target, data.columns))
     predictive_modelling_score(data, model='Linear', y_label=target, x_labels=x_labels)
-

@@ -1,7 +1,7 @@
 tensorflow==2.2.0
 tensorflow_probability==0.9.0
 numpy==1.19.1
-scipy==1.5.2
+scipy==1.4.1
 scikit_learn==0.22.1
 pandas==1.1.0
 matplotlib==3.3.0
@@ -13,4 +13,5 @@ simplejson==3.17.2
 treelib==1.6.1
 hypothesis[pandas]==5.23.11
 dataclasses==0.7
+typing_extensions==3.7.4.3
 ipywidgets==7.5.1

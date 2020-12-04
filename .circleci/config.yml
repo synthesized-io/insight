@@ -41,7 +41,7 @@ jobs:
   test:
     docker:
         - image: circleci/python:3.6.9
-
+    parallelism: 8
     steps:
       # Reuse the workspace from the build job
       - attach_workspace:
@@ -52,16 +52,19 @@ jobs:
           command: make lint
 
       - run:
-          name: Run Fast Tests
-          command: make fast-test
-          no_output_timeout: 1m
-
-      - run:
-          name: Run Slow Tests
-          command: make slow-test
+          name: Run Tests
+          command: circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml
           no_output_timeout: 30m
 
+      - run:
+          name: Reformat junit XML
+          command: venv/bin/python3 tests/junit-fix.py
+          when: always
+
       - store_test_results:
+          path: test-results
+
+      - store_artifacts:
           path: test-results
 
   publish:
@@ -97,5 +100,10 @@ workflows:
           requires:
             - build
       - publish:
+          filters: # using regex filters requires the entire branch to match
+            branches:
+              only: # only branches matching the below regex filters will run
+                - master
+                - /r\d\.\d.*/
           requires:
             - test

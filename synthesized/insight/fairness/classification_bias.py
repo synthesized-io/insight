@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Union, Tuple
+from typing import Any, Dict, List, Union, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +24,7 @@ class ClassificationBias:
     and all unique values grouped by sensitive attributes.
 
     """
-    def __init__(self, df, sensitive_attrs: Union[str, List[str]], target, min_count: int = 50):
+    def __init__(self, df, sensitive_attrs: Union[str, List[str]], target, min_count: Optional[int] = 50):
         """Classification Bias Constructor.
 
         Args:
@@ -53,8 +53,10 @@ class ClassificationBias:
 
         self.tests = {'All': test.index}
         for sensitive_values, indices in df.groupby(self.sensitive_attrs).indices.items():
-            if len(indices) > min_count:
-                self.tests[sensitive_values] = indices
+            if min_count is not None and len(indices) < min_count:
+                continue
+
+            self.tests[sensitive_values] = indices
 
         if len(self.tests) == 1:
             logger.info(f"No sensitive populations found for sensitive_attrs='{self.sensitive_attrs_name}'.")
