@@ -18,13 +18,13 @@ class NanTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[f'{self.name}_nan'] = x[self.name].isna().astype(int)
-        return x
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[f'{self.name}_nan'] = df[self.name].isna().astype(int)
+        return df
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x.drop(columns=[f'{self.name}_nan'], inplace=True)
-        return x
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df.drop(columns=[f'{self.name}_nan'], inplace=True)
+        return df
 
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'NanTransformer':

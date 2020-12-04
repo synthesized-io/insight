@@ -27,33 +27,33 @@ class QuantileTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, output_distribution="{self._transformer.output_distribution}", noise={self.noise})'
 
-    def fit(self, x: pd.DataFrame) -> Transformer:
-        if len(x) < self._transformer.n_quantiles:
-            self._transformer = self._transformer.set_params(n_quantiles=len(x))
+    def fit(self, df: pd.DataFrame) -> Transformer:
+        if len(df) < self._transformer.n_quantiles:
+            self._transformer = self._transformer.set_params(n_quantiles=len(df))
 
         if self.noise:
-            x[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(x)))
+            df[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
-        self._transformer.fit(x[[self.name]])
-        return super().fit(x)
+        self._transformer.fit(df[[self.name]])
+        return super().fit(df)
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.noise:
-            x[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(x)))
+            df[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
-        positive = (x[self.name] > 0.0).all()
-        nonnegative = (x[self.name] >= 0.0).all()
+        positive = (df[self.name] > 0.0).all()
+        nonnegative = (df[self.name] >= 0.0).all()
 
         if nonnegative and not positive:
-            x[self.name] = np.maximum(x[self.name], 0.001)
+            df[self.name] = np.maximum(df[self.name], 0.001)
 
-        x[self.name] = self._transformer.transform(x[[self.name]])
+        df[self.name] = self._transformer.transform(df[[self.name]])
 
-        return x
+        return df
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = self._transformer.inverse_transform(x[[self.name]])
-        return x
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name] = self._transformer.inverse_transform(df[[self.name]])
+        return df
 
     @classmethod
     def from_meta(cls, meta: Union[Float, Integer]) -> 'QuantileTransformer':

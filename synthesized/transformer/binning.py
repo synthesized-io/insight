@@ -27,6 +27,6 @@ class BinningTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, bins={self.bins}, kwargs={repr(self.kwargs)}))'
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = pd.cut(x[self.name], self.bins, **self.kwargs)
-        return x
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name] = pd.cut(df[self.name], self.bins, **self.kwargs)
+        return df

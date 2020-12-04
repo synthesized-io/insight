@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TypeVar, Type, Dict
+from typing import List, Optional, TypeVar, Type, Dict
 from collections import defaultdict
 import logging
 
@@ -61,21 +61,21 @@ class Transformer(TransformerMixin):
         except AssertionError:
             return False
 
-    def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
+    def __call__(self, df: pd.DataFrame, inverse=False) -> pd.DataFrame:
         if not inverse:
-            return self.transform(x)
+            return self.transform(df)
         else:
-            return self.inverse_transform(x)
+            return self.inverse_transform(df)
 
-    def fit(self: TransformerType, x: Union[pd.Series, pd.DataFrame]) -> TransformerType:
+    def fit(self: TransformerType, df: pd.DataFrame) -> TransformerType:
         if not self._fitted:
             self._fitted = True
         return self
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         raise NotImplementedError
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         raise NonInvertibleTransformError
 
     @classmethod
@@ -195,24 +195,24 @@ class SequentialTransformer(Transformer):
                             "(synthesized.metadata.transformer.Transformer required)")
         self._transformers.append(transformer)
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Perform the sequence of transformations."""
         for group, transformers in self._group_transformers_by_name().items():
             for t in transformers:
-                x = t.fit_transform(x)
-        return x
+                df = t.fit_transform(df)
+        return df
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Invert the sequence of transformations, if possible."""
         for group, transformers in self._group_transformers_by_name().items():
             for t in reversed(transformers):
                 try:
-                    x = t.inverse_transform(x)
+                    df = t.inverse_transform(df)
                 except NonInvertibleTransformError:
                     logger.warning("Encountered transform with no inverse. ")
                 finally:
-                    x = x
-        return x
+                    df = df
+        return df
 
     def __setattr__(self, name: str, value: object) -> None:
         if isinstance(value, Transformer):

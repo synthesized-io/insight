@@ -27,10 +27,10 @@ class CategoricalTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
 
-    def fit(self, x: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> Transformer:
 
         if self.categories is None:
-            categories = Nominal(self.name).extract(x).domain  # type: ignore
+            categories = Nominal(self.name).extract(df).domain  # type: ignore
         else:
             categories = np.array(self.categories)
 
@@ -46,17 +46,17 @@ class CategoricalTransformer(Transformer):
             self.category_to_idx[cat] = idx + 1
             self.idx_to_category[idx + 1] = cat
 
-        return super().fit(x)
+        return super().fit(df)
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
-        x[self.name] = x[self.name].fillna('nan')
-        x[self.name] = x[self.name].apply(lambda x: self.category_to_idx[x])
-        return x
+        df[self.name] = df[self.name].fillna('nan')
+        df[self.name] = df[self.name].apply(lambda x: self.category_to_idx[x])
+        return df
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = x[self.name].apply(lambda x: self.idx_to_category[x])
-        return x
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name] = df[self.name].apply(lambda x: self.idx_to_category[x])
+        return df
 
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'CategoricalTransformer':

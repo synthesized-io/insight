@@ -31,28 +31,28 @@ class DateTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}", unit="{self.unit}", start_date={self.start_date})'
 
-    def fit(self, x: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> Transformer:
 
-        x = x[self.name]
+        sr = df[self.name]
 
         if self.date_format is None:
-            self.date_format = get_date_format(x)
-        if x.dtype.kind != 'M':
-            x = pd.to_datetime(x, format=self.date_format)
+            self.date_format = get_date_format(sr)
+        if sr.dtype.kind != 'M':
+            sr = pd.to_datetime(sr, format=self.date_format)
         if self.start_date is None:
-            self.start_date = x.min()
+            self.start_date = sr.min()
 
-        return super().fit(x)
+        return super().fit(df)
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        if x[self.name].dtype.kind != 'M':
-            x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
-        x[self.name] = (x[self.name] - self.start_date).dt.components[self.unit]
-        return x
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df[self.name].dtype.kind != 'M':
+            df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
+        df[self.name] = (df[self.name] - self.start_date).dt.components[self.unit]
+        return df
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x[self.name] = (pd.to_timedelta(x[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
-        return x
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name] = (pd.to_timedelta(df[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
+        return df
 
     @classmethod
     def from_meta(cls, meta: Date) -> 'DateTransformer':
@@ -82,32 +82,32 @@ class DateCategoricalTransformer(SequentialTransformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}")'
 
-    def fit(self, x: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> Transformer:
 
-        x = x[self.name]
+        sr = df[self.name]
         if self.date_format is None:
-            self.date_format = get_date_format(x)
-        x = self.split_datetime(x)
+            self.date_format = get_date_format(sr)
+        df = self.split_datetime(sr)
 
         for transformer in self.transformers:
-            transformer.fit(x)
+            transformer.fit(df)
 
-        return super().fit(x)
+        return super().fit(df)
 
-    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
 
-        if x[self.name].dtype.kind != 'M':
-            x[self.name] = pd.to_datetime(x[self.name], format=self.date_format)
+        if df[self.name].dtype.kind != 'M':
+            df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
 
-        categorical_dates = self.split_datetime(x[self.name])
-        x[categorical_dates.columns] = categorical_dates
+        categorical_dates = self.split_datetime(df[self.name])
+        df[categorical_dates.columns] = categorical_dates
 
-        return super().transform(x)
+        return super().transform(df)
 
-    def inverse_transform(self, x: pd.DataFrame) -> pd.DataFrame:
-        x.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
-                        f'{self.name}_day', f'{self.name}_month'], inplace=True)
-        return x
+    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
+                         f'{self.name}_day', f'{self.name}_month'], inplace=True)
+        return df
 
     @classmethod
     def from_meta(cls, meta: Date) -> 'DateCategoricalTransformer':
