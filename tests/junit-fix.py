@@ -8,6 +8,9 @@ cases = suite.getchildren()
 
 file_to_case = {}
 for case in cases:
+    for child in case.getchildren():
+        if child.tag == 'properties':
+            case.remove(child)
     if case.get('classname') not in file_to_case:
         file_to_case[case.get('classname')] = [case]
     else:
@@ -31,12 +34,9 @@ for file in files:
         'timestamp': suite.get('timestamp') or ''
     })
 
-
-
     suite1.extend(file_to_case[file])
     # print(ET.tostring(suite1))
     suites.append((suite1))
-    print(suite1.attrib)
 
 
 root.remove(suite)
