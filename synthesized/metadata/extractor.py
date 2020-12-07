@@ -1,7 +1,7 @@
 import enum
 import logging
 from math import sqrt, log
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -97,37 +97,30 @@ class MetaExtractor:
 
         values: List[ValueMeta] = []
         if person_params is not None:
-            values.extend(self._identify_annotation(df, 'person', person_params, self.config.person_meta_config))
+            values.extend(self._identify_annotation(df, meta=PersonMeta, params=person_params, config=self.config.person_meta_config))
         if bank_params is not None:
-            values.extend(self._identify_annotation(df, 'bank', bank_params))
+            values.extend(self._identify_annotation(df, meta=BankNumberMeta, params=bank_params))
         if address_params is not None:
-            values.extend(self._identify_annotation(df, 'address', address_params, self.config.address_meta_config))
+            values.extend(self._identify_annotation(df, meta=AddressMeta, params=address_params, config=self.config.address_meta_config))
         if formatted_string_params is not None:
-            values.extend(self._identify_annotation(df, 'formatted_string', formatted_string_params,
-                                                    self.config.formatted_string_meta_config))
+            values.extend(self._identify_annotation(df, meta=FormattedStringMeta, params=formatted_string_params,
+                                                    config=self.config.formatted_string_meta_config))
 
         return values
 
     @staticmethod
-    def _identify_annotation(df: pd.DataFrame, annotation: str, params, config=None) -> List[ValueMeta]:
+    def _identify_annotation(df: pd.DataFrame, meta: Type[ValueMeta], params, config=None) -> List[ValueMeta]:
         labels = {f.name: _get_formated_label(params.__getattribute__(f.name)) for f in fields(params)}
 
         labels_matrix = _get_labels_matrix([label for label in labels.values()])
         values: List[ValueMeta] = list()
-
-        string_to_meta = {
-            'bank': BankNumberMeta, 'address': AddressMeta, 'person': PersonMeta,
-            'formatted_string': FormattedStringMeta
-        }
 
         if len(labels_matrix) > 0:
             for i in range(len(labels_matrix)):
                 kwargs = {k: v[i] if v is not None else None for k, v in labels.items()}
                 if config is not None:
                     kwargs['config'] = config
-                value = string_to_meta[annotation](
-                    name=f'{annotation}_{i}', **kwargs
-                )
+                value = meta(name=f'{meta.__name__}_{i}', **kwargs)
                 values.append(value)
 
             for value in values:
