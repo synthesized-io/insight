@@ -8,5 +8,8 @@ from .value_meta import Ring
 from .domain import Domain
 from .model import Model
 from .model import DiscreteModel
+from .model import ContinuousModel
 
-__all__ = ['Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'Domain', 'DiscreteModel']
+__all__ = [
+    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'Domain', 'DiscreteModel', 'ContinuousModel'
+]
