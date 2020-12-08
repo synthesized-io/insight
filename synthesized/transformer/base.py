@@ -8,22 +8,18 @@ logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
-_transformer_registry: Dict[str, Type['Transformer']] = {}
-
-
 class Transformer(MutableSequence['Transformer']):
     """
     Base class for data frame transformers.
-
     Derived classes must implement transform. The
     fit method is optional, and should be used to
     extract required transform parameters from the data.
-
     Attributes:
         name: the data frame column to transform.
         dtypes: list of valid dtypes for this
           transformation, defaults to None.
     """
+    _transformer_registry: Dict[str, Type['Transformer']] = {}
 
     def __init__(self, name: str, transformers: Optional[List['Transformer']] = None, dtypes: Optional[List] = None):
         super().__init__()
@@ -38,7 +34,7 @@ class Transformer(MutableSequence['Transformer']):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        _transformer_registry[cls.__name__] = cls
+        Transformer._transformer_registry[cls.__name__] = cls
 
     def insert(self, idx: int, o: 'Transformer') -> None:
         """__getitem__, __setitem__, __delitem__, __iter__, and __len__"""
