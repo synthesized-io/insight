@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
+
 class Transformer(MutableSequence['Transformer']):
     """
     Base class for data frame transformers.
