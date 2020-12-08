@@ -2,7 +2,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Transformer, SequentialTransformer
+from .base import Transformer
 from .categorical import CategoricalTransformer
 from ..metadata_new.datetime import Date, get_date_format
 
@@ -31,7 +31,7 @@ class DateTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}", unit="{self.unit}", start_date={self.start_date})'
 
-    def fit(self, df: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> 'DateTransformer':
 
         sr = df[self.name]
 
@@ -59,7 +59,7 @@ class DateTransformer(Transformer):
         return cls(meta.name, meta.date_format, start_date=meta.min)
 
 
-class DateCategoricalTransformer(SequentialTransformer):
+class DateCategoricalTransformer(Transformer):
     """
     Creates hour, day-of-week, day and month values from a datetime, and
     transforms using CategoricalTransformer.
@@ -74,22 +74,27 @@ class DateCategoricalTransformer(SequentialTransformer):
         super().__init__(name=name)
         self.date_format = date_format
 
-        self.hour_transform = CategoricalTransformer(f'{self.name}_hour')
-        self.dow_transform = CategoricalTransformer(f'{self.name}_dow')
-        self.day_transform = CategoricalTransformer(f'{self.name}_day')
-        self.month_transform = CategoricalTransformer(f'{self.name}_month')
+        hour_transform = CategoricalTransformer(f'{self.name}_hour')
+        dow_transform = CategoricalTransformer(f'{self.name}_dow')
+        day_transform = CategoricalTransformer(f'{self.name}_day')
+        month_transform = CategoricalTransformer(f'{self.name}_month')
+
+        self.append(hour_transform)
+        self.append(dow_transform)
+        self.append(day_transform)
+        self.append(month_transform)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}")'
 
-    def fit(self, df: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> 'DateCategoricalTransformer':
 
         sr = df[self.name]
         if self.date_format is None:
             self.date_format = get_date_format(sr)
         df = self.split_datetime(sr)
 
-        for transformer in self.transformers:
+        for transformer in self:
             transformer.fit(df)
 
         return super().fit(df)

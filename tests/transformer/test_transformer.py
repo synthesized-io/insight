@@ -4,9 +4,9 @@ import pytest
 import types
 
 from synthesized.metadata_new.meta_builder import MetaExtractor
-from synthesized.transformer import Transformer, SequentialTransformer, TransformerFactory, QuantileTransformer
+from synthesized.transformer import Transformer, TransformerFactory, QuantileTransformer
 from synthesized.transformer import DataFrameTransformer, DateCategoricalTransformer, DateTransformer
-from synthesized.transformer import CategoricalTransformer, NanTransformer, BinningTransformer
+from synthesized.transformer import CategoricalTransformer, NanTransformer, BinningTransformer, QuantileBinningTransformer
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -23,46 +23,14 @@ def df_unittest_transformers():
         QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="DebtRatio", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07), NanTransformer(name="MonthlyIncome")]),
+        QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        NanTransformer(name="MonthlyIncome"),
         QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTimes90DaysLate", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberRealEstateLoansOrLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        SequentialTransformer(name="NumberOfDependents", transformers=[QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07), NanTransformer(name="NumberOfDependents")])
-    ]
-
-
-@pytest.fixture
-def sequential_transformer():
-    transformer1 = Transformer('transformer1')
-    transformer2 = Transformer('transformer2')
-
-    transformer1.transform = types.MethodType(lambda self, x: x, transformer1)
-    transformer2.transform = types.MethodType(lambda self, x: x, transformer2)
-
-    transformer1.inverse_transform = types.MethodType(lambda self, x: x, transformer2)
-    transformer2.inverse_transform = types.MethodType(lambda self, x: x, transformer2)
-
-    sequential = SequentialTransformer('sequential', transformers=[transformer1, transformer2])
-
-    return sequential, transformer1, transformer2
-
-
-@pytest.mark.fast
-def test_sequential_transformer(sequential_transformer):
-    assert sequential_transformer[0].transformers[0] == sequential_transformer[1]
-    assert sequential_transformer[0].transformers[1] == sequential_transformer[2]
-    assert sequential_transformer[1] + sequential_transformer[2] == \
-        SequentialTransformer('transformer1', transformers=[sequential_transformer[1], sequential_transformer[2]])
-
-
-@pytest.mark.fast
-def test_sequential_transformer_transform(sequential_transformer):
-    x = pd.DataFrame({'transformer1': [0], 'transformer2': [0]})
-    sequential_transformer[0].transform(x)
-
-    for transformer in sequential_transformer[0]:
-        assert transformer._fitted is True
+        QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        NanTransformer(name="NumberOfDependents")]
 
 
 @pytest.mark.fast
@@ -70,7 +38,7 @@ def test_transformer_factory(df_unittest, df_unittest_transformers):
     df_meta = MetaExtractor.extract(df_unittest)
     transformer = TransformerFactory().create_transformers(df_meta)
     assert type(transformer) == DataFrameTransformer
-    assert transformer.transformers == df_unittest_transformers
+    assert transformer._transformers == df_unittest_transformers
 
 
 @pytest.mark.fast
@@ -81,7 +49,9 @@ def test_transformer_factory(df_unittest, df_unittest_transformers):
         (DateCategoricalTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (DateTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
-        (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]}))
+        (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]})),
+        (QuantileBinningTransformer('x', quantiles=10), pd.DataFrame({'x': [1, 2, 3]}))
+
     ])
 def test_transformer(transformer, data):
     transformer.fit(data)

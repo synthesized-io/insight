@@ -1,27 +1,17 @@
-from typing import List, Optional, TypeVar, Type, Dict
-from collections import defaultdict
+from typing import List, Optional, TypeVar, Type, Dict, Union, MutableSequence
 import logging
 
 import pandas as pd
 import numpy as np
-from sklearn.base import TransformerMixin
-
-from .exceptions import NonInvertibleTransformError
 
 logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
-_transformer_registry = {}
-
-# TODO: It looks to me like Transformer and SequentialTransformer should form one single class.
-#       Transformer can then be described as:
-#       class Transformer(MutableSequence['Transformer'], TransformerMixin)
-#       This way, any transformer could be seen as a list containing itself and the __add__ method is simplified:
-#       ie. Tf_A + Tf_B ---> [Tf_A] + [Tf_B] = [Tf_A, Tf_B]
+_transformer_registry: Dict[str, Type['Transformer']] = {}
 
 
-class Transformer(TransformerMixin):
+class Transformer(MutableSequence['Transformer']):
     """
     Base class for data frame transformers.
 
@@ -31,26 +21,50 @@ class Transformer(TransformerMixin):
 
     Attributes:
         name: the data frame column to transform.
-
         dtypes: list of valid dtypes for this
           transformation, defaults to None.
     """
 
-    def __init__(self, name: str, dtypes: Optional[List] = None):
+    def __init__(self, name: str, transformers: Optional[List['Transformer']] = None, dtypes: Optional[List] = None):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
         self._fitted = False
 
+        if transformers is None:
+            self._transformers: List[Transformer] = []
+        else:
+            self._transformers = transformers
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         _transformer_registry[cls.__name__] = cls
 
+    def insert(self, idx: int, o: 'Transformer') -> None:
+        """__getitem__, __setitem__, __delitem__, __iter__, and __len__"""
+        self._transformers.insert(idx, o)
+
+    def __setitem__(self, idx, o) -> None:
+        self._transformers[idx] = o
+
+    def __delitem__(self, idx) -> None:
+        del self._transformers[idx]
+
+    def __iter__(self):
+        yield from self._transformers
+
+    def __getitem__(self, idx):
+        return self._transformers[idx]
+
+    def __len__(self):
+        return len(self._transformers)
+
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes})'
 
-    def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
-        return SequentialTransformer(name=self.name, transformers=[self, other])
+    def __add__(self: TransformerType, other: 'Transformer') -> 'TransformerType':
+        self.append(other)
+        return self
 
     def __eq__(self, other):
         def attrs(x):
@@ -61,160 +75,33 @@ class Transformer(TransformerMixin):
         except AssertionError:
             return False
 
-    def __call__(self, df: pd.DataFrame, inverse=False) -> pd.DataFrame:
+    def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
         if not inverse:
-            return self.transform(df)
+            return self.transform(x)
         else:
-            return self.inverse_transform(df)
+            return self.inverse_transform(x)
 
-    def fit(self: TransformerType, df: pd.DataFrame) -> TransformerType:
+    def fit(self: TransformerType, x: Union[pd.Series, pd.DataFrame]) -> TransformerType:
         if not self._fitted:
             self._fitted = True
         return self
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        raise NotImplementedError
+        """Overriding methods should call super().transform(df=df) at the end of the function."""
+        for transformer in self:
+            df = transformer.fit_transform(df)
+        return df
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        raise NonInvertibleTransformError
+        """Overriding methods should call super().transform(df=df) at the start of the function."""
+        for transformer in reversed(self):
+            df = transformer.inverse_transform(df)
+        return df
+
+    def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = self.fit(df).transform(df)
+        return df
 
     @classmethod
     def from_meta(cls: Type[TransformerType], meta) -> TransformerType:
         raise NotImplementedError
-
-
-class SequentialTransformer(Transformer):
-    """
-    Transform data using a sequence of pre-defined Transformers.
-
-    Each transformer can act on different columns of a data frame,
-    or the same column. In the latter case, each transformer in
-    the sequence is fit to the transformed data from the previous.
-
-    Attributes:
-        name: the data frame column to transform.
-
-        transformers: list of Transformers
-
-        dtypes: Optional; list of valid dtypes for this
-          transformation, defaults to None.
-
-    Examples:
-
-        Create the data to transform:
-
-        >>> df = pd.DataFrame({'x': ['A', 'B', 'C'], 'y': [0, 10, np.nan]})
-            x     y
-        0   A   0.0
-        1   B   10.0
-        2   C   NaN
-
-        Define a SequentialTransformer:
-
-        >>> t = SequentialTransformer(
-                    name='t',
-                    transformers=[
-                        CategoricalTransformer('x'),
-                        NanTransformer('y'),
-                        QuantileTransformer('y')
-                    ]
-                )
-
-        Transform the data frame:
-
-        >>> df_transformed = t.transform(df)
-            x    y     y_nan
-        0   1   -5.19    0
-        1   2    5.19    0
-        2   3    NaN     1
-
-        Alternatively, transformers can be bound as attributes:
-
-        >>> t = SequentialTransformer(name='t')
-        >>> t.x_transform = CategoricalTransformer('x')
-        >>> t.y_transform = SequentialTransformer(
-                                name='y_transform',
-                                transformers=[
-                                    NanTransformer('y'),
-                                    QuantileTransformer('y')
-                                ]
-                            )
-
-        Transform the data frame:
-
-        >>> df_transformed = t.transform(df)
-            x    y     y_nan
-        0   1   -5.19    0
-        1   2    5.19    0
-        2   3    NaN     1
-    """
-    def __init__(self, name: str, transformers: Optional[List[Transformer]] = None, dtypes: Optional[List] = None):
-
-        super().__init__(name, dtypes)
-
-        self._transformers: List[Transformer] = []
-        if transformers is None:
-            transformers = []
-        self.transformers = transformers
-
-    def __iter__(self):
-        yield from self.transformers
-
-    def __getitem__(self, idx):
-        return self.transformers[idx]
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, transformers={self.transformers})'
-
-    def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
-        if isinstance(other, SequentialTransformer):
-            return SequentialTransformer(name=self.name, transformers=self.transformers + other.transformers)
-        else:
-            return SequentialTransformer(name=self.name, transformers=self.transformers + [other])
-
-    def _group_transformers_by_name(self) -> Dict[str, List[Transformer]]:
-        d = defaultdict(list)
-        for transfomer in self:
-            d[transfomer.name].append(transfomer)
-        return d
-
-    @property
-    def transformers(self) -> List[Transformer]:
-        """Retrieve the sequence of Transformers."""
-        return self._transformers
-
-    @transformers.setter
-    def transformers(self, value: List[Transformer]) -> None:
-        """Set the sequence of Transformers."""
-        for transformer in value:
-            self.add_transformer(transformer)
-
-    def add_transformer(self, transformer: Transformer) -> None:
-        if not isinstance(transformer, Transformer):
-            raise TypeError(f"cannot add '{type(transformer)}' as a transformer.",
-                            "(synthesized.metadata.transformer.Transformer required)")
-        self._transformers.append(transformer)
-
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Perform the sequence of transformations."""
-        for group, transformers in self._group_transformers_by_name().items():
-            for t in transformers:
-                df = t.fit_transform(df)
-        return df
-
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Invert the sequence of transformations, if possible."""
-        for group, transformers in self._group_transformers_by_name().items():
-            for t in reversed(transformers):
-                try:
-                    df = t.inverse_transform(df)
-                except NonInvertibleTransformError:
-                    logger.warning("Encountered transform with no inverse. ")
-                finally:
-                    df = df
-        return df
-
-    def __setattr__(self, name: str, value: object) -> None:
-        if isinstance(value, Transformer):
-            self.add_transformer(value)
-        object.__setattr__(self, name, value)

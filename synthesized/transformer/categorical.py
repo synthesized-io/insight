@@ -27,15 +27,13 @@ class CategoricalTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
 
-    def fit(self, df: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> 'CategoricalTransformer':
 
         if self.categories is None:
-            categories = Nominal(self.name).extract(df).domain  # type: ignore
+            categories = df[self.name].unique()  # type: ignore
         else:
             categories = np.array(self.categories)
 
-        # Todo: I was under the impression that we wouldn't be handling nans anywhere except for the NanTransformer.
-        # check for NaN and delete to put at front of category array
         try:
             categories = np.delete(categories, np.isnan(categories))
         except TypeError:

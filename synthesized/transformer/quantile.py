@@ -27,7 +27,7 @@ class QuantileTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, output_distribution="{self._transformer.output_distribution}", noise={self.noise})'
 
-    def fit(self, df: pd.DataFrame) -> Transformer:
+    def fit(self, df: pd.DataFrame) -> 'QuantileTransformer':
         if len(df) < self._transformer.n_quantiles:
             self._transformer = self._transformer.set_params(n_quantiles=len(df))
 
