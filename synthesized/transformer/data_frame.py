@@ -3,7 +3,7 @@ from typing import Optional, Union
 import pandas as pd
 
 from .exceptions import UnsupportedMetaError
-from .base import Transformer, _transformer_registry
+from .base import Transformer
 from .nan import NanTransformer
 from ..metadata_new import Meta, DataFrameMeta, Nominal
 from ..config import MetaTransformerConfig
@@ -122,10 +122,10 @@ class TransformerFactory:
         if isinstance(transformer_class_name, list):
             transformer = Transformer(f'{meta.name}')
             for name in transformer_class_name:
-                t = _transformer_registry[name]
+                t = Transformer._transformer_registry[name]
                 transformer.append(t.from_meta(meta))
         else:
-            transformer_cls = _transformer_registry[transformer_class_name]
+            transformer_cls = Transformer._transformer_registry[transformer_class_name]
             transformer = transformer_cls.from_meta(meta)
 
         return transformer

@@ -14,9 +14,10 @@ from .continuous import Float
 from .datetime import Date, TimeDelta
 
 from .data_frame_meta import DataFrameMeta
+from .meta_builder import MetaExtractor
 
 __all__ = [
     'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'Domain',
     'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta',
-    'DataFrameMeta'
+    'DataFrameMeta', 'MetaExtractor'
 ]
