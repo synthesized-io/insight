@@ -18,7 +18,7 @@ def df_unittest():
 @pytest.fixture
 def df_unittest_transformers():
     return [
-        QuantileTransformer(name="SeriousDlqin2yrs", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        CategoricalTransformer(name="SeriousDlqin2yrs", categories=[1, 0]),
         QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
