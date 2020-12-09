@@ -131,7 +131,7 @@ def bootstrap_binned_statistic(data: Tuple[pd.Series, pd.Series], statistic: Cal
     return statistic_samples
 
 
-def binominal_proportion_interval(p: float, n: int, cl=0.95, method: str = 'clopper-pearson') -> ConfidenceInterval:
+def binominal_proportion_interval(p: float, n: int, cl: float = 0.95, method: str = 'clopper-pearson') -> ConfidenceInterval:
     """
     Calculate an approximate confidence interval for a binomial proportion of a sample.
 
@@ -403,7 +403,7 @@ class BinomialDistance(DistanceMetric):
         n = len(self.x)
         return binominal_proportion_p_value(p_obs, p_null, n)
 
-    def interval(self, cl: Optional[float] = 0.95, **kwargs) -> ConfidenceInterval:
+    def interval(self, cl: float = 0.95, **kwargs) -> ConfidenceInterval:
         """
         Calculate a confidence interval for this distance metric.
 
