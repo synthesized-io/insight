@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from itertools import combinations
 from math import factorial
 from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
@@ -12,13 +13,14 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
-from .preprocessor import FairnessPreprocessor, VariableType
 from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
+from .transformer import FairnessTransformer, VariableType
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 
 logger = logging.getLogger(__name__)
+
 
 
 class FairnessScorer:
@@ -78,9 +80,10 @@ class FairnessScorer:
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.preprocessor = FairnessPreprocessor(sensitive_attrs=self.sensitive_attrs, target=self.target,
-                                                 n_bins=self.n_bins, target_n_bins=self.target_n_bins)
-        self.preprocessor.fit(df, positive_class=positive_class)
+        self.preprocessor = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, target=self.target,
+                                                n_bins=self.n_bins, target_n_bins=self.target_n_bins)
+
+        self.preprocessor.fit(df)
         self.target_variable_type = self.preprocessor.target_variable_type
         self.positive_class = self.preprocessor.positive_class
 

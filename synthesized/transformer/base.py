@@ -4,6 +4,8 @@ import logging
 import pandas as pd
 import numpy as np
 
+from .exceptions import TransformerNotFitError
+
 logger = logging.getLogger(__name__)
 
 TransformerType = TypeVar('TransformerType', bound='Transformer')
@@ -86,7 +88,7 @@ class Transformer(MutableSequence['Transformer']):
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Overriding methods should call super().transform(df=df) at the end of the function."""
         for transformer in self:
-            df = transformer.fit_transform(df)
+            df = transformer.transform(df)
         return df
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -98,6 +100,10 @@ class Transformer(MutableSequence['Transformer']):
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.fit(df).transform(df)
         return df
+
+    def _assert_fitted(self):
+        if not self._fitted:
+            raise TransformerNotFitError("Transformer not fitted yet, please call 'fit()' before calling transform.")
 
     @classmethod
     def from_meta(cls: Type[TransformerType], meta) -> TransformerType:
