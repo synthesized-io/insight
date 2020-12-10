@@ -329,7 +329,7 @@ class BiasMitigator:
         """Compute biases and return a sample of them."""
 
         min_count = min(max(10, int(len(df) * 0.01)), 50)
-        dist_score, dist_biases = self.fairness_scorer.distributions_score(
+        _, dist_biases = self.fairness_scorer.distributions_score(
             df, mode=mode, alpha=alpha, min_dist=min_dist, min_count=min_count, condense_output=False)
 
         # Sort dist biases by distance * count
@@ -354,7 +354,7 @@ class BiasMitigator:
 
         top_biases = df_biases.head(0)
 
-        for idx, bias_i in df_biases.iterrows():
+        for _, bias_i in df_biases.iterrows():
             name = bias_i['name']
             value = bias_i['value']
 

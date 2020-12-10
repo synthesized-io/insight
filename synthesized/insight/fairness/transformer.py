@@ -1,14 +1,12 @@
-from datetime import datetime
 import logging
 from enum import Enum
 from math import log
-from typing import Callable, Dict, List, Optional
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
 
 from ...transformer import Transformer, DTypeTransformer, BinningTransformer, DropColumnTransformer
-from ...transformer.base import TransformerType
 from ...config import MetaExtractorConfig
 
 logger = logging.getLogger(__name__)

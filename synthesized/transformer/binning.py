@@ -1,4 +1,4 @@
-from typing import Union, List, Optional, cast
+from typing import Union, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -34,8 +34,8 @@ class BinningTransformer(Transformer):
 
     def __repr__(self):
         return (f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes}, bins={self.bins}, '
-               f'remove_outliers={self.remove_outliers}, quantile_based={self.quantile_based}, '
-               f'{", ".join([f"{k}={v}" for k, v in self.kwargs.items()])})')
+                f'remove_outliers={self.remove_outliers}, quantile_based={self.quantile_based}, '
+                f'{", ".join([f"{k}={v}" for k, v in self.kwargs.items()])})')
 
     def fit(self, df: pd.DataFrame) -> 'BinningTransformer':
 

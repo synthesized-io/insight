@@ -1,9 +1,7 @@
-from typing import Optional, Union
+from typing import Optional
 
 import pandas as pd
-import numpy as np
 from .base import Transformer
-from ..metadata_new import Float, Integer
 
 
 class DTypeTransformer(Transformer):

@@ -1,5 +1,4 @@
 import logging
-from enum import Enum
 from itertools import combinations
 from math import factorial
 from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
@@ -20,7 +19,6 @@ from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 
 logger = logging.getLogger(__name__)
-
 
 
 class FairnessScorer:

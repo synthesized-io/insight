@@ -1,7 +1,4 @@
-from typing import Optional, Union
-
 import pandas as pd
-import numpy as np
 
 from .base import Transformer
 from .exceptions import NonInvertibleTransformError
