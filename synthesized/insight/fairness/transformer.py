@@ -61,6 +61,7 @@ class FairnessTransformer(Transformer):
 
             dtype_transformer = DTypeTransformer(col)
             df = dtype_transformer.fit_transform(df)
+            self.append(dtype_transformer)
 
             categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
             num_unique = df[col].nunique()
@@ -111,17 +112,16 @@ class FairnessTransformer(Transformer):
 
             # Pure categorical
             else:
-                # transformer = DTypeTransformer(col, out_dtype='str')
                 if col == self.target:
                     self.target_variable_type = VariableType.Binary if df[col].nunique() <= 2 \
                         else VariableType.Multinomial
 
-            self.append(dtype_transformer)
             if transformer is not None:
                 self.append(transformer.fit(df))
-
-            to_str_transformer = DTypeTransformer(col, out_dtype='str')
-            self.append(to_str_transformer.fit(df))
+            if not isinstance(transformer, DropColumnTransformer):
+                # We want to always convert to string otherwise grouping operations can fail
+                to_str_transformer = DTypeTransformer(col, out_dtype='str')
+                self.append(to_str_transformer.fit(df))
 
         self.positive_class = self.get_positive_class(df)
         self.fitted = True
