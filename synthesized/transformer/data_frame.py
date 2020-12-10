@@ -1,19 +1,19 @@
-from typing import Optional, Union
+from typing import Optional, Union, MutableSequence
 
 import pandas as pd
 
 from .exceptions import UnsupportedMetaError
-from .base import Transformer
+from .base import Transformer, SequentialTransformer
 from .nan import NanTransformer
 from ..metadata_new import Meta, DataFrameMeta, Nominal
 from ..config import MetaTransformerConfig
 
 
-class DataFrameTransformer(Transformer):
+class DataFrameTransformer(SequentialTransformer, MutableSequence[Transformer]):
     """
     Transform a data frame.
 
-    This is a Transformer built from a DataFrameMeta instance.
+    This is a SequentialTransformer built from a DataFrameMeta instance.
 
     Attributes:
         meta: DataFrameMeta instance returned from MetaExtractor.extract
@@ -23,11 +23,6 @@ class DataFrameTransformer(Transformer):
             raise ValueError("name must not be a string, not None")
         super().__init__(name)
         self.meta = meta
-
-    def fit(self, df: pd.DataFrame) -> 'DataFrameTransformer':
-        for transformer in self:
-            transformer.fit(df)
-        return self
 
     def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
         """
@@ -120,12 +115,12 @@ class TransformerFactory:
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
         if isinstance(transformer_class_name, list):
-            transformer = Transformer(f'{meta.name}')
+            transformer = SequentialTransformer(f'{meta.name}')
             for name in transformer_class_name:
                 t = Transformer._transformer_registry[name]
-                transformer.append(t.from_meta(meta))
+                transformer = transformer + t.from_meta(meta)
         else:
             transformer_cls = Transformer._transformer_registry[transformer_class_name]
-            transformer = transformer_cls.from_meta(meta)
+            transformer = transformer_cls.from_meta(meta)  # type: ignore
 
         return transformer
