@@ -1,7 +1,7 @@
 import logging
 from enum import Enum
 from math import log
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
