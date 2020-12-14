@@ -70,7 +70,7 @@ class BiasMitigator:
             raise NotImplementedError("Bias mitigation is not supported for continuous target distributions.")
 
         df = df.copy()
-        df_pre = self.fairness_scorer.preprocessor.transform(df)
+        df_pre = self.fairness_scorer.preprocessor(df)
 
         if produce_nans is False and df.isna().any(axis=None):
             # Impute nans to original data-set
@@ -141,7 +141,7 @@ class BiasMitigator:
             Unbiased DataFrame.
         """
         df = df.copy()
-        df_pre = self.fairness_scorer.preprocessor.transform(df)
+        df_pre = self.fairness_scorer.preprocessor(df)
 
         idx_to_drop = []
         for i, (idx, bias) in enumerate(biases.iterrows()):
@@ -245,7 +245,7 @@ class BiasMitigator:
              produce_nans: Whether to include nans in the output.
              max_trials: Maximum number of trials to over-sample the dataframe.
          """
-        df_pre = self.fairness_scorer.preprocessor.transform(df)
+        df_pre = self.fairness_scorer.preprocessor(df)
 
         for _ in range(max_trials):
             if len(df) >= num_rows:

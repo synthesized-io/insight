@@ -70,7 +70,6 @@ class FairnessScorer:
         self.target = target
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
-        self.drop_dates = drop_dates
 
         self.validate_sensitive_attrs_and_target(columns=list(df.columns))
         self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
@@ -79,9 +78,11 @@ class FairnessScorer:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
         self.preprocessor = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, target=self.target,
-                                                n_bins=self.n_bins, target_n_bins=self.target_n_bins)
+                                                n_bins=self.n_bins, target_n_bins=self.target_n_bins,
+                                                drop_dates=drop_dates)
 
         self.preprocessor.fit(df)
+        self.sensitive_attrs = self.preprocessor.sensitive_attrs
         self.target_variable_type = self.preprocessor.target_variable_type
         self.positive_class = self.preprocessor.positive_class
 
@@ -125,7 +126,7 @@ class FairnessScorer:
             progress_callback: Progress bar callback.
         """
 
-        df_pre = self.preprocessor.transform(df)
+        df_pre = self.preprocessor(df)
 
         if len(self.sensitive_attrs) == 0 or len(df_pre) == 0 or len(df_pre.dropna()) == 0:
             if progress_callback is not None:
@@ -146,8 +147,11 @@ class FairnessScorer:
         # Compute biases for all combinations of sensitive attributes
         for k in range(1, max_combinations + 1):
             for sensitive_attr in combinations(self.sensitive_attrs, k):
+                df_not_nan = df_pre[~(df_pre[list(sensitive_attr)] == 'nan').any(1)]
+                if len(df_not_nan) == 0:
+                    continue
 
-                df_dist = self.calculate_distance(df_pre, list(sensitive_attr), mode=mode, alpha=alpha)
+                df_dist = self.calculate_distance(df_not_nan, list(sensitive_attr), mode=mode, alpha=alpha)
                 biases.extend(self.format_bias(df_dist))
 
                 if progress_callback is not None:
@@ -230,7 +234,7 @@ class FairnessScorer:
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
-        df_pre = self.preprocessor.transform(df)
+        df_pre = self.preprocessor(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -297,9 +301,8 @@ class FairnessScorer:
         self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, df: pd.DataFrame, sensitive_attr: List[str]) -> pd.DataFrame:
-        df = df[~(df[sensitive_attr] == 'nan').any(1)].copy()
-
         target = self.target
+
         # Get group counts & rates
         sensitive_group_target_counts = df.groupby(sensitive_attr + [target])[target].aggregate(Count='count')
         sensitive_group_size = df.groupby(sensitive_attr).size()
@@ -352,7 +355,7 @@ class FairnessScorer:
 
     def ks_distance(self, df: pd.DataFrame, sensitive_attr: List[str], alpha: float = 0.05) -> pd.DataFrame:
         # ignore rows which have nans in any of the given sensitive attrs
-        groups = df[~(df[sensitive_attr] == 'nan').any(1)].groupby(sensitive_attr).groups
+        groups = df.groupby(sensitive_attr).groups
         distances = []
         for sensitive_attr_values, idxs in groups.items():
             target_group = df.loc[df.index.isin(idxs), self.target]

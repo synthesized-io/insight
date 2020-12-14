@@ -6,7 +6,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from ...transformer import Transformer, DTypeTransformer, BinningTransformer, DropColumnTransformer
+from ...transformer import Transformer, DTypeTransformer, BinningTransformer
 from ...config import MetaExtractorConfig
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,6 @@ class FairnessTransformer(Transformer):
 
             dtype_transformer = DTypeTransformer(col)
             df = dtype_transformer.fit_transform(df)
-            self.append(dtype_transformer)
 
             categorical_threshold = categorical_threshold if categorical_threshold is not None else self.n_bins
             num_unique = df[col].nunique()
@@ -90,10 +89,13 @@ class FairnessTransformer(Transformer):
             elif df[col].dtype.kind == 'M':
                 print(f"{col} is date")
                 if self.drop_dates:
-                    transformer = DropColumnTransformer(col)
+                    print(f"we drop {col}")
+
                     self.sensitive_attrs.remove(col)
                     logging.info(f"Sensitive attribute '{col}' dropped as it is a date value and 'drop_dates=True'.")
+                    continue
                 else:
+                    print(f"we do NOT drop {col}")
                     transformer = BinningTransformer(col, bins=self.n_bins, remove_outliers=None,
                                                      duplicates='drop', include_lowest=True)
 
@@ -106,9 +108,9 @@ class FairnessTransformer(Transformer):
                     raise TypeError("Target column has too many unique non-numerical values to compute fairness.")
 
                 else:
-                    transformer = DropColumnTransformer(col)
                     self.sensitive_attrs.remove(col)
                     logging.info(f"Sensitive attribute '{col}' dropped as it is a sampled value.")
+                    continue
 
             # Pure categorical
             else:
@@ -116,12 +118,12 @@ class FairnessTransformer(Transformer):
                     self.target_variable_type = VariableType.Binary if df[col].nunique() <= 2 \
                         else VariableType.Multinomial
 
+            self.append(dtype_transformer)
             if transformer is not None:
                 self.append(transformer.fit(df))
-            if not isinstance(transformer, DropColumnTransformer):
-                # We want to always convert to string otherwise grouping operations can fail
-                to_str_transformer = DTypeTransformer(col, out_dtype='str')
-                self.append(to_str_transformer.fit(df))
+            # We want to always convert to string otherwise grouping operations can fail
+            to_str_transformer = DTypeTransformer(col, out_dtype='str')
+            self.append(to_str_transformer.fit(df))
 
         self.positive_class = self.get_positive_class(df)
         self.fitted = True
