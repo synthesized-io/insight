@@ -1,7 +1,10 @@
-import pandas as pd
+from io import BytesIO
 import pytest
 
+import pandas as pd
+
 from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.metadata import DataFrameMeta
 from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtractorConfig
 
 
@@ -48,6 +51,13 @@ def test_annotations_all():
         df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
     assert df_synthesized.shape == data.shape
+
+    # Ensure that import-export works
+    f = BytesIO()
+    synthesizer.export_model(f)
+
+    f.seek(0)
+    synthesizer2 = HighDimSynthesizer.import_model(f)
 
 
 @pytest.mark.slow
@@ -140,3 +150,7 @@ def test_pre_post_processing():
     df_pre = df_meta.preprocess(df=df, max_workers=None)
     df_post = df_meta.postprocess(df=df_pre, max_workers=None)
     assert df.shape == df_post.shape
+
+    # Ensure that get_variables/set_variables works
+    variables = df_meta.get_variables()
+    df_meta2 = DataFrameMeta.from_dict(variables)

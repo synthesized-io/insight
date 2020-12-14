@@ -102,7 +102,6 @@ class AddressMeta(ValueMeta):
         # Generate fake addresses
         if addresses_file is None:
             self.fake: bool = True
-            self.fkr = faker.Faker(locale='en_GB')
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             self.postcode = None
 
@@ -273,15 +272,16 @@ class AddressMeta(ValueMeta):
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.fake:
+            fkr = faker.Faker(locale='en_GB')
             address_records = [AddressRecord(
-                postcode=self.fkr.postcode() if self.postcode_label else None,
-                county=self.fkr.county() if self.county_label else None,
-                city=self.fkr.city() if self.city_label else None,
-                district=self.fkr.city() if self.district_label else None,
-                street=self.fkr.street_name() if self.street_label else None,
-                house_number=self.fkr.building_number() if self.house_number_label else None,
-                flat=self.fkr.secondary_address() if self.flat_label else None,
-                house_name=self.fkr.last_name() + " " + self.fkr.street_suffix() if self.house_name_label else None
+                postcode=fkr.postcode() if self.postcode_label else None,
+                county=fkr.county() if self.county_label else None,
+                city=fkr.city() if self.city_label else None,
+                district=fkr.city() if self.district_label else None,
+                street=fkr.street_name() if self.street_label else None,
+                house_number=fkr.building_number() if self.house_number_label else None,
+                flat=fkr.secondary_address() if self.flat_label else None,
+                house_name=fkr.last_name() + " " + fkr.street_suffix() if self.house_name_label else None
             ) for _ in range(len(df))]
 
             if self.full_address_label:

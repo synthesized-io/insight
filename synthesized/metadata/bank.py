@@ -9,8 +9,6 @@ from .value_meta import ValueMeta
 class BankNumberMeta(ValueMeta):
     def __init__(self, name, bic_label=None, sort_code_label=None, account_label=None):
         super().__init__(name)
-        fkr = faker.Faker(locale='en_GB')
-        self.fkr = fkr
         self.bic_label = bic_label
         self.sort_code_label = sort_code_label
         self.account_label = account_label
@@ -37,7 +35,8 @@ class BankNumberMeta(ValueMeta):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
-        ibans = [self.fkr.iban() for _ in range(len(df))]
+        fkr = faker.Faker(locale='en_GB')
+        ibans = [fkr.iban() for _ in range(len(df))]
         if self.bic_label is not None:
             df.loc[:, self.bic_label] = [str(iban[4:8]) for iban in ibans]
         if self.sort_code_label is not None:
