@@ -121,8 +121,9 @@ class FairnessTransformer(SequentialTransformer):
             to_str_transformer = DTypeTransformer(col, out_dtype='str')
             self.append(to_str_transformer)
 
+        super().fit(df)
         self.positive_class = self.get_positive_class(df)
-        return cast(FairnessTransformer, super().fit(df))
+        return self
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
 
@@ -136,7 +137,7 @@ class FairnessTransformer(SequentialTransformer):
         if len(df) == 0:
             return df
 
-        return df
+        return super().transform(df)
 
     def get_positive_class(self, df: pd.DataFrame) -> Optional[str]:
         # Only set positive class for binary/multinomial, even if given.
