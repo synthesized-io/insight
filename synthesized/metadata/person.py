@@ -39,7 +39,6 @@ class PersonMeta(ValueMeta):
         self.genders = list(self.title_mapping.keys())
 
         fkr = faker.Faker(locale='en_GB')
-        self.fkr = fkr
         dict_cache_size = config.dict_cache_size
         self.male_first_name_cache = np.array(list({fkr.first_name_male() for _ in range(dict_cache_size)}))
         self.female_first_name_cache = np.array(list({fkr.first_name_female() for _ in range(dict_cache_size)}))
@@ -104,6 +103,7 @@ class PersonMeta(ValueMeta):
 
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
+        fkr = faker.Faker(locale='en_GB')
 
         if self.gender is None:
             gender = pd.Series(np.random.choice(a=self.genders, size=len(df)))
@@ -145,11 +145,11 @@ class PersonMeta(ValueMeta):
         if self.password_label is not None:
             df.loc[:, self.password_label] = [self.generate_password() for _ in range(len(df))]
         if self.mobile_number_label is not None:
-            df.loc[:, self.mobile_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
+            df.loc[:, self.mobile_number_label] = [fkr.cellphone_number() for _ in range(len(df))]
         if self.home_number_label is not None:
-            df.loc[:, self.home_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
+            df.loc[:, self.home_number_label] = [fkr.cellphone_number() for _ in range(len(df))]
         if self.work_number_label is not None:
-            df.loc[:, self.work_number_label] = [self.fkr.cellphone_number() for _ in range(len(df))]
+            df.loc[:, self.work_number_label] = [fkr.cellphone_number() for _ in range(len(df))]
         return df
 
     @staticmethod
