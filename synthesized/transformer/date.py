@@ -2,7 +2,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Transformer
+from .base import Transformer, SequentialTransformer
 from .categorical import CategoricalTransformer
 from ..metadata_new.datetime import Date, get_date_format
 
@@ -79,10 +79,10 @@ class DateCategoricalTransformer(Transformer):
         day_transform = CategoricalTransformer(f'{self.name}_day')
         month_transform = CategoricalTransformer(f'{self.name}_month')
 
-        self.append(hour_transform)
-        self.append(dow_transform)
-        self.append(day_transform)
-        self.append(month_transform)
+        self._transformer = SequentialTransformer(
+            name='date',
+            transformers=[hour_transform, dow_transform, day_transform, month_transform]
+        )
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", date_format="{self.date_format}")'
@@ -94,9 +94,7 @@ class DateCategoricalTransformer(Transformer):
             self.date_format = get_date_format(sr)
         df = self.split_datetime(sr)
 
-        for transformer in self:
-            transformer.fit(df)
-
+        self._transformer.fit(df)
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -107,7 +105,7 @@ class DateCategoricalTransformer(Transformer):
         categorical_dates = self.split_datetime(df[self.name])
         df[categorical_dates.columns] = categorical_dates
 
-        return super().transform(df)
+        return self._transformer.transform(df)
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         df.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
