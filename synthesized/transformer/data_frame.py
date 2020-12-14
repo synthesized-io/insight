@@ -1,4 +1,4 @@
-from typing import Optional, Union, MutableSequence
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ from ..metadata_new import Meta, DataFrameMeta, Nominal
 from ..config import MetaTransformerConfig
 
 
-class DataFrameTransformer(SequentialTransformer, MutableSequence[Transformer]):
+class DataFrameTransformer(SequentialTransformer):
     """
     Transform a data frame.
 
@@ -118,7 +118,7 @@ class TransformerFactory:
             transformer = SequentialTransformer(f'{meta.name}')
             for name in transformer_class_name:
                 t = Transformer._transformer_registry[name]
-                transformer = transformer + t.from_meta(meta)
+                transformer.append(t.from_meta(meta))
         else:
             transformer_cls = Transformer._transformer_registry[transformer_class_name]
             transformer = transformer_cls.from_meta(meta)  # type: ignore

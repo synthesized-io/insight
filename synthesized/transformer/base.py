@@ -1,4 +1,4 @@
-from typing import List, Optional, TypeVar, Type, Dict, Union, MutableSequence
+from typing import List, Optional, TypeVar, Type, Dict, Union, Iterator, MutableSequence
 from abc import abstractmethod
 import logging
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 TransformerType = TypeVar('TransformerType', bound='Transformer')
 
 
-class Transformer():
+class Transformer:
     """
     Base class for data frame transformers.
     Derived classes must implement transform. The
@@ -155,16 +155,16 @@ class SequentialTransformer(Transformer, MutableSequence[Transformer]):
     def __setitem__(self, idx, o) -> None:
         self._transformers[idx] = o
 
-    def __delitem__(self, idx) -> None:
+    def __delitem__(self, idx: Union[int, slice]) -> None:
         del self._transformers[idx]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Transformer]:
         yield from self._transformers
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: Union[int, slice]):
         return self._transformers[idx]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._transformers)
 
     def __add__(self, other: Transformer) -> 'SequentialTransformer':
