@@ -3,7 +3,7 @@ import pytest
 
 import pandas as pd
 
-from synthesized.insight.fairness.transformer import FairnessTransformer
+from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 from synthesized.config import MetaExtractorConfig
 
 
@@ -32,7 +32,7 @@ def test_fairness_transformer(file_name, sensitive_attributes, target, target_n_
     ft = FairnessTransformer(sensitive_attrs=sensitive_attributes, target=target, target_n_bins=target_n_bins,
                              drop_dates=drop_dates)
     ft.fit(df)
-    df_t = ft.transform(df)
+    df_t = ft(df)
 
     categorical_threshold = int(max(
         float(MetaExtractorConfig.min_num_unique),

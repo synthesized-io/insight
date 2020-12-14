@@ -14,7 +14,7 @@ from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
-from .transformer import FairnessTransformer, VariableType
+from .fairness_transformer import FairnessTransformer, VariableType
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 

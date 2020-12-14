@@ -1,12 +1,12 @@
 import logging
 from enum import Enum
 from math import log
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import numpy as np
 import pandas as pd
 
-from ...transformer import Transformer, DTypeTransformer, BinningTransformer
+from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
 from ...config import MetaExtractorConfig
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class VariableType(Enum):
     Continuous = 2
 
 
-class FairnessTransformer(Transformer):
+class FairnessTransformer(SequentialTransformer):
     """
     Fairness transformer
 
@@ -87,15 +87,11 @@ class FairnessTransformer(Transformer):
 
             # If it's datetime, bin it
             elif df[col].dtype.kind == 'M':
-                print(f"{col} is date")
                 if self.drop_dates:
-                    print(f"we drop {col}")
-
                     self.sensitive_attrs.remove(col)
                     logging.info(f"Sensitive attribute '{col}' dropped as it is a date value and 'drop_dates=True'.")
                     continue
                 else:
-                    print(f"we do NOT drop {col}")
                     transformer = BinningTransformer(col, bins=self.n_bins, remove_outliers=None,
                                                      duplicates='drop', include_lowest=True)
 
@@ -120,19 +116,15 @@ class FairnessTransformer(Transformer):
 
             self.append(dtype_transformer)
             if transformer is not None:
-                self.append(transformer.fit(df))
+                self.append(transformer)
             # We want to always convert to string otherwise grouping operations can fail
             to_str_transformer = DTypeTransformer(col, out_dtype='str')
-            self.append(to_str_transformer.fit(df))
+            self.append(to_str_transformer)
 
         self.positive_class = self.get_positive_class(df)
-        self.fitted = True
-
-        return self
+        return cast(FairnessTransformer, super().fit(df))
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not self.fitted:
-            raise ValueError("Preprocessor hasn't been fitted yet, please call fit().")
 
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain all sensitive attributes and the target variable.")
@@ -143,9 +135,6 @@ class FairnessTransformer(Transformer):
         df.drop(other_columns, axis=1, inplace=True)
         if len(df) == 0:
             return df
-
-        for transformer in self:
-            df = transformer(df)
 
         return df
 

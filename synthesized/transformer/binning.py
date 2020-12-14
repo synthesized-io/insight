@@ -60,8 +60,5 @@ class BinningTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        self._assert_fitted()
-
         df[self.name] = pd.cut(df[self.name], bins=self._bins, **self.kwargs)
-        super().transform(df=df)
         return df

@@ -50,10 +50,8 @@ class DTypeTransformer(Transformer):
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         df[self.name] = df[self.name].astype(self.out_dtype, errors='ignore')
-        super().transform(df=df)
         return df
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        super().inverse_transform(df=df)
         df[self.name] = df[self.name].astype(self.in_dtype, errors='ignore')
         return df

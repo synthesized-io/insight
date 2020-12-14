@@ -51,8 +51,7 @@ class Transformer:
             return False
 
     def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
-        if not self._fitted:
-            raise TransformerNotFitError
+        self._assert_fitted()
         if not inverse:
             return self.transform(x)
         else:
