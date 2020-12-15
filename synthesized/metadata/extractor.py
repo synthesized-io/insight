@@ -80,7 +80,8 @@ class MetaExtractor:
             time_value.extract(df)
             time_value.set_index(df)
 
-        self._identify_annotations(df, address_params, bank_params, person_params, formatted_string_params)
+        values.extend(self._identify_annotations(df, address_params, bank_params,
+                                                 person_params, formatted_string_params))
 
         values.extend(self._identify_values(df, column_aliases, type_overrides, find_rules))
 
