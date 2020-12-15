@@ -3,14 +3,14 @@ tensorflow_probability==0.10.1
 numpy==1.18.4
 scipy==1.5.4
 scikit_learn==0.23.2
-pandas==1.1.4
+pandas==1.1.5
 matplotlib==3.3.3
 seaborn==0.11.0
 pyemd==0.5.1
-faker==5.0.0
+faker==5.0.1
 simplejson==3.17.2
 treelib==1.6.1
-hypothesis[pandas]==5.41.4
+hypothesis[pandas]==5.43.3
 dataclasses==0.6
 typing_extensions==3.7.4.3
 ipywidgets==7.5.1
