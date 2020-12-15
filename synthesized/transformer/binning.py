@@ -1,4 +1,4 @@
-from typing import Union, List, Optional
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -13,16 +13,17 @@ class BinningTransformer(Transformer):
     Attributes:
         name: the data frame column to transform.
 
-        bins: the number of bins or a predefined list of bin edges (if not quantile based) or
-            array of quantiles (if quantile based).
-        remove_outliers: if given, proportion of outliers to remove before computing bins.
-        quantile_based: whether the computed bins are quantile based
+        bins: the number of bins.
+        remove_outliers: any data point outside this quantile (two-sided) will be dropped before computing bins. If
+            `None`, outliers are not removed.
+        quantile_based: whether the bin computation is quantile based.
         **kwargs: keyword arguments to pd.cut (if not quantile based) or pd.qcut (if quantile based)
 
     See also:
         pd.cut, pd.qcut
+
     """
-    def __init__(self, name: str, bins: Union[List, int], remove_outliers: Optional[float] = 0.1,
+    def __init__(self, name: str, bins: int, remove_outliers: Optional[float] = 0.1,
                  quantile_based: bool = False, **kwargs):
         super().__init__(name)
         self.bins = bins
@@ -38,7 +39,6 @@ class BinningTransformer(Transformer):
                 f'{", ".join([f"{k}={v}" for k, v in self.kwargs.items()])})')
 
     def fit(self, df: pd.DataFrame) -> 'BinningTransformer':
-
         column = df[self.name].copy()
         column_clean = column.dropna()
         if self.remove_outliers:

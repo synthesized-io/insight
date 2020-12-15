@@ -23,7 +23,13 @@ class FairnessTransformer(SequentialTransformer):
     Fairness transformer
 
     Attributes:
-        name (str) : the data frame column to transform.
+        sensitive_attrs: List of columns containing sensitive attributes.
+        target: Target variable to compute biases against.
+        n_bins: Number of bins for sensitive attributes to be binned.
+        target_n_bins: Number of bins for target to be binned, if None will use it as it is.
+        positive_class: The sign of the biases depends on this class (positive biases have higher rate of this
+            class). If not given, minority class will be used. Only used for binomial target variables.
+        drop_dates: Whether to ignore sensitive attributes containing dates.
     """
 
     def __init__(self, sensitive_attrs: List[str], target: str, n_bins: int = 5,

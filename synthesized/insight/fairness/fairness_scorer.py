@@ -54,6 +54,7 @@ class FairnessScorer:
                 attributes.
             positive_class: The sign of the biases depends on this class (positive biases have higher rate of this
                 class). If not given, minority class will be used. Only used for binomial target variables.
+            drop_dates: Whether to ignore sensitive attributes containing dates.
         """
 
         if isinstance(sensitive_attrs, list):
