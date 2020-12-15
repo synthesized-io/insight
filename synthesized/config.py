@@ -62,6 +62,7 @@ class PersonMetaConfig:
     def person_meta_config(self):
         return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
 
+
 @dataclass
 class FormattedStringParams:
     formatted_string_label: Optional[List[str]] = None
@@ -75,6 +76,7 @@ class FormattedStringMetaConfig:
     def formatted_string_meta_config(self):
         return FormattedStringMetaConfig(**{f.name: self.__getattribute__(f.name)
                                             for f in fields(FormattedStringMetaConfig)})
+
 
 @dataclass
 class MetaFactoryConfig:
