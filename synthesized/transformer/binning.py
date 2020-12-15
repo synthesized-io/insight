@@ -1,5 +1,6 @@
-from typing import Union, List
+from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 
 from .base import Transformer
@@ -12,48 +13,52 @@ class BinningTransformer(Transformer):
     Attributes:
         name: the data frame column to transform.
 
-        bins: the number of equally spaced bins or a predefined list of bin edges.
-
-        **kwargs: keyword arguments to pd.cut
+        bins: the number of bins.
+        remove_outliers: any data point outside this quantile (two-sided) will be dropped before computing bins. If
+            `None`, outliers are not removed.
+        quantile_based: whether the bin computation is quantile based.
+        **kwargs: keyword arguments to pd.cut (if not quantile based) or pd.qcut (if quantile based)
 
     See also:
-        pd.cut
+        pd.cut, pd.qcut
+
     """
-    def __init__(self, name: str, bins: Union[List, int], **kwargs):
+    def __init__(self, name: str, bins: int, remove_outliers: Optional[float] = 0.1,
+                 quantile_based: bool = False, **kwargs):
         super().__init__(name)
         self.bins = bins
+        self.remove_outliers = remove_outliers
+        self.quantile_based = quantile_based
         self.kwargs = kwargs
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, bins={self.bins}, kwargs={repr(self.kwargs)}))'
-
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[self.name] = pd.cut(df[self.name], self.bins, **self.kwargs)
-        return df
-
-
-class QuantileBinningTransformer(Transformer):
-    """
-    Bin continous values into equal-size discrete bins based on quantiles of given data.
-
-    Attributes:
-        name: the data frame column to transform.
-
-        quantiles: number of quantiles, or array of quantiles.
-
-        **kwargs: keyword arguments to pd.qcut
-
-    See also:
-        pd.cut
-    """
-    def __init__(self, name: str, quantiles: Union[int, List[float]], **kwargs):
-        super().__init__(name)
-        self.quantiles = quantiles
-        self.kwargs = kwargs
+        self._bins: Optional[List] = None
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name="{self.name}", dtypes={self.dtypes}, quantiles={self.quantiles}, kwargs={repr(self.kwargs)}))'
+        return (f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes}, bins={self.bins}, '
+                f'remove_outliers={self.remove_outliers}, quantile_based={self.quantile_based}, '
+                f'{", ".join([f"{k}={v}" for k, v in self.kwargs.items()])})')
+
+    def fit(self, df: pd.DataFrame) -> 'BinningTransformer':
+        column = df[self.name].copy()
+        column_clean = column.dropna()
+        if self.remove_outliers:
+            percentiles = [self.remove_outliers * 100. / 2, 100 - self.remove_outliers * 100. / 2]
+            start, end = np.percentile(column_clean, percentiles)
+
+            if start == end:
+                start, end = min(column_clean), max(column_clean)
+
+            column_clean = column_clean[(start <= column_clean) & (column_clean <= end)]
+
+        if not self.quantile_based:
+            _, bins = pd.cut(column_clean, self.bins, retbins=True, **self.kwargs)
+        else:
+            _, bins = pd.qcut(column_clean, self.bins, retbins=True, **self.kwargs)
+        self._bins = list(bins)  # Otherwise it is np.ndarray
+        self._bins[0], self._bins[-1] = column.min(), column.max()
+
+        return super().fit(df)
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[self.name] = pd.qcut(df[self.name], self.quantiles, **self.kwargs)
+        df[self.name] = pd.cut(df[self.name], bins=self._bins, **self.kwargs)
         return df

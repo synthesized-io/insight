@@ -51,8 +51,7 @@ class Transformer:
             return False
 
     def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
-        if not self._fitted:
-            raise TransformerNotFitError
+        self._assert_fitted()
         if not inverse:
             return self.transform(x)
         else:
@@ -73,6 +72,10 @@ class Transformer:
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.fit(df).transform(df)
         return df
+
+    def _assert_fitted(self):
+        if not self._fitted:
+            raise TransformerNotFitError("Transformer not fitted yet, please call 'fit()' before calling transform.")
 
     @classmethod
     def from_meta(cls: Type[TransformerType], meta) -> TransformerType:

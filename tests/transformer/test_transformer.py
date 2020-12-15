@@ -4,9 +4,9 @@ import pytest
 import types
 
 from synthesized.metadata_new.meta_builder import MetaExtractor
-from synthesized.transformer import Transformer, TransformerFactory, QuantileTransformer, SequentialTransformer
-from synthesized.transformer import DataFrameTransformer, DateCategoricalTransformer, DateTransformer
-from synthesized.transformer import CategoricalTransformer, NanTransformer, BinningTransformer, QuantileBinningTransformer
+from synthesized.transformer import Transformer, SequentialTransformer, TransformerFactory, QuantileTransformer, \
+    DataFrameTransformer, DateCategoricalTransformer, DateTransformer, CategoricalTransformer, NanTransformer, \
+    BinningTransformer, DropColumnTransformer, DTypeTransformer
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -82,8 +82,8 @@ def test_transformer_factory(df_unittest, df_unittest_transformers):
         (DateTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
         (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]})),
-        (QuantileBinningTransformer('x', quantiles=10), pd.DataFrame({'x': [1, 2, 3]}))
-
+        (DropColumnTransformer('x'), pd.DataFrame({'x': [1, 2, 3]})),
+        (DTypeTransformer('x'), pd.DataFrame({'x': [1, 2, 3]})),
     ])
 def test_transformer(transformer, data):
     transformer.fit(data)
