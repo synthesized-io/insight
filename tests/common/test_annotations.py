@@ -5,7 +5,7 @@ import pandas as pd
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.metadata import DataFrameMeta
-from synthesized.config import AddressParams, BankParams, PersonParams, MetaExtractorConfig
+from synthesized.config import AddressParams, BankParams, PersonParams, FormattedStringParams, MetaExtractorConfig
 
 
 @pytest.mark.slow
@@ -39,11 +39,17 @@ def test_annotations_all():
         full_address_label=['Full Address', None],
     )
 
+    formatted_string_params = FormattedStringParams(
+        formatted_string_label=['COUNTY', 'PA_DISTRICT']
+    )
+
     df_meta = MetaExtractor.extract(
         df=data,
         address_params=address_params,
         bank_params=bank_params,
-        person_params=person_params
+        person_params=person_params,
+        formatted_string_params=formatted_string_params,
+        config=MetaExtractorConfig(label_to_regex={'COUNTY': '[a-z]{5,10}', 'PA_DISTRICT': '[a-z]{5,10}'})
     )
 
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
@@ -58,6 +64,9 @@ def test_annotations_all():
 
     f.seek(0)
     synthesizer2 = HighDimSynthesizer.import_model(f)
+    df_synthesized2 = synthesizer.synthesize(num_rows=len(data))
+
+    assert df_synthesized2.shape == data.shape
 
 
 @pytest.mark.slow

@@ -4,7 +4,6 @@ import os
 from abc import abstractmethod
 from datetime import datetime
 from typing import Callable, Dict, Union, List, Optional, Any, Sequence
-import re
 
 import pandas as pd
 import tensorflow as tf
@@ -26,7 +25,7 @@ def _check_license():
             print('No license key detected (env variable {} or {})'.format(key_env, key_path))
             return False
         else:
-            print('License key: ' + re.sub(r"[0-9A-Z]", "X", license_key))
+            print('License key: ' + license_key)
         license_key_bytes = base64.b16decode(license_key.replace('-', ''))
         key = 13
         n = 247

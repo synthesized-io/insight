@@ -32,9 +32,6 @@ class ValueMeta:
     def specification(self):
         return dict(name=self.name)
 
-    def get_rules_str(self):
-        return 'N/A'
-
     def columns(self) -> List[str]:
         """External columns which are covered by this value.
 

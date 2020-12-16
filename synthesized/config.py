@@ -55,7 +55,7 @@ class PersonParams:
 class PersonMetaConfig:
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
-    home_number_format: str = '01xxxxxxxx'
+    home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
 
     @property
