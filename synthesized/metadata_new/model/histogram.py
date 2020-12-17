@@ -74,15 +74,15 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             rng = meta.max - meta.min
 
             if rng/cls.MAX_BINS > meta.unit_meta.precision:
-                precision = rng//cls.MAX_BINS
+                bin_width = rng//cls.MAX_BINS
                 num_bins = cls.MAX_BINS
             else:
-                precision = meta.unit_meta.precision
+                bin_width = meta.unit_meta.precision
                 num_bins = ceil(rng/meta.unit_meta.precision)
 
-            categories = [meta.min + i*precision for i in range(num_bins)]
+            categories = [meta.min + i*bin_width for i in range(num_bins)]
 
-            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, precision=precision)
+            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, bin_width=bin_width)
         elif isinstance(meta, Ordinal):
             # TODO
             hist = Histogram(name=meta.name, categories=meta.categories[:cls.MAX_BINS], nan_freq=meta.nan_freq)
