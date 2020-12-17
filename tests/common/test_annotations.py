@@ -49,6 +49,8 @@ def test_annotations_all():
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=10)
         df_synthesized = synthesizer.synthesize(num_rows=len(data))
+        _ = synthesizer.encode(data)
+        _ = synthesizer.encode_deterministic(data)
 
     assert df_synthesized.shape == data.shape
 
@@ -87,6 +89,8 @@ def test_addresses_from_file():
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(df_train=data, num_iterations=10)
         df_synthesized = synthesizer.synthesize(num_rows=len(data))
+        _ = synthesizer.encode(data)
+        _ = synthesizer.encode_deterministic(data)
 
     assert df_synthesized.shape == data.shape
 
