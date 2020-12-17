@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar, Dict, Type, cast
+from typing import Optional, TypeVar, Dict, Type, cast, MutableSequence
 from datetime import datetime
 
 import numpy as np
@@ -6,7 +6,7 @@ import pandas as pd
 
 from .continuous import Integer
 from .categorical import String
-from ..base import Domain, Affine, Scale
+from ..base import Affine, Scale
 from ..exceptions import UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='Date')
@@ -14,13 +14,20 @@ DateType = TypeVar('DateType', bound='Date')
 
 class TimeDelta(Scale[np.timedelta64]):
     class_name: str = 'TimeDelta'
-    dtype: str = 'timedelta64[ns]'
+    dtype = np.timedelta64
+    precision = np.timedelta64(1, 'ns')
 
     def __init__(
-            self, name: str, domain: Optional[Domain[np.timedelta64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.timedelta64] = None, max: Optional[np.timedelta64] = None
+            self, name: str, categories: Optional[MutableSequence[np.timedelta64]] = None,
+            nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+
+
+class TimeDeltaDay(TimeDelta):
+    class_name: str = 'TimeDeltaDay'
+    dtype = np.timedelta64
+    precision = np.timedelta64(1, 'D')
 
 
 class Date(Affine[np.datetime64]):
@@ -34,13 +41,13 @@ class Date(Affine[np.datetime64]):
         date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
     """
     class_name: str = 'Date'
-    dtype: str = 'datetime64[ns]'
+    dtype = np.datetime64
 
     def __init__(
-            self, name: str, domain: Optional[Domain[np.datetime64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.datetime64] = None, max: Optional[np.datetime64] = None, date_format: Optional[str] = None
+            self, name: str, categories: Optional[MutableSequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
+            date_format: Optional[str] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
         self.date_format = date_format
         self[name + '_dow'] = String(name + '_dow')
         self[name + '_day'] = Integer(name + '_day')
@@ -65,12 +72,9 @@ class Date(Affine[np.datetime64]):
 
         return self
 
-    def infer_domain(self, df: pd.DataFrame) -> Domain[np.datetime64]:
-        return cast(Domain[np.datetime64], pd.to_datetime(df[self.name], format=self.date_format).unique())
-
-    @classmethod
-    def unit_meta(cls) -> Type[TimeDelta]:
-        return TimeDelta
+    @property
+    def unit_meta(self) -> TimeDelta:
+        return TimeDeltaDay(self.name+'_unit')
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()

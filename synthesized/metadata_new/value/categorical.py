@@ -1,13 +1,13 @@
-from typing import Optional
+from typing import Optional, MutableSequence
 
-from ..base import Domain, Nominal
+from ..base import Nominal
 
 
 class String(Nominal[str]):
     class_name: str = 'String'
-    dtype: str = 'str'
+    dtype = str
 
     def __init__(
-            self, name: str, domain: Optional[Domain[str]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[MutableSequence[str]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)

@@ -1,27 +1,25 @@
-from typing import Optional
+from typing import Optional, MutableSequence
 
-import numpy as np
-
-from ..base import Domain, Scale, Ring
+from ..base import Scale, Ring
 
 
 class Integer(Scale[int]):
     class_name: str = 'Integer'
-    dtype: str = 'int64'
+    dtype = int
+    precision: int = 1
 
     def __init__(
-            self, name: str, domain: Optional[Domain[np.int64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[int] = None, max: Optional[int] = None
+            self, name: str, categories: Optional[MutableSequence[int]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
 
 class Float(Ring[float]):
     class_name: str = 'Float'
-    dtype: str = 'float64'
+    dtype = float
+    precision: float = 0.
 
     def __init__(
-            self, name: str, domain: Optional[Domain[np.float64]] = None, nan_freq: Optional[float] = None,
-            min: Optional[np.float64] = None, max: Optional[np.float64] = None
+            self, name: str, categories: Optional[MutableSequence[float]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)

@@ -1,11 +1,10 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, Union, Sequence
+from typing import Any, Generic, TypeVar, Optional, Dict, MutableSequence
 from functools import cmp_to_key
 
 import numpy as np
 import pandas as pd
 
-from .domain import Domain, CategoricalDomain, OrderedDomain
 from .meta import Meta
 
 DType = TypeVar('DType', covariant=True)
@@ -58,47 +57,32 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     """
     class_name: str = 'Nominal'
 
-    def __init__(self, name: str, domain: Optional[Domain[NType]] = None, nan_freq: Optional[float] = None):
+    def __init__(
+            self, name: str, categories: Optional[MutableSequence[NType]] = None, nan_freq: Optional[float] = None
+    ):
         super().__init__(name=name)
-        self._domain: Optional[Domain[NType]] = domain
+        self.categories: Optional[MutableSequence[NType]] = categories
         self.nan_freq = nan_freq
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the domain and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
-
-        if self.domain is None:
-            self.domain = self.infer_domain(df)
+        if self.categories is None:
+            self.categories = [x for x in df[self.name].unique()]
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df)
 
         return self
 
-    @property
-    def domain(self) -> Optional[Domain[NType]]:
-        return self._domain
-
-    @domain.setter
-    def domain(self, x: Union[Dict[str, object], Optional[Domain[NType]]]):
-        if type(x) is dict:
-            x = cast(Dict[str, object], x)
-            self._domain = Domain.STR_TO_DOMAIN[cast(str, x['domain_type'])].from_dict(x)
-        else:
-            x = cast(Optional[Domain[NType]], x)
-            self._domain = x
-
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
             "nan_freq": self.nan_freq,
-            "domain": self.domain if self.domain is None else self.domain.to_dict()
+            "categories": [c for c in self.categories] if self.categories is not None else None
         })
 
         return d
-
-    def infer_domain(self, df: pd.DataFrame) -> Domain[NType]:
-        return CategoricalDomain(categories=df[self.name].unique().tolist())
 
 
 class Ordinal(Nominal[OType], Generic[OType]):
@@ -116,30 +100,71 @@ class Ordinal(Nominal[OType], Generic[OType]):
     class_name: str = 'Ordinal'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[OType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[MutableSequence[OType]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq)  # type: ignore
-        self.min: Optional[OType] = min
-        self.max: Optional[OType] = max
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        self._min = None
+        self._max = None
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
-        self.domain = cast(Domain[OType], self.domain)
+        self.categories = self.sort(self.categories)
 
-        categories = self.sort(df[self.name].unique())
-        min_cat, max_cat = categories[0], categories[-1]
-        self.min = min_cat
-        self.max = max_cat
+        self._min = self.categories[0]
+        self._max = self.categories[-1]
 
         return self
 
+    @property
+    def min(self) -> Optional[OType]:
+        return self._min
+
+    @min.setter
+    def min(self, x: Optional[OType]) -> None:
+        self._min = x
+
+        if self._min is None:
+            return
+
+        n = 0
+        for n, value in enumerate(self.categories):
+            if self.less_than(x, value):
+                break
+
+        self.categories = self.categories[n:]
+
+        if x != self.categories[0]:
+            self.categories.insert(0, x)
+
+        if self._max is not None and not self.less_than(self._min, self._max):
+            self._max = None
+
+    @property
+    def max(self) -> Optional[OType]:
+        return self.categories[-1] if self.categories is not None else None
+
+    @max.setter
+    def max(self, x: Optional[OType]) -> None:
+        self._max = x
+
+        if x is None:
+            return
+
+        n = 0
+        for n, value in enumerate(reversed(self.categories)):
+            if self.less_than(value, x):
+                break
+
+        self.categories = self.categories[:-n]
+
+        if x != self.categories[-1]:
+            self.categories.append(x)
+
+        if self._min is not None and not self.less_than(self._min, self._max):
+            self._min = None
+
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
-        d.update({
-            "min": self.min,
-            "max": self.max
-        })
 
         return d
 
@@ -156,15 +181,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
         else:
             return -1
 
-    def sort(self, sr: Sequence[OType]) -> Sequence[OType]:
+    def sort(self, sr: MutableSequence[OType]) -> MutableSequence[OType]:
         """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
-
-    def infer_domain(self, df: pd.DataFrame) -> Domain[OType]:
-        categories = self.sort(df[self.name].unique())
-        min_cat, max_cat = categories[0], categories[-1]
-        return OrderedDomain(min=min_cat, max=max_cat)
 
 
 class Affine(Ordinal[AType], Generic[AType]):
@@ -184,18 +204,17 @@ class Affine(Ordinal[AType], Generic[AType]):
     class_name: str = 'Affine'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[MutableSequence[AType]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
         return self
 
-    @classmethod
+    @property
     @abstractmethod
-    def unit_meta(cls: Type[AffineType]) -> Type['Scale[Any]']:
+    def unit_meta(self: AffineType) -> 'Scale[Any]':
         pass
 
 
@@ -212,31 +231,30 @@ class Scale(Affine[SType], Generic[SType]):
     Attributes:
     """
     class_name: str = 'Scale'
+    precision: SType
 
     def __init__(
-            self, name: str, domain: Optional[Domain[SType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[MutableSequence[SType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
 
         return self
 
-    @classmethod
-    def unit_meta(cls: Type[ScaleType]) -> Type[ScaleType]:
-        return cls
+    @property
+    def unit_meta(self: ScaleType) -> ScaleType:
+        return self
 
 
 class Ring(Scale[RType], Generic[RType]):
     class_name: str = 'Ring'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[RType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[MutableSequence[RType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)

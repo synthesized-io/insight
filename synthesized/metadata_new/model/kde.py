@@ -1,8 +1,8 @@
-from typing import Generic, Optional, Dict, Any, cast
+from typing import Generic, Optional, Dict, Any, cast, MutableSequence
 
 import pandas as pd
 
-from ..base import ContinuousModel, Domain
+from ..base import ContinuousModel
 from ..base.value_meta import AType
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError
 
@@ -11,10 +11,10 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
     class_name = "KDE"
 
     def __init__(
-            self, name: str, domain: Optional[Domain[AType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[MutableSequence[AType]] = None, nan_freq: Optional[float] = None,
             probabilities: Optional[Dict[AType, float]] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
         self.probabilities: Optional[Dict[AType, float]] = probabilities
 
     def fit(self, df: pd.DataFrame) -> 'KernelDensityEstimate[AType]':
