@@ -5,7 +5,6 @@ from .base import Ordinal
 from .base import Affine
 from .base import Scale
 from .base import Ring
-from .base import Domain
 
 from .value import Bool
 from .value import String
@@ -18,7 +17,7 @@ from .data_frame_meta import DataFrameMeta
 from .meta_builder import MetaExtractor
 
 __all__ = [
-    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'Domain',
+    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring',
     'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta',
     'DataFrameMeta', 'MetaExtractor'
 ]
