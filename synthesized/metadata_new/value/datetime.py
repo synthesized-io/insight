@@ -53,6 +53,7 @@ class Date(Affine[np.datetime64]):
         self[name + '_day'] = Integer(name + '_day')
         self[name + '_month'] = Integer(name + '_month')
         self[name + '_year'] = Integer(name + '_year')
+        self._unit_meta = TimeDeltaDay(self.name + '_unit')
 
     def extract(self: DateType, df: pd.DataFrame) -> DateType:
         if self.date_format is None:
@@ -73,8 +74,8 @@ class Date(Affine[np.datetime64]):
         return self
 
     @property
-    def unit_meta(self) -> TimeDelta:
-        return TimeDeltaDay(self.name+'_unit')
+    def unit_meta(self) -> TimeDeltaDay:
+        return self._unit_meta
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
