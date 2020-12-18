@@ -4,7 +4,7 @@ import pandas as pd
 
 from .base import Transformer, SequentialTransformer
 from .categorical import CategoricalTransformer
-from ..metadata_new.datetime import Date, get_date_format
+from ..metadata_new.value.datetime import Date, get_date_format
 
 
 class DateTransformer(Transformer):
