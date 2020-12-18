@@ -83,7 +83,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             else:
                 bin_width = meta.unit_meta.precision
 
-            categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item())
+            categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
 
             hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         elif isinstance(meta, Ordinal):
