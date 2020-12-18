@@ -55,7 +55,7 @@ class _MetaBuilder:
             return IntegerBool(str(sr.name))
         return Integer(str(sr.name))
 
-    def _FloatBuilder(self, sr: pd.Series) -> Union[Float, Integer, Bool]:
+    def _FloatBuilder(self, sr: pd.Series) -> Union[Float, Integer, Bool, IntegerBool]:
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
@@ -74,7 +74,7 @@ class _MetaBuilder:
         else:
             return String(str(sr.name))
 
-    def _ObjectBuilder(self, sr: pd.Series) -> Union[Date, String, OrderedString, Float, Integer, Bool]:
+    def _ObjectBuilder(self, sr: pd.Series) -> Union[Date, String, OrderedString, Float, Integer, Bool, IntegerBool]:
         try:
             get_date_format(sr)
             return self._DateBuilder(sr)
