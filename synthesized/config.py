@@ -1,8 +1,10 @@
-from typing import Union, List, Optional, Callable
+from typing import Dict, Union, List, Optional, Callable
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 import pandas as pd
 
+
+# Meta Config Classes ----------------------------------------
 
 @dataclass
 class AddressParams:
@@ -52,6 +54,9 @@ class PersonParams:
 @dataclass
 class PersonMetaConfig:
     dict_cache_size: int = 10000
+    mobile_number_format: str = '07xxxxxxxx'
+    home_number_format: str = '02xxxxxxxx'
+    work_number_format: str = '07xxxxxxxx'
 
     @property
     def person_meta_config(self):
@@ -59,7 +64,22 @@ class PersonMetaConfig:
 
 
 @dataclass
-class MetaFactoryConfig():
+class FormattedStringParams:
+    formatted_string_label: Optional[List[str]] = None
+
+
+@dataclass
+class FormattedStringMetaConfig:
+    label_to_regex: Optional[Dict[str, str]] = None
+
+    @property
+    def formatted_string_meta_config(self):
+        return FormattedStringMetaConfig(**{f.name: self.__getattribute__(f.name)
+                                            for f in fields(FormattedStringMetaConfig)})
+
+
+@dataclass
+class MetaFactoryConfig:
     """
     Attributes:
         categorical_threshold_log_multiplier: if number of unique values
@@ -78,11 +98,62 @@ class MetaFactoryConfig():
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
 
     @property
-    def value_factory_config(self):
+    def meta_extractor_config(self):
         return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
+
+
+# Transformer Config Classes ----------------------------------------
+
+@dataclass
+class QuantileTransformerConfig:
+    n_quantiles: int = 1000
+    distribution: str = 'normal'
+
+    @property
+    def quantile_transformer_config(self):
+        return QuantileTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(QuantileTransformerConfig)}
+        )
+
+
+@dataclass
+class DateTransformerConfig:
+    unit: str = 'days'
+
+    @property
+    def date_transformer_config(self):
+        return DateTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
+        )
+
+
+# Todo: How do we implement logic/mappings which depend on the values of the ValueMetas? ie. an Integer with only 4
+#       unique values should be mapped to the categorical transformer. Perhaps we should just have custom logic by
+#       creating different TransformerFactory classes?
+@dataclass
+class MetaTransformerConfig():
+    Float: Union[str, List[str]] = 'QuantileTransformer'
+    Integer: Union[str, List[str]] = 'QuantileTransformer'
+    Bool: Union[str, List[str]] = 'CategoricalTransformer'
+    String: Union[str, List[str]] = 'CategoricalTransformer'
+    Date: Union[str, List[str]] = field(default_factory=lambda: ['DateCategoricalTransformer', 'DateTransformer', 'QuantileTransformer'])
+
+    @property
+    def meta_transformer_config(self):
+        return MetaTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(MetaTransformerConfig)}
+        )
+
+    def get_transformer_config(self, transformer: str):
+        if transformer == 'QuantileTransformer':
+            return QuantileTransformerConfig()
+        elif transformer == 'DateTransformer':
+            return DateTransformerConfig()
+
+# Value Config Classes ----------------------------------------
 
 
 @dataclass
@@ -173,6 +244,8 @@ class LearningManagerConfig:
     def learning_manager_config(self):
         return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
+
+# Synthesizer Config Classes ----------------------------------------
 
 @dataclass
 class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):

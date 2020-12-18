@@ -84,6 +84,9 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         if self.domain is None:
             self.domain = self.infer_domain(df)
 
+        if self.nan_freq is None:
+            self.nan_freq = df[self.name].isna().sum() / len(df)
+
         return self
 
     def to_dict(self) -> Dict[str, object]:
@@ -125,7 +128,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
         super().extract(df)
         self.domain = cast(Domain[OType], self.domain)
 
-        unique_sorted = self.sort(self.domain.tolist())
+        unique_sorted = self.sort(self.domain)  # type: ignore
 
         if self.min is None:
             self.min = unique_sorted[0]
@@ -150,7 +153,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
         self.domain = cast(Domain[OType], self.domain)
 
         if x not in self.domain or y not in self.domain:
-            raise ValueError(f"x={x} or y={y} are not valid categories.")
+            if np.isnan(x) or np.isnan(y):
+                return False
+            else:
+                raise ValueError(f"x={x} or y={y} are not valid categories.")
 
         b: bool = x < y
         return b

@@ -142,9 +142,10 @@ class ConditionalSampler(Synthesizer):
         result = []
 
         n_trials = 0
+        n_trials_non_added = 0
+        n_missing = prev_n_missing = sum(marginal_counts.values())
         sampled_ratio = 1.01
         while sum(marginal_counts.values()) > 0 and sampled_ratio >= self.min_sampled_ratio:
-            n_missing = sum(marginal_counts.values())
 
             # Estimate how many rows we need so after filtering we have enough:
             n_prefetch = round(n_missing / sampled_ratio)
@@ -165,9 +166,9 @@ class ConditionalSampler(Synthesizer):
 
                 # If counter for the instance is positive let's emit the current row:
                 if contains_colons:
-                    for marginal_key in marginal_counts.keys():
+                    for marginal_key, counts in marginal_counts.items():
                         if all([marginal_value_i == ":" or marginal_value_i == key[i] for i, marginal_value_i in
-                                enumerate(marginal_key)]):
+                                enumerate(marginal_key)]) and counts > 0:
                             result.append(row)
                             n_added += 1
                             marginal_counts[marginal_key] -= 1
@@ -184,23 +185,27 @@ class ConditionalSampler(Synthesizer):
             else:
                 sampled_ratio = float(n_added) / n_prefetch
 
-            if progress_callback is not None:
-                progress_callback(round(len(result) * 100.0 / num_rows))
-
-            del df_key, df_synthesized
-            gc.collect()
-
             n_trials += 1
             if max_trials is not None and n_trials >= max_trials:
                 logger.warning(f"Synthesis stopped after {n_trials} trials being able to generate {n_added} samples.")
                 break
 
             # If after 3 loops we were not able to generate anything,
-            if n_trials > 3 and n_missing == num_rows:
+            n_trials_non_added = 0 if n_missing != prev_n_missing else n_trials_non_added + 1
+            if n_trials_non_added > 3:
                 logger.warning("Synthesis stopped after 3 trials without being able to generate any samples.")
                 break
 
-            logger.debug(f"Loop finished, {n_added} added samples, ")
+            prev_n_missing = n_missing
+            n_missing = sum(marginal_counts.values())
+            logger.debug(f"Loop finished, n_added={n_added}, n_missing={n_missing}")
+
+            # Free memory
+            del df_key, df_synthesized
+            gc.collect()
+
+            if progress_callback is not None:
+                progress_callback(round(len(result) * 100.0 / num_rows))
 
         if progress_callback is not None:
             progress_callback(100)

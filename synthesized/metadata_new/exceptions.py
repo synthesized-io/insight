@@ -1,5 +1,4 @@
-"""
-Custom exception classes.
+"""Custom exception classes relating to DataMeta.
 
 This module contains custom exceptions used by the Synthesized SDK.
 """
@@ -18,16 +17,4 @@ class UnsupportedDtypeError(Exception):
 
 
 class UnknownDateFormatError(Exception):
-    pass
-
-
-class TransformerNotFitError(Exception):
-    pass
-
-
-class NonInvertibleTransformError(Exception):
-    pass
-
-
-class UnsupportedMetaError(Exception):
     pass
