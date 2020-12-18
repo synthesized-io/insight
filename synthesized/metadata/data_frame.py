@@ -4,15 +4,8 @@ from typing import Any, Dict, List, Optional, Union, Tuple, Sequence
 import numpy as np
 import pandas as pd
 
-from .association import AssociationMeta
-from .continuous import ContinuousMeta
-from .categorical import CategoricalMeta
-from .date import DateMeta
-from .decomposed_continuous import DecomposedContinuousMeta
-from .nan import NanMeta
-from .value_meta import ValueMeta
-from .date import TimeIndexMeta
-from .identifier import IdentifierMeta
+from .values import AssociationMeta, ContinuousMeta, CategoricalMeta, DateMeta, DecomposedContinuousMeta, NanMeta, \
+    ValueMeta, TimeIndexMeta, IdentifierMeta
 
 
 class DataFrameMeta:
