@@ -1,7 +1,5 @@
-from typing import Generic, Optional, Dict, Any, cast, MutableSequence
-from math import ceil
+from typing import Generic, Optional, Dict, Any, cast, MutableSequence, Sequence
 
-import numpy as np
 import pandas as pd
 
 from ..base import DiscreteModel
@@ -10,25 +8,33 @@ from ..exceptions import MetaNotExtractedError, ModelNotFittedError, ExtractionE
 
 
 class Histogram(DiscreteModel[NType], Generic[NType]):
+    """A Histogram used to model a discrete variable
+
+    Attributes:
+        name (str): The name of the data column that this histogram models.
+        categories (MutableSequence[NType]): A list of the categories/bins (left edges if bin_width is not None).
+        probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
+
+    """
     class_name = "Histogram"
-    MAX_BINS = 20
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[NType]] = None, nan_freq: Optional[float] = None,
-            probabilities: Optional[Dict[NType, float]] = None, bin_width: Optional[SType] = None
+            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
+            probabilities: Optional[Dict[NType, float]] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        if self.categories is not None:
+            self._extracted = True
         self.probabilities: Optional[Dict[NType, float]] = probabilities
-        self.bin_width = bin_width
 
     def fit(self: 'Histogram[NType]', df: pd.DataFrame) -> 'Histogram[NType]':
         super().fit(df=df)
-        if self.bin_width is not None:
-            value_counts = pd.value_counts(
-                ubin_values(df[self.name].astype(self.dtype), self.categories, self.bin_width), dropna=False, sort=False
-            )
+        if isinstance(self.categories, pd.IntervalIndex):
+            cut = pd.cut(df[self.name], bins=self.categories)
+            value_counts = pd.value_counts(cut, normalize=True, dropna=False, sort=False)
         else:
-            value_counts = df[self.name].value_counts(normalize=True, dropna=False, sort=False)
+            value_counts = pd.value_counts(df[self.name], normalize=True, dropna=False, sort=False)
+
         self.probabilities = {cat: value_counts.get(cat, 0.0) for cat in self.categories}
         return self
 
@@ -58,36 +64,32 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "probabilities": self.probabilities,
-            "precision": self.bin_width
+            "probabilities": self.probabilities
         })
         return d
 
     @classmethod
-    def from_meta(cls, meta: Nominal[NType]) -> 'Histogram[NType]':
+    def from_meta(cls, meta: Nominal[NType], max_bins=20) -> 'Histogram[NType]':
 
         num_categories = len(meta.categories) if meta.categories is not None else 0
 
-        if num_categories <= cls.MAX_BINS:
+        if num_categories <= max_bins:
             hist = Histogram(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq)
         elif isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
 
-            if rng/cls.MAX_BINS > meta.unit_meta.precision:
-                bin_width = rng//cls.MAX_BINS
-                num_bins = cls.MAX_BINS
+            if rng/max_bins > meta.unit_meta.precision:
+                bin_width = rng//max_bins
             else:
                 bin_width = meta.unit_meta.precision
-                num_bins = ceil(rng/meta.unit_meta.precision)
 
-            categories = [meta.min + i*bin_width for i in range(num_bins)]
+            categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item())
 
-            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, bin_width=bin_width)
+            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         elif isinstance(meta, Ordinal):
-            # TODO
-            hist = Histogram(name=meta.name, categories=meta.categories[:cls.MAX_BINS], nan_freq=meta.nan_freq)
+            hist = Histogram(name=meta.name, categories=meta.categories[:max_bins], nan_freq=meta.nan_freq)
         else:
-            hist = Histogram(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq)
+            hist = Histogram(name=meta.name, categories=meta.categories[:max_bins], nan_freq=meta.nan_freq)
 
         if hist is None:
             raise ExtractionError
@@ -95,13 +97,3 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         hist.dtype = meta.dtype
 
         return hist
-
-
-def bin_values(x, categories, binwidth):
-    bins = categories[np.argmin(np.abs(x.reshape(-1, 1) - np.reshape(categories, (1,-1))), -1)]
-    dist = x.reshape(-1, 1) - np.reshape(categories, (1,-1))
-    not_nan = np.any((dist < binwidth) & (dist >= (binwidth*0)), axis=1)
-    return np.where(not_nan, bins, None)
-
-
-ubin_values = np.vectorize(bin_values, otypes=[object], excluded=(2,), signature='(n),(m)->(n)')

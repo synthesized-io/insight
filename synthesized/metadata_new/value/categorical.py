@@ -5,7 +5,7 @@ from ..base import Nominal
 
 class String(Nominal[str]):
     class_name: str = 'String'
-    dtype = str
+    dtype = 'U'
 
     def __init__(
             self, name: str, categories: Optional[MutableSequence[str]] = None, nan_freq: Optional[float] = None

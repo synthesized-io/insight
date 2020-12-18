@@ -7,7 +7,7 @@ from ..base import Ring
 
 class Bool(Ring[np.bool]):
     class_name: str = 'Bool'
-    dtype = bool
+    dtype = '?'
 
     def __init__(
             self, name: str, categories: Optional[MutableSequence[bool]] = None, nan_freq: Optional[float] = None

@@ -68,7 +68,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         """Extract the domain and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
         if self.categories is None:
-            self.categories = [x for x in df[self.name].unique()]
+            self.categories = [c for c in np.array(df[self.name].unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df)

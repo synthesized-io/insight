@@ -8,7 +8,7 @@ from ..exceptions import ExtractionError
 
 class OrderedString(Ordinal[str]):
     class_name: str = 'String'
-    dtype: str = 'str'
+    dtype: str = 'U'
 
     def __init__(
             self, name: str, categories: Optional[MutableSequence[str]] = None, nan_freq: Optional[float] = None
