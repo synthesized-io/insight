@@ -1,9 +1,9 @@
-from typing import Generic, Optional, Dict, Any, cast, MutableSequence, Sequence
+from typing import Generic, Optional, Dict, Any, cast, MutableSequence, Sequence, overload, Union
 
 import pandas as pd
 
 from ..base import DiscreteModel
-from ..base.value_meta import NType, Nominal, Ordinal, Affine, SType
+from ..base.value_meta import NType, Nominal, Ordinal, Affine, AType
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError, ExtractionError
 
 
@@ -68,8 +68,16 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         })
         return d
 
+    @overload
     @classmethod
-    def from_meta(cls, meta: Nominal[NType], max_bins=20) -> 'Histogram[NType]':
+    def from_meta(cls, meta: Nominal[AType], max_bins: int=20) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]': ...
+
+    @overload
+    @classmethod
+    def from_meta(cls, meta: Nominal[NType], max_bins: int = 20) -> 'Histogram[NType]': ...
+
+    @classmethod
+    def from_meta(cls, meta: Union[Nominal[NType], Nominal[AType]], max_bins: int = 20) -> 'Union[Histogram[NType], Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
 
         num_categories = len(meta.categories) if meta.categories is not None else 0
 
@@ -97,3 +105,5 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         hist.dtype = meta.dtype
 
         return hist
+
+Histogram.from_meta()
