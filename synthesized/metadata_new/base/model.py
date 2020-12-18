@@ -6,6 +6,8 @@ import pandas as pd
 from .value_meta import Nominal, Affine, NType, AType
 
 ModelType = TypeVar('ModelType', bound='Model')
+ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')
+DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
 
 
 class Model:
@@ -28,9 +30,6 @@ class Model:
         pass
 
 
-DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
-
-
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
     class_name = "DiscreteModel"
 
@@ -50,9 +49,6 @@ class DiscreteModel(Nominal[NType], Model, Generic[NType]):
     @abstractmethod
     def probability(self, x: Any) -> float:
         pass
-
-
-ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')
 
 
 class ContinuousModel(Affine[AType], Model, Generic[AType]):
