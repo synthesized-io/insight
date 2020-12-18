@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, Any, Dict, Sequence
 from collections import defaultdict
 
 import numpy as np
@@ -18,7 +18,7 @@ class CategoricalTransformer(Transformer):
             If None, categories are extracted from the data.
     """
 
-    def __init__(self, name: str, categories: Optional[List] = None):
+    def __init__(self, name: str, categories: Optional[Sequence[Any]] = None):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
@@ -58,4 +58,4 @@ class CategoricalTransformer(Transformer):
 
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'CategoricalTransformer':
-        return cls(meta.name, meta.domain)  # type: ignore
+        return cls(meta.name, meta.categories)
