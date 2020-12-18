@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar, Dict, Type, cast, MutableSequence
+from typing import Optional, TypeVar, Dict, MutableSequence
 from datetime import datetime
 
 import numpy as np

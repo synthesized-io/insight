@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, Dict, MutableSequence
+from typing import Any, Generic, TypeVar, Optional, Dict, Sequence
 from functools import cmp_to_key
 
 import numpy as np
@@ -58,10 +58,10 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     class_name: str = 'Nominal'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[NType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name)
-        self.categories: Optional[MutableSequence[NType]] = categories
+        self.categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
@@ -100,7 +100,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
     class_name: str = 'Ordinal'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[OType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
         self._min = None
@@ -108,6 +108,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
+        assert self.categories is not None
         self.categories = self.sort(self.categories)
 
         self._min = self.categories[0]
@@ -119,49 +120,9 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def min(self) -> Optional[OType]:
         return self._min
 
-    @min.setter
-    def min(self, x: Optional[OType]) -> None:
-        self._min = x
-
-        if self._min is None:
-            return
-
-        n = 0
-        for n, value in enumerate(self.categories):
-            if self.less_than(x, value):
-                break
-
-        self.categories = self.categories[n:]
-
-        if x != self.categories[0]:
-            self.categories.insert(0, x)
-
-        if self._max is not None and not self.less_than(self._min, self._max):
-            self._max = None
-
     @property
     def max(self) -> Optional[OType]:
-        return self.categories[-1] if self.categories is not None else None
-
-    @max.setter
-    def max(self, x: Optional[OType]) -> None:
-        self._max = x
-
-        if x is None:
-            return
-
-        n = 0
-        for n, value in enumerate(reversed(self.categories)):
-            if self.less_than(value, x):
-                break
-
-        self.categories = self.categories[:-n]
-
-        if x != self.categories[-1]:
-            self.categories.append(x)
-
-        if self._min is not None and not self.less_than(self._min, self._max):
-            self._min = None
+        return self._max
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
@@ -181,7 +142,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
         else:
             return -1
 
-    def sort(self, sr: MutableSequence[OType]) -> MutableSequence[OType]:
+    def sort(self, sr: Sequence[OType]) -> Sequence[OType]:
         """Sort pd.Series according to the ordering of this meta"""
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
@@ -204,7 +165,7 @@ class Affine(Ordinal[AType], Generic[AType]):
     class_name: str = 'Affine'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[AType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
@@ -234,7 +195,7 @@ class Scale(Affine[SType], Generic[SType]):
     precision: SType
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[SType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
@@ -252,7 +213,7 @@ class Ring(Scale[RType], Generic[RType]):
     class_name: str = 'Ring'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[RType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 

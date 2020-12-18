@@ -1,4 +1,4 @@
-from typing import Generic, Optional, Dict, Any, cast, MutableSequence, Sequence, overload, Union
+from typing import Generic, Optional, Dict, Any, cast, Sequence, overload, Union, Type
 
 import pandas as pd
 
@@ -22,13 +22,14 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
             probabilities: Optional[Dict[NType, float]] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
         if self.categories is not None:
             self._extracted = True
         self.probabilities: Optional[Dict[NType, float]] = probabilities
 
     def fit(self: 'Histogram[NType]', df: pd.DataFrame) -> 'Histogram[NType]':
         super().fit(df=df)
+        assert self.categories is not None
         if isinstance(self.categories, pd.IntervalIndex):
             cut = pd.cut(df[self.name], bins=self.categories)
             value_counts = pd.value_counts(cut, normalize=True, dropna=False, sort=False)
@@ -68,16 +69,18 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         })
         return d
 
-    @overload
     @classmethod
-    def from_meta(cls, meta: Nominal[AType], max_bins: int=20) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]': ...
-
     @overload
-    @classmethod
-    def from_meta(cls, meta: Nominal[NType], max_bins: int = 20) -> 'Histogram[NType]': ...
+    def from_meta(cls: Type['Histogram'], meta: Nominal[AType], max_bins: int = 20) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
+        ...
 
     @classmethod
-    def from_meta(cls, meta: Union[Nominal[NType], Nominal[AType]], max_bins: int = 20) -> 'Union[Histogram[NType], Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
+    @overload
+    def from_meta(cls: Type['Histogram'], meta: Nominal[NType], max_bins: int = 20) -> 'Histogram[NType]':
+        ...
+
+    @classmethod
+    def from_meta(cls: Type['Histogram'], meta: Nominal[Any], max_bins: int = 20) -> 'Histogram[Any]':
 
         num_categories = len(meta.categories) if meta.categories is not None else 0
 
@@ -86,8 +89,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         elif isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
 
-            if rng/max_bins > meta.unit_meta.precision:
-                bin_width = rng//max_bins
+            if (rng / max_bins) > meta.unit_meta.precision:
+                bin_width = rng // max_bins
             else:
                 bin_width = meta.unit_meta.precision
 
@@ -95,9 +98,11 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
             hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         elif isinstance(meta, Ordinal):
-            hist = Histogram(name=meta.name, categories=meta.categories[:max_bins], nan_freq=meta.nan_freq)
+            categories = meta.categories[:max_bins] if meta.categories is not None else None
+            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         else:
-            hist = Histogram(name=meta.name, categories=meta.categories[:max_bins], nan_freq=meta.nan_freq)
+            categories = meta.categories[:max_bins] if meta.categories is not None else None
+            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
 
         if hist is None:
             raise ExtractionError
@@ -105,5 +110,3 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         hist.dtype = meta.dtype
 
         return hist
-
-Histogram.from_meta()

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, Optional, TypeVar, MutableSequence
+from typing import Any, Generic, Optional, TypeVar, Sequence
 
 import pandas as pd
 
@@ -34,7 +34,7 @@ DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
     class_name = "DiscreteModel"
 
-    def __init__(self, name: str, categories: Optional[MutableSequence[NType]] = None, nan_freq: Optional[float] = None):
+    def __init__(self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
     def fit(self: DiscreteModelType, df: pd.DataFrame) -> DiscreteModelType:
@@ -59,9 +59,9 @@ class ContinuousModel(Affine[AType], Model, Generic[AType]):
     class_name = "ContinuousModel"
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[NType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
 
     def fit(self: ContinuousModelType, df: pd.DataFrame) -> ContinuousModelType:
         super().fit(df=df)

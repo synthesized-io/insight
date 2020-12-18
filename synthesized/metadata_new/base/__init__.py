@@ -10,5 +10,5 @@ from .model import DiscreteModel
 from .model import ContinuousModel
 
 __all__ = [
-    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'DiscreteModel', 'ContinuousModel'
+    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'DiscreteModel', 'ContinuousModel', 'Model'
 ]

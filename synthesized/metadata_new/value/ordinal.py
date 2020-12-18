@@ -1,4 +1,4 @@
-from typing import Optional, MutableSequence, Dict
+from typing import Optional, Sequence, Dict, cast
 
 import pandas as pd
 
@@ -11,7 +11,7 @@ class OrderedString(Ordinal[str]):
     dtype: str = 'U'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[str]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
@@ -30,4 +30,4 @@ class OrderedString(Ordinal[str]):
         return d
 
     def less_than(self, x: str, y: str) -> bool:
-        return self.categories.index(x) < self.categories.index(y)
+        return cast(Sequence, self.categories).index(x) < cast(Sequence, self.categories).index(y)
