@@ -6,7 +6,7 @@ import pandas as pd
 
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
-from .value import Bool, String, Integer, Float, OrderedString, Date, TimeDelta
+from .value import Bool, String, Integer, Float, OrderedString, Date, TimeDelta, IntegerBool
 from .value.datetime import get_date_format
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
 from ..config import MetaFactoryConfig
@@ -50,9 +50,9 @@ class _MetaBuilder:
     def _BoolBuilder(self, sr: pd.Series,) -> Bool:
         return Bool(str(sr.name))
 
-    def _IntBuilder(self, sr: pd.Series) -> Union[Integer, Bool]:
+    def _IntBuilder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
         if sr.isin([0, 1]).all():
-            return self._BoolBuilder(sr)
+            return IntegerBool(str(sr.name))
         return Integer(str(sr.name))
 
     def _FloatBuilder(self, sr: pd.Series) -> Union[Float, Integer, Bool]:
