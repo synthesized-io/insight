@@ -83,6 +83,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
     def from_meta(cls: Type['Histogram'], meta: Nominal[Any], max_bins: int = 20) -> 'Histogram[Any]':
 
         num_categories = len(meta.categories) if meta.categories is not None else 0
+        dtype = meta.dtype
 
         if num_categories <= max_bins:
             hist = Histogram(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq)
@@ -95,6 +96,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
                 bin_width = meta.unit_meta.precision
 
             categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
+            dtype = str(categories.dtype)  # TODO: find away to handle 'interval[M8[D]]' instead of 'interval[M8[ns]]'
 
             hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         elif isinstance(meta, Ordinal):
@@ -107,6 +109,6 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if hist is None:
             raise ExtractionError
 
-        hist.dtype = meta.dtype
+        hist.dtype = dtype
 
         return hist
