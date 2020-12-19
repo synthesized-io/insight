@@ -1,4 +1,4 @@
-from typing import Generic, Optional, Dict, Any, cast, MutableSequence
+from typing import Generic, Optional, Dict, Any, cast, Sequence
 
 import pandas as pd
 
@@ -10,7 +10,7 @@ from ..exceptions import MetaNotExtractedError, ModelNotFittedError
 class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[AType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
             probabilities: Optional[Dict[AType, float]] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore

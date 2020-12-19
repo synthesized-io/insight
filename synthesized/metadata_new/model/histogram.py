@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from ..base import DiscreteModel
-from ..base.value_meta import NType, Nominal, Ordinal, Affine, AType
+from ..base.value_meta import NType, Nominal, Affine, AType
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError, ExtractionError
 
 
@@ -45,7 +45,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             raise ModelNotFittedError
 
         assert self.probabilities is not None
-        categories, probabilities = zip(*self.probabilities.items())
+        categories, probabilities = zip(*[(k, v) for k, v in self.probabilities.items()])
         return pd.DataFrame({self.name: np.random.choice(categories, size=n, p=probabilities)})
 
     def probability(self, x: Any) -> float:
@@ -98,6 +98,16 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         return hist
 
     @classmethod
+    @overload
+    def from_meta(cls: Type['Histogram'], meta: Affine[AType]) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
+        ...
+
+    @classmethod
+    @overload
+    def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Histogram[NType]':
+        ...
+
+    @classmethod
     def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
 
         dtype = meta.dtype
@@ -105,9 +115,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
             bin_width = meta.unit_meta.precision
-            a, b = tee(meta.categories)
+            a, b = tee(meta.categories or [])
             next(b, None)
-            smallest_diff = min([d-c for c, d in zip(a, b)])
+            smallest_diff = min([d - c for c, d in zip(a, b)])
 
             if bin_width > smallest_diff:
                 try:

@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar, Dict, MutableSequence
+from typing import Optional, TypeVar, Dict, Sequence
 from datetime import datetime
 
 import numpy as np
@@ -17,7 +17,7 @@ class TimeDelta(Scale[np.timedelta64]):
     precision = np.timedelta64(1, 'ns')
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[np.timedelta64]] = None,
+            self, name: str, categories: Optional[Sequence[np.timedelta64]] = None,
             nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)
@@ -41,7 +41,7 @@ class Date(Affine[np.datetime64]):
     dtype = 'M8[D]'
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
+            self, name: str, categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
             date_format: Optional[str] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)

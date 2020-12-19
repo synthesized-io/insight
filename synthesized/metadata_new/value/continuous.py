@@ -1,4 +1,4 @@
-from typing import Optional, MutableSequence
+from typing import Optional, Sequence
 
 import numpy as np
 
@@ -10,7 +10,7 @@ class Integer(Scale[np.int64]):
     precision = np.int64(1)
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[int]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[np.int64]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
@@ -20,6 +20,6 @@ class Float(Ring[np.float64]):
     precision = np.float64(0.)
 
     def __init__(
-            self, name: str, categories: Optional[MutableSequence[float]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[np.float64]] = None, nan_freq: Optional[float] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)

@@ -8,11 +8,11 @@ import pandas as pd
 from .meta import Meta
 
 DType = TypeVar('DType', covariant=True)
-NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-OType = TypeVar("OType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-AType = TypeVar("AType", np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-SType = TypeVar("SType", np.timedelta64, int, float, bool, covariant=True)
-RType = TypeVar("RType", float, bool, covariant=True)
+NType = TypeVar("NType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
+OType = TypeVar("OType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
+AType = TypeVar("AType", np.datetime64, np.timedelta64, np.int64, np.float64, covariant=True)
+SType = TypeVar("SType", np.timedelta64, np.int64, np.float64, covariant=True)
+RType = TypeVar("RType", np.int64, np.float64, covariant=True)
 
 ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
 NominalType = TypeVar('NominalType', bound='Nominal[Any]')
@@ -158,7 +158,7 @@ class Affine(Ordinal[AType], Generic[AType]):
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
@@ -187,7 +187,7 @@ class Scale(Affine[SType], Generic[SType]):
     def __init__(
             self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
@@ -204,7 +204,7 @@ class Ring(Scale[RType], Generic[RType]):
     def __init__(
             self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
