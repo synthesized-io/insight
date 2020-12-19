@@ -121,11 +121,6 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def max(self) -> Optional[OType]:
         return self._max
 
-    def to_dict(self) -> Dict[str, object]:
-        d = super().to_dict()
-
-        return d
-
     def less_than(self, x: OType, y: OType) -> bool:
 
         b: bool = x < y
@@ -172,7 +167,7 @@ class Affine(Ordinal[AType], Generic[AType]):
     @property
     @abstractmethod
     def unit_meta(self: AffineType) -> 'Scale[Any]':
-        pass
+        raise NotImplementedError
 
 
 class Scale(Affine[SType], Generic[SType]):

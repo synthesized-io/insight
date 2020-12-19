@@ -22,12 +22,12 @@ class Model:
 
     @abstractmethod
     def sample(self, n: int) -> pd.DataFrame:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def probability(self, x: Any) -> float:
         """Get the probability mass of the category x."""
-        pass
+        raise NotImplementedError
 
 
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
