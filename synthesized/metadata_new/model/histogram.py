@@ -1,5 +1,7 @@
 from typing import Generic, Optional, Dict, Any, cast, Sequence, overload, Union, Type
+from itertools import tee
 
+import numpy as np
 import pandas as pd
 
 from ..base import DiscreteModel
@@ -39,7 +41,12 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         return self
 
     def sample(self, n: int) -> pd.DataFrame:
-        pass
+        if not self._fitted:
+            raise ModelNotFittedError
+
+        assert self.probabilities is not None
+        categories, probabilities = zip(*self.probabilities.items())
+        return pd.DataFrame({self.name: np.random.choice(categories, size=n, p=probabilities)})
 
     def probability(self, x: Any) -> float:
         if not self._extracted:
@@ -69,24 +76,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         return d
 
     @classmethod
-    @overload
-    def from_meta(cls: Type['Histogram'], meta: Nominal[AType], max_bins: int = 20) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
-        ...
+    def bin_affine_meta(cls, meta: Affine[AType], max_bins: int = 20) -> 'Histogram[pd.IntervalDtype[AType]]':
 
-    @classmethod
-    @overload
-    def from_meta(cls: Type['Histogram'], meta: Nominal[NType], max_bins: int = 20) -> 'Histogram[NType]':
-        ...
-
-    @classmethod
-    def from_meta(cls: Type['Histogram'], meta: Nominal[Any], max_bins: int = 20) -> 'Histogram[Any]':
-
-        num_categories = len(meta.categories) if meta.categories is not None else 0
-        dtype = meta.dtype
-
-        if num_categories <= max_bins:
-            hist = Histogram(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq)
-        elif isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
+        if meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
 
             if (rng / max_bins) > meta.unit_meta.precision:
@@ -97,17 +89,39 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
             dtype = str(categories.dtype)  # TODO: find away to handle 'interval[M8[D]]' instead of 'interval[M8[ns]]'
 
-            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
-        elif isinstance(meta, Ordinal):
-            categories = meta.categories[:max_bins] if meta.categories is not None else None
-            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         else:
-            categories = meta.categories[:max_bins] if meta.categories is not None else None
-            hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
+            raise ExtractionError("Meta doesn't have both max and min defined.")
 
-        if hist is None:
-            raise ExtractionError
+        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
+        hist.dtype = dtype
 
+        return hist
+
+    @classmethod
+    def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
+
+        dtype = meta.dtype
+
+        if isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
+            rng = meta.max - meta.min
+            bin_width = meta.unit_meta.precision
+            a, b = tee(meta.categories)
+            next(b, None)
+            smallest_diff = min([d-c for c, d in zip(a, b)])
+
+            if bin_width > smallest_diff:
+                try:
+                    rng / bin_width
+                    categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
+                    dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
+                except ZeroDivisionError:
+                    categories = meta.categories
+            else:
+                categories = meta.categories
+        else:
+            categories = meta.categories
+
+        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
         hist.dtype = dtype
 
         return hist
