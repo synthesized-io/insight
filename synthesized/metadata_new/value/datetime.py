@@ -60,13 +60,16 @@ class Date(Affine[np.datetime64]):
                 self.date_format = None
 
         df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
-        df[self.name + '_dow'] = df[self.name].dt.day_name()
-        df[self.name + '_day'] = df[self.name].dt.day
-        df[self.name + '_month'] = df[self.name].dt.month
-        df[self.name + '_year'] = df[self.name].dt.year
 
-        super().extract(df)  # call super here so we can get max, min from datetime.
-        df[self.name] = df[self.name].dt.strftime(self.date_format)
+        sub_df = pd.DataFrame({
+            self.name: df[self.name],
+            self.name + '_dow': df[self.name].dt.day_name(),
+            self.name + '_day': df[self.name].dt.day,
+            self.name + '_month':  df[self.name].dt.month,
+            self.name + '_year':  df[self.name].dt.year,
+        })
+
+        super().extract(sub_df)  # call super here so we can get max, min from datetime.
 
         return self
 
