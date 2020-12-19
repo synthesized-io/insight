@@ -82,7 +82,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             rng = meta.max - meta.min
 
             if (rng / max_bins) > meta.unit_meta.precision:
-                bin_width = rng // max_bins
+                bin_width = (rng / max_bins).astype(meta.dtype)
             else:
                 bin_width = meta.unit_meta.precision
 
