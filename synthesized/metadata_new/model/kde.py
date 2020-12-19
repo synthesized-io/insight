@@ -8,7 +8,6 @@ from ..exceptions import MetaNotExtractedError, ModelNotFittedError
 
 
 class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
-    class_name = "KDE"
 
     def __init__(
             self, name: str, categories: Optional[MutableSequence[AType]] = None, nan_freq: Optional[float] = None,

@@ -6,7 +6,6 @@ from ..base import Ring, Ordinal
 
 
 class Bool(Ordinal[np.bool]):
-    class_name: str = 'Bool'
     dtype = '?'
 
     def __init__(
@@ -16,7 +15,6 @@ class Bool(Ordinal[np.bool]):
 
 
 class IntegerBool(Ring[np.int64]):
-    class_name: str = 'IntegerBool'
     dtype = 'i8'
     precision = np.int64(1)
 

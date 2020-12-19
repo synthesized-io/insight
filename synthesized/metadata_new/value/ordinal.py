@@ -7,7 +7,6 @@ from ..exceptions import ExtractionError
 
 
 class OrderedString(Ordinal[str]):
-    class_name: str = 'String'
     dtype: str = 'U'
 
     def __init__(

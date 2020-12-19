@@ -16,7 +16,6 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
 
     """
-    class_name = "Histogram"
 
     def __init__(
             self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,

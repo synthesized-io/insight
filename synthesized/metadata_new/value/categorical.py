@@ -4,7 +4,6 @@ from ..base import Nominal
 
 
 class String(Nominal[str]):
-    class_name: str = 'String'
     dtype = 'U'
 
     def __init__(

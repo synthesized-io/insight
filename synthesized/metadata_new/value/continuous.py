@@ -6,7 +6,6 @@ from ..base import Scale, Ring
 
 
 class Integer(Scale[np.int64]):
-    class_name: str = 'Integer'
     dtype = 'i8'
     precision = np.int64(1)
 
@@ -17,7 +16,6 @@ class Integer(Scale[np.int64]):
 
 
 class Float(Ring[np.float64]):
-    class_name: str = 'Float'
     dtype = 'f8'
     precision = np.float64(0.)
 

@@ -13,7 +13,6 @@ DateType = TypeVar('DateType', bound='Date')
 
 
 class TimeDelta(Scale[np.timedelta64]):
-    class_name: str = 'TimeDelta'
     dtype = 'm8[ns]'
     precision = np.timedelta64(1, 'ns')
 
@@ -25,7 +24,6 @@ class TimeDelta(Scale[np.timedelta64]):
 
 
 class TimeDeltaDay(TimeDelta):
-    class_name: str = 'TimeDeltaDay'
     dtype = 'm8[D]'
     precision = np.timedelta64(1, 'D')
 
@@ -40,7 +38,6 @@ class Date(Affine[np.datetime64]):
     Attributes:
         date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
     """
-    class_name: str = 'Date'
     dtype = 'M8[D]'
 
     def __init__(

@@ -27,8 +27,7 @@ class Meta(MutableMapping[str, 'Meta']):
         >>> for child_meta in customer:
         >>>     print(child_meta)
     """
-    STR_TO_META: Dict[str, Type['Meta']] = {}
-    class_name: str = 'Meta'
+    _meta_registry: Dict[str, Type['Meta']] = {}
 
     def __init__(self, name: str):
         self.name = name
@@ -37,7 +36,7 @@ class Meta(MutableMapping[str, 'Meta']):
 
     def __init_subclass__(cls: Type[MetaType]) -> None:
         super().__init_subclass__()
-        Meta.STR_TO_META[cls.class_name] = cls
+        Meta._meta_registry[cls.__name__] = cls
 
     @property
     def children(self) -> List['Meta']:
@@ -49,7 +48,7 @@ class Meta(MutableMapping[str, 'Meta']):
         self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
-        return f'{self.class_name}(name={self.name})'
+        return f'{self.__class__.__name__}(name={self.name})'
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
@@ -89,7 +88,7 @@ class Meta(MutableMapping[str, 'Meta']):
         """
         d = {
             "name": self.name,
-            "class_name": self.class_name,
+            "class_name": self.__class__.__name__,
             "extracted": self._extracted
         }
 
@@ -107,7 +106,7 @@ class Meta(MutableMapping[str, 'Meta']):
             Meta.to_dict: convert a Meta to a dictionary
         """
         name = cast(str, d["name"])
-        d.pop("class")
+        d.pop("class_name")
 
         extracted = d.pop("extracted")
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
@@ -122,7 +121,7 @@ class Meta(MutableMapping[str, 'Meta']):
             meta_children = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
-                meta_children.append(Meta.STR_TO_META[class_name].from_dict(child))
+                meta_children.append(Meta._meta_registry[class_name].from_dict(child))
 
             meta.children = meta_children
 

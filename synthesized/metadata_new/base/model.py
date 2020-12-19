@@ -31,7 +31,6 @@ class Model:
 
 
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
-    class_name = "DiscreteModel"
 
     def __init__(self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
@@ -52,7 +51,6 @@ class DiscreteModel(Nominal[NType], Model, Generic[NType]):
 
 
 class ContinuousModel(Affine[AType], Model, Generic[AType]):
-    class_name = "ContinuousModel"
 
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,

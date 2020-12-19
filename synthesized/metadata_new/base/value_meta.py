@@ -33,14 +33,13 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    class_name: str = 'ValueMeta'
     dtype: Optional[str] = None
 
     def __init__(self, name: str):
         super().__init__(name=name)
 
     def __repr__(self) -> str:
-        return f'{self.class_name}(name={self.name}, dtype={self.dtype})'
+        return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
 
 
 class Nominal(ValueMeta[NType], Generic[NType]):
@@ -55,7 +54,6 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     Attributes:
         domain: Optional; list of category names.
     """
-    class_name: str = 'Nominal'
 
     def __init__(
             self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None
@@ -97,7 +95,6 @@ class Ordinal(Nominal[OType], Generic[OType]):
         min: Optional; the minimum category
         max: Optional; the maximum category
     """
-    class_name: str = 'Ordinal'
 
     def __init__(
             self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None
@@ -162,7 +159,6 @@ class Affine(Ordinal[AType], Generic[AType]):
     Attributes:
 
     """
-    class_name: str = 'Affine'
 
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None
@@ -191,7 +187,6 @@ class Scale(Affine[SType], Generic[SType]):
 
     Attributes:
     """
-    class_name: str = 'Scale'
     precision: SType
 
     def __init__(
@@ -210,7 +205,6 @@ class Scale(Affine[SType], Generic[SType]):
 
 
 class Ring(Scale[RType], Generic[RType]):
-    class_name: str = 'Ring'
 
     def __init__(
             self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
