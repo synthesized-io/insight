@@ -46,10 +46,10 @@ class Date(Affine[np.datetime64]):
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)
         self.date_format = date_format
-        self[name + '_dow'] = String(name + '_dow')
-        self[name + '_day'] = Integer(name + '_day')
-        self[name + '_month'] = Integer(name + '_month')
-        self[name + '_year'] = Integer(name + '_year')
+        self.children = [
+            String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
+        ]
+
         self._unit_meta = TimeDeltaDay(self.name + '_unit')
 
     def extract(self: DateType, df: pd.DataFrame) -> DateType:
@@ -65,8 +65,8 @@ class Date(Affine[np.datetime64]):
             self.name: df[self.name],
             self.name + '_dow': df[self.name].dt.day_name(),
             self.name + '_day': df[self.name].dt.day,
-            self.name + '_month':  df[self.name].dt.month,
-            self.name + '_year':  df[self.name].dt.year,
+            self.name + '_month': df[self.name].dt.month,
+            self.name + '_year': df[self.name].dt.year,
         })
 
         super().extract(sub_df)  # call super here so we can get max, min from datetime.

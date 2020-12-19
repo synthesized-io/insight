@@ -1,11 +1,11 @@
-from typing import List, Dict, Type, TypeVar, MutableMapping, Iterator, cast
+from typing import List, Dict, Type, TypeVar, Mapping, Iterator, cast
 
 import pandas as pd
 
 MetaType = TypeVar('MetaType', bound='Meta')
 
 
-class Meta(MutableMapping[str, 'Meta']):
+class Meta(Mapping[str, 'Meta']):
     """
     Base class for meta information that describes a dataset.
 
@@ -59,12 +59,6 @@ class Meta(MutableMapping[str, 'Meta']):
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
-
-    def __setitem__(self, k: str, v: 'Meta') -> None:
-        self._children[k] = v
-
-    def __delitem__(self, k: str) -> None:
-        del self._children[k]
 
     def __iter__(self) -> Iterator[str]:
         for key in self._children:
