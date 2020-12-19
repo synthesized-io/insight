@@ -16,13 +16,11 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
         self.probabilities: Optional[Dict[AType, float]] = probabilities
 
-    def fit(self, df: pd.DataFrame) -> 'KernelDensityEstimate[AType]':
-        super().fit(df=df)
-        ...
-        return self
+    def fit(self, df: pd.DataFrame):
+        raise NotImplementedError
 
     def sample(self, n: int) -> pd.DataFrame:
-        pass
+        raise NotImplementedError
 
     def probability(self, x: Any) -> float:
         if not self._extracted:
