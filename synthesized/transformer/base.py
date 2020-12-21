@@ -31,8 +31,8 @@ class Transformer:
         self.dtypes = dtypes
         self._fitted = False
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
+    def __init_subclass__(cls: Type[TransformerType]):
+        super().__init_subclass__()
         Transformer._transformer_registry[cls.__name__] = cls
 
     def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
