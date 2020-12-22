@@ -80,7 +80,7 @@ class _MetaBuilder:
 
     def _ObjectBuilder(self, sr: pd.Series) -> Union[Date, String, OrderedString, Float, Integer, Bool]:
         try:
-            get_date_format(sr)
+            get_date_format(sr[~sr.isna()])
             return self._DateBuilder(sr)
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
