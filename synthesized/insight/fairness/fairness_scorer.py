@@ -14,10 +14,10 @@ from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
-from .fairness_transformer import FairnessTransformer, VariableType
+from .fairness_transformer import FairnessTransformer
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
-from ...metadata_new import MetaExtractor, Date
+from ...metadata_new import MetaExtractor, Date, DiscreteModel, ContinuousModel
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +60,22 @@ class FairnessScorer:
         self.drop_dates = drop_dates
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
+        self.positive_class = positive_class if positive_class else self.get_positive_class()
 
-        self.df_meta = MetaExtractor.extract(df)
         self.target, self.sensitive_attrs = self.validate_sensitive_attrs_and_target(target, sensitive_attrs, df)
         self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
 
         if len(self.sensitive_attrs) == 0:  # type: ignore
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.preprocessor = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, target=self.target,
-                                                n_bins=self.n_bins, target_n_bins=self.target_n_bins)
+        self.transformer = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, target=self.target,
+                                               n_bins=self.n_bins, target_n_bins=self.target_n_bins)
 
-        self.preprocessor.fit(df)
+        self.transformer.fit(df)
+        self.df_meta = MetaExtractor.extract(self.transformer(df))
+
         self.sensitive_attrs = self.preprocessor.sensitive_attrs
-        self.target_variable_type = self.preprocessor.target_variable_type
-        self.positive_class = self.preprocessor.positive_class
+        self.target_model = self.df_meta.models[self.target]
 
         self.values_str_to_list: Dict[str, List[str]] = dict()
         self.names_str_to_list: Dict[str, List[str]] = dict()
@@ -165,15 +166,16 @@ class FairnessScorer:
             score = 1 - df_biases['distance'].abs().mean()
 
         if condense_output:
-            if self.target_variable_type == VariableType.Binary:
-                df_biases = df_biases[df_biases['target'] == self.positive_class]
+            if isinstance(self.target_model, DiscreteModel):
+                if self.target_model.categories == 2:
+                    df_biases = df_biases[df_biases['target'] == self.positive_class]
 
-            elif self.target_variable_type == VariableType.Multinomial and mode == 'ovr':
-                df_biases['distance'] = df_biases['distance'].abs()
-                df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
-                df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
-                df_biases_out['target'] = 'N/A'
-                df_biases = df_biases_out
+                elif self.target_model.categories > 2 and mode == 'ovr':
+                    df_biases['distance'] = df_biases['distance'].abs()
+                    df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
+                    df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
+                    df_biases_out['target'] = 'N/A'
+                    df_biases = df_biases_out
 
         # Sort values
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
@@ -189,21 +191,27 @@ class FairnessScorer:
 
         return score, df_biases
 
-    def calculate_distance(self, df: pd.DataFrame, sensitive_attr: List[str], mode: Optional[str] = None,
+    def calculate_distance(self, df: pd.DataFrame, sensitive_attr: List[str], mode: str = 'emd',
                            alpha: float = 0.05) -> pd.DataFrame:
         """Check input values and decide which type of distance is computed for each case."""
 
-        if self.target_variable_type == VariableType.Binary:
-            df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
-        elif self.target_variable_type == VariableType.Multinomial:
-            if mode is not None and mode == 'ovr':
+        if isinstance(self.target_model, DiscreteModel):
+
+            if len(self.target_model.categories) == 2:
                 df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
-            elif mode is None or mode == 'emd':
-                df_dist = self.emd_distance(df, sensitive_attr)
-            else:
-                raise ValueError(f"Given mode '{mode}' not recognized.")
-        elif self.target_variable_type == VariableType.Continuous:
+
+            elif len(self.target_model.categories) > 2:
+
+                if mode == 'ovr':
+                    df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
+                elif mode == 'emd':
+                    df_dist = self.emd_distance(df, sensitive_attr)
+                else:
+                    raise ValueError(f"Given mode '{mode}' not recognized.")
+
+        elif isinstance(self.target_model, ContinuousModel):
             df_dist = self.ks_distance(df, sensitive_attr)
+
         else:
             raise ValueError("Target variable type not supported")
 
@@ -233,7 +241,7 @@ class FairnessScorer:
 
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
-        if self.target_variable_type != VariableType.Binary:
+        if not isinstance(self.target_model, DiscreteModel):
             raise NotImplementedError("Classification score only available for Binary target distributions.")
 
         clf_scores = []
@@ -280,15 +288,6 @@ class FairnessScorer:
             progress_callback(100)
 
         return score, df_biases
-
-    def get_sensitive_attrs(self) -> List[str]:
-        return self.sensitive_attrs
-
-    def set_sensitive_attrs(self, sensitive_attrs: List[str]) -> None:
-        self.sensitive_attrs = sensitive_attrs
-
-    def add_sensitive_attr(self, sensitive_attr: str) -> None:
-        self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, df: pd.DataFrame, sensitive_attr: List[str]) -> pd.DataFrame:
         target = self.target
@@ -454,6 +453,9 @@ class FairnessScorer:
         if target not in df.columns:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
 
+        if self.positive_class not in df[target].unique():
+            raise ValueError("Positive class is not a unique value in given target.")
+
         if not all(col in df.columns for col in sensitive_attrs):
             raise KeyError("Sensitive attributes not present in DataFrame.")
 
@@ -483,14 +485,14 @@ class FairnessScorer:
             new_sensitive_attrs = self.detect_sensitive_attrs(columns)
             for new_sensitive_attr in new_sensitive_attrs:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
+                self.sensitive_attrs.append(new_sensitive_attr)
 
         # Detect hidden correlations
         if detect_hidden:
             corr = self.other_correlations(df)
             for new_sensitive_attr, _, _ in corr:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
+                self.sensitive_attrs.append(new_sensitive_attr)
 
     @staticmethod
     def detect_sensitive_attrs(names: List[str], target: Optional[str] = None) -> List[str]:
@@ -549,3 +551,13 @@ class FairnessScorer:
             num_combinations += int(factorial(n) / factorial(n - r) / factorial(r))
 
         return num_combinations
+
+    def get_positive_class(self) -> Optional[str]:
+        # Only set positive class for binary/multinomial, even if given.
+
+        if isinstance(self.target_model, DiscreteModel) and len(self.target_model.categories) == 2:
+            # If target class is not given, we'll use minority class as usually it is the target.
+            return max(self.target_model.probabilities, key=self.target_model.probabilities.get)
+
+        else:
+            return None
