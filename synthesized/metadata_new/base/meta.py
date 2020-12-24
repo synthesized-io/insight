@@ -113,13 +113,11 @@ class Meta(MutableMapping[str, 'Meta']):
 
         setattr(meta, '_extracted', extracted)
 
-        meta_registy = Meta.get_registry()
         if children is not None:
             meta_children = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
-
-                meta_children.append(meta_registy[class_name].from_dict(child))
+                meta_children.append(Meta.from_name_and_dict(class_name, child))
 
             meta.children = meta_children
 
