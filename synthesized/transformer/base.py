@@ -1,4 +1,4 @@
-from typing import List, Optional, TypeVar, Type, Dict, Union, Iterator, MutableSequence
+from typing import Any, List, Optional, TypeVar, Type, Dict, Union, Iterator, MutableSequence
 from abc import abstractmethod
 import logging
 
@@ -23,17 +23,12 @@ class Transformer:
         dtypes: list of valid dtypes for this
           transformation, defaults to None.
     """
-    _transformer_registry: Dict[str, Type['Transformer']] = {}
 
     def __init__(self, name: str, dtypes: Optional[List] = None):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
         self._fitted = False
-
-    def __init_subclass__(cls: Type[TransformerType]):
-        super().__init_subclass__()
-        Transformer._transformer_registry[cls.__name__] = cls
 
     def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
         return SequentialTransformer(name=self.name, transformers=[self, other])
@@ -78,8 +73,20 @@ class Transformer:
             raise TransformerNotFitError("Transformer not fitted yet, please call 'fit()' before calling transform.")
 
     @classmethod
-    def from_meta(cls: Type[TransformerType], meta) -> TransformerType:
+    def from_meta(cls: Type[TransformerType], meta: Any) -> TransformerType:
         raise NotImplementedError
+
+    @classmethod
+    def get_registry(cls: Type[TransformerType]) -> Dict[str, Type[TransformerType]]:
+        return {sc.__name__: sc for sc in cls.__subclasses__()}
+
+    @classmethod
+    def from_name_and_meta(cls, name: str, meta: Any) -> 'Transformer':
+        registy = cls.get_registry()
+        if name not in registy.keys():
+            raise ValueError(f"Given transformer {name} not found in Transformer subclasses.")
+
+        return registy[name].from_meta(meta)
 
 
 class SequentialTransformer(Transformer, MutableSequence[Transformer]):

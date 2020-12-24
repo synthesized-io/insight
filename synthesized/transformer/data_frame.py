@@ -117,10 +117,8 @@ class TransformerFactory:
         if isinstance(transformer_class_name, list):
             transformer = SequentialTransformer(f'{meta.name}')
             for name in transformer_class_name:
-                t = Transformer._transformer_registry[name]
-                transformer.append(t.from_meta(meta))
+                transformer.append(Transformer.from_name_and_meta(name, meta))
         else:
-            transformer_cls = Transformer._transformer_registry[transformer_class_name]
-            transformer = transformer_cls.from_meta(meta)  # type: ignore
+            return Transformer.from_name_and_meta(name, meta)
 
         return transformer

@@ -27,17 +27,12 @@ class Meta(MutableMapping[str, 'Meta']):
         >>> for child_meta in customer:
         >>>     print(child_meta)
     """
-    STR_TO_META: Dict[str, Type['Meta']] = {}
     class_name: str = 'Meta'
 
     def __init__(self, name: str):
         self.name = name
         self._children: Dict[str, 'Meta'] = dict()
         self._extracted: bool = False
-
-    def __init_subclass__(cls: Type[MetaType]) -> None:
-        super().__init_subclass__()
-        Meta.STR_TO_META[cls.class_name] = cls
 
     @property
     def children(self) -> List['Meta']:
@@ -99,7 +94,7 @@ class Meta(MutableMapping[str, 'Meta']):
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: Dict[str, object]) -> 'MetaType':
+    def from_dict(cls: Type['MetaType'], d: Dict[str, object]) -> MetaType:
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
@@ -118,12 +113,26 @@ class Meta(MutableMapping[str, 'Meta']):
 
         setattr(meta, '_extracted', extracted)
 
+        meta_registy = Meta.get_registry()
         if children is not None:
             meta_children = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
-                meta_children.append(Meta.STR_TO_META[class_name].from_dict(child))
+
+                meta_children.append(meta_registy[class_name].from_dict(child))
 
             meta.children = meta_children
 
         return meta
+
+    @classmethod
+    def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
+        return {sc.__name__: sc for sc in cls.__subclasses__()}
+
+    @classmethod
+    def from_name_and_dict(cls, name: str, d: Dict[str, object]) -> 'Meta':
+        registy = cls.get_registry()
+        if name not in registy.keys():
+            raise ValueError(f"Given meta {name} not found in Meta subclasses.")
+
+        return registy[name].from_dict(d)
