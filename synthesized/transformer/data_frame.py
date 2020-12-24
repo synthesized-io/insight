@@ -119,6 +119,6 @@ class TransformerFactory:
             for name in transformer_class_name:
                 transformer.append(Transformer.from_name_and_meta(name, meta))
         else:
-            return Transformer.from_name_and_meta(name, meta)
+            return Transformer.from_name_and_meta(transformer_class_name, meta)
 
         return transformer
