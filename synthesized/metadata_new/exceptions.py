@@ -8,6 +8,10 @@ class MetaNotExtractedError(Exception):
     pass
 
 
+class ModelNotFittedError(Exception):
+    pass
+
+
 class ExtractionError(Exception):
     pass
 

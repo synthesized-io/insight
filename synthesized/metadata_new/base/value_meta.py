@@ -1,20 +1,18 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, cast, Dict, Type, List, Sequence
+from typing import Any, Generic, TypeVar, Optional, Dict, Sequence
 from functools import cmp_to_key
 
 import numpy as np
 import pandas as pd
 
-from .domain import Domain
 from .meta import Meta
-from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
-NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-OType = TypeVar("OType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-AType = TypeVar("AType", np.datetime64, np.timedelta64, int, float, bool, covariant=True)
-SType = TypeVar("SType", np.timedelta64, int, float, bool, covariant=True)
-RType = TypeVar("RType", float, bool, covariant=True)
+NType = TypeVar("NType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
+OType = TypeVar("OType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
+AType = TypeVar("AType", np.datetime64, np.timedelta64, np.int64, np.float64, covariant=True)
+SType = TypeVar("SType", np.timedelta64, np.int64, np.float64, covariant=True)
+RType = TypeVar("RType", np.int64, np.float64, covariant=True)
 
 ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
 NominalType = TypeVar('NominalType', bound='Nominal[Any]')
@@ -35,27 +33,13 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    class_name: str = 'ValueMeta'
     dtype: Optional[str] = None
 
     def __init__(self, name: str):
         super().__init__(name=name)
 
     def __repr__(self) -> str:
-        return f'{self.class_name}(name={self.name}, dtype={self.dtype})'
-
-    @property
-    def children(self) -> List['Meta']:
-        """Return the children of this Meta."""
-        return []
-
-    @children.setter
-    def children(self, children: List['Meta']) -> None:
-        if len(children) > 0:
-            raise ValueError('ValueMeta cannot have children')
-
-    def __setitem__(self, k: str, v: 'Meta') -> None:
-        raise ValueError('ValueMeta cannot have children')
+        return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
 
 
 class Nominal(ValueMeta[NType], Generic[NType]):
@@ -70,19 +54,19 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     Attributes:
         domain: Optional; list of category names.
     """
-    class_name: str = 'Nominal'
 
-    def __init__(self, name: str, domain: Optional[Domain[NType]] = None, nan_freq: Optional[float] = None):
+    def __init__(
+            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None
+    ):
         super().__init__(name=name)
-        self.domain: Optional[Domain[NType]] = domain
+        self.categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the domain and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
-
-        if self.domain is None:
-            self.domain = self.infer_domain(df)
+        if self.categories is None:
+            self.categories = [c for c in np.array(df[self.name].unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df)
@@ -93,13 +77,10 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         d = super().to_dict()
         d.update({
             "nan_freq": self.nan_freq,
-            "domain": self.domain
+            "categories": [c for c in self.categories] if self.categories is not None else None
         })
 
         return d
-
-    def infer_domain(self, df: pd.DataFrame) -> Domain[NType]:
-        return cast(Domain[NType], df[self.name].unique())
 
 
 class Ordinal(Nominal[OType], Generic[OType]):
@@ -114,49 +95,33 @@ class Ordinal(Nominal[OType], Generic[OType]):
         min: Optional; the minimum category
         max: Optional; the maximum category
     """
-    class_name: str = 'Ordinal'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[OType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq)  # type: ignore
-        self.min: Optional[OType] = min
-        self.max: Optional[OType] = max
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        self._min = None
+        self._max = None
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
-        self.domain = cast(Domain[OType], self.domain)
+        assert self.categories is not None
+        self.categories = self.sort(self.categories)
 
-        unique_sorted = self.sort(self.domain)  # type: ignore
-
-        if self.min is None:
-            self.min = unique_sorted[0]
-        if self.max is None:
-            self.max = unique_sorted[-1]
+        self._min = self.categories[0]
+        self._max = self.categories[-1]
 
         return self
 
-    def to_dict(self) -> Dict[str, object]:
-        d = super().to_dict()
-        d.update({
-            "min": self.min,
-            "max": self.max
-        })
+    @property
+    def min(self) -> Optional[OType]:
+        return self._min
 
-        return d
+    @property
+    def max(self) -> Optional[OType]:
+        return self._max
 
     def less_than(self, x: OType, y: OType) -> bool:
-        if not self._extracted:
-            raise MetaNotExtractedError
-
-        self.domain = cast(Domain[OType], self.domain)
-
-        if x not in self.domain or y not in self.domain:
-            if np.isnan(x) or np.isnan(y):
-                return False
-            else:
-                raise ValueError(f"x={x} or y={y} are not valid categories.")
 
         b: bool = x < y
         return b
@@ -189,22 +154,20 @@ class Affine(Ordinal[AType], Generic[AType]):
     Attributes:
 
     """
-    class_name: str = 'Affine'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
         return self
 
-    @classmethod
+    @property
     @abstractmethod
-    def unit_meta(cls: Type[AffineType]) -> Type['Scale[Any]']:
-        pass
+    def unit_meta(self: AffineType) -> 'Scale[Any]':
+        raise NotImplementedError
 
 
 class Scale(Affine[SType], Generic[SType]):
@@ -219,32 +182,29 @@ class Scale(Affine[SType], Generic[SType]):
 
     Attributes:
     """
-    class_name: str = 'Scale'
+    precision: SType
 
     def __init__(
-            self, name: str, domain: Optional[Domain[SType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
 
         return self
 
-    @classmethod
-    def unit_meta(cls: Type[ScaleType]) -> Type[ScaleType]:
-        return cls
+    @property
+    def unit_meta(self: ScaleType) -> ScaleType:
+        return self
 
 
 class Ring(Scale[RType], Generic[RType]):
-    class_name: str = 'Ring'
 
     def __init__(
-            self, name: str, domain: Optional[Domain[RType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
     ):
-        super().__init__(name=name, domain=domain, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)

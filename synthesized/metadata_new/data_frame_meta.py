@@ -1,11 +1,11 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, MutableMapping
 
 import pandas as pd
 
 from .base import Meta
 
 
-class DataFrameMeta(Meta):
+class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
     """
     Meta to describe an arbitrary data frame.
 
@@ -30,6 +30,12 @@ class DataFrameMeta(Meta):
         super().extract(df)
         self.num_columns = len(df.columns)
         return self
+
+    def __setitem__(self, k: str, v: 'Meta') -> None:
+        self._children[k] = v
+
+    def __delitem__(self, k: str) -> None:
+        del self._children[k]
 
     @property
     def column_meta(self) -> Dict[str, Meta]:

@@ -134,10 +134,11 @@ class DateTransformerConfig:
 #       unique values should be mapped to the categorical transformer. Perhaps we should just have custom logic by
 #       creating different TransformerFactory classes?
 @dataclass
-class MetaTransformerConfig():
+class MetaTransformerConfig:
     Float: Union[str, List[str]] = 'QuantileTransformer'
     Integer: Union[str, List[str]] = 'QuantileTransformer'
     Bool: Union[str, List[str]] = 'CategoricalTransformer'
+    IntegerBool: Union[str, List[str]] = 'CategoricalTransformer'
     String: Union[str, List[str]] = 'CategoricalTransformer'
     Date: Union[str, List[str]] = field(default_factory=lambda: ['DateCategoricalTransformer', 'DateTransformer', 'QuantileTransformer'])
 

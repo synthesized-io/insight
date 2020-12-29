@@ -5,19 +5,21 @@ from .base import Ordinal
 from .base import Affine
 from .base import Scale
 from .base import Ring
-from .base import Domain
 
-from .bool import Bool
-from .categorical import String
-from .continuous import Integer
-from .continuous import Float
-from .datetime import Date, TimeDelta
+from .value import Bool
+from .value import IntegerBool
+from .value import String
+from .value import OrderedString
+from .value import Integer
+from .value import Float
+from .value import Date
+from .value import TimeDelta
 
 from .data_frame_meta import DataFrameMeta
 from .meta_builder import MetaExtractor
 
 __all__ = [
-    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'Domain',
+    'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring',
     'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta',
-    'DataFrameMeta', 'MetaExtractor'
+    'DataFrameMeta', 'MetaExtractor', 'IntegerBool', 'OrderedString'
 ]
