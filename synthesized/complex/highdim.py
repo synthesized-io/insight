@@ -149,6 +149,9 @@ class HighDimSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
+        if self.engine.value_ops.input_size == 0:
+            return
+
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         if self.learning_manager:
@@ -157,8 +160,6 @@ class HighDimSynthesizer(Synthesizer):
 
         num_data = len(df_train)
         df_train_pre = self.preprocess(df_train)
-        if self.engine.value_ops.input_size == 0:
-            return
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
@@ -412,7 +413,7 @@ class HighDimSynthesizer(Synthesizer):
             decoded = self.engine.encode_deterministic(xs=data, cs=dict(), produce_nans=produce_nans)
 
         decoded = self.df_meta.split_outputs(decoded)
-        columns = self.df_meta.columns
+        columns = np.concatenate([c.learned_output_columns() for c in self.df_meta.values])
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.postprocess(df=df_synthesized)
 

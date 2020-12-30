@@ -1,32 +1,32 @@
-import re
-import os
-from typing import List, Dict
 import gzip
 import logging
+import os
+import re
+from typing import List, Dict
 
 import faker
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import simplejson
+import tensorflow as tf
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-from ..config import AddressMetaConfig
+from ...config import AddressMetaConfig
 
 logger = logging.getLogger(__name__)
 
 
 class AddressRecord:
     def __init__(self, postcode, county, city, district, street, house_number, flat, house_name):
-        self.postcode = postcode
-        self.county = county
-        self.city = city
-        self.district = district
-        self.street = street
-        self.house_number = house_number
-        self.flat = flat
-        self.house_name = house_name
+        self.postcode = postcode.replace("'", "") if postcode is not None else None
+        self.county = county.replace("'", "") if county is not None else None
+        self.city = city.replace("'", "") if city is not None else None
+        self.district = district.replace("'", "") if district is not None else None
+        self.street = street.replace("'", "") if street is not None else None
+        self.house_number = house_number.replace("'", "") if house_number is not None else None
+        self.flat = flat.replace("'", "") if flat is not None else None
+        self.house_name = house_name.replace("'", "") if house_name is not None else None
 
     def __repr__(self):
         return "<AddressRecord {} {} {} {} {} {} {} {}>".format(
@@ -272,17 +272,7 @@ class AddressMeta(ValueMeta):
     def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().postprocess(df=df)
         if self.fake:
-            fkr = faker.Faker(locale='en_GB')
-            address_records = [AddressRecord(
-                postcode=fkr.postcode() if self.postcode_label else None,
-                county=fkr.county() if self.county_label else None,
-                city=fkr.city() if self.city_label else None,
-                district=fkr.city() if self.district_label else None,
-                street=fkr.street_name() if self.street_label else None,
-                house_number=fkr.building_number() if self.house_number_label else None,
-                flat=fkr.secondary_address() if self.flat_label else None,
-                house_name=fkr.last_name() + " " + fkr.street_suffix() if self.house_name_label else None
-            ) for _ in range(len(df))]
+            address_records = self.generate_fake_address_records(len(df))
 
             if self.full_address_label:
                 df[self.full_address_label] = [address_record.full_address for address_record in address_records]
@@ -357,3 +347,25 @@ class AddressMeta(ValueMeta):
     def get_postcode(self, x):
         g = self.postcode_regex.search(x)
         return g.group(0) if g else 'nan'
+
+    def generate_fake_address_records(self, n: int) -> List[AddressRecord]:
+        fkr = faker.Faker(locale='en_GB')
+        address_records = []
+        for _ in range(n):
+            postcode = fkr.postcode() if self.postcode_label or self.full_address_label else None
+            county = fkr.county() if self.county_label or self.full_address_label else None
+            city = fkr.city() if self.city_label or self.full_address_label else None
+            district = fkr.city() if self.district_label or self.full_address_label else None
+            street = fkr.street_name() if self.street_label or self.full_address_label else None
+            house_number = fkr.building_number() \
+                if (self.house_number_label or self.full_address_label) and np.random.random() < 0.3 else None
+            flat = fkr.secondary_address() \
+                if (self.flat_label or self.full_address_label) and np.random.random() < 0.3 else None
+            house_name = (fkr.last_name() + " " + fkr.street_suffix()) \
+                if (self.house_name_label or self.full_address_label) and np.random.random() < 0.3 else None
+
+            address_records.append(
+                AddressRecord(postcode=postcode, county=county, city=city, district=district, street=street,
+                              house_number=house_number, flat=flat, house_name=house_name))
+
+        return address_records

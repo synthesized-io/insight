@@ -45,8 +45,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             raise ModelNotFittedError
 
         assert self.probabilities is not None
-        categories, probabilities = zip(*[(k, v) for k, v in self.probabilities.items()])
-        return pd.DataFrame({self.name: np.random.choice(categories, size=n, p=probabilities)})
+        samples = np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])
+        return pd.DataFrame({self.name: samples})
 
     def probability(self, x: Any) -> float:
         if not self._extracted:
@@ -115,9 +115,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
             bin_width = meta.unit_meta.precision
-            a, b = tee(meta.categories or [])
-            next(b, None)
-            smallest_diff = min([d - c for c, d in zip(a, b)])
+            smallest_diff = np.diff(meta.categories).min()
 
             if bin_width > smallest_diff:
                 try:
