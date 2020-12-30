@@ -1,4 +1,4 @@
-from typing import Dict, Optional, MutableMapping
+from typing import Dict, Optional, MutableMapping, List
 
 import pandas as pd
 
@@ -44,6 +44,10 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         for child in self.children:
             col_meta[child.name] = child
         return col_meta
+
+    @property
+    def columns(self) -> List:
+        return list(self.column_meta.keys())
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()

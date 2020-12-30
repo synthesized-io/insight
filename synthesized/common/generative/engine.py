@@ -7,7 +7,7 @@ from ..encodings import VariationalEncoding
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import Value, ValueOps
+from ..values import Value, DataFrameValue
 
 
 class HighDimEngine(Generative):
@@ -21,7 +21,7 @@ class HighDimEngine(Generative):
     hyperparameters.
     """
     def __init__(
-            self, name: str, values: List[Value], conditions: List[Value],
+            self, name: str, df_value: DataFrameValue, conditions: List[Value],
             # Latent distribution
             latent_size: int,
             # Encoder and decoder network
@@ -35,7 +35,7 @@ class HighDimEngine(Generative):
             # Weight decay
             weight_decay: float
     ):
-        super(HighDimEngine, self).__init__(name=name, values=values, conditions=conditions)
+        super(HighDimEngine, self).__init__(name=name, df_value=df_value, conditions=conditions)
 
         self.latent_size = latent_size
         self.network = network
@@ -54,11 +54,9 @@ class HighDimEngine(Generative):
         self.weight_decay = weight_decay
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
-        self.value_ops = ValueOps(values=values, conditions=conditions)
-
         self.linear_input = DenseTransformation(
             name='linear-input',
-            input_size=self.value_ops.input_size, output_size=capacity, batch_norm=False, activation='none'
+            input_size=self.df_value.learned_input_size(), output_size=capacity, batch_norm=False, activation='none'
         )
 
         kwargs = dict(
@@ -78,12 +76,12 @@ class HighDimEngine(Generative):
 
         self.modulation = None
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.value_ops.condition_size)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.df_value.condition_size)
         self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
-            input_size=self.decoder.size(), output_size=self.value_ops.output_size, batch_norm=False, activation='none'
+            input_size=self.decoder.size(), output_size=self.df_value.learned_output_size(), batch_norm=False, activation='none'
         )
 
         self.optimizer = Optimizer(
@@ -105,20 +103,20 @@ class HighDimEngine(Generative):
         if len(xs) == 0:
             return tf.constant(0, dtype=tf.float32)
 
-        x = self.value_ops.unified_inputs(xs)
+        x = self.df_value.unify_inputs(xs)
 
         #################################
         x = self.linear_input(x)
         x = self.encoder(x)
         z = self.encoding(x)
-        x = self.value_ops.add_conditions(z, conditions=xs)
+        x = self.df_value.add_conditions(z, conditions=xs)
         x = self.decoder(x)
         y = self.linear_output(x)
         #################################
 
         # Losses
         reconstruction_loss = tf.identity(
-            self.value_ops.reconstruction_loss(y=y, inputs=xs), name='reconstruction_loss')
+            self.df_value.loss(y=y, inputs=xs), name='reconstruction_loss')
         kl_loss = tf.identity(self.encoding.losses[0], name='kl_loss')
 
         with tf.name_scope("regularization"):
@@ -184,9 +182,9 @@ class HighDimEngine(Generative):
         if len(xs) == 0:
             return tf.no_op(), dict()
 
-        x = self.value_ops.unified_inputs(xs)
+        x = self.df_value.unify_inputs(xs)
         latent_space, mean, std, y = self._encode(x=x, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs, produce_nans=produce_nans)
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
@@ -211,7 +209,7 @@ class HighDimEngine(Generative):
         std = self.encoding.gaussian.stddev(x)
         latent_space = mean + std * tf.random.normal(shape=tf.shape(mean))
 
-        x = self.value_ops.add_conditions(x=latent_space, conditions=cs)
+        x = self.df_value.add_conditions(x=latent_space, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 
@@ -235,9 +233,9 @@ class HighDimEngine(Generative):
         if len(xs) == 0:
             return dict()
 
-        x = self.value_ops.unified_inputs(xs)
+        x = self.df_value.unify_inputs(xs)
         y = self._encode_deterministic(x=x, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, sample=False, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs, sample=False, produce_nans=produce_nans)
 
         return synthesized
 
@@ -259,7 +257,7 @@ class HighDimEngine(Generative):
 
         mean = self.encoding.gaussian.mean(x)
 
-        x = self.value_ops.add_conditions(x=mean, conditions=cs)
+        x = self.df_value.add_conditions(x=mean, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 
@@ -282,7 +280,7 @@ class HighDimEngine(Generative):
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.value_ops.value_outputs(y=y, conditions=cs, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs, produce_nans=produce_nans)
 
         return synthesized
 
@@ -298,7 +296,7 @@ class HighDimEngine(Generative):
 
         """
         x = self.encoding.sample(n)
-        x = self.value_ops.add_conditions(x=x, conditions=cs)
+        x = self.df_value.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 
@@ -310,7 +308,7 @@ class HighDimEngine(Generative):
             loss
             for module in [
                 self.linear_input, self.encoder, self.encoding, self.decoder, self.linear_output
-            ] + self.values
+            ] + list(self.df_value.values())
             for loss in module.regularization_losses
         ]
 

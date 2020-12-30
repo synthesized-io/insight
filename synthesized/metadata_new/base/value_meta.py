@@ -52,7 +52,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     of 'closeness', e.g blood types ['AA', 'B', 'AB', 'O'].
 
     Attributes:
-        domain: Optional; list of category names.
+        categories: Optional; list of category names.
     """
 
     def __init__(
@@ -63,12 +63,13 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         self.nan_freq = nan_freq
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
-        """Extract the domain and their relative frequencies from a data frame, if not already set."""
+        """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
         if self.categories is None:
-            self.categories = [c for c in np.array(df[self.name].unique(), dtype=self.dtype)]
+            self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
+            self.categories = [*self.categories, np.nan]
             self.nan_freq = df[self.name].isna().sum() / len(df)
 
         return self
@@ -122,7 +123,6 @@ class Ordinal(Nominal[OType], Generic[OType]):
         return self._max
 
     def less_than(self, x: OType, y: OType) -> bool:
-
         b: bool = x < y
         return b
 

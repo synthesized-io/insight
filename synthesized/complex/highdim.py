@@ -8,13 +8,15 @@ import pickle
 import tensorflow as tf
 
 from .binary_builder import ModelBinary
-from ..metadata import DataFrameMeta
+
 from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueFactory
+from ..common.values import Value, ValueExtractor, DataFrameValue
 from ..config import HighDimConfig
+from ..metadata_new import DataFrameMeta
+from ..transformer import DataFrameTransformer
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
@@ -47,15 +49,15 @@ class HighDimSynthesizer(Synthesizer):
         self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
         self.synthesis_batch_size = config.synthesis_batch_size
 
-        self.df_meta = df_meta
-
-        self.value_factory = ValueFactory(
-            df_meta=df_meta, name='value_factory', conditions=conditions, config=config.value_factory_config
+        self.df_meta: DataFrameMeta = df_meta
+        self.df_value: DataFrameValue = ValueExtractor.extract(
+            df_meta=df_meta, name='data_frame_value', conditions=conditions, config=config.value_factory_config
         )
+        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_meta)
 
         # VAE
         self.engine = HighDimEngine(
-            name='vae', values=self.get_values(), conditions=self.get_conditions(),
+            name='vae', df_value=self.df_value, conditions=self.get_conditions(),
             latent_size=config.latent_size, network=config.network, capacity=config.capacity,
             num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
             activation=config.activation,
@@ -76,27 +78,29 @@ class HighDimSynthesizer(Synthesizer):
                 custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
 
-    def get_values(self) -> List[Value]:
-        return self.value_factory.get_values()
+    # Not sure this is needed now we have self.df_value
+    # def get_values(self) -> List[Value]:
+    #     return self.df_value
 
+    # TODO: implement conditions
     def get_conditions(self) -> List[Value]:
-        return self.value_factory.get_conditions()
+        return []
 
-    def get_data_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
-            value.name: tuple([
-                tf.constant(df_conditions[name])
-                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            name: tuple([
+                tf.constant(df[column])
+                for column in value.columns()
             ])
-            for value in self.get_all_values()
+            for name, value in self.df_value.items()
         }
         return data
 
     def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
-            value.name: tuple([
-                tf.constant(df_conditions[name])
-                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            value: tuple([
+                tf.constant(df_conditions[df_name])
+                for df_name in self.df_value[value].df_names
             ])
             for value in self.get_conditions()
         }
@@ -123,14 +127,6 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        """Returns a preprocessed copy of the given DataFrame."""
-        return self.df_meta.preprocess(df, max_workers=max_workers)
-
-    def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        df = self.df_meta.postprocess(df, max_workers=max_workers)
-        return df
-
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[[Synthesizer, int, dict], bool] = None,
@@ -149,9 +145,6 @@ class HighDimSynthesizer(Synthesizer):
             callback_freq: Callback frequency.
 
         """
-        if self.engine.value_ops.input_size == 0:
-            return
-
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         if self.learning_manager:
@@ -159,7 +152,11 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.set_check_frequency(self.batch_size)
 
         num_data = len(df_train)
-        df_train_pre = self.preprocess(df_train)
+        if not self.df_transformer._fitted:
+            self.df_transformer.fit(df_train)
+        df_train_pre = self.df_transformer.transform(df_train)
+        if self.df_value.learned_input_size() == 0:
+            return
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
@@ -237,7 +234,7 @@ class HighDimSynthesizer(Synthesizer):
         if type(conditions) is dict:
             conditions = pd.DataFrame(index=np.arange(num_rows), data=conditions)
 
-        df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
+        df_conditions = None
         columns = self.df_meta.columns
 
         if df_conditions is not None and len(df_conditions) > 0:
@@ -249,8 +246,8 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
 
-        if self.engine.value_ops.input_size == 0:
-            return self.postprocess(pd.DataFrame([[], ] * num_rows))
+        if self.df_value.learned_input_size() == 0:
+            return self.df_transformer.inverse_transform(pd.DataFrame([[], ] * num_rows))
 
         if self.writer is not None:
             tf.summary.trace_on(graph=True, profiler=False)
@@ -265,7 +262,7 @@ class HighDimSynthesizer(Synthesizer):
                     synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs,
                                                          produce_nans=produce_nans)
             assert synthesized is not None
-            synthesized = self.df_meta.split_outputs(synthesized)
+            synthesized = self.df_value.split_outputs(synthesized)
             df_synthesized = pd.DataFrame.from_dict(synthesized)
             if progress_callback is not None:
                 progress_callback(98)
@@ -286,7 +283,7 @@ class HighDimSynthesizer(Synthesizer):
                             produce_nans=produce_nans
                         )
                 assert synthesized is not None
-                dict_synthesized = self.df_meta.split_outputs(synthesized)
+                dict_synthesized = self.df_value.split_outputs(synthesized)
                 dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
             n_batches = num_rows // self.synthesis_batch_size
@@ -296,7 +293,7 @@ class HighDimSynthesizer(Synthesizer):
                 for k, cs in enumerate(conditions_dataset):
                     other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs,
                                                    produce_nans=produce_nans)
-                    other = self.df_meta.split_outputs(other)
+                    other = self.df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
                         dict_synthesized = {key: v.tolist() for key, v in dict_synthesized.items()}
@@ -311,7 +308,7 @@ class HighDimSynthesizer(Synthesizer):
                 for k in range(n_batches):
                     other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict(),
                                                    produce_nans=produce_nans)
-                    other = self.df_meta.split_outputs(other)
+                    other = self.df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
                         dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
@@ -325,7 +322,7 @@ class HighDimSynthesizer(Synthesizer):
 
             df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
-        df_synthesized = self.postprocess(df_synthesized)[columns]
+        df_synthesized = self.df_transformer.inverse_transform(df_synthesized)[columns]
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
@@ -350,13 +347,12 @@ class HighDimSynthesizer(Synthesizer):
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
         df_encode = df_encode.copy()
-        df_encode = self.df_meta.preprocess(df=df_encode)
-        df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
+        df_encode = self.df_transformer.transform(df=df_encode)
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        if df_conditions is not None and len(df_conditions) > 0:
-            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
+        if conditions is not None and len(conditions) > 0:
+            conditions_dict = self.get_conditions_feed_dict(df_conditions=conditions)
             conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
         else:
             conditions_dataset = None
@@ -369,8 +365,8 @@ class HighDimSynthesizer(Synthesizer):
         else:
             encoded, decoded = self.engine.encode(xs=data, cs=dict(), produce_nans=produce_nans)
 
-        columns = np.concatenate([c.learned_output_columns() for c in self.df_meta.values])
-        decoded = self.df_meta.split_outputs(decoded)
+        columns = np.concatenate([c.learned_output_columns() for c in self.df_value.values()])
+        decoded = self.df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.postprocess(df=df_synthesized)
 
@@ -393,13 +389,12 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             Pandas DataFrame of decoded space corresponding to input data
         """
-        df_encode = self.df_meta.preprocess(df=df_encode)
-        df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
+        df_encode = self.df_transformer.transform(df=df_encode)
 
         num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        if df_conditions is not None and len(df_conditions) > 0:
-            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
+        if conditions is not None and len(conditions) > 0:
+            conditions_dict = self.get_conditions_feed_dict(df_conditions=conditions)
             conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
         else:
             conditions_dataset = None
@@ -412,8 +407,8 @@ class HighDimSynthesizer(Synthesizer):
         else:
             decoded = self.engine.encode_deterministic(xs=data, cs=dict(), produce_nans=produce_nans)
 
-        decoded = self.df_meta.split_outputs(decoded)
-        columns = np.concatenate([c.learned_output_columns() for c in self.df_meta.values])
+        decoded = self.df_value.split_outputs(decoded)
+        columns = self.df_meta.columns
         df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
         df_synthesized = self.postprocess(df=df_synthesized)
 
@@ -422,10 +417,10 @@ class HighDimSynthesizer(Synthesizer):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
-            # Data Panel
-            df_meta=self.df_meta.get_variables(),
+            # Data Panel TODO: get variables for values and metas
+            # df_meta=self.df_meta.get_variables(),
             # Value Factory
-            value_factory=self.value_factory.get_variables(),
+            df_value=self.df_value.get_variables(),
 
             # VAE
             engine=self.engine.get_variables(),
@@ -512,11 +507,12 @@ class HighDimSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
+        raise NotImplementedError("from dict functionality still needs to be implemented")
         # Data Panel
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
 
-        # Value Factory
-        synth.value_factory = ValueFactory.from_dict(variables['value_factory'])
+        # Value Factory TODO: replace with df_value
+        # synth.value_factory = ValueFactory.from_dict(variables['value_factory'])
 
         # VAE
         synth.engine = HighDimEngine(

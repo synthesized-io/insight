@@ -7,9 +7,9 @@ from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding, R
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import Value, IdentifierValue, ValueOps
+from ..values import Value, IdentifierValue
 
-
+#TODO: broken with new values and metadata
 class SeriesEngine(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],

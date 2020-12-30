@@ -61,7 +61,7 @@ class DataFrameTransformer(SequentialTransformer):
             df = df.copy()
 
         # To do: implement parallel transform
-        for transformer in self:
+        for transformer in reversed(self):
             df = transformer.inverse_transform(df)
 
         return df
@@ -98,11 +98,11 @@ class TransformerFactory:
         if isinstance(meta, DataFrameMeta):
             transformer = DataFrameTransformer(meta, meta.name)
             for m in meta.children:
-                transformer.append(self._from_meta(m))
-
                 if isinstance(m, Nominal):
                     if m.nan_freq is not None and m.nan_freq > 0:
                         transformer.append(NanTransformer.from_meta(m))
+
+                transformer.append(self._from_meta(m))
         else:
             return self._from_meta(meta)
         return transformer

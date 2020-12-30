@@ -18,7 +18,7 @@ class CategoricalValue(Value):
     def __init__(
         self, name: str, num_categories: int,
         # Optional
-        similarity_based: bool = False, nans_valid: bool = False,
+        similarity_based: bool = False,
         # Scenario
         probabilities=None, embedding_size: int = None,
         config: CategoricalConfig = CategoricalConfig()
@@ -26,14 +26,12 @@ class CategoricalValue(Value):
         super().__init__(name=name)
         self.num_categories: int = num_categories
         self.similarity_based = similarity_based
-        self.nans_valid: bool = nans_valid
-
         self.probabilities = probabilities
 
         if embedding_size:
             self.embedding_size: Optional[int] = embedding_size
         else:
-            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=similarity_based)
+            self.embedding_size = compute_embedding_size(self.num_categories + 1, similarity_based=similarity_based)
 
         self.embedding_initialization = 'glorot-normal' if similarity_based else 'orthogonal-small'
 
@@ -71,7 +69,7 @@ class CategoricalValue(Value):
 
     def learned_output_size(self) -> int:
         assert self.num_categories is not None
-        return self.num_categories
+        return self.num_categories + 1
 
     @tensorflow_name_scoped
     def build(self):
@@ -79,7 +77,7 @@ class CategoricalValue(Value):
             if self.probabilities is not None and not self.similarity_based:
                 # "hack": scenario synthesizer, embeddings not used
                 return
-            shape = (self.num_categories, self.embedding_size)
+            shape = (self.learned_output_size(), self.embedding_size)
             initializer = get_initializer(initializer=self.embedding_initialization)
 
             self.embeddings = tf.Variable(
@@ -91,7 +89,7 @@ class CategoricalValue(Value):
             if self.use_moving_average:
                 self.moving_average = tf.train.ExponentialMovingAverage(decay=0.9)
                 self.frequency = tf.Variable(
-                    initial_value=np.zeros(shape=(self.num_categories,)), trainable=False, dtype=tf.float32,
+                    initial_value=np.zeros(shape=(self.learned_output_size(),)), trainable=False, dtype=tf.float32,
                     name='moving_avg_freq'
                 )
                 self.moving_average.apply(var_list=[self.frequency])
@@ -99,47 +97,36 @@ class CategoricalValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
         self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True,
-                       produce_nans: bool = True, **kwargs) -> Sequence[tf.Tensor]:
-        if self.nans_valid is True and produce_nans is False and self.num_categories == 1:
-            logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
-                           "Setting 'procude_nans=True' for this column".format(self.name))
-            produce_nans = True
+    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> Sequence[tf.Tensor]:
 
         # Choose argmax class
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
-        if self.nans_valid and produce_nans:
-            if sample:
-                y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
-            else:
-                y_flat = tf.expand_dims(tf.argmax(y_flat, axis=1), axis=1)
+        if sample:
+            y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1) + 1
         else:
-            # If we don't want to produce nans, the argmax won't consider the probability of class 0 (nan).
-            if sample:
-                y_flat = tf.random.categorical(logits=y_flat[:, 1:], num_samples=1, dtype=tf.int64) + 1
-            else:
-                y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
+            y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
         y = tf.reshape(y_flat, shape=tf.concat(([-1], y.shape[1:-1]), axis=0))
 
         return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+
         target = xs[0]
+
         if self.moving_average is not None:
-            assert self.num_categories is not None
             assert self.frequency is not None
             flattened_target = tf.reshape(target, shape=(-1,))
-            frequency = tf.concat(values=(np.array(range(self.num_categories)), flattened_target), axis=0)
+            frequency = tf.concat(values=(np.array(range(self.learned_output_size())), flattened_target), axis=0)
             _, _, frequency = tf.unique_with_counts(x=frequency, out_idx=tf.int32)
-            frequency = tf.reshape(tensor=frequency, shape=(self.num_categories,))
+            frequency = tf.reshape(tensor=frequency, shape=(self.learned_output_size(),))
             frequency = tf.cast(frequency - 1, dtype=tf.float32)
             frequency = frequency / tf.reduce_sum(input_tensor=frequency, axis=0, keepdims=False)
             with tf.control_dependencies([self.frequency.assign(frequency)]):
@@ -153,17 +140,20 @@ class CategoricalValue(Value):
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
                 weights = tf.reshape(weights, shape=target.shape)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
+                if mask is not None:
+                    weights = tf.boolean_mask(tensor=weights, mask=mask)
         else:
             weights = 1.0
 
         y = y / self.temperature
-        assert self.num_categories is not None
 
         target = tf.one_hot(
-            indices=target, depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
+            indices=target, depth=self.learned_output_size(), on_value=1.0, off_value=0.0, axis=-1,
             dtype=tf.float32
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=-1)
+        if mask is not None:
+            loss = tf.boolean_mask(loss, mask=mask)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=None)
         tf.summary.scalar(name=self.name, data=loss)
         return loss
@@ -176,7 +166,7 @@ class CategoricalValue(Value):
         samples = y
         num_samples = tf.shape(input=samples)[0]
         samples = tf.concat(
-            values=(tf.range(start=0, limit=self.num_categories, dtype=tf.int64), samples), axis=0
+            values=(tf.range(start=0, limit=self.learned_output_size(), dtype=tf.int64), samples), axis=0
         )
         _, _, counts = tf.unique_with_counts(x=samples)
         counts = counts - 1

@@ -1,34 +1,46 @@
 import logging
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Sequence, Optional, Mapping, Iterator
+from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
 
-from .categorical import CategoricalValue
 from .value import Value
+from .categorical import CategoricalValue
 from synthesized.common.module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 
 
-class AssociatedCategoricalValue(Value):
+class AssociatedCategoricalValue(Value, Mapping):
     def __init__(
-            self, values: List[CategoricalValue], associations: List[List[str]], binding_mask: np.ndarray
+            self, values: Dict[str, CategoricalValue], binding_mask: np.ndarray, name: Optional[str] = None,
     ):
+        if name is None:
+            name = '|'.join(values)
         super(AssociatedCategoricalValue, self).__init__(
-            name='|'.join([v.name for v in values]), meta_names=[name for value in values for name in value.meta_names]
+            name=name,
         )
-        self.values = values
-        logger.debug("Creating Associated value with associations: ")
-        for n, association in enumerate(associations):
-            logger.debug(f"{n + 1}: {association}")
-        self.associations = associations
         self.dtype = tf.int64
+        self._values: Dict[str, Value] = OrderedDict(**values)
         self.binding_mask: tf.Tensor = tf.constant(binding_mask, dtype=tf.float32)
 
     def __str__(self) -> str:
         string = super().__str__()
         return string
+
+    def __getitem__(self, k: str) -> Value:
+        return self._values[k]
+
+    def __iter__(self) -> Iterator[str]:
+        for key in self._values:
+            yield key
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def columns(self) -> List[str]:
+        return [column for value in self.values() for column in value.columns()]
 
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
@@ -40,24 +52,22 @@ class AssociatedCategoricalValue(Value):
         )
         return spec
 
-    def columns(self) -> List[str]:
-        return [name for value in self.values for name in value.columns()]
-
     def learned_input_size(self) -> int:
-        return sum([v.learned_input_size() for v in self.values])
+        return sum([v.learned_input_size() for v in self.values()])
 
     def learned_output_size(self) -> int:
-        return sum([v.learned_output_size() for v in self.values])
+        return sum([v.learned_output_size() for v in self.values()])
 
     @tensorflow_name_scoped
     def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
-        return tf.concat([value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values)], axis=-1)
+        inputs = [value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values())]
+        return tf.concat(inputs, axis=-1)
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
         """Outputs the bound categorical values."""
         ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
             axis=-1
         )
 
@@ -72,25 +82,38 @@ class AssociatedCategoricalValue(Value):
         flattened = tf.reshape(masked, (-1, tf.reduce_prod(masked.shape[1:])))
 
         y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=(-1,))
-        ot = [tf.math.mod(y, self.values[-1].num_categories)]
-        for n in range(1, len(self.values)):
+        value_list = list(self.values())
+        ot = [tf.math.mod(y, value_list[-1].num_categories)]
+        for n in range(1, len(value_list)):
             ot.append(tf.math.mod(
                 tf.math.floordiv(
                     y,
-                    tf.cast(tf.reduce_prod([self.values[-m - 1].num_categories for m in range(n)]), dtype=tf.int64)
+                    tf.cast(tf.reduce_prod([value_list[-m - 1].num_categories for m in range(n)]), dtype=tf.int64)
                 ),
-                self.values[-n - 1].num_categories
+                value_list[-n - 1].num_categories
             ))
 
         return tuple(ot[::-1])
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
         ys = tf.split(
-            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
+            value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
             axis=-1
         )
-        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n + 1]) for n, v in enumerate(self.values)], axis=None)
+        return tf.reduce_sum([v.loss(y=ys[n], xs=xs[n:n + 1]) for n, v in enumerate(self.values())], axis=None)
+
+    def split_inputs(self, xs: Sequence[tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # Concatenate input tensors per value
+        return {name: xs[i] for i, name in enumerate(self)}
+
+    def split_outputs(self, outputs: Dict[str, Sequence[Any]]) -> Dict[str, np.ndarray]:
+        output_dict = {}
+        assert len(outputs) == 1
+        output_tup: Sequence[Any] = next(iter(outputs.values()))
+        for (name, value), x in zip(self.items(), output_tup):
+            output_dict.update(self.convert_tf_to_np_dict(value.split_outputs({name: (x,)})))
+        return output_dict
 
 
 def tf_joint_probs(*args):

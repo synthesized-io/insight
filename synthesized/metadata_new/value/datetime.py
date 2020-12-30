@@ -52,7 +52,7 @@ class Date(Affine[np.datetime64]):
 
         self._unit_meta = TimeDeltaDay(self.name + '_unit')
 
-    def extract(self: DateType, df: pd.DataFrame) -> DateType:
+    def extract(self: DateType, df: pd.DataFrame):
         if self.date_format is None:
             try:
                 self.date_format = get_date_format(df[self.name])

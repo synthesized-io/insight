@@ -51,7 +51,7 @@ class _MetaBuilder:
         return Bool(str(sr.name))
 
     def _IntBuilder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
-        if sr.isin([0, 1]).all():
+        if sr.dropna().isin([0, 1]).all():
             return IntegerBool(str(sr.name))
         return Integer(str(sr.name))
 

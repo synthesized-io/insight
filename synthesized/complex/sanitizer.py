@@ -10,7 +10,7 @@ import simplejson
 from .highdim import HighDimSynthesizer, HighDimConfig
 from ..common.synthesizer import Synthesizer
 from ..common.values import ContinuousValue, CategoricalValue
-from ..metadata import MetaExtractor
+from ..metadata_new import MetaExtractor
 
 logger = logging.getLogger(__name__)
 

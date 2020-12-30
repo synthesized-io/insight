@@ -47,7 +47,7 @@ class QuantileTransformer(Transformer):
         if nonnegative and not positive:
             df[self.name] = np.maximum(df[self.name], 0.001)
 
-        df[self.name] = self._transformer.transform(df[[self.name]])
+        df[self.name] = self._transformer.transform(df[[self.name]]).astype(np.float32)
 
         return df
 

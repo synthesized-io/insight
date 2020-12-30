@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from .base import Transformer
 from ..metadata_new import Nominal
@@ -19,10 +20,13 @@ class NanTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[f'{self.name}_nan'] = df[self.name].isna().astype(int)
+        nan = df[self.name].isna()
+        df[f'{self.name}_nan'] = nan.astype(int)
         return df
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        nan = df[f'{self.name}_nan'].astype(bool)
+        df[self.name] = df[self.name].where(~nan, np.nan)
         df.drop(columns=[f'{self.name}_nan'], inplace=True)
         return df
 
