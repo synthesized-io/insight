@@ -2,6 +2,8 @@ from typing import List, Dict, Type, TypeVar, MutableMapping, Iterator, cast
 
 import pandas as pd
 
+from ...util import get_all_subclasses
+
 MetaType = TypeVar('MetaType', bound='Meta')
 
 
@@ -140,4 +142,4 @@ class Meta(MutableMapping[str, 'Meta']):
 
     @classmethod
     def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
-        return {sc.__name__: sc for sc in cls.__subclasses__()}
+        return {sc.__name__: sc for sc in get_all_subclasses(cls)}

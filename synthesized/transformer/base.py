@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 from .exceptions import NonInvertibleTransformError, TransformerNotFitError
+from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class Transformer:
 
     @classmethod
     def get_registry(cls: Type[TransformerType]) -> Dict[str, Type[TransformerType]]:
-        return {sc.__name__: sc for sc in cls.__subclasses__()}
+        return {sc.__name__: sc for sc in get_all_subclasses(cls)}
 
 
 class SequentialTransformer(Transformer, MutableSequence[Transformer]):
