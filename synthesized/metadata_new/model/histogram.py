@@ -102,7 +102,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if isinstance(meta, KernelDensityEstimate) and meta._fitted:
             norm = meta.integrated_probability(meta.min, meta.max)
             probabilities: Optional[Dict[AType, float]] = {
-                c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy())/norm
+                c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy()) / norm
                 for c in categories
             }
         else:

@@ -109,7 +109,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
 
         domain = np.linspace(
             start=np.array(0, dtype=self.kde_dtype),
-            stop=np.array(self.max-self.min, dtype=self.kde_dtype),
+            stop=np.array(self.max - self.min, dtype=self.kde_dtype),
             num=kde_grid_num
         ).astype(self.unit_meta.dtype) + self.min
 
