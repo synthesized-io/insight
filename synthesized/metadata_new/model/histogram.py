@@ -101,7 +101,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
         if isinstance(meta, KernelDensityEstimate) and meta._fitted:
             norm = meta.integrated_probability(meta.min, meta.max)
-            probabilities = {
+            probabilities: Optional[Dict[AType, float]] = {
                 c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy())/norm
                 for c in categories
             }
@@ -164,7 +164,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
         plot_data = pd.DataFrame({
             self.name: self.categories,
-            'probability': [self.probability(c) for c in self.categories]
+            'probability': [self.probability(c) for c in self.categories] if self.categories is not None else None
         })
         sns.barplot(data=plot_data, x=self.name, y='probability', ax=fig.gca())
         for tick in fig.gca().get_xticklabels():

@@ -36,14 +36,18 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         dtype_map = {
             'm8[D]': 'i8'
         }
+        if self.unit_meta.dtype is None:
+            raise ValueError
         return dtype_map.get(self.unit_meta.dtype, self.unit_meta.dtype)
 
     def sample(self, n: int) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
-        return pd.DataFrame(
-            {self.name: np.squeeze(self._kernel.resample(size=n)).astype(self.unit_meta.dtype) + self.min}
-        )
+        return pd.DataFrame({
+            self.name: np.squeeze(
+                cast(gaussian_kde, self._kernel).resample(size=n)
+            ).astype(self.unit_meta.dtype) + self.min
+        })
 
     def probability(self, x: Any) -> float:
         if not self._extracted:
@@ -57,7 +61,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
         x = (x - c).astype(self.kde_dtype)
 
-        prob = self._kernel(x)
+        prob = cast(gaussian_kde, self._kernel)(x)
 
         return prob
 
@@ -74,7 +78,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         low = np.array(low - c, dtype=self.kde_dtype).item()
         high = np.array(high - c, dtype=self.kde_dtype).item()
 
-        prob = self._kernel.integrate_box_1d(low=low, high=high)
+        prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=low, high=high)
 
         return prob
 
@@ -97,6 +101,8 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         return self._unit_meta
 
     def plot(self, kde_grid_num=100, **kwargs) -> plt.Figure:
+        if self.max is None or self.min is None:
+            raise ValueError
 
         fig = plt.Figure(figsize=(7, 4))
         sns.set_theme(**kwargs)

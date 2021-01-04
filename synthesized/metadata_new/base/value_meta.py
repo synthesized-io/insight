@@ -104,8 +104,8 @@ class Ordinal(Nominal[OType], Generic[OType]):
             min: Optional[OType] = None, max: Optional[OType] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
-        self._min = min
-        self._max = max
+        self._min: Optional[OType] = min
+        self._max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
