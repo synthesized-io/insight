@@ -168,4 +168,4 @@ class FairnessTransformer(SequentialTransformer):
 
     @property
     def sensitive_attrs_and_target(self) -> List[str]:
-        return list(np.concatenate((self.sensitive_attrs, [self.target])))
+        return self.sensitive_attrs + [self.target]

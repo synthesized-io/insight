@@ -1,4 +1,4 @@
-from typing import List, Optional, TypeVar, Type, Dict, Union, Iterator, MutableSequence
+from typing import Any, List, Optional, TypeVar, Type, Dict, Union, Iterator, MutableSequence
 from abc import abstractmethod
 import logging
 
@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 from .exceptions import NonInvertibleTransformError, TransformerNotFitError
+from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +24,12 @@ class Transformer:
         dtypes: list of valid dtypes for this
           transformation, defaults to None.
     """
-    _transformer_registry: Dict[str, Type['Transformer']] = {}
 
     def __init__(self, name: str, dtypes: Optional[List] = None):
         super().__init__()
         self.name = name
         self.dtypes = dtypes
         self._fitted = False
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        Transformer._transformer_registry[cls.__name__] = cls
 
     def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
         return SequentialTransformer(name=self.name, transformers=[self, other])
@@ -78,8 +74,31 @@ class Transformer:
             raise TransformerNotFitError("Transformer not fitted yet, please call 'fit()' before calling transform.")
 
     @classmethod
-    def from_meta(cls: Type[TransformerType], meta) -> TransformerType:
+    def from_meta(cls: Type[TransformerType], meta: Any) -> TransformerType:
+        """
+        Construct a Transformer from a transformer class name and a meta. This is an abstract class, must be
+        implemented in each transformer subclass.
+        """
         raise NotImplementedError
+
+    @classmethod
+    def from_name_and_meta(cls, class_name: str, meta: Any) -> 'Transformer':
+        """
+        Construct a Transformer from a transformer class name and a meta.
+
+        See also:
+            Transformer.from_meta: construct a Transformer from a meta
+        """
+
+        registy = cls.get_registry()
+        if class_name not in registy.keys():
+            raise ValueError(f"Given transformer {class_name} not found in Transformer subclasses.")
+
+        return registy[class_name].from_meta(meta)
+
+    @classmethod
+    def get_registry(cls: Type[TransformerType]) -> Dict[str, Type[TransformerType]]:
+        return {sc.__name__: sc for sc in get_all_subclasses(cls)}
 
 
 class SequentialTransformer(Transformer, MutableSequence[Transformer]):

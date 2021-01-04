@@ -6,6 +6,7 @@ import pandas as pd
 import yaml
 
 from ..metadata import ValueMeta, DataFrameMeta
+from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class TestingDataGenerator:
                   groups_kwargs: Optional[List[Dict[str, Any]]]) -> 'TestingDataGenerator':
 
         logger.info("Initializing Testing Data Generator.")
-        value_meta_dict = {vm.__name__.lower()[:-4]: vm for vm in ValueMeta.__subclasses__()}
+        value_meta_dict = {vm.__name__.lower()[:-4]: vm for vm in get_all_subclasses(ValueMeta)}
 
         values = []
         # Values
