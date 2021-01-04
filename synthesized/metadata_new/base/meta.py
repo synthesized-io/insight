@@ -124,13 +124,20 @@ class Meta(MutableMapping[str, 'Meta']):
         return meta
 
     @classmethod
-    def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
-        return {sc.__name__: sc for sc in cls.__subclasses__()}
+    def from_name_and_dict(cls, class_name: str, d: Dict[str, object]) -> 'Meta':
+        """
+        Construct a Meta from a meta class name and a dictionary.
+
+        See also:
+            Meta.from_dict: construct a Meta from a dictionary
+        """
+
+        registy = cls.get_registry()
+        if class_name not in registy.keys():
+            raise ValueError(f"Given meta {class_name} not found in Meta subclasses.")
+
+        return registy[class_name].from_dict(d)
 
     @classmethod
-    def from_name_and_dict(cls, name: str, d: Dict[str, object]) -> 'Meta':
-        registy = cls.get_registry()
-        if name not in registy.keys():
-            raise ValueError(f"Given meta {name} not found in Meta subclasses.")
-
-        return registy[name].from_dict(d)
+    def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
+        return {sc.__name__: sc for sc in cls.__subclasses__()}

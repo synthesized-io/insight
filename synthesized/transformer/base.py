@@ -74,19 +74,30 @@ class Transformer:
 
     @classmethod
     def from_meta(cls: Type[TransformerType], meta: Any) -> TransformerType:
+        """
+        Construct a Transformer from a transformer class name and a meta. This is an abstract class, must be
+        implemented in each transformer subclass.
+        """
         raise NotImplementedError
+
+    @classmethod
+    def from_name_and_meta(cls, class_name: str, meta: Any) -> 'Transformer':
+        """
+        Construct a Transformer from a transformer class name and a meta.
+
+        See also:
+            Transformer.from_meta: construct a Transformer from a meta
+        """
+
+        registy = cls.get_registry()
+        if class_name not in registy.keys():
+            raise ValueError(f"Given transformer {class_name} not found in Transformer subclasses.")
+
+        return registy[class_name].from_meta(meta)
 
     @classmethod
     def get_registry(cls: Type[TransformerType]) -> Dict[str, Type[TransformerType]]:
         return {sc.__name__: sc for sc in cls.__subclasses__()}
-
-    @classmethod
-    def from_name_and_meta(cls, name: str, meta: Any) -> 'Transformer':
-        registy = cls.get_registry()
-        if name not in registy.keys():
-            raise ValueError(f"Given transformer {name} not found in Transformer subclasses.")
-
-        return registy[name].from_meta(meta)
 
 
 class SequentialTransformer(Transformer, MutableSequence[Transformer]):
