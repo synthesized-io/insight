@@ -30,5 +30,5 @@ def test_get_all_subclasses():
         pass
 
     sc = get_all_subclasses(Foo)
-    assert sc == [FooChild, Foo2, FooChild2, FooChild3, FooChild4, FooChild4, Foo2Child, Foo2Child2, FooChild3,
-                  FooChild4, FooChild4, Foo2Child2, FooChild4]
+    assert sc == {FooChild, Foo2, FooChild2, FooChild3, FooChild4, FooChild4, Foo2Child, Foo2Child2, FooChild3,
+                  FooChild4, FooChild4, Foo2Child2, FooChild4}
