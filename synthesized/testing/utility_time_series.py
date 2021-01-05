@@ -9,7 +9,7 @@ from ..insight.dataset import categorical_or_continuous_values
 from ..insight.metrics import ColumnVector
 from ..metadata import DataFrameMeta
 from .plotting import plot_categorical_time_series, plot_continuous_time_series, plot_cross_correlations, plot_series, \
-                      set_plotting_style
+    set_plotting_style
 
 COLOR_ORIG = '#1C5D7A'
 COLOR_SYNTH = '#801761'

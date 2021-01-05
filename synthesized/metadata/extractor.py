@@ -12,8 +12,8 @@ from ..config import AddressParams, BankParams, FormattedStringParams, MetaExtra
 from .data_frame import DataFrameMeta
 from .identify_rules import identify_rules
 from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
-                    DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, \
-                    TimeIndexMeta, ValueMeta
+    DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, TimeIndexMeta, \
+    ValueMeta
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from ...config import ValueFactoryConfig
 from ...metadata import AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta, \
-                        DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
+    DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue

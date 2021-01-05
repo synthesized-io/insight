@@ -9,11 +9,10 @@ import pandas as pd
 
 from ..insight import metrics
 from ..insight.metrics import ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix, \
-                              TwoDataFrameVector
+    TwoDataFrameVector
 from ..metadata import DataFrameMeta
 from .plotting import categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances, \
-                      plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics, \
-                      set_plotting_style
+    plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics, set_plotting_style
 
 logger = logging.getLogger(__name__)
 

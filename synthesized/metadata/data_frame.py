@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .values import AssociationMeta, CategoricalMeta, ContinuousMeta, DateMeta, DecomposedContinuousMeta, \
-                    IdentifierMeta, NanMeta, TimeIndexMeta, ValueMeta
+    IdentifierMeta, NanMeta, TimeIndexMeta, ValueMeta
 
 
 class DataFrameMeta:

@@ -1,7 +1,7 @@
 from itertools import chain
 
 from .metrics import CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation, \
-                     KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation
+    KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation
 from .metrics_base import ChainColumnVector  # noqa: F401
 from .metrics_base import ColumnVector  # noqa: F401
 from .metrics_base import DataFrameMatrix  # noqa: F401
@@ -10,12 +10,10 @@ from .metrics_base import RollingColumnMetricVector  # noqa: F401
 from .metrics_base import TwoDataFrameMatrix  # noqa: F401
 from .metrics_base import TwoDataFrameVector  # noqa: F401
 from .metrics_base import ClassificationMetric, ClassificationPlotMetric, ColumnComparisonVector, ColumnMetric, \
-                          ColumnMetricVector, DataFrameMetric, DiffColumnMetricAdapter, DiffMetricMatrix, \
-                          ModellingMetric, RegressionMetric, TwoColumnMetric, TwoColumnMetricMatrix, \
-                          TwoDataFrameMetric, _Matrix, _Metric, _Vector
+    ColumnMetricVector, DataFrameMetric, DiffColumnMetricAdapter, DiffMetricMatrix, ModellingMetric, RegressionMetric, \
+    TwoColumnMetric, TwoColumnMetricMatrix, TwoDataFrameMetric, _Matrix, _Metric, _Vector
 from .modelling_metrics import ROC_AUC, Accuracy, ConfusionMatrix, F1Score, MeanAbsoluteError, MeanSquaredError, \
-                               PR_Curve, Precision, R2_Score, Recall, ROC_Curve, predictive_modelling_comparison, \
-                               predictive_modelling_score
+    PR_Curve, Precision, R2_Score, Recall, ROC_Curve, predictive_modelling_comparison, predictive_modelling_score
 from .vectors import DiffVector, FractionalDiffVector
 
 _CORE_METRICS = [
