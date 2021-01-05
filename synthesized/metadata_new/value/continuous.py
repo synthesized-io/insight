@@ -10,9 +10,10 @@ class Integer(Scale[np.int64]):
     precision = np.int64(1)
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[np.int64]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[np.int64]] = None, nan_freq: Optional[float] = None,
+            min: Optional[np.int64] = None, max: Optional[np.int64] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
 
 
 class Float(Ring[np.float64]):
@@ -20,6 +21,7 @@ class Float(Ring[np.float64]):
     precision = np.float64(0.)
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[np.float64]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[np.float64]] = None, nan_freq: Optional[float] = None,
+            min: Optional[np.float64] = None, max: Optional[np.float64] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
