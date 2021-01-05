@@ -5,6 +5,7 @@ import pandas as pd
 
 # Meta Config Classes ----------------------------------------
 
+
 @dataclass
 class AddressParams:
     postcode_label: Union[str, List[str], None] = None
