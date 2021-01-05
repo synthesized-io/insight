@@ -3,8 +3,8 @@ from typing import List
 import pandas as pd
 import rstr
 
-from .value_meta import ValueMeta
 from ...config import FormattedStringMetaConfig
+from .value_meta import ValueMeta
 
 
 class FormattedStringMeta(ValueMeta):

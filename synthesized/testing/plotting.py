@@ -1,21 +1,20 @@
 import logging
 import math
-from typing import List, Tuple, Union, Dict
+from typing import Dict, List, Tuple, Union
 
 import matplotlib as mpl
-from matplotlib.colors import SymLogNorm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.preprocessing import OneHotEncoder
 from matplotlib import cm
 from matplotlib.axes import Axes, SubplotBase
+from matplotlib.colors import SymLogNorm
+from sklearn.preprocessing import OneHotEncoder
 
-from ..metadata import DataFrameMeta, MetaExtractor
-from ..insight.metrics import kolmogorov_smirnov_distance, earth_movers_distance
 from ..insight.evaluation import calculate_evaluation_metrics
-
+from ..insight.metrics import earth_movers_distance, kolmogorov_smirnov_distance
+from ..metadata import DataFrameMeta, MetaExtractor
 
 logger = logging.getLogger(__name__)
 

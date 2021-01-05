@@ -2,7 +2,7 @@ import gzip
 import logging
 import os
 import re
-from typing import List, Dict
+from typing import Dict, List
 
 import faker
 import numpy as np
@@ -10,9 +10,9 @@ import pandas as pd
 import simplejson
 import tensorflow as tf
 
+from ...config import AddressMetaConfig
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-from ...config import AddressMetaConfig
 
 logger = logging.getLogger(__name__)
 

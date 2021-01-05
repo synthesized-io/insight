@@ -1,13 +1,13 @@
-from typing import Any, Dict, Sequence
 from math import log
+from typing import Any, Dict, Sequence
 
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
-from .value import Value
-from ..module import tensorflow_name_scoped
 from ...config import ContinuousConfig
 from ...metadata.values.continuous import DISTRIBUTIONS
+from ..module import tensorflow_name_scoped
+from .value import Value
 
 
 class ContinuousValue(Value):

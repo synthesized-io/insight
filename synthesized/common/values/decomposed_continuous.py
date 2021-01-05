@@ -2,10 +2,10 @@ from typing import Any, Dict, Sequence
 
 import tensorflow as tf
 
+from ...config import ContinuousConfig, DecomposedContinuousConfig
+from ..module import tensorflow_name_scoped
 from .continuous import ContinuousValue
 from .value import Value
-from ..module import tensorflow_name_scoped
-from ...config import DecomposedContinuousConfig, ContinuousConfig
 
 
 class DecomposedContinuousValue(Value):

@@ -3,9 +3,9 @@ from typing import Dict
 import pandas as pd
 import tensorflow as tf
 
+from ...metadata import DataFrameMeta
 from .feed_forward_state_space import GaussianEncoder
 from .state_space import StateSpaceModel
-from ...metadata import DataFrameMeta
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):
@@ -139,15 +139,17 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
 if __name__ == '__main__':
     """Testing the RSSM on simple sinusoidal data."""
-    import warnings
     import io
+    import warnings
     from datetime import datetime
+
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
+    import seaborn as sns
+
+    from synthesized.common.util import record_summaries_every_n_global_steps
 
     from ...metadata import MetaExtractor
-    from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
     def plot_to_image(figure):

@@ -1,19 +1,18 @@
-from typing import Any, Optional, Union, Callable, Dict
 from dataclasses import asdict
+from typing import Any, Callable, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
 
+from ..config import MetaFactoryConfig
 from .base import ValueMeta
-from .data_frame_meta import DataFrameMeta
-from .datetime import Date, TimeDelta, get_date_format
 from .bool import Bool
 from .categorical import String
-from .continuous import Integer, Float
-from .ordinal import OrderedString
-
+from .continuous import Float, Integer
+from .data_frame_meta import DataFrameMeta
+from .datetime import Date, TimeDelta, get_date_format
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from ..config import MetaFactoryConfig
+from .ordinal import OrderedString
 
 
 class _MetaBuilder:

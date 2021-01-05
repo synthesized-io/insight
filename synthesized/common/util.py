@@ -2,8 +2,8 @@ import io
 import logging
 import re
 
-import tensorflow as tf
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from tensorflow.python.eager import context
 
 logger = logging.getLogger(__name__)

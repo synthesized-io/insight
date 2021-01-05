@@ -1,10 +1,10 @@
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 
 import tensorflow as tf
 
-from .transformation import Transformation
-from .dense import DenseTransformation
 from ..module import tensorflow_name_scoped
+from .dense import DenseTransformation
+from .transformation import Transformation
 
 
 class GaussianTransformation(Transformation):

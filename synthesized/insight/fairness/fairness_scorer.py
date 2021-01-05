@@ -1,22 +1,22 @@
 import logging
 from itertools import combinations
 from math import factorial
-from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from pyemd import emd
 from scipy.stats import binom, ks_2samp
 from sklearn.base import BaseEstimator
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
-from .classification_bias import ClassificationBias
-from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
-from .fairness_transformer import FairnessTransformer, VariableType
-from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
+from ..metrics import CategoricalLogisticR2, CramersV
+from .classification_bias import ClassificationBias
+from .fairness_transformer import FairnessTransformer, VariableType
+from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 
 logger = logging.getLogger(__name__)
 

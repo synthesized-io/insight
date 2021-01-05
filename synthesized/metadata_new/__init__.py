@@ -1,19 +1,9 @@
-from .base import Meta
-from .base import ValueMeta
-from .base import Nominal
-from .base import Ordinal
-from .base import Affine
-from .base import Scale
-from .base import Ring
-from .base import Domain
-
+from .base import Affine, Domain, Meta, Nominal, Ordinal, Ring, Scale, ValueMeta
 from .bool import Bool
 from .categorical import String
-from .continuous import Integer
-from .continuous import Float
-from .datetime import Date, TimeDelta
-
+from .continuous import Float, Integer
 from .data_frame_meta import DataFrameMeta
+from .datetime import Date, TimeDelta
 from .meta_builder import MetaExtractor
 
 __all__ = [

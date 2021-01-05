@@ -1,10 +1,10 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import abstractmethod
-from typing import Any, Dict, List, Mapping, Optional, Union
 from itertools import combinations, permutations
+from typing import Any, Dict, List, Mapping, Optional, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from ..dataset import categorical_or_continuous_values
 

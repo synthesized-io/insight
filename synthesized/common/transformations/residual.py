@@ -1,12 +1,12 @@
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import tensorflow as tf
 
+from ..module import tensorflow_name_scoped
+from ..util import get_initializer
 from .dense import DenseTransformation
 from .linear import LinearTransformation
 from .transformation import Transformation
-from ..util import get_initializer
-from ..module import tensorflow_name_scoped
 
 
 class ResidualTransformation(Transformation):

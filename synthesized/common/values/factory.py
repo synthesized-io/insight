@@ -1,20 +1,19 @@
 """Utilities that help you create Value objects."""
-from typing import Dict, Any, Optional, Union, List
 import logging
+from typing import Any, Dict, List, Optional, Union
 
+from ...config import ValueFactoryConfig
+from ...metadata import AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta, \
+                        DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .date import DateValue
 from .decomposed_continuous import DecomposedContinuousValue
 from .identifier import IdentifierValue
-from .rule import RuleValue
 from .nan import NanValue
+from .rule import RuleValue
 from .value import Value
-from ...config import ValueFactoryConfig
-from ...metadata import DataFrameMeta, ValueMeta
-from ...metadata import CategoricalMeta, ContinuousMeta, DecomposedContinuousMeta, NanMeta, DateMeta, AddressMeta, \
-    BankNumberMeta, PersonMeta, RuleMeta, IdentifierMeta
 
 logger = logging.getLogger(__name__)
 

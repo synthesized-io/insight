@@ -1,12 +1,12 @@
 """This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
-from typing import Callable, List, Dict, Any, Union, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common import Synthesizer, Distribution, Functional
+from ..common import Distribution, Functional, Synthesizer
 from ..common.values import Value
 
 

@@ -3,12 +3,12 @@ from typing import Sequence
 import numpy as np
 import tensorflow as tf
 
+from ...config import NanConfig
+from ..module import tensorflow_name_scoped
+from ..util import get_initializer
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from ..util import get_initializer
-from ..module import tensorflow_name_scoped
-from ...config import NanConfig
 
 
 class NanValue(Value):

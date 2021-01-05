@@ -1,9 +1,9 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 import tensorflow as tf
 
-from .transformation import Transformation
 from ..module import tensorflow_name_scoped
+from .transformation import Transformation
 
 
 class LstmTransformation(Transformation):

@@ -1,14 +1,14 @@
 """
 Collection of Metrics that measure the distance, or similarity, between two datasets.
 """
-from typing import Optional, Callable, Tuple, Union, Sequence
-from dataclasses import dataclass
 from abc import abstractmethod
+from dataclasses import dataclass
+from typing import Callable, Optional, Sequence, Tuple, Union
 
-import pandas as pd
 import numpy as np
-from scipy.stats import ks_2samp, binom_test, beta, norm
+import pandas as pd
 import pyemd
+from scipy.stats import beta, binom_test, ks_2samp, norm
 
 
 @dataclass

@@ -4,9 +4,9 @@
 #
 # The testing environment
 """This module contains tools for utility testing."""
-from enum import Enum
 import logging
 import math
+from enum import Enum
 from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -14,14 +14,14 @@ import numpy as np
 import pandas as pd
 
 from ..common.synthesizer import Synthesizer
-from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot
 from ..insight import metrics
-from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix, DiffMetricMatrix
-from ..insight.metrics import ColumnComparisonVector, TwoDataFrameVector
-from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..insight.dataset import categorical_or_continuous_values
+from ..insight.metrics import ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix, \
+                              TwoDataFrameVector
+from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..testing.plotting import plot_standard_metrics
+from .plotting import categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances, \
+                      plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style
 
 logger = logging.getLogger(__name__)
 

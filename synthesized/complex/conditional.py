@@ -1,20 +1,20 @@
 import gc
+import logging
 import re
 from abc import ABC
 from collections import Counter
 from datetime import datetime
 from itertools import product
-import logging
-from typing import Any, Dict, Tuple, Union, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
 from ..common.values import Value
 from ..metadata import CategoricalMeta, ContinuousMeta, DateMeta, NanMeta
+from .data_imputer import DataImputer
 
 logger = logging.getLogger(__name__)
 

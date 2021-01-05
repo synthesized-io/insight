@@ -1,9 +1,10 @@
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 import tensorflow as tf
 
-from .transformation import Transformation
 from ..module import tensorflow_name_scoped
 from ..util import get_initializer
+from .transformation import Transformation
 
 
 class BatchNorm(Transformation):

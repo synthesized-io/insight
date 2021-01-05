@@ -1,9 +1,9 @@
-from typing import Optional, List, cast, Dict
+from typing import Dict, List, Optional, cast
 
 import pandas as pd
 
-from .base import Ordinal, Domain
-from .exceptions import MetaNotExtractedError, ExtractionError
+from .base import Domain, Ordinal
+from .exceptions import ExtractionError, MetaNotExtractedError
 
 
 class OrderedString(Ordinal[str]):

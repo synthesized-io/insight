@@ -1,10 +1,10 @@
-from typing import Union, Callable, Optional, Tuple, Dict
 import warnings
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 
-from .synthesizer import Synthesizer
 from ..complex.conditional import ConditionalSampler as _ConditionalSampler
+from .synthesizer import Synthesizer
 
 
 class ConditionalSampler(Synthesizer):

@@ -1,14 +1,14 @@
 import logging
 from math import log
-from typing import Any, Dict, Sequence, Optional
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import tensorflow as tf
 
-from .value import Value
-from ..util import get_initializer
-from ..module import tensorflow_name_scoped
 from ...config import CategoricalConfig
+from ..module import tensorflow_name_scoped
+from ..util import get_initializer
+from .value import Value
 
 logger = logging.getLogger(__name__)
 

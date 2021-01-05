@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 
-from .base import Domain, Scale, Ring
+from .base import Domain, Ring, Scale
 
 
 class Integer(Scale[np.int64]):

@@ -1,10 +1,10 @@
-from typing import Callable, Dict, Any
+from typing import Any, Callable, Dict
 
 import tensorflow as tf
 
-from .encoding import Encoding
-from ..transformations import GaussianTransformation
 from ..module import tensorflow_name_scoped
+from ..transformations import GaussianTransformation
+from .encoding import Encoding
 
 
 class RecurrentDSSEncoding(Encoding):

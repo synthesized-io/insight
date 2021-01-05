@@ -1,11 +1,11 @@
 from typing import Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from .base import Transformer
 from ..metadata_new import Float, Integer
+from .base import Transformer
 
 
 class QuantileTransformer(Transformer):

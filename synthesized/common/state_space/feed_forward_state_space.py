@@ -3,9 +3,9 @@ from typing import Dict, Tuple
 import pandas as pd
 import tensorflow as tf
 
-from .state_space import StateSpaceModel
-from ..transformations import Transformation, MlpTransformation, DenseTransformation
 from ...metadata import DataFrameMeta
+from ..transformations import DenseTransformation, MlpTransformation, Transformation
+from .state_space import StateSpaceModel
 
 
 class FeedForwardStateSpaceModel(StateSpaceModel):
@@ -184,12 +184,14 @@ if __name__ == '__main__':
     """Testing the FFSSM on simple sinusoidal data."""
     import warnings
     from datetime import datetime
+
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
+    import seaborn as sns
+
+    from synthesized.common.util import record_summaries_every_n_global_steps
 
     from ...metadata import MetaExtractor
-    from synthesized.common.util import record_summaries_every_n_global_steps
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
     df = pd.DataFrame(dict(

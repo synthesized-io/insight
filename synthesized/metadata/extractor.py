@@ -1,20 +1,19 @@
 import enum
 import logging
-from math import sqrt, log
+from dataclasses import fields
+from math import log, sqrt
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
 import treelib as tl
-from dataclasses import fields
 
-from .identify_rules import identify_rules
+from ..config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonParams
 from .data_frame import DataFrameMeta
+from .identify_rules import identify_rules
 from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
-    DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, TimeIndexMeta, \
-    ValueMeta
-from ..config import MetaExtractorConfig, AddressParams, BankParams, PersonParams, FormattedStringParams
-
+                    DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, \
+                    TimeIndexMeta, ValueMeta
 
 logger = logging.getLogger(__name__)
 

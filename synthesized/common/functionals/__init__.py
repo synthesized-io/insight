@@ -1,11 +1,10 @@
+from ..module import register
 from .conditional import ConditionalFunctional
 from .correlation import CorrelationFunctional
 from .correlation_matrix import CorrelationMatrixFunctional
 from .functional import Functional
 from .mean import MeanFunctional
 from .standard_deviation import StandardDeviationFunctional
-from ..module import register
-
 
 register(name='conditional', module=ConditionalFunctional)
 register(name='correlation', module=CorrelationFunctional)

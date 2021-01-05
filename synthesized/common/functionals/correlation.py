@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from .functional import Functional
 from ..module import tensorflow_name_scoped
+from .functional import Functional
 
 
 class CorrelationFunctional(Functional):

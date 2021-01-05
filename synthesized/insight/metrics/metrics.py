@@ -5,13 +5,13 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 from pyemd import emd
-from scipy.stats import kendalltau, spearmanr, ks_2samp
-from sklearn.preprocessing import OneHotEncoder
+from scipy.stats import kendalltau, ks_2samp, spearmanr
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import OneHotEncoder
 
-from .metrics_base import ColumnMetric, TwoColumnMetric
-from ..modelling import ModellingPreprocessor
 from ...metadata import MetaExtractor
+from ..modelling import ModellingPreprocessor
+from .metrics_base import ColumnMetric, TwoColumnMetric
 
 logger = logging.getLogger(__name__)
 

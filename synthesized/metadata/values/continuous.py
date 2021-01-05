@@ -1,13 +1,12 @@
-from typing import Any, Dict, Tuple, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, norm, uniform, weibull_min
+from sklearn.preprocessing import QuantileTransformer, StandardScaler
 from tensorflow_probability import distributions as tfd
 
 from .value_meta import ValueMeta
-
 
 DISTRIBUTIONS = dict(
     # beta=(beta, tfd.Beta),

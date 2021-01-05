@@ -2,12 +2,10 @@ from typing import Dict, List
 
 import pandas as pd
 
+from ..config import AddressParams, BankParams, MetaExtractorConfig, PersonParams
+from ..metadata import MetaExtractor as _MetaExtractor
+from ..metadata import TypeOverride
 from .data_frame_meta import DataFrameMeta
-from ..config import MetaExtractorConfig
-from ..config import AddressParams
-from ..config import BankParams
-from ..config import PersonParams
-from ..metadata import MetaExtractor as _MetaExtractor, TypeOverride
 
 
 class MetaExtractor:

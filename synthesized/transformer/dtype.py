@@ -1,6 +1,7 @@
 from typing import Optional
 
 import pandas as pd
+
 from .base import Transformer
 
 

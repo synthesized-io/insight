@@ -1,21 +1,21 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Optional, Tuple, Any, BinaryIO, Sequence
+import pickle
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import pickle
 import tensorflow as tf
 
-from .binary_builder import ModelBinary
-from ..metadata import DataFrameMeta
 from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import Value, ValueFactory
 from ..config import HighDimConfig
+from ..metadata import DataFrameMeta
 from ..version import __version__
+from .binary_builder import ModelBinary
 
 logger = logging.getLogger(__name__)
 

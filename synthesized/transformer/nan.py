@@ -1,7 +1,7 @@
 import pandas as pd
 
-from .base import Transformer
 from ..metadata_new import Nominal
+from .base import Transformer
 
 
 class NanTransformer(Transformer):

@@ -2,8 +2,8 @@ from typing import List
 
 import pandas as pd
 
-from ..insight.metrics import predictive_modelling_score as _predictive_modelling_score
 from ..insight.metrics import predictive_modelling_comparison as _predictive_modelling_comparison
+from ..insight.metrics import predictive_modelling_score as _predictive_modelling_score
 from ..insight.modelling import CLASSIFIERS, REGRESSORS
 
 

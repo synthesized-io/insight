@@ -6,8 +6,8 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
 from ...config import MetaExtractorConfig
+from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)
 
