@@ -17,7 +17,8 @@ from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_
 from .fairness_transformer import FairnessTransformer
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
-from ...metadata_new import MetaExtractor, Date, DiscreteModel, ContinuousModel
+from ...metadata_new import MetaExtractor, Date
+from ...metadata_new.base.model import DiscreteModel, ContinuousModel
 from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -168,10 +169,10 @@ class FairnessScorer:
 
         if condense_output:
             if isinstance(self.target_model, DiscreteModel):
-                if self.target_model.categories == 2:
+                if len(self.target_model.categories) == 2:  # type: ignore
                     df_biases = df_biases[df_biases['target'] == self.positive_class]
 
-                elif self.target_model.categories > 2 and mode == 'ovr':
+                elif len(self.target_model.categories) > 2 and mode == 'ovr':  # type: ignore
                     df_biases['distance'] = df_biases['distance'].abs()
                     df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
                     df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
@@ -198,10 +199,10 @@ class FairnessScorer:
 
         if isinstance(self.target_model, DiscreteModel):
 
-            if len(self.target_model.categories) == 2:
+            if len(self.target_model.categories) == 2:  # type: ignore
                 df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
 
-            elif len(self.target_model.categories) > 2:
+            elif len(self.target_model.categories) > 2:  # type: ignore
 
                 if mode == 'ovr':
                     df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
@@ -556,9 +557,9 @@ class FairnessScorer:
     def get_positive_class(self) -> Optional[str]:
         # Only set positive class for binary/multinomial, even if given.
 
-        if isinstance(self.target_model, DiscreteModel) and len(self.target_model.categories) == 2:
+        if isinstance(self.target_model, DiscreteModel) and len(self.target_model.categories) == 2:  # type: ignore
             # If target class is not given, we'll use minority class as usually it is the target.
-            return max(self.target_model.probabilities, key=self.target_model.probabilities.get)
+            return max(self.target_model.probabilities, key=self.target_model.probabilities.get)  # type: ignore
 
         else:
             return None

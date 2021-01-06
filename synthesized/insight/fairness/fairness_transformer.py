@@ -5,7 +5,7 @@ from typing import List, Optional, cast
 import pandas as pd
 
 from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
-from ...config import MetaFactoryConfig
+from ...config import ModelFactoryConfig
 from ...metadata_new import DataFrameMeta, MetaExtractor, Scale, Date, ValueMeta
 
 logger = logging.getLogger(__name__)
@@ -49,8 +49,8 @@ class FairnessTransformer(SequentialTransformer):
             self.df_meta = MetaExtractor.extract(df)
 
         categorical_threshold = int(max(
-            float(MetaFactoryConfig.min_num_unique),
-            MetaFactoryConfig.categorical_threshold_log_multiplier * log(len(df))
+            float(ModelFactoryConfig.min_num_unique),
+            ModelFactoryConfig.categorical_threshold_log_multiplier * log(len(df))
         ))
 
         # Transformer for target column
