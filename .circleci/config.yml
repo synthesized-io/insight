@@ -71,6 +71,9 @@ jobs:
       - store_artifacts:
           path: test-results
 
+      - store_artifacts:
+          path: coverage-reports
+
   post-results:
     docker:
       - image: circleci/python:3.6.9
@@ -85,6 +88,11 @@ jobs:
             prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items[1].job_number')
             echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
+
+            echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/artifacts"
+            curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/artifacts" -H "Circle-Token: ${CIRCLE_TOKEN}" \
+              | grep -o 'https://[^"]*' \
+              | wget --verbose --header "Circle-Token: ${CIRCLE_TOKEN}" --input-file -
 
             echo $(cat ./test-results.txt | grep -Ec "success")
             echo $(cat ./test-results.txt | grep -Ec "failure")
