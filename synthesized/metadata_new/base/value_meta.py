@@ -39,7 +39,7 @@ class ValueMeta(Meta, Generic[DType]):
         super().__init__(name=name)
 
     def __repr__(self) -> str:
-        return f'Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
+        return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
 class Nominal(ValueMeta[NType], Generic[NType]):
