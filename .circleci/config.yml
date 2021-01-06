@@ -2,6 +2,7 @@
 version: 2.1
 orbs:
   jq: circleci/jq@2.2
+  sonarcloud: sonarsource/sonarcloud@1.0.1
 jobs:
   build:
     docker:
@@ -31,6 +32,8 @@ jobs:
           paths:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+
+      - sonarcloud/scan
 
       - persist_to_workspace:
           root: .
@@ -287,7 +290,8 @@ workflows:
   version: 2
   build-test-publish:
     jobs:
-      - build
+      - build:
+          context: SonarCloud
       - test:
           requires:
             - build
