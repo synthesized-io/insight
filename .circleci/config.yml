@@ -34,8 +34,6 @@ jobs:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
 
-      - sonarcloud/scan
-
       - persist_to_workspace:
           root: .
           paths:
@@ -58,8 +56,8 @@ jobs:
           name: Run Tests
           shell: /bin/bash
           command: |
-            trap 'echo "Some Tests Failed"' 1
-            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml
+            trap 'echo "Some Tests Failed"' 123
+            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
           no_output_timeout: 30m
 
       - run:
@@ -73,10 +71,13 @@ jobs:
       - store_artifacts:
           path: test-results
 
-  post-to-jira:
+  post-results:
     docker:
       - image: circleci/python:3.6.9
     steps:
+      - attach_workspace:
+            at: .
+      - sonarcloud/scan
       - jq/install:
           when: always
       - run:
@@ -295,7 +296,7 @@ workflows:
       - test:
           requires:
             - build
-      - post-to-jira:
+      - post-results:
           requires:
             - test
       - publish:
@@ -305,4 +306,4 @@ workflows:
                 - master
                 - /r\d\.\d.*/
           requires:
-            - post-to-jira
+            - post-results
