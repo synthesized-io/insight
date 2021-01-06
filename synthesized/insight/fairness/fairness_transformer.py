@@ -1,21 +1,14 @@
 import logging
-from enum import Enum
 from math import log
 from typing import List, Optional, cast
 
 import pandas as pd
 
 from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
-from ...config import MetaExtractorConfig
+from ...config import MetaFactoryConfig
 from ...metadata_new import DataFrameMeta, MetaExtractor, Scale, Date, ValueMeta
 
 logger = logging.getLogger(__name__)
-
-
-class VariableType(Enum):
-    Binary = 0
-    Multinomial = 1
-    Continuous = 2
 
 
 class FairnessTransformer(SequentialTransformer):
@@ -55,10 +48,9 @@ class FairnessTransformer(SequentialTransformer):
         if self.df_meta is None:
             self.df_meta = MetaExtractor.extract(df)
 
-        # To do: remove. This should be handled by Model, and the logic in MetaBuilder.
         categorical_threshold = int(max(
-            float(MetaExtractorConfig.min_num_unique),
-            MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
+            float(MetaFactoryConfig.min_num_unique),
+            MetaFactoryConfig.categorical_threshold_log_multiplier * log(len(df))
         ))
 
         # Transformer for target column

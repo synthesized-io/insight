@@ -18,6 +18,7 @@ from .fairness_transformer import FairnessTransformer
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
 from ...metadata_new import MetaExtractor, Date, DiscreteModel, ContinuousModel
+from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +75,8 @@ class FairnessScorer:
         self.transformer.fit(df)
         self.df_meta = MetaExtractor.extract(self.transformer(df))
 
-        self.sensitive_attrs = self.preprocessor.sensitive_attrs
-        self.target_model = self.df_meta.models[self.target]
+        self.sensitive_attrs = self.transformer.sensitive_attrs
+        self.target_model = ModelFactory().create_model(df[target])
 
         self.values_str_to_list: Dict[str, List[str]] = dict()
         self.names_str_to_list: Dict[str, List[str]] = dict()
@@ -97,7 +98,7 @@ class FairnessScorer:
         return list(np.concatenate((self.sensitive_attrs, [self.target])))
 
     def distributions_score(self, df: pd.DataFrame,
-                            mode: Optional[str] = None, alpha: float = 0.05,
+                            mode: str = 'emd', alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
                             weighted: bool = True, max_combinations: Optional[int] = 3, condense_output: bool = True,
                             progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
@@ -117,7 +118,7 @@ class FairnessScorer:
             progress_callback: Progress bar callback.
         """
 
-        df_pre = self.preprocessor(df)
+        df_pre = self.transformer(df)
 
         if len(self.sensitive_attrs) == 0 or len(df_pre) == 0 or len(df_pre.dropna()) == 0:
             if progress_callback is not None:
@@ -232,7 +233,7 @@ class FairnessScorer:
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
-        df_pre = self.preprocessor(df)
+        df_pre = self.transformer(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
