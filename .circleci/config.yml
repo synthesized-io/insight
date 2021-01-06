@@ -291,8 +291,7 @@ workflows:
   version: 2
   build-test-publish:
     jobs:
-      - build:
-          context: sonarcloud
+      - build
       - test:
           requires:
             - build
