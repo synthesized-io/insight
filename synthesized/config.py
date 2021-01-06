@@ -92,9 +92,7 @@ class MetaFactoryConfig:
             Categorcial meta has not been inferred, then Float or Integer meta
             is returned.
     """
-    categorical_threshold_log_multiplier: float = 2.5
     parsing_nan_fraction_threshold: float = 0.25
-    min_num_unique: int = 10
 
 
 @dataclass
@@ -103,6 +101,23 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
     @property
     def meta_extractor_config(self):
         return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
+
+
+@dataclass
+class ModelFactoryConfig:
+    meta_model_mapping = {
+        'Float': 'KernelDensityEstimate',
+        'Integer': 'KernelDensityEstimate',
+        'String': 'Histogram',
+        'OrderedString': 'Histogram',
+        'Bool': 'Histogram',
+        'IntegerBool': 'Histogram',
+        'Date': 'Histogram',
+        'TimeDelta': 'KernelDensityEstimate',
+    }
+
+    categorical_threshold_log_multiplier: float = 2.5
+    min_num_unique: int = 10
 
 
 # Transformer Config Classes ----------------------------------------

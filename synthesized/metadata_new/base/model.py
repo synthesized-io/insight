@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, Optional, TypeVar, Sequence
+from typing import Any, Dict, Generic, Optional, Type, TypeVar, Sequence
 
 import pandas as pd
 
@@ -12,9 +12,15 @@ DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
 
 class Model:
 
+    _model_registry: Dict[str, Type['Model']] = {}
+
     def __init__(self) -> None:
         super().__init__()
         self._fitted = False
+
+    def __init_subclass__(cls: Type[ModelType]) -> None:
+        super().__init_subclass__()
+        Model._model_registry[cls.__name__] = cls
 
     def fit(self: ModelType, df: pd.DataFrame) -> ModelType:
         self._fitted = True
