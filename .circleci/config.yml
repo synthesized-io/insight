@@ -80,7 +80,6 @@ jobs:
     steps:
       - attach_workspace:
             at: .
-      - sonarcloud/scan
       - jq/install:
           when: always
       - run:
@@ -110,6 +109,7 @@ jobs:
             exit 0
 
           name: Fetching Test Summary
+      - sonarcloud/scan
       - run:
           command: |
             echo 'JIRA_BUILD_STATUS="failed"' >> ./circleci-orb-jira.status
