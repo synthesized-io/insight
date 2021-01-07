@@ -61,7 +61,14 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
         x = (x - c).astype(self.kde_dtype)
 
-        prob = cast(gaussian_kde, self._kernel)(x)
+        if self.kde_dtype == 'i8':
+            half_win = self.unit_meta.precision.astype(self.kde_dtype) / 2
+            if not np.isscalar(x):
+                prob = np.array([cast(gaussian_kde, self._kernel).integrate_box_1d(low=y - half_win, high=y + half_win) for y in x])
+            else:
+                prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=(x-half_win), high=x+half_win)
+        else:
+            prob = cast(gaussian_kde, self._kernel)(x)
 
         return prob
 
@@ -117,7 +124,12 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             self.name: domain,
             'pdf': self.probability(domain)
         })
-        sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+
+        if self.kde_dtype == 'i8':
+            sns.barplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+        else:
+            sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+
         for tick in fig.gca().get_xticklabels():
             tick.set_rotation(90)
 
