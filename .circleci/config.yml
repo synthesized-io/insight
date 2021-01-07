@@ -103,6 +103,9 @@ jobs:
 
             echo 'done'
 
+            ls
+            pwd
+
             if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]; then
               exit 1
             fi
