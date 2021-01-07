@@ -1,4 +1,4 @@
-from typing import Tuple, Union, Dict, Any
+from typing import Any, Dict, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp

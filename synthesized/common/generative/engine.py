@@ -1,10 +1,10 @@
-from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 
 from .generative import Generative
 from ..encodings import VariationalEncoding
-from ..module import tensorflow_name_scoped, module_registry
+from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
 from ..values import Value, ValueOps

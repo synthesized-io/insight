@@ -1,19 +1,19 @@
+import logging
+import math
 from enum import Enum
 from typing import Tuple, Union
-import math
-import logging
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-from ..metadata import DataFrameMeta
-from .plotting import set_plotting_style, plot_first_order_metric_distances, plot_second_order_metric_distances,\
-    plot_second_order_metric_matrices, continuous_distribution_plot, categorical_distribution_plot, \
-    plot_standard_metrics
+from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
+                       plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics,
+                       set_plotting_style)
 from ..insight import metrics
-from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix, DiffMetricMatrix
-from ..insight.metrics import TwoDataFrameVector, ColumnComparisonVector
+from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
+                               TwoDataFrameVector)
+from ..metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 

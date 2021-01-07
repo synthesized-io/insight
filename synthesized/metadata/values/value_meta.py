@@ -1,7 +1,7 @@
-from typing import Any, Dict, List, Optional
-from base64 import b64encode, b64decode
-
 import pickle
+from base64 import b64decode, b64encode
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 

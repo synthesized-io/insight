@@ -1,10 +1,10 @@
-from typing import Optional, TypeVar, Dict, Type, cast
 from datetime import datetime
+from typing import Dict, Optional, Type, TypeVar, cast
 
 import numpy as np
 import pandas as pd
 
-from .base import Domain, Affine, Scale
+from .base import Affine, Domain, Scale
 from .exceptions import UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='Date')

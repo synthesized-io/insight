@@ -1,58 +1,22 @@
-from .metrics import Mean
-from .metrics import StandardDeviation
-from .metrics import KendellTauCorrelation
-from .metrics import SpearmanRhoCorrelation
-from .metrics import CramersV
-from .metrics import KolmogorovSmirnovDistance
-from .metrics import EarthMoversDistance
-from .metrics import CategoricalLogisticR2
-
-from .modelling_metrics import predictive_modelling_score
-from .modelling_metrics import predictive_modelling_comparison
-from .modelling_metrics import Accuracy
-from .modelling_metrics import Precision
-from .modelling_metrics import Recall
-from .modelling_metrics import F1Score
-from .modelling_metrics import ROC_AUC
-from .modelling_metrics import ROC_Curve
-from .modelling_metrics import PR_Curve
-from .modelling_metrics import ConfusionMatrix
-from .modelling_metrics import MeanAbsoluteError
-from .modelling_metrics import MeanSquaredError
-from .modelling_metrics import R2_Score
-
-from .vectors import DiffVector
-from .vectors import FractionalDiffVector
-
-from .metrics_base import _Metric
-from .metrics_base import ColumnMetric
-from .metrics_base import TwoColumnMetric
-from .metrics_base import DataFrameMetric
-from .metrics_base import TwoDataFrameMetric
-from .metrics_base import DiffColumnMetricAdapter
-
-from .metrics_base import _Vector
-from .metrics_base import ColumnVector  # noqa: F401
-from .metrics_base import DataFrameVector  # noqa: F401
-from .metrics_base import TwoDataFrameVector  # noqa: F401
-from .metrics_base import ColumnMetricVector
-from .metrics_base import ColumnComparisonVector
-from .metrics_base import RollingColumnMetricVector  # noqa: F401
-from .metrics_base import ChainColumnVector  # noqa: F401
-
-from .metrics_base import _Matrix
-from .metrics_base import DataFrameMatrix  # noqa: F401
-from .metrics_base import TwoDataFrameMatrix  # noqa: F401
-from .metrics_base import TwoColumnMetricMatrix
-from .metrics_base import DiffMetricMatrix
-
-from .metrics_base import ModellingMetric
-from .metrics_base import ClassificationMetric
-from .metrics_base import RegressionMetric
-from .metrics_base import ClassificationPlotMetric
-
 from itertools import chain
 
+from .metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation,
+                      KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation)
+from .metrics_base import ChainColumnVector  # noqa: F401
+from .metrics_base import ColumnVector  # noqa: F401
+from .metrics_base import DataFrameMatrix  # noqa: F401
+from .metrics_base import DataFrameVector  # noqa: F401
+from .metrics_base import RollingColumnMetricVector  # noqa: F401
+from .metrics_base import TwoDataFrameMatrix  # noqa: F401
+from .metrics_base import TwoDataFrameVector  # noqa: F401
+from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, ColumnComparisonVector, ColumnMetric,
+                           ColumnMetricVector, DataFrameMetric, DiffColumnMetricAdapter, DiffMetricMatrix,
+                           ModellingMetric, RegressionMetric, TwoColumnMetric, TwoColumnMetricMatrix,
+                           TwoDataFrameMetric, _Matrix, _Metric, _Vector)
+from .modelling_metrics import (ROC_AUC, Accuracy, ConfusionMatrix, F1Score, MeanAbsoluteError, MeanSquaredError,
+                                PR_Curve, Precision, R2_Score, Recall, ROC_Curve, predictive_modelling_comparison,
+                                predictive_modelling_score)
+from .vectors import DiffVector, FractionalDiffVector
 
 _CORE_METRICS = [
     Mean, StandardDeviation, KendellTauCorrelation, SpearmanRhoCorrelation, CramersV, KolmogorovSmirnovDistance,

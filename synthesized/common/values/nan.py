@@ -6,8 +6,8 @@ import tensorflow as tf
 from .categorical import compute_embedding_size
 from .continuous import ContinuousValue
 from .value import Value
-from ..util import get_initializer
 from ..module import tensorflow_name_scoped
+from ..util import get_initializer
 from ...config import NanConfig
 
 

@@ -1,10 +1,10 @@
-from typing import Callable, Optional, Union
 import logging
+from typing import Callable, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from ..complex.highdim import HighDimSynthesizer, HighDimConfig
+from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..metadata import MetaExtractor
 
 

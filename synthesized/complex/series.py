@@ -2,17 +2,17 @@ import logging
 import random
 import time
 from random import randrange
-from typing import Callable, List, Union, Dict, Optional, Tuple, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..common import Synthesizer
-from ..common.values import Value, ValueFactory
 from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
+from ..common.values import Value, ValueFactory
 from ..config import SeriesConfig
 from ..metadata import DataFrameMeta, IdentifierMeta
 

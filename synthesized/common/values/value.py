@@ -1,7 +1,7 @@
-import re
-from typing import Any, Dict, List, Sequence
-from base64 import b64encode, b64decode
 import pickle
+import re
+from base64 import b64decode, b64encode
+from typing import Any, Dict, List, Sequence
 
 import tensorflow as tf
 

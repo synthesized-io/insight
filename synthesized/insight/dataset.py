@@ -3,8 +3,7 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..metadata import MetaExtractor, DataFrameMeta
-from ..metadata import CategoricalMeta, NanMeta, ValueMeta
+from ..metadata import CategoricalMeta, DataFrameMeta, MetaExtractor, NanMeta, ValueMeta
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:

@@ -1,10 +1,10 @@
-from typing import Tuple, Dict
+from typing import Dict, Tuple
 
 import pandas as pd
 import tensorflow as tf
 
 from ..optimizers import Optimizer
-from ..values import ValueFactory, ValueOps, ValueFactoryConfig
+from ..values import ValueFactory, ValueFactoryConfig, ValueOps
 from ...metadata import DataFrameMeta
 
 

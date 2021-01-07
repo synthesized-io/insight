@@ -1,5 +1,5 @@
-from typing import Any, Dict, Sequence
 from math import log
+from typing import Any, Dict, Sequence
 
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd

@@ -2,7 +2,7 @@ import gzip
 import logging
 import os
 import re
-from typing import List, Dict
+from typing import Dict, List
 
 import faker
 import numpy as np

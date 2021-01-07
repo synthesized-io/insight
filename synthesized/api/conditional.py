@@ -1,5 +1,5 @@
-from typing import Union, Callable, Optional, Tuple, Dict
 import warnings
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 

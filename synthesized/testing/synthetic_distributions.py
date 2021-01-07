@@ -1,12 +1,10 @@
-from random import choice, shuffle, gauss
+from random import choice, gauss, shuffle
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from numpy.random import binomial
-from numpy.random import exponential, normal
-from scipy.stats import bernoulli
-from scipy.stats import powerlaw
+from numpy.random import binomial, exponential, normal
+from scipy.stats import bernoulli, powerlaw
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:

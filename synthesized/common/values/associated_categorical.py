@@ -4,9 +4,10 @@ from typing import Any, Dict, List, Sequence
 import numpy as np
 import tensorflow as tf
 
+from synthesized.common.module import tensorflow_name_scoped
+
 from .categorical import CategoricalValue
 from .value import Value
-from synthesized.common.module import tensorflow_name_scoped
 
 logger = logging.getLogger(__name__)
 

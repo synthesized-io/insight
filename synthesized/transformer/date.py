@@ -2,7 +2,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Transformer, SequentialTransformer
+from .base import SequentialTransformer, Transformer
 from .categorical import CategoricalTransformer
 from ..metadata_new.datetime import Date, get_date_format
 

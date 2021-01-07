@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 import pandas as pd
 
-from .value_meta import ValueMeta
-from .continuous import ContinuousMeta
 from .categorical import CategoricalMeta
+from .continuous import ContinuousMeta
+from .value_meta import ValueMeta
 
 
 class DateMeta(ContinuousMeta):

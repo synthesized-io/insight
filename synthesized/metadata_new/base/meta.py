@@ -1,4 +1,4 @@
-from typing import List, Dict, Type, TypeVar, MutableMapping, Iterator, cast
+from typing import Dict, Iterator, List, MutableMapping, Type, TypeVar, cast
 
 import pandas as pd
 

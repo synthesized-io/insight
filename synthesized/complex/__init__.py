@@ -1,4 +1,4 @@
-from .binary_builder import BinaryType, CompressionType, ModelBinary, DatasetBinary, Binary
+from .binary_builder import Binary, BinaryType, CompressionType, DatasetBinary, ModelBinary
 from .conditional import ConditionalSampler
 from .data_imputer import DataImputer
 from .highdim import HighDimSynthesizer

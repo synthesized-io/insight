@@ -1,15 +1,15 @@
-from itertools import combinations
 import logging
-from typing import Any, List, Union, Callable, Dict
 from collections import OrderedDict
+from itertools import combinations
+from typing import Any, Callable, Dict, List, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import simplejson
 
-from .highdim import HighDimSynthesizer, HighDimConfig
+from .highdim import HighDimConfig, HighDimSynthesizer
 from ..common.synthesizer import Synthesizer
-from ..common.values import ContinuousValue, CategoricalValue
+from ..common.values import CategoricalValue, ContinuousValue
 from ..metadata import MetaExtractor
 
 logger = logging.getLogger(__name__)
