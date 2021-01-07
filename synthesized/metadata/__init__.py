@@ -1,8 +1,8 @@
 from .data_frame import DataFrameMeta
 from .extractor import MetaExtractor, TypeOverride
-from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
-    DateMeta, DecomposedContinuousMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, \
-    RuleMeta, SamplingMeta, TimeIndexMeta, ValueMeta
+from .values import (AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta,
+                     DateMeta, DecomposedContinuousMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta,
+                     PersonMeta, RuleMeta, SamplingMeta, TimeIndexMeta, ValueMeta)
 
 __all__ = [
     'DataFrameMeta', 'MetaExtractor', 'TypeOverride', 'AddressMeta', 'AssociationMeta', 'BankNumberMeta',

@@ -7,11 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .plotting import categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances, \
-    plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics, set_plotting_style
+from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
+                       plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics,
+                       set_plotting_style)
 from ..insight import metrics
-from ..insight.metrics import ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix, \
-    TwoDataFrameVector
+from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
+                               TwoDataFrameVector)
 from ..metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)

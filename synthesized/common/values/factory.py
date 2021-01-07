@@ -12,8 +12,8 @@ from .nan import NanValue
 from .rule import RuleValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata import AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta, \
-    DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
+from ...metadata import (AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta,
+                         DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta)
 
 logger = logging.getLogger(__name__)
 
