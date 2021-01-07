@@ -7,9 +7,9 @@ import faker
 import numpy as np
 import pandas as pd
 
-from ...config import PersonMetaConfig
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
+from ...config import PersonMetaConfig
 
 
 class PersonMeta(ValueMeta):

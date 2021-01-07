@@ -3,9 +3,9 @@ from typing import Dict, Tuple
 import pandas as pd
 import tensorflow as tf
 
-from ...metadata import DataFrameMeta
-from ..transformations import DenseTransformation, MlpTransformation, Transformation
 from .state_space import StateSpaceModel
+from ..transformations import DenseTransformation, MlpTransformation, Transformation
+from ...metadata import DataFrameMeta
 
 
 class FeedForwardStateSpaceModel(StateSpaceModel):

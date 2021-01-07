@@ -4,8 +4,8 @@ from typing import Callable, Optional, Union
 import numpy as np
 import pandas as pd
 
-from ...metadata import DataFrameMeta
 from ..synthesizer import Synthesizer
+from ...metadata import DataFrameMeta
 
 
 class MockSynthesizer(Synthesizer):

@@ -5,10 +5,10 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import tensorflow as tf
 
-from ...config import CategoricalConfig
+from .value import Value
 from ..module import tensorflow_name_scoped
 from ..util import get_initializer
-from .value import Value
+from ...config import CategoricalConfig
 
 logger = logging.getLogger(__name__)
 

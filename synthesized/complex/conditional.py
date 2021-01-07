@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
 from ..common.values import Value
 from ..metadata import CategoricalMeta, ContinuousMeta, DateMeta, NanMeta
-from .data_imputer import DataImputer
 
 logger = logging.getLogger(__name__)
 

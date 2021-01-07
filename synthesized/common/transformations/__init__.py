@@ -1,4 +1,3 @@
-from ..module import register
 from .dense import DenseTransformation
 from .gaussian_transformation import GaussianTransformation
 from .linear import LinearTransformation
@@ -8,6 +7,7 @@ from .modulation import ModulationTransformation
 from .residual import ResidualTransformation
 from .resnet import ResnetTransformation
 from .transformation import Transformation
+from ..module import register
 
 register(name='dense', module=DenseTransformation)
 register(name='gaussian_transformation', module=GaussianTransformation)

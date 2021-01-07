@@ -5,8 +5,8 @@ from typing import Any, Dict, Iterator, List, MutableSequence, Optional, Type, T
 import numpy as np
 import pandas as pd
 
-from ..util import get_all_subclasses
 from .exceptions import NonInvertibleTransformError, TransformerNotFitError
+from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)
 

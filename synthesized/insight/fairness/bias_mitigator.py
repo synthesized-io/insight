@@ -5,9 +5,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from .fairness_scorer import FairnessScorer, VariableType
 from ...common import Synthesizer
 from ...complex import ConditionalSampler, DataImputer
-from .fairness_scorer import FairnessScorer, VariableType
 
 logger = logging.getLogger(__name__)
 

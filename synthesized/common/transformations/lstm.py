@@ -2,8 +2,8 @@ from typing import Any, Dict
 
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class LstmTransformation(Transformation):

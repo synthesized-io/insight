@@ -2,9 +2,9 @@ from typing import Any, Callable, Dict
 
 import tensorflow as tf
 
+from .encoding import Encoding
 from ..module import tensorflow_name_scoped
 from ..transformations import GaussianTransformation
-from .encoding import Encoding
 
 
 class RecurrentDSSEncoding(Encoding):

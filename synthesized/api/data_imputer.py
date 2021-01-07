@@ -2,8 +2,8 @@ from typing import Callable, Optional, Union
 
 import pandas as pd
 
-from ..complex.data_imputer import DataImputer as _DataImputer
 from .synthesizer import Synthesizer
+from ..complex.data_imputer import DataImputer as _DataImputer
 
 
 class DataImputer(Synthesizer):

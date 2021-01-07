@@ -2,9 +2,9 @@ from typing import Any, Dict
 
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .residual import ResidualTransformation
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class ResnetTransformation(Transformation):

@@ -1,8 +1,8 @@
 from typing import Any, Dict
 
-from ..module import tensorflow_name_scoped
 from .dense import DenseTransformation
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
 
 
 class ModulationTransformation(Transformation):

@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import treelib as tl
 
-from ..config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonParams
 from .data_frame import DataFrameMeta
 from .identify_rules import identify_rules
 from .values import AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, \
     DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta, TimeIndexMeta, \
     ValueMeta
+from ..config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonParams
 
 logger = logging.getLogger(__name__)
 

@@ -3,9 +3,9 @@ from typing import Any, Dict, Tuple, Union
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from .encoding import Encoding
 from ..module import tensorflow_name_scoped
 from ..transformations import GaussianTransformation
-from .encoding import Encoding
 
 
 class VariationalLSTMEncoding(Encoding):

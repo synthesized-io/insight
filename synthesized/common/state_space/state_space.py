@@ -3,9 +3,9 @@ from typing import Dict, Tuple
 import pandas as pd
 import tensorflow as tf
 
-from ...metadata import DataFrameMeta
 from ..optimizers import Optimizer
 from ..values import ValueFactory, ValueFactoryConfig, ValueOps
+from ...metadata import DataFrameMeta
 
 
 class StateSpaceModel(tf.Module):

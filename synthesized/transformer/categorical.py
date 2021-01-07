@@ -4,8 +4,8 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from ..metadata_new import Nominal
 from .base import Transformer
+from ..metadata_new import Nominal
 
 
 class CategoricalTransformer(Transformer):

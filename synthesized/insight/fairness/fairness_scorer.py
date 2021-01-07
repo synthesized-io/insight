@@ -12,11 +12,11 @@ from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
-from ..dataset import categorical_or_continuous_values
-from ..metrics import CategoricalLogisticR2, CramersV
 from .classification_bias import ClassificationBias
 from .fairness_transformer import FairnessTransformer, VariableType
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
+from ..dataset import categorical_or_continuous_values
+from ..metrics import CategoricalLogisticR2, CramersV
 
 logger = logging.getLogger(__name__)
 

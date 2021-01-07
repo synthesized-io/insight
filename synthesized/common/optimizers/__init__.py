@@ -1,5 +1,5 @@
-from ..module import register
 from .optimizer import Optimizer
+from ..module import register
 
 register(name='optimizer', module=Optimizer)
 

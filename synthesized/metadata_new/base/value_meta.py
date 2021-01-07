@@ -5,9 +5,9 @@ from typing import Any, Dict, Generic, List, Optional, Sequence, Type, TypeVar, 
 import numpy as np
 import pandas as pd
 
-from ..exceptions import MetaNotExtractedError
 from .domain import Domain
 from .meta import Meta
+from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
 NType = TypeVar("NType", str, np.datetime64, np.timedelta64, int, float, bool, covariant=True)

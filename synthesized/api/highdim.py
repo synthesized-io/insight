@@ -2,10 +2,10 @@ from typing import BinaryIO, Callable, List, Optional, Tuple, Union
 
 import pandas as pd
 
-from ..complex import HighDimSynthesizer as _HighDimSynthesizer
-from ..config import HighDimConfig
 from .data_frame_meta import DataFrameMeta
 from .synthesizer import Synthesizer
+from ..complex import HighDimSynthesizer as _HighDimSynthesizer
+from ..config import HighDimConfig
 
 
 class HighDimSynthesizer(Synthesizer):

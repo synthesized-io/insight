@@ -14,13 +14,13 @@ import pandas as pd
 import simplejson
 from sklearn.model_selection import train_test_split
 
+from .plotting import plot_data, plot_multidimensional, plot_time_series
+from .utility import MAX_PVAL, UtilityTesting
+from .utility_time_series import TimeSeriesUtilityTesting
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
 from ..metadata import MetaExtractor
-from .plotting import plot_data, plot_multidimensional, plot_time_series
-from .utility import MAX_PVAL, UtilityTesting
-from .utility_time_series import TimeSeriesUtilityTesting
 
 
 class Evaluation:

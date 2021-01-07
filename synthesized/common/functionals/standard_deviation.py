@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .functional import Functional
+from ..module import tensorflow_name_scoped
 
 
 class StandardDeviationFunctional(Functional):

@@ -2,12 +2,12 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 
+from .generative import Generative
 from ..encodings import RecurrentDSSEncoding, VariationalLSTMEncoding, VariationalRecurrentEncoding
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
 from ..values import IdentifierValue, Value, ValueOps
-from .generative import Generative
 
 
 class SeriesEngine(Generative):

@@ -3,9 +3,9 @@ from typing import Dict
 import pandas as pd
 import tensorflow as tf
 
-from ...metadata import DataFrameMeta
 from .feed_forward_state_space import GaussianEncoder
 from .state_space import StateSpaceModel
+from ...metadata import DataFrameMeta
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):

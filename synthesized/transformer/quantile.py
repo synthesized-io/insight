@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from ..metadata_new import Float, Integer
 from .base import Transformer
+from ..metadata_new import Float, Integer
 
 
 class QuantileTransformer(Transformer):

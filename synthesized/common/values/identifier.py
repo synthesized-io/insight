@@ -2,10 +2,10 @@ from typing import Dict, Optional, Sequence
 
 import tensorflow as tf
 
-from ...config import IdentifierConfig
+from .value import Value
 from ..module import tensorflow_name_scoped
 from ..util import get_initializer
-from .value import Value
+from ...config import IdentifierConfig
 
 
 class IdentifierValue(Value):

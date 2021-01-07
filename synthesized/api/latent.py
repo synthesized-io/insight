@@ -2,11 +2,11 @@ from typing import Union
 
 import pandas as pd
 
+from .highdim import HighDimSynthesizer
 from ..insight.latent import get_data_quality as _get_data_quality
 from ..insight.latent import get_latent_space as _get_latent_space
 from ..insight.latent import latent_dimension_usage as _latent_dimension_usage
 from ..insight.latent import total_latent_space_usage as _total_latent_space_usage
-from .highdim import HighDimSynthesizer
 
 
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:

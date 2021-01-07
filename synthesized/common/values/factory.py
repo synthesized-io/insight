@@ -2,9 +2,6 @@
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-from ...config import ValueFactoryConfig
-from ...metadata import AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta, \
-    DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
@@ -14,6 +11,9 @@ from .identifier import IdentifierValue
 from .nan import NanValue
 from .rule import RuleValue
 from .value import Value
+from ...config import ValueFactoryConfig
+from ...metadata import AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta, \
+    DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta
 
 logger = logging.getLogger(__name__)
 

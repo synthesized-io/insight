@@ -3,10 +3,10 @@ from typing import Any, Dict, Optional
 
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
-from ..util import get_initializer
 from .batch_norm import BatchNorm
 from .transformation import Transformation
+from ..module import tensorflow_name_scoped
+from ..util import get_initializer
 
 
 class DenseTransformation(Transformation):

@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from .plotting import categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances, \
+    plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style
 from ..common.synthesizer import Synthesizer
 from ..insight import metrics
 from ..insight.dataset import categorical_or_continuous_values
@@ -20,8 +22,6 @@ from ..insight.metrics import ColumnComparisonVector, DiffMetricMatrix, TwoColum
     TwoDataFrameVector
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..testing.plotting import plot_standard_metrics
-from .plotting import categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances, \
-    plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style
 
 logger = logging.getLogger(__name__)
 

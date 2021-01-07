@@ -2,11 +2,11 @@ from typing import Optional, Union
 
 import pandas as pd
 
-from ..config import MetaTransformerConfig
-from ..metadata_new import DataFrameMeta, Meta, Nominal
 from .base import SequentialTransformer, Transformer
 from .exceptions import UnsupportedMetaError
 from .nan import NanTransformer
+from ..config import MetaTransformerConfig
+from ..metadata_new import DataFrameMeta, Meta, Nominal
 
 
 class DataFrameTransformer(SequentialTransformer):

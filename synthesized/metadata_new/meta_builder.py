@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Optional, Union
 import numpy as np
 import pandas as pd
 
-from ..config import MetaFactoryConfig
 from .base import ValueMeta
 from .bool import Bool
 from .categorical import String
@@ -13,6 +12,7 @@ from .data_frame_meta import DataFrameMeta
 from .datetime import Date, TimeDelta, get_date_format
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
 from .ordinal import OrderedString
+from ..config import MetaFactoryConfig
 
 
 class _MetaBuilder:

@@ -9,9 +9,9 @@ from scipy.stats import kendalltau, ks_2samp, spearmanr
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OneHotEncoder
 
-from ...metadata import MetaExtractor
-from ..modelling import ModellingPreprocessor
 from .metrics_base import ColumnMetric, TwoColumnMetric
+from ..modelling import ModellingPreprocessor
+from ...metadata import MetaExtractor
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,8 @@ from typing import Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 
-from ..complex.conditional import ConditionalSampler as _ConditionalSampler
 from .synthesizer import Synthesizer
+from ..complex.conditional import ConditionalSampler as _ConditionalSampler
 
 
 class ConditionalSampler(Synthesizer):

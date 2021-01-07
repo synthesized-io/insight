@@ -3,8 +3,8 @@ from typing import Dict, List, Sequence
 
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 
 class ValueOps(tf.Module):

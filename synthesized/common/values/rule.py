@@ -2,8 +2,8 @@ from typing import List, Sequence
 
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 
 class RuleValue(Value):

@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import simplejson
 
+from .highdim import HighDimConfig, HighDimSynthesizer
 from ..common.synthesizer import Synthesizer
 from ..common.values import CategoricalValue, ContinuousValue
 from ..metadata import MetaExtractor
-from .highdim import HighDimConfig, HighDimSynthesizer
 
 logger = logging.getLogger(__name__)
 
