@@ -60,8 +60,9 @@ class ContinuousModel(Affine[AType], Model, Generic[AType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
+            min: Optional[AType] = None, max: Optional[AType] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)  # type: ignore
 
     def fit(self: ContinuousModelType, df: pd.DataFrame) -> ContinuousModelType:
         super().fit(df=df)

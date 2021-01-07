@@ -1,9 +1,11 @@
 from typing import Generic, Optional, Dict, Any, cast, Sequence, overload, Union, Type
-from itertools import tee
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
+from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
 from ..base.value_meta import NType, Nominal, Affine, AType
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError, ExtractionError
@@ -27,6 +29,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if self.categories is not None:
             self._extracted = True
         self.probabilities: Optional[Dict[NType, float]] = probabilities
+        if self.probabilities is not None:
+            self._fitted = True
 
     def fit(self: 'Histogram[NType]', df: pd.DataFrame) -> 'Histogram[NType]':
         super().fit(df=df)
@@ -45,7 +49,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             raise ModelNotFittedError
 
         assert self.probabilities is not None
-        samples = np.random.choice([*probabilities.keys()], size=n, p=[*probabilities.values()])
+        samples = np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])
         return pd.DataFrame({self.name: samples})
 
     def probability(self, x: Any) -> float:
@@ -81,18 +85,30 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
 
+            if meta.dtype == 'M8[D]':
+                dtype = 'interval[M8[ns]]'  # TODO: find away to handle 'interval[M8[D]]' instead of 'interval[M8[ns]]'
+            else:
+                dtype = f'interval[{meta.dtype}]'
+
             if (rng / max_bins) > meta.unit_meta.precision:
-                bin_width = (rng / max_bins).astype(meta.dtype)
+                categories = pd.interval_range(meta.min, meta.max, periods=max_bins, closed='left').astype(dtype)
             else:
                 bin_width = meta.unit_meta.precision
-
-            categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
-            dtype = str(categories.dtype)  # TODO: find away to handle 'interval[M8[D]]' instead of 'interval[M8[ns]]'
+                categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
 
         else:
             raise ExtractionError("Meta doesn't have both max and min defined.")
 
-        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
+        if isinstance(meta, KernelDensityEstimate) and meta._fitted:
+            norm = meta.integrated_probability(meta.min, meta.max)
+            probabilities: Optional[Dict[AType, float]] = {
+                c: meta.integrated_probability(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
+                for c in categories
+            }
+        else:
+            probabilities = None
+
+        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, probabilities=probabilities)
         hist.dtype = dtype
 
         return hist
@@ -111,17 +127,24 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
     def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
 
         dtype = meta.dtype
+        probabilities = None
 
-        if isinstance(meta, Affine) and meta.max is not None and meta.min is not None:
+        if isinstance(meta, Affine) and meta.max is not None and meta.min is not None and meta.max != meta.min:
             rng = meta.max - meta.min
             bin_width = meta.unit_meta.precision
-            smallest_diff = np.diff(categories).min()
+            smallest_diff = np.diff(meta.categories).min()
 
             if bin_width > smallest_diff:
                 try:
                     rng / bin_width
                     categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
                     dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
+                    if isinstance(meta, KernelDensityEstimate) and meta._fitted:
+                        norm = meta.integrated_probability(categories.left[0], categories.right[-1])
+                        probabilities = {
+                            c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy()) / norm
+                            for c in categories
+                        }
                 except ZeroDivisionError:
                     categories = meta.categories
             else:
@@ -129,7 +152,23 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         else:
             categories = meta.categories
 
-        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq)
+        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, probabilities=probabilities)
         hist.dtype = dtype
 
         return hist
+
+    def plot(self, **kwargs) -> plt.Figure:
+
+        fig = plt.Figure(figsize=(7, 4))
+        sns.set_theme(**kwargs)
+
+        plot_data = pd.DataFrame({
+            self.name: self.categories,
+            'probability': [self.probability(c) for c in self.categories] if self.categories is not None else None
+        })
+        sns.barplot(data=plot_data, x=self.name, y='probability', ax=fig.gca())
+        for tick in fig.gca().get_xticklabels():
+            tick.set_rotation(90)
+
+        np.datetime64()
+        return fig

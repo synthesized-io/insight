@@ -1,4 +1,5 @@
 from typing import List, Dict, Type, TypeVar, Mapping, Iterator, cast
+from contextlib import contextmanager
 
 import pandas as pd
 
@@ -30,6 +31,7 @@ class Meta(Mapping[str, 'Meta']):
     _meta_registry: Dict[str, Type['Meta']] = {}
 
     def __init__(self, name: str):
+        super().__init__()
         self.name = name
         self._children: Dict[str, 'Meta'] = dict()
         self._extracted: bool = False
@@ -52,10 +54,15 @@ class Meta(Mapping[str, 'Meta']):
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
-        for child in self.children:
-            child.extract(df)
+        with self.expand(df) as sub_df:
+            for child in self.children:
+                child.extract(sub_df)
         self._extracted = True
         return self
+
+    @contextmanager
+    def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+        yield df
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]

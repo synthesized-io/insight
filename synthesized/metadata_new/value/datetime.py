@@ -1,5 +1,6 @@
 from typing import Optional, TypeVar, Dict, Sequence
 from datetime import datetime
+from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
@@ -50,7 +51,7 @@ class Date(Affine[np.datetime64]):
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
         ]
 
-        self._unit_meta = TimeDeltaDay(self.name + '_unit')
+        self._unit_meta = TimeDeltaDay('diff_' + self.name)
 
     def extract(self: DateType, df: pd.DataFrame):
         if self.date_format is None:
@@ -59,19 +60,37 @@ class Date(Affine[np.datetime64]):
             except UnknownDateFormatError:
                 self.date_format = None
 
-        df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
-
         sub_df = pd.DataFrame({
-            self.name: df[self.name],
+            self.name: pd.to_datetime(df[self.name], format=self.date_format),
             self.name + '_dow': df[self.name].dt.day_name(),
             self.name + '_day': df[self.name].dt.day,
             self.name + '_month': df[self.name].dt.month,
-            self.name + '_year': df[self.name].dt.year,
+            self.name + '_year': df[self.name].dt.year
         })
 
         super().extract(sub_df)  # call super here so we can get max, min from datetime.
 
         return self
+
+    @contextmanager
+    def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+
+        sr_dt = df[self.name]
+
+        df[self.name + '_dow'] = sr_dt.dt.day_name()
+        df[self.name + '_day'] = sr_dt.dt.day
+        df[self.name + '_month'] = sr_dt.dt.month
+        df[self.name + '_year'] = sr_dt.dt.year
+        df.drop(columns=self.name, inplace=True)
+
+        yield df
+
+        df[self.name] = sr_dt
+
+        df.drop(
+            columns=[self.name + '_dow', self.name + '_day', self.name + '_month', self.name + '_year'],
+            inplace=True
+        )
 
     @property
     def unit_meta(self) -> TimeDeltaDay:
