@@ -5,7 +5,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .fairness_scorer import FairnessScorer, VariableType
+from .fairness_scorer import FairnessScorer
+from ...metadata_new.base.model import ContinuousModel
 from ...common import Synthesizer
 from ...complex import ConditionalSampler, DataImputer
 
@@ -66,11 +67,11 @@ class BiasMitigator:
             produce_nans: Whether the output DF contains NaNs.
         """
 
-        if self.fairness_scorer.target_variable_type == VariableType.Continuous:
+        if isinstance(self.fairness_scorer.target_model, ContinuousModel):
             raise NotImplementedError("Bias mitigation is not supported for continuous target distributions.")
 
         df = df.copy()
-        df_pre = self.fairness_scorer.preprocessor(df)
+        df_pre = self.fairness_scorer.transformer(df)
 
         if produce_nans is False and df.isna().any(axis=None):
             # Impute nans to original data-set
@@ -141,7 +142,7 @@ class BiasMitigator:
             Unbiased DataFrame.
         """
         df = df.copy()
-        df_pre = self.fairness_scorer.preprocessor(df)
+        df_pre = self.fairness_scorer.transformer(df)
 
         idx_to_drop = []
         for i, (idx, bias) in enumerate(biases.iterrows()):
@@ -153,7 +154,7 @@ class BiasMitigator:
         df.drop(index=idx_to_drop, inplace=True)
         return df
 
-    def drop_biases(self, df: pd.DataFrame, mode: Optional[str] = None, alpha: float = 0.05,
+    def drop_biases(self, df: pd.DataFrame, mode: str = 'emd', alpha: float = 0.05,
                     min_dist: Optional[float] = 0.05, min_count: Optional[int] = 50,
                     progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
         """Drop all rows affected by any bias.
@@ -245,7 +246,7 @@ class BiasMitigator:
              produce_nans: Whether to include nans in the output.
              max_trials: Maximum number of trials to over-sample the dataframe.
          """
-        df_pre = self.fairness_scorer.preprocessor(df)
+        df_pre = self.fairness_scorer.transformer(df)
 
         for _ in range(max_trials):
             if len(df) >= num_rows:

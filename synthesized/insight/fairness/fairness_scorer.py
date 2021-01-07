@@ -17,12 +17,20 @@ from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_
 from .fairness_transformer import FairnessTransformer
 from ..metrics import CramersV, CategoricalLogisticR2
 from ..dataset import categorical_or_continuous_values
-from ...metadata_new import MetaExtractor, Date
-from ...metadata_new.base.model import DiscreteModel, ContinuousModel
+from ...metadata_new import MetaExtractor, Date, String
+from ...metadata_new.base.model import DiscreteModel, Model
+from ...metadata_new.model import KernelDensityEstimate
 from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
+
+class ContinuousModel(Model):
+    def probability(self, x):
+        return x
+
+    def sample(self):
+        return None
 
 class FairnessScorer:
     """This class analyzes a given DataFrame, looks for biases and quantifies its fairness. There are two ways to
@@ -58,14 +66,30 @@ class FairnessScorer:
                 class). If not given, minority class will be used. Only used for binomial target variables.
             drop_dates: Whether to ignore sensitive attributes containing dates.
         """
-        self.detect_sensitive = detect_sensitive
+
+        if isinstance(sensitive_attrs, list):
+            self.sensitive_attrs = sensitive_attrs
+        elif isinstance(sensitive_attrs, str):
+            self.sensitive_attrs = [sensitive_attrs]
+        elif sensitive_attrs is None:
+            if detect_sensitive is False:
+                raise ValueError("If no 'sensitive_attr' is given, 'detect_sensitive' must be set to True.")
+            self.sensitive_attrs = []
+        else:
+            raise TypeError("Given type of 'sensitive_attrs' not valid.")
+
         self.drop_dates = drop_dates
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
-        self.positive_class = positive_class if positive_class else self.get_positive_class()
 
-        self.target, self.sensitive_attrs = self.validate_sensitive_attrs_and_target(target, sensitive_attrs, df)
+        try:
+            self.target_model = ModelFactory().create_model(df[target])
+        except AttributeError:
+            self.target_model = ContinuousModel()
+
+        self.positive_class = positive_class if positive_class else self.get_positive_class()
         self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
+        self.target, self.sensitive_attrs = self.validate_sensitive_attrs_and_target(target, sensitive_attrs, df)  # type: ignore
 
         if len(self.sensitive_attrs) == 0:  # type: ignore
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
@@ -75,9 +99,7 @@ class FairnessScorer:
 
         self.transformer.fit(df)
         self.df_meta = MetaExtractor.extract(self.transformer(df))
-
         self.sensitive_attrs = self.transformer.sensitive_attrs
-        self.target_model = ModelFactory().create_model(df[target])
 
         self.values_str_to_list: Dict[str, List[str]] = dict()
         self.names_str_to_list: Dict[str, List[str]] = dict()
@@ -439,41 +461,37 @@ class FairnessScorer:
             })
         return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
 
-    def validate_sensitive_attrs_and_target(self, target: str, sensitive_attrs: Optional[Union[List[str], str]], df: pd.DataFrame) -> Tuple[str, List[str]]:
+    def validate_sensitive_attrs_and_target(self, target: str, sensitive_attrs: List[str], df: pd.DataFrame) -> Tuple[str, List[str]]:
 
-        if isinstance(sensitive_attrs, str):
-            sensitive_attrs = [sensitive_attrs]
-
-        elif sensitive_attrs is None:
-            if self.detect_sensitive is False:
-                raise ValueError("If no 'sensitive_attr' is given, 'detect_sensitive' must be set to True.")
-            sensitive_attrs = []
-
-        else:
-            raise TypeError("Given type of 'sensitive_attrs' not valid.")
+        df_meta = MetaExtractor.extract(df)
 
         if target not in df.columns:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
 
-        if self.positive_class not in df[target].unique():
+        if self.positive_class and self.positive_class not in df[target].unique():
             raise ValueError("Positive class is not a unique value in given target.")
 
         if not all(col in df.columns for col in sensitive_attrs):
             raise KeyError("Sensitive attributes not present in DataFrame.")
 
-        if df[target].nunique() > np.sqrt(len(df)):
+        if isinstance(df_meta[target], String) and df[target].nunique() > np.sqrt(len(df)):
             raise ValueError("Unable to compute fairness. Target column has too many unique non-numeric values.")
 
-        if isinstance(self.df_meta[target], Date):
+        if isinstance(df_meta[target], Date):
             raise TypeError("Datetime target columns not supported.")
 
-        for col, meta in self.df_meta.items():
+        for col, meta in df_meta.items():
             if isinstance(meta, Date) and self.drop_dates:
                 self.sensitive_attrs.remove(col)
 
         # If target in sensitive_attrs, drop it
         if target in sensitive_attrs:
             sensitive_attrs.remove(self.target)
+
+        for attr in sensitive_attrs:
+            if isinstance(df_meta[attr], String) and df[attr].nunique() > np.sqrt(len(df)):
+                sensitive_attrs.remove(attr)
+                logging.info(f"Sensitive attribute '{attr}' dropped as it is a sampled value.")
 
         if len(sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
@@ -483,7 +501,7 @@ class FairnessScorer:
     def detect_other_sensitive(self, df: pd.DataFrame, detect_sensitive: bool, detect_hidden: bool) -> None:
         # Detect other hidden sensitive attrs
         if detect_sensitive:
-            columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+            columns = list(filter(lambda c: c not in self.sensitive_attrs + [self.target], df.columns))
             new_sensitive_attrs = self.detect_sensitive_attrs(columns)
             for new_sensitive_attr in new_sensitive_attrs:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
@@ -519,7 +537,7 @@ class FairnessScorer:
             List of Tuples containing (detected attr, sensitive_attr, correlation_value).
 
         """
-        columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+        columns = list(filter(lambda c: c not in self.sensitive_attrs + [self.target], df.columns))
         df = df.dropna().copy()
         categorical, continuous = categorical_or_continuous_values(df[columns])
         cramers_v = CramersV()
