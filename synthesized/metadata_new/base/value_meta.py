@@ -39,7 +39,7 @@ class ValueMeta(Meta, Generic[DType]):
         super().__init__(name=name)
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(name={self.name}, dtype={self.dtype})'
+        return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
 class Nominal(ValueMeta[NType], Generic[NType]):
@@ -83,6 +83,9 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         return d
 
+    def __repr__(self) -> str:
+        return f'<Nominal[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
+
 
 class Ordinal(Nominal[OType], Generic[OType]):
     """
@@ -98,11 +101,12 @@ class Ordinal(Nominal[OType], Generic[OType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
+            min: Optional[OType] = None, max: Optional[OType] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
-        self._min = None
-        self._max = None
+        self._min: Optional[OType] = min
+        self._max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         super().extract(df)
@@ -139,6 +143,9 @@ class Ordinal(Nominal[OType], Generic[OType]):
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
 
+    def __repr__(self) -> str:
+        return f'<Ordinal[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
+
 
 class Affine(Ordinal[AType], Generic[AType]):
     """
@@ -156,9 +163,10 @@ class Affine(Ordinal[AType], Generic[AType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
+            min: Optional[AType] = None, max: Optional[AType] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
@@ -168,6 +176,9 @@ class Affine(Ordinal[AType], Generic[AType]):
     @abstractmethod
     def unit_meta(self: AffineType) -> 'Scale[Any]':
         raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return f'<Affine[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
 class Scale(Affine[SType], Generic[SType]):
@@ -186,8 +197,9 @@ class Scale(Affine[SType], Generic[SType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
+            min: Optional[SType] = None, max: Optional[SType] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
@@ -198,14 +210,21 @@ class Scale(Affine[SType], Generic[SType]):
     def unit_meta(self: ScaleType) -> ScaleType:
         return self
 
+    def __repr__(self) -> str:
+        return f'<Scale[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
+
 
 class Ring(Scale[RType], Generic[RType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
+            min: Optional[RType] = None, max: Optional[RType] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
         return self
+
+    def __repr__(self) -> str:
+        return f'<Ring[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
