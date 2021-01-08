@@ -66,7 +66,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             if not np.isscalar(x):
                 prob = np.array([cast(gaussian_kde, self._kernel).integrate_box_1d(low=y - half_win, high=y + half_win) for y in x])
             else:
-                prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=(x-half_win), high=x+half_win)
+                prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=(x - half_win), high=x + half_win)
         else:
             prob = cast(gaussian_kde, self._kernel)(x)
 
