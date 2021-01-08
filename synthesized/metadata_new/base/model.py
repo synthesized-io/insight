@@ -1,9 +1,10 @@
 from abc import abstractmethod
-from typing import Any, Generic, Optional, TypeVar, Sequence
+from typing import Any, Dict, Generic, Optional, Type, TypeVar, Sequence
 
 import pandas as pd
 
 from .value_meta import Nominal, Affine, NType, AType
+from ...util import get_all_subclasses
 
 ModelType = TypeVar('ModelType', bound='Model')
 ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')
@@ -28,6 +29,10 @@ class Model:
     def probability(self, x: Any) -> float:
         """Get the probability mass of the category x."""
         raise NotImplementedError
+
+    @classmethod
+    def get_registry(cls) -> Dict[str, Type['Model']]:
+        return {sc.__name__: sc for sc in get_all_subclasses(cls)}
 
 
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):

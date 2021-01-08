@@ -1,7 +1,6 @@
 from typing import Any, Optional, Union, Callable, Dict
 from dataclasses import asdict
 
-import numpy as np
 import pandas as pd
 
 from .base import ValueMeta
@@ -34,9 +33,7 @@ class _MetaBuilder:
             'O': self._ObjectBuilder
         }
 
-        self.min_num_unique = min_num_unique
         self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
-        self.categorical_threshold_log_multiplier = categorical_threshold_log_multiplier
 
     def __call__(self, sr: pd.Series) -> ValueMeta[Any]:
         return self._dtype_builders[sr.dtype.kind](sr)
@@ -80,18 +77,12 @@ class _MetaBuilder:
             return self._DateBuilder(sr)
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
-            n_unique = sr.nunique()
             n_rows = len(sr)
 
             x_numeric = pd.to_numeric(sr, errors='coerce')
             num_nan = x_numeric.isna().sum()
 
             if isinstance(sr.dtype, pd.CategoricalDtype):
-                return self._CategoricalBuilder(sr)
-
-            elif (n_unique <= np.sqrt(n_rows)
-                  or n_unique <= max(self.min_num_unique, self.categorical_threshold_log_multiplier * np.log(len(sr))))\
-                    and (not self._contains_genuine_floats(x_numeric)):
                 return self._CategoricalBuilder(sr)
 
             elif num_nan / n_rows < self.parsing_nan_fraction_threshold:
