@@ -72,7 +72,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
 
         return prob
 
-    def integrated_probability(self, low: Any, high: Any) -> float:
+    def integrate(self, low: Any, high: Any) -> float:
         if not self._extracted:
             raise MetaNotExtractedError
         if not self._fitted:

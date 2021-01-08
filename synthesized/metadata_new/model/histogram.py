@@ -100,9 +100,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             raise ExtractionError("Meta doesn't have both max and min defined.")
 
         if isinstance(meta, KernelDensityEstimate) and meta._fitted:
-            norm = meta.integrated_probability(meta.min, meta.max)
+            norm = meta.integrate(meta.min, meta.max)
             probabilities: Optional[Dict[AType, float]] = {
-                c: meta.integrated_probability(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
+                c: meta.integrate(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
                 for c in categories
             }
         else:
@@ -140,9 +140,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
                     categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
                     dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
                     if isinstance(meta, KernelDensityEstimate) and meta._fitted:
-                        norm = meta.integrated_probability(categories.left[0], categories.right[-1])
+                        norm = meta.integrate(categories.left[0], categories.right[-1])
                         probabilities = {
-                            c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy()) / norm
+                            c: meta.integrate(c.left.to_numpy(), c.right.to_numpy()) / norm
                             for c in categories
                         }
                 except ZeroDivisionError:
