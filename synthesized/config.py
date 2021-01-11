@@ -107,17 +107,6 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
 
 @dataclass
 class ModelFactoryConfig:
-    meta_model_mapping = {
-        'Float': 'KernelDensityEstimate',
-        'Integer': 'KernelDensityEstimate',
-        'String': 'Histogram',
-        'OrderedString': 'Histogram',
-        'Bool': 'Histogram',
-        'IntegerBool': 'Histogram',
-        'Date': 'Histogram',
-        'TimeDelta': 'KernelDensityEstimate',
-    }
-
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
 

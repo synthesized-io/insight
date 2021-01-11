@@ -1,75 +1,65 @@
-from typing import cast, Any, Optional, Union, Dict
+from typing import Any, cast, Optional, Union, Dict
 
-import pandas as pd
 import numpy as np
 
-from . import Histogram
-from ..base import Nominal, Model, ValueMeta
-from ..meta_builder import MetaFactory
+from . import Histogram, KernelDensityEstimate
+from ..base import Affine, Meta, Model, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
 from ...config import ModelFactoryConfig
 
 
 class ModelFactory():
-    """Factory class to create Model instances from pd.Series and pd.DataFrame objects."""
+    """Factory class to create Model instances from Meta."""
     def __init__(self, config: Optional[ModelFactoryConfig] = None):
         if config is None:
             self.config = ModelFactoryConfig()
         else:
             self.config = config
 
-    def create_model(self, x: Union[pd.Series, pd.DataFrame], meta: Optional[Union[ValueMeta[Any], DataFrameMeta]] = None,
-                     force_discrete: bool = True) -> Union[Model, Dict[str, Model]]:
+    def create_model(self, meta: Meta) -> Union[Model, Dict[str, Model]]:
         """
-        Create a Model instance from a Series, or a collection of Models from a DataFrame.
-
-        The mapping of ValueMeta -> Model is specified in ModelFactoryConfig. This mapping is overriden
-        using force_discrete and the min_num_unique and the categorical_threshold_multiplier parameters
-        of ModelFactoryConfig.
+        Create a KernelDensityEstimate for an Affine Meta, or a Histogram for Nominal. If the number
+        of unique categories is smaller than the maximum of of min_num_unique, sqrt(num_rows), or
+        categorical_threshold * log(num_rows) then a Histogram is returned.
 
         Args:
-            x: Series or DataFrame to model.
-            meta: ValueMeta or DataFrameMeta instance for the given Series or DataFrame. Defaults to None.
-            force_discrete: Flag to return DiscreteModel if the number of unique values is below the
-            threshold specified in the config.
+            x: ValueMeta or DataFrameMeta instance.
+            num_rows: Optional; number of rows in the column.
 
         Returns:
-            Dictionary mapping column name to model instance.
+            Single Model if x is a ValueMeta or a dictionary mapping column name to model instance if a DataFrameMeta.
         """
 
-        if meta is None:
-            meta = MetaFactory().create_meta(x)
+        if isinstance(meta, ValueMeta):
+            return self._from_value_meta(meta)
 
-        if isinstance(x, pd.Series):
-            meta = cast(Nominal[Any], meta)
-            return self._from_series(x, meta, force_discrete)
-
-        elif isinstance(x, pd.DataFrame):
-            meta = cast(DataFrameMeta, meta)
-            return self._from_df(x, meta, force_discrete)
+        elif isinstance(meta, DataFrameMeta):
+            return self._from_dataframe_meta(meta)
 
         else:
-            raise TypeError(f"Cannot create meta from {type(x)}")
+            raise TypeError(f"Cannot create Model from {type(meta)}")
 
-    def _from_series(self, sr: pd.Series, meta: Nominal[Any], force_discrete: bool) -> Model:
+    def _from_value_meta(self, meta: ValueMeta[Any]) -> Model:
 
-        if meta.__class__.__name__ not in self.config.meta_model_mapping:
-            cls = Histogram
+        if isinstance(meta, Affine):
+            n_unique = len(meta.categories) if meta.categories else 0
+            if (meta.categories is None) or\
+               (meta.num_rows and (n_unique > max(self.config.min_num_unique,
+                                                  np.sqrt(meta.num_rows),
+                                                  self.config.categorical_threshold_log_multiplier * np.log(meta.num_rows)
+                                                  ))):
+                return KernelDensityEstimate.from_meta(meta)
+
+        if isinstance(meta, Nominal):
+            return Histogram.from_meta(meta)
 
         else:
-            n_rows = len(sr)
-            n_unique = sr.nunique()
-            if force_discrete and (n_unique <= np.sqrt(n_rows)
-               or n_unique <= max(self.config.min_num_unique, self.config.categorical_threshold_log_multiplier * np.log(len(sr)))):
-                cls = Histogram
-            else:
-                registry = Model.get_registry()
-                cls = registry[self.config.meta_model_mapping[meta.__class__.__name__]]  # type: ignore
-        return cls.from_meta(meta)
+            raise TypeError(f"Cannot create Model from {type(meta)}")
 
-    def _from_df(self, df: pd.DataFrame, meta: DataFrameMeta, force_discrete: bool) -> Dict[str, Model]:
+    def _from_dataframe_meta(self, meta: DataFrameMeta) -> Dict[str, Model]:
         models: Dict[str, Model] = {}
-        for col in df.columns:
-            model = self._from_series(df[col], meta[col], force_discrete)  # type: ignore
-            models[col] = model
+        for name, value_meta in meta.items():
+            value_meta = cast(ValueMeta, value_meta)
+            model = self._from_value_meta(value_meta)
+            models[name] = model
         return models

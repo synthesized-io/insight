@@ -53,11 +53,11 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
 
 
 @pytest.mark.fast
-def test_factory(simple_df):
-    df_models = ModelFactory().create_model(simple_df)
+def test_factory(simple_df_meta):
+    df_models = ModelFactory().create_model(simple_df_meta)
 
-    assert isinstance(ModelFactory().create_model(simple_df), dict)
-    assert isinstance(ModelFactory().create_model(simple_df['bool']), (Histogram, KernelDensityEstimate))
+    assert isinstance(ModelFactory().create_model(simple_df_meta), dict)
+    assert isinstance(ModelFactory().create_model(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
     assert isinstance(df_models['string'], Histogram)
     assert isinstance(df_models['bool'], Histogram)
     assert isinstance(df_models['date'], Histogram)

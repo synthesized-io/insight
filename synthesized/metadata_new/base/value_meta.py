@@ -56,11 +56,13 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None
     ):
         super().__init__(name=name)
         self.categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
+        self.num_rows = num_rows
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
@@ -72,11 +74,15 @@ class Nominal(ValueMeta[NType], Generic[NType]):
             self.categories = [*self.categories, np.nan]
             self.nan_freq = df[self.name].isna().sum() / len(df)
 
+        if self.num_rows is None:
+            self.num_rows = len(df)
+
         return self
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
+            "num_rows": self.num_rows,
             "nan_freq": self.nan_freq,
             "categories": [c for c in self.categories] if self.categories is not None else None
         })
@@ -102,9 +108,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[OType] = None, max: Optional[OType] = None
+            min: Optional[OType] = None, max: Optional[OType] = None, num_rows: Optional[int] = None
+
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
         self._min: Optional[OType] = min
         self._max: Optional[OType] = max
 
@@ -164,9 +171,9 @@ class Affine(Ordinal[AType], Generic[AType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[AType] = None, max: Optional[AType] = None
+            min: Optional[AType] = None, max: Optional[AType] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
@@ -197,9 +204,9 @@ class Scale(Affine[SType], Generic[SType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[SType] = None, max: Optional[SType] = None
+            min: Optional[SType] = None, max: Optional[SType] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
@@ -218,9 +225,9 @@ class Ring(Scale[RType], Generic[RType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[RType] = None, max: Optional[RType] = None
+            min: Optional[RType] = None, max: Optional[RType] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
