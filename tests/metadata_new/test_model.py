@@ -6,7 +6,7 @@ import pytest
 import pandas as pd
 
 from synthesized.metadata_new import MetaExtractor
-from synthesized.metadata_new.model import Histogram, KernelDensityEstimate
+from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -50,3 +50,17 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     kde.plot()
     hist = Histogram.bin_affine_meta(kde, max_bins=10)
     assert hist.probabilities == simple_df_binned_probabilities[col]
+
+
+@pytest.mark.fast
+def test_factory(simple_df_meta):
+    df_models = ModelFactory().create_model(simple_df_meta)
+
+    assert isinstance(ModelFactory().create_model(simple_df_meta), dict)
+    assert isinstance(ModelFactory().create_model(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
+    assert isinstance(df_models['string'], Histogram)
+    assert isinstance(df_models['bool'], Histogram)
+    assert isinstance(df_models['date'], Histogram)
+    assert isinstance(df_models['int'], Histogram)
+    assert isinstance(df_models['float'], KernelDensityEstimate)
+    assert isinstance(df_models['int_bool'], Histogram)

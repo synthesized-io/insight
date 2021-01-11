@@ -105,6 +105,12 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
         return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
 
 
+@dataclass
+class ModelFactoryConfig:
+    categorical_threshold_log_multiplier: float = 2.5
+    min_num_unique: int = 10
+
+
 # Transformer Config Classes ----------------------------------------
 
 @dataclass
