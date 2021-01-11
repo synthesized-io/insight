@@ -1,3 +1,4 @@
+# type: ignore
 from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
 
 import tensorflow as tf

@@ -1,3 +1,4 @@
+# type: ignore
 import logging
 import random
 import time

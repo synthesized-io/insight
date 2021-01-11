@@ -49,7 +49,7 @@ class RuleValue(Value):
 
         ot = tuple(
             tensor
-            for value, y in zip(self.learned_values, ys)
+            for value, y in zip(self.learned_values(), ys)
             for tensor in value.output_tensors(y=y, **kwargs)
         )[::-1]
         return ot
@@ -60,7 +60,7 @@ class RuleValue(Value):
         y = tf.split(value=y, num_or_size_splits=splits, axis=1)
         losses = list()
         index = 0
-        for value, y in zip(self.learned_values, y):
+        for value, y in zip(self.learned_values(), y):
             num = len(value.learned_output_columns())
             losses.append(value.loss(y=y, xs=xs[index: index + num]))
             index += num
