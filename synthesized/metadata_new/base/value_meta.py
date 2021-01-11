@@ -71,8 +71,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
             self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
-            self.categories = [*self.categories, np.nan]
-            self.nan_freq = df[self.name].isna().sum() / len(df)
+            self.nan_freq = df[self.name].isna().sum() / len(df) if len(df) > 0 else 0
 
         if self.num_rows is None:
             self.num_rows = len(df)
@@ -120,8 +119,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
         assert self.categories is not None
         self.categories = self.sort(self.categories)
 
-        self._min = self.categories[0]
-        self._max = self.categories[-1]
+        if len(self.categories) > 0:
+            self._min, self._max = self.categories[0], self.categories[-1]
+        else:
+            self._min, self._max = None, None
 
         return self
 
