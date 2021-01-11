@@ -101,11 +101,6 @@ jobs:
             echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "failure") >> ./circleci-orb-jira.status
             echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "failure|success") >> ./circleci-orb-jira.status
 
-            echo 'done'
-
-            ls
-            pwd
-
             if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]; then
               exit 1
             fi
