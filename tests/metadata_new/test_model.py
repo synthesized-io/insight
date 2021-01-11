@@ -42,6 +42,14 @@ def simple_df_meta(simple_df):
     return df_meta
 
 
+@pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
+def test_histogram_model(col, simple_df, simple_df_meta):
+    hist = Histogram.from_meta(simple_df_meta[col])
+    logger.info(hist)
+    hist.fit(simple_df)
+    hist.plot()
+
+
 @pytest.mark.parametrize("col", ['date', 'int', 'float', 'int_bool'])
 def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_meta):
     kde = KernelDensityEstimate.from_meta(simple_df_meta[col])
@@ -60,7 +68,7 @@ def test_factory(simple_df_meta):
     assert isinstance(ModelFactory().create_model(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
     assert isinstance(df_models['string'], Histogram)
     assert isinstance(df_models['bool'], Histogram)
-    assert isinstance(df_models['date'], Histogram)
+    assert isinstance(df_models['date'], KernelDensityEstimate)
     assert isinstance(df_models['int'], Histogram)
     assert isinstance(df_models['float'], KernelDensityEstimate)
     assert isinstance(df_models['int_bool'], Histogram)
