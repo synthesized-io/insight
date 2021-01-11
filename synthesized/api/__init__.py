@@ -8,8 +8,8 @@ from .data_frame_meta import DataFrameMeta
 from .data_imputer import DataImputer
 from .fairness import FairnessScorer
 from .highdim import HighDimSynthesizer
-from .meta_extractor import MetaExtractor
-from .meta_extractor import TypeOverride
+from .meta_extractor import MetaExtractor  # type: ignore
+from .meta_extractor import TypeOverride  # type: ignore
 from .synthesizer import Synthesizer
 from . import modelling
 from . import latent

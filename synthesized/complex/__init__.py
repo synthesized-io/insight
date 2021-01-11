@@ -4,7 +4,7 @@ from .data_imputer import DataImputer
 from .highdim import HighDimSynthesizer
 from .sanitizer import Sanitizer
 from .scenario import ScenarioSynthesizer
-from .series import SeriesSynthesizer
+from .series import SeriesSynthesizer  # type: ignore
 from .testing_data_generator import TestingDataGenerator
 
 __all__ = [

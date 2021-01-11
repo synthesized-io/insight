@@ -1,3 +1,4 @@
+# type: ignore
 from typing import Dict, List, Tuple, Union, Optional, Any, Sequence
 
 import tensorflow as tf
@@ -7,9 +8,10 @@ from ..encodings import VariationalLSTMEncoding, VariationalRecurrentEncoding, R
 from ..module import tensorflow_name_scoped, module_registry
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import Value, IdentifierValue
+from ..values import Value, IdentifierValue, DataFrameValue
 
-#TODO: broken with new values and metadata
+
+# TODO: broken with new values and metadata
 class SeriesEngine(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
@@ -48,7 +50,7 @@ class SeriesEngine(Generative):
         self.identifier_label = identifier_label
         self.identifier_value = identifier_value
 
-        self.value_ops = ValueOps(values=values, conditions=conditions, identifier=identifier_value)
+        self.value_ops = DataFrameValue(values=values)
 
         self.linear_input = DenseTransformation(
             name='linear-input',
