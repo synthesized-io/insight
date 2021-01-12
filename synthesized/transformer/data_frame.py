@@ -45,7 +45,8 @@ class DataFrameTransformer(SequentialTransformer):
 
         return df
 
-    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None,
+                          produce_nans: bool = True) -> pd.DataFrame:
         """
         Inverse transform the data frame.
 
@@ -62,7 +63,10 @@ class DataFrameTransformer(SequentialTransformer):
 
         # To do: implement parallel transform
         for transformer in reversed(self):
-            df = transformer.inverse_transform(df)
+            if isinstance(transformer, NanTransformer):
+                df = transformer.inverse_transform(df, produce_nans=produce_nans)
+            else:
+                df = transformer.inverse_transform(df)
 
         return df
 

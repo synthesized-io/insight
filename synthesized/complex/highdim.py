@@ -12,7 +12,7 @@ from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueExtractor, DataFrameValue
+from ..common.values import DataFrameValue, Value, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta
 from ..transformer import DataFrameTransformer
@@ -321,7 +321,7 @@ class HighDimSynthesizer(Synthesizer):
 
             df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
-        df_synthesized = self.df_transformer.inverse_transform(df_synthesized)[columns]
+        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)[columns]
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
