@@ -44,6 +44,7 @@ def simple_df_meta(simple_df):
     return df_meta
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
 def test_histogram_from_meta(col, simple_df, simple_df_meta):
     """Test basic construction of histograms."""
@@ -53,6 +54,7 @@ def test_histogram_from_meta(col, simple_df, simple_df_meta):
     hist.plot()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("col", ['date', 'int', 'float', 'int_bool'])
 def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
     """Test construction of histograms from binning affine values."""
@@ -66,8 +68,8 @@ def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
 
 @pytest.mark.fast
 def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
-    """For Integers, If the Histogram comes from a meta with a precision that spans multiple values, it should bin the entire range
-    using the defined precision. Otherwise, it should just return the specific values.
+    """For Integers, If the Histogram comes from a meta with a precision that spans multiple values, it should bin the
+    entire range using the defined precision. Otherwise, it should just return the specific values.
     """
     col = "int"
     int_meta = cast(Integer, simple_df_meta[col])
@@ -89,9 +91,6 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
 
     assert hist.dtype in ["interval[int64]", "interval[i8]"]
     assert len(hist.categories) == 3
-
-    hist.fit(simple_df)
-    hist.plot()
 
 
 @pytest.mark.fast
@@ -125,10 +124,8 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[ns]]"]
     assert len(hist.categories) == 181
 
-    hist.fit(simple_df)
-    hist.plot()
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("col", ['date', 'int', 'float', 'int_bool'])
 def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_meta):
     kde = KernelDensityEstimate.from_meta(simple_df_meta[col])
