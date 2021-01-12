@@ -104,15 +104,19 @@ jobs:
             echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "failure") >> ./circleci-orb-jira.status
             echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "failure|success") >> ./circleci-orb-jira.status
 
-            if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]; then
+          name: Fetch Test Summary
+
+      - sonarcloud/scan
+
+      - run:
+          command: |
+            if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]
+            then
               exit 1
             fi
             exit 0
+          name: Test Results
 
-          name: Test Summary
-
-      - sonarcloud/scan:
-          when: always
       - run:
           command: |
             echo 'JIRA_BUILD_STATUS="failed"' >> ./circleci-orb-jira.status
