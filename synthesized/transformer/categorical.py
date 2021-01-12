@@ -34,10 +34,7 @@ class CategoricalTransformer(Transformer):
         else:
             categories = np.array(self.categories)
 
-        try:
-            categories = np.delete(categories, np.isnan(categories))
-        except TypeError:
-            pass
+        categories = np.delete(categories, pd.isna(categories).nonzero())
         categories = np.array([np.nan, *categories])  # type: ignore
 
         for idx, cat in enumerate(categories[1:]):  # type: ignore
