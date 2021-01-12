@@ -1,10 +1,11 @@
 from collections import OrderedDict
-from typing import Dict, List, Sequence, Any, Mapping, Iterator
+from typing import Any, Dict, Iterator, List, Mapping, Sequence
+
 import numpy as np
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 
 class DataFrameValue(Value, Mapping[str, Value]):
@@ -60,6 +61,8 @@ class DataFrameValue(Value, Mapping[str, Value]):
         for name, value in self.items():
             if value.learned_input_size() > 0:
                 nan_mask = None if f'{value.name}_nan' not in self else 1 - inputs[f'{value.name}_nan'][0]
+                if nan_mask is not None:
+                    nan_mask = tf.cast(nan_mask, dtype=tf.bool)
                 values.append(
                     value.unify_inputs(xs=inputs[name], mask=nan_mask)
                 )
