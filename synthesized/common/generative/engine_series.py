@@ -8,7 +8,7 @@ from ..encodings import RecurrentDSSEncoding, VariationalLSTMEncoding, Variation
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import DataFrameValue, IdentifierValue, Value, ValueOps
+from ..values import DataFrameValue, IdentifierValue, Value
 
 
 # TODO: broken with new values and metadata
