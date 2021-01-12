@@ -56,14 +56,17 @@ jobs:
           name: Run Tests
           shell: /bin/bash
           command: |
-            trap 'echo "Some Tests Failed"' 123
             circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+            if [ $? -eq 1 ]
+            then
+              echo 'Some tests failed'
+              exit 0
+            fi
           no_output_timeout: 30m
 
       - run:
           name: Reformat junit XML
           command: venv/bin/python3 tests/junit-fix.py
-          when: always
 
       - store_test_results:
           path: test-results
