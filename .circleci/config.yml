@@ -109,8 +109,10 @@ jobs:
             fi
             exit 0
 
-          name: Fetching Test Summary
-      - sonarcloud/scan
+          name: Test Summary
+
+      - sonarcloud/scan:
+          when: always
       - run:
           command: |
             echo 'JIRA_BUILD_STATUS="failed"' >> ./circleci-orb-jira.status
