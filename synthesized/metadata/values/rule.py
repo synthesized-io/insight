@@ -1,5 +1,5 @@
 from math import inf
-from typing import Dict, Callable, Optional, List
+from typing import Callable, Dict, List, Optional
 
 import pandas as pd
 

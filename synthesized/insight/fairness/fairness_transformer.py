@@ -6,8 +6,8 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
 from ...config import MetaExtractorConfig
+from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)
 
@@ -168,4 +168,4 @@ class FairnessTransformer(SequentialTransformer):
 
     @property
     def sensitive_attrs_and_target(self) -> List[str]:
-        return list(np.concatenate((self.sensitive_attrs, [self.target])))
+        return self.sensitive_attrs + [self.target]

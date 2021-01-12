@@ -1,19 +1,19 @@
 import logging
-from typing import Any, Dict, List, Union, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.base import BaseEstimator
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
-from ..modelling import ModellingPreprocessor
-from ..metrics.modelling_metrics import classifier_scores_from_df
 from .sensitive_attributes import sensitive_attr_concat_name
+from ..metrics.modelling_metrics import classifier_scores_from_df
+from ..modelling import ModellingPreprocessor
 
 logger = logging.getLogger(__name__)
 

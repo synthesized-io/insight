@@ -10,13 +10,13 @@ for a binary/multinomial classification task.
 """
 import logging
 from math import sqrt
-from typing import Union, Dict, List, Type, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
-from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor, RandomForestClassifier, \
-    RandomForestRegressor
+from sklearn.ensemble import (GradientBoostingClassifier, GradientBoostingRegressor, RandomForestClassifier,
+                              RandomForestRegressor)
 from sklearn.linear_model import LogisticRegression, Ridge, RidgeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier, MLPRegressor

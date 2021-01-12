@@ -3,9 +3,8 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from ..metadata import DataFrameMeta
 from ..insight import metrics
-
+from ..metadata import DataFrameMeta
 
 MAX_PVAL = 0.05
 

@@ -3,11 +3,11 @@ from typing import Dict
 import pandas as pd
 
 from .base_mask import BaseMask
-from .random import RandomMask
+from .null import NullMask
 from .partial import PartialMask
+from .random import RandomMask
 from .rounding import RoundingMask
 from .swapping import SwappingMask
-from .null import NullMask
 
 
 class DataMasker:

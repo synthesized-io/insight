@@ -34,6 +34,9 @@ for file in files:
         'timestamp': suite.get('timestamp') or ''
     })
 
+    for case in file_to_case[file]:
+        case.set('classname', (file or '').replace('.', '/')+'.py')
+
     suite1.extend(file_to_case[file])
     # print(ET.tostring(suite1))
     suites.append((suite1))

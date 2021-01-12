@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd

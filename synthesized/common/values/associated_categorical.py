@@ -1,13 +1,13 @@
 import logging
-from typing import Any, Dict, List, Sequence, Optional, Mapping, Iterator
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
 
-from .value import Value
-from .categorical import CategoricalValue
 from synthesized.common.module import tensorflow_name_scoped
+from .categorical import CategoricalValue
+from .value import Value
 
 logger = logging.getLogger(__name__)
 

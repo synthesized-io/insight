@@ -1,14 +1,13 @@
 """This module implements the BasicSynthesizer class."""
 import logging
-from typing import Callable, List, Union, Dict, Optional, Tuple, Any, BinaryIO, Sequence
+import pickle
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import pickle
 import tensorflow as tf
 
 from .binary_builder import ModelBinary
-
 from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer

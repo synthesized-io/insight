@@ -1,6 +1,6 @@
 from .assessor import Assessor
 from .evaluation import Evaluation  # type: ignore
-from .linkage_attack import LinkageAttackTesting, Column
+from .linkage_attack import Column, LinkageAttackTesting
 from .utility import UtilityTesting
 from .utility_time_series import TimeSeriesUtilityTesting
 

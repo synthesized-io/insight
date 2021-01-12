@@ -1,10 +1,10 @@
-from typing import Dict, Union, List, Optional, Callable
+from dataclasses import dataclass, field, fields
+from typing import Callable, Dict, List, Optional, Union
 
-from dataclasses import dataclass, fields, field
 import pandas as pd
 
-
 # Meta Config Classes ----------------------------------------
+
 
 @dataclass
 class AddressParams:

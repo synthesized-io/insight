@@ -1,6 +1,6 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar, Optional, Dict, Sequence
 from functools import cmp_to_key
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd

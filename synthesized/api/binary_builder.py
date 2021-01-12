@@ -1,10 +1,10 @@
-from typing import BinaryIO
-from datetime import datetime
 import enum
 import gzip
 import lzma
 import pickle
 import zlib
+from datetime import datetime
+from typing import BinaryIO
 
 
 class BinarySerializeException(Exception):

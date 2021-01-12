@@ -7,7 +7,6 @@ from .variational_lstm import VariationalLSTMEncoding
 from .variational_recurrent_encoding import VariationalRecurrentEncoding
 from ..module import register
 
-
 register(name='recurrent_dss_encoding', module=RecurrentDSSEncoding)
 register(name='variational', module=VariationalEncoding)
 register(name='variational_lstm', module=VariationalLSTMEncoding)

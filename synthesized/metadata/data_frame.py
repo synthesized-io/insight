@@ -1,11 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Union, Tuple, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-from .values import AssociationMeta, ContinuousMeta, CategoricalMeta, DateMeta, DecomposedContinuousMeta, NanMeta, \
-    ValueMeta, TimeIndexMeta, IdentifierMeta
+from .values import (AssociationMeta, CategoricalMeta, ContinuousMeta, DateMeta, DecomposedContinuousMeta,
+                     IdentifierMeta, NanMeta, TimeIndexMeta, ValueMeta)
 
 
 class DataFrameMeta:

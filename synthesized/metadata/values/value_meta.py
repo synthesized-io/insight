@@ -1,7 +1,7 @@
-from typing import Any, Dict, List, Optional
-from base64 import b64encode, b64decode
-
 import pickle
+from base64 import b64decode, b64encode
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 
@@ -123,7 +123,7 @@ class ValueMeta:
     def set_dtypes(self, df: pd.DataFrame):
         for col_name, col_dtype in self.in_dtypes.items():
             if str(df[col_name].dtype) != str(col_dtype):
-                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype)
+                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(

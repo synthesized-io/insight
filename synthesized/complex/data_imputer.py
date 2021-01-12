@@ -1,14 +1,13 @@
 import logging
-from typing import Optional, Callable, List, Dict, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..common.values import Value
 from ..common import Synthesizer
+from ..common.values import Value
 from ..metadata import ValueMeta
-
 
 logger = logging.getLogger(__name__)
 
