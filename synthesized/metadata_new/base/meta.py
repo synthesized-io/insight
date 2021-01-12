@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, List, MutableMapping, Type, TypeVar, cast
+from typing import Dict, Iterator, List, Mapping, Type, TypeVar, cast
 
 import pandas as pd
 
