@@ -137,7 +137,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             if bin_width > smallest_diff:
                 try:
                     rng / bin_width
-                    categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
+                    rng_max = meta.max+bin_width if (rng % bin_width).item() != 0 else meta.max  # makes sure we include the max
+
+                    categories = pd.interval_range(meta.min, rng_max, freq=bin_width.item(), closed='left')
                     dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
                     if isinstance(meta, KernelDensityEstimate) and meta._fitted:
                         norm = meta.integrate(categories.left[0], categories.right[-1])

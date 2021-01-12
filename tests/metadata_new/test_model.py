@@ -1,11 +1,12 @@
 import logging
+from typing import cast
 
 from datetime import datetime
 import numpy as np
 import pytest
 import pandas as pd
 
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new import MetaExtractor, Integer, Date
 from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,8 @@ def simple_df():
         'date': pd.to_datetime(18_000 + np.random.normal(500, 50, size=1000).astype(int), unit='D'),
         'int': [n for n in [0, 1, 2, 3, 4, 5] for i in range([50, 50, 0, 200, 400, 300][n])],
         'float': np.random.normal(0.0, 1.0, size=1000),
-        'int_bool': np.random.choice([0, 1], size=1000)
+        'int_bool': np.random.choice([0, 1], size=1000),
+        'date_sparse': pd.to_datetime(18_000 + 5 * np.random.normal(500, 50, size=1000).astype(int), unit='D')
     })
     return df
 
@@ -43,9 +45,86 @@ def simple_df_meta(simple_df):
 
 
 @pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
-def test_histogram_model(col, simple_df, simple_df_meta):
+def test_histogram_from_meta(col, simple_df, simple_df_meta):
+    """Test basic construction of histograms."""
     hist = Histogram.from_meta(simple_df_meta[col])
     logger.info(hist)
+    hist.fit(simple_df)
+    hist.plot()
+
+
+@pytest.mark.parametrize("col", ['date', 'int', 'float', 'int_bool'])
+def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
+    """Test construction of histograms from binning affine values."""
+    hist = Histogram.bin_affine_meta(simple_df_meta[col], max_bins=20)
+    logger.info("%s -> %s", simple_df_meta[col], hist)
+    logger.info("Num Bins: %d", len(hist.categories))
+    assert len(hist.categories) <= 20
+    hist.fit(simple_df)
+    hist.plot()
+
+
+@pytest.mark.fast
+def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
+    """For Integers, If the Histogram comes from a meta with a precision that spans multiple values, it should bin the entire range
+    using the defined precision. Otherwise, it should just return the specific values.
+    """
+    col = "int"
+    int_meta = cast(Integer, simple_df_meta[col])
+
+    logger.debug(int_meta.categories)  # [0, 1, 3, 4, 5]
+    logger.debug("precision: %s", int_meta.unit_meta.precision)  # 1
+
+    hist = Histogram.from_meta(int_meta)
+    logger.debug(hist)
+    logger.debug(hist.categories)  # [0, 1, 3, 4, 5]
+    assert hist.dtype == "i8"
+    assert hist.categories == int_meta.categories
+
+    # Now we increase the precision to span multiple values.
+    int_meta.unit_meta.precision = np.int64(2)
+    hist = Histogram.from_meta(int_meta)
+    logger.debug(hist)
+    logger.debug(hist.categories)  # [[0, 2), [2, 4), [4, 6)]
+
+    assert hist.dtype in ["interval[int64]", "interval[i8]"]
+    assert len(hist.categories) == 3
+
+    hist.fit(simple_df)
+    hist.plot()
+
+
+@pytest.mark.fast
+def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
+    """For Date values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
+    the entire range using the defined precision. Otherwise, it should just return the specific values.
+    """
+    col = "date_sparse"
+    date_meta = cast(Date, simple_df_meta[col])
+
+    logger.debug(date_meta.categories[:3])  # [numpy.datetime64('2023-07-07'), numpy.datetime64('2023-10-15'), ...]
+
+    logger.debug("precision: %s", date_meta.unit_meta.precision)  # np.timedelta64(1, 'D')
+
+    hist = Histogram.from_meta(date_meta)
+    assert hist.dtype == "M8[D]"
+    assert hist.categories == date_meta.categories
+
+    # Now we increase the precision, but it doesn't span multiple values yet. (smallest diff is 5 days)
+    date_meta.unit_meta.precision = np.timedelta64(3, 'D')
+    hist = Histogram.from_meta(date_meta)
+    assert hist.dtype == "M8[D]"
+    assert hist.categories == date_meta.categories
+
+    # Finally we increase the precision so that it spans multiple values
+    date_meta.unit_meta.precision = np.timedelta64(10, 'D')
+    hist = Histogram.from_meta(date_meta)
+    logger.debug(hist)
+    logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]
+
+    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[ns]]"]
+    assert len(hist.categories) == 181
+
     hist.fit(simple_df)
     hist.plot()
 
