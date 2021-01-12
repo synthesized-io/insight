@@ -92,7 +92,7 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]] = None, identifier: tf.Tensor = None,
-                       sample: bool = True, produce_nans: bool = False) -> Dict[str, Sequence[tf.Tensor]]:
+                       sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
 
         if conditions is None:
             conditions = dict()
@@ -109,7 +109,7 @@ class DataFrameValue(Value, Mapping[str, Value]):
             synthesized[self.identifier_label] = (identifier,)
 
         for (name, value), y in zip(self.items(), ys):
-            synthesized[name] = value.output_tensors(y=y, sample=sample, produce_nans=produce_nans)
+            synthesized[name] = value.output_tensors(y=y, sample=sample)
 
         for value in self.conditions:
             synthesized[value] = conditions[value]

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, List, Mapping, Type, TypeVar, cast
+from typing import Dict, Iterator, List, Mapping, Tuple, Type, TypeVar, cast
 
 import pandas as pd
 
@@ -68,6 +68,10 @@ class Meta(Mapping[str, 'Meta']):
     def __iter__(self) -> Iterator[str]:
         for key in self._children:
             yield key
+
+    # def items(self) -> Iterator[Tuple[str, 'Meta']]:
+    #     for name, meta in self._children.items():
+    #         yield name, meta
 
     def __len__(self) -> int:
         return len(self._children)
