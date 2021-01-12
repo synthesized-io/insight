@@ -1,5 +1,5 @@
-from typing import Optional, Any, Dict, Sequence
 from collections import defaultdict
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
