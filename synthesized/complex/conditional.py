@@ -13,7 +13,7 @@ import tensorflow as tf
 
 from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
-from ..common.values import CategoricalValue, ContinuousValue, DateValue, NanValue, Value
+from ..common.values import CategoricalValue, ContinuousValue, DateValue, Value
 
 logger = logging.getLogger(__name__)
 

@@ -25,7 +25,6 @@ class DataFrameTransformer(SequentialTransformer):
         self.meta = meta
         self.in_dtypes: Dict[str, str] = dict()
 
-
     def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
         """
         Transform the data frame.
