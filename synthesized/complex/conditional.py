@@ -378,7 +378,6 @@ class ConditionalSampler(Synthesizer):
             if col not in values_name:
                 raise ValueError("Column '{}' not found in learned values for the given synthesizer.".format(col))
 
-            # v = values[values_name.index(col)]
             if col in self.categorical_columns:
                 for category in cond.keys():
                     if not isinstance(category, str):
