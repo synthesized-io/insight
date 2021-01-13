@@ -7,7 +7,7 @@ from ..encodings import VariationalEncoding
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import Value, DataFrameValue
+from ..values import DataFrameValue, Value
 
 
 class HighDimEngine(Generative):
@@ -166,14 +166,13 @@ class HighDimEngine(Generative):
     @tf.function
     @tensorflow_name_scoped
     def encode(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
     ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
             xs: Input tensor per column.
             cs: Condition tensor per column.
-            produce_nans: Whether to produce NaNs.
 
         Returns:
             Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
@@ -184,7 +183,7 @@ class HighDimEngine(Generative):
 
         x = self.df_value.unify_inputs(xs)
         latent_space, mean, std, y = self._encode(x=x, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs)
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
@@ -217,14 +216,13 @@ class HighDimEngine(Generative):
 
     @tensorflow_name_scoped
     def encode_deterministic(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
+            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
     ) -> Dict[str, Sequence[tf.Tensor]]:
         """Deterministic encoding for VAE.
 
         Args:
             xs: Input tensor per column.
             cs: Condition tensor per column.
-            produce_nans: Whether to produce NaNs
 
         Returns:
             Dictionary of output tensors per column
@@ -235,7 +233,7 @@ class HighDimEngine(Generative):
 
         x = self.df_value.unify_inputs(xs)
         y = self._encode_deterministic(x=x, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs, sample=False, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs, sample=False)
 
         return synthesized
 
@@ -266,21 +264,20 @@ class HighDimEngine(Generative):
     @tf.function
     @tensorflow_name_scoped
     def synthesize(
-            self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]], produce_nans: bool = False
+            self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]
     ) -> Dict[str, Sequence[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
             n: Number of instances to generate.
             cs: Condition tensor per column.
-            produce_nans: Whether to produce NaNs
 
         Returns:
             Output tensor per column.
 
         """
         y = self._synthesize(n=n, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs, produce_nans=produce_nans)
+        synthesized = self.df_value.output_tensors(y=y, conditions=cs)
 
         return synthesized
 

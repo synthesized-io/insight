@@ -12,7 +12,7 @@ from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueExtractor, DataFrameValue
+from ..common.values import DataFrameValue, Value, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta
 from ..transformer import DataFrameTransformer
@@ -254,12 +254,10 @@ class HighDimSynthesizer(Synthesizer):
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             synthesized = None
             if conditions_dataset is None:
-                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict(),
-                                                     produce_nans=produce_nans)
+                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict())
             else:
                 for cs in conditions_dataset.batch(batch_size=num_rows).take(1):
-                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs,
-                                                         produce_nans=produce_nans)
+                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs)
             assert synthesized is not None
             synthesized = self.df_value.split_outputs(synthesized)
             df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -272,14 +270,12 @@ class HighDimSynthesizer(Synthesizer):
                 synthesized = None
                 if conditions_dataset is None:
                     synthesized = self.engine.synthesize(
-                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict(),
-                        produce_nans=produce_nans
+                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict()
                     )
                 else:
                     for cs in conditions_dataset.batch(batch_size=num_rows % self.synthesis_batch_size).take(1):
                         synthesized = self.engine.synthesize(
-                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs,
-                            produce_nans=produce_nans
+                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs
                         )
                 assert synthesized is not None
                 dict_synthesized = self.df_value.split_outputs(synthesized)
@@ -290,8 +286,7 @@ class HighDimSynthesizer(Synthesizer):
             if conditions_dataset:
                 conditions_dataset = conditions_dataset.batch(batch_size=self.synthesis_batch_size).take(n_batches)
                 for k, cs in enumerate(conditions_dataset):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs,
-                                                   produce_nans=produce_nans)
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs)
                     other = self.df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
@@ -305,8 +300,7 @@ class HighDimSynthesizer(Synthesizer):
                         progress_callback(round((k + 1) * 98.0 / n_batches))
             else:
                 for k in range(n_batches):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict(),
-                                                   produce_nans=produce_nans)
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict())
                     other = self.df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
@@ -321,7 +315,7 @@ class HighDimSynthesizer(Synthesizer):
 
             df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
-        df_synthesized = self.df_transformer.inverse_transform(df_synthesized)[columns]
+        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)[columns]
 
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)

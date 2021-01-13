@@ -1,10 +1,11 @@
 from collections import OrderedDict
-from typing import Dict, List, Sequence, Any, Mapping, Iterator
+from typing import Any, Dict, Iterator, List, Mapping, Sequence
+
 import numpy as np
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 
 class DataFrameValue(Value, Mapping[str, Value]):
@@ -60,6 +61,8 @@ class DataFrameValue(Value, Mapping[str, Value]):
         for name, value in self.items():
             if value.learned_input_size() > 0:
                 nan_mask = None if f'{value.name}_nan' not in self else 1 - inputs[f'{value.name}_nan'][0]
+                if nan_mask is not None:
+                    nan_mask = tf.cast(nan_mask, dtype=tf.bool)
                 values.append(
                     value.unify_inputs(xs=inputs[name], mask=nan_mask)
                 )
@@ -89,7 +92,7 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]] = None, identifier: tf.Tensor = None,
-                       sample: bool = True, produce_nans: bool = False) -> Dict[str, Sequence[tf.Tensor]]:
+                       sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
 
         if conditions is None:
             conditions = dict()
@@ -106,7 +109,7 @@ class DataFrameValue(Value, Mapping[str, Value]):
             synthesized[self.identifier_label] = (identifier,)
 
         for (name, value), y in zip(self.items(), ys):
-            synthesized[name] = value.output_tensors(y=y, sample=sample, produce_nans=produce_nans)
+            synthesized[name] = value.output_tensors(y=y, sample=sample)
 
         for value in self.conditions:
             synthesized[value] = conditions[value]
