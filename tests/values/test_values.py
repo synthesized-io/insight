@@ -96,38 +96,3 @@ def test_date():
 
     variables = value.get_variables()
     value.set_variables(variables)
-
-
-@pytest.mark.fast
-def test_nan_date():
-
-    n = 100
-    date0 = np.datetime64('2017-01-01 00:00:00')
-    df = pd.DataFrame([date0 + np.random.randint(1000, 1_000_000) for _ in range(n)], columns=['date'])
-    df['date'] = df['date'].astype(str)
-    df['date'] = np.where(np.random.choice([False, True], size=len(df), p=[0.1, 0.9]), df['date'], np.nan)
-
-
-    meta = NanMeta(name="date", value=DateMeta('date'))
-    meta.extract(df)
-    df = meta.preprocess(df)
-
-    x = [tf.constant(df[name]) for name in meta.learned_input_columns()]
-
-    date_value = DateValue(name='date')
-    value = NanValue(name='nan')
-    unified_inputs = value.unify_inputs(x)
-
-    output_input = tf.constant(1.0, dtype=tf.float32, shape=(unified_inputs.shape[0], value.learned_output_size()))
-    output_tensors_output = value.output_tensors(output_input, produce_nans=True)
-    loss_output = value.loss(y=output_input, xs=x)
-
-    input_tensor = x[0]
-    assert input_tensor.shape == (n,)
-    output_tensor = output_tensors_output[0]
-    assert output_tensor.shape == x[0].shape == (n,)
-    loss = loss_output
-    assert loss.shape == ()
-
-    variables = value.get_variables()
-    value.set_variables(variables)
