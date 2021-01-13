@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import tensorflow as tf
 
-from .categorical import compute_embedding_size
 from .value import Value
 from ..module import tensorflow_name_scoped
 from ..util import get_initializer
