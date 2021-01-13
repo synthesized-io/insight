@@ -13,10 +13,11 @@ def test_load_data_frame():
 
     df = pd.read_csv('data/unittest.csv')
     df_meta = MetaExtractor.extract(df=df)
-    meta_dict = df_meta.get_variables()
+    meta_dict = df_meta.to_dict()
     df_meta2 = DataFrameMeta.from_dict(meta_dict)
 
-    assert len(df_meta2.values) == len(df_meta.values)
+    assert len(df_meta2) == len(df_meta)
+    assert [name1 == name2 for name1, name2 in zip(df_meta, df_meta2)]
 
 
 @pytest.mark.fast
@@ -25,7 +26,7 @@ def test_load_data_frame_associations():
 
     df = pd.read_csv('data/unittest.csv')
     df_meta = MetaExtractor.extract(df=df, associations=association_dict)
-    meta_dict = df_meta.get_variables()
+    meta_dict = df_meta.to_dict()
 
     df_meta2 = DataFrameMeta.from_dict(meta_dict)
     assert df_meta2.association_meta is not None

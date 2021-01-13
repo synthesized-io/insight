@@ -1,4 +1,6 @@
-from typing import Dict, Optional, Union
+import pickle
+from base64 import b64decode, b64encode
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 
@@ -84,6 +86,16 @@ class DataFrameTransformer(SequentialTransformer):
     def from_meta(cls, meta: DataFrameMeta) -> 'DataFrameTransformer':
         obj: 'DataFrameTransformer' = TransformerFactory().create_transformers(meta)  # type: ignore
         return obj
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, str]) -> 'DataFrameTransformer':
+        return pickle.loads(b64decode(d['pickle'].encode('utf-8')))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            pickle=b64encode(pickle.dumps(self)).decode('utf-8')
+        )
 
 
 class TransformerFactory:

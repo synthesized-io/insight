@@ -410,10 +410,9 @@ class HighDimSynthesizer(Synthesizer):
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
         variables.update(
-            # Data Panel TODO: get variables for values and metas
-            # df_meta=self.df_meta.get_variables(),
-            # Value Factory
-            df_value=self.df_value.get_variables(),
+            df_meta=self.df_meta.to_dict(),
+            df_value=self.df_value.to_dict(),
+            df_transformer=self.df_transformer.to_dict(),
 
             # VAE
             engine=self.engine.get_variables(),
@@ -500,16 +499,14 @@ class HighDimSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
-        raise NotImplementedError("from dict functionality still needs to be implemented")
         # Data Panel
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
-
-        # Value Factory TODO: replace with df_value
-        # synth.value_factory = ValueFactory.from_dict(variables['value_factory'])
+        synth.df_value = DataFrameValue.from_dict(variables['df_value'])
+        synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 
         # VAE
         synth.engine = HighDimEngine(
-            name='vae', values=synth.get_values(), conditions=synth.get_conditions(),
+            name='vae', df_value=synth.df_value, conditions=synth.get_conditions(),
             latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
             num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
             batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],

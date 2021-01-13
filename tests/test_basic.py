@@ -1,12 +1,13 @@
-import os
 import logging
+import os
 
 import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized import HighDimSynthesizer
 from synthesized.config import HighDimConfig
+from synthesized.metadata_new import MetaExtractor
 from synthesized.testing.utils import testing_progress_bar
 
 logger = logging.getLogger(__name__)
@@ -50,10 +51,8 @@ def test_unittest_dataset_quick():
         df_meta=df_meta, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1},
-                                                progress_callback=testing_progress_bar)
+        df_synthesized = synthesizer.synthesize(num_rows=10000, progress_callback=testing_progress_bar)
         assert len(df_synthesized) == 10000
-        assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
 
 
 @pytest.mark.slow
