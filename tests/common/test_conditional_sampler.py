@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized import HighDimSynthesizer
 from synthesized.complex import ConditionalSampler
+from synthesized.metadata_new import MetaExtractor
 from synthesized.testing.utils import testing_progress_bar
 
 

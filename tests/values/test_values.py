@@ -1,10 +1,9 @@
-import pytest
-
 import numpy as np
 import pandas as pd
+import pytest
 import tensorflow as tf
 
-from synthesized.common.values import Value, CategoricalValue, ContinuousValue, NanValue, DateValue
+from synthesized.common.values import CategoricalValue, ContinuousValue, DateValue, NanValue, Value
 from synthesized.metadata import DateMeta, NanMeta
 
 
@@ -69,29 +68,14 @@ def test_continuous():
 
 @pytest.mark.fast
 def test_nan():
-    cont_value = ContinuousValue(name='continuous')
-    value = NanValue(name='nan', value=cont_value)
+    value = NanValue(name='nan')
 
     n = 10
     x = np.random.randn(n)
     _test_value(value=value,
-                x=np.where(x > 0, x, np.nan).astype(np.float32),
-                y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
+                x=np.random.randint(0, 2, n),
+                y=np.random.randn(n, value.learned_output_size())
                 )
-
-
-@pytest.mark.fast
-def test_nan_inf():
-    cont_value = ContinuousValue(name='continuous')
-    value = NanValue(name='nan', value=cont_value)
-
-    n = 10
-    x = np.array([0.2, -0.1, np.NaN, 0.0, 0.8, np.Inf, -0.6, -np.Inf, 0.13, -0.4], dtype=np.float32)
-    _test_value(
-        value=value,
-        x=x,
-        y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
-    )
 
 
 @pytest.mark.fast
@@ -109,41 +93,6 @@ def test_date():
     input_tensor_output = [df[c] for c in df.columns]
     unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
     assert unified_tensor_output.shape[0] == n
-
-    variables = value.get_variables()
-    value.set_variables(variables)
-
-
-@pytest.mark.fast
-def test_nan_date():
-
-    n = 100
-    date0 = np.datetime64('2017-01-01 00:00:00')
-    df = pd.DataFrame([date0 + np.random.randint(1000, 1_000_000) for _ in range(n)], columns=['date'])
-    df['date'] = df['date'].astype(str)
-    df['date'] = np.where(np.random.choice([False, True], size=len(df), p=[0.1, 0.9]), df['date'], np.nan)
-
-
-    meta = NanMeta(name="date", value=DateMeta('date'))
-    meta.extract(df)
-    df = meta.preprocess(df)
-
-    x = [tf.constant(df[name]) for name in meta.learned_input_columns()]
-
-    date_value = DateValue(name='date')
-    value = NanValue(name='nan', value=date_value)
-    unified_inputs = value.unify_inputs(x)
-
-    output_input = tf.constant(1.0, dtype=tf.float32, shape=(unified_inputs.shape[0], value.learned_output_size()))
-    output_tensors_output = value.output_tensors(output_input, produce_nans=True)
-    loss_output = value.loss(y=output_input, xs=x)
-
-    input_tensor = x[0]
-    assert input_tensor.shape == (n,)
-    output_tensor = output_tensors_output[0]
-    assert output_tensor.shape == x[0].shape == (n,)
-    loss = loss_output
-    assert loss.shape == ()
 
     variables = value.get_variables()
     value.set_variables(variables)

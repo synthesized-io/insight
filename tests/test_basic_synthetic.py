@@ -3,9 +3,10 @@ import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.metadata import TypeOverride, ConstantMeta, SamplingMeta, ContinuousMeta, DataFrameMeta
-from synthesized.common.values import ContinuousValue
+from synthesized import HighDimSynthesizer
+from synthesized.common.values import ContinuousValue, DateValue
+from synthesized.metadata import ConstantMeta, ContinuousMeta, DataFrameMeta, SamplingMeta, TypeOverride
+from synthesized.metadata_new import MetaExtractor
 from synthesized.testing.utils import testing_progress_bar
 
 
@@ -43,6 +44,19 @@ def test_categorical_variable_generation():
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
+
+
+@pytest.mark.slow
+def test_date_variable_generation():
+    df_original = pd.DataFrame({
+        'z': pd.date_range(start='01/01/1900', end='01/01/2020', periods=1000).strftime("%d/%m/%Y"),
+    }).sample(frac=1.)
+    df_meta = MetaExtractor.extract(df=df_original)
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
+        synthesizer.learn(num_iterations=1000, df_train=df_original)
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
+
+    assert isinstance(synthesizer.df_value['z'], DateValue)
 
 
 @pytest.mark.slow

@@ -16,10 +16,7 @@ class NanMeta(ValueMeta):
         super().__init__(name=name)
 
         assert isinstance(value, ContinuousMeta)
-        # assert isinstance(value, (CategoricalValue, ContinuousValue))
         self.value = value
-
-        self.embedding_initialization = 'orthogonal-small'
 
     def __str__(self):
         string = super().__str__()

@@ -13,8 +13,7 @@ import tensorflow as tf
 
 from .data_imputer import DataImputer
 from ..common.synthesizer import Synthesizer
-from ..common.values import Value
-from ..metadata import CategoricalMeta, ContinuousMeta, DateMeta, NanMeta
+from ..common.values import CategoricalValue, ContinuousValue, DateValue, Value
 
 logger = logging.getLogger(__name__)
 
@@ -49,16 +48,20 @@ class ConditionalSampler(Synthesizer):
         self.min_sampled_ratio = min_sampled_ratio
         self.synthesis_batch_size = synthesis_batch_size
 
-        self.all_columns: List[str] = self.synthesizer.value_factory.columns
+        self.all_columns: List[str] = self.synthesizer.df_meta.columns
 
         self.date_fmt: Dict[str, Optional[str]] = dict()
         self.continuous_columns = []
+        self.categorical_columns = []
         self.date_columns = []
-        for v in self.synthesizer.df_meta.all_values:
-            if isinstance(v, DateMeta):
+
+        for v in self.synthesizer.df_value.values():
+            if isinstance(v, DateValue):
                 self.date_columns.append(v.name)
-                self.date_fmt[v.name] = v.date_format
-            elif isinstance(v, (ContinuousMeta, NanMeta)):
+                self.date_fmt[v.name] = self.synthesizer.df_meta[v.name].date_format
+            elif isinstance(v, (CategoricalValue)):
+                self.categorical_columns.append(v.name)
+            elif isinstance(v, (ContinuousValue)):
                 self.continuous_columns.append(v.name)
 
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -213,11 +216,7 @@ class ConditionalSampler(Synthesizer):
         df_synth = pd.DataFrame.from_records(result, columns=self.all_columns).sample(frac=1).reset_index(drop=True)
 
         # Set same dtypes as input
-        in_dtypes = {k: v for value in self.synthesizer.df_meta.all_values for k, v in value.in_dtypes.items()}
-        for col_name, col_dtype in in_dtypes.items():
-            if str(df_synth[col_name].dtype) != str(col_dtype):
-                df_synth.loc[:, col_name] = df_synth.loc[:, col_name].astype(col_dtype, errors='ignore')
-
+        self.synthesizer.df_transformer.set_dtypes(df_synth)
         return df_synth
 
     def alter_distributions(self,
@@ -371,8 +370,7 @@ class ConditionalSampler(Synthesizer):
         return df
 
     def _validate_explicit_marginals(self, explicit_marginals: Dict[str, Dict[str, float]]) -> None:
-        values = self.synthesizer.df_meta.values
-        values_name = [value.name for value in values]
+        values_name = [value for value in self.synthesizer.df_value.keys()]
 
         for col, cond in explicit_marginals.items():
             if not np.isclose(sum(cond.values()), 1.0):
@@ -380,8 +378,7 @@ class ConditionalSampler(Synthesizer):
             if col not in values_name:
                 raise ValueError("Column '{}' not found in learned values for the given synthesizer.".format(col))
 
-            v = values[values_name.index(col)]
-            if isinstance(v, CategoricalMeta):
+            if col in self.categorical_columns:
                 for category in cond.keys():
                     if not isinstance(category, str):
                         raise TypeError("Given bins must be strings. Bin {} is not a string".format(category))
