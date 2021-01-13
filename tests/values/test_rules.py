@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.metadata.identify_rules import PairwiseRuleFactory, identify_rules
-from synthesized.metadata import MetaExtractor
 from synthesized.common.values.rule import RuleValue
 from synthesized.complex import HighDimSynthesizer
+from synthesized.metadata.identify_rules import PairwiseRuleFactory, identify_rules
+from synthesized.metadata_new import MetaExtractor
 
 BASEDIR = os.path.dirname(__file__)
 # There will be some error from setting the threshold to halfway between the boundaries of sets.

@@ -1,10 +1,9 @@
-import pytest
-
 import numpy as np
 import pandas as pd
+import pytest
 import tensorflow as tf
 
-from synthesized.common.values import Value, CategoricalValue, ContinuousValue, NanValue, DateValue
+from synthesized.common.values import CategoricalValue, ContinuousValue, DateValue, NanValue, Value
 from synthesized.metadata import DateMeta, NanMeta
 
 
@@ -69,29 +68,14 @@ def test_continuous():
 
 @pytest.mark.fast
 def test_nan():
-    cont_value = ContinuousValue(name='continuous')
-    value = NanValue(name='nan', value=cont_value)
+    value = NanValue(name='nan')
 
     n = 10
     x = np.random.randn(n)
     _test_value(value=value,
-                x=np.where(x > 0, x, np.nan).astype(np.float32),
-                y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
+                x=np.random.randint(0, 2, n),
+                y=np.random.randn(n, value.learned_output_size())
                 )
-
-
-@pytest.mark.fast
-def test_nan_inf():
-    cont_value = ContinuousValue(name='continuous')
-    value = NanValue(name='nan', value=cont_value)
-
-    n = 10
-    x = np.array([0.2, -0.1, np.NaN, 0.0, 0.8, np.Inf, -0.6, -np.Inf, 0.13, -0.4], dtype=np.float32)
-    _test_value(
-        value=value,
-        x=x,
-        y=np.random.randn(n, value.learned_output_size()).astype(np.float32)
-    )
 
 
 @pytest.mark.fast
@@ -131,7 +115,7 @@ def test_nan_date():
     x = [tf.constant(df[name]) for name in meta.learned_input_columns()]
 
     date_value = DateValue(name='date')
-    value = NanValue(name='nan', value=date_value)
+    value = NanValue(name='nan')
     unified_inputs = value.unify_inputs(x)
 
     output_input = tf.constant(1.0, dtype=tf.float32, shape=(unified_inputs.shape[0], value.learned_output_size()))
