@@ -25,6 +25,8 @@ class NanTransformer(Transformer):
         return df
 
     def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True) -> pd.DataFrame:
+        print("self.name", self.name)
+        print("df.columns", df.columns)
         nan = df[f'{self.name}_nan'].astype(bool)
         if produce_nans:
             df[self.name] = df[self.name].where(~nan, np.nan)

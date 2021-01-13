@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, List
+from typing import List, Optional, Sequence
 
 import tensorflow as tf
 
@@ -83,4 +83,4 @@ class DateValue(ContinuousValue):
         return loss
 
     def split_outputs(self, outputs):
-        return self.convert_tf_to_np_dict({col_name: outputs[self.col_names[0]][i] for i, col_name in enumerate(self.col_names)})
+        return self.convert_tf_to_np_dict({self.name: outputs[self.name][0]})

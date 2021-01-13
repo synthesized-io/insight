@@ -353,15 +353,15 @@ class HighDimSynthesizer(Synthesizer):
         if conditions_dataset is not None:
             encoded, decoded = None, None
             for cs in conditions_dataset.batch(num_rows).take(1):
-                encoded, decoded = self.engine.encode(xs=data, cs=cs, produce_nans=produce_nans)
+                encoded, decoded = self.engine.encode(xs=data, cs=cs)
             assert encoded is not None and decoded is not None
         else:
-            encoded, decoded = self.engine.encode(xs=data, cs=dict(), produce_nans=produce_nans)
+            encoded, decoded = self.engine.encode(xs=data, cs=dict())
 
-        columns = np.concatenate([c.learned_output_columns() for c in self.df_value.values()])
         decoded = self.df_value.split_outputs(decoded)
-        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.postprocess(df=df_synthesized)
+        df_synthesized = pd.DataFrame.from_dict(decoded)
+        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+        df_synthesized = df_synthesized[self.df_meta.columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
         df_encoded = pd.DataFrame.from_records(latent, columns=[f"{ls}_{n}" for ls in 'lms'
@@ -395,15 +395,15 @@ class HighDimSynthesizer(Synthesizer):
         if conditions_dataset is not None:
             decoded = None
             for cs in conditions_dataset.batch(num_rows).take(1):
-                decoded = self.engine.encode_deterministic(xs=data, cs=cs, produce_nans=produce_nans)
+                decoded = self.engine.encode_deterministic(xs=data, cs=cs)
             assert decoded is not None
         else:
-            decoded = self.engine.encode_deterministic(xs=data, cs=dict(), produce_nans=produce_nans)
+            decoded = self.engine.encode_deterministic(xs=data, cs=dict())
 
         decoded = self.df_value.split_outputs(decoded)
-        columns = self.df_meta.columns
-        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.postprocess(df=df_synthesized)
+        df_synthesized = pd.DataFrame.from_dict(decoded)
+        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+        df_synthesized = df_synthesized[self.df_meta.columns]
 
         return df_synthesized.set_index(df_encode.index)
 

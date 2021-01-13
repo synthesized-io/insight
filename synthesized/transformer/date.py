@@ -109,7 +109,7 @@ class DateCategoricalTransformer(Transformer):
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         df.drop(columns=[f'{self.name}_hour', f'{self.name}_dow',
-                         f'{self.name}_day', f'{self.name}_month'], inplace=True)
+                         f'{self.name}_day', f'{self.name}_month'], errors='ignore', inplace=True)
         return df
 
     @classmethod

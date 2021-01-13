@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 import pandas as pd
 
@@ -23,6 +23,8 @@ class DataFrameTransformer(SequentialTransformer):
             raise ValueError("name must not be a string, not None")
         super().__init__(name)
         self.meta = meta
+        self.in_dtypes: Dict[str, str] = dict()
+
 
     def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
         """
@@ -38,6 +40,9 @@ class DataFrameTransformer(SequentialTransformer):
         """
         if not inplace:
             df = df.copy()
+
+        for col_name in df.columns:
+            self.in_dtypes[col_name] = str(df[col_name].dtype)
 
         # To do: implement parallel transform
         for transformer in self:
@@ -68,7 +73,13 @@ class DataFrameTransformer(SequentialTransformer):
             else:
                 df = transformer.inverse_transform(df)
 
+        self.set_dtypes(df)
         return df
+
+    def set_dtypes(self, df: pd.DataFrame) -> None:
+        for col_name, col_dtype in self.in_dtypes.items():
+            if str(df[col_name].dtype) != str(col_dtype):
+                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     @classmethod
     def from_meta(cls, meta: DataFrameMeta) -> 'DataFrameTransformer':
