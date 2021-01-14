@@ -52,15 +52,23 @@ class Meta(Mapping[str, 'Meta']):
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
-        with self.expand(df) as sub_df:
+        with self.unfold(df) as sub_df:
             for child in self.children:
                 child.extract(sub_df)
         self._extracted = True
         return self
 
+    def expand(self, df):
+        pass
+
+    def collapse(self,  df):
+        pass
+
     @contextmanager
-    def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+    def unfold(self, df: pd.DataFrame) -> pd.DataFrame:
+        self.expand(df)
         yield df
+        self.collapse(df)
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]

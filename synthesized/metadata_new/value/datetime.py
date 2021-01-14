@@ -1,12 +1,11 @@
-from typing import Optional, TypeVar, Dict, Sequence
 from datetime import datetime
-from contextlib import contextmanager
+from typing import Dict, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
 
-from .continuous import Integer
 from .categorical import String
+from .continuous import Integer
 from ..base import Affine, Scale
 from ..exceptions import UnknownDateFormatError
 
@@ -68,8 +67,7 @@ class Date(Affine[np.datetime64]):
 
         return self
 
-    @contextmanager
-    def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+    def expand(self, df: pd.DataFrame):
 
         sr_dt = df[self.name]
 
@@ -79,9 +77,13 @@ class Date(Affine[np.datetime64]):
         df[self.name + '_year'] = sr_dt.dt.year
         df.drop(columns=self.name, inplace=True)
 
-        yield df
+    def collapse(self,  df):
 
-        df[self.name] = sr_dt
+        df[self.name] = pd.to_datetime(pd.DataFrame({
+            'year': df[self.name + '_year'],
+            'month': df[self.name + '_month'],
+            'day': df[self.name + '_day']}
+        ))
 
         df.drop(
             columns=[self.name + '_dow', self.name + '_day', self.name + '_month', self.name + '_year'],
