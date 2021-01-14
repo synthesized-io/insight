@@ -77,7 +77,7 @@ class Date(Affine[np.datetime64]):
         df[self.name + '_year'] = sr_dt.dt.year
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self,  df):
+    def collapse(self, df):
 
         df[self.name] = pd.to_datetime(pd.DataFrame({
             'year': df[self.name + '_year'],

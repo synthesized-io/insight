@@ -61,7 +61,7 @@ class Meta(Mapping[str, 'Meta']):
     def expand(self, df):
         pass
 
-    def collapse(self,  df):
+    def collapse(self, df):
         pass
 
     @contextmanager

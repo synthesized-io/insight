@@ -49,7 +49,7 @@ class Bank(String):
 
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self,  df):
+    def collapse(self, df):
         df[self.name] = ''
         df[self.name].str.cat(self.keys())
 
