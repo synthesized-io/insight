@@ -1,10 +1,11 @@
 import pickle
 import re
+import warnings
 from base64 import b64decode, b64encode
 from typing import Any, Dict, List, Optional, Sequence
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..util import make_tf_compatible
@@ -148,11 +149,20 @@ class Value(tf.Module):
         return variable
 
     def get_variables(self) -> Dict[str, Any]:
+        warnings.warn("Value.get_variables() will be depricated, please use 'to_dict()'")
+        return self.to_dict()
+
+    @classmethod
+    def set_variables(cls, variables: Dict[str, Any]):
+        warnings.warn("Value.set_variables() will be depricated, please use 'from_dict()'")
+        return cls.from_dict(variables)
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, str]) -> 'Value':
+        return pickle.loads(b64decode(d['pickle'].encode('utf-8')))
+
+    def to_dict(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
             pickle=b64encode(pickle.dumps(self)).decode('utf-8')
         )
-
-    @staticmethod
-    def set_variables(variables: Dict[str, Any]):
-        return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

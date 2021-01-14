@@ -5,8 +5,8 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue, DateValue
-from synthesized.metadata import ConstantMeta, ContinuousMeta, DataFrameMeta, SamplingMeta, TypeOverride
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata import TypeOverride
+from synthesized.metadata_new import DataFrameMeta, Float, Integer, MetaExtractor, String
 from synthesized.testing.utils import testing_progress_bar
 
 
@@ -62,25 +62,33 @@ def test_date_variable_generation():
 @pytest.mark.slow
 def test_nan_producing():
     size = 1000
-    x = np.random.normal(loc=0, scale=1, size=size)
-    x_nan = np.random.normal(loc=0, scale=1, size=size)
-    indices = np.random.choice(np.arange(size), replace=False, size=int(size * 0.33))
-    x_nan[indices] = np.nan
+    nans_prop = 0.33
+
     df_original = pd.DataFrame({
-        'x': x,
-        'x_nan': x_nan,
-        'y': np.random.choice(['A', 'B'], size=size),
-        'y_nan': np.random.choice(['A', 'B', np.nan], size=size)
+        'x1': np.random.normal(loc=0, scale=1, size=size),
+        'x2': np.random.normal(loc=0, scale=1, size=size),
+        'y1': np.random.choice(['A', 'B'], size=size),
+        'y2': np.random.choice(['A', 'B'], size=size),
     })
+    df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'x2'] = np.nan
+    df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'y2'] = np.nan
+
     df_meta = MetaExtractor.extract(df=df_original)
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=100, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True,
                                                 progress_callback=testing_progress_bar)
-    assert df_synthesized['x_nan'].isna().sum() > 0
-    assert df_synthesized['y_nan'].isna().sum() > 0
-    assert df_synthesized['x'].isna().sum() == 0
-    assert df_synthesized['y'].isna().sum() == 0
+        assert df_synthesized['x1'].isna().sum() == 0
+        assert df_synthesized['y1'].isna().sum() == 0
+        assert df_synthesized['x2'].isna().sum() > 0
+        assert df_synthesized['y2'].isna().sum() > 0
+
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=False,
+                                                progress_callback=testing_progress_bar)
+        assert df_synthesized['x1'].isna().sum() == 0
+        assert df_synthesized['y1'].isna().sum() == 0
+        assert df_synthesized['x2'].isna().sum() == 0
+        assert df_synthesized['y2'].isna().sum() == 0
 
 
 @pytest.mark.slow
@@ -123,16 +131,18 @@ def test_encode_unlearned_meta():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n), 'z': np.full(n, 1.0)})
 
-    x = ContinuousMeta('x')
+    x = Float('x')
     x.extract(df_original)
 
-    y = SamplingMeta('y')
+    y = String('y')
     y.extract(df_original)
 
-    z = ConstantMeta('z')
+    z = Integer('z')
     z.extract(df_original)
 
-    df_meta = DataFrameMeta([x, y, z])
+    df_meta = DataFrameMeta(name='df_meta')
+    for meta in [x, y, z]:
+        df_meta[meta.name] = meta
 
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
             synthesizer.learn(num_iterations=10, df_train=df_original)

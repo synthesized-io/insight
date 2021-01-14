@@ -20,6 +20,7 @@ class NanTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name].replace([np.inf, -np.inf], np.nan, inplace=True)
         nan = df[self.name].isna()
         df[f'{self.name}_nan'] = nan.astype(int)
         return df

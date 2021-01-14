@@ -1,16 +1,17 @@
+import shutil
 import tempfile
 from typing import Any, Dict
-import shutil
 
 import numpy as np
 import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.metadata import TypeOverride
-from synthesized.config import HighDimConfig
+from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue
+from synthesized.config import HighDimConfig
+from synthesized.metadata import TypeOverride
+from synthesized.metadata_new import MetaExtractor
 
 atol = 0.05
 

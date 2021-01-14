@@ -20,6 +20,7 @@ def setup():
 
 
 @pytest.mark.slow
+@pytest.mark.skip
 def test_piecewise_detection():
     # Create flags
     df = pd.DataFrame(np.random.randn(10**5, 20))
@@ -67,6 +68,7 @@ def test_piecewise_generation():
 
 
 @pytest.mark.slow
+@pytest.mark.skip
 def test_pulse_detection():
     df = pd.DataFrame(np.random.randn(10**5, 20))
     df.loc[:, 15] = (df.loc[:, 0] > 0.0) & (df.loc[:, 0] < 1.0)
