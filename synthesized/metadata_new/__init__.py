@@ -1,4 +1,4 @@
-from .base import Affine, Meta, Nominal, Ordinal, Ring, Scale, ValueMeta
+from .base import Affine, ContinuousModel, DiscreteModel, Meta, Model, Nominal, Ordinal, Ring, Scale, ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .meta_builder import MetaExtractor
 from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
@@ -6,5 +6,6 @@ from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, Strin
 __all__ = [
     'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring',
     'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta',
-    'DataFrameMeta', 'MetaExtractor', 'IntegerBool', 'OrderedString'
+    'DataFrameMeta', 'MetaExtractor', 'IntegerBool', 'OrderedString',
+    'Model', 'DiscreteModel', 'ContinuousModel'
 ]

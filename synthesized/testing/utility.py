@@ -17,10 +17,10 @@ from .plotting import (categorical_distribution_plot, continuous_distribution_pl
                        plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style)
 from ..common.synthesizer import Synthesizer
 from ..insight import metrics
-from ..insight.dataset import categorical_or_continuous_values
-from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
-                               TwoDataFrameVector)
+from ..insight.metrics import TwoColumnMetric, TwoColumnMetricMatrix, DiffMetricMatrix
+from ..insight.metrics import ColumnComparisonVector, TwoDataFrameVector
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
+from ..metadata_new import Affine
 from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
@@ -53,9 +53,10 @@ class UtilityTesting:
         self.df_synth = df_synth.copy()
 
         self.dp = synthesizer.df_meta
-        categorical, continuous = categorical_or_continuous_values(self.dp)
-
-        self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
+        self.categorical = []
+        self.continuous = []
+        for vm in self.dp.values():
+            self.continuous.append(vm.name) if isinstance(vm, Affine) else self.categorical.append(vm.name)
         self.plotable_values = self.categorical + self.continuous
 
         # Set the style of plots

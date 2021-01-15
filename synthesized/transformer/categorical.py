@@ -28,7 +28,6 @@ class CategoricalTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
 
     def fit(self, df: pd.DataFrame) -> 'CategoricalTransformer':
-
         if self.categories is None:
             categories = df[self.name].unique()  # type: ignore
         else:

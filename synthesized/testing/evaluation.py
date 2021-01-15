@@ -21,7 +21,7 @@ from .utility_time_series import TimeSeriesUtilityTesting
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
-from ..metadata import MetaExtractor
+from ..metadata_new import MetaExtractor
 
 
 class Evaluation:
@@ -228,7 +228,7 @@ def synthesize_and_plot_time_series(
     df_meta = MetaExtractor.extract(df=data)
     series_config = SeriesConfig(**config['params'])
 
-    with SeriesSynthesizer(df_meta=df_meta, config=series_config) as synthesizer:
+    with SeriesSynthesizer(df_meta=df_meta, config=series_config) as synthesizer:  # type: ignore
         # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
         #                   callback_freq=100)
         training_time = time.time() - start

@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import logging
-from typing import List, Union
+from typing import Dict, List, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -11,52 +11,83 @@ from sklearn.preprocessing import OneHotEncoder
 
 from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
-from ...metadata import MetaExtractor
+from ...metadata_new import (Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Model, Nominal,
+                             Ordinal)
 
 logger = logging.getLogger(__name__)
 
 
 class Mean(ColumnMetric):
     name = "mean"
-    tags = ["ordinal"]
+
+    def check_column_types(self, sr_a: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None):
+        dp, _ = self.extract_metas_models(sr_a, dp, models)
+
+        if not isinstance(dp[sr_a.name], Affine):
+            return False
+        return True
 
     def __call__(self, sr: pd.Series = None, **kwargs) -> Union[float, None]:
         if sr is None:
             return None
 
-        mean = float(np.nanmean(sr.values))
+        if not self.check_column_types(sr, **kwargs):
+            return None
 
-        return mean
+        return affine_mean(sr)
 
 
 class StandardDeviation(ColumnMetric):
     name = "standard_deviation"
-    tags = ["ordinal"]
+
+    def check_column_types(self, sr_a: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None):
+        dp, _ = self.extract_metas_models(sr_a, dp, models)
+
+        if not isinstance(dp[sr_a.name], Affine):
+            return False
+        return True
 
     def __call__(self, sr: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr is None:
             return None
 
+        if not self.check_column_types(sr, **kwargs):
+            return None
+
         rm_outliers = kwargs.get('rm_outliers', 0.0)
         values = np.sort(sr.values)[int(len(sr) * rm_outliers):int(len(sr) * (1.0 - rm_outliers))]
-        stddev = float(np.nanvar(values)**0.5)
+        stddev = affine_stddev(values)
 
         return stddev
 
 
 class KendellTauCorrelation(TwoColumnMetric):
     name = "kendell_tau_correlation"
-    tags = ["ordinal", "symmetric"]
+    symmetric = True
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None):
+        dp, _ = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(dp[sr_a.name], Ordinal) or not isinstance(dp[sr_b.name], Ordinal):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super().check_column_types(sr_a, sr_b, **kwargs):
-            return None
-
         sr_a = pd.to_numeric(sr_a, errors='coerce')
         sr_b = pd.to_numeric(sr_b, errors='coerce')
+
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
+            return None
+
         corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
 
         if p_value <= kwargs.get('max_p_value', 1.0):
@@ -67,13 +98,21 @@ class KendellTauCorrelation(TwoColumnMetric):
 
 class SpearmanRhoCorrelation(TwoColumnMetric):
     name = "spearman_rho_correlation"
-    tags = ["ordinal", "symmetric"]
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None):
+        dp, _ = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(dp[sr_a.name], Ordinal) or not isinstance(dp[sr_b.name], Ordinal):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super().check_column_types(sr_a, sr_b, **kwargs):
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
             return None
 
         corr, p_value = spearmanr(sr_a.values, sr_b.values)
@@ -86,13 +125,22 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
 
 class CramersV(TwoColumnMetric):
     name = "cramers_v"
-    tags = ["nominal", "symmetric"]
+    symmetric = True
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None) -> bool:
+        _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(models[sr_a.name], DiscreteModel) or not isinstance(models[sr_b.name], DiscreteModel):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super().check_column_types(sr_a, sr_b, **kwargs):
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
             return None
 
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
@@ -125,13 +173,23 @@ class CramersV(TwoColumnMetric):
 
 class CategoricalLogisticR2(TwoColumnMetric):
     name = "categorical_logistic_correlation"
-    tags = ["continuous_input_only", "categorical_output_only"]
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None) -> bool:
+        _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(models[sr_a.name], ContinuousModel):
+            return False
+        if not isinstance(models[sr_b.name], DiscreteModel):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super().check_column_types(sr_a, sr_b, **kwargs):
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
             return None
 
         df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
@@ -142,13 +200,21 @@ class CategoricalLogisticR2(TwoColumnMetric):
 
 class KolmogorovSmirnovDistance(TwoColumnMetric):
     name = "kolmogorov_smirnov_distance"
-    tags = ["ordinal"]
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None) -> bool:
+        _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(models[sr_a.name], ContinuousModel) and not isinstance(models[sr_b.name], ContinuousModel):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super(KolmogorovSmirnovDistance, self).check_column_types(sr_a, sr_b, **kwargs):
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
             return None
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
@@ -161,13 +227,21 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
 
 class EarthMoversDistance(TwoColumnMetric):
     name = "earth_movers_distance"
-    tags = ["nominal"]
+
+    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
+                           dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                           models: Optional[Dict[str, Model]] = None) -> bool:
+        _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
+
+        if not isinstance(models[sr_a.name], DiscreteModel) and not isinstance(models[sr_b.name], DiscreteModel):
+            return False
+        return True
 
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
         if sr_a is None or sr_b is None:
             return None
 
-        if not super(EarthMoversDistance, self).check_column_types(sr_a, sr_b, **kwargs):
+        if not self.check_column_types(sr_a, sr_b, **kwargs):
             return None
 
         old = sr_a.to_numpy()
@@ -206,7 +280,8 @@ def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
     dp = kwargs.get('vf')
     if dp is None:
         dp = MetaExtractor.extract(df=df)
-    categorical, continuous = dp.get_categorical_and_continuous()
+    categorical = [cast(Nominal, vm) for vm in dp.values() if not isinstance(vm, Affine)]
+
     if y_label not in [v.name for v in categorical]:
         return None
     if len(x_labels) == 0:
@@ -242,3 +317,17 @@ def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
     psuedo_r2 = 1 - (llf / llnull)
 
     return psuedo_r2
+
+
+def affine_mean(sr: pd.Series):
+    """function for calculating means of affine values"""
+    mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
+    return mean + np.array(0, dtype=sr.dtype)
+
+
+def affine_stddev(sr: pd.Series):
+    """function for calculating standard deviations of affine values"""
+    d = sr - affine_mean(sr)
+    u = d / np.array(1, dtype=d.dtype)
+    s = np.sqrt(np.sum(u**2))
+    return s * np.array(1, dtype=d.dtype)

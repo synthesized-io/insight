@@ -15,8 +15,9 @@ from sklearn.neural_network import MLPClassifier
 from .classification_bias import ClassificationBias
 from .fairness_transformer import FairnessTransformer, VariableType
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
-from ..dataset import categorical_or_continuous_values
 from ..metrics import CategoricalLogisticR2, CramersV
+from ...metadata_new import MetaExtractor
+from ...metadata_new.model import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -514,22 +515,18 @@ class FairnessScorer:
         """
         columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
         df = df.dropna().copy()
-        categorical, continuous = categorical_or_continuous_values(df[columns])
+        dp = MetaExtractor.extract(df[columns])
+        models = ModelFactory()._from_dataframe_meta(dp)
         cramers_v = CramersV()
         categorical_logistic_r2 = CategoricalLogisticR2()
 
         correlation_pairs = []
         for sensitive_attr in self.sensitive_attrs:
-            for v_cat in categorical:
-                corr = cramers_v(df[v_cat.name], df[sensitive_attr])
+            for col, model in models.items():
+                corr = (cramers_v(df[col], df[sensitive_attr], dp=dp, models=models)
+                        or categorical_logistic_r2(df[col], df[sensitive_attr], dp=dp, models=models))
                 if corr is not None and corr > threshold:
-                    correlation_pairs.append((v_cat.name, sensitive_attr, corr))
-
-            for v_cont in continuous:
-                corr = categorical_logistic_r2(df[v_cont.name], df[sensitive_attr])
-                if corr is not None and corr > threshold:
-                    correlation_pairs.append((v_cont.name, sensitive_attr, corr))
-
+                    correlation_pairs.append((col, sensitive_attr, corr))
         for detected_attr, sensitive_attr, corr in correlation_pairs:
             logger.warning(f"Columns '{detected_attr}' and '{sensitive_attr}' are highly correlated (corr={corr:.2f}), "
                            f"so probably '{detected_attr}' contains some sensitive information stored in "

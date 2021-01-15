@@ -10,7 +10,7 @@ from scipy.stats import ks_2samp
 from sklearn.preprocessing import LabelEncoder, QuantileTransformer, StandardScaler
 
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
-from ..metadata import MetaExtractor
+from ..metadata_new import MetaExtractor
 
 
 def missing_patterns(data: pd.DataFrame, keep_ratio: float, mechanism: str = 'MCAR',

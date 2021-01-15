@@ -117,6 +117,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
         self._max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
+        df = df.copy().replace('', np.nan)
         super().extract(df)
         assert self.categories is not None
         self.categories = self.sort(self.categories)
