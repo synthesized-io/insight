@@ -27,7 +27,7 @@ class Bank(String):
         ]
 
     def extract(self, df: pd.DataFrame):
-        super().extract(df)  # call super here so we can get max, min from datetime.
+        super().extract(df)
 
         return self
 
