@@ -59,9 +59,11 @@ class Meta(Mapping[str, 'Meta']):
         return self
 
     def expand(self, df):
+        """Expands the dataframe to contain the columns of the metas children."""
         pass
 
     def collapse(self, df):
+        """Collapses the dataframe to no longer contain the meta's children columns."""
         pass
 
     @contextmanager
