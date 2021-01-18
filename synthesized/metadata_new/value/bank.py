@@ -13,17 +13,17 @@ class Bank(String):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            num_rows: Optional[int] = None, bic_name: Optional[str] = None, sort_code_name: Optional[str] = None,
-            account_name: Optional[str] = None
+            num_rows: Optional[int] = None, bic_label: Optional[str] = None, sort_code_label: Optional[str] = None,
+            account_label: Optional[str] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
-        self.bic_name = bic_name
-        self.sort_code_name = sort_code_name
-        self.account_name = account_name
+        self.bic_label = bic_label
+        self.sort_code_label = sort_code_label
+        self.account_label = account_label
 
         self.children = [
-            String(child_name) for child_name in [bic_name, sort_code_name, account_name] if child_name is not None
+            String(child_label) for child_label in [bic_label, sort_code_label, account_label] if child_label is not None
         ]
 
     def extract(self, df: pd.DataFrame):
@@ -35,16 +35,16 @@ class Bank(String):
 
         sr_bank = df[self.name]
         index = 0
-        if self.bic_name is not None:
-            df[self.bic_name] = sr_bank.str.slice(index, index + 4)
+        if self.bic_label is not None:
+            df[self.bic_label] = sr_bank.str.slice(index, index + 4)
             index += 4
 
-        if self.sort_code_name is not None:
-            df[self.sort_code_name] = sr_bank.str.slice(index, index + 6)
+        if self.sort_code_label is not None:
+            df[self.sort_code_label] = sr_bank.str.slice(index, index + 6)
             index += 6
 
-        if self.account_name is not None:
-            df[self.account_name] = sr_bank.str.slice(index, index + 8)
+        if self.account_label is not None:
+            df[self.account_label] = sr_bank.str.slice(index, index + 8)
             index += 8
 
         df.drop(columns=self.name, inplace=True)
@@ -61,9 +61,9 @@ class Bank(String):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "bic_name": self.bic_name,
-            "sort_code_name": self.sort_code_name,
-            "account_name": self.account_name
+            "bic_label": self.bic_label,
+            "sort_code_label": self.sort_code_label,
+            "account_label": self.account_label
         })
 
         return d
