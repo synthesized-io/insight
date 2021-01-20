@@ -131,7 +131,7 @@ class FairnessTransformer(SequentialTransformer):
         self.positive_class = self.get_positive_class(df)
         return self
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
         if not all(c in df.columns for c in self.sensitive_attrs_and_target):
             raise ValueError("Given DF must contain all sensitive attributes and the target variable.")

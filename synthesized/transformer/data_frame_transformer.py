@@ -4,14 +4,14 @@ from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 
-from .base import SequentialTransformer, Transformer
+from .base import BagOfTransformers, SequentialTransformer, Transformer
+from .child import NanTransformer
 from .exceptions import UnsupportedMetaError
-from .nan import NanTransformer
 from ..config import MetaTransformerConfig
 from ..metadata_new import DataFrameMeta, Meta, Nominal
 
 
-class DataFrameTransformer(SequentialTransformer):
+class DataFrameTransformer(BagOfTransformers):
     """
     Transform a data frame.
 
@@ -27,7 +27,8 @@ class DataFrameTransformer(SequentialTransformer):
         self.meta = meta
         self.in_dtypes: Dict[str, str] = dict()
 
-    def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, max_workers: Optional[int] = 4, inplace: bool = False,
+                  **kwargs) -> pd.DataFrame:
         """
         Transform the data frame.
 
@@ -45,14 +46,10 @@ class DataFrameTransformer(SequentialTransformer):
         for col_name in df.columns:
             self.in_dtypes[col_name] = str(df[col_name].dtype)
 
-        # To do: implement parallel transform
-        for transformer in self:
-            df = transformer.transform(df)
+        return super().transform(df, max_workers=max_workers, **kwargs)
 
-        return df
-
-    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False,
-                          max_workers: Optional[int] = None, produce_nans: bool = False) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, max_workers: Optional[int] = 4,
+                          inplace: bool = False, **kwargs) -> pd.DataFrame:
         """
         Inverse transform the data frame.
 
@@ -67,13 +64,7 @@ class DataFrameTransformer(SequentialTransformer):
         if not inplace:
             df = df.copy()
 
-        # To do: implement parallel transform
-        for transformer in reversed(self):
-            if isinstance(transformer, NanTransformer):
-                df = transformer.inverse_transform(df, produce_nans=produce_nans)
-            else:
-                df = transformer.inverse_transform(df)
-
+        df = super().inverse_transform(df, max_workers=max_workers, **kwargs)
         self.set_dtypes(df)
         return df
 
