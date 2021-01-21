@@ -1,10 +1,11 @@
-from typing import Tuple, Dict
+from typing import Dict, Tuple
 
 import pandas as pd
 import tensorflow as tf
 
 from ..optimizers import Optimizer
-from ..values import ValueFactory, ValueOps
+from ..values import ValueFactory, ValueFactoryConfig, ValueOps
+from ...metadata import DataFrameMeta
 
 
 class StateSpaceModel(tf.Module):
@@ -25,13 +26,15 @@ class StateSpaceModel(tf.Module):
         t: time length
 
     """
-    def __init__(self, df, capacity: int, latent_size: int, name='state_space_model'):
+    def __init__(self, df_meta: DataFrameMeta, capacity: int, latent_size: int, name='state_space_model'):
         super(StateSpaceModel, self).__init__(name=name)
         self.capacity = capacity
         self.latent_size = latent_size
         self._trainable_variables = None
 
-        self.value_factory = ValueFactory(df=df, capacity=capacity)
+        self.df_meta = df_meta
+        vf_config = ValueFactoryConfig(capacity=capacity)
+        self.value_factory = ValueFactory(df_meta=df_meta, config=vf_config)
         self.value_ops = ValueOps(
             values=self.value_factory.get_values(), conditions=self.value_factory.get_conditions()
         )
@@ -130,7 +133,7 @@ class StateSpaceModel(tf.Module):
         mu, sigma = self.initial(x_1)
         e = self.sample_state(bs=x_1.shape[0])
 
-        return mu + e*sigma
+        return mu + e * sigma
 
     def sample_state(self, bs: tf.Tensor = tf.constant(1, dtype=tf.int64)) -> tf.Tensor:
         """Samples the latent state from a multivariate gauss ball.
@@ -150,7 +153,10 @@ class StateSpaceModel(tf.Module):
         """
         return tf.random.normal(shape=(bs, 1, self.value_ops.output_size), dtype=tf.float32)
 
-    # @tf.function
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        raise NotImplementedError
+
+    @tf.function
     def learn(self, xs: Dict[str, tf.Tensor]) -> None:
         """Training step for the generative model.
 
@@ -161,11 +167,13 @@ class StateSpaceModel(tf.Module):
             Dictionary of loss tensors, and optimization operation.
 
         """
-        self.xs = xs
-        # Optimization step
-        self.optimizer.optimize(
-            loss=self.loss, variables=self.get_trainable_variables
-        )
+        with tf.GradientTape() as gg:
+            total_loss = self.loss(xs)
+
+        with tf.name_scope("optimization"):
+            gradients = gg.gradient(total_loss, self.trainable_variables)
+            grads_and_vars = list(zip(gradients, self.trainable_variables))
+            self.optimizer.optimize(grads_and_vars)
 
         return
 
@@ -176,7 +184,7 @@ class StateSpaceModel(tf.Module):
         x = self.value_ops.value_outputs(y=y, conditions={})
 
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         return syn_df
 
     @staticmethod

@@ -1,15 +1,18 @@
+from typing import Dict
+
 import pandas as pd
 import tensorflow as tf
 
 from .feed_forward_state_space import GaussianEncoder
 from .state_space import StateSpaceModel
+from ...metadata import DataFrameMeta
 
 
 class RecurrentStateSpaceModel(StateSpaceModel):
     """"""
-    def __init__(self, df: pd.DataFrame, capacity: int, latent_size: int):
+    def __init__(self, df_meta: DataFrameMeta, capacity: int, latent_size: int):
         super(RecurrentStateSpaceModel, self).__init__(
-            df=df, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
+            df_meta=df_meta, capacity=capacity, latent_size=latent_size, name='recurrent_state_space_model'
         )
 
         self.emission_network = GaussianEncoder(
@@ -23,7 +26,7 @@ class RecurrentStateSpaceModel(StateSpaceModel):
         )
 
         self.inference_rnn = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units=capacity//2, return_sequences=True)
+            tf.keras.layers.LSTM(units=capacity // 2, return_sequences=True)
         )
         self.inference_network = GaussianEncoder(
             input_size=capacity, output_size=latent_size, capacity=capacity,
@@ -41,21 +44,21 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
     @property
     def regularization_losses(self):
-        pass
+        return None
 
     def initial_transition_state(self, shape):
         return (tf.zeros(shape=[shape[0], self.capacity], dtype=tf.float32),
                 tf.zeros(shape=[shape[0], self.capacity], dtype=tf.float32))
 
-    def loss(self) -> tf.Tensor:
+    def loss(self, xs: Dict[str, tf.Tensor]) -> tf.Tensor:
 
-        x = self.value_ops.unified_inputs(inputs=self.xs)  # [bs, t, i]
+        x = self.value_ops.unified_inputs(inputs=xs)  # [bs, t, i]
         trn_x = tf.concat([x[:, 0:1, :], x[:, 0:-1, :]], axis=1)
         mask = tf.nn.dropout(tf.ones(shape=[x.shape[0], x.shape[1], 1], dtype=tf.float32), rate=0.25)
 
         h_0 = self.transition_rnn.get_initial_state(trn_x)
 
-        prior_hs, state1, state2 = self.transition_rnn(inputs=mask*trn_x, initial_state=h_0)
+        prior_hs, state1, state2 = self.transition_rnn(inputs=mask * trn_x, initial_state=h_0)
 
         mu_gamma, sigma_gamma = self.transition_network(prior_hs)
 
@@ -71,24 +74,24 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         e_z = tf.random.normal(shape=sigma_phi.shape, dtype=tf.float32)
 
-        z = mu_phi + e_z*sigma_phi
+        z = mu_phi + e_z * sigma_phi
 
         mu_theta, sigma_theta = self.emission_network(z)
 
         e_y = tf.random.normal(shape=sigma_theta.shape, dtype=tf.float32)
 
-        y = mu_theta + e_y*sigma_theta
+        y = mu_theta + e_y * sigma_theta
         x = self.value_ops.value_outputs(y=y[0, :, :], conditions={})
 
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         fig = plt.figure(figsize=(16, 6))
         ax = fig.gca()
         sns.lineplot(data=syn_df, axes=ax, dashes=False)
         tf.summary.image("Training Data", data=plot_to_image(fig))
         plt.close(fig)
 
-        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=self.xs)
+        reconstruction_loss = self.value_ops.reconstruction_loss(y=y, inputs=xs)
         loss = tf.add_n((kl_loss, reconstruction_loss), name='total_loss')
 
         tf.summary.scalar(name='kl_loss', data=kl_loss)
@@ -130,20 +133,23 @@ class RecurrentStateSpaceModel(StateSpaceModel):
 
         x = self.value_ops.value_outputs(y=y, conditions={})
         syn_df = pd.DataFrame(x)
-        syn_df = self.value_factory.postprocess(df=syn_df)
+        syn_df = self.df_meta.postprocess(df=syn_df)
         return syn_df
 
 
 if __name__ == '__main__':
     """Testing the RSSM on simple sinusoidal data."""
-    import warnings
     import io
+    import warnings
     from datetime import datetime
+
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
+    import seaborn as sns
 
     from synthesized.common.util import record_summaries_every_n_global_steps
+
+    from ...metadata import MetaExtractor
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
     def plot_to_image(figure):
@@ -168,9 +174,10 @@ if __name__ == '__main__':
         b=-value
     ))
 
-    rssm = RecurrentStateSpaceModel(df=df, capacity=8, latent_size=4)
+    df_meta = MetaExtractor.extract(df)
+    rssm = RecurrentStateSpaceModel(df_meta=df_meta, capacity=8, latent_size=4)
 
-    df_train = rssm.value_factory.preprocess(df)
+    df_train = rssm.df_meta.preprocess(df)
     data = rssm.get_training_data(df_train)
 
     global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)

@@ -6,7 +6,6 @@ from .mean import MeanFunctional
 from .standard_deviation import StandardDeviationFunctional
 from ..module import register
 
-
 register(name='conditional', module=ConditionalFunctional)
 register(name='correlation', module=CorrelationFunctional)
 register(name='correlation_matrix', module=CorrelationMatrixFunctional)

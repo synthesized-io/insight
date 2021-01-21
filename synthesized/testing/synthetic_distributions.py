@@ -1,12 +1,10 @@
-from random import choice, shuffle, gauss
+from random import choice, gauss, shuffle
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from numpy.random import binomial
-from numpy.random import exponential, normal
-from scipy.stats import bernoulli
-from scipy.stats import powerlaw
+from numpy.random import binomial, exponential, normal
+from scipy.stats import bernoulli, powerlaw
 
 
 def product(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -22,10 +20,10 @@ def create_line(x_range: tuple, intercept: float, slope: float, y_std: float, si
     """
     Draw `size` samples from a joint distribution where the marginal distribution of x
     is Uniform(`x_range[0]`, `x_range[1]`), and the conditional distribution of y given x
-    is N(slope*x + intercept, y_std**2).
+    is N(slope * x + intercept, y_std**2).
      """
     x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
-    y = intercept + x*slope + np.random.normal(loc=0, scale=y_std, size=size)
+    y = intercept + x * slope + np.random.normal(loc=0, scale=y_std, size=size)
     df = pd.DataFrame({'x': x, 'y': y})
     return df
 
@@ -105,7 +103,7 @@ def create_two_gaussian_mixtures(mean1: float, std1: float, mean2: float, std2: 
 def create_gauss_line(
     x_range: Tuple[float, float], intercept: float, slope: float, y_std: float, size: int
 ) -> pd.DataFrame:
-    """Creates a two-dimensional (axes: x,y) cloud of points around a line `y=x*slope + intercept`
+    """Creates a two-dimensional (axes: x,y) cloud of points around a line `y=x * slope + intercept`
      with standard deviation y_std along y axis and confined to [x_range[0], x_range[1]] along x axis"""
     x = np.random.uniform(low=x_range[0], high=x_range[1], size=size)
     y = intercept + x * slope + np.random.normal(loc=0, scale=y_std, size=size)
@@ -162,13 +160,13 @@ def create_mixed_continuous_categorical(n_classes: int, prior_mean: float = 0, p
     `N(prior_mean, prior_sd)`. The values of the continuous column are sampled from `N(mean[c], sd)`
     where `mean[c]` is the mean for the value of the categorical column.
     """
-    means = prior_mean + prior_sd*np.random.randn(n_classes)
+    means = prior_mean + prior_sd * np.random.randn(n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     discrete = np.random.choice(list(range(n_classes)), size=size)
     zs = np.random.randn(size)
     sample_means = means[discrete]
     values = categories[discrete]
-    continuous = sample_means + sd*zs
+    continuous = sample_means + sd * zs
     return pd.DataFrame({"x": values, "y": continuous})
 
 
@@ -179,12 +177,12 @@ def create_correlated_categorical(n_classes: int, size: int, sd: float = 1.) -> 
 
     The first column is uniform distributed and values of the second are drawn conditional on the first.
     To specify the conditional distributions, for each of the `n_classes` possible values of the first column,
-    a vector of logits is drawn from `N(0, sd*I_{n_classes, n_classes})`.
+    a vector of logits is drawn from `N(0, sd * I_{n_classes, n_classes})`.
     """
-    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
+    logits = sd * np.random.randn(n_classes * n_classes).reshape(n_classes, n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     independent = np.random.choice(list(range(n_classes)), size=size)
-    gumbels = -np.log(-np.log(np.random.uniform(size=n_classes*size))).reshape(size, n_classes)
+    gumbels = -np.log(-np.log(np.random.uniform(size=n_classes * size))).reshape(size, n_classes)
     dependent = (logits[independent] + gumbels).argmax(1)
     independent_values = categories[independent]
     dependent_values = categories[dependent]
@@ -215,13 +213,14 @@ def create_multidimensional_correlated_categorical(n_classes: int, dimensions: i
     The first column is uniform distributed. The other columns are drawn sequentially by choosing one of
     the previous columns uniformly at random and sampling the current column's  value dependent on it.
     To specify the conditional distributions, for each of the `n_classes` possible values of the conditioning
-     column, a vector of logits is drawn from `N(0, sd*I_{n_classes, n_classes})`.
+     column, a vector of logits is drawn from `N(0, sd * I_{n_classes, n_classes})`.
     """
-    logits = sd*np.random.randn(dimensions*n_classes*n_classes).reshape(dimensions, n_classes, n_classes)
+    logits = sd * np.random.randn(dimensions * n_classes * n_classes).reshape(dimensions, n_classes, n_classes)
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
     independent = np.random.choice(list(range(n_classes)), size=size)
     independent_values = categories[independent]
-    gumbels = -np.log(-np.log(np.random.uniform(size=dimensions*size*n_classes))).reshape(dimensions,  size, n_classes)
+    gumbels = -np.log(
+        -np.log(np.random.uniform(size=dimensions * size * n_classes))).reshape(dimensions, size, n_classes)
     val_list, val_dict = [independent], {"x_0": independent_values}
     col_ids = list(range(dimensions))
     for j in range(1, dimensions):
@@ -235,8 +234,9 @@ def create_multidimensional_correlated_categorical(n_classes: int, dimensions: i
     return pd.DataFrame(val_dict).astype(str)
 
 
-def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, n_classes: int, size: int) \
-        -> pd.DataFrame:
+def create_multidimensional_mixed(
+        continuous_dim: int, categorical_dim: int, n_classes: int, size: int
+) -> pd.DataFrame:
     """
     Draw `size` samples from a `continuous_dim`-dimensional standard gaussian and `categorical_dim` uniform,
     independent categorical random variables. The categorical column takes one of `n_classes` possible values.
@@ -248,29 +248,29 @@ def create_multidimensional_mixed(continuous_dim: int, categorical_dim: int, n_c
 
 
 def sample_cat_to_cat(parent_values: np.array, sd: float, size: int, n_classes: int):
-    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
-    gumbels = -np.log(-np.log(np.random.uniform(size=size*n_classes))).reshape(size, n_classes)
+    logits = sd * np.random.randn(n_classes * n_classes).reshape(n_classes, n_classes)
+    gumbels = -np.log(-np.log(np.random.uniform(size=size * n_classes))).reshape(size, n_classes)
     return (logits[parent_values] + gumbels).argmax(-1)
 
 
 def sample_cat_to_cont(parent_values: np.array, size: int, n_classes: int, sd: float, prior_sd: float):
-    means = prior_sd*np.random.randn(n_classes).astype(np.float32)
+    means = prior_sd * np.random.randn(n_classes).astype(np.float32)
     sample_means = means[parent_values]
     zs = np.random.randn(size)
-    return (sample_means + sd*zs).astype(np.float32)
+    return (sample_means + sd * zs).astype(np.float32)
 
 
 def sample_cont_to_cont(parent_values: np.array, size: int, prior_sd: float, noise_sd: float):
     weight = gauss(mu=0, sigma=prior_sd)
     bias = gauss(mu=0, sigma=prior_sd)
     noise = np.random.randn(size)
-    return (weight*parent_values + bias + noise_sd*noise).astype(np.float32)
+    return (weight * parent_values + bias + noise_sd * noise).astype(np.float32)
 
 
 def sample_cont_to_cat(parent_values: np.array, size: int, prior_sd: float, n_classes: int):
-    weights, biases = prior_sd*np.random.randn(1, n_classes), prior_sd*np.random.randn(1, n_classes)
+    weights, biases = prior_sd * np.random.randn(1, n_classes), prior_sd * np.random.randn(1, n_classes)
     class_weights = biases + np.multiply(np.expand_dims(parent_values, -1), weights)
-    gumbels = -np.log(-np.log(np.random.uniform(size=size*n_classes))).reshape(size, n_classes)
+    gumbels = -np.log(-np.log(np.random.uniform(size=size * n_classes))).reshape(size, n_classes)
     return (class_weights + gumbels).argmax(-1)
 
 
@@ -289,15 +289,15 @@ def create_multidimensional_correlated_mixed(continuous_dim: int, categorical_di
     If the current column is categorical and the conditioning column is categorical, it is drawn as in
     `create_correlated_categoricals`. If the conditioning column is continuous, the current column is
     sampled from a logistic regression model whose weights are biases are drawn from
-    `N(0, prior_sd*I_{n_classes, n_classes})`.
+    `N(0, prior_sd * I_{n_classes, n_classes})`.
 
     If the current column if continuous and the conditioning column is categorical, it is
     drawn as in `create_mixed_continuous_categorical`. If the conditioning column is continuous,
-    it is drawn from a regression model with weights and biases drawn from `N(0, prior_sd*I_{n_classes, n_classes})`
-    and noise drawn from `N(0, cont_sd*I_{n_classes, n_classes})`
+    it is drawn from a regression model with weights and biases drawn from `N(0, prior_sd * I_{n_classes, n_classes})`
+    and noise drawn from `N(0, cont_sd * I_{n_classes, n_classes})`
     """
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
-    kinds = continuous_dim*["continuous"] + (categorical_dim-1)*["categorical"]
+    kinds = continuous_dim * ["continuous"] + (categorical_dim - 1) * ["categorical"]
     shuffle(kinds)
     kinds.insert(0, "categorical")
     independent = np.random.choice(list(range(n_classes)), size=size)
@@ -314,7 +314,7 @@ def create_multidimensional_correlated_mixed(continuous_dim: int, categorical_di
                 value = sample_cat_to_cat(parent_values=parent_vals, size=size, n_classes=n_classes,
                                           sd=categorical_sd)
             else:
-                value = sample_cat_to_cont(parent_values=parent_vals, size=size,  n_classes=n_classes,
+                value = sample_cat_to_cont(parent_values=parent_vals, size=size, n_classes=n_classes,
                                            prior_sd=prior_sd, sd=cont_sd)
         else:
             if kind == "categorical":
@@ -423,7 +423,7 @@ def categorical_auto_regressive(n_classes, sd):
     :param sd: [float] standard deviation of prior on logits
     """
     categories = np.array([f"v_{i}" for i in list(range(n_classes))])
-    logits = sd*np.random.randn(n_classes*n_classes).reshape(n_classes, n_classes)
+    logits = sd * np.random.randn(n_classes * n_classes).reshape(n_classes, n_classes)
 
     def out_func(times):
         size = times.shape[0]

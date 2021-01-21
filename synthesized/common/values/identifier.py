@@ -1,32 +1,22 @@
-from typing import List, Optional, Dict
+from typing import Dict, Optional, Sequence
 
-import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from .. import util
 from ..module import tensorflow_name_scoped
+from ..util import get_initializer
+from ...config import IdentifierConfig
 
 
 class IdentifierValue(Value):
     def __init__(
-        self, name, identifiers=None, capacity=None, embedding_size=None
+        self, name, num_identifiers=None, embedding_size=None, config: IdentifierConfig = IdentifierConfig()
     ):
         super().__init__(name=name)
-
-        if identifiers is None:
-            self.identifiers = None
-            self.num_identifiers = None
-        elif isinstance(identifiers, int):
-            self.identifiers = self.num_identifiers = identifiers
-        else:
-            self.identifiers = sorted(identifiers)
-            self.num_identifiers = len(self.identifiers)
-
+        self.num_identifiers = num_identifiers
         self.identifier2idx: Optional[Dict] = None
 
-        self.capacity = capacity
-        self.embedding_size = embedding_size
+        self.capacity = config.capacity
         if embedding_size is None:
             self.embedding_size = self.capacity
         else:
@@ -54,24 +44,10 @@ class IdentifierValue(Value):
         assert self.num_identifiers is not None
         return self.num_identifiers
 
-    def extract(self, df):
-        super().extract(df=df)
-
-        if self.identifiers is None:
-            self.identifiers = sorted(df.loc[:, self.name].unique())
-            self.num_identifiers = len(self.identifiers)
-        elif sorted(df.loc[:, self.name].unique()) != self.identifiers:
-            raise NotImplementedError
-
-        self.identifier2idx = {k: i for i, k in enumerate(self.identifiers)}
-        self.idx2identifier = {i: k for i, k in enumerate(self.identifiers)}
-
-        self.build()
-
     @tensorflow_name_scoped
     def build(self) -> None:
         if not self.built:
-            initializer = util.get_initializer(initializer='glorot-normal')
+            initializer = get_initializer(initializer='glorot-normal')
             shape = (self.num_identifiers, self.embedding_size)
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
@@ -83,22 +59,11 @@ class IdentifierValue(Value):
 
         self.built = True
 
-    def preprocess(self, df: pd.DataFrame):
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.identifier2idx)
-        if df.loc[:, self.name].dtype != 'int64':
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
-        return super().preprocess(df)
-
-    def postprocess(self, df: pd.DataFrame):
-        df = super().postprocess(df=df)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2identifier)
-        return df
-
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
-        assert len(xs) == 1
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
-        return tf.nn.embedding_lookup(params=self.embeddings, ids=tf.cast(xs[0], dtype=tf.int64))
+        x = tf.cast(xs[0], dtype=tf.int64)
+        return tf.nn.embedding_lookup(params=self.embeddings, ids=x)
 
     @tensorflow_name_scoped
     def next_identifier(self):
@@ -134,9 +99,9 @@ class IdentifierValue(Value):
     def get_embedding(self, identifier: tf.Tensor):
         return tf.nn.embedding_lookup(params=self.embeddings, ids=identifier)
 
-    # def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    # def loss(self, y: tf.Tensor, xs: tf.Tensor) -> tf.Tensor:
     #     target = tf.one_hot(
-    #         indices=xs[0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
+    #         indices=xs[:, 0], depth=self.num_identifiers, on_value=1.0, off_value=0.0, axis=1,
     #         dtype=tf.float32
     #     )
     #

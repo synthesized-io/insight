@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import tensorflow as tf
 
+from .value import Value
 from ..module import tensorflow_name_scoped
-from ..values import Value
 
 
 class ValueOps(tf.Module):
@@ -28,25 +28,24 @@ class ValueOps(tf.Module):
         self.condition_size = 0
         for value in self.conditions:
             assert value.learned_input_size() > 0
-            assert value.learned_input_columns() == value.learned_output_columns()
             self.condition_size += value.learned_input_size()
 
     @tensorflow_name_scoped
-    def unified_inputs(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def unified_inputs(self, inputs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         # Concatenate input tensors per value
         x = tf.concat(values=[
-            value.unify_inputs(xs=[inputs[name] for name in value.learned_input_columns()])
+            value.unify_inputs(xs=inputs[value.name])
             for value in self.values if value.learned_input_size() > 0
         ], axis=-1)
 
         return x
 
     @tensorflow_name_scoped
-    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, tf.Tensor]) -> tf.Tensor:
+    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         if len(self.conditions) > 0:
             # Condition c
             c = tf.concat(values=[
-                value.unify_inputs(xs=[conditions[name] for name in value.learned_input_columns()])
+                value.unify_inputs(xs=conditions[value.name])
                 for value in self.conditions
             ], axis=1)
 
@@ -56,7 +55,7 @@ class ValueOps(tf.Module):
         return x
 
     @tensorflow_name_scoped
-    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+    def reconstruction_loss(self, y: tf.Tensor, inputs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -68,7 +67,7 @@ class ValueOps(tf.Module):
         # Reconstruction loss per value
         for value, y in zip(self.values, ys):
             losses[value.name + '-loss'] = value.loss(
-                y=y, xs=[inputs[name] for name in value.learned_output_columns()]
+                y=y, xs=inputs[value.name]
             )
 
         # Reconstruction loss
@@ -77,8 +76,8 @@ class ValueOps(tf.Module):
         return reconstruction_loss
 
     @tensorflow_name_scoped
-    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, tf.Tensor],
-                      identifier: tf.Tensor = None, sample: bool = True) -> Dict[str, tf.Tensor]:
+    def value_outputs(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]], identifier: tf.Tensor = None,
+                      sample: bool = True, produce_nans: bool = False) -> Dict[str, Sequence[tf.Tensor]]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values],
@@ -86,16 +85,15 @@ class ValueOps(tf.Module):
         )
 
         # Output tensors per value
-        synthesized: Dict[str, tf.Tensor] = OrderedDict()
+        synthesized: Dict[str, Sequence[tf.Tensor]] = OrderedDict()
 
         if identifier is not None and self.identifier_label is not None:
-            synthesized[self.identifier_label] = identifier
+            synthesized[self.identifier_label] = (identifier,)
 
         for value, y in zip(self.values, ys):
-            synthesized.update(zip(value.learned_output_columns(), value.output_tensors(y=y, sample=sample)))
+            synthesized[value.name] = value.output_tensors(y=y, sample=sample, produce_nans=produce_nans)
 
         for value in self.conditions:
-            for name in value.learned_output_columns():
-                synthesized[name] = conditions[name]
+            synthesized[value.name] = conditions[value.name]
 
         return synthesized

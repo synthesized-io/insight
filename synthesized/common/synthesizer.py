@@ -3,13 +3,12 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional, Any
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .values import Value
+from ..common.values import Value
 
 
 def _check_license():
@@ -83,58 +82,19 @@ class Synthesizer(tf.Module):
     def get_all_values(self) -> List[Value]:
         return self.get_values() + self.get_conditions()
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, tf.Tensor]:
-        data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_all_values()
-            for name in value.learned_input_columns()
-        }
-        return data
+    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        raise NotImplementedError
 
-    def get_conditions_data(self, df: pd.DataFrame) -> Dict[str, np.ndarray]:
-        data = {
-            name: tf.constant(df[name].to_numpy(), dtype=value.dtype) for value in self.get_conditions()
-            for name in value.learned_input_columns()
-        }
-        return data
+    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+        raise NotImplementedError
 
-    def get_conditions_feed_dict(self, df_conditions, num_rows, batch_size: Optional[int] = None):
-        feed_dict = dict()
+    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
+        raise NotImplementedError
 
-        if not batch_size:
-            # Add conditions to 'feed_dict'
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition
-                    else:
-                        raise NotImplementedError
+    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df
 
-        elif (num_rows % batch_size) != 0:
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (num_rows % batch_size,))
-                    elif condition.shape == (num_rows,):
-                        feed_dict[name] = condition[-num_rows % batch_size:]
-                    else:
-                        raise NotImplementedError
-        else:
-            for value in self.get_conditions():
-                for name in value.learned_input_columns():
-                    condition = df_conditions[name].values
-                    if condition.shape == (1,):
-                        feed_dict[name] = np.tile(condition, (batch_size,))
-
-        return feed_dict
-
-    def get_losses(self, data) -> tf.Tensor:
-        raise NotImplementedError()
-
-    def preprocess(self, df):
+    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     @staticmethod
@@ -144,8 +104,10 @@ class Synthesizer(tf.Module):
         return False
 
     def learn(
-        self, df_train: pd.DataFrame, num_iterations: Optional[int],
-        callback: Callable[[object, int, dict], bool] = logging, callback_freq: int = 0
+            self, df_train: pd.DataFrame,
+            num_iterations: Optional[int],
+            callback: Callable[[object, int, dict], bool] = None,
+            callback_freq: int = 0
     ) -> None:
         """Train the generative model for the given iterations.
 
@@ -162,14 +124,18 @@ class Synthesizer(tf.Module):
         """
         raise NotImplementedError
 
-    def synthesize(self, num_rows: int,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+    def synthesize(
+            self, num_rows: int,
+            conditions: Union[dict, pd.DataFrame] = None,
+            produce_nans: bool = False,
+            progress_callback: Callable[[int], None] = None
+    ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
             conditions: The condition values for the generated rows.
+            produce_nans: Whether to produce NaNs.
             progress_callback: A callback that receives current percentage of the progress.
 
         Returns:

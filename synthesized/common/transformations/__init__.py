@@ -9,7 +9,6 @@ from .resnet import ResnetTransformation
 from .transformation import Transformation
 from ..module import register
 
-
 register(name='dense', module=DenseTransformation)
 register(name='gaussian_transformation', module=GaussianTransformation)
 register(name='linear', module=LinearTransformation)

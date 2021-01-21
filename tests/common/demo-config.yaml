@@ -1,0 +1,98 @@
+# Define data to generate
+values:
+  - name: userName
+    type: formattedstring
+    length: 7,15
+    characters: a-z0-9
+
+  - name: mobile
+    type: formattedstring
+    regex: '07[0-9]{8}'
+
+  - name: email
+    type: formattedstring
+    regex: '[a-zA-Z]{2,3}[.][a-zA-Z]{2,4}[0-9]{0,2}@[a-z]{2,5}\.[a-z]{2,3}'
+
+  - name: pwd
+    type: formattedstring
+    length: 7,15
+    characters: a-zA-Z0-9
+
+  - name: address0
+    type: address
+    full_address_label: address
+
+  - name: question
+    type: sampling
+    categories:
+      - Your First School Name?
+      - Your Car Number?
+      - Your Mothers Name?
+      - Favorite Color?
+
+  - name: answer
+    type: formattedstring
+    regex: '[A-Z][a-z]{3,10}'
+
+  - name: accountNum1
+    type: constant
+    constant_value: ''
+
+  - name: accountNum2
+    type: constant
+    constant_value: ''
+
+  - name: account1Desc
+    type: formattedstring
+    length: 5,12
+    characters: a-z
+
+  - name: account2Desc
+    type: formattedstring
+    length: 5,12
+    characters: a-z
+
+  - name: depositAmt1
+    type: numeric
+    integer: true
+    low: 10000
+    high: 20000
+
+# We use groups for those columns that can be generated from the same rules
+groups:
+  - names:
+      - depositAmt2
+      - depositAmt3
+      - depositAmt4
+      - depositAmt5
+      - depositAmt6
+      - depositAmt7
+      - depositAmt8
+      - withdrawAmt1
+      - withdrawAmt2
+      - withdrawAmt3
+      - withdrawAmt4
+      - withdrawAmt5
+      - withdrawAmt6
+      - transferAmt1
+      - transferAmt2
+      - transferAmt3
+      - transferAmt4
+      - transferAmt5
+      - transferAmt6
+    type: numeric
+    integer: true
+    low: 25
+    high: 800
+
+  - names:
+      - transferDesc1
+      - transferDesc2
+      - transferDesc3
+      - transferDesc4
+      - transferDesc5
+      - transferDesc6
+    count: 6
+    type: formattedstring
+    length: 5,12
+    characters: a-z

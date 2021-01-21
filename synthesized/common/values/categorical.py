@@ -1,15 +1,14 @@
-from collections.abc import MutableSequence
 import logging
-from math import isnan, log
-from typing import Any, Dict, List, Optional
+from math import log
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from .value import Value
-from .. import util
 from ..module import tensorflow_name_scoped
+from ..util import get_initializer
+from ...config import CategoricalConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,48 +16,37 @@ logger = logging.getLogger(__name__)
 class CategoricalValue(Value):
 
     def __init__(
-        self, name: str, capacity: int, weight: float, temperature: float,
-        moving_average: bool,
+        self, name: str, num_categories: int,
         # Optional
-        similarity_based: bool = False, pandas_category: bool = False, produce_nans: bool = False,
+        similarity_based: bool = False, nans_valid: bool = False,
         # Scenario
-        categories: List = None, probabilities=None, embedding_size: int = None, true_categorical: bool = True
+        probabilities=None, embedding_size: int = None,
+        config: CategoricalConfig = CategoricalConfig()
     ):
         super().__init__(name=name)
-        self.categories: Optional[MutableSequence] = None
-        self.category2idx: Optional[Dict] = None
-        self.idx2category: Optional[Dict] = None
-        self.nans_valid: bool = False
-        self.num_categories: Optional[int] = None
+        self.num_categories: int = num_categories
+        self.similarity_based = similarity_based
+        self.nans_valid: bool = nans_valid
 
-        self.given_categories = categories
         self.probabilities = probabilities
-        self.capacity = capacity
 
         if embedding_size:
             self.embedding_size: Optional[int] = embedding_size
         else:
             self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=similarity_based)
 
-        if similarity_based:
-            self.embedding_initialization = 'glorot-normal'
-        else:
-            self.embedding_initialization = 'orthogonal-small'
+        self.embedding_initialization = 'glorot-normal' if similarity_based else 'orthogonal-small'
 
-        self.weight = weight
+        self.weight = config.categorical_weight
+        self.use_moving_average = config.moving_average
+        self.temperature = config.temperature
 
-        self.use_moving_average: bool = moving_average
         self.moving_average: Optional[tf.train.ExponentialMovingAverage] = None
-
         self.embeddings: Optional[tf.Variable] = None
         self.frequency: Optional[tf.Variable] = None
-        self.similarity_based = similarity_based
-        self.temperature = temperature
-        self.pandas_category = pandas_category
-        self.produce_nans = produce_nans
-        self.true_categorical = true_categorical
-        self.is_string = False
         self.dtype = tf.int64
+
+        self.build()
 
     def __str__(self) -> str:
         string = super().__str__()
@@ -70,10 +58,10 @@ class CategoricalValue(Value):
     def specification(self) -> Dict[str, Any]:
         spec = super().specification()
         spec.update(
-            categories=self.categories, embedding_size=self.embedding_size,
+            embedding_size=self.embedding_size,
             similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
-            produce_nans=self.produce_nans, embedding_initialization=self.embedding_initialization
+            embedding_initialization=self.embedding_initialization
         )
         return spec
 
@@ -85,21 +73,6 @@ class CategoricalValue(Value):
         assert self.num_categories is not None
         return self.num_categories
 
-    def extract(self, df: pd.DataFrame) -> None:
-        super().extract(df=df)
-
-        if df.loc[:, self.name].dtype.kind == 'O':
-            self.is_string = True
-            unique_values = df.loc[:, self.name].astype(object).fillna('nan').apply(str).unique().tolist()
-        else:
-            unique_values = df.loc[:, self.name].fillna(np.nan).unique().tolist()
-        self._set_categories(unique_values)
-
-        if self.embedding_size is None:
-            self.embedding_size = compute_embedding_size(self.num_categories, similarity_based=self.similarity_based)
-
-        self.build()
-
     @tensorflow_name_scoped
     def build(self):
         if not self.built:
@@ -107,7 +80,7 @@ class CategoricalValue(Value):
                 # "hack": scenario synthesizer, embeddings not used
                 return
             shape = (self.num_categories, self.embedding_size)
-            initializer = util.get_initializer(initializer=self.embedding_initialization)
+            initializer = get_initializer(initializer=self.embedding_initialization)
 
             self.embeddings = tf.Variable(
                 initial_value=initializer(shape=shape, dtype=tf.float32), name='embeddings', shape=shape,
@@ -125,44 +98,23 @@ class CategoricalValue(Value):
 
         self.built = True
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        if self.is_string:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(object).fillna('nan').apply(str)
-
-        assert isinstance(self.categories, list)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.category2idx)
-
-        if df.loc[:, self.name].dtype != 'int64':
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='int64')
-        return super().preprocess(df=df)
-
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = super().postprocess(df=df)
-        assert isinstance(self.categories, list)
-        df.loc[:, self.name] = df.loc[:, self.name].map(self.idx2category)
-        if self.is_string:
-            df.loc[df[self.name] == 'nan', self.name] = np.nan
-
-        if self.pandas_category:
-            df.loc[:, self.name] = df.loc[:, self.name].astype(dtype='category')
-        return df
-
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, sample: bool = True, **kwargs) -> List[tf.Tensor]:
-        if self.nans_valid is True and self.produce_nans is False and self.num_categories == 1:
+    def output_tensors(self, y: tf.Tensor, sample: bool = True,
+                       produce_nans: bool = True, **kwargs) -> Sequence[tf.Tensor]:
+        if self.nans_valid is True and produce_nans is False and self.num_categories == 1:
             logger.warning("CategoricalValue '{}' is set to produce nans, but a single nan category has been learned. "
                            "Setting 'procude_nans=True' for this column".format(self.name))
-            self.produce_nans = True
+            produce_nans = True
 
         # Choose argmax class
         y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
 
-        if self.nans_valid is False or self.produce_nans:
+        if self.nans_valid and produce_nans:
             if sample:
                 y_flat = tf.random.categorical(logits=y_flat, num_samples=1)
             else:
@@ -174,12 +126,12 @@ class CategoricalValue(Value):
             else:
                 y_flat = tf.expand_dims(tf.argmax(y_flat[:, 1:], axis=1) + 1, axis=1)
 
-        y = tf.reshape(y_flat, shape=y.shape[0:-1])
+        y = tf.reshape(y_flat, shape=tf.concat(([-1], y.shape[1:-1]), axis=0))
 
-        return [y]
+        return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
         if self.moving_average is not None:
             assert self.num_categories is not None
@@ -199,7 +151,7 @@ class CategoricalValue(Value):
                 )
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
-                weights = tf.reshape(weights, shape=xs[0].shape)
+                weights = tf.reshape(weights, shape=target.shape)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
         else:
             weights = 1.0
@@ -208,7 +160,7 @@ class CategoricalValue(Value):
         assert self.num_categories is not None
 
         target = tf.one_hot(
-            indices=xs[0], depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
+            indices=target, depth=self.num_categories, on_value=1.0, off_value=0.0, axis=-1,
             dtype=tf.float32
         )
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=-1)
@@ -216,13 +168,12 @@ class CategoricalValue(Value):
         tf.summary.scalar(name=self.name, data=loss)
         return loss
 
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
-        assert len(ys) == 1
+    def distribution_loss(self, y: tf.Tensor) -> tf.Tensor:
 
         if self.probabilities is None:
             return tf.constant(value=0.0, dtype=tf.float32)
 
-        samples = ys[0]
+        samples = y
         num_samples = tf.shape(input=samples)[0]
         samples = tf.concat(
             values=(tf.range(start=0, limit=self.num_categories, dtype=tf.int64), samples), axis=0
@@ -233,56 +184,6 @@ class CategoricalValue(Value):
         loss = tf.math.squared_difference(x=probs, y=self.probabilities)
         loss = tf.reduce_mean(input_tensor=loss, axis=0)
         return loss
-
-    def _set_categories(self, categories: MutableSequence):
-
-        found = None
-
-        if self.given_categories is None:
-            # Put any nan at the position zero of the list
-            for n, x in enumerate(categories):
-                if self.is_string and x == 'nan':
-                    found = categories.pop(n)
-                    self.nans_valid = True
-                    break
-                elif isinstance(x, float) and isnan(x):
-                    found = categories.pop(n)
-                    self.nans_valid = True
-                    break
-
-            try:
-                categories = list(np.sort(categories))
-            except TypeError:
-                pass  # Don't sort the categories if it's not possible.
-
-        else:
-            for x in categories:
-                if x not in self.given_categories:
-                    found = 'nan' if self.is_string else np.nan
-                    self.nans_valid = True
-                    break
-
-            categories = self.given_categories.copy()
-
-        if found is not None:
-            categories.insert(0, found)
-
-        # If categories are not set
-        if self.categories is None:
-            self.categories = categories
-            self.num_categories = len(categories)
-            self.idx2category = {i: self.categories[i] for i in range(len(self.categories))}
-
-            if found is not None:
-                self.category2idx = Categories({self.categories[i]: i for i in range(len(self.categories))})
-            else:
-                self.category2idx = {self.categories[i]: i for i in range(len(self.categories))}
-
-        # If categories have been set and are different to the given
-        elif isinstance(self.categories, list):
-            for category in categories[int(self.nans_valid):]:
-                if category not in self.categories[int(self.nans_valid):]:
-                    raise NotImplementedError
 
 
 def compute_embedding_size(num_categories: Optional[int], similarity_based: bool = False) -> Optional[int]:

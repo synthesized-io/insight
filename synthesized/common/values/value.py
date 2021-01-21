@@ -1,9 +1,8 @@
-import re
-from typing import List, Optional, Dict, Any
-from base64 import b64encode, b64decode
 import pickle
+import re
+from base64 import b64decode, b64encode
+from typing import Any, Dict, List, Sequence
 
-import pandas as pd
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
@@ -11,17 +10,16 @@ from ..util import make_tf_compatible
 
 
 class Value(tf.Module):
-    def __init__(self, name: str):
+    def __init__(self, name: str, meta_names: List[str] = None):
         super().__init__(name=self.__class__.__name__ + '_' + re.sub("\\.", '_', make_tf_compatible(name)))
         self._name = name
-
-        self.placeholder: Optional[tf.Tensor] = None  # not all values have a placeholder
+        self.meta_names = [name] if meta_names is None else meta_names
         self.built = False
         self.dtype = tf.float32
         self._regularization_losses: List[tf.Tensor] = list()
 
     def __str__(self) -> str:
-        return self.__class__.__name__[:-5].lower()
+        return self.__class__.__name__[:-5].lower() + "_value"
 
     @property
     def name(self):
@@ -38,30 +36,6 @@ class Value(tf.Module):
 
         """
         return [self.name]
-
-    def learned_input_columns(self) -> List[str]:
-        """Internal input columns for a generative model.
-
-        Returns:
-            Learned input columns.
-
-        """
-        if self.learned_input_size() == 0:
-            return list()
-        else:
-            return [self.name]
-
-    def learned_output_columns(self) -> List[str]:
-        """Internal output columns for a generative model.
-
-        Returns:
-            Learned output columns.
-
-        """
-        if self.learned_output_size() == 0:
-            return list()
-        else:
-            return [self.name]
 
     def learned_input_size(self) -> int:
         """Internal input embedding size for a generative model.
@@ -81,57 +55,8 @@ class Value(tf.Module):
         """
         return 0
 
-    def extract(self, df: pd.DataFrame) -> None:
-        """Extracts configuration parameters from a representative data frame.
-
-        Overwriting implementations should call super().extract(df=df) as first step.
-
-        Args:
-            df: Representative data frame.
-
-        """
-        assert all(name in df.columns for name in self.columns())
-
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Pre-processes a data frame to prepare it as input for a generative model. This may
-        include adding or removing columns in case of `learned_input_columns()` differing from
-        `columns()`.
-
-        Important: this function modifies the given data frame.
-
-        Overwriting implementations should call super().preprocess(df=df) as last step.
-
-        Args:
-            df: Data frame to be pre-processed.
-
-        Returns:
-            Pre-processed data frame.
-
-        """
-        assert all(name in df.columns for name in self.learned_input_columns())
-        return df
-
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Post-processes a data frame, usually the output of a generative model. Post-processing
-        basically reverses the pre-processing procedure. This may include re-introducing columns in
-        case of `learned_output_columns()` differing from `columns()`.
-
-        Important: this function modifies the given data frame.
-
-        Overwriting implementations should call super().postprocess(df=df) as first step.
-
-        Args:
-            df: Data frame to be post-processed.
-
-        Returns:
-            Post-processed data frame.
-
-        """
-        assert all(name in df.columns for name in self.learned_output_columns())
-        return df
-
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: List[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Unifies input tensors into a single input embedding for a generative model.
 
         Args:
@@ -144,7 +69,7 @@ class Value(tf.Module):
         raise NotImplementedError
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, **kwargs) -> List[tf.Tensor]:
+    def output_tensors(self, y: tf.Tensor, **kwargs) -> Sequence[tf.Tensor]:
         """Turns an output embedding of a generative model into corresponding output tensors.
 
         Args:
@@ -154,10 +79,10 @@ class Value(tf.Module):
             Output tensors, one per `learned_output_columns()`.
 
         """
-        return list()
+        return tuple()
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: List[tf.Tensor]) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Computes the reconstruction loss of an output embedding and corresponding input tensors.
 
         Args:
@@ -171,7 +96,7 @@ class Value(tf.Module):
         return tf.constant(value=0.0, dtype=tf.float32)
 
     @tensorflow_name_scoped
-    def distribution_loss(self, ys: List[tf.Tensor]) -> tf.Tensor:
+    def distribution_loss(self, *ys: tf.Tensor) -> tf.Tensor:
         """Computes the distributional distance of sample output embeddings to the target
         distribution.
 

@@ -1,4 +1,4 @@
-from typing import Tuple, Union, Dict, Any
+from typing import Any, Dict, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -19,7 +19,7 @@ class VariationalLSTMEncoding(Encoding):
         self.beta = beta
         self.lstm_layers = lstm_layers
 
-        self.gaussian = GaussianTransformation(input_size=self.input_size,  output_size=self.encoding_size)
+        self.gaussian = GaussianTransformation(input_size=self.input_size, output_size=self.encoding_size)
         self.mean = self.gaussian.mean
         self.stddev = self.gaussian.stddev
 

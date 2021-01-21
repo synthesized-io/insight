@@ -1,14 +1,15 @@
 import logging
 import tempfile
 import time
-from typing import Optional, Dict, List, Union, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..synthesizer import Synthesizer
-from ...testing.metrics import calculate_evaluation_metrics
+from ...insight.evaluation import calculate_evaluation_metrics
+from ...metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +30,14 @@ class LearningManager:
         >>>         break
 
     """
-    def __init__(self, check_frequency: int = 100, use_checkpointing: bool = True,
-                 checkpoint_path: str = None, max_training_time: float = None,
-                 n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 750,
-                 tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
-                 stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
-                 use_vae_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
-                 ):
+    def __init__(
+            self, check_frequency: int = 100, use_checkpointing: bool = True,
+            checkpoint_path: str = None, max_training_time: float = None,
+            n_checks_no_improvement: int = 10, max_to_keep: int = 3, patience: int = 2000,
+            tol: float = 1e-4, must_reach_metric: float = None, good_enough_metric: float = None,
+            stop_metric_name: Union[str, List[str], None] = None, sample_size: Optional[int] = 10_000,
+            use_engine_loss: bool = True, custom_stop_metric: Callable[[pd.DataFrame, pd.DataFrame], float] = None
+    ):
         """Initialize LearningManager.
 
         Args:
@@ -54,7 +56,7 @@ class LearningManager:
             stop_metric_name: Which 'stop_metric' will be evaluated in each iteration. If None, all 'stop_metric'es will
                 be used, otherwise a str for a single 'stop_metric' or a list of str for more than one.
             sample_size: Sample size
-            use_vae_loss: Whether to use the VAE learning loss or evaluation metrics.
+            use_engine_loss: Whether to use the VAE learning loss or evaluation metrics.
             custom_stop_metric: If given, use this callable to compute stop metric.
         """
 
@@ -71,7 +73,7 @@ class LearningManager:
         self.must_reach_metric = must_reach_metric
         self.good_enough_metric = good_enough_metric
 
-        allowed_stop_metric_names = ['ks_distances', 'corr_distances', 'emd_distances']
+        allowed_stop_metric_names = ['ks_distance', 'corr_dist', 'emd_categ']
         if stop_metric_name:
             if isinstance(stop_metric_name, str):
                 if stop_metric_name not in allowed_stop_metric_names:
@@ -84,7 +86,7 @@ class LearningManager:
         self.stop_metric_name = stop_metric_name
         self.sample_size = sample_size
         self.max_training_time = max_training_time
-        self.use_vae_loss = use_vae_loss
+        self.use_engine_loss = use_engine_loss
         self.custom_stop_metric = custom_stop_metric
 
         self.count_no_improvement: int = 0
@@ -102,8 +104,9 @@ class LearningManager:
         self.check_frequency = int(1e3 / np.sqrt(batch_size))
         logger.debug("LearningManager :: check_frequency updated to {}".format(self.check_frequency))
 
-    def stop_learning_check_metric(self, iteration: int, stop_metric: Union[Dict[str, List[float]], float]
-                                   ) -> bool:
+    def stop_learning_check_metric(
+            self, iteration: int, stop_metric: Union[Dict[str, List[float]], float]
+    ) -> bool:
         """Compare the 'stop_metric' against previous iteration, evaluate the criteria and return accordingly.
 
         Args:
@@ -204,8 +207,10 @@ class LearningManager:
 
         return False
 
-    def stop_learning_check_data(self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-                                 column_names: Optional[List[str]] = None) -> bool:
+    def stop_learning_check_data(
+            self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+            df_meta: DataFrameMeta, column_names: Optional[List[str]] = None
+    ) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
 
@@ -213,6 +218,7 @@ class LearningManager:
             iteration: Iteration number.
             df_orig: Original DataFrame.
             df_synth: Synthesized DataFrame.
+            df_meta: DataFrameMeta of the synthesizer.
             column_names: List of columns used to compute the 'break_metric'.
 
         Returns
@@ -222,8 +228,9 @@ class LearningManager:
             return False
 
         if self.custom_stop_metric is None:
-            stop_metrics: Union[Dict[str, List[float]], float] \
-                = calculate_evaluation_metrics(df_orig=df_orig, df_synth=df_synth, column_names=column_names)
+            stop_metrics: Union[Dict[str, Union[pd.Series, pd.DataFrame]], float] = calculate_evaluation_metrics(
+                df_orig=df_orig, df_synth=df_synth, df_meta=df_meta, column_names=column_names
+            )
         else:
             stop_metrics = self.custom_stop_metric(df_orig, df_synth)
 
@@ -252,18 +259,20 @@ class LearningManager:
         if len(column_names) == 0:
             return False
 
-        df_synth = synthesizer.synthesize(num_rows=sample_size)
+        df_synth = synthesizer.synthesize(num_rows=sample_size, produce_nans=True)
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names)
+                                             column_names=column_names, df_meta=synthesizer.df_meta)
 
-    def stop_learning_vae_loss(self, iteration: int, synthesizer: Synthesizer, data_dict: Dict[str, tf.Tensor]) -> bool:
+    def stop_learning_engine_loss(
+            self, iteration: int, synthesizer: Synthesizer, df_valid: pd.DataFrame = None
+    ) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the VAE loss, compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
         Args
             iteration: Iteration number.
             synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
-            df_train: Preprocessed DataFrame.
+            df_valid: Preprocessed Validation DataFrame (not yet implemented).
             num_data: Validation batch size.
 
         Returns
@@ -272,28 +281,29 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        batch_valid = tf.random.uniform(shape=(self.sample_size,), maxval=list(data_dict.values())[0].shape[0],
-                                        dtype=tf.int64)
-        feed_dict = {name: tf.nn.embedding_lookup(params=value_data, ids=batch_valid)
-                     for name, value_data in data_dict.items()}
-
-        losses = synthesizer.get_losses(data=feed_dict)
-        losses = {k: [v] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
+        # TODO: Implement this in tensorflow for larger validation batch sizes.
+        # batch_valid = tf.random.uniform(
+        #     shape=(self.sample_size,), maxval=list([x for val in data_dict.values() for x in val])[0].shape[0],
+        #     dtype=tf.int64
+        # )
+        # feed_dict = {name: tf.nn.embedding_lookup(params=x, ids=batch_valid)
+        #              for name, x in data_dict.items()}
+        losses = synthesizer.get_losses()
+        losses = {k: [v.numpy()] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
         return self.stop_learning_check_metric(iteration, losses)
 
-    def stop_learning(self, iteration: int, synthesizer: Synthesizer,
-                      data_dict: Dict[str, tf.Tensor] = None, num_data: int = None,
-                      df_train_orig: pd.DataFrame = None
-                      ) -> bool:
-        """Given all the parameters, compare current iteration to previous on, evaluate the criteria and return
+    def stop_learning(
+            self, iteration: int, synthesizer: Synthesizer,
+            df_valid: pd.DataFrame = None, df_train_orig: pd.DataFrame = None
+    ) -> bool:
+        """Given all the parameters, compare current iteration to previous one, evaluate the criteria and return
         accordingly.
 
         Args
             iteration: Iteration number.
             synthesizer: Synthesizer object, with 'synthesize(num_rows)' method.
-            data_dict: Dictionary containing tensors and arrays to be used in 'feed_dict' after sampling it down.
-            num_data: Validation batch size.
-            df_train: Preprocessed DataFrame.
+            df_validation: Validation DataFrame to be used with engine loss
+            df_train_orig: Preprocessed DataFrame.
 
         Returns
             bool: True if criteria are met to stop learning.
@@ -301,9 +311,10 @@ class LearningManager:
         if iteration % self.check_frequency != 0:
             return False
 
-        if self.use_vae_loss:
-            assert data_dict is not None and num_data is not None
-            return self.stop_learning_vae_loss(iteration, synthesizer=synthesizer, data_dict=data_dict)
+        if self.use_engine_loss:
+            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer)
+        elif df_valid is not None:
+            return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer, df_valid=df_valid)
         else:
             assert df_train_orig is not None
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)
@@ -318,11 +329,11 @@ class LearningManager:
     def get_variables(self) -> Dict[str, Any]:
         return dict(
             max_training_time=self.max_training_time,
-            use_vae_loss=self.use_vae_loss,
+            use_engine_loss=self.use_engine_loss,
             custom_stop_metric=self.custom_stop_metric
         )
 
     def set_variables(self, variables: Dict[str, Any]):
         self.max_training_time = variables['max_training_time']
-        self.use_vae_loss = variables['use_vae_loss']
+        self.use_engine_loss = variables['use_engine_loss']
         self.custom_stop_metric = variables['custom_stop_metric']

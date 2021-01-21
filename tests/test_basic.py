@@ -1,13 +1,18 @@
 import os
+import logging
 
 import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer
+from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.config import HighDimConfig
+from synthesized.testing.utils import testing_progress_bar
+
+logger = logging.getLogger(__name__)
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skip
 def test_datasets_quick():
     passed = True
@@ -20,11 +25,11 @@ def test_datasets_quick():
 
             try:
                 df_original = pd.read_csv(os.path.join(root, filename))
-                with HighDimSynthesizer(
-                    df=df_original, capacity=8, num_layers=1, batch_size=8
-                ) as synthesizer:
+                config = HighDimConfig(capacity=8, num_layers=1, batch_size=8, learning_manager=False)
+                df_meta = MetaExtractor.extract(df=df_original)
+                with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
                     synthesizer.learn(num_iterations=10, df_train=df_original)
-                    df_synthesized = synthesizer.synthesize(num_rows=10000)
+                    df_synthesized = synthesizer.synthesize(num_rows=10000, progress_callback=testing_progress_bar)
                     assert len(df_synthesized) == 10000
 
             except Exception as exc:
@@ -34,24 +39,33 @@ def test_datasets_quick():
     assert passed, '\n\n' + '\n\n'.join('{}\n{}'.format(path, exc) for path, exc in failed) + '\n'
 
 
+@pytest.mark.slow
 def test_unittest_dataset_quick():
     df_original = pd.read_csv('data/unittest.csv')
+
+    config = HighDimConfig(capacity=8, num_layers=1, batch_size=8, learning_manager=False)
+    df_meta = MetaExtractor.extract(df=df_original)
+
     with HighDimSynthesizer(
-        df=df_original, capacity=8, num_layers=1, batch_size=8, condition_columns=['SeriousDlqin2yrs'],
-        learning_manager=False, summarizer_dir='logs/'
+        df_meta=df_meta, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1})
+        df_synthesized = synthesizer.synthesize(num_rows=10000, conditions={'SeriousDlqin2yrs': 1},
+                                                progress_callback=testing_progress_bar)
         assert len(df_synthesized) == 10000
         assert (df_synthesized['SeriousDlqin2yrs'] == 1).all()
 
 
-@pytest.mark.integration
+@pytest.mark.slow
 def test_unittest_dataset():
     df_original = pd.read_csv('data/unittest.csv').dropna()
-    with HighDimSynthesizer(df=df_original) as synthesizer:
-        synthesizer.learn(num_iterations=5000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
+    df_meta = MetaExtractor.extract(df=df_original)
+    conf = HighDimConfig(learning_manager=True)
+    with HighDimSynthesizer(df_meta=df_meta, config=conf) as synthesizer:
+        logger.info("LEARN")
+        synthesizer.learn(num_iterations=None, df_train=df_original, callback_freq=0, callback=lambda a, b, c: False)
+        logger.info("SYNTHESIZE")
+        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=testing_progress_bar)
         assert len(df_synthesized) == len(df_original)
 
     distances = [
