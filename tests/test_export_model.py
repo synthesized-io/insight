@@ -94,6 +94,7 @@ def test_nan_producing():
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently don't have type override functionality in new metadata")
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})

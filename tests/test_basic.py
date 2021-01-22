@@ -48,7 +48,7 @@ def test_unittest_dataset_quick():
     df_meta = MetaExtractor.extract(df=df_original)
 
     with HighDimSynthesizer(
-        df_meta=df_meta, conditions=['SeriousDlqin2yrs'], summarizer_dir='logs/', config=config
+        df_meta=df_meta, summarizer_dir='logs/', config=config
     ) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=10000, progress_callback=testing_progress_bar)

@@ -1,5 +1,5 @@
 """Mock Synthesizer"""
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -21,12 +21,6 @@ class MockSynthesizer(Synthesizer):
         self.df_meta = df_meta
         self._df = pd.DataFrame({name: np.ones(1) for name in df_meta.columns})
 
-    def preprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        return self.df_meta.preprocess(df, max_workers=max_workers)
-
-    def postprocess(self, df: pd.DataFrame, max_workers: Optional[int] = 4) -> pd.DataFrame:
-        return self.df_meta.postprocess(df, max_workers=max_workers)
-
     def learn(
             self, df_train: pd.DataFrame,
             num_iterations: Optional[int],
@@ -37,7 +31,6 @@ class MockSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int,
-            conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:

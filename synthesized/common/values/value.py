@@ -1,6 +1,5 @@
 import pickle
 import re
-import warnings
 from base64 import b64decode, b64encode
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -147,15 +146,6 @@ class Value(tf.Module):
     def add_regularization_weight(self, variable: tf.Variable):
         self._regularization_losses.append(variable)
         return variable
-
-    def get_variables(self) -> Dict[str, Any]:
-        warnings.warn("Value.get_variables() will be depricated, please use 'to_dict()'")
-        return self.to_dict()
-
-    @classmethod
-    def set_variables(cls, variables: Dict[str, Any]):
-        warnings.warn("Value.set_variables() will be depricated, please use 'from_dict()'")
-        return cls.from_dict(variables)
 
     @classmethod
     def from_dict(cls, d: Dict[str, str]) -> 'Value':

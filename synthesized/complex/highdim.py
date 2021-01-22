@@ -1,7 +1,7 @@
 """This module implements the BasicSynthesizer class."""
 import logging
 import pickle
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import DataFrameValue, Value, ValueExtractor
+from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta
 from ..transformer import DataFrameTransformer
@@ -29,7 +29,7 @@ class HighDimSynthesizer(Synthesizer):
     """
 
     def __init__(
-            self, df_meta: DataFrameMeta, conditions: List[str] = None, summarizer_dir: str = None,
+            self, df_meta: DataFrameMeta, summarizer_dir: str = None,
             summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
     ):
         """Initialize a new BasicSynthesizer instance.
@@ -50,13 +50,13 @@ class HighDimSynthesizer(Synthesizer):
 
         self.df_meta: DataFrameMeta = df_meta
         self.df_value: DataFrameValue = ValueExtractor.extract(
-            df_meta=df_meta, name='data_frame_value', conditions=conditions, config=config.value_factory_config
+            df_meta=df_meta, name='data_frame_value', config=config.value_factory_config
         )
         self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_meta)
 
         # VAE
         self.engine = HighDimEngine(
-            name='vae', df_value=self.df_value, conditions=self.get_conditions(),
+            name='vae', df_value=self.df_value,
             latent_size=config.latent_size, network=config.network, capacity=config.capacity,
             num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
             activation=config.activation,
@@ -77,14 +77,6 @@ class HighDimSynthesizer(Synthesizer):
                 custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
 
-    # Not sure this is needed now we have self.df_value
-    # def get_values(self) -> List[Value]:
-    #     return self.df_value
-
-    # TODO: implement conditions
-    def get_conditions(self) -> List[Value]:
-        return []
-
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
             name: tuple([
@@ -92,16 +84,6 @@ class HighDimSynthesizer(Synthesizer):
                 for column in value.columns()
             ])
             for name, value in self.df_value.items()
-        }
-        return data
-
-    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
-        data: Dict[str, Sequence[tf.Tensor]] = {
-            value: tuple([
-                tf.constant(df_conditions[df_name])
-                for df_name in self.df_value[value].df_names
-            ])
-            for value in self.get_conditions()
         }
         return data
 
@@ -121,7 +103,6 @@ class HighDimSynthesizer(Synthesizer):
         spec = super().specification()
         spec.update(
             values=[value.specification() for value in self.value_factory.get_values()],
-            conditions=[value.specification() for value in self.value_factory.get_conditions()],
             engine=self.engine.specification(), batch_size=self.batch_size
         )
         return spec
@@ -209,14 +190,13 @@ class HighDimSynthesizer(Synthesizer):
                         self.learning_manager.set_check_frequency(self.batch_size)
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
+            self, num_rows: int, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
 
@@ -230,17 +210,7 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
-        if type(conditions) is dict:
-            conditions = pd.DataFrame(index=np.arange(num_rows), data=conditions)
-
-        df_conditions = None
         columns = self.df_meta.columns
-
-        if df_conditions is not None and len(df_conditions) > 0:
-            conditions_dict = self.get_conditions_feed_dict(df_conditions=df_conditions)
-            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
-        else:
-            conditions_dataset = None
 
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
@@ -253,11 +223,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
             synthesized = None
-            if conditions_dataset is None:
-                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=dict())
-            else:
-                for cs in conditions_dataset.batch(batch_size=num_rows).take(1):
-                    synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), cs=cs)
+            synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64))
             assert synthesized is not None
             synthesized = self.df_value.split_outputs(synthesized)
             df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -268,50 +234,28 @@ class HighDimSynthesizer(Synthesizer):
             dict_synthesized = None
             if num_rows % self.synthesis_batch_size > 0:
                 synthesized = None
-                if conditions_dataset is None:
-                    synthesized = self.engine.synthesize(
-                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=dict()
-                    )
-                else:
-                    for cs in conditions_dataset.batch(batch_size=num_rows % self.synthesis_batch_size).take(1):
-                        synthesized = self.engine.synthesize(
-                            tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), cs=cs
-                        )
+                synthesized = self.engine.synthesize(
+                    tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64)
+                )
                 assert synthesized is not None
                 dict_synthesized = self.df_value.split_outputs(synthesized)
                 dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
             n_batches = num_rows // self.synthesis_batch_size
 
-            if conditions_dataset:
-                conditions_dataset = conditions_dataset.batch(batch_size=self.synthesis_batch_size).take(n_batches)
-                for k, cs in enumerate(conditions_dataset):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=cs)
-                    other = self.df_value.split_outputs(other)
-                    if dict_synthesized is None:
-                        dict_synthesized = other
-                        dict_synthesized = {key: v.tolist() for key, v in dict_synthesized.items()}
-                    else:
-                        for c in other.keys():
-                            dict_synthesized[c].extend(other[c].tolist())
+            for k in range(n_batches):
+                other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64))
+                other = self.df_value.split_outputs(other)
+                if dict_synthesized is None:
+                    dict_synthesized = other
+                    dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
+                else:
+                    for c in other.keys():
+                        dict_synthesized[c].extend(other[c].tolist())
 
-                    if progress_callback is not None:
-                        # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                        progress_callback(round((k + 1) * 98.0 / n_batches))
-            else:
-                for k in range(n_batches):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64), cs=dict())
-                    other = self.df_value.split_outputs(other)
-                    if dict_synthesized is None:
-                        dict_synthesized = other
-                        dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
-                    else:
-                        for c in other.keys():
-                            dict_synthesized[c].extend(other[c].tolist())
-
-                    if progress_callback is not None:
-                        # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                        progress_callback(round((k + 1) * 98.0 / n_batches))
+                if progress_callback is not None:
+                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                    progress_callback(round((k + 1) * 98.0 / n_batches))
 
             df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
@@ -327,13 +271,12 @@ class HighDimSynthesizer(Synthesizer):
         return df_synthesized
 
     def encode(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False
+            self, df_encode: pd.DataFrame, produce_nans: bool = False
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
 
         Args:
             df_encode: Input dataset.
-            conditions: The condition values for the generated rows.
             produce_nans: Whether to produce NaNs.
 
         Returns:
@@ -342,21 +285,8 @@ class HighDimSynthesizer(Synthesizer):
         df_encode = df_encode.copy()
         df_encode = self.df_transformer.transform(df=df_encode)
 
-        num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        if conditions is not None and len(conditions) > 0:
-            conditions_dict = self.get_conditions_feed_dict(df_conditions=conditions)
-            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
-        else:
-            conditions_dataset = None
-
-        if conditions_dataset is not None:
-            encoded, decoded = None, None
-            for cs in conditions_dataset.batch(num_rows).take(1):
-                encoded, decoded = self.engine.encode(xs=data, cs=cs)
-            assert encoded is not None and decoded is not None
-        else:
-            encoded, decoded = self.engine.encode(xs=data, cs=dict())
+        encoded, decoded = self.engine.encode(xs=data)
 
         decoded = self.df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
@@ -370,13 +300,12 @@ class HighDimSynthesizer(Synthesizer):
         return df_encoded, df_synthesized
 
     def encode_deterministic(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False
+            self, df_encode: pd.DataFrame, produce_nans: bool = False
     ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
 
         Args:
             df_encode: Input dataset
-            conditions: The condition values for the generated rows.
             produce_nans: Whether to produce NaNs.
 
         Returns:
@@ -384,21 +313,8 @@ class HighDimSynthesizer(Synthesizer):
         """
         df_encode = self.df_transformer.transform(df=df_encode)
 
-        num_rows = len(df_encode)
         data = self.get_data_feed_dict(df_encode)
-        if conditions is not None and len(conditions) > 0:
-            conditions_dict = self.get_conditions_feed_dict(df_conditions=conditions)
-            conditions_dataset = tf.data.Dataset.from_tensor_slices(conditions_dict).repeat(count=None)
-        else:
-            conditions_dataset = None
-
-        if conditions_dataset is not None:
-            decoded = None
-            for cs in conditions_dataset.batch(num_rows).take(1):
-                decoded = self.engine.encode_deterministic(xs=data, cs=cs)
-            assert decoded is not None
-        else:
-            decoded = self.engine.encode_deterministic(xs=data, cs=dict())
+        decoded = self.engine.encode_deterministic(xs=data)
 
         decoded = self.df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
@@ -506,7 +422,7 @@ class HighDimSynthesizer(Synthesizer):
 
         # VAE
         synth.engine = HighDimEngine(
-            name='vae', df_value=synth.df_value, conditions=synth.get_conditions(),
+            name='vae', df_value=synth.df_value,
             latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
             num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
             batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],

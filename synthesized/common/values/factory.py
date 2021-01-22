@@ -1,6 +1,6 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
@@ -22,21 +22,18 @@ class ValueFactory:
 
     Attributes:
         name: A string labelling the instance
-        conditions: (Unused) List for denoting conditions
         config: (dataclass) configuration namespace
         capacity: Integer taken from config denoting capacity of network
         identifier_value: (Unused)
 
     """
-    def __init__(self, name: str = 'value_factory', conditions: List[str] = None,
-                 config: ValueFactoryConfig = ValueFactoryConfig()):
+    def __init__(self, name: str = 'value_factory', config: ValueFactoryConfig = ValueFactoryConfig()):
 
         """Init ValueFactory."""
         self.name = name
         self.config = config
 
         self.capacity = config.capacity
-        self.conditions: List[Value] = list()
         self.identifier_value: Optional[Value] = None
 
     def _build(self, df_meta: DataFrameMeta) -> DataFrameValue:
@@ -93,12 +90,12 @@ class ValueFactory:
 
 class ValueExtractor(ValueFactory):
     """Extract the DataFrameMeta for a data frame"""
-    def __init__(self, name: str = 'value_factory', conditions: List[str] = None,
+    def __init__(self, name: str = 'value_factory',
                  config: ValueFactoryConfig = ValueFactoryConfig()):
-        super().__init__(name, conditions, config)
+        super().__init__(name, config)
 
     @staticmethod
-    def extract(df_meta: DataFrameMeta, name: str = 'data_frame_value', conditions: List[str] = None,
+    def extract(df_meta: DataFrameMeta, name: str = 'data_frame_value',
                 config: ValueFactoryConfig = ValueFactoryConfig()) -> DataFrameValue:
         """
         Instantiate and extract the DataFrameValue that provides the value functionality for the whole dataframe.
@@ -111,6 +108,6 @@ class ValueExtractor(ValueFactory):
             A DataFrameValue instance for which all child values have been instantiated.
         """
 
-        factory = ValueExtractor(name, conditions, config)
+        factory = ValueExtractor(name, config)
         df_value = factory._build(df_meta)
         return df_value

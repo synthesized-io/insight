@@ -17,20 +17,12 @@ class DataFrameValue(Value, Mapping[str, Value]):
         name: string name of value (altered in super().__init__() call)
         values: a dictionary containing all values
         identifier_value: (unused) tbd on whether this should be kept
-        condition_size/conditions: (unused) tbd on whether this should be kept
     """
     def __init__(self, name: str, values: Dict[str, Value]):
         super(DataFrameValue, self).__init__(name=name)
 
         self._values: Dict[str, Value] = OrderedDict(**values)
         self.identifier_value = None
-
-        # Total condition size
-        self.conditions: List = list()
-        self.condition_size = 0
-        for value in self.conditions:
-            assert value.learned_input_size() > 0
-            self.condition_size += value.learned_input_size()
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name})'
@@ -70,20 +62,6 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
         return x
 
-    @tensorflow_name_scoped
-    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=conditions[value.name])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
-
-        return x
-
     def split_outputs(self, outputs: Dict[str, Sequence[Any]]) -> Dict[str, np.ndarray]:
         output_dict = dict()
         for name, value in self.items():
@@ -91,11 +69,9 @@ class DataFrameValue(Value, Mapping[str, Value]):
         return output_dict
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]] = None, identifier: tf.Tensor = None,
+    def output_tensors(self, y: tf.Tensor, identifier: tf.Tensor = None,
                        sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
 
-        if conditions is None:
-            conditions = dict()
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
@@ -110,9 +86,6 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
         for (name, value), y in zip(self.items(), ys):
             synthesized[name] = value.output_tensors(y=y, sample=sample)
-
-        for value in self.conditions:
-            synthesized[value] = conditions[value]
 
         return synthesized
 

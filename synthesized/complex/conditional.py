@@ -72,7 +72,6 @@ class ConditionalSampler(Synthesizer):
 
     def synthesize(self,
                    num_rows: int,
-                   conditions: Optional[Union[dict, pd.DataFrame]] = None,
                    produce_nans: bool = False,
                    progress_callback: Callable[[int], None] = None,
                    explicit_marginals: Optional[Dict[str, Dict[str, float]]] = None,
@@ -81,7 +80,6 @@ class ConditionalSampler(Synthesizer):
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             date_fmt: If conditons include dates, it's format.
             produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
@@ -98,7 +96,7 @@ class ConditionalSampler(Synthesizer):
             progress_callback(0)
 
         if explicit_marginals is None or len(explicit_marginals) == 0:
-            return self.synthesizer.synthesize(num_rows, conditions=conditions, produce_nans=produce_nans,
+            return self.synthesizer.synthesize(num_rows, produce_nans=produce_nans,
                                                progress_callback=progress_callback)
 
         # For the sake of performance we will not really sample from "condition" distribution,
@@ -113,14 +111,13 @@ class ConditionalSampler(Synthesizer):
         marginal_keys = {k: list(v.keys()) for k, v in explicit_marginals.items()}
 
         return self.synthesize_from_joined_counts(marginal_counts, marginal_keys, date_fmt=date_fmt,
-                                                  conditions=conditions, progress_callback=progress_callback)
+                                                  progress_callback=progress_callback)
 
     def synthesize_from_joined_counts(
             self,
             marginal_counts: Dict[Tuple[str, ...], int],
             marginal_keys: Dict[str, List[str]],
             date_fmt: Optional[str] = None,
-            conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None,
             max_trials: Optional[int] = 20,
@@ -157,7 +154,7 @@ class ConditionalSampler(Synthesizer):
             n_prefetch = min(n_prefetch, max_n_prefetch)
 
             # Synthesis:
-            df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch, conditions=conditions,
+            df_synthesized = self.synthesizer.synthesize(num_rows=n_prefetch,
                                                          produce_nans=produce_nans)
 
             # In order to filter our data frame we need keys that we will look up in counts:
@@ -225,7 +222,6 @@ class ConditionalSampler(Synthesizer):
                             produce_nans: bool = False,
                             explicit_marginals: Dict[str, Dict[str, float]] = None,
                             date_fmt: Optional[str] = None,
-                            conditions: Union[dict, pd.DataFrame] = None,
                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Given a DataFrame, drop and/or generate new samples so that the output distributions are
          defined by explicit marginals.
@@ -234,7 +230,6 @@ class ConditionalSampler(Synthesizer):
             df: Original DataFrame
             num_rows: The number of rows to generate.
             produce_nans: Whether to produce NaNs.
-            conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
                 Distributions defined as density per category or bin. The result will be sampled
@@ -249,7 +244,7 @@ class ConditionalSampler(Synthesizer):
             progress_callback(0)
 
         if explicit_marginals is None:
-            return self.synthesizer.synthesize(num_rows, conditions=conditions, produce_nans=produce_nans,
+            return self.synthesizer.synthesize(num_rows, produce_nans=produce_nans,
                                                progress_callback=progress_callback)
 
         conditional_columns = list(explicit_marginals.keys())
@@ -299,7 +294,7 @@ class ConditionalSampler(Synthesizer):
         # Synthesize missing rows
         if len(marginal_counts_to_synthesize) > 0:
             df_out = df_out.append(self.synthesize_from_joined_counts(
-                marginal_counts_to_synthesize, marginal_keys, conditions=conditions, produce_nans=produce_nans,
+                marginal_counts_to_synthesize, marginal_keys, produce_nans=produce_nans,
                 progress_callback=progress_callback
             ))
 
@@ -467,9 +462,6 @@ class ConditionalSampler(Synthesizer):
 
     def get_values(self) -> List[Value]:
         return self.synthesizer.get_values()
-
-    def get_conditions(self) -> List[Value]:
-        return self.synthesizer.get_conditions()
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         return self.synthesizer.get_losses()

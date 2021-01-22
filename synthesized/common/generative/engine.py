@@ -7,21 +7,20 @@ from ..encodings import VariationalEncoding
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import DataFrameValue, Value
+from ..values import DataFrameValue
 
 
 class HighDimEngine(Generative):
     """Variational auto-encoder.
 
     The VAE consists of an NN-parametrized input-conditioned encoder distribution q(z|x), a latent
-    prior distribution p'(z), optional additional input conditions c, and an NN-parametrized
-    latent-conditioned decoder distribution p(y|z,c). The optimized loss consists of the
-    reconstruction loss per value, the KL loss, and the regularization loss. The input and output
-    are concatenated / split tensors per value. The encoder and decoder network use the same
+    prior distribution p'(z) and an NN-parametrized latent-conditioned decoder distribution p(y|z).
+    The optimized loss consists of the reconstruction loss per value, the KL loss, and the regularization loss.
+    The input and output are concatenated / split tensors per value. The encoder and decoder network use the same
     hyperparameters.
     """
     def __init__(
-            self, name: str, df_value: DataFrameValue, conditions: List[Value],
+            self, name: str, df_value: DataFrameValue,
             # Latent distribution
             latent_size: int,
             # Encoder and decoder network
@@ -35,7 +34,7 @@ class HighDimEngine(Generative):
             # Weight decay
             weight_decay: float
     ):
-        super(HighDimEngine, self).__init__(name=name, df_value=df_value, conditions=conditions)
+        super(HighDimEngine, self).__init__(name=name, df_value=df_value)
 
         self.latent_size = latent_size
         self.network = network
@@ -76,7 +75,7 @@ class HighDimEngine(Generative):
 
         self.modulation = None
 
-        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size() + self.df_value.condition_size)
+        kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size())
         self.decoder = module_registry[network](**kwargs)
 
         self.linear_output = DenseTransformation(
@@ -109,8 +108,7 @@ class HighDimEngine(Generative):
         x = self.linear_input(x)
         x = self.encoder(x)
         z = self.encoding(x)
-        x = self.df_value.add_conditions(z, conditions=xs)
-        x = self.decoder(x)
+        x = self.decoder(z)
         y = self.linear_output(x)
         #################################
 
@@ -165,14 +163,11 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def encode(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
-    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
+    def encode(self, xs: Dict[str, Sequence[tf.Tensor]]) -> Tuple[Dict[str, tf.Tensor], Dict[str, Sequence[tf.Tensor]]]:
         """Encoding Step for VAE.
 
         Args:
             xs: Input tensor per column.
-            cs: Condition tensor per column.
 
         Returns:
             Dictionary of Latent space tensor, means and stddevs, dictionary of output tensors per column
@@ -182,20 +177,17 @@ class HighDimEngine(Generative):
             return tf.no_op(), dict()
 
         x = self.df_value.unify_inputs(xs)
-        latent_space, mean, std, y = self._encode(x=x, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs)
+        latent_space, mean, std, y = self._encode(x=x)
+        synthesized = self.df_value.output_tensors(y=y)
 
         return {"sample": latent_space, "mean": mean, "std": std}, synthesized
 
     @tensorflow_name_scoped
-    def _encode(
-            self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]
-    ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def _encode(self, x: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """Encoding Step for VAE.
 
         Args:
             x: Input tensor per column.
-            cs: Condition tensor per column.
 
         Returns:
             TF tensors with Latent space, means, stddevs and outputs
@@ -208,21 +200,19 @@ class HighDimEngine(Generative):
         std = self.encoding.gaussian.stddev(x)
         latent_space = mean + std * tf.random.normal(shape=tf.shape(mean))
 
-        x = self.df_value.add_conditions(x=latent_space, conditions=cs)
-        x = self.decoder(x)
+        x = self.decoder(latent_space)
         y = self.linear_output(x)
 
         return latent_space, mean, std, y
 
     @tensorflow_name_scoped
     def encode_deterministic(
-            self, xs: Dict[str, Sequence[tf.Tensor]], cs: Dict[str, Sequence[tf.Tensor]]
+            self, xs: Dict[str, Sequence[tf.Tensor]]
     ) -> Dict[str, Sequence[tf.Tensor]]:
         """Deterministic encoding for VAE.
 
         Args:
             xs: Input tensor per column.
-            cs: Condition tensor per column.
 
         Returns:
             Dictionary of output tensors per column
@@ -232,19 +222,18 @@ class HighDimEngine(Generative):
             return dict()
 
         x = self.df_value.unify_inputs(xs)
-        y = self._encode_deterministic(x=x, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs, sample=False)
+        y = self._encode_deterministic(x=x)
+        synthesized = self.df_value.output_tensors(y=y, sample=False)
 
         return synthesized
 
     @tf.function
     @tensorflow_name_scoped
-    def _encode_deterministic(self, x: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
+    def _encode_deterministic(self, x: tf.Tensor) -> tf.Tensor:
         """Encoding Step for VAE.
 
         Args:
             x: Input tensor per column.
-            cs: Condition tensor per column.
 
         Returns:
             TF tensors with Latent space, means, stddevs and outputs
@@ -255,45 +244,39 @@ class HighDimEngine(Generative):
 
         mean = self.encoding.gaussian.mean(x)
 
-        x = self.df_value.add_conditions(x=mean, conditions=cs)
-        x = self.decoder(x)
+        x = self.decoder(mean)
         y = self.linear_output(x)
 
         return y
 
     @tf.function
     @tensorflow_name_scoped
-    def synthesize(
-            self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]
-    ) -> Dict[str, Sequence[tf.Tensor]]:
+    def synthesize(self, n: tf.Tensor) -> Dict[str, Sequence[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
             n: Number of instances to generate.
-            cs: Condition tensor per column.
 
         Returns:
             Output tensor per column.
 
         """
-        y = self._synthesize(n=n, cs=cs)
-        synthesized = self.df_value.output_tensors(y=y, conditions=cs)
+        y = self._synthesize(n=n)
+        synthesized = self.df_value.output_tensors(y=y)
 
         return synthesized
 
-    def _synthesize(self, n: tf.Tensor, cs: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
+    def _synthesize(self, n: tf.Tensor) -> tf.Tensor:
         """Generate the given number of instances.
 
         Args:
             n: Number of instances to generate.
-            cs: Condition tensor per column.
 
         Returns:
             Output tensor per column.
 
         """
         x = self.encoding.sample(n)
-        x = self.df_value.add_conditions(x=x, conditions=cs)
         x = self.decoder(x)
         y = self.linear_output(x)
 

@@ -3,7 +3,7 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import pandas as pd
 import tensorflow as tf
@@ -75,17 +75,10 @@ class Synthesizer(tf.Module):
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
-    @abstractmethod
-    def get_conditions(self) -> List[Value]:
-        raise NotImplementedError()
-
     def get_all_values(self) -> List[Value]:
-        return self.get_values() + self.get_conditions()
+        return self.get_values()
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
-        raise NotImplementedError
-
-    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         raise NotImplementedError
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
@@ -126,7 +119,6 @@ class Synthesizer(tf.Module):
 
     def synthesize(
             self, num_rows: int,
-            conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
@@ -134,7 +126,6 @@ class Synthesizer(tf.Module):
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             produce_nans: Whether to produce NaNs.
             progress_callback: A callback that receives current percentage of the progress.
 

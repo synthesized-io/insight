@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import pandas as pd
 
@@ -40,13 +40,11 @@ class DataImputer(Synthesizer):
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    def synthesize(self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+    def synthesize(self, num_rows: int, progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
         """Generate the given number of new data rows using the underlying synthesizer.
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
 
         Returns:
@@ -54,7 +52,7 @@ class DataImputer(Synthesizer):
 
         """
         return self._data_imputer.synthesize(
-            num_rows=num_rows, conditions=conditions, progress_callback=progress_callback
+            num_rows=num_rows, progress_callback=progress_callback
         )
 
     def impute_nans(self, df: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:

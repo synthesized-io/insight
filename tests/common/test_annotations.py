@@ -1,11 +1,11 @@
 from io import BytesIO
-import pytest
 
 import pandas as pd
+import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized.config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonParams
 from synthesized.metadata import DataFrameMeta
-from synthesized.config import AddressParams, BankParams, PersonParams, FormattedStringParams, MetaExtractorConfig
 
 
 @pytest.mark.slow

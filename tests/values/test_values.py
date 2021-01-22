@@ -4,7 +4,7 @@ import pytest
 import tensorflow as tf
 
 from synthesized.common.values import CategoricalValue, ContinuousValue, DateValue, NanValue, Value
-from synthesized.metadata import DateMeta, NanMeta
+from synthesized.metadata import DateMeta
 
 
 @pytest.mark.fast
@@ -29,9 +29,6 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
         assert output_tensor.shape == x.shape == (n,)
         loss = loss_output
         assert loss.shape == ()
-
-        variables = value.get_variables()
-        value.set_variables(variables)
 
 
 @pytest.mark.fast
@@ -93,6 +90,3 @@ def test_date():
     input_tensor_output = [df[c] for c in df.columns]
     unified_tensor_output = value.unify_inputs(xs=input_tensor_output)
     assert unified_tensor_output.shape[0] == n
-
-    variables = value.get_variables()
-    value.set_variables(variables)

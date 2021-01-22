@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple
 
 import pandas as pd
 
@@ -61,16 +61,12 @@ class ConditionalSampler(Synthesizer):
             df_train=df_train, num_iterations=num_iterations, callback=callback, callback_freq=callback_freq
         )
 
-    def synthesize(self,
-                   num_rows: int,
-                   conditions: Union[dict, pd.DataFrame] = None,
-                   progress_callback: Callable[[int], None] = None,
+    def synthesize(self, num_rows: int, progress_callback: Callable[[int], None] = None,
                    explicit_marginals: Dict[str, Dict[str, float]] = None) -> pd.DataFrame:
         """Generate the given number of new data rows according to the ConditionalSynthesizer's explicit marginals.
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
                 Distributions defined as density per category or bin. The result will be sampled
@@ -90,7 +86,7 @@ class ConditionalSampler(Synthesizer):
                 self.explicit_marginals[col] = cond
 
         return self._conditional_sampler.synthesize(
-            num_rows=num_rows, conditions=conditions, progress_callback=progress_callback,
+            num_rows=num_rows, progress_callback=progress_callback,
             explicit_marginals=explicit_marginals
         )
 
@@ -98,7 +94,6 @@ class ConditionalSampler(Synthesizer):
                             df: pd.DataFrame,
                             num_rows: int,
                             explicit_marginals: Dict[str, Dict[str, float]] = None,
-                            conditions: Union[dict, pd.DataFrame] = None,
                             progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
 
         """Given a DataFrame, drop and/or generate new samples so that the output distributions are
@@ -107,7 +102,6 @@ class ConditionalSampler(Synthesizer):
         Args:
             df: Original DataFrame
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
             explicit_marginals: A dict of desired marginal distributions per column.
                 Distributions defined as density per category or bin. The result will be sampled
@@ -120,5 +114,5 @@ class ConditionalSampler(Synthesizer):
 
         return self._conditional_sampler.alter_distributions(
             df=df, num_rows=num_rows, explicit_marginals=explicit_marginals,
-            conditions=conditions, progress_callback=progress_callback,
+            progress_callback=progress_callback,
         )
