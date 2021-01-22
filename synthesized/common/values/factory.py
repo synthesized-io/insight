@@ -1,17 +1,15 @@
 """Utilities that help you create Value objects."""
-from typing import Dict, Optional, List
 import logging
-
+from typing import Dict, List, Optional
 
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
-from .date import DateValue
 from .dataframe_value import DataFrameValue
+from .date import DateValue
 from .nan import NanValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata_new import DataFrameMeta, Meta, Nominal
-from ...metadata_new import Bool, IntegerBool, String, OrderedString, Integer, Float, Date
+from ...metadata_new import Bool, DataFrameMeta, Date, Float, Integer, IntegerBool, Meta, Nominal, OrderedString, String
 
 logger = logging.getLogger(__name__)
 

@@ -1,3 +1,4 @@
+# type: ignore
 import os
 import time
 
@@ -6,9 +7,9 @@ import numpy as np
 import pandas as pd
 import simplejson
 from scipy.stats import ks_2samp
-from sklearn.preprocessing import QuantileTransformer, StandardScaler, LabelEncoder
+from sklearn.preprocessing import LabelEncoder, QuantileTransformer, StandardScaler
 
-from ..complex.highdim import HighDimSynthesizer, HighDimConfig
+from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..metadata import MetaExtractor
 
 

@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 from .continuous import ContinuousMeta
-from .value_meta import ValueMeta
 from .date import DateMeta
+from .value_meta import ValueMeta
 
 
 class NanMeta(ValueMeta):

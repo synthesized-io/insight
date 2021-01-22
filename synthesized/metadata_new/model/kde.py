@@ -1,13 +1,13 @@
-from typing import Generic, Optional, Dict, Any, cast, Sequence
+from typing import Any, Dict, Generic, Optional, Sequence, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import gaussian_kde
 import seaborn as sns
+from scipy.stats import gaussian_kde
 
 from ..base import ContinuousModel
-from ..base.value_meta import AType, Affine, Scale
+from ..base.value_meta import Affine, AType, Scale
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError
 
 
@@ -30,6 +30,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             (df[self.name].values.astype(self.dtype) - c).astype(self.kde_dtype),
             bw_method='silverman'
         )
+        return self
 
     @property
     def kde_dtype(self) -> str:
@@ -61,11 +62,18 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
         x = (x - c).astype(self.kde_dtype)
 
-        prob = cast(gaussian_kde, self._kernel)(x)
+        if self.kde_dtype == 'i8':
+            half_win = self.unit_meta.precision.astype(self.kde_dtype) / 2
+            if not np.isscalar(x):
+                prob = np.array([cast(gaussian_kde, self._kernel).integrate_box_1d(low=y - half_win, high=y + half_win) for y in x])
+            else:
+                prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=(x - half_win), high=x + half_win)
+        else:
+            prob = cast(gaussian_kde, self._kernel)(x)
 
         return prob
 
-    def integrated_probability(self, low: Any, high: Any) -> float:
+    def integrate(self, low: Any, high: Any) -> float:
         if not self._extracted:
             raise MetaNotExtractedError
         if not self._fitted:
@@ -117,7 +125,12 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             self.name: domain,
             'pdf': self.probability(domain)
         })
-        sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+
+        if self.kde_dtype == 'i8':
+            sns.barplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+        else:
+            sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+
         for tick in fig.gca().get_xticklabels():
             tick.set_rotation(90)
 

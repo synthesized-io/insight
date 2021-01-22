@@ -1,12 +1,12 @@
-from typing import Optional, Dict, Any
 from math import log
+from typing import Any, Dict, Optional
 
 import tensorflow as tf
 
-from .transformation import Transformation
 from .batch_norm import BatchNorm
-from ..util import get_initializer
+from .transformation import Transformation
 from ..module import tensorflow_name_scoped
+from ..util import get_initializer
 
 
 class DenseTransformation(Transformation):

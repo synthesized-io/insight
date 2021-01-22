@@ -1,4 +1,4 @@
-from typing import Generic, Optional, Dict, Any, cast, Sequence, overload, Union, Type
+from typing import Any, Dict, Generic, Optional, Sequence, Type, Union, cast, overload
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,8 +7,8 @@ import seaborn as sns
 
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
-from ..base.value_meta import NType, Nominal, Affine, AType
-from ..exceptions import MetaNotExtractedError, ModelNotFittedError, ExtractionError
+from ..base.value_meta import Affine, AType, Nominal, NType
+from ..exceptions import ExtractionError, MetaNotExtractedError, ModelNotFittedError
 
 
 class Histogram(DiscreteModel[NType], Generic[NType]):
@@ -100,9 +100,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             raise ExtractionError("Meta doesn't have both max and min defined.")
 
         if isinstance(meta, KernelDensityEstimate) and meta._fitted:
-            norm = meta.integrated_probability(meta.min, meta.max)
+            norm = meta.integrate(meta.min, meta.max)
             probabilities: Optional[Dict[AType, float]] = {
-                c: meta.integrated_probability(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
+                c: meta.integrate(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
                 for c in categories
             }
         else:
@@ -128,6 +128,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
         dtype = meta.dtype
         probabilities = None
+        categories: Union[None, Sequence, pd.IntervalIndex] = meta.categories
 
         if isinstance(meta, Affine) and meta.max is not None and meta.min is not None and meta.max != meta.min:
             rng = meta.max - meta.min
@@ -137,20 +138,19 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             if bin_width > smallest_diff:
                 try:
                     rng / bin_width
-                    categories = pd.interval_range(meta.min, meta.max, freq=bin_width.item(), closed='left')
+                    rng_max = meta.max + bin_width if (rng % bin_width).item() != 0 else meta.max  # makes sure we include the max
+                    categories = cast(pd.IntervalIndex, pd.interval_range(
+                        meta.min, rng_max, freq=bin_width.item(), closed='left'
+                    ))
                     dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
                     if isinstance(meta, KernelDensityEstimate) and meta._fitted:
-                        norm = meta.integrated_probability(categories.left[0], categories.right[-1])
+                        norm = meta.integrate(categories.left[0], categories.right[-1])
                         probabilities = {
-                            c: meta.integrated_probability(c.left.to_numpy(), c.right.to_numpy()) / norm
+                            c: meta.integrate(c.left.to_numpy(), c.right.to_numpy()) / norm
                             for c in categories
                         }
                 except ZeroDivisionError:
-                    categories = meta.categories
-            else:
-                categories = meta.categories
-        else:
-            categories = meta.categories
+                    pass
 
         hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, probabilities=probabilities)
         hist.dtype = dtype

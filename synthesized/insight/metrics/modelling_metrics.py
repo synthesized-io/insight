@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast, Union, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,16 +7,15 @@ import pandas as pd
 import seaborn as sns
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, \
-    precision_recall_curve, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score, mean_absolute_error, mean_squared_error,
+                             precision_recall_curve, precision_score, r2_score, recall_score, roc_auc_score, roc_curve)
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
 
+from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
+                           TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata import MetaExtractor, DataFrameMeta, ValueMeta
-
-from .metrics_base import DataFrameMetric, TwoDataFrameMetric, ClassificationMetric, ClassificationPlotMetric, \
-    RegressionMetric
+from ...metadata import DataFrameMeta, MetaExtractor, ValueMeta
 
 logger = logging.getLogger(__name__)
 

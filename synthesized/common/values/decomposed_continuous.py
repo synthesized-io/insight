@@ -5,7 +5,7 @@ import tensorflow as tf
 from .continuous import ContinuousValue
 from .value import Value
 from ..module import tensorflow_name_scoped
-from ...config import DecomposedContinuousConfig, ContinuousConfig
+from ...config import ContinuousConfig, DecomposedContinuousConfig
 
 
 class DecomposedContinuousValue(Value):

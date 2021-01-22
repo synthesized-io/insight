@@ -43,9 +43,9 @@ class Date(Affine[np.datetime64]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
-            date_format: Optional[str] = None
+            num_rows: Optional[int] = None, date_format: Optional[str] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self.date_format = date_format
         self.children = [
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
@@ -62,10 +62,6 @@ class Date(Affine[np.datetime64]):
 
         sub_df = pd.DataFrame({
             self.name: pd.to_datetime(df[self.name], format=self.date_format),
-            self.name + '_dow': df[self.name].dt.day_name(),
-            self.name + '_day': df[self.name].dt.day,
-            self.name + '_month': df[self.name].dt.month,
-            self.name + '_year': df[self.name].dt.year
         })
 
         super().extract(sub_df)  # call super here so we can get max, min from datetime.

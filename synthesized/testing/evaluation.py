@@ -1,7 +1,8 @@
+# type: ignore
 import datetime
-from collections import OrderedDict
 import time
-from typing import Optional, List
+from collections import OrderedDict
+from typing import List, Optional
 
 try:
     from IPython.display import Markdown, display
@@ -14,11 +15,11 @@ import pandas as pd
 import simplejson
 from sklearn.model_selection import train_test_split
 
-from .plotting import plot_time_series, plot_data, plot_multidimensional
-from .utility import UtilityTesting, MAX_PVAL
+from .plotting import plot_data, plot_multidimensional, plot_time_series
+from .utility import MAX_PVAL, UtilityTesting
 from .utility_time_series import TimeSeriesUtilityTesting
-from ..complex.highdim import HighDimSynthesizer, HighDimConfig
-from ..complex.series import SeriesSynthesizer, SeriesConfig
+from ..complex.highdim import HighDimConfig, HighDimSynthesizer
+from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
 from ..metadata import MetaExtractor
 

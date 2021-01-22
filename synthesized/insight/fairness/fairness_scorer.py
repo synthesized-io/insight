@@ -1,36 +1,28 @@
 import logging
 from itertools import combinations
 from math import factorial
-from typing import Any, Callable, Dict, List, Optional, Union, Sized, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from pyemd import emd
 from scipy.stats import binom, ks_2samp
 from sklearn.base import BaseEstimator
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
-from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from .fairness_transformer import FairnessTransformer
-from ..metrics import CramersV, CategoricalLogisticR2
+from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..dataset import categorical_or_continuous_values
-from ...metadata_new import MetaExtractor, Date, String
-from ...metadata_new.base.model import DiscreteModel, Model
-from ...metadata_new.model import KernelDensityEstimate
+from ..metrics import CategoricalLogisticR2, CramersV
+from ...metadata_new import Date, MetaExtractor, String
+from ...metadata_new.base.model import ContinuousModel, DiscreteModel
 from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
-
-class ContinuousModel(Model):
-    def probability(self, x):
-        return x
-
-    def sample(self):
-        return None
 
 class FairnessScorer:
     """This class analyzes a given DataFrame, looks for biases and quantifies its fairness. There are two ways to
@@ -82,12 +74,6 @@ class FairnessScorer:
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
 
-        try:
-            self.target_model = ModelFactory().create_model(df[target])
-        except AttributeError:
-            self.target_model = ContinuousModel()
-
-        self.positive_class = positive_class if positive_class else self.get_positive_class()
         self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
         self.target, self.sensitive_attrs = self.validate_sensitive_attrs_and_target(target, sensitive_attrs, df)  # type: ignore
 
@@ -99,7 +85,18 @@ class FairnessScorer:
 
         self.transformer.fit(df)
         self.df_meta = MetaExtractor.extract(self.transformer(df))
-        self.sensitive_attrs = self.transformer.sensitive_attrs
+
+        models = ModelFactory().create_model(df, self.df_meta)
+        assert isinstance(models, dict)
+        self.target_model = models[self.target].fit(df)
+
+        if positive_class is not None:
+            if positive_class not in df[target].unique():
+                raise ValueError("Positive class is not a unique value in given target.")
+            else:
+                self.positive_class = positive_class
+        else:
+            self.positive_class = self.get_positive_class()  # type: ignore
 
         self.values_str_to_list: Dict[str, List[str]] = dict()
         self.names_str_to_list: Dict[str, List[str]] = dict()
@@ -468,9 +465,6 @@ class FairnessScorer:
         if target not in df.columns:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
 
-        if self.positive_class and self.positive_class not in df[target].unique():
-            raise ValueError("Positive class is not a unique value in given target.")
-
         if not all(col in df.columns for col in sensitive_attrs):
             raise KeyError("Sensitive attributes not present in DataFrame.")
 
@@ -480,9 +474,9 @@ class FairnessScorer:
         if isinstance(df_meta[target], Date):
             raise TypeError("Datetime target columns not supported.")
 
-        for col, meta in df_meta.items():
-            if isinstance(meta, Date) and self.drop_dates:
-                self.sensitive_attrs.remove(col)
+        for attr in sensitive_attrs:
+            if isinstance(df_meta[attr], Date) and self.drop_dates:
+                self.sensitive_attrs.remove(attr)
 
         # If target in sensitive_attrs, drop it
         if target in sensitive_attrs:
@@ -577,7 +571,7 @@ class FairnessScorer:
 
         if isinstance(self.target_model, DiscreteModel) and len(self.target_model.categories) == 2:  # type: ignore
             # If target class is not given, we'll use minority class as usually it is the target.
-            return max(self.target_model.probabilities, key=self.target_model.probabilities.get)  # type: ignore
+            return min(self.target_model.probabilities, key=self.target_model.probabilities.get)  # type: ignore
 
         else:
             return None

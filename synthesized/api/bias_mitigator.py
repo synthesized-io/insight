@@ -1,10 +1,9 @@
-from typing import List, Callable, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 
 from .fairness import FairnessScorer
 from .synthesizer import Synthesizer
-
 from ..insight.fairness import BiasMitigator as _BiasMitigator
 
 

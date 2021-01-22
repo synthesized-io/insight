@@ -4,9 +4,9 @@ from typing import List, Optional, cast
 
 import pandas as pd
 
-from ...transformer import Transformer, SequentialTransformer, DTypeTransformer, BinningTransformer
 from ...config import ModelFactoryConfig
-from ...metadata_new import DataFrameMeta, MetaExtractor, Scale, Date, ValueMeta
+from ...metadata_new import DataFrameMeta, Date, MetaExtractor, Scale, ValueMeta
+from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)
 
@@ -55,14 +55,17 @@ class FairnessTransformer(SequentialTransformer):
 
         # Transformer for target column
         if df[self.target].nunique() > categorical_threshold and self.target_n_bins:
-            self.append(BinningTransformer(self.target, bins=self.target_n_bins, duplicates='drop', include_lowest=True))
+            meta = cast(ValueMeta, self.df_meta[self.target])
+            df = DTypeTransformer(self.target, meta.dtype).fit_transform(df)
+            self.append(BinningTransformer(self.target, bins=self.target_n_bins, duplicates='drop',
+                        remove_outliers=0.1, include_lowest=True))
+            self.append(DTypeTransformer(self.target, out_dtype='str'))
 
         # Transformers for sensitive columns
         for col in self.sensitive_attrs:
 
             meta = cast(ValueMeta, self.df_meta[col])
-            dtype_transformer = DTypeTransformer(col, meta.dtype)
-            self.append(dtype_transformer)
+            df = DTypeTransformer(col, meta.dtype).fit_transform(df)
 
             _categorical_threshold = self.n_bins if categorical_threshold is None else categorical_threshold
             num_unique = df[col].nunique()

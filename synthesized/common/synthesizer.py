@@ -3,7 +3,7 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, Dict, Union, List, Optional, Any, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import pandas as pd
 import tensorflow as tf

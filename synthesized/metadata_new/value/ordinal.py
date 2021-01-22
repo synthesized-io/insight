@@ -10,9 +10,10 @@ class OrderedString(Ordinal[str]):
     dtype: str = 'U'
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     def extract(self, df: pd.DataFrame) -> 'OrderedString':
         if self.categories is None:

@@ -1,8 +1,8 @@
 """Mock Synthesizer"""
-from typing import Optional, Union, Callable
+from typing import Callable, Optional, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from ..synthesizer import Synthesizer
 from ...metadata import DataFrameMeta

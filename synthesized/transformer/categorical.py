@@ -1,5 +1,5 @@
-from typing import Optional, Any, Dict, Sequence
 from collections import defaultdict
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -34,10 +34,7 @@ class CategoricalTransformer(Transformer):
         else:
             categories = np.array(self.categories)
 
-        try:
-            categories = np.delete(categories, np.isnan(categories))
-        except TypeError:
-            pass
+        categories = np.delete(categories, pd.isna(categories).nonzero())
         categories = np.array([np.nan, *categories])  # type: ignore
 
         for idx, cat in enumerate(categories[1:]):  # type: ignore

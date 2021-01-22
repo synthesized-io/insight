@@ -1,7 +1,9 @@
 # Python CircleCI 2.1 configuration file
 version: 2.1
+
 orbs:
   jq: circleci/jq@2.2
+  sonarcloud: sonarsource/sonarcloud@1.0.1
 jobs:
   build:
     docker:
@@ -54,14 +56,17 @@ jobs:
           name: Run Tests
           shell: /bin/bash
           command: |
-            trap 'echo "Some Tests Failed"' 1
-            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml
+            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+            if [ $? -eq 1 ]
+            then
+              echo 'Some tests failed'
+              exit 0
+            fi
           no_output_timeout: 30m
 
       - run:
           name: Reformat junit XML
           command: venv/bin/python3 tests/junit-fix.py
-          when: always
 
       - store_test_results:
           path: test-results
@@ -69,10 +74,15 @@ jobs:
       - store_artifacts:
           path: test-results
 
-  post-to-jira:
+      - store_artifacts:
+          path: coverage-reports
+
+  post-results:
     docker:
       - image: circleci/python:3.6.9
     steps:
+      - attach_workspace:
+            at: .
       - jq/install:
           when: always
       - run:
@@ -80,6 +90,11 @@ jobs:
             prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items[1].job_number')
             echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
+
+            echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/artifacts"
+            curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/artifacts" -H "Circle-Token: ${CIRCLE_TOKEN}" \
+              | grep -o 'https://[^"]*' \
+              | wget --verbose --header "Circle-Token: ${CIRCLE_TOKEN}" --input-file -
 
             echo $(cat ./test-results.txt | grep -Ec "success")
             echo $(cat ./test-results.txt | grep -Ec "failure")
@@ -89,14 +104,19 @@ jobs:
             echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "failure") >> ./circleci-orb-jira.status
             echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "failure|success") >> ./circleci-orb-jira.status
 
-            echo 'done'
+          name: Fetch Test Summary
 
-            if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]; then
+      - sonarcloud/scan
+
+      - run:
+          command: |
+            if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]
+            then
               exit 1
             fi
             exit 0
+          name: Test Results
 
-          name: Fetching Test Summary
       - run:
           command: |
             echo 'JIRA_BUILD_STATUS="failed"' >> ./circleci-orb-jira.status
@@ -291,7 +311,7 @@ workflows:
       - test:
           requires:
             - build
-      - post-to-jira:
+      - post-results:
           requires:
             - test
       - publish:
@@ -301,4 +321,4 @@ workflows:
                 - master
                 - /r\d\.\d.*/
           requires:
-            - post-to-jira
+            - post-results

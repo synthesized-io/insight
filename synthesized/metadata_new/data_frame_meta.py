@@ -18,17 +18,20 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
     """
     def __init__(
             self, name: str, id_index: Optional[str] = None, time_index: Optional[str] = None,
-            column_aliases: Optional[Dict[str, str]] = None, num_columns: Optional[int] = None
+            column_aliases: Optional[Dict[str, str]] = None, num_columns: Optional[int] = None,
+            num_rows: Optional[int] = None
     ):
         super().__init__(name=name)
         self.id_index = id_index
         self.time_index = time_index
         self.column_aliases = column_aliases if column_aliases is not None else {}
         self.num_columns = num_columns
+        self.num_rows = num_rows
 
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
         super().extract(df)
         self.num_columns = len(df.columns)
+        self.num_rows = len(df)
         return self
 
     def __setitem__(self, k: str, v: 'Meta') -> None:
@@ -55,7 +58,8 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             "id_index": self.id_index,
             "time_index": self.time_index,
             "column_aliases": self.column_aliases,
-            "num_columns": self.num_columns
+            "num_columns": self.num_columns,
+            "num_rows": self.num_rows
         })
 
         return d

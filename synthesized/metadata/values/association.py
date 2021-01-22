@@ -1,12 +1,12 @@
 import logging
 from typing import List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
-from .value_meta import ValueMeta
 from .categorical import CategoricalMeta
+from .value_meta import ValueMeta
 
 logger = logging.getLogger(__name__)
 

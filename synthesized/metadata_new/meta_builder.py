@@ -1,13 +1,13 @@
-from typing import Any, Optional, Union, Callable, Dict
 from dataclasses import asdict
+from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
 
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
-from .value import Bool, String, Integer, Float, OrderedString, Date, TimeDelta, IntegerBool
-from .value.datetime import get_date_format
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
+from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
+from .value.datetime import get_date_format
 from ..config import MetaFactoryConfig
 
 
@@ -19,7 +19,10 @@ class _MetaBuilder:
     The underyling numpy dtype (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
     determines the method that is called, and therefore the Meta that is returned.
     """
-    def __init__(self, parsing_nan_fraction_threshold: float):
+    def __init__(
+            self, min_num_unique: int, parsing_nan_fraction_threshold: float,
+            categorical_threshold_log_multiplier: float
+    ):
         self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any]]] = {
             'i': self._IntBuilder,
             'u': self._IntBuilder,
@@ -33,40 +36,41 @@ class _MetaBuilder:
         self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
 
     def __call__(self, sr: pd.Series) -> ValueMeta[Any]:
+        assert isinstance(sr.name, str), "DataFrame column names should be strings"
         return self._dtype_builders[sr.dtype.kind](sr)
 
     def _DateBuilder(self, sr: pd.Series) -> Date:
-        return Date(str(sr.name))
+        return Date(sr.name)
 
     def _TimeDeltaBuilder(self, sr: pd.Series) -> TimeDelta:
-        return TimeDelta(str(sr.name))
+        return TimeDelta(sr.name)
 
     def _BoolBuilder(self, sr: pd.Series,) -> Bool:
-        return Bool(str(sr.name))
+        return Bool(sr.name)
 
     def _IntBuilder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
         if sr.dropna().isin([0, 1]).all():
-            return IntegerBool(str(sr.name))
-        return Integer(str(sr.name))
+            return IntegerBool(sr.name)
+        return Integer(sr.name)
 
     def _FloatBuilder(self, sr: pd.Series) -> Union[Float, Integer, Bool, IntegerBool]:
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
         if self._contains_genuine_floats(sr):
-            return Float(str(sr.name))
+            return Float(sr.name)
         else:
             return self._IntBuilder(sr)
 
     def _CategoricalBuilder(self, sr: pd.Series) -> Union[OrderedString, String]:
         if isinstance(sr.dtype, pd.CategoricalDtype):
             if sr.cat.ordered:
-                return OrderedString(str(sr.name))
+                return OrderedString(sr.name)
             else:
-                return String(str(sr.name))
+                return String(sr.name)
 
         else:
-            return String(str(sr.name))
+            return String(sr.name)
 
     def _ObjectBuilder(self, sr: pd.Series) -> Union[Date, String, OrderedString, Float, Integer, Bool, IntegerBool]:
         try:
@@ -89,7 +93,7 @@ class _MetaBuilder:
                     return self._IntBuilder(x_numeric)
 
             else:
-                return String(str(sr.name))
+                return String(sr.name)
 
     @staticmethod
     def _contains_genuine_floats(sr: pd.Series) -> bool:
@@ -190,5 +194,6 @@ class MetaExtractor(MetaFactory):
         """
 
         factory = MetaExtractor(config)
+        df = df.infer_objects()
         df_meta = factory._from_df(df).extract(df)
         return df_meta

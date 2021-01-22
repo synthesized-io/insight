@@ -10,7 +10,6 @@ from .nan import NanValue
 from .rule import RuleValue
 from .value import Value
 
-
 __all__ = [
     'AssociatedCategoricalValue', 'CategoricalValue', 'ContinuousValue', 'DateValue', 'DecomposedContinuousValue', 'DataFrameValue',
     'IdentifierValue', 'NanValue', 'RuleValue', 'Value', 'ValueFactory', 'ValueExtractor'

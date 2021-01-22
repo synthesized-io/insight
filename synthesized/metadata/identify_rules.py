@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, cast
+from typing import List, Optional, Union, cast
 
 import pandas as pd
 

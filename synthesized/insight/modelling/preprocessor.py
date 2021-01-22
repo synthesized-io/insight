@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ...metadata import MetaExtractor, DataFrameMeta, NanMeta
+from ...metadata import DataFrameMeta, MetaExtractor, NanMeta
 
 logger = logging.getLogger(__name__)
 

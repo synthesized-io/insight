@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..metadata import DataFrameMeta as _DataFrameMeta
+from ..metadata_new import DataFrameMeta as _DataFrameMeta
 
 
 class DataFrameMeta:

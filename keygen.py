@@ -87,9 +87,8 @@ if __name__ == '__main__':
     pub = (133, 247)
     priv = (13, 247)
 
-    a = encrypt(pub, 'lkgng 2020-12-31')
-    b = bytes(a)
-    b = base64.b16encode(b).decode('utf-8')
+    a = encrypt(pub, 'lkgng 2021-12-31')
+    b = base64.b16encode(bytes(a)).decode('utf-8')
 
     license_key = '-'.join(chunks(b, 4))
     print(license_key)

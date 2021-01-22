@@ -22,14 +22,15 @@ def df_unittest_transformers():
         QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="DebtRatio", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         NanTransformer(name="MonthlyIncome"),
+        QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTimes90DaysLate", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberRealEstateLoansOrLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        NanTransformer(name="NumberOfDependents"),
         QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        NanTransformer(name="NumberOfDependents")]
+        ]
 
 
 @pytest.fixture
@@ -78,6 +79,7 @@ def test_transformer_factory(df_unittest, df_unittest_transformers):
     'transformer, data', [
         (QuantileTransformer('x'), pd.DataFrame({'x': np.random.normal(0, 1, size=100)})),
         (CategoricalTransformer('x'), pd.DataFrame({'x': ['A', 'B', 'C']})),
+        (CategoricalTransformer('x'), pd.DataFrame({'x': [0, 1, np.nan]})),
         (DateCategoricalTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (DateTransformer('x'), pd.DataFrame({'x': ["2013/02/01", "2013/02/03"]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
