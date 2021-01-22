@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import Counter
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
@@ -22,7 +22,7 @@ class CategoricalTransformer(Transformer):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
-        self.category_to_idx: Dict[str, int] = defaultdict(lambda: 0)
+        self.category_to_idx: Dict[str, int] = Counter()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'

@@ -1,7 +1,8 @@
 import logging
 from abc import abstractmethod
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Iterator, List, MutableSequence, Optional, Type, TypeVar, Union
+from concurrent.futures import ProcessPoolExecutor
+from typing import (Any, Callable, Collection, Dict, Iterator, List, MutableSequence, Optional, Tuple, Type, TypeVar,
+                    Union)
 
 import numpy as np
 import pandas as pd
@@ -31,12 +32,6 @@ class Transformer:
         self.name = name
         self.dtypes = dtypes
         self._fitted = False
-
-    def __add__(self, other: 'Transformer') -> 'BagOfTransformers':
-        return BagOfTransformers(name=self.name, transformers=[self, other])
-
-    def append_sequential(self, other: 'Transformer') -> 'SequentialTransformer':
-        return SequentialTransformer(name=self.name, transformers=[self, other])
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes})'
@@ -113,7 +108,7 @@ class Transformer:
         return [self.name]
 
 
-class BagOfTransformers(Transformer, MutableSequence[Transformer]):
+class BagOfTransformers(Transformer, Collection[Transformer]):
     """
     Transform data using a sequence of pre-defined Transformers.
     Each transformer can act on different columns of a data frame,
@@ -195,18 +190,19 @@ class BagOfTransformers(Transformer, MutableSequence[Transformer]):
     def __iter__(self) -> Iterator[Transformer]:
         yield from self._transformers
 
-    def __getitem__(self, idx: Union[int, slice]):
-        raise TypeError("'BagOfTransformers' object does not support indexing")
-
     def __len__(self) -> int:
         return len(self._transformers)
 
-    def __add__(self, other: Transformer) -> 'BagOfTransformers':
-        self._transformers.append(other)
-        return self
+    def __add__(self, other: 'BagOfTransformers') -> 'BagOfTransformers':
+        return BagOfTransformers(name=self.name, transformers=self._transformers + other._transformers)
+
+    def __contains__(self, key: object) -> bool:
+        assert isinstance(key, str)
+        return True if key in [t.name for t in self._transformers] else False
 
     def fit(self, df: pd.DataFrame) -> 'BagOfTransformers':
         df = df.copy()  # have to copy because Transformer.transform modifies df
+
         for transformer in self:
             transformer.fit(df)
             df = transformer.transform(df)
@@ -214,9 +210,9 @@ class BagOfTransformers(Transformer, MutableSequence[Transformer]):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        max_workers = kwargs.pop("max_workers", 4)
+        max_workers = kwargs.pop("max_workers", None)
         self._assert_fitted()
-        if max_workers is None or max_workers <= 1:  # this is used by SequentialTransformer
+        if max_workers and max_workers <= 1:  # this is used by SequentialTransformer
             df = df.copy()
             for transformer in self:
                 df = transformer.transform(df, **kwargs)
@@ -224,14 +220,11 @@ class BagOfTransformers(Transformer, MutableSequence[Transformer]):
 
         else:
 
-            def transform_i(argument) -> pd.DataFrame:
-                transformer, df_copy, kwargs = argument
-                df_copy = transformer.transform(df_copy, **kwargs)
-                return df_copy[transformer.out_columns]
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                arguments = ((transformer, df[transformer.in_columns].copy(), kwargs) for transformer in self)
-                columns_transformed = executor.map(transform_i, arguments)
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                arguments = (
+                    (transformer.transform, df[transformer.in_columns].copy(), transformer.out_columns, kwargs)
+                    for transformer in self)
+                columns_transformed = executor.map(self.apply_single_transformation, arguments)
 
             series = []
             for f in columns_transformed:
@@ -239,26 +232,31 @@ class BagOfTransformers(Transformer, MutableSequence[Transformer]):
             return pd.concat(series, axis=1)
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        max_workers = kwargs.pop("max_workers", 4)
-        if max_workers is None:
+        max_workers = kwargs.pop("max_workers", None)
+        if max_workers and max_workers <= 1:
             for transformer in reversed(self._transformers):  # this is used by SequentialTransformer
                 df = transformer.inverse_transform(df, **kwargs)
             return df
 
         else:
-            def inverse_transform_i(argument) -> pd.DataFrame:
-                transformer, df_copy, kwargs = argument
-                df_copy = transformer.inverse_transform(df_copy, **kwargs)
-                return df_copy[transformer.in_columns]
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                arguments = ((transformer, df[transformer.out_columns].copy(), kwargs) for transformer in self)
-                columns_transformed = executor.map(inverse_transform_i, arguments)
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                arguments = (
+                    (transformer.inverse_transform, df[transformer.out_columns].copy(), transformer.in_columns, kwargs)
+                    for transformer in self)
+                columns_transformed = executor.map(self.apply_single_transformation, arguments)
 
             series = []
             for f in columns_transformed:
                 series.append(f)
             return pd.concat(series, axis=1)
+
+    @staticmethod
+    def apply_single_transformation(
+        argument: Tuple[Callable, pd.DataFrame, List[str], Dict[str, Any]]
+    ) -> pd.DataFrame:
+        func, df_copy, out_columns, kwargs = argument
+        df_copy = func(df_copy, **kwargs)
+        return df_copy[out_columns]
 
     @property
     def in_columns(self) -> List[str]:
@@ -269,18 +267,20 @@ class BagOfTransformers(Transformer, MutableSequence[Transformer]):
         return list(set([column for transformer in self for column in transformer.out_columns]))
 
 
-class SequentialTransformer(BagOfTransformers):
+class SequentialTransformer(BagOfTransformers, MutableSequence[Transformer]):
     def __init__(self, name: str, transformers: Optional[List[Transformer]] = None, dtypes: Optional[List] = None):
         super().__init__(name, transformers=transformers, dtypes=dtypes)
 
     def __getitem__(self, idx: Union[int, slice]):
         return self._transformers[idx]
 
+    def __add__(self, other: 'BagOfTransformers') -> 'SequentialTransformer':
+        return SequentialTransformer(name=self.name, transformers=self._transformers + other._transformers)
+
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        kwargs['max_workers'] = None
-        print('kwargs', kwargs)
+        kwargs['max_workers'] = 1
         return super().transform(df, **kwargs)
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        kwargs['max_workers'] = None
+        kwargs['max_workers'] = 1
         return super().inverse_transform(df, **kwargs)
