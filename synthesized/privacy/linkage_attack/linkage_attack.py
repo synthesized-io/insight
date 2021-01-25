@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from synthesized.testing.metrics import categorical_emd
+from ...insight.metrics import earth_movers_distance
+from ...metadata import MetaExtractor
 
 
 class LinkageAttack:
@@ -12,7 +13,6 @@ class LinkageAttack:
     """
     def __init__(self, df_original: pd.DataFrame, key_columns: List[str], sensitive_columns: List[str]):
         """Linkage attack constructor
-
         Args:
             df_original: Original dataset.
             key_columns: Key columns used to link information between original and attacker datasets.
@@ -32,6 +32,7 @@ class LinkageAttack:
         self.n_columns = len(self.columns)
 
         self.df_original_bin = self.get_df_bin(df_original)
+        self.df_meta = MetaExtractor.extract(self.df_original_bin)
         self.vulnerable_rows = self.get_vulnerable_rows(self.df_original_bin)
         self.vulnerable_rows_indexes = list(self.vulnerable_rows.groupby(self.key_columns).count().index)
 
@@ -40,13 +41,10 @@ class LinkageAttack:
     def get_attacks(self, df_attacker: pd.DataFrame) -> List[Dict]:
         """Given a dataset with previous knowledge, attack the original dataset and try to extract sensitive
         information linking key columns and checking how similar the sensitive information is in linked subsets.
-
         Args:
              df_attacker: Attacker DataFrame containing the previous knowledge about the original data.
-
         Returns:
             A tuple of dictionaries containing extracted information.
-
         """
 
         df_attacker_bin = self.get_df_bin(df_attacker)
@@ -64,8 +62,8 @@ class LinkageAttack:
                 sensitive_columns_attacked = []
                 for sensitive_column in self.sensitive_columns:
 
-                    dist = categorical_emd(rows_orig[sensitive_column], rows_attacker[sensitive_column])
-                    if dist < self.k_distance:
+                    dist = earth_movers_distance(rows_orig[sensitive_column], rows_attacker[sensitive_column], dp=self.df_meta)
+                    if dist is not None and dist < self.k_distance:
                         sensitive_columns_attacked.append((sensitive_column, dist))
 
                 if len(sensitive_columns_attacked) > 0:
@@ -105,7 +103,7 @@ class LinkageAttack:
                 return False
 
             for sensitive_column in self.sensitive_columns:
-                dist = categorical_emd(g[sensitive_column], df[sensitive_column])
+                dist = earth_movers_distance(g[sensitive_column], df[sensitive_column])
                 if dist > self.t_closeness:
                     return True
 
