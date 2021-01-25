@@ -113,10 +113,13 @@ class TransformerFactory:
         if isinstance(meta, DataFrameMeta):
             transformers: List[Transformer] = []
             for m in meta.children:
-                if isinstance(m, Nominal):
-                    if m.nan_freq is not None and m.nan_freq > 0:
-                        transformers.append(NanTransformer.from_meta(m))
-                transformers.append(self._from_meta(m))
+                if isinstance(m, Nominal) and m.nan_freq is not None and m.nan_freq > 0:
+                    transformers.append(
+                        SequentialTransformer(m.name, transformers=[NanTransformer.from_meta(m), self._from_meta(m)])
+                    )
+                else:
+                    transformers.append(self._from_meta(m))
+
             return DataFrameTransformer(meta=meta, name=meta.name, transformers=transformers)
         else:
             return self._from_meta(meta)

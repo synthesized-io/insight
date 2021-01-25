@@ -240,9 +240,13 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
 
         else:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                arguments = (
-                    (transformer.inverse_transform, df[transformer.out_columns].copy(), transformer.in_columns, kwargs)
-                    for transformer in self)
+                arguments = ((
+                    transformer.inverse_transform,
+                    df[list(filter(lambda c: c in df.columns, transformer.out_columns))].copy(),
+                    transformer.in_columns,
+                    kwargs)
+                    for transformer in self
+                )
                 columns_transformed = executor.map(self.apply_single_transformation, arguments)
 
             series = []
@@ -254,9 +258,10 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
     def apply_single_transformation(
         argument: Tuple[Callable, pd.DataFrame, List[str], Dict[str, Any]]
     ) -> pd.DataFrame:
-        func, df_copy, out_columns, kwargs = argument
-        df_copy = func(df_copy, **kwargs)
-        return df_copy[out_columns]
+        func, df, out_columns, kwargs = argument
+        df = func(df, **kwargs)
+        out_columns = list(filter(lambda c: c in df.columns, out_columns))
+        return df[out_columns]
 
     @property
     def in_columns(self) -> List[str]:
