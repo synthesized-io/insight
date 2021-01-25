@@ -28,15 +28,19 @@ def df_credit_with_dates_transformers():
         QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         CategoricalTransformer(name="effort", categories=['(0.00649, 0.04]', '(0.00134, 0.00214]', '(-0.001, 0.000309]', '(0.00214, 0.00287]', '(0.04, 12.67]', '(12.67, 3296.64]', '(0.00367, 0.00468]', '(0.00468, 0.00649]', '(0.000309, 0.00134]', '(0.00287, 0.00367]']),
-        NanTransformer(name="MonthlyIncome"),
-        QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[
+            NanTransformer(name="MonthlyIncome"),
+            QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        ]),
         QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberOfTimes90DaysLate", n_quantiles=1000, output_distribution="normal", noise=1e-07),
         QuantileTransformer(name="NumberRealEstateLoansOrLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        NanTransformer(name="NumberOfDependents"),
-        QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        DateTransformer(name="date", date_format="%Y-%m-%d %H:%M:%S", unit="days", start_date='2017-01-01', n_quantiles=1000, output_distribution="normal", noise=1e-07)
+            QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        SequentialTransformer(name="NumberOfDependents", dtypes=None, transformers=[
+            NanTransformer(name="NumberOfDependents"),
+            QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        ]),
+        DateTransformer(name="date", date_format="%Y/%m/%d", unit="days", start_date='2017-01-01', n_quantiles=1000, output_distribution="normal", noise=1e-07)
     ]
 
 
@@ -60,8 +64,6 @@ def sequential_transformer():
 def test_sequential_transformer(sequential_transformer):
     assert sequential_transformer[0][0] == sequential_transformer[1]
     assert sequential_transformer[0][1] == sequential_transformer[2]
-    assert sequential_transformer[1] + sequential_transformer[2] == \
-        SequentialTransformer('transformer1', transformers=[sequential_transformer[1], sequential_transformer[2]])
 
 
 @pytest.mark.fast

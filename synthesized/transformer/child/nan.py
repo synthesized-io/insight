@@ -22,9 +22,8 @@ class NanTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        col = df[self.name].copy()
-        col.replace([np.inf, -np.inf], np.nan, inplace=True)
-        nan = col.isna()
+        df[self.name].replace([np.inf, -np.inf], np.nan, inplace=True)
+        nan = df[self.name].isna()
         df[f'{self.name}_nan'] = nan.astype(int)
         return df
 
