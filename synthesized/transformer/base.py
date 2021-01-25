@@ -205,12 +205,15 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
 
         for transformer in self:
             transformer.fit(df)
+            print("> fit", transformer, type(transformer))
             df = transformer.transform(df)
 
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         max_workers = kwargs.pop("max_workers", None)
+        print(">> max_workers", max_workers)
+
         self._assert_fitted()
         if max_workers and max_workers <= 1:  # this is used by SequentialTransformer
             df = df.copy()

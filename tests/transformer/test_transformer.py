@@ -12,6 +12,14 @@ from synthesized.transformer import (BagOfTransformers, BinningTransformer, Cate
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
+class MockTranformer(Transformer):
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        return df
+
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        return df
+
+
 @pytest.fixture
 def df_credit_with_dates():
     df = pd.read_csv('data/credit_with_categoricals_small.csv')
@@ -121,20 +129,17 @@ def test_date_transformer():
 
 @pytest.mark.fast
 def test_complex_sequence_of_transformers():
-    transformer = Transformer('x')
-    transformer.transform = types.MethodType(lambda self, x: x, transformer)
-    transformer.inverse_transform = types.MethodType(lambda self, x: x, transformer)
 
     bag_of_transformers = BagOfTransformers('bot', transformers=[
-        transformer,
+        MockTranformer('x1'),
         SequentialTransformer('seq', transformers=[
-            transformer,
-            BagOfTransformers('bot', transformers=[transformer, transformer, transformer]),
-            transformer
+            MockTranformer('x21'),
+            BagOfTransformers('bot', transformers=[MockTranformer('x22'), MockTranformer('x22')]),
         ]),
-        transformer,
+        MockTranformer('x3'),
     ])
 
-    df = pd.DataFrame({'x': np.random.normal(size=1000)})
+    n = 1000
+    df = pd.DataFrame({'x1': np.random.normal(size=n), 'x21': np.random.normal(size=n), 'x22': np.random.normal(size=n), 'x3': np.random.normal(size=n)})
     bag_of_transformers.fit(df)
     bag_of_transformers.inverse_transform(bag_of_transformers.transform(df))
