@@ -36,7 +36,8 @@ for file in files:
     })
 
     for case in file_to_case[file]:
-        case.set('classname', (file or '').replace('.', '/')+'.py')
+        # case.set('classname', (file or '').replace('.', '/')+'.py')
+        case.attrib.pop('classname')
 
     suite1.extend(file_to_case[file])
     # print(ET.tostring(suite1))
