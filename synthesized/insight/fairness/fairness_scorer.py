@@ -185,17 +185,16 @@ class FairnessScorer:
         else:
             score = 1 - df_biases['distance'].abs().mean()
 
-        if condense_output:
-            if isinstance(self.target_model, DiscreteModel):
-                if len(self.target_model.categories) == 2:  # type: ignore
-                    df_biases = df_biases[df_biases['target'] == self.positive_class]
+        if condense_output and isinstance(self.target_model, DiscreteModel):
+            if len(self.target_model.categories) == 2:  # type: ignore
+                df_biases = df_biases[df_biases['target'] == self.positive_class]
 
-                elif len(self.target_model.categories) > 2 and mode == 'ovr':  # type: ignore
-                    df_biases['distance'] = df_biases['distance'].abs()
-                    df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
-                    df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
-                    df_biases_out['target'] = 'N/A'
-                    df_biases = df_biases_out
+            elif len(self.target_model.categories) > 2 and mode == 'ovr':  # type: ignore
+                df_biases['distance'] = df_biases['distance'].abs()
+                df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
+                df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
+                df_biases_out['target'] = 'N/A'
+                df_biases = df_biases_out
 
         # Sort values
         df_biases = df_biases.reindex(df_biases['distance'].abs().sort_values(ascending=False).index)\
