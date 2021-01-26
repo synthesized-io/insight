@@ -34,11 +34,10 @@ class LinkageAttack:
     def columns(self) -> List[str]:
         return self.key_columns + self._sensitive_columns
 
-    @staticmethod
-    def get_quantiles(df_attack: pd.DataFrame, n_bins: int) -> Dict[str, pd.Series]:
+    def get_quantiles(self, df_attack: pd.DataFrame, n_bins: int) -> Dict[str, pd.Series]:
         quantiles = [round(i, 3) for i in np.arange(0, 1 + 1 / n_bins, 1 / n_bins)]
         col_quantiles = dict()
-        for col in df_attack.columns:
+        for col in self.key_columns:
             if df_attack[col].dtypes.kind in ('f', 'i') and df_attack[col].nunique() > n_bins:
                 col_quantiles[col] = df_attack[col].quantile(quantiles).unique()
 
@@ -72,7 +71,7 @@ class LinkageAttack:
             diff = False
             for col in self.sensitive_columns:
                 dist = emd_samples(g[col], df[col], range=(mins[col], maxes[col]))
-                norm = (maxes[col] - mins[col])
+                norm = (maxes[col] - mins[col])/2
 
                 if norm > 0 and dist / norm > self.t_closeness:
                     t_closeness.append(
@@ -88,7 +87,10 @@ class LinkageAttack:
             return different_distribution(g)
 
         vuln = df.groupby(self.key_columns).filter(is_vulnerable).groupby(self.key_columns).aggregate(list)
-        t_df = pd.DataFrame(t_closeness).pivot(index=self.key_columns, columns='sensitive_col', values='t')
+        if len(vuln) == 0:
+            t_df = pd.DataFrame()
+        else:
+            t_df = pd.DataFrame(t_closeness).pivot(index=self.key_columns, columns='sensitive_col', values='t')
         return vuln, t_df
 
     def get_attacks(self, df_attack: pd.DataFrame, n_bins: int = 25) -> Optional[pd.DataFrame]:
@@ -117,17 +119,27 @@ class LinkageAttack:
                 rows_orig = vulnerable_df_orig.loc[key]
 
                 for col in self.sensitive_columns:
-                    dist = emd_samples(rows_attack[col], rows_orig[col], range=(mins[col], maxes[col]))
-                    norm = (maxes[col] - mins[col])
 
-                    if dist < self.k_distance:
+                    r_a = [r for r in (rows_attack[col] if isinstance(rows_attack[col], list) else [rows_attack[col]]) if pd.notna(r)]
+                    r_o = [r for r in (rows_orig[col] if isinstance(rows_orig[col], list) else [rows_orig[col]]) if pd.notna(r)]
+                    if len(r_a) == 0 or len(r_o) == 0:
+                        continue
+
+                    dist = emd_samples(
+                        r_o,
+                        r_a,
+                        range=(mins[col], maxes[col])
+                    )
+                    norm = (maxes[col] - mins[col])/2
+
+                    if dist/norm < self.k_distance:
                         if pd.isna(t_orig.loc[key, col]) or pd.isna(t_attack.loc[key, col]):
                             continue
                         attacked_data.append({
                             'sensitive_column': col,
                             'original_values': rows_orig.loc[col],
                             'attack_values': rows_attack.loc[col],
-                            'k_dist': dist,
+                            'k_dist': dist/norm,
                             't_orig': t_orig.loc[key, col],
                             't_attack': t_attack.loc[key, col],
                             **{self.key_columns[n]: k for n, k in enumerate(key)}
@@ -137,6 +149,6 @@ class LinkageAttack:
 
         attacked_df = pd.DataFrame(
             attacked_data
-        ).pivot(index=self.key_columns, columns='sensitive_column').swaplevel(0, 1, 1)
+        ).pivot(index=self.key_columns, columns='sensitive_column').swaplevel(0, 1, 1).sort_index(axis=1)
 
         return attacked_df
