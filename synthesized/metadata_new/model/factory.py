@@ -45,7 +45,6 @@ class ModelFactory():
             n_unique = len(meta.categories) if meta.categories else 0
             if (meta.categories is None) or\
                (meta.num_rows and (n_unique > max(self.config.min_num_unique,
-                                                  np.sqrt(meta.num_rows),
                                                   self.config.categorical_threshold_log_multiplier * np.log(meta.num_rows)
                                                   ))):
                 return KernelDensityEstimate.from_meta(meta)

@@ -1,11 +1,10 @@
 import logging
-from math import log
-from typing import List, Optional, cast
+from typing import Dict, List, Optional, cast
 
 import pandas as pd
 
-from ...config import ModelFactoryConfig
-from ...metadata_new import DataFrameMeta, Date, MetaExtractor, Scale, ValueMeta
+from ...metadata_new import ContinuousModel, DataFrameMeta, Date, MetaExtractor, Model, Scale, ValueMeta
+from ...metadata_new.model import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)
@@ -25,10 +24,12 @@ class FairnessTransformer(SequentialTransformer):
         drop_dates: Whether to ignore sensitive attributes containing dates.
     """
 
-    def __init__(self, sensitive_attrs: List[str], target: str, df_meta: Optional[DataFrameMeta] = None, n_bins: int = 5,
-                 target_n_bins: Optional[int] = 5, positive_class: Optional[str] = None):
+    def __init__(self, sensitive_attrs: List[str], target: str, df_meta: Optional[DataFrameMeta] = None,
+                 df_models: Optional[Dict[str, Model]] = None, n_bins: int = 5, target_n_bins: Optional[int] = 5,
+                 positive_class: Optional[str] = None):
 
-        self.df_meta: Optional[DataFrameMeta] = None
+        self.df_meta = df_meta
+        self.df_models = df_models
         self.sensitive_attrs = sensitive_attrs
         self.target = target
         self.n_bins = n_bins
@@ -48,13 +49,12 @@ class FairnessTransformer(SequentialTransformer):
         if self.df_meta is None:
             self.df_meta = MetaExtractor.extract(df)
 
-        categorical_threshold = int(max(
-            float(ModelFactoryConfig.min_num_unique),
-            ModelFactoryConfig.categorical_threshold_log_multiplier * log(len(df))
-        ))
+        if self.df_models is None:
+            self.df_models = ModelFactory().create_model(self.df_meta)  # type: ignore
+            assert isinstance(self.df_models, dict)
 
         # Transformer for target column
-        if df[self.target].nunique() > categorical_threshold and self.target_n_bins:
+        if isinstance(self.df_models[self.target], ContinuousModel) and self.target_n_bins:
             meta = cast(ValueMeta, self.df_meta[self.target])
             df = DTypeTransformer(self.target, meta.dtype).fit_transform(df)
             self.append(BinningTransformer(self.target, bins=self.target_n_bins, duplicates='drop',
@@ -67,10 +67,7 @@ class FairnessTransformer(SequentialTransformer):
             meta = cast(ValueMeta, self.df_meta[col])
             df = DTypeTransformer(col, meta.dtype).fit_transform(df)
 
-            _categorical_threshold = self.n_bins if categorical_threshold is None else categorical_threshold
-            num_unique = df[col].nunique()
-
-            if num_unique > _categorical_threshold:
+            if isinstance(self.df_models[col], ContinuousModel):
                 transformer = self._get_sensitive_attr_transformer(meta, col)
                 if transformer:
                     self.append(transformer)
