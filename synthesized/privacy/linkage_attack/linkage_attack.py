@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -55,9 +55,11 @@ class LinkageAttack:
 
         return df
 
-    def get_vulnerable(self, df: pd.DataFrame, limit_n: bool = True) -> pd.DataFrame:
+    def get_vulnerable(self, df: pd.DataFrame, limit_n: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
         maxes = {col: np.nanmax(df[col]) for col in self.sensitive_columns}
         mins = {col: np.nanmin(df[col]) for col in self.sensitive_columns}
+
+        t_closeness = []
 
         if limit_n:
             def incorrect_size(n):
@@ -67,14 +69,17 @@ class LinkageAttack:
                 return n == 0
 
         def different_distribution(g) -> bool:
+            diff = False
             for col in self.sensitive_columns:
                 dist = emd_samples(g[col], df[col], range=(mins[col], maxes[col]))
                 norm = (maxes[col] - mins[col])
 
                 if norm > 0 and dist / norm > self.t_closeness:
-                    return True
+                    t_closeness.append(
+                        {'sensitive_col': col, 't': dist / norm, **{col: g[col].iloc[0] for col in self.key_columns}})
+                    diff = True
 
-            return False
+            return diff
 
         def is_vulnerable(g) -> bool:
             if incorrect_size(len(g)):
@@ -82,19 +87,26 @@ class LinkageAttack:
 
             return different_distribution(g)
 
-        return df.groupby(self.key_columns).filter(is_vulnerable).groupby(self.key_columns).aggregate(list)
+        vuln = df.groupby(self.key_columns).filter(is_vulnerable).groupby(self.key_columns).aggregate(list)
+        t_df = pd.DataFrame(t_closeness).pivot(index=self.key_columns, columns='sensitive_col', values='t')
+        return vuln, t_df
 
-    def get_attacks(self, df_attack: pd.DataFrame, n_bins: int = 25) :
+    def get_attacks(self, df_attack: pd.DataFrame, n_bins: int = 25) -> Optional[pd.DataFrame]:
         quantiles = self.get_quantiles(df_attack[self.columns], n_bins)
 
         binned_df_orig = self.bin_df(df=self.df_orig, quantiles=quantiles)
-        vulnerable_df_orig = self.get_vulnerable(df=binned_df_orig, limit_n=True)
-
+        vulnerable_df_orig, t_orig = self.get_vulnerable(df=binned_df_orig, limit_n=True)
         binned_df_attack = self.bin_df(df=df_attack[self.columns].copy(), quantiles=quantiles)
-        vulnerable_df_attack = self.get_vulnerable(df=binned_df_attack, limit_n=False)
+        vulnerable_df_attack, t_attack = self.get_vulnerable(df=binned_df_attack, limit_n=False)
 
-        maxes = {col: np.nanmax(binned_df_attack[col]) for col in self.sensitive_columns}
-        mins = {col: np.nanmin(binned_df_attack[col]) for col in self.sensitive_columns}
+        maxes = {
+            col: max(np.nanmax(binned_df_attack[col]), np.nanmax(binned_df_orig[col]))
+            for col in self.sensitive_columns
+        }
+        mins = {
+            col: min(np.nanmin(binned_df_attack[col]), np.nanmin(binned_df_orig[col]))
+            for col in self.sensitive_columns
+        }
 
         attacked_data = []
 
@@ -107,7 +119,24 @@ class LinkageAttack:
                 for col in self.sensitive_columns:
                     dist = emd_samples(rows_attack[col], rows_orig[col], range=(mins[col], maxes[col]))
                     norm = (maxes[col] - mins[col])
-                    if dist < self.k_distance:
-                        attacked_data.append((rows_orig.loc[[col, ]], dist))
 
-        return attacked_data
+                    if dist < self.k_distance:
+                        if pd.isna(t_orig.loc[key, col]) or pd.isna(t_attack.loc[key, col]):
+                            continue
+                        attacked_data.append({
+                            'sensitive_column': col,
+                            'original_values': rows_orig.loc[col],
+                            'attack_values': rows_attack.loc[col],
+                            'k_dist': dist,
+                            't_orig': t_orig.loc[key, col],
+                            't_attack': t_attack.loc[key, col],
+                            **{self.key_columns[n]: k for n, k in enumerate(key)}
+                        })
+        if len(attacked_data) == 0:
+            return None
+
+        attacked_df = pd.DataFrame(
+            attacked_data
+        ).pivot(index=self.key_columns, columns='sensitive_column').swaplevel(0, 1, 1)
+
+        return attacked_df
