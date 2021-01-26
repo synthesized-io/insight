@@ -126,7 +126,7 @@ class LinkageAttack:
                 r_o = [r for r in (rows_orig[col] if isinstance(rows_orig[col], list) else [rows_orig[col]])
                        if pd.notna(r)]
 
-                if len(r_a) == 0 or len(r_o) == 0:
+                if 0 in [len(r_a), len(r_o)]:
                     continue
 
                 dist = emd_samples(r_o, r_a, range=(mins[col], maxes[col]))
