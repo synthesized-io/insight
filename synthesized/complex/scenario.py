@@ -1,6 +1,6 @@
 """This module implements the ScenarioSynthesizer class."""
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -239,7 +239,7 @@ class ScenarioSynthesizer(Synthesizer):
                 self.run(fetches=fetches, feed_dict=feed_dict)
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
+            self, num_rows: int, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
 

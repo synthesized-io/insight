@@ -4,12 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .plotting import (plot_categorical_time_series, plot_continuous_time_series, plot_cross_correlations, plot_series,
-                       set_plotting_style)
+from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
+    plot_cross_correlations, plot_series
+from ..metadata import DataFrameMeta, MetaExtractor
 from ..insight import metrics
-from ..insight.dataset import categorical_or_continuous_values
 from ..insight.metrics import ColumnVector
-from ..metadata import DataFrameMeta
 
 COLOR_ORIG = '#1C5D7A'
 COLOR_SYNTH = '#801761'
@@ -215,3 +214,9 @@ def transition_matrix(transitions: np.array, val2idx: Dict[int, Any] = None) -> 
             row[:] = [f / s for f in row]
 
     return M, val2idx
+
+
+def categorical_or_continuous_values(df_or_dp):
+    """ old implementation from ..datatset to pass linting"""
+    dp = MetaExtractor.extract(df=df_or_dp) if isinstance(df_or_dp, pd.DataFrame) else df_or_dp
+    return dp.get_categorical_and_continuous()

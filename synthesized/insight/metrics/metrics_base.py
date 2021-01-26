@@ -1,12 +1,13 @@
 """This module contains metrics with different 'levels' of detail."""
 from abc import abstractmethod
 from itertools import combinations, permutations
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-from ..dataset import categorical_or_continuous_values
+from ...metadata_new import DataFrameMeta, MetaExtractor, Model
+from ...metadata_new.model import ModelFactory
 
 
 def _register(metric, cls):
@@ -21,7 +22,7 @@ def _register(metric, cls):
 
 class _Metric:
     ALL: Mapping[str, '_Metric'] = {}
-    name: Union[str, None] = None
+    name: Optional[str] = None
     tags: List[str] = []
 
     def __init__(self):
@@ -42,6 +43,17 @@ class ColumnMetric(_Metric):
 
         super(ColumnMetric, self).__init__()
 
+    def extract_metas_models(self, sr: pd.Series,
+                             dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                             models: Optional[Dict[str, Model]] = None) -> Tuple[DataFrameMeta, Dict[str, Model]]:
+        """ method for extracting datametas and models from dataframe if not already extracted"""
+        if dp is None:
+            dp = pd.DataFrame(data={sr.name: sr})
+        dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
+        models = ModelFactory()._from_dataframe_meta(dp) if models is None else models
+
+        return dp, models
+
     @abstractmethod
     def __call__(self, sr: pd.Series = None, **kwargs) -> Union[int, float, None]:
         pass
@@ -57,40 +69,16 @@ class TwoColumnMetric(_Metric):
 
         super(TwoColumnMetric, self).__init__()
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, **kwargs):
-        dp_or_df = kwargs.get('dp')
-        if dp_or_df is None:
-            dp_or_df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
+    def extract_metas_models(self, sr_a: pd.Series, sr_b: pd.Series,
+                             dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
+                             models: Optional[Dict[str, Model]] = None) -> Tuple[DataFrameMeta, Dict[str, Model]]:
+        """ method for extracting datametas and models from dataframe if not already extracted"""
+        if dp is None:
+            dp = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
+        dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
+        models = ModelFactory()._from_dataframe_meta(dp) if models is None else models
 
-        if "nominal" in self.tags:
-            categorical, _ = categorical_or_continuous_values(dp_or_df)
-            categorical_columns = [v.name for v in categorical]
-
-            if sr_a.name not in categorical_columns or sr_b.name not in categorical_columns:
-                return False
-
-        if "ordinal" in self.tags:
-            _, continuous = categorical_or_continuous_values(dp_or_df)
-            continuous_columns = [v.name for v in continuous]
-
-            if sr_a.name not in continuous_columns or sr_b.name not in continuous_columns:
-                return False
-
-        if kwargs.get('continuous_input_only', False) or "continuous_input_only" in self.tags:
-            _, continuous = categorical_or_continuous_values(dp_or_df)
-            continuous_columns = [v.name for v in continuous]
-
-            if sr_a.name not in continuous_columns:
-                return False
-
-        if kwargs.get('categorical_output_only', False) or "categorical_output_only" in self.tags:
-            categorical, _ = categorical_or_continuous_values(dp_or_df)
-            categorical_columns = [v.name for v in categorical]
-
-            if sr_b.name not in categorical_columns:
-                return False
-
-        return True
+        return dp, models
 
     @abstractmethod
     def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:

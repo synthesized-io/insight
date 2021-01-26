@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from ..synthesizer import Synthesizer
 from ...insight.evaluation import calculate_evaluation_metrics
-from ...metadata import DataFrameMeta
+from ...metadata_new import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 
@@ -250,9 +250,6 @@ class LearningManager:
         """
         if iteration % self.check_frequency != 0:
             return False
-
-        if len(synthesizer.get_conditions()) > 0:
-            raise NotImplementedError
 
         sample_size = min(self.sample_size, len(df_train_orig)) if self.sample_size else len(df_train_orig)
         column_names = [col for v in synthesizer.get_values() for col in v.learned_input_columns()]

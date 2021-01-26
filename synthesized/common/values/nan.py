@@ -1,9 +1,8 @@
-from typing import Sequence, Optional, Dict, Any
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import tensorflow as tf
 
-from .categorical import compute_embedding_size
 from .value import Value
 from ..module import tensorflow_name_scoped
 from ..util import get_initializer
@@ -25,7 +24,7 @@ class NanValue(Value):
         if embedding_size:
             self.embedding_size: Optional[int] = embedding_size
         else:
-            self.embedding_size = compute_embedding_size(self.num_categories)
+            self.embedding_size = 2
 
         self.embedding_initialization = 'orthogonal-small'
 
@@ -49,7 +48,6 @@ class NanValue(Value):
         spec = super().specification()
         spec.update(
             embedding_size=self.embedding_size,
-            similarity_based=self.similarity_based,
             weight=self.weight, temperature=self.temperature, moving_average=self.use_moving_average,
             embedding_initialization=self.embedding_initialization
         )
@@ -66,7 +64,7 @@ class NanValue(Value):
     @tensorflow_name_scoped
     def build(self):
         if not self.built:
-            if self.probabilities is not None and not self.similarity_based:
+            if self.probabilities is not None:
                 # "hack": scenario synthesizer, embeddings not used
                 return
             shape = (self.learned_output_size(), self.embedding_size)

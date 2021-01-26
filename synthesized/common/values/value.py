@@ -3,8 +3,8 @@ import re
 from base64 import b64decode, b64encode
 from typing import Any, Dict, List, Optional, Sequence
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
 from ..util import make_tf_compatible
@@ -147,12 +147,12 @@ class Value(tf.Module):
         self._regularization_losses.append(variable)
         return variable
 
-    def get_variables(self) -> Dict[str, Any]:
+    @classmethod
+    def from_dict(cls, d: Dict[str, str]) -> 'Value':
+        return pickle.loads(b64decode(d['pickle'].encode('utf-8')))
+
+    def to_dict(self) -> Dict[str, Any]:
         return dict(
             name=self.name,
             pickle=b64encode(pickle.dumps(self)).decode('utf-8')
         )
-
-    @staticmethod
-    def set_variables(variables: Dict[str, Any]):
-        return pickle.loads(b64decode(variables['pickle'].encode('utf-8')))

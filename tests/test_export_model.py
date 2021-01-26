@@ -1,16 +1,17 @@
+import shutil
 import tempfile
 from typing import Any, Dict
-import shutil
 
 import numpy as np
 import pandas as pd
 import pytest
 from scipy.stats import ks_2samp
 
-from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.metadata import TypeOverride
-from synthesized.config import HighDimConfig
+from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue
+from synthesized.config import HighDimConfig
+from synthesized.metadata import TypeOverride
+from synthesized.metadata_new import MetaExtractor
 
 atol = 0.05
 
@@ -93,6 +94,7 @@ def test_nan_producing():
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently don't have type override functionality in new metadata")
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})

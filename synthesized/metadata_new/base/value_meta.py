@@ -67,6 +67,8 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
+        # Consider inf/-inf as nan
+        df = df.copy().replace([np.inf, -np.inf], np.nan)
         if self.categories is None:
             self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
 
@@ -115,6 +117,7 @@ class Ordinal(Nominal[OType], Generic[OType]):
         self._max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
+        df = df.copy().replace('', np.nan)
         super().extract(df)
         assert self.categories is not None
         self.categories = self.sort(self.categories)

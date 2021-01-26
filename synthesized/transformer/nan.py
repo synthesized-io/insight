@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from .base import Transformer
 from ..metadata_new import Nominal
@@ -20,13 +20,15 @@ class NanTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df[self.name].replace([np.inf, -np.inf], np.nan, inplace=True)
         nan = df[self.name].isna()
         df[f'{self.name}_nan'] = nan.astype(int)
         return df
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True) -> pd.DataFrame:
         nan = df[f'{self.name}_nan'].astype(bool)
-        df[self.name] = df[self.name].where(~nan, np.nan)
+        if produce_nans:
+            df[self.name] = df[self.name].where(~nan, np.nan)
         df.drop(columns=[f'{self.name}_nan'], inplace=True)
         return df
 

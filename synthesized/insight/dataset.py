@@ -1,37 +1,25 @@
 from itertools import chain
-from typing import List, Tuple, Union
 
 import pandas as pd
 
-from ..metadata import CategoricalMeta, DataFrameMeta, MetaExtractor, NanMeta, ValueMeta
+from ..metadata_new import MetaExtractor
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:
     dp = MetaExtractor.extract(df=df)
-    values = dp.values
 
-    value_spec = [
-        {k: j for k, j in chain(v.specification().items(), [('class_name', v.__class__.__name__)])}
-        for v in values
+    meta_dict = [
+        {k: j for k, j in chain(vm.to_dict().items(), [('class_name', vm.__class__.__name__)])}
+        for vm in dp.values()
     ]
-    for s in value_spec:
+    for s in meta_dict:
         if 'categories' in s:
+            assert isinstance(s['categories'], list)
             s['categories'] = '[' + ', '.join([str(o) for o in s['categories']]) + ']'
 
-    for n, v in enumerate(values):
-        if isinstance(v, NanMeta):
-            value_spec.append(
-                {'class_name': v.value.__class__.__name__, 'name': v.name + '_value'})
-
-    df_values = pd.DataFrame.from_records(value_spec)
+    df_values = pd.DataFrame.from_records(meta_dict)
 
     return df_values
-
-
-def categorical_or_continuous_values(df_or_dp: Union[pd.DataFrame, DataFrameMeta]) \
-        -> Tuple[List[CategoricalMeta], List[ValueMeta]]:
-    dp = MetaExtractor.extract(df=df_or_dp) if isinstance(df_or_dp, pd.DataFrame) else df_or_dp
-    return dp.get_categorical_and_continuous()
 
 
 def describe_dataset(df: pd.DataFrame) -> pd.DataFrame:

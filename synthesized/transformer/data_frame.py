@@ -1,4 +1,6 @@
-from typing import Optional, Union
+import pickle
+from base64 import b64decode, b64encode
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 
@@ -23,6 +25,7 @@ class DataFrameTransformer(SequentialTransformer):
             raise ValueError("name must not be a string, not None")
         super().__init__(name)
         self.meta = meta
+        self.in_dtypes: Dict[str, str] = dict()
 
     def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
         """
@@ -39,13 +42,17 @@ class DataFrameTransformer(SequentialTransformer):
         if not inplace:
             df = df.copy()
 
+        for col_name in df.columns:
+            self.in_dtypes[col_name] = str(df[col_name].dtype)
+
         # To do: implement parallel transform
         for transformer in self:
             df = transformer.transform(df)
 
         return df
 
-    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False,
+                          max_workers: Optional[int] = None, produce_nans: bool = False) -> pd.DataFrame:
         """
         Inverse transform the data frame.
 
@@ -62,14 +69,33 @@ class DataFrameTransformer(SequentialTransformer):
 
         # To do: implement parallel transform
         for transformer in reversed(self):
-            df = transformer.inverse_transform(df)
+            if isinstance(transformer, NanTransformer):
+                df = transformer.inverse_transform(df, produce_nans=produce_nans)
+            else:
+                df = transformer.inverse_transform(df)
 
+        self.set_dtypes(df)
         return df
+
+    def set_dtypes(self, df: pd.DataFrame) -> None:
+        for col_name, col_dtype in self.in_dtypes.items():
+            if str(df[col_name].dtype) != str(col_dtype):
+                df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     @classmethod
     def from_meta(cls, meta: DataFrameMeta) -> 'DataFrameTransformer':
         obj: 'DataFrameTransformer' = TransformerFactory().create_transformers(meta)  # type: ignore
         return obj
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, str]) -> 'DataFrameTransformer':
+        return pickle.loads(b64decode(d['pickle'].encode('utf-8')))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            pickle=b64encode(pickle.dumps(self)).decode('utf-8')
+        )
 
 
 class TransformerFactory:

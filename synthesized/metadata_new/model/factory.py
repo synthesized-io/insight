@@ -1,10 +1,9 @@
 from typing import Any, Dict, Optional, Union, cast
 
 import numpy as np
-import pandas as pd
 
 from . import Histogram, KernelDensityEstimate
-from ..base import Affine, Model, Nominal, ValueMeta
+from ..base import Affine, Meta, Model, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
 from ...config import ModelFactoryConfig
 
@@ -17,9 +16,10 @@ class ModelFactory():
         else:
             self.config = config
 
-    def create_model(self, x: pd.DataFrame, meta: Optional[Union[ValueMeta[Any], DataFrameMeta]] = None,
-                     force_discrete: bool = True) -> Union[Model, Dict[str, Model]]:
+    def create_model(self, meta: Meta) -> Union[Model, Dict[str, Model]]:
         """
+        Create a KernelDensityEstimate for an Affine Meta, or a Histogram for Nominal. If the number
+        of unique categories is smaller than the maximum of of min_num_unique, sqrt(num_rows), or
         categorical_threshold * log(num_rows) then a Histogram is returned.
 
         Args:

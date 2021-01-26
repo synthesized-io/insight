@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized import HighDimSynthesizer
 from synthesized.insight.fairness import BiasMitigator, FairnessScorer
+from synthesized.metadata_new import MetaExtractor
 from synthesized.testing.utils import testing_progress_bar
 
 

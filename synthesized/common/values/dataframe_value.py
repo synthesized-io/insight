@@ -1,10 +1,11 @@
 from collections import OrderedDict
-from typing import Dict, List, Sequence, Any, Mapping, Iterator
+from typing import Any, Dict, Iterator, List, Mapping, Sequence
+
 import numpy as np
 import tensorflow as tf
 
-from ..module import tensorflow_name_scoped
 from .value import Value
+from ..module import tensorflow_name_scoped
 
 
 class DataFrameValue(Value, Mapping[str, Value]):
@@ -16,20 +17,12 @@ class DataFrameValue(Value, Mapping[str, Value]):
         name: string name of value (altered in super().__init__() call)
         values: a dictionary containing all values
         identifier_value: (unused) tbd on whether this should be kept
-        condition_size/conditions: (unused) tbd on whether this should be kept
     """
     def __init__(self, name: str, values: Dict[str, Value]):
         super(DataFrameValue, self).__init__(name=name)
 
         self._values: Dict[str, Value] = OrderedDict(**values)
         self.identifier_value = None
-
-        # Total condition size
-        self.conditions: List = list()
-        self.condition_size = 0
-        for value in self.conditions:
-            assert value.learned_input_size() > 0
-            self.condition_size += value.learned_input_size()
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name})'
@@ -60,24 +53,12 @@ class DataFrameValue(Value, Mapping[str, Value]):
         for name, value in self.items():
             if value.learned_input_size() > 0:
                 nan_mask = None if f'{value.name}_nan' not in self else 1 - inputs[f'{value.name}_nan'][0]
+                if nan_mask is not None:
+                    nan_mask = tf.cast(nan_mask, dtype=tf.bool)
                 values.append(
                     value.unify_inputs(xs=inputs[name], mask=nan_mask)
                 )
         x = tf.concat(values=values, axis=-1)
-
-        return x
-
-    @tensorflow_name_scoped
-    def add_conditions(self, x: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]]) -> tf.Tensor:
-        if len(self.conditions) > 0:
-            # Condition c
-            c = tf.concat(values=[
-                value.unify_inputs(xs=conditions[value.name])
-                for value in self.conditions
-            ], axis=1)
-
-            # Concatenate z,c
-            x = tf.concat(values=(x, c), axis=1)
 
         return x
 
@@ -88,11 +69,9 @@ class DataFrameValue(Value, Mapping[str, Value]):
         return output_dict
 
     @tensorflow_name_scoped
-    def output_tensors(self, y: tf.Tensor, conditions: Dict[str, Sequence[tf.Tensor]] = None, identifier: tf.Tensor = None,
-                       sample: bool = True, produce_nans: bool = False) -> Dict[str, Sequence[tf.Tensor]]:
+    def output_tensors(self, y: tf.Tensor, identifier: tf.Tensor = None,
+                       sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
 
-        if conditions is None:
-            conditions = dict()
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
@@ -106,10 +85,7 @@ class DataFrameValue(Value, Mapping[str, Value]):
             synthesized[self.identifier_label] = (identifier,)
 
         for (name, value), y in zip(self.items(), ys):
-            synthesized[name] = value.output_tensors(y=y, sample=sample, produce_nans=produce_nans)
-
-        for value in self.conditions:
-            synthesized[value] = conditions[value]
+            synthesized[name] = value.output_tensors(y=y, sample=sample)
 
         return synthesized
 
