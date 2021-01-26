@@ -33,7 +33,6 @@ def test_failed_linkage_attack():
     la.key_columns.extend(['x', 'y'])
     la.sensitive_columns.append('z')
     df_attacked = la.get_attacks(df_synthesized, n_bins=5)
-    logger.info(len(df_attacked) if df_attacked is not None else 0)
 
     assert df_attacked is None
 
