@@ -121,13 +121,11 @@ class LinkageAttack:
             rows_orig = vulnerable_df_orig.loc[key]
 
             for col in self.sensitive_columns:
-                r_a = [r for r in (rows_attack[col] if isinstance(rows_attack[col], list) else [rows_attack[col]])
-                       if pd.notna(r)]
-                r_o = [r for r in (rows_orig[col] if isinstance(rows_orig[col], list) else [rows_orig[col]])
-                       if pd.notna(r)]
-
-                if 0 in [len(r_a), len(r_o)]:
+                if pd.isna([rows_attack[col]]).all() or pd.isna([rows_orig[col]]).all():
                     continue
+
+                r_a = [r for r in rows_attack[col] if pd.notna(r)]
+                r_o = [r for r in rows_orig[col] if pd.notna(r)]
 
                 dist = emd_samples(r_o, r_a, range=(mins[col], maxes[col]))
                 norm = (maxes[col] - mins[col]) / 2
