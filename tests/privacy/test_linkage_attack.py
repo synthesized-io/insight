@@ -29,9 +29,10 @@ def test_failed_linkage_attack():
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
         assert len(df_synthesized) == len(df_original)
 
-    la = LinkageAttack(df_original, t_closeness=0.3, k_distance=0.05, max_n_vulnerable=25)
-    la.key_columns.extend(['x', 'y'])
-    la.sensitive_columns.append('z')
+    la = LinkageAttack(
+        df_original, t_closeness=0.3, k_distance=0.05, max_n_vulnerable=25,
+        key_columns=['x', 'y'], sensitive_columns=['z']
+    )
     df_attacked = la.get_attacks(df_synthesized, n_bins=5)
 
     assert df_attacked is None
@@ -48,8 +49,9 @@ def test_successful_linkage_attack():
 
     df_original = pd.DataFrame({'x': x, 'y': y, 'z': z})
 
-    la = LinkageAttack(df_original, t_closeness=0.3, k_distance=0.05, max_n_vulnerable=25)
-    la.key_columns.extend(['x', 'y'])
-    la.sensitive_columns.append('z')
+    la = LinkageAttack(
+        df_original, t_closeness=0.3, k_distance=0.05, max_n_vulnerable=25,
+        key_columns=['x', 'y'], sensitive_columns=['z']
+    )
     df_attacked = la.get_attacks(df_original, n_bins=50)
     assert df_attacked is not None
