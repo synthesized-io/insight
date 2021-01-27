@@ -191,6 +191,9 @@ class Affine(Ordinal[AType], Generic[AType]):
     def __repr__(self) -> str:
         return f'<Affine[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
+    def sort(self, sr: Sequence[AType]) -> Sequence[AType]:
+        return np.sort(sr).tolist()
+
 
 class Scale(Affine[SType], Generic[SType]):
     """
