@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -11,17 +11,14 @@ logger = logging.getLogger(__name__)
 class LinkageAttack:
     def __init__(
             self, df_orig: pd.DataFrame, t_closeness: float, k_distance: float, max_n_vulnerable: float,
-            key_columns: List[str], sensitive_columns: List[str]
+            key_columns: Optional[List[str]] = None, sensitive_columns: Optional[List[str]] = None
     ):
         self._df_orig = df_orig
         self.t_closeness = t_closeness
         self.k_distance = k_distance
         self.max_n_vulnerable = max_n_vulnerable
-        self._key_columns: List[str] = []
-        self._sensitive_columns: List[str] = []
-
-        self.key_columns = key_columns
-        self.sensitive_columns = sensitive_columns
+        self.key_columns = key_columns if key_columns is not None else []
+        self.sensitive_columns = sensitive_columns if sensitive_columns is not None else []
 
     @property
     def df_orig(self) -> pd.DataFrame:
@@ -32,28 +29,34 @@ class LinkageAttack:
         return self._sensitive_columns.copy()
 
     @sensitive_columns.setter
-    def sensitive_columns(self, cols: List[str]):
-        if not pd.Index(cols).isin(self._df_orig.columns).all():
-            raise ValueError("Sensitive columns must be in DataFrame.")
+    def sensitive_columns(self, cols: Union[None, List[str]]):
+        if cols is None or len(cols) == 0:
+            self._sensitive_columns = []
+        else:
+            if not pd.Index(cols).isin(self._df_orig.columns).all():
+                raise ValueError("Sensitive columns must be in DataFrame.")
 
-        if pd.Index(cols).isin(self.key_columns).any():
-            raise ValueError("Sensitive columns can't also be key columns.")
+            if pd.Index(cols).isin(self.key_columns).any():
+                raise ValueError("Sensitive columns can't also be key columns.")
 
-        self._sensitive_columns = cols
+            self._sensitive_columns = cols
 
     @property
     def key_columns(self) -> List[str]:
         return self._key_columns.copy()
 
     @key_columns.setter
-    def key_columns(self, cols: List[str]):
-        if not pd.Index(cols).isin(self._df_orig.columns).all():
-            raise ValueError("Key columns must be in DataFrame.")
+    def key_columns(self, cols: Union[None, List[str]]):
+        if cols is None or len(cols) == 0:
+            self._key_columns = []
+        else:
+            if not pd.Index(cols).isin(self._df_orig.columns).all():
+                raise ValueError("Key columns must be in DataFrame.")
 
-        if pd.Index(cols).isin(self.sensitive_columns).any():
-            raise ValueError("Key columns can't also be sensitive columns.")
+            if pd.Index(cols).isin(self.sensitive_columns).any():
+                raise ValueError("Key columns can't also be sensitive columns.")
 
-        self._key_columns = cols
+            self._key_columns = cols
 
     @property
     def columns(self) -> List[str]:
