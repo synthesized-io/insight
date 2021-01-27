@@ -90,7 +90,9 @@ class LinkageAttack:
         if len(vuln) == 0:
             t_df = pd.DataFrame()
         else:
-            t_df = pd.DataFrame(t_closeness).pivot(index=self.key_columns, columns='sensitive_col', values='t')
+            t_df = pd.DataFrame(
+                t_closeness
+            ).pivot(index=[k for k in self.key_columns], columns='sensitive_col', values='t')
         return vuln, t_df
 
     def get_attacks(self, df_attack: pd.DataFrame, n_bins: int = 25) -> Optional[pd.DataFrame]:
@@ -106,7 +108,7 @@ class LinkageAttack:
             for col in self.sensitive_columns
         }
         mins = {
-            col: min(np.nanmin(binned_df_attack[col]), np.nanmin(binned_df_orig[col]))
+            col: np.nanmin([np.nanmin(binned_df_attack[col]), np.nanmin(binned_df_orig[col])])
             for col in self.sensitive_columns
         }
 
@@ -148,6 +150,6 @@ class LinkageAttack:
 
         attacked_df = pd.DataFrame(
             attacked_data
-        ).pivot(index=self.key_columns, columns='sensitive_column').swaplevel(0, 1, 1).sort_index(axis=1)
+        ).pivot(index=[k for k in self.key_columns], columns='sensitive_column').swaplevel(0, 1, 1).sort_index(axis=1)
 
         return attacked_df
