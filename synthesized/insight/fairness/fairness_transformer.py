@@ -50,8 +50,9 @@ class FairnessTransformer(SequentialTransformer):
             self.df_meta = MetaExtractor.extract(df)
 
         if self.df_models is None:
-            self.df_models = ModelFactory().create_model(self.df_meta)  # type: ignore
-            assert isinstance(self.df_models, dict)
+            models = ModelFactory().create_model(self.df_meta)
+            assert isinstance(models, dict)
+            self.df_models = models
 
         # Transformer for target column
         if isinstance(self.df_models[self.target], ContinuousModel) and self.target_n_bins:
