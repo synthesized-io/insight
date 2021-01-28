@@ -70,7 +70,7 @@ class Assessor:
         """
         rows = math.ceil(len(self.plotable_values) / cols)
         if not figsize:
-            figsize = (14, 5 * rows + 2)
+            figsize = (6 * cols + 2, 5 * rows + 2)
 
         fig = plt.figure(figsize=figsize)
         gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.3)
@@ -85,7 +85,7 @@ class Assessor:
             n += 1
 
         for i, col in enumerate(self.continuous):
-            ax = fig.add_subplot(gs[n // 2, n % 2])
+            ax = fig.add_subplot(gs[n // cols, n % cols])
 
             ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
             title = f'{col} (KS Dist={ks_distance:.3f})'
