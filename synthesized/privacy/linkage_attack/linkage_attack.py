@@ -17,6 +17,8 @@ class LinkageAttack:
         self.t_closeness = t_closeness
         self.k_distance = k_distance
         self.max_n_vulnerable = max_n_vulnerable
+        self._sensitive_columns: List[str] = []
+        self._key_columns: List[str] = []
         self.key_columns = key_columns if key_columns is not None else []
         self.sensitive_columns = sensitive_columns if sensitive_columns is not None else []
 
