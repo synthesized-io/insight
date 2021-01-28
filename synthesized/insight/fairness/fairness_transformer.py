@@ -106,6 +106,4 @@ class FairnessTransformer(SequentialTransformer):
             raise KeyError("Target variable or sensitive attributes not present in DataFrame.")
 
         df = df[self._used_columns].copy()
-        df = df = df[~df[self.target].isna()]
-
-        return df
+        return df[~df[self.target].isna()]

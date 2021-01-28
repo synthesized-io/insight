@@ -23,7 +23,7 @@ class BinningTransformer(Transformer):
         pd.cut, pd.qcut
 
     """
-    def __init__(self, name: str, bins: int, remove_outliers: Optional[float] = None,
+    def __init__(self, name: str, bins: int, remove_outliers: Optional[float] = 0.1,
                  quantile_based: bool = False, **kwargs):
         super().__init__(name)
         self.bins = bins
