@@ -149,7 +149,7 @@ class Synthesizer(tf.Module):
             self.writer.set_as_default()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         if self.writer is not None:
             self.writer.close()
 
