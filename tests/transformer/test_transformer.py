@@ -29,7 +29,7 @@ def df_credit_with_dates():
 
 
 @pytest.fixture
-def df_credit_with_dates_transformers():
+def transformers_credit_with_dates():
     return [
         CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1]),
         QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
@@ -51,6 +51,15 @@ def df_credit_with_dates_transformers():
         DateTransformer(name="date", date_format="%Y/%m/%d", unit="days", start_date='2017-01-01', n_quantiles=1000, output_distribution="normal", noise=1e-07)
     ]
 
+@pytest.fixture
+def out_columns_credit_with_dates():
+    return set(['SeriousDlqin2yrs', 'RevolvingUtilizationOfUnsecuredLines', 'age',
+       'NumberOfTime30-59DaysPastDueNotWorse', 'effort', 'MonthlyIncome_nan',
+       'MonthlyIncome', 'NumberOfOpenCreditLinesAndLoans',
+       'NumberOfTimes90DaysLate', 'NumberRealEstateLoansOrLines',
+       'NumberOfTime60-89DaysPastDueNotWorse', 'NumberOfDependents_nan',
+       'NumberOfDependents', 'date_month', 'date_day', 'date', 'date_dow',
+       'date_hour'])
 
 @pytest.fixture
 def sequential_transformer():
@@ -84,13 +93,17 @@ def test_sequential_transformer_transform(sequential_transformer):
 
 
 @pytest.mark.fast
-def test_transformer_factory(df_credit_with_dates, df_credit_with_dates_transformers):
+def test_transformer_factory(df_credit_with_dates, transformers_credit_with_dates, out_columns_credit_with_dates):
     df_meta = MetaExtractor.extract(df_credit_with_dates)
     transformer = TransformerFactory().create_transformers(df_meta)
     df_transformer = DataFrameTransformer.from_meta(df_meta)
 
     assert type(transformer) == DataFrameTransformer
-    assert transformer._transformers == df_credit_with_dates_transformers
+    assert transformer._transformers == transformers_credit_with_dates
+
+    df_transformer.fit(df_credit_with_dates)
+    out_columns = set(df_transformer.transform(df_credit_with_dates).columns)
+    assert out_columns == out_columns_credit_with_dates
 
 
 @pytest.mark.fast

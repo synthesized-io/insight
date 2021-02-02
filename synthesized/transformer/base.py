@@ -46,12 +46,12 @@ class Transformer:
         except AssertionError:
             return False
 
-    def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
+    def __call__(self, x: pd.DataFrame, inverse=False, **kwargs) -> pd.DataFrame:
         self._assert_fitted()
         if not inverse:
-            return self.transform(x)
+            return self.transform(x, **kwargs)
         else:
-            return self.inverse_transform(x)
+            return self.inverse_transform(x, **kwargs)
 
     def fit(self: TransformerType, x: Union[pd.Series, pd.DataFrame]) -> TransformerType:
         if not self._fitted:
@@ -219,7 +219,7 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:
-                self._parallel_transform(df, max_workers, inverse=False, **kwargs)
+                df = self._parallel_transform(df, max_workers, inverse=False, **kwargs)
             except BrokenProcessPool:
                 logger.warning('Process pool is broken. Running sequentially.')
                 self.transform(df, max_workers=0)
@@ -236,7 +236,7 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:
-                self._parallel_transform(df, max_workers, inverse=True, **kwargs)
+                df = self._parallel_transform(df, max_workers, inverse=True, **kwargs)
             except BrokenProcessPool:
                 logger.warning('Process pool is broken. Running sequentially.')
                 self.inverse_transform(df, max_workers=0)
