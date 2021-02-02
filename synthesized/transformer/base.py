@@ -222,7 +222,7 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
                 df = self._parallel_transform(df, max_workers, inverse=False, **kwargs)
             except (BrokenProcessPool, OSError):
                 logger.warning('Process pool is broken. Running sequentially.')
-                self.transform(df, max_workers=0)
+                self.transform(df, max_workers=1)
         else:
             df = df.copy()
             for transformer in self:
@@ -239,7 +239,7 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
                 df = self._parallel_transform(df, max_workers, inverse=True, **kwargs)
             except (BrokenProcessPool, OSError):
                 logger.warning('Process pool is broken. Running sequentially.')
-                self.inverse_transform(df, max_workers=0)
+                self.inverse_transform(df, max_workers=1)
         else:
             df = df.copy()
             for transformer in reversed(self):
