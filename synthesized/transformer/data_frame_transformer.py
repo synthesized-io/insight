@@ -28,13 +28,14 @@ class DataFrameTransformer(BagOfTransformers):
         self.meta = meta
         self.in_dtypes: Dict[str, str] = dict()
 
-    def transform(self, df: pd.DataFrame, inplace: bool = False,
+    def transform(self, df: pd.DataFrame, max_workers: Optional[int] = None, inplace: bool = False,
                   **kwargs) -> pd.DataFrame:
         """
         Transform the data frame.
 
         Args:
             df: The data frame to transform.
+            max_workers: Number of workers user to parallelize transformation, 1 for sequential transformation.
             inplace: Whether to transform a copy or inplace.
 
         Returns:
@@ -46,9 +47,10 @@ class DataFrameTransformer(BagOfTransformers):
         for col_name in df.columns:
             self.in_dtypes[col_name] = str(df[col_name].dtype)
 
-        return super().transform(df, **kwargs)
+        return super().transform(df, max_workers=max_workers, **kwargs)
 
-    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False, **kwargs) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, max_workers: Optional[int] = None,
+                          inplace: bool = False, **kwargs) -> pd.DataFrame:
         """
         Inverse transform the data frame.
 
@@ -62,7 +64,7 @@ class DataFrameTransformer(BagOfTransformers):
         if not inplace:
             df = df.copy()
 
-        df = super().inverse_transform(df, **kwargs)
+        df = super().inverse_transform(df, max_workers=max_workers, **kwargs)
         self.set_dtypes(df)
         return df
 

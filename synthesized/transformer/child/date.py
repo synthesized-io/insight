@@ -12,7 +12,7 @@ class DateTransformer(SequentialTransformer):
 
     def __init__(self, name: str, date_format: Optional[str] = None, unit: Optional[str] = 'days',
                  start_date: Optional[pd.Timestamp] = None, n_quantiles: int = 1000,
-                 output_distribution: str = 'normal', noise: float = 1e-7):
+                 output_distribution: str = 'normal', noise: Optional[float] = 1e-7):
 
         transformers = [
             DateCategoricalTransformer(name=name, date_format=date_format),

@@ -201,6 +201,9 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         assert isinstance(key, str)
         return True if key in [t.name for t in self._transformers] else False
 
+    def __reversed__(self):
+        return reversed(self._transformers)
+
     def fit(self, df: pd.DataFrame) -> 'BagOfTransformers':
         df = df.copy()  # have to copy because Transformer.transform modifies df
 
@@ -216,21 +219,11 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:
-                with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                    arguments = (
-                        (transformer.transform, df[transformer.in_columns].copy(), transformer.out_columns, kwargs)
-                        for transformer in self)
-                    columns_transformed = executor.map(self.apply_single_transformation, arguments)
-
-                series = []
-                for f in columns_transformed:
-                    series.append(f)
-                return pd.concat(series, axis=1)
+                self._parallel_transform(df, max_workers, inverse=False, **kwargs)
             except BrokenProcessPool:
                 logger.warning('Process pool is broken. Running sequentially.')
-                max_workers = 1
-
-        if max_workers and max_workers <= 1:  # used by SequentialTransformer or if ProcessPoolExecutor fails
+                self.transform(df, max_workers=0)
+        else:
             df = df.copy()
             for transformer in self:
                 df = transformer.transform(df, **kwargs)
@@ -238,33 +231,39 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        max_workers = kwargs.pop("max_workers", None)
+        self._assert_fitted()
 
+        max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:
-                with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                    arguments = ((
-                        transformer.inverse_transform,
-                        df[list(filter(lambda c: c in df.columns, transformer.out_columns))].copy(),
-                        transformer.in_columns,
-                        kwargs)
-                        for transformer in self
-                    )
-                    columns_transformed = executor.map(self.apply_single_transformation, arguments)
-
-                series = []
-                for f in columns_transformed:
-                    series.append(f)
-                return pd.concat(series, axis=1)
-
+                self._parallel_transform(df, max_workers, inverse=True, **kwargs)
             except BrokenProcessPool:
                 logger.warning('Process pool is broken. Running sequentially.')
-                max_workers = 1
-
-        if max_workers and max_workers <= 1:
-            for transformer in reversed(self._transformers):  # used by SequentialTransformer or if ProcessPoolExecutor fails
+                self.inverse_transform(df, max_workers=0)
+        else:
+            df = df.copy()
+            for transformer in reversed(self):
                 df = transformer.inverse_transform(df, **kwargs)
-            return df
+
+        return df
+
+    def _parallel_transform(self, df: pd.DataFrame, max_workers: Optional[int] = None, inverse: bool = False, **kwargs):
+        if inverse:
+            arguments = ((transformer.inverse_transform,
+                          df[list(filter(lambda c: c in df.columns, transformer.out_columns))].copy(),
+                          transformer.in_columns,
+                          kwargs
+                          ) for transformer in self)
+        else:
+            arguments = ((transformer.transform, df[transformer.in_columns].copy(), transformer.out_columns, kwargs)
+                         for transformer in self)
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            columns_transformed = executor.map(self.apply_single_transformation, arguments)
+            series = []
+            for f in columns_transformed:
+                series.append(f)
+            return pd.concat(series, axis=1)
 
     @staticmethod
     def apply_single_transformation(

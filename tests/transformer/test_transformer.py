@@ -124,7 +124,8 @@ def test_date_transformer():
     df['date'] = df['date'].apply(lambda x: x.strftime("%Y/%m/%d"))
     transformer.fit(df)
     assert transformer._fitted is True
-    pd.testing.assert_frame_equal(df, transformer.inverse_transform(transformer.transform(df)))
+    df_t = transformer.transform(df.copy())
+    pd.testing.assert_frame_equal(df, transformer.inverse_transform(df_t))
 
 
 @pytest.mark.fast
