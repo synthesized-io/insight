@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from typing import (Any, Callable, Collection, Dict, Iterator, List, MutableSequence, Optional, Tuple, Type, TypeVar,
                     Union)
