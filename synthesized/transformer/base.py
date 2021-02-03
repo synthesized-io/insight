@@ -265,8 +265,6 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
                 series.append(f)
             return pd.concat(series, axis=1)
 
-        executor.__exit__()
-
     @staticmethod
     def apply_single_transformation(
         argument: Tuple[Callable, pd.DataFrame, List[str], Dict[str, Any]]
