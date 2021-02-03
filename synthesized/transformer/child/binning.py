@@ -3,7 +3,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from .base import Transformer
+from ..base import Transformer
 
 
 class BinningTransformer(Transformer):
@@ -59,6 +59,6 @@ class BinningTransformer(Transformer):
 
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name] = pd.cut(df[self.name], bins=self._bins, **self.kwargs)
         return df

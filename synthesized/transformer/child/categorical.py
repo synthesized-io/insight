@@ -1,11 +1,11 @@
-from collections import defaultdict
+from collections import Counter
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
-from .base import Transformer
-from ..metadata_new import Nominal
+from ..base import Transformer
+from ...metadata_new import Nominal
 
 
 class CategoricalTransformer(Transformer):
@@ -22,7 +22,7 @@ class CategoricalTransformer(Transformer):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
-        self.category_to_idx: Dict[str, int] = defaultdict(lambda: 0)
+        self.category_to_idx: Dict[str, int] = Counter()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
@@ -42,13 +42,13 @@ class CategoricalTransformer(Transformer):
 
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
         df[self.name] = df[self.name].fillna('nan')
         df[self.name] = df[self.name].apply(lambda x: self.category_to_idx[x])
         return df
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name] = df[self.name].apply(lambda x: self.idx_to_category[x])
         return df
 

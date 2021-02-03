@@ -1,8 +1,10 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 
-from .base import Transformer
-from ..metadata_new import Nominal
+from ..base import Transformer
+from ...metadata_new import Nominal
 
 
 class NanTransformer(Transformer):
@@ -19,13 +21,13 @@ class NanTransformer(Transformer):
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name].replace([np.inf, -np.inf], np.nan, inplace=True)
         nan = df[self.name].isna()
         df[f'{self.name}_nan'] = nan.astype(int)
         return df
 
-    def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True, **kwargs) -> pd.DataFrame:
         nan = df[f'{self.name}_nan'].astype(bool)
         if produce_nans:
             df[self.name] = df[self.name].where(~nan, np.nan)
@@ -35,3 +37,7 @@ class NanTransformer(Transformer):
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'NanTransformer':
         return cls(meta.name)
+
+    @property
+    def out_columns(self) -> List[str]:
+        return [f'{self.name}_nan']

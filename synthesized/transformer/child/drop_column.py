@@ -1,7 +1,7 @@
 import pandas as pd
 
-from .base import Transformer
-from .exceptions import NonInvertibleTransformError
+from ..base import Transformer
+from ..exceptions import NonInvertibleTransformError
 
 
 class DropColumnTransformer(Transformer):
@@ -18,8 +18,8 @@ class DropColumnTransformer(Transformer):
     def fit(self, df: pd.DataFrame) -> pd.DataFrame:
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         return df.drop(self.name, axis=1, errors='ignore')
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         raise NonInvertibleTransformError

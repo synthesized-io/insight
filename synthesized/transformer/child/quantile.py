@@ -1,11 +1,11 @@
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
-from .base import Transformer
-from ..metadata_new import Float, Integer
+from ..base import Transformer
+from ...metadata_new import Float, Integer
 
 
 class QuantileTransformer(Transformer):
@@ -19,13 +19,15 @@ class QuantileTransformer(Transformer):
             Either 'uniform' or 'normal', defaults to 'normal'.
     """
 
-    def __init__(self, name: str, n_quantiles: int = 1000, output_distribution: str = 'normal', noise: float = 1e-7):
+    def __init__(self, name: str, n_quantiles: int = 1000, output_distribution: str = 'normal',
+                 noise: Optional[float] = 1e-7):
         super().__init__(name=name)
-        self._transformer = _QuantileTransformer(n_quantiles, output_distribution)
+        self._transformer = _QuantileTransformer(n_quantiles=n_quantiles, output_distribution=output_distribution)
         self.noise = noise
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, output_distribution="{self._transformer.output_distribution}", noise={self.noise})'
+        return (f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, '
+                f'output_distribution="{self._transformer.output_distribution}", noise={self.noise})')
 
     def fit(self, df: pd.DataFrame) -> 'QuantileTransformer':
         if len(df) < self._transformer.n_quantiles:
@@ -37,7 +39,7 @@ class QuantileTransformer(Transformer):
         self._transformer.fit(df[[self.name]])
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if self.noise:
             df[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
@@ -51,7 +53,7 @@ class QuantileTransformer(Transformer):
 
         return df
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name] = self._transformer.inverse_transform(df[[self.name]])
         return df
 

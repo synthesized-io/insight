@@ -2,7 +2,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Transformer
+from ..base import Transformer
 
 
 class DTypeTransformer(Transformer):
@@ -49,10 +49,10 @@ class DTypeTransformer(Transformer):
         self.out_dtype = str(column.dtype)
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name] = df[self.name].astype(self.out_dtype, errors='ignore')
         return df
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name] = df[self.name].astype(self.in_dtype, errors='ignore')
         return df

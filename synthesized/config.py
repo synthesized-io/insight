@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from typing import Callable, Dict, List, Optional, Union
 
 import pandas as pd
@@ -146,7 +146,7 @@ class MetaTransformerConfig:
     Bool: Union[str, List[str]] = 'CategoricalTransformer'
     IntegerBool: Union[str, List[str]] = 'CategoricalTransformer'
     String: Union[str, List[str]] = 'CategoricalTransformer'
-    Date: Union[str, List[str]] = field(default_factory=lambda: ['DateCategoricalTransformer', 'DateTransformer', 'QuantileTransformer'])
+    Date: Union[str, List[str]] = 'DateTransformer'
 
     @property
     def meta_transformer_config(self):

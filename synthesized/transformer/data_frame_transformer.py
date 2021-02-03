@@ -1,17 +1,17 @@
 import pickle
 from base64 import b64decode, b64encode
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
-from .base import SequentialTransformer, Transformer
+from .base import BagOfTransformers, SequentialTransformer, Transformer
+from .child import NanTransformer
 from .exceptions import UnsupportedMetaError
-from .nan import NanTransformer
 from ..config import MetaTransformerConfig
 from ..metadata_new import DataFrameMeta, Meta, Nominal
 
 
-class DataFrameTransformer(SequentialTransformer):
+class DataFrameTransformer(BagOfTransformers):
     """
     Transform a data frame.
 
@@ -20,21 +20,23 @@ class DataFrameTransformer(SequentialTransformer):
     Attributes:
         meta: DataFrameMeta instance returned from MetaExtractor.extract
     """
-    def __init__(self, meta: DataFrameMeta, name: Optional[str] = 'df'):
+    def __init__(self, meta: DataFrameMeta, name: Optional[str] = 'df',
+                 transformers: Optional[List[Transformer]] = None):
         if name is None:
             raise ValueError("name must not be a string, not None")
-        super().__init__(name)
+        super().__init__(name, transformers=transformers)
         self.meta = meta
         self.in_dtypes: Dict[str, str] = dict()
 
-    def transform(self, df: pd.DataFrame, inplace: bool = False, max_workers: Optional[int] = None) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, max_workers: Optional[int] = None, inplace: bool = False,
+                  **kwargs) -> pd.DataFrame:
         """
         Transform the data frame.
 
         Args:
             df: The data frame to transform.
+            max_workers: Number of workers user to parallelize transformation, 1 for sequential transformation.
             inplace: Whether to transform a copy or inplace.
-            max_workers: Number of workers to process in parallel.
 
         Returns:
             The transformed data frame.
@@ -45,21 +47,16 @@ class DataFrameTransformer(SequentialTransformer):
         for col_name in df.columns:
             self.in_dtypes[col_name] = str(df[col_name].dtype)
 
-        # To do: implement parallel transform
-        for transformer in self:
-            df = transformer.transform(df)
+        return super().transform(df, max_workers=max_workers, **kwargs)
 
-        return df
-
-    def inverse_transform(self, df: pd.DataFrame, inplace: bool = False,
-                          max_workers: Optional[int] = None, produce_nans: bool = False) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, max_workers: Optional[int] = None,
+                          inplace: bool = False, **kwargs) -> pd.DataFrame:
         """
         Inverse transform the data frame.
 
         Args:
             df: The data frame to transform.
             inplace: Whether to transform a copy or inplace.
-            max_workers: Number of workers to process in parallel.
 
         Returns:
             The transformed data frame.
@@ -67,13 +64,7 @@ class DataFrameTransformer(SequentialTransformer):
         if not inplace:
             df = df.copy()
 
-        # To do: implement parallel transform
-        for transformer in reversed(self):
-            if isinstance(transformer, NanTransformer):
-                df = transformer.inverse_transform(df, produce_nans=produce_nans)
-            else:
-                df = transformer.inverse_transform(df)
-
+        df = super().inverse_transform(df, max_workers=max_workers, **kwargs)
         self.set_dtypes(df)
         return df
 
@@ -122,16 +113,18 @@ class TransformerFactory:
             A Transformer instance.
         """
         if isinstance(meta, DataFrameMeta):
-            transformer = DataFrameTransformer(meta, meta.name)
+            transformers: List[Transformer] = []
             for m in meta.children:
-                if isinstance(m, Nominal):
-                    if m.nan_freq is not None and m.nan_freq > 0:
-                        transformer.append(NanTransformer.from_meta(m))
+                if isinstance(m, Nominal) and m.nan_freq is not None and m.nan_freq > 0:
+                    transformers.append(
+                        SequentialTransformer(m.name, transformers=[NanTransformer.from_meta(m), self._from_meta(m)])
+                    )
+                else:
+                    transformers.append(self._from_meta(m))
 
-                transformer.append(self._from_meta(m))
+            return DataFrameTransformer(meta=meta, name=meta.name, transformers=transformers)
         else:
             return self._from_meta(meta)
-        return transformer
 
     def _from_meta(self, meta: Meta) -> Transformer:
 
@@ -141,10 +134,9 @@ class TransformerFactory:
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
         if isinstance(transformer_class_name, list):
-            transformer = SequentialTransformer(f'{meta.name}')
+            transformers = []
             for name in transformer_class_name:
-                transformer.append(Transformer.from_name_and_meta(name, meta))
+                transformers.append(Transformer.from_name_and_meta(name, meta))
+            return SequentialTransformer(name=meta.name, transformers=transformers)
         else:
             return Transformer.from_name_and_meta(transformer_class_name, meta)
-
-        return transformer

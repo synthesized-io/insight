@@ -80,7 +80,7 @@ class FairnessTransformer(SequentialTransformer):
         super().fit(df)
         return self
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
         df = self._get_dataframe_subset(df)
 
