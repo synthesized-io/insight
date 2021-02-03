@@ -1,13 +1,13 @@
-from typing import Generic, Optional, Dict, Any, cast, Sequence
+from typing import Any, Dict, Generic, Optional, Sequence, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import gaussian_kde
 import seaborn as sns
+from scipy.stats import gaussian_kde
 
 from ..base import ContinuousModel
-from ..base.value_meta import AType, Affine, Scale
+from ..base.value_meta import Affine, AType, Scale
 from ..exceptions import MetaNotExtractedError, ModelNotFittedError
 
 
@@ -30,6 +30,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             (df[self.name].values.astype(self.dtype) - c).astype(self.kde_dtype),
             bw_method='silverman'
         )
+        return self
 
     @property
     def kde_dtype(self) -> str:

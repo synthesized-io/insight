@@ -6,7 +6,7 @@ import pandas as pd
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from .value import Bool, Date, Integer, IntegerBool, Float, OrderedString, String, TimeDelta
+from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
 from .value.datetime import get_date_format
 from ..config import MetaFactoryConfig
 

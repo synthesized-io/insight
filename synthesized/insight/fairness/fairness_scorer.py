@@ -13,14 +13,19 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
 from .classification_bias import ClassificationBias
-from .fairness_transformer import FairnessTransformer, VariableType
+from .fairness_transformer import FairnessTransformer
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CategoricalLogisticR2, CramersV
-from ...metadata_new import MetaExtractor
-from ...metadata_new.model import ModelFactory
+from ...metadata_new import DataFrameMeta, Date, MetaExtractor, String
+from ...metadata_new.base.model import ContinuousModel, DiscreteModel, Model
+from ...metadata_new.model import Histogram, ModelFactory
+from ...transformer import SequentialTransformer
 
 logger = logging.getLogger(__name__)
 
+def _model_is_binary(model: DiscreteModel) -> bool:
+    assert isinstance(model.categories, list)
+    return len(model.categories) == 2
 
 class FairnessScorer:
     """This class analyzes a given DataFrame, looks for biases and quantifies its fairness. There are two ways to
@@ -38,8 +43,7 @@ class FairnessScorer:
         >>> fairness_scorer = FairnessScorer(data, sensitive_attrs=sensitive_attributes, target=target)
         >>> dist_score, dist_biases = fairness_scorer.distributions_score()
     """
-
-    def __init__(self, df: pd.DataFrame, sensitive_attrs: Union[List[str], str, None], target: str, n_bins: int = 5,
+    def __init__(self, df: pd.DataFrame, sensitive_attrs: Optional[Union[List[str], str]], target: str, n_bins: int = 5,
                  target_n_bins: Optional[int] = 5, detect_sensitive: bool = False, detect_hidden: bool = False,
                  positive_class: Optional[str] = None, drop_dates: bool = True):
         """FairnessScorer constructor.
@@ -59,7 +63,7 @@ class FairnessScorer:
         """
 
         if isinstance(sensitive_attrs, list):
-            self.sensitive_attrs: List[str] = sensitive_attrs
+            self.sensitive_attrs = sensitive_attrs
         elif isinstance(sensitive_attrs, str):
             self.sensitive_attrs = [sensitive_attrs]
         elif sensitive_attrs is None:
@@ -69,27 +73,44 @@ class FairnessScorer:
         else:
             raise TypeError("Given type of 'sensitive_attrs' not valid.")
 
-        self.target = target
+        assert isinstance(sensitive_attrs, list)
+
+        self.drop_dates = drop_dates
         self.n_bins = n_bins
         self.target_n_bins = target_n_bins
 
-        self.validate_sensitive_attrs_and_target(columns=list(df.columns))
+        self.df_meta = MetaExtractor.extract(df)
         self.detect_other_sensitive(df, detect_sensitive=detect_sensitive, detect_hidden=detect_hidden)
+        self.target, self.sensitive_attrs = self.validate_sensitive_attrs_and_target(target, sensitive_attrs, self.df_meta)
 
         if len(self.sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
 
-        self.preprocessor = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, target=self.target,
-                                                n_bins=self.n_bins, target_n_bins=self.target_n_bins,
-                                                drop_dates=drop_dates)
+        self.transformer = FairnessTransformer(sensitive_attrs=self.sensitive_attrs, df_meta=self.df_meta, target=self.target,
+                                               n_bins=self.n_bins, target_n_bins=self.target_n_bins)
 
-        self.preprocessor.fit(df)
-        self.sensitive_attrs = self.preprocessor.sensitive_attrs
-        self.target_variable_type = self.preprocessor.target_variable_type
-        self.positive_class = self.preprocessor.positive_class
+        self.transformer.fit(df)
+        self.target_model = self._get_target_model(df)
+
+        if positive_class is not None:
+            if positive_class not in df[target].unique():
+                raise ValueError("Positive class is not a unique value in given target.")
+            else:
+                self.positive_class: Optional[str] = positive_class
+        else:
+            self.positive_class = self.get_positive_class()
 
         self.values_str_to_list: Dict[str, List[str]] = dict()
         self.names_str_to_list: Dict[str, List[str]] = dict()
+
+    def _get_target_model(self, df: pd.DataFrame) -> Model:
+        target_transformer = SequentialTransformer(self.target, list(filter(lambda x: x.name == self.target, self.transformer)))
+        target_transformer.fit(df)
+        transformed_target = target_transformer(df[[self.target]])
+        target_meta = MetaExtractor.extract(transformed_target)[self.target]
+        target_model = ModelFactory().create_model(target_meta)
+        assert isinstance(target_model, Model)
+        return target_model.fit(df)
 
     @classmethod
     def init_detect_sensitive(cls, df: pd.DataFrame, target: str, n_bins: int = 5) -> 'FairnessScorer':
@@ -108,7 +129,7 @@ class FairnessScorer:
         return list(np.concatenate((self.sensitive_attrs, [self.target])))
 
     def distributions_score(self, df: pd.DataFrame,
-                            mode: Optional[str] = None, alpha: float = 0.05,
+                            mode: str = 'emd', alpha: float = 0.05,
                             min_dist: Optional[float] = None, min_count: Optional[int] = 50,
                             weighted: bool = True, max_combinations: Optional[int] = 3, condense_output: bool = True,
                             progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[float, pd.DataFrame]:
@@ -128,7 +149,7 @@ class FairnessScorer:
             progress_callback: Progress bar callback.
         """
 
-        df_pre = self.preprocessor(df)
+        df_pre = self.transformer(df)
 
         if len(self.sensitive_attrs) == 0 or len(df_pre) == 0 or len(df_pre.dropna()) == 0:
             if progress_callback is not None:
@@ -176,11 +197,11 @@ class FairnessScorer:
         else:
             score = 1 - df_biases['distance'].abs().mean()
 
-        if condense_output:
-            if self.target_variable_type == VariableType.Binary:
+        if condense_output and isinstance(self.target_model, DiscreteModel):
+            if _model_is_binary(self.target_model):
                 df_biases = df_biases[df_biases['target'] == self.positive_class]
 
-            elif self.target_variable_type == VariableType.Multinomial and mode == 'ovr':
+            elif mode == 'ovr':
                 df_biases['distance'] = df_biases['distance'].abs()
                 df_biases_out = df_biases.groupby(['name', 'value'], as_index=False).sum()
                 df_biases_out['distance'] = df_biases.groupby(['name', 'value'], as_index=False).mean()['distance']
@@ -201,21 +222,26 @@ class FairnessScorer:
 
         return score, df_biases
 
-    def calculate_distance(self, df: pd.DataFrame, sensitive_attr: List[str], mode: Optional[str] = None,
+    def calculate_distance(self, df: pd.DataFrame, sensitive_attr: List[str], mode: str = 'emd',
                            alpha: float = 0.05) -> pd.DataFrame:
         """Check input values and decide which type of distance is computed for each case."""
 
-        if self.target_variable_type == VariableType.Binary:
-            df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
-        elif self.target_variable_type == VariableType.Multinomial:
-            if mode is not None and mode == 'ovr':
+        if isinstance(self.target_model, DiscreteModel):
+
+            if _model_is_binary(self.target_model):
                 df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
-            elif mode is None or mode == 'emd':
-                df_dist = self.emd_distance(df, sensitive_attr)
+
             else:
-                raise ValueError(f"Given mode '{mode}' not recognized.")
-        elif self.target_variable_type == VariableType.Continuous:
+                if mode == 'ovr':
+                    df_dist = self.difference_distance(df, sensitive_attr, alpha=alpha)
+                elif mode == 'emd':
+                    df_dist = self.emd_distance(df, sensitive_attr)
+                else:
+                    raise ValueError(f"Given mode '{mode}' not recognized.")
+
+        elif isinstance(self.target_model, ContinuousModel):
             df_dist = self.ks_distance(df, sensitive_attr)
+
         else:
             raise ValueError("Target variable type not supported")
 
@@ -236,7 +262,7 @@ class FairnessScorer:
             max_combinations: Max number of combinations of sensitive attributes to be considered.
             progress_callback: Progress bar callback.
         """
-        df_pre = self.preprocessor(df)
+        df_pre = self.transformer(df)
 
         if len(self.sensitive_attrs) == 0:
             if progress_callback is not None:
@@ -245,7 +271,7 @@ class FairnessScorer:
 
             return 0., pd.DataFrame([], columns=['name', 'value', 'distance', 'count'])
 
-        if self.target_variable_type != VariableType.Binary:
+        if not isinstance(self.target_model, DiscreteModel):
             raise NotImplementedError("Classification score only available for Binary target distributions.")
 
         clf_scores = []
@@ -292,15 +318,6 @@ class FairnessScorer:
             progress_callback(100)
 
         return score, df_biases
-
-    def get_sensitive_attrs(self) -> List[str]:
-        return self.sensitive_attrs
-
-    def set_sensitive_attrs(self, sensitive_attrs: List[str]) -> None:
-        self.sensitive_attrs = sensitive_attrs
-
-    def add_sensitive_attr(self, sensitive_attr: str) -> None:
-        self.sensitive_attrs.append(sensitive_attr)
 
     def get_rates(self, df: pd.DataFrame, sensitive_attr: List[str]) -> pd.DataFrame:
         target = self.target
@@ -450,45 +467,55 @@ class FairnessScorer:
             })
         return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
 
-    def validate_sensitive_attrs_and_target(self, columns: List[str]) -> None:
-        # Check sensitive attrs in df.columns
-        for sensitive_attr in self.sensitive_attrs:
-            if sensitive_attr not in columns:
-                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's not found in"
-                               f"given DataFrame.")
-                self.sensitive_attrs.remove(sensitive_attr)
+    def validate_sensitive_attrs_and_target(
+        self, target: str, sensitive_attrs: List[str], df_meta: DataFrameMeta
+        ) -> Tuple[str, List[str]]:
 
-            elif sensitive_attr == self.target:
-                logger.warning(f"Dropping attribute '{sensitive_attr}' from sensitive attributes as it's equal"
-                               f"to given target.")
-                self.sensitive_attrs.remove(sensitive_attr)
+        if target not in df_meta:
+            raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
 
-        # Check target in df.columns
-        if self.target not in columns:
-            raise ValueError(f"Target variable '{self.target}' not found in the given DataFrame.")
+        if not all(col in df_meta for col in sensitive_attrs):
+            raise KeyError("Sensitive attributes not present in DataFrame.")
+
+        if isinstance(df_meta[target], String) and len(df_meta[target].categories) > np.sqrt(df_meta.num_rows):  # type: ignore
+            raise ValueError("Unable to compute fairness. Target column has too many unique non-numeric values.")
+
+        if isinstance(df_meta[target], Date):
+            raise TypeError("Datetime target columns not supported.")
+
+        for attr in sensitive_attrs:
+            if isinstance(df_meta[attr], Date) and self.drop_dates:
+                self.sensitive_attrs.remove(attr)
 
         # If target in sensitive_attrs, drop it
-        if self.target in self.sensitive_attrs:
-            self.sensitive_attrs.remove(self.target)
+        if target in sensitive_attrs:
+            sensitive_attrs.remove(self.target)
 
-        if len(self.sensitive_attrs) == 0:
+        for attr in sensitive_attrs:
+            if isinstance(df_meta[attr], String) and len(df_meta[attr].categories) > np.sqrt(df_meta.num_rows): # type: ignore
+                sensitive_attrs.remove(attr)
+                logging.info(f"Sensitive attribute '{attr}' dropped as it is a sampled value.")
+
+        if len(sensitive_attrs) == 0:
             logger.warning("No sensitive attributes detected. Fairness score will always be 0.")
+
+        return target, sensitive_attrs
 
     def detect_other_sensitive(self, df: pd.DataFrame, detect_sensitive: bool, detect_hidden: bool) -> None:
         # Detect other hidden sensitive attrs
         if detect_sensitive:
-            columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+            columns = list(filter(lambda c: c not in self.sensitive_attrs + [self.target], df.columns))
             new_sensitive_attrs = self.detect_sensitive_attrs(columns)
             for new_sensitive_attr in new_sensitive_attrs:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
+                self.sensitive_attrs.append(new_sensitive_attr)
 
         # Detect hidden correlations
         if detect_hidden:
             corr = self.other_correlations(df)
             for new_sensitive_attr, _, _ in corr:
                 logger.info(f"Adding column '{new_sensitive_attr}' to sensitive_attrs.")
-                self.add_sensitive_attr(new_sensitive_attr)
+                self.sensitive_attrs.append(new_sensitive_attr)
 
     @staticmethod
     def detect_sensitive_attrs(names: List[str], target: Optional[str] = None) -> List[str]:
@@ -513,7 +540,7 @@ class FairnessScorer:
             List of Tuples containing (detected attr, sensitive_attr, correlation_value).
 
         """
-        columns = list(filter(lambda c: c not in self.sensitive_attrs_and_target, df.columns))
+        columns = list(filter(lambda c: c not in self.sensitive_attrs + [self.target], df.columns))
         df = df.dropna().copy()
         dp = MetaExtractor.extract(df[columns])
         models = ModelFactory()._from_dataframe_meta(dp)
@@ -543,3 +570,15 @@ class FairnessScorer:
             num_combinations += int(factorial(n) / factorial(n - r) / factorial(r))
 
         return num_combinations
+
+    def get_positive_class(self) -> Optional[str]:
+        # Only set positive class for binary/multinomial, even if given.
+
+        if isinstance(self.target_model, Histogram) and _model_is_binary(self.target_model):
+            # If target class is not given, we'll use minority class as usually it is the target.
+            assert self.target_model.categories is not None
+            class_probabilites: Dict[str, float] = {x: self.target_model.probability(x) for x in self.target_model.categories}
+            return min(class_probabilites, key=lambda x: class_probabilites.get(x, 0))
+
+        else:
+            return None

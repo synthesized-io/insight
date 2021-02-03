@@ -1,9 +1,9 @@
 from abc import abstractmethod
-from typing import Any, Generic, Optional, TypeVar, Sequence
+from typing import Any, Generic, Optional, Sequence, TypeVar
 
 import pandas as pd
 
-from .value_meta import Nominal, Affine, NType, AType
+from .value_meta import Affine, AType, Nominal, NType
 
 ModelType = TypeVar('ModelType', bound='Model')
 ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')

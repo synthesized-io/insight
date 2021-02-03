@@ -113,6 +113,7 @@ def get_date_format(sr: pd.Series) -> str:
     Raises:
         UnknownDateFormatError: date format cannot be inferred.
     """
+    sr = sr.dropna()
     formats = (
         '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
         '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
