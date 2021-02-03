@@ -32,7 +32,9 @@ def generate_biased_data(n: int = 1000, nans_prop: Optional[float] = 0.2, date_f
 def test_bias_mitigator_mixed_types():
     sensitive_attrs = ['age', 'gender', 'DOB']
     target = 'income'
-    df = generate_biased_data(n=1000, nans_prop=0.2)
+    n=1000
+
+    df = generate_biased_data(n=n, nans_prop=0.2)
 
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta)
@@ -50,8 +52,8 @@ def test_bias_mitigator_mixed_types():
                                                            produce_nans=False)
 
     # Number of rows
-    df_unbiased = bias_mitigator.resample_df(df_unbiased, num_rows=5000)
-    assert len(df_unbiased) == 5000
+    df_unbiased = bias_mitigator.resample_df(df_unbiased, num_rows=n)
+    assert len(df_unbiased) == n
 
     # Test bias drop
     df_unbiased_hard = bias_mitigator.drop_biases(df, progress_callback=testing_progress_bar)
