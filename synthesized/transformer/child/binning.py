@@ -57,6 +57,13 @@ class BinningTransformer(Transformer):
         self._bins = list(bins)  # Otherwise it is np.ndarray
         self._bins[0], self._bins[-1] = column.min(), column.max()
 
+        # Manually construct interval index for dates as pandas can't do a quantile date interval by itself.
+        if isinstance(self._bins[0], pd.Timestamp):
+            self._bins = pd.IntervalIndex([
+                pd.Interval(self._bins[n], self._bins[n + 1])
+                for n in range(len(self._bins) - 1)
+            ], closed='left')
+
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:

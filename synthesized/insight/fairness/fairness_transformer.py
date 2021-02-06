@@ -60,7 +60,7 @@ class FairnessTransformer(SequentialTransformer):
             df = DTypeTransformer(self.target, meta.dtype).fit_transform(df)
             self.append(BinningTransformer(self.target, bins=self.target_n_bins, duplicates='drop',
                         remove_outliers=0.1, include_lowest=True))
-            self.append(DTypeTransformer(self.target, out_dtype='str'))
+        self.append(DTypeTransformer(self.target, out_dtype='str'))
 
         # Transformers for sensitive columns
         for col in self.sensitive_attrs:
