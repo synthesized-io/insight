@@ -9,6 +9,7 @@ from synthesized.metadata import DataFrameMeta
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently in development")
 def test_annotations_all():
     data = pd.read_csv('data/annotations_nd.csv')
     person_params = PersonParams(
@@ -72,6 +73,7 @@ def test_annotations_all():
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently in development")
 def test_addresses_from_file():
     data = pd.read_csv('data/annotations_nd.csv')
 

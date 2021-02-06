@@ -28,7 +28,7 @@ def test_pre_post_processing():
 
 @pytest.mark.slow
 @seed(42)
-@settings(deadline=None)
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column('A', elements=st.floats(width=32, allow_infinity=False), fill=st.nothing())],
     index=range_indexes(min_size=2, max_size=500)
@@ -54,7 +54,7 @@ def test_vf_floats(df):
 
 @pytest.mark.slow
 @seed(42)
-@settings(deadline=None)
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(
     [column('A', elements=st.floats(width=32, allow_infinity=True), fill=st.nothing())],
     index=range_indexes(min_size=2, max_size=500)
