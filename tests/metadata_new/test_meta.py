@@ -4,7 +4,7 @@ from typing import Sequence, Type
 import hypothesis.strategies as st
 import pandas as pd
 import pytest
-from hypothesis import assume, given
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
@@ -12,6 +12,7 @@ from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, M
 
 
 @pytest.mark.slow
+@settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(df=data_frames(columns([str(i) for i in range(30)], elements=st.floats(), fill=st.nothing())),
        n_col=st.integers(min_value=0, max_value=30))
 def test_data_frame(df, n_col):
