@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import tensorflow as tf
 
 from synthesized.common.transformations.dense import DenseTransformation
@@ -31,7 +30,6 @@ def _test_transformation(transformation, modulation=False):
     transformation.set_variables(variables)
 
 
-@pytest.mark.fast
 def test_dense():
     transformation = DenseTransformation(
         name='dense', input_size=8, output_size=6, bias=True, batch_norm=True, activation='relu'
@@ -39,7 +37,6 @@ def test_dense():
     _test_transformation(transformation=transformation)
 
 
-@pytest.mark.fast
 def test_mlp():
     transformation = MlpTransformation(
         name='mlp', input_size=8, layer_sizes=(10, 6), batch_norm=True,
@@ -48,13 +45,11 @@ def test_mlp():
     _test_transformation(transformation=transformation)
 
 
-@pytest.mark.fast
 def test_modulation():
     transformation = ModulationTransformation(name='modulation', input_size=8, condition_size=6)
     _test_transformation(transformation=transformation, modulation=True)
 
 
-@pytest.mark.fast
 def test_residual():
     transformation = ResidualTransformation(
         name='residual', input_size=8, output_size=6, depth=2, batch_norm=True,
@@ -63,7 +58,6 @@ def test_residual():
     _test_transformation(transformation=transformation)
 
 
-@pytest.mark.fast
 def test_resnet():
     transformation = ResnetTransformation(
         name='resnet', input_size=8, layer_sizes=(10, 6), depths=2,

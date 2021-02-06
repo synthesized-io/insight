@@ -1,25 +1,22 @@
-import pytest
 from io import BytesIO
 
 import numpy as np
 import pandas as pd
+import pytest
 
-from synthesized.complex.binary_builder import BinaryType, CompressionType, ModelBinary, DatasetBinary, Binary
+from synthesized.complex.binary_builder import Binary, BinaryType, CompressionType, DatasetBinary, ModelBinary
 
 
-@pytest.mark.fast
 def test_model_binary_init():
     model_binary = ModelBinary()
     assert model_binary.binary_type == BinaryType.MODEL
 
 
-@pytest.mark.fast
 def test_dataset_binary_init():
     dataset_binary = DatasetBinary()
     assert dataset_binary.binary_type == BinaryType.DATASET
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize(
     "body_compression",
     [
@@ -37,7 +34,6 @@ def test_set_get_body(body_compression):
     assert body == body_1
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize(
     "body,title,description,author,binary_type",
     [
@@ -65,7 +61,6 @@ def test_serialize_and_deserialize(body, title, description, author, binary_type
     assert unknown_binary.creation_date == creation_date
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize(
     "body_compression",
     [

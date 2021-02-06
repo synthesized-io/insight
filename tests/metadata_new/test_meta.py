@@ -1,13 +1,14 @@
-from typing import Sequence, Type
 from datetime import date
+from typing import Sequence, Type
 
-import pytest
-from hypothesis import given, assume
 import hypothesis.strategies as st
-from hypothesis.extra.pandas import column, data_frames, columns, range_indexes
 import pandas as pd
+import pytest
+from hypothesis import assume, given
+from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.metadata_new import MetaExtractor, Ordinal, Float, Integer, IntegerBool, Bool, Date, String, OrderedString
+from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
+                                      String)
 
 
 @pytest.mark.slow
@@ -119,7 +120,6 @@ ambigious_formats = (
 numpy_date_range = {"min_value": date(1677, 9, 21), "max_value": date(2262, 4, 11)}
 
 
-@pytest.mark.fast
 @given(df=data_frames([column('date',
                       elements=st.dates(**numpy_date_range), fill=st.nothing())],
                       index=range_indexes(min_size=10)),

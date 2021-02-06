@@ -1,12 +1,12 @@
 import logging
+from datetime import datetime
 from typing import cast
 
-from datetime import datetime
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
 
-from synthesized.metadata_new import MetaExtractor, Integer, Date
+from synthesized.metadata_new import Date, Integer, MetaExtractor
 from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,6 @@ def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
     hist.plot()
 
 
-@pytest.mark.fast
 def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     """For Integers, If the Histogram comes from a meta with a precision that spans multiple values, it should bin the
     entire range using the defined precision. Otherwise, it should just return the specific values.
@@ -93,7 +92,6 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     assert len(hist.categories) == 3
 
 
-@pytest.mark.fast
 def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     """For Date values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
     the entire range using the defined precision. Otherwise, it should just return the specific values.
@@ -136,7 +134,6 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     assert hist.probabilities == simple_df_binned_probabilities[col]
 
 
-@pytest.mark.fast
 def test_factory(simple_df_meta):
     df_models = ModelFactory().create_model(simple_df_meta)
 

@@ -1,10 +1,10 @@
 from math import log
-import pytest
 
 import pandas as pd
+import pytest
 
-from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 from synthesized.config import MetaExtractorConfig
+from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 
 
 @pytest.mark.slow

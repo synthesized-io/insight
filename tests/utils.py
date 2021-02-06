@@ -1,4 +1,4 @@
-def testing_progress_bar(i: int):
+def progress_bar_testing(i: int):
     assert isinstance(i, int)
     assert 0 <= i <= 100
     print(f"Testing Progress Bar: {i}%")

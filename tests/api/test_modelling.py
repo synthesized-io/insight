@@ -1,14 +1,12 @@
 import logging
 
 import pandas as pd
-import pytest
 
-from synthesized.api.modelling import predictive_modelling_score, predictive_modelling_comparison
+from synthesized.api.modelling import predictive_modelling_comparison, predictive_modelling_score
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.fast
 def test_modelling_score():
     df = pd.read_csv('data/credit_small.csv')
     score, metric, task = predictive_modelling_score(
@@ -19,7 +17,6 @@ def test_modelling_score():
     assert task == 'regression'
 
 
-@pytest.mark.fast
 def test_modelling_comparison():
     df = pd.read_csv('data/credit_small.csv')
     score, score2, metric, task = predictive_modelling_comparison(

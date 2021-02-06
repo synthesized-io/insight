@@ -1,13 +1,12 @@
 import logging
 
 import pandas as pd
-import pytest
 
 from synthesized.insight.metrics import categorical_logistic_correlation, kendell_tau_correlation
+
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.fast
 def test_categorical_logistic_correlation_datetimes():
     sr_a = pd.Series([1, 2, 3, 4, 5], name='ints')
     sr_b = pd.to_datetime(
@@ -17,7 +16,6 @@ def test_categorical_logistic_correlation_datetimes():
     value = categorical_logistic_correlation(sr_a, sr_b)
 
 
-@pytest.mark.fast
 def test_kt_correlation_string_numbers():
     sr_a = pd.Series([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], name="a")
     sr_b = pd.Series(['1.4', '2.1', '', '4.1', '3.9', '4.4', '5.1', '6.0', '7.5', '9', '11.4', '12.1', '', '14.1', '13.9'], name="b")
