@@ -1,11 +1,12 @@
-from typing import Optional, Union
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
 from ..base import Transformer
-from ...metadata_new import Float, Integer
+from ...config import QuantileTransformerConfig
+from ...metadata_new import Affine
 
 
 class QuantileTransformer(Transformer):
@@ -19,11 +20,13 @@ class QuantileTransformer(Transformer):
             Either 'uniform' or 'normal', defaults to 'normal'.
     """
 
-    def __init__(self, name: str, n_quantiles: int = 1000, output_distribution: str = 'normal',
-                 noise: Optional[float] = 1e-7):
+    def __init__(self, name: str, config: Optional[QuantileTransformerConfig] = None):
         super().__init__(name=name)
-        self._transformer = _QuantileTransformer(n_quantiles=n_quantiles, output_distribution=output_distribution)
-        self.noise = noise
+        config = QuantileTransformerConfig() if config is None else config
+        self._transformer = _QuantileTransformer(
+            n_quantiles=config.n_quantiles, output_distribution=config.distribution
+        )
+        self.noise = config.noise
 
     def __repr__(self):
         return (f'{self.__class__.__name__}(name="{self.name}", n_quantiles={self._transformer.n_quantiles}, '
@@ -58,5 +61,5 @@ class QuantileTransformer(Transformer):
         return df
 
     @classmethod
-    def from_meta(cls, meta: Union[Float, Integer]) -> 'QuantileTransformer':
-        return cls(meta.name)
+    def from_meta(cls, meta: Affine, config: Optional[QuantileTransformerConfig] = None) -> 'QuantileTransformer':
+        return cls(meta.name, config=config)
