@@ -23,9 +23,11 @@ from ...transformer import SequentialTransformer
 
 logger = logging.getLogger(__name__)
 
+
 def _model_is_binary(model: DiscreteModel) -> bool:
     assert isinstance(model.categories, list)
     return len(model.categories) == 2
+
 
 class FairnessScorer:
     """This class analyzes a given DataFrame, looks for biases and quantifies its fairness. There are two ways to
@@ -468,8 +470,8 @@ class FairnessScorer:
         return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
 
     def validate_sensitive_attrs_and_target(
-        self, target: str, sensitive_attrs: List[str], df_meta: DataFrameMeta
-        ) -> Tuple[str, List[str]]:
+            self, target: str, sensitive_attrs: List[str], df_meta: DataFrameMeta
+    ) -> Tuple[str, List[str]]:
 
         if target not in df_meta:
             raise ValueError(f"Target variable '{target}' not found in the given DataFrame.")
@@ -492,7 +494,7 @@ class FairnessScorer:
             sensitive_attrs.remove(self.target)
 
         for attr in sensitive_attrs:
-            if isinstance(df_meta[attr], String) and len(df_meta[attr].categories) > np.sqrt(df_meta.num_rows): # type: ignore
+            if isinstance(df_meta[attr], String) and len(df_meta[attr].categories) > np.sqrt(df_meta.num_rows):  # type: ignore
                 sensitive_attrs.remove(attr)
                 logging.info(f"Sensitive attribute '{attr}' dropped as it is a sampled value.")
 
