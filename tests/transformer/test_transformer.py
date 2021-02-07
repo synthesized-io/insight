@@ -134,7 +134,7 @@ def test_date_transformer():
     n = 5000
     df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],
                       columns=['date'])
-    df['date'] = df['date'].apply(lambda x: x.strftime("%Y/%m/%d"))
+    df['date'] = df['date'].apply(lambda x: x.strftime("%Y-%m-%d"))
     transformer.fit(df)
     assert transformer._fitted is True
     df_t = transformer.transform(df.copy())
