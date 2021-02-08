@@ -56,7 +56,7 @@ jobs:
           name: Run Tests
           shell: /bin/bash
           command: |
-            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v -m 'fast or slow' --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
             if [ $? -eq 1 ]
             then
               echo 'Some tests failed'

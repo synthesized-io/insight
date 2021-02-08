@@ -1,13 +1,11 @@
 import numpy as np
 import pandas as pd
-import pytest
 import tensorflow as tf
 
 from synthesized.common.values import CategoricalValue, ContinuousValue, DateValue, NanValue, Value
 from synthesized.metadata import DateMeta
 
 
-@pytest.mark.fast
 def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
     assert isinstance(value.specification(), dict)
     n = len(x)
@@ -31,7 +29,6 @@ def _test_value(value: Value, x: np.ndarray, y: np.ndarray = None):
         assert loss.shape == ()
 
 
-@pytest.mark.fast
 def test_categorical():
     value = CategoricalValue(
         name='categorical', num_categories=8, probabilities=None,
@@ -44,7 +41,6 @@ def test_categorical():
     )
 
 
-@pytest.mark.fast
 def test_categorical_similarity():
     value = CategoricalValue(
         name='categorical', num_categories=8, probabilities=None,
@@ -57,13 +53,11 @@ def test_categorical_similarity():
     )
 
 
-@pytest.mark.fast
 def test_continuous():
     value = ContinuousValue(name='continuous')
     _test_value(value=value, x=np.random.randn(4,))
 
 
-@pytest.mark.fast
 def test_nan():
     value = NanValue(name='nan')
 
@@ -75,7 +69,6 @@ def test_nan():
                 )
 
 
-@pytest.mark.fast
 def test_date():
     value = DateValue(name='date')
 

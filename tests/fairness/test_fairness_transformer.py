@@ -1,14 +1,13 @@
 from math import log
-import pytest
 
 import pandas as pd
+import pytest
 
-from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 from synthesized.config import MetaExtractorConfig
+from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("drop_dates", [True, False], ids=lambda dd: f"drop_dates={dd}")
 @pytest.mark.parametrize(
     "file_name,sensitive_attributes,target,target_n_bins",
     [
@@ -24,13 +23,12 @@ from synthesized.config import MetaExtractorConfig
                      id="mixed_types_target_binned"),
     ]
 )
-def test_fairness_transformer(file_name, sensitive_attributes, target, target_n_bins, drop_dates):
+def test_fairness_transformer(file_name, sensitive_attributes, target, target_n_bins):
     df = pd.read_csv(file_name)
     sample_size = 10_000
     df = df.sample(sample_size) if len(df) > sample_size else df
 
-    ft = FairnessTransformer(sensitive_attrs=sensitive_attributes, target=target, target_n_bins=target_n_bins,
-                             drop_dates=drop_dates)
+    ft = FairnessTransformer(sensitive_attrs=sensitive_attributes, target=target, target_n_bins=target_n_bins)
     ft.fit(df)
     df_t = ft(df)
 

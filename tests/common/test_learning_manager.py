@@ -1,12 +1,10 @@
-from typing import Optional, Union, List, Callable, Dict
-
-import pytest
+from typing import Callable, Dict, List, Optional, Union
 
 from synthesized.common.learning_manager import LearningManager
 
 
 def _test_learning_manager(
-        fn_metric: Callable[[int], Dict[str, float]], iterations: int, expected_iteration_break: Optional[int],
+        fn_metric: Callable[[int], Dict[str, List[float]]], iterations: int, expected_iteration_break: Optional[int],
         # Learning Manager params:
         check_frequency: int = 100, use_checkpointing: bool = True,
         checkpoint_path: str = '/tmp/tf_checkpoints',
@@ -38,7 +36,6 @@ def _test_learning_manager(
     lm.set_variables(variables)
 
 
-@pytest.mark.fast
 def test_lm_basic():
     iterations = 2500
 
@@ -49,7 +46,6 @@ def test_lm_basic():
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=None, use_checkpointing=False)
 
 
-@pytest.mark.fast
 def test_lm_basic2():
     iterations = 2500
 
@@ -64,7 +60,6 @@ def test_lm_basic2():
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=2000, use_checkpointing=False)
 
 
-@pytest.mark.fast
 def test_lm_metric_name():
     iterations = 3000
 
@@ -80,7 +75,6 @@ def test_lm_metric_name():
                            stop_metric_name='ks_distance')
 
 
-@pytest.mark.fast
 def test_lm_patience():
     iterations = 2500
 
@@ -95,7 +89,6 @@ def test_lm_patience():
     _test_learning_manager(fn_metric, iterations, expected_iteration_break=None, use_checkpointing=False)
 
 
-@pytest.mark.fast
 def test_lm_4():
     iterations = 5000
 

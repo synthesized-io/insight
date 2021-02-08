@@ -8,7 +8,7 @@ import pytest
 from synthesized import HighDimSynthesizer
 from synthesized.insight.fairness import BiasMitigator, FairnessScorer
 from synthesized.metadata_new import MetaExtractor
-from synthesized.testing.utils import testing_progress_bar
+from tests.utils import progress_bar_testing
 
 
 def generate_biased_data(n: int = 1000, nans_prop: Optional[float] = 0.2, date_format: str = "%Y-%m-%d"):
@@ -48,7 +48,7 @@ def test_bias_mitigator_mixed_types():
     fairness_scorer = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target,
                                      target_n_bins=n_bins, n_bins=n_bins)
     bias_mitigator = BiasMitigator(synthesizer, fairness_scorer=fairness_scorer)
-    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=5, progress_callback=testing_progress_bar,
+    df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=5, progress_callback=progress_bar_testing,
                                                            produce_nans=False)
 
     # Number of rows
@@ -56,8 +56,8 @@ def test_bias_mitigator_mixed_types():
     assert len(df_unbiased) == n
 
     # Test bias drop
-    df_unbiased_hard = bias_mitigator.drop_biases(df, progress_callback=testing_progress_bar)
-    _, biases = fairness_scorer.distributions_score(df_unbiased_hard, progress_callback=testing_progress_bar)
+    df_unbiased_hard = bias_mitigator.drop_biases(df, progress_callback=progress_bar_testing)
+    _, biases = fairness_scorer.distributions_score(df_unbiased_hard, progress_callback=progress_bar_testing)
     assert len(biases[biases["distance"].abs() > 0.05]) == 0
 
 
@@ -69,7 +69,7 @@ def test_bias_mitigator_check_score():
 
     # Compute initial score
     fs = FairnessScorer(df, sensitive_attrs=sensitive_attrs, target=target)
-    score_0, _ = fs.distributions_score(df, progress_callback=testing_progress_bar)
+    score_0, _ = fs.distributions_score(df, progress_callback=progress_bar_testing)
 
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta)
@@ -78,24 +78,24 @@ def test_bias_mitigator_check_score():
     # Mitigate Biases
     bias_mitigator = BiasMitigator(synthesizer=synthesizer, fairness_scorer=fs)
     df_unbiased = bias_mitigator.mitigate_biases_by_chunks(df, n_loops=20, produce_nans=False,
-                                                           progress_callback=testing_progress_bar)
+                                                           progress_callback=progress_bar_testing)
 
     # Compute final score
-    score_f, biases = fs.distributions_score(df_unbiased, progress_callback=testing_progress_bar)
+    score_f, biases = fs.distributions_score(df_unbiased, progress_callback=progress_bar_testing)
 
     assert score_f > score_0
 
     # Number of rows
     df_unbiased = bias_mitigator.resample_df(df_unbiased, num_rows=5000)
-    score_f2, biases = fs.distributions_score(df_unbiased, progress_callback=testing_progress_bar)
+    score_f2, biases = fs.distributions_score(df_unbiased, progress_callback=progress_bar_testing)
     assert len(df_unbiased) == 5000
     assert np.isclose(score_f, score_f2, atol=0.025)
 
     # Strict bias mitigation
     df_bias_drop = bias_mitigator.drop_given_biases(df_unbiased, biases=biases,
-                                                    progress_callback=testing_progress_bar)
+                                                    progress_callback=progress_bar_testing)
 
     # Compute final score
-    score_f, biases_f = fs.distributions_score(df_bias_drop, progress_callback=testing_progress_bar)
+    score_f, biases_f = fs.distributions_score(df_bias_drop, progress_callback=progress_bar_testing)
 
     assert len(biases_f[biases_f["distance"].abs() > 0.05]) == 0

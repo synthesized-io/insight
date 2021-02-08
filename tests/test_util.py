@@ -1,9 +1,6 @@
-import pytest
-
 from synthesized.util import get_all_subclasses
 
 
-@pytest.mark.fast
 def test_get_all_subclasses():
     class Foo:
         pass

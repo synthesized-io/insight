@@ -66,7 +66,6 @@ def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
     hist.plot()
 
 
-@pytest.mark.fast
 def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     """For Integers, If the Histogram comes from a meta with a precision that spans multiple values, it should bin the
     entire range using the defined precision. Otherwise, it should just return the specific values.
@@ -93,7 +92,6 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     assert len(hist.categories) == 3
 
 
-@pytest.mark.fast
 def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     """For Date values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
     the entire range using the defined precision. Otherwise, it should just return the specific values.

@@ -77,13 +77,11 @@ def sequential_transformer():
     return sequential, transformer1, transformer2
 
 
-@pytest.mark.fast
 def test_sequential_transformer(sequential_transformer):
     assert sequential_transformer[0][0] == sequential_transformer[1]
     assert sequential_transformer[0][1] == sequential_transformer[2]
 
 
-@pytest.mark.fast
 def test_sequential_transformer_transform(sequential_transformer):
     x = pd.DataFrame({'transformer1': [0], 'transformer2': [0]})
     sequential_transformer[0].fit(x)
@@ -92,7 +90,6 @@ def test_sequential_transformer_transform(sequential_transformer):
         assert transformer._fitted is True
 
 
-@pytest.mark.fast
 def test_transformer_factory(df_credit_with_dates, transformers_credit_with_dates, out_columns_credit_with_dates):
     df_meta = MetaExtractor.extract(df_credit_with_dates)
     transformer = TransformerFactory().create_transformers(df_meta)
@@ -106,7 +103,6 @@ def test_transformer_factory(df_credit_with_dates, transformers_credit_with_date
     assert out_columns == out_columns_credit_with_dates
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize(
     'transformer, data', [
         (QuantileTransformer('x', noise=None), pd.DataFrame({'x': np.random.normal(0, 1, size=100)}).astype(np.float32)),
@@ -126,7 +122,6 @@ def test_transformer(transformer, data):
         pass
 
 
-@pytest.mark.fast
 def test_date_transformer():
     date_format = "%Y/%m/%d"
     transformer = DateTransformer(name="date", date_format=date_format, noise=None)
@@ -141,7 +136,6 @@ def test_date_transformer():
     pd.testing.assert_frame_equal(df, transformer.inverse_transform(df_t))
 
 
-@pytest.mark.fast
 def test_complex_sequence_of_transformers():
 
     bag_of_transformers = BagOfTransformers('bot', transformers=[
