@@ -1,4 +1,4 @@
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -60,7 +60,8 @@ class DateToNumericTransformer(Transformer):
             self.date_format = get_date_format(sr)
 
         if sr.dtype.kind != 'M':
-            sr = pd.to_datetime(sr, format=cast(str, self.date_format))
+            assert self.date_format is not None
+            sr = pd.to_datetime(sr, format=self.date_format)
 
         if self.start_date is None:
             self.start_date = sr.min()
