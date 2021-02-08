@@ -1,9 +1,10 @@
-import pytest
-
 import numpy as np
 import pandas as pd
+import pytest
 
-from synthesized.insight.metrics.distance import DistanceMetric, EarthMoversDistance, HellingerDistance, KolmogorovSmirnovDistance, BinomialDistance, EarthMoversDistanceBinned, HellingerDistanceBinned
+from synthesized.insight.metrics.distance import (BinomialDistance, DistanceMetric, EarthMoversDistance,
+                                                  EarthMoversDistanceBinned, HellingerDistance, HellingerDistanceBinned,
+                                                  KolmogorovSmirnovDistance)
 
 
 class Distance(DistanceMetric):
@@ -22,24 +23,20 @@ def data2():
     return np.random.normal(1, 1, 1000)
 
 
-@pytest.mark.fast
 def test_distance(data1, data2):
     assert Distance(data1, data2).distance > 0
 
 
-@pytest.mark.fast
 def test_pvalue(data1, data2):
     assert Distance(data1, data2).p_value >= 0
     assert Distance(data1, data2).p_value <= 1
 
 
-@pytest.mark.fast
 def test_interval(data1, data2):
     assert len(Distance(data1, data2).interval().value) == 2
     assert Distance(data1, data2).interval(0.95).level == 0.95
 
 
-@pytest.mark.fast
 @pytest.mark.parametrize(
     'distance_metric, data, kwargs', [
         (KolmogorovSmirnovDistance, (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])), {}),

@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from synthesized.config import AddressParams
 from synthesized.metadata_new.value import AddressMeta
@@ -18,7 +17,6 @@ collapsed_df = pd.DataFrame({
 })
 
 
-@pytest.mark.fast
 def test_collapse_expand_parity():
     params = AddressParams(street_label="street", city_label="city",
                            house_name_label="house name", house_number_label="house number")

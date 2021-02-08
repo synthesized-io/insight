@@ -8,7 +8,6 @@ from synthesized.metadata_new import DataFrameMeta, MetaExtractor
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.fast
 def test_load_data_frame():
 
     df = pd.read_csv('data/unittest.csv')
@@ -20,7 +19,7 @@ def test_load_data_frame():
     assert [name1 == name2 for name1, name2 in zip(df_meta, df_meta2)]
 
 
-@pytest.mark.fast
+@pytest.mark.skip(reason="Currently in development")
 def test_load_data_frame_associations():
     association_dict = {"NumberOfTimes90DaysLate": ["NumberOfTime60-89DaysPastDueNotWorse"]}
 
