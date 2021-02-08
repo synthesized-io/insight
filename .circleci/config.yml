@@ -97,12 +97,12 @@ jobs:
               | wget --verbose --header "Circle-Token: ${CIRCLE_TOKEN}" --input-file -
 
             echo $(cat ./test-results.txt | grep -Ec "success")
-            echo $(cat ./test-results.txt | grep -Ec "failure")
-            echo $(cat test-results.txt| grep -Ec "failure|success")
+            echo $(cat ./test-results.txt | grep -Ec "error|failure")
+            echo $(cat test-results.txt| grep -Ec "error|failure|success")
 
             echo 'TESTS_SUCCESS='$(cat ./test-results.txt | grep -Ec "success") >> ./circleci-orb-jira.status
-            echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "failure") >> ./circleci-orb-jira.status
-            echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "failure|success") >> ./circleci-orb-jira.status
+            echo 'TESTS_FAIL='$(cat ./test-results.txt | grep -Ec "error|failure") >> ./circleci-orb-jira.status
+            echo 'TESTS_TOTAL='$(cat ./test-results.txt | grep -Ec "error|failure|success") >> ./circleci-orb-jira.status
 
           name: Fetch Test Summary
 
@@ -110,7 +110,7 @@ jobs:
 
       - run:
           command: |
-            if [ $(cat ./test-results.txt | grep "failure" | wc -l) -gt 0 ]
+            if [ $(cat ./test-results.txt | grep -E "error|failure" | wc -l) -gt 0 ]
             then
               exit 1
             fi
