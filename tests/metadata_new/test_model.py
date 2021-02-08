@@ -1,13 +1,13 @@
 import logging
+from datetime import datetime
 from typing import cast
 
-from datetime import datetime
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
 
-from synthesized.metadata_new import MetaExtractor, Integer, Date
-from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
+from synthesized.metadata_new import Date, Integer, MetaExtractor
+from synthesized.metadata_new.model import FormattedString, Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,19 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     kde.plot()
     hist = Histogram.bin_affine_meta(kde, max_bins=10)
     assert hist.probabilities == simple_df_binned_probabilities[col]
+
+
+@pytest.mark.fast
+def test_formatted_string_model():
+    pattern = '[0-9]{5}'
+    model = FormattedString('test', [pattern], nan_freq=0.3)
+    assert model.sample(100)['test'].str.match(pattern).sum() == 100
+    assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
+
+    patterns = ['[0-9]{5}', 'AB[0-9]{3}']
+    model = FormattedString('test', patterns, probabilities={'[0-9]{5}': 0.3, 'AB[0-9]{3}': 0.7}, nan_freq=0.3)
+    assert model.sample(100)['test'].str.match('[0-9]{5}|AB[0-9]{3}').sum() == 100
+    assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
 @pytest.mark.fast
