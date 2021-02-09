@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence, cast
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -14,51 +14,78 @@ class FormattedString(DiscreteModel[str]):
 
     Attributes:
         name (str): The name of the data column to model.
-        categories (Sequence[String]): A list of regex patterns.
-        probabilities (Dict[String, float]): A mapping of each of the regex patterns to a probability.
+        categories (MutableSequence[NType]): A list of the categories.
+        probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
+        pattern (str): The regex pattern from which to generate matching strings.
 
     """
 
     def __init__(
             self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            probabilities: Optional[Dict[NType, float]] = None
+            probabilities: Optional[Dict[NType, float]] = None, pattern: str = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq)
-        if self.categories is not None:
-            self._extracted = True
+        self.pattern = pattern
 
-        if self.categories is not None and len(self.categories) == 1:
-            probabilities = {self.categories[0]: 1.0}
-
-        self.probabilities: Optional[Dict[str, float]] = probabilities
-        if self.probabilities is not None or (self.categories is not None and len(self.categories) == 1):
+        if nan_freq is not None:
             self._fitted = True
 
-    def probability(self, x: str):
-        if not self._fitted:
-            raise ModelNotFittedError
-
-        self.probabilities = cast(Dict[str, float], self.probabilities)
-        return self.probabilities.get(x, 0.0)
+    def probability(self, x: Any):
+        raise NotImplementedError
 
     def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 
-        self.probabilities = cast(Dict[str, float], self.probabilities)
-        self.categories = cast(List[str], self.probabilities)
-
-        categories = [*self.categories]
-        p = [self.probabilities[c] for c in categories]
+        samples = pd.Series([rstr.xeger(self.pattern) for _ in range(n)], name=self.name)
 
         if produce_nans and (self.nan_freq is not None and self.nan_freq > 0):
-            p = [i * (1 - self.nan_freq) for i in p]
-            p += [self.nan_freq]
-            categories.append(np.nan)
+            is_nan = np.random.binomial(1, p=self.nan_freq, size=n) == 1
+            samples[is_nan] = np.nan
+        return samples.to_frame()
 
-        if len(categories) == 1:
-            samples = [rstr.xeger(categories[0]) for _ in range(n)]
-        else:
-            samples = [rstr.xeger(c) if c != 'nan' else np.nan for c in np.random.choice(categories, p=p, size=n)]
 
-        return pd.DataFrame({self.name: samples})
+class SequentialFormattedString(DiscreteModel[str]):
+    """A model to sample formatted sequential numeric identifiers with an optional suffix or prefix.
+
+    Attributes:
+        name (str): The name of the data column to model.
+        categories (MutableSequence[NType]): A list of the categories.
+        probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
+        length (int): The length of the numeric identifier. Numbers are zero padded up to this length.
+        prefix (str): The prefix of the identifier.
+        suffix (str): The suffix of the identifier.
+
+    """
+
+    def __init__(
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            probabilities: Optional[Dict[NType, float]] = None, length: int = None, prefix: str = None, suffix: str = None
+    ):
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        self.length = length
+        self.prefix = prefix
+        self.suffix = suffix
+
+        if nan_freq is not None:
+            self._fitted = True
+
+    def probability(self, x: Any):
+        raise NotImplementedError
+
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+        if not self._fitted:
+            raise ModelNotFittedError
+
+        samples = pd.Series(np.arange(0, n), name=self.name, dtype=str)
+        samples = samples.str.zfill(self.length)
+        if self.prefix is not None:
+            samples = self.prefix + samples
+        if self.suffix is not None:
+            samples = samples + self.suffix
+
+        if produce_nans and (self.nan_freq is not None and self.nan_freq > 0):
+            is_nan = np.random.binomial(1, p=self.nan_freq, size=n) == 1
+            samples[is_nan] = np.nan
+
+        return samples.to_frame()

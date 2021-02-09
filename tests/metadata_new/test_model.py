@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from synthesized.metadata_new import Date, Integer, MetaExtractor
-from synthesized.metadata_new.model import FormattedString, Histogram, KernelDensityEstimate, ModelFactory
+from synthesized.metadata_new.model import SequentialFormattedString, FormattedString, Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -136,13 +136,14 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
 
 def test_formatted_string_model():
     pattern = '[0-9]{5}'
-    model = FormattedString('test', [pattern], nan_freq=0.3)
+    model = FormattedString('test', pattern=pattern, nan_freq=0.3)
     assert model.sample(100)['test'].str.match(pattern).sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
-    patterns = ['[0-9]{5}', 'AB[0-9]{3}']
-    model = FormattedString('test', patterns, probabilities={'[0-9]{5}': 0.3, 'AB[0-9]{3}': 0.7}, nan_freq=0.3)
-    assert model.sample(100)['test'].str.match('[0-9]{5}|AB[0-9]{3}').sum() == 100
+
+def test_sequential_formatted_string_model():
+    model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
+    assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
