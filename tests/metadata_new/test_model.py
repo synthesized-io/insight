@@ -134,7 +134,6 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     assert hist.probabilities == simple_df_binned_probabilities[col]
 
 
-@pytest.mark.fast
 def test_formatted_string_model():
     pattern = '[0-9]{5}'
     model = FormattedString('test', [pattern], nan_freq=0.3)
@@ -147,7 +146,6 @@ def test_formatted_string_model():
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
-@pytest.mark.fast
 def test_factory(simple_df_meta):
     df_models = ModelFactory().create_model(simple_df_meta)
 
