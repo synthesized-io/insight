@@ -10,7 +10,7 @@ from ...config import AddressParams
 logger = logging.getLogger(__name__)
 
 
-class AddressMeta(String):
+class Address(String):
     """
     AddressMeta
     Attributes:

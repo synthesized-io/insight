@@ -50,7 +50,7 @@ class Date(Affine[np.datetime64]):
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
         ]
 
-        self._unit_meta = TimeDeltaDay('diff_' + self.name)
+        self._unit_meta: TimeDeltaDay = TimeDeltaDay('diff_' + self.name)
 
     def extract(self: DateType, df: pd.DataFrame):
         if self.date_format is None:

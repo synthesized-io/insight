@@ -1,7 +1,7 @@
 import pandas as pd
 
 from synthesized.config import AddressParams
-from synthesized.metadata_new.value import AddressMeta
+from synthesized.metadata_new.value import Address
 
 df = pd.DataFrame({
     "street": ["Blah Drive", "Placeholder Avenue", "Test Road"],
@@ -21,7 +21,7 @@ def test_collapse_expand_parity():
     params = AddressParams(street_label="street", city_label="city",
                            house_name_label="house name", house_number_label="house number")
 
-    meta = AddressMeta(name="address", address_params=params)
+    meta = Address(name="address", address_params=params)
     df_new = df.copy()
     meta.collapse(df_new)
     assert (df_new == collapsed_df).all().all()
