@@ -8,13 +8,23 @@ from ..data_frame_meta import DataFrameMeta
 from ...config import ModelFactoryConfig
 
 
-class ModelFactory():
+class ModelFactory:
     """Factory class to create Model instances from Meta."""
     def __init__(self, config: Optional[ModelFactoryConfig] = None):
         if config is None:
             self.config = ModelFactoryConfig()
         else:
             self.config = config
+
+    def create_df_model_meta(self, df_meta: DataFrameMeta) -> DataFrameMeta:
+        df_model = DataFrameMeta(name='models')
+        for name, meta in df_meta.items():
+            if isinstance(meta, ValueMeta):
+                model = self._from_value_meta(meta)
+                if isinstance(model, ValueMeta):
+                    df_model[name] = model
+
+        return df_model
 
     def create_model(self, meta: Meta) -> Union[Model, Dict[str, Model]]:
         """

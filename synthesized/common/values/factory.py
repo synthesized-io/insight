@@ -6,10 +6,9 @@ from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .dataframe_value import DataFrameValue
 from .date import DateValue
-from .nan import NanValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata_new import Bool, DataFrameMeta, Date, Float, Integer, IntegerBool, Meta, Nominal, OrderedString, String
+from ...metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
 
 logger = logging.getLogger(__name__)
 
@@ -51,32 +50,31 @@ class ValueFactory:
             else:
                 raise ValueError('Unsupported Building of DataFrameValue with non-nominal metas')
 
-            values[name] = value
+            if value is not None:
+                values[name] = value
 
         return DataFrameValue(name="dataframe_value", values=values)
 
-    def _create_value(self, vm: Meta, has_nan: bool = False) -> Value:
+    def _create_value(self, vm: Meta) -> Optional[Value]:
         """Lookup function for determining correct value for given value meta"""
-        if isinstance(vm, (String, OrderedString)):
-            assert vm.categories is not None
-            return CategoricalValue(
-                vm.name, num_categories=len(vm.categories),
-                config=self.config.categorical_config,
-            )
-        elif isinstance(vm, Date):
+        if isinstance(vm, ContinuousModel) and vm.dtype == 'M8[D]':
             return DateValue(
                 vm.name, categorical_config=self.config.categorical_config,
                 continuous_config=self.config.continuous_config,
             )
-        elif isinstance(vm, (Float, Integer)):
+        elif isinstance(vm, ContinuousModel):
             return ContinuousValue(
                 vm.name, config=self.config.continuous_config,
             )
-        elif isinstance(vm, (Bool, IntegerBool)):
-            return CategoricalValue(
-                vm.name, num_categories=2,
-                config=self.config.categorical_config,
-            )
+        elif isinstance(vm, DiscreteModel):
+            assert vm.categories is not None
+            if len(vm.categories) > 1:
+                return CategoricalValue(
+                    vm.name, num_categories=len(vm.categories),
+                    config=self.config.categorical_config,
+                )
+            else:
+                return None
         else:
             raise ValueError("Bad Nominal Value Meta")
 
@@ -84,7 +82,10 @@ class ValueFactory:
         """ builds a nan_value from a value_meta if needed else returns None"""
         if value_meta.nan_freq is None or value_meta.nan_freq == 0:
             return None
-        nan_value = NanValue(name=f"{name}_nan", config=self.config.categorical_config)
+        nan_value = CategoricalValue(
+            name=f"{name}_nan", num_categories=2,
+            config=self.config.categorical_config
+        )
         return nan_value
 
 

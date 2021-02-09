@@ -1,4 +1,3 @@
-from collections import Counter
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
@@ -6,6 +5,12 @@ import pandas as pd
 
 from ..base import Transformer
 from ...metadata_new import Nominal
+
+
+class ReturnZeroDict(dict):
+
+    def __missing__(self, key):
+        return 0
 
 
 class CategoricalTransformer(Transformer):
@@ -22,7 +27,7 @@ class CategoricalTransformer(Transformer):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
-        self.category_to_idx: Dict[str, int] = Counter()
+        self.category_to_idx: Dict[str, int] = ReturnZeroDict()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'

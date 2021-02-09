@@ -2,13 +2,15 @@ import pickle
 from base64 import b64decode, b64encode
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from .base import BagOfTransformers, SequentialTransformer, Transformer
-from .child import NanTransformer
+from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, NanTransformer,
+                    QuantileTransformer)
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
-from ..metadata_new import DataFrameMeta, Meta, Nominal
+from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
 
 
 class DataFrameTransformer(BagOfTransformers):
@@ -115,12 +117,7 @@ class TransformerFactory:
         if isinstance(meta, DataFrameMeta):
             transformers: List[Transformer] = []
             for m in meta.children:
-                if isinstance(m, Nominal) and m.nan_freq is not None and m.nan_freq > 0:
-                    transformers.append(
-                        SequentialTransformer(m.name, transformers=[NanTransformer.from_meta(m), self._from_meta(m)])
-                    )
-                else:
-                    transformers.append(self._from_meta(m))
+                transformers.append(self._from_meta(m))
 
             return DataFrameTransformer(meta=meta, name=meta.name, transformers=transformers)
         else:
@@ -128,15 +125,32 @@ class TransformerFactory:
 
     def _from_meta(self, meta: Meta) -> Transformer:
 
-        try:
-            transformer_class_name = getattr(self.config, meta.__class__.__name__)
-        except KeyError:
+        if not isinstance(meta, Nominal):
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
-        if isinstance(transformer_class_name, list):
-            transformers = []
-            for name in transformer_class_name:
-                transformers.append(Transformer.from_name_and_meta(name, meta))
-            return SequentialTransformer(name=meta.name, transformers=transformers)
+        transformers: List[Transformer] = []
+
+        if meta.nan_freq is not None and meta.nan_freq > 0:
+            transformers.append(NanTransformer.from_meta(meta))
+
+        if isinstance(meta, ContinuousModel) and meta.dtype == 'M8[D]':
+            transformers.append(DateTransformer.from_meta(meta, config=self.config.date_transformer_config))
+
+        elif isinstance(meta, ContinuousModel):
+            transformers.append(QuantileTransformer.from_meta(meta, config=self.config.quantile_transformer_config))
+
+        elif isinstance(meta, DiscreteModel):
+            if meta.categories is not None and len(meta.categories) == 0:
+                transformers.append(DropConstantColumnTransformer(f'{meta.name}', constant_value=np.nan))
+            elif meta.categories is not None and len(meta.categories) == 1:
+                transformers.append(DropConstantColumnTransformer.from_meta(meta))
+            else:
+                transformers.append(CategoricalTransformer.from_meta(meta))
+
+        if len(transformers) > 1:
+            transformer: Transformer = SequentialTransformer(f'{meta.name}', transformers=transformers)
         else:
-            return Transformer.from_name_and_meta(transformer_class_name, meta)
+            assert len(transformers) == 1
+            transformer = transformers[0]
+
+        return transformer

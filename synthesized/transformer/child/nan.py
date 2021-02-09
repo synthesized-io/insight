@@ -40,4 +40,4 @@ class NanTransformer(Transformer):
 
     @property
     def out_columns(self) -> List[str]:
-        return [f'{self.name}_nan']
+        return [f'{self.name}', f'{self.name}_nan']

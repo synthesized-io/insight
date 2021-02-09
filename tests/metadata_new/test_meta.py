@@ -102,10 +102,10 @@ def test_bool(df, sort_list):
 
 # possible input date formats
 date_formats = (
-    '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
     '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
     '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
-    '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
+    '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M',
+    '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S'
 )
 # tuple of sets of formats where each set contains formats that may be confused for one another
 ambigious_formats = (
@@ -118,7 +118,7 @@ ambigious_formats = (
     {'%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'},
 )
 
-numpy_date_range = {"min_value": date(1677, 9, 21), "max_value": date(2262, 4, 11)}
+numpy_date_range = {"min_value": date(1677, 9, 23), "max_value": date(2262, 4, 11)}
 
 
 @given(df=data_frames([column('date',

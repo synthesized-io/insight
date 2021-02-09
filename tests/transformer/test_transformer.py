@@ -4,11 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
 from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.model import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
-                                     DataFrameTransformer, DateCategoricalTransformer, DateToNumericTransformer,
-                                     DateTransformer, DropColumnTransformer, DTypeTransformer, NanTransformer,
-                                     QuantileTransformer, SequentialTransformer, Transformer, TransformerFactory)
+                                     DataFrameTransformer, DateTransformer, DropColumnTransformer, DTypeTransformer,
+                                     NanTransformer, QuantileTransformer, SequentialTransformer, Transformer,
+                                     TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -23,7 +25,7 @@ class MockTranformer(Transformer):
 @pytest.fixture
 def df_credit_with_dates():
     df = pd.read_csv('data/credit_with_categoricals_small.csv')
-    df['date'] = [np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(len(df))]
+    df['date'] = [np.datetime64('2017-01-01 00:00:00') + np.timedelta64(np.random.randint(0, 100), 'D') for _ in range(len(df))]
     df['date'] = df['date'].apply(lambda x: x.strftime("%Y/%m/%d"))
     return df
 
@@ -32,24 +34,25 @@ def df_credit_with_dates():
 def transformers_credit_with_dates():
     return [
         CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1]),
-        QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="age", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines"),
+        QuantileTransformer(name="age"),
+        CategoricalTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 96, 98]),
         CategoricalTransformer(name="effort", categories=['(0.00649, 0.04]', '(0.00134, 0.00214]', '(-0.001, 0.000309]', '(0.00214, 0.00287]', '(0.04, 12.67]', '(12.67, 3296.64]', '(0.00367, 0.00468]', '(0.00468, 0.00649]', '(0.000309, 0.00134]', '(0.00287, 0.00367]']),
         SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[
             NanTransformer(name="MonthlyIncome"),
-            QuantileTransformer(name="MonthlyIncome", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+            QuantileTransformer(name="MonthlyIncome"),
         ]),
-        QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="NumberOfTimes90DaysLate", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-        QuantileTransformer(name="NumberRealEstateLoansOrLines", n_quantiles=1000, output_distribution="normal", noise=1e-07),
-            QuantileTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+        QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans"),
+        CategoricalTransformer(name="NumberOfTimes90DaysLate", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 96, 98]),
+        CategoricalTransformer(name="NumberRealEstateLoansOrLines", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17]),
+        CategoricalTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 96, 98]),
         SequentialTransformer(name="NumberOfDependents", dtypes=None, transformers=[
             NanTransformer(name="NumberOfDependents"),
-            QuantileTransformer(name="NumberOfDependents", n_quantiles=1000, output_distribution="normal", noise=1e-07),
+            QuantileTransformer(name="NumberOfDependents"),
         ]),
-        DateTransformer(name="date", date_format="%Y/%m/%d", unit="days", start_date='2017-01-01', n_quantiles=1000, output_distribution="normal", noise=1e-07)
+        DateTransformer(name="date", start_date='2017-01-01')
     ]
+
 
 @pytest.fixture
 def out_columns_credit_with_dates():
@@ -60,6 +63,7 @@ def out_columns_credit_with_dates():
        'NumberOfTime60-89DaysPastDueNotWorse', 'NumberOfDependents_nan',
        'NumberOfDependents', 'date_month', 'date_day', 'date', 'date_dow',
        'date_hour'])
+
 
 @pytest.fixture
 def sequential_transformer():
@@ -92,8 +96,9 @@ def test_sequential_transformer_transform(sequential_transformer):
 
 def test_transformer_factory(df_credit_with_dates, transformers_credit_with_dates, out_columns_credit_with_dates):
     df_meta = MetaExtractor.extract(df_credit_with_dates)
-    transformer = TransformerFactory().create_transformers(df_meta)
-    df_transformer = DataFrameTransformer.from_meta(df_meta)
+    df_model = ModelFactory().create_df_model_meta(df_meta)
+    transformer = TransformerFactory().create_transformers(df_model)
+    df_transformer = DataFrameTransformer.from_meta(df_model)
 
     assert type(transformer) == DataFrameTransformer
     assert transformer._transformers == transformers_credit_with_dates
@@ -105,7 +110,7 @@ def test_transformer_factory(df_credit_with_dates, transformers_credit_with_date
 
 @pytest.mark.parametrize(
     'transformer, data', [
-        (QuantileTransformer('x', noise=None), pd.DataFrame({'x': np.random.normal(0, 1, size=100)}).astype(np.float32)),
+        (QuantileTransformer('x', config=QuantileTransformerConfig(noise=None)), pd.DataFrame({'x': np.random.normal(0, 1, size=100)}).astype(np.float32)),
         (CategoricalTransformer('x'), pd.DataFrame({'x': ['A', 'B', 'C']})),
         (CategoricalTransformer('x'), pd.DataFrame({'x': [0, 1, np.nan]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
@@ -123,13 +128,13 @@ def test_transformer(transformer, data):
 
 
 def test_date_transformer():
-    date_format = "%Y/%m/%d"
-    transformer = DateTransformer(name="date", date_format=date_format, noise=None)
+    config = DateTransformerConfig(noise=None)
+    transformer = DateTransformer(name="date", config=config)
 
     n = 5000
     df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],
                       columns=['date'])
-    df['date'] = df['date'].apply(lambda x: x.strftime("%Y/%m/%d"))
+    df['date'] = df['date'].apply(lambda x: x.strftime("%Y-%m-%d"))
     transformer.fit(df)
     assert transformer._fitted is True
     df_t = transformer.transform(df.copy())
