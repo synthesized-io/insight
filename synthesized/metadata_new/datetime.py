@@ -84,7 +84,12 @@ def get_date_format(sr: pd.Series) -> str:
         '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
         '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
         '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
-        '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
+        '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M',
+
+        '%Y-%b-%d %H:%M:%S', '%Y-%b-%dT%H:%M:%SZ', '%d/%b/%Y %H.%M.%S', '%d/%b/%Y %H:%M:%S',
+        '%Y-%b-%d', '%b-%d-%Y', '%d-%b-%Y', '%y-%b-%d', '%b-%d-%y', '%d-%b-%y',
+        '%Y/%b/%d', '%b/%d/%Y', '%d/%b/%Y', '%y/%b/%d', '%b/%d/%y', '%d/%b/%y',
+        '%y/%b/%d %H:%M', '%d/%b/%y %H:%M', '%b/%d/%y %H:%M',
     )
     parsed_format = None
     if sr.dtype.kind == 'M':
