@@ -114,11 +114,13 @@ def get_date_format(sr: pd.Series) -> str:
         UnknownDateFormatError: date format cannot be inferred.
     """
     sr = sr.dropna()
+
+    # Attempt to parse the smaller formats (eg. Y, m, d) before the larger ones (eg. Y, m, d, H, M, S)
     formats = (
-        '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S',
         '%Y-%m-%d', '%m-%d-%Y', '%d-%m-%Y', '%y-%m-%d', '%m-%d-%y', '%d-%m-%y',
         '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y', '%y/%m/%d', '%m/%d/%y', '%d/%m/%y',
-        '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'
+        '%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M',
+        '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%d/%m/%Y %H.%M.%S', '%d/%m/%Y %H:%M:%S'
     )
     parsed_format = None
     if sr.dtype.kind == 'M':

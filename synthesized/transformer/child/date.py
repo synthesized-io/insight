@@ -1,30 +1,31 @@
 from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 
 from .categorical import CategoricalTransformer
 from .quantile import QuantileTransformer
 from ..base import SequentialTransformer, Transformer
-from ...metadata_new.value.datetime import Date, get_date_format
+from ...config import DateTransformerConfig
+from ...metadata_new.value.datetime import Affine, get_date_format
 
 
 class DateTransformer(SequentialTransformer):
 
-    def __init__(self, name: str, date_format: Optional[str] = None, unit: Optional[str] = 'days',
-                 start_date: Optional[pd.Timestamp] = None, n_quantiles: int = 1000,
-                 output_distribution: str = 'normal', noise: Optional[float] = 1e-7):
-
+    def __init__(
+            self, name: str, start_date: Optional[pd.Timestamp] = None, config: Optional[DateTransformerConfig] = None
+    ):
+        config = DateTransformerConfig() if config is None else config
         transformers = [
-            DateCategoricalTransformer(name=name, date_format=date_format),
-            DateToNumericTransformer(name=name, date_format=date_format, unit=unit, start_date=start_date),
-            QuantileTransformer(name=name, n_quantiles=n_quantiles, output_distribution=output_distribution,
-                                noise=noise)
+            DateCategoricalTransformer(name=name),
+            DateToNumericTransformer(name=name, unit=config.unit, start_date=start_date),
+            QuantileTransformer(name=name, config=config.quantile_transformer_config)
         ]
         super().__init__(name, transformers=transformers)
 
     @classmethod
-    def from_meta(cls, meta: Date) -> 'DateTransformer':
-        return cls(meta.name, date_format=meta.date_format, start_date=meta.min)
+    def from_meta(cls, meta: Affine[np.datetime64], config: Optional[DateTransformerConfig] = None) -> 'DateTransformer':
+        return cls(meta.name, start_date=meta.min, config=config)
 
 
 class DateToNumericTransformer(Transformer):
@@ -42,10 +43,9 @@ class DateToNumericTransformer(Transformer):
         start_date: Optional; when normalising dates, compare relative to this.
     """
 
-    def __init__(self, name: str, date_format: Optional[str] = None, unit: Optional[str] = 'days',
-                 start_date: Optional[pd.Timestamp] = None):
+    def __init__(self, name: str, unit: Optional[str] = 'days', start_date: Optional[pd.Timestamp] = None):
         super().__init__(name)
-        self.date_format = date_format
+        self.date_format: Optional[str] = None
         self.unit = unit
         self.start_date = start_date
 
@@ -58,8 +58,11 @@ class DateToNumericTransformer(Transformer):
 
         if self.date_format is None:
             self.date_format = get_date_format(sr)
+
         if sr.dtype.kind != 'M':
+            assert self.date_format is not None
             sr = pd.to_datetime(sr, format=self.date_format)
+
         if self.start_date is None:
             self.start_date = sr.min()
 
@@ -76,8 +79,8 @@ class DateToNumericTransformer(Transformer):
         return df
 
     @classmethod
-    def from_meta(cls, meta: Date) -> 'DateToNumericTransformer':
-        return cls(meta.name, meta.date_format, start_date=meta.min)
+    def from_meta(cls, meta: Affine[np.datetime64]) -> 'DateToNumericTransformer':
+        return cls(meta.name, start_date=meta.min)
 
 
 class DateCategoricalTransformer(Transformer):
@@ -91,9 +94,9 @@ class DateCategoricalTransformer(Transformer):
         date_format: Optional; string representation of date format, eg. '%d/%m/%Y'.
     """
 
-    def __init__(self, name: str, date_format: str = None):
+    def __init__(self, name: str):
         super().__init__(name=name)
-        self.date_format = date_format
+        self.date_format: Optional[str] = None
 
         hour_transform = CategoricalTransformer(f'{self.name}_hour')
         dow_transform = CategoricalTransformer(f'{self.name}_dow')
@@ -134,8 +137,8 @@ class DateCategoricalTransformer(Transformer):
         return df
 
     @classmethod
-    def from_meta(cls, meta: Date) -> 'DateCategoricalTransformer':
-        return cls(meta.name, meta.date_format)
+    def from_meta(cls, meta: Affine[np.datetime64]) -> 'DateCategoricalTransformer':
+        return cls(meta.name)
 
     def split_datetime(self, col: pd.Series) -> pd.DataFrame:
         """Split datetime column into separate hour, dow, day and month fields."""

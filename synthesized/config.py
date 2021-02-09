@@ -117,48 +117,29 @@ class ModelFactoryConfig:
 class QuantileTransformerConfig:
     n_quantiles: int = 1000
     distribution: str = 'normal'
+    noise: Optional[float] = 1e-7
 
     @property
-    def quantile_transformer_config(self):
+    def quantile_transformer_config(self) -> 'QuantileTransformerConfig':
         return QuantileTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(QuantileTransformerConfig)}
         )
 
 
 @dataclass
-class DateTransformerConfig:
+class DateTransformerConfig(QuantileTransformerConfig):
     unit: str = 'days'
 
     @property
-    def date_transformer_config(self):
+    def date_transformer_config(self) -> 'DateTransformerConfig':
         return DateTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
         )
 
 
-# Todo: How do we implement logic/mappings which depend on the values of the ValueMetas? ie. an Integer with only 4
-#       unique values should be mapped to the categorical transformer. Perhaps we should just have custom logic by
-#       creating different TransformerFactory classes?
 @dataclass
-class MetaTransformerConfig:
-    Float: Union[str, List[str]] = 'QuantileTransformer'
-    Integer: Union[str, List[str]] = 'QuantileTransformer'
-    Bool: Union[str, List[str]] = 'CategoricalTransformer'
-    IntegerBool: Union[str, List[str]] = 'CategoricalTransformer'
-    String: Union[str, List[str]] = 'CategoricalTransformer'
-    Date: Union[str, List[str]] = 'DateTransformer'
-
-    @property
-    def meta_transformer_config(self):
-        return MetaTransformerConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(MetaTransformerConfig)}
-        )
-
-    def get_transformer_config(self, transformer: str):
-        if transformer == 'QuantileTransformer':
-            return QuantileTransformerConfig()
-        elif transformer == 'DateTransformer':
-            return DateTransformerConfig()
+class MetaTransformerConfig(DateTransformerConfig, QuantileTransformerConfig):
+    pass
 
 # Value Config Classes ----------------------------------------
 

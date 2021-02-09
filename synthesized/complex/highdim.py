@@ -15,6 +15,7 @@ from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta
+from ..metadata_new.model import ModelFactory
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -49,10 +50,11 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
+        self.df_model = ModelFactory().create_df_model_meta(df_meta)
         self.df_value: DataFrameValue = ValueExtractor.extract(
-            df_meta=df_meta, name='data_frame_value', config=config.value_factory_config
+            df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
-        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_meta)
+        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
 
         # VAE
         self.engine = HighDimEngine(

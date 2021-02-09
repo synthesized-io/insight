@@ -181,9 +181,3 @@ def compute_embedding_size(num_categories: Optional[int], similarity_based: bool
         return int(log(num_categories + 1) * 2.0)
     else:
         return num_categories
-
-
-class Categories(dict):
-
-    def __missing__(self, key):
-        return 0
