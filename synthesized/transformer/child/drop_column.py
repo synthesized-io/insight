@@ -3,7 +3,7 @@ from typing import Any, Optional, cast
 import pandas as pd
 
 from ..base import Transformer
-from ..exceptions import NonInvertibleTransformError
+from ..exceptions import FittingError, NonInvertibleTransformError
 from ...metadata_new import Nominal
 
 
@@ -42,6 +42,8 @@ class DropConstantColumnTransformer(Transformer):
     def fit(self, df: pd.DataFrame) -> 'DropConstantColumnTransformer':
         if self._constant_value is None:
             counts = pd.value_counts(df[self.name])
+            if len(counts) != 1:
+                raise FittingError
             self._constant_value = counts.index[0]
         return cast(DropConstantColumnTransformer, super().fit(df))
 

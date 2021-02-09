@@ -11,3 +11,7 @@ class NonInvertibleTransformError(Exception):
 
 class UnsupportedMetaError(Exception):
     pass
+
+
+class FittingError(Exception):
+    pass
