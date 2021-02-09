@@ -31,6 +31,15 @@ class TestDate(TestAffine):
         )
 
     @pytest.fixture(scope='function')
+    def expanded_dataframe(self, dataframe_orig, name) -> pd.DataFrame:
+        return pd.DataFrame({
+            f'{name}_dow': pd.Series(['Saturday', 'Sunday', 'Sunday', 'Monday'], name=name, dtype='str'),
+            f'{name}_day': pd.Series([16,  23, 1, 22], name=name, dtype='int64'),
+            f'{name}_month': pd.Series([1, 5, 3, 2], name=name, dtype='int64'),
+            f'{name}_year': pd.Series([2021, 2021, 2020, 2021], name=name, dtype='int64')
+        })
+
+    @pytest.fixture(scope='function')
     def meta(self, name) -> Date:
         meta = Date(name=name)
         return meta

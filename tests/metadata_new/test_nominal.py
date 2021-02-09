@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import pytest
 
-from synthesized.metadata_new import Nominal, String
+from synthesized.metadata_new import Address, Nominal, String
 
 from .test_meta import TestMeta as _TestMeta
 
@@ -34,4 +34,38 @@ class TestString(TestNominal):
     @pytest.fixture(scope='function')
     def meta(self, name, categories) -> Nominal:
         meta = String(name=name, categories=categories)
+        return meta
+
+
+class TestAddress(TestNominal):
+
+    @pytest.fixture(scope='function')
+    def dataframe_orig(self, name) -> pd.DataFrame:
+        return pd.DataFrame({
+            name: ["1||Blah Drive|Cambridge",
+                   "|Housey McHouseface|Placeholder Avenue|London",
+                   "42||Test Road|Swansea"]
+        })
+
+    @pytest.fixture(scope='function')
+    def expanded_dataframe(self, dataframe_orig):
+        return pd.DataFrame({
+            "house number": ["1", "", "42"],
+            "house name": ["", "Housey McHouseface", ""],
+            "street": ["Blah Drive", "Placeholder Avenue", "Test Road"],
+            "city": ["Cambridge", "London", "Swansea"],
+        })
+
+    @pytest.fixture(scope='function')
+    def categories(self) -> list:
+        return ["1||Blah Drive|Cambridge",
+                "|Housey McHouseface|Placeholder Avenue|London",
+                "42||Test Road|Swansea"]
+
+    @pytest.fixture(scope='function')
+    def meta(self, name) -> Address:
+        meta = Address(
+            name=name, street_label='street', city_label='city', house_name_label='house name',
+            house_number_label='house number'
+        )
         return meta

@@ -35,6 +35,10 @@ class TestMeta:
         return pd.DataFrame(pd.Series(name=name, dtype=object))
 
     @pytest.fixture(scope='function')
+    def expanded_dataframe(self, dataframe_orig):
+        return dataframe_orig.copy()
+
+    @pytest.fixture(scope='function')
     def dataframe(self, dataframe_orig) -> pd.DataFrame:
         return dataframe_orig.copy()
 
@@ -63,11 +67,13 @@ class TestMeta:
     def collapse_dataframe(self, meta, expand_dataframe, dataframe):
         meta.collapse(dataframe)
 
-    def test_expand(self, meta, expand_dataframe, dataframe):
+    def test_expand(self, meta, expand_dataframe, dataframe, expanded_dataframe):
         for child in meta.children:
             assert child.name in dataframe.columns
 
-    def test_collapse(self, collapse_dataframe, dataframe, dataframe_orig):
+        assert dataframe.equals(expanded_dataframe)
+
+    def test_collapse(self, expand_dataframe, collapse_dataframe, dataframe, dataframe_orig):
         assert dataframe.equals(dataframe_orig)
 
     def test_serialisation(self, extracted_meta):

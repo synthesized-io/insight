@@ -1,7 +1,9 @@
+import logging
 from datetime import date
 from typing import Sequence, Type
 
 import hypothesis.strategies as st
+import numpy as np
 import pandas as pd
 import pytest
 from hypothesis import assume, given
@@ -9,6 +11,8 @@ from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
                                       String)
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.slow
@@ -40,8 +44,8 @@ def test_ordered_str(df):
 def _test_ordinal(meta: Ordinal, OrdinalClass: Type[Ordinal], sr: pd.Series, sort_list: Sequence):
     """boilerplate code for testing Ordinal classes"""
     assert isinstance(meta, OrdinalClass)
-    assert meta.min == sr.min()
-    assert meta.max == sr.max()
+    assert meta.min == np.nanmin(sr.values.astype(meta.dtype))
+    assert meta.max == np.nanmax(sr.values.astype(meta.dtype))
     assert meta.sort(sort_list) == sorted(sort_list)
     assert meta.nan_freq is not None and (meta.nan_freq > 0) == sr.isna().any()
 
@@ -135,6 +139,9 @@ def test_dates(df, date_format, sort_list):
                            for formats in ambigious_formats]
         if not any(ambigiuty_check):
             raise AssertionError(f"{date_format} != {date_meta.date_format}")
+
+        # Given that the date format is ambigious, make it the same as the meta's date format.
+        date_format = date_meta.date_format
 
     df['date'] = pd.to_datetime(df['date'], format=date_format)
     sort_list = pd.to_datetime(sort_list).tolist()
