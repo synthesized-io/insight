@@ -203,9 +203,9 @@ class R2_Score(RegressionMetric):
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
-                               model: Union[str, BaseEstimator], copy_model: bool = True,
-                               preprocessor: ModellingPreprocessor = None, dp: DataFrameMeta = None,
-                               models: Dict[str, Model] = None):
+                               model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
+                               copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
+                               dp: DataFrameMeta = None, models: Dict[str, Model] = None):
 
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 
@@ -218,6 +218,8 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
         x_labels: A list of the input column names/explanatory variables. If none, all except y_label will be used.
         model: One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP', 'LinearSVM', or 'Logistic'. Note that
             'Logistic' only applies to categorical response variables.
+        synth_data: for training the model on some separate synthetic data but evaluating on the original, will take
+            training data from this dataframe but still evaluate on the original data
         copy_model:
         preprocessor:
         dp:
@@ -260,9 +262,16 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=y_label, dp=dp)
+        if synth_data is not None:
+            # fit data together as preprocessor needs to know all categorical variables
+            preprocessor.fit(pd.concat((data, synth_data)))
 
     df_train_pre, df_test_pre = preprocess_split_data(data, response_variable=y_label, explanatory_variables=x_labels,
                                                       sample_size=sample_size, preprocessor=preprocessor)
+    if synth_data is not None:
+        synth_data = synth_data[available_columns]
+        df_train_pre, _ = preprocess_split_data(synth_data, response_variable=y_label, explanatory_variables=x_labels,
+                                                sample_size=sample_size, preprocessor=preprocessor)
 
     x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
     x_train = df_train_pre[x_labels_pre].to_numpy()
@@ -291,7 +300,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
                                     y_label: str, x_labels: List[str], model: str):
     score, metric, task = predictive_modelling_score(data, y_label, x_labels, model)
-    synth_score, _, _ = predictive_modelling_score(synth_data, y_label, x_labels, model)
+    synth_score, _, _ = predictive_modelling_score(data, y_label, x_labels, model, synth_data=synth_data)
 
     return score, synth_score, metric, task
 

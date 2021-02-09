@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib import cm
+from matplotlib import cm, cycler
 from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from sklearn.preprocessing import OneHotEncoder
@@ -24,24 +24,28 @@ NAN_FRACTION_THRESHOLD = 0.25
 NON_NAN_COUNT_THRESHOLD = 500
 CATEGORICAL_THRESHOLD_LOG_MULTIPLIER = 2.5
 
-COLOR_ORIG = '#1C5D7A'
-COLOR_SYNTH = '#801761'
-
+COLOR_ORIG = '#FF4D5B'
+COLOR_SYNTH = '#312874'
 idx = pd.IndexSlice
 
 
 # -- Plotting functions
 def set_plotting_style():
     plt.style.use('seaborn')
-    mpl.rcParams["axes.facecolor"] = 'w'
-    mpl.rcParams['grid.color'] = 'grey'
-    mpl.rcParams['grid.alpha'] = 0.1
-
-    mpl.rcParams['axes.linewidth'] = 0.3
-    mpl.rcParams['axes.edgecolor'] = 'grey'
-
-    mpl.rcParams['axes.spines.right'] = True
-    mpl.rcParams['axes.spines.top'] = True
+    mpl.font_manager.fontManager.addfont('fonts/inter/inter-v3-latin-regular.ttf')
+    mpl.rc('font', family='Inter-Regular'
+                          '')
+    mpl.rcParams['axes.spines.right'] = False
+    mpl.rcParams['axes.spines.top'] = False
+    mpl.rcParams['text.color'] = '333333'
+    mpl.rcParams['font.family'] = 'inter'
+    mpl.rcParams['axes.facecolor'] = 'EFF3FF'
+    mpl.rcParams['axes.edgecolor'] = '333333'
+    mpl.rcParams['axes.grid'] = True
+    mpl.rcParams['grid.color'] = 'D7E0FE'
+    mpl.rcParams['xtick.direction'] = 'out'
+    mpl.rcParams['ytick.direction'] = 'out'
+    mpl.rcParams['axes.prop_cycle'] = cycler('color', ['312874', 'FF4D5B', 'FFBDD1', '4EC7BD', '564E9C'] * 10)
 
 
 def axes_grid(
@@ -295,71 +299,60 @@ def bar_plot_results(current_result, ax: Union[Axes, SubplotBase] = None):
         plt.xticks(rotation=10)
 
 
-def categorical_distribution_plot(col_test, col_synth, title, sample_size=10_000, ax: Union[Axes, SubplotBase] = None):
+def categorical_distribution_plot(col_test, col_synth, sample_size=10_000, ax: Union[Axes, SubplotBase] = None):
     col_test = col_test.dropna()
     col_synth = col_synth.dropna()
-
+    set_plotting_style()
     if len(col_test) == 0 or len(col_synth) == 0:
         return
-
     df_col_test = pd.DataFrame(col_test)
     df_col_synth = pd.DataFrame(col_synth)
-
     # We sample orig and synth them so that they have the same size to make the plots more comprehensive
     sample_size = min(sample_size, len(col_test), len(col_synth))
     concatenated = pd.concat([df_col_test.assign(dataset='orig').sample(sample_size),
                               df_col_synth.assign(dataset='synth').sample(sample_size)])
-
-    ax = sns.countplot(x=col_test.name, hue='dataset', data=concatenated,
+    ax = sns.countplot(x=col_test.name, hue='dataset', data=concatenated, lw=1, alpha=0.7,
                        palette={'orig': COLOR_ORIG, 'synth': COLOR_SYNTH}, ax=ax)
+    concatenated["dataset"] = concatenated["dataset"].apply(lambda x: '_' + x)
+    ax = sns.countplot(x=col_test.name, hue='dataset', data=concatenated, lw=1,
+                       palette={'_orig': COLOR_ORIG, '_synth': COLOR_SYNTH}, fill=False, ax=ax)
     tick_labels = ax.get_xticklabels()
     for tl in tick_labels:
         tl.set_text(tl.get_text()[:25])  # some labels are too long to show completely
-
     ax.set_xticklabels(tick_labels, rotation=15, ha='right')
-    ax.set_title(title)
+    ax.tick_params('y', length=3, width=1, which='major', color='#D7E0FE')
     plt.legend()
 
 
-def continuous_distribution_plot(col_test, col_synth, title, remove_outliers: float = 0.0, sample_size=10_000,
+def continuous_distribution_plot(col_test, col_synth, remove_outliers: float = 0.0, sample_size=10_000,
                                  ax: Union[Axes, SubplotBase] = None):
     ax = ax or plt.gca()
-
+    set_plotting_style()
     col_test = pd.to_numeric(col_test.dropna(), errors='coerce').dropna()
     col_synth = pd.to_numeric(col_synth.dropna(), errors='coerce').dropna()
     if len(col_test) == 0 or len(col_synth) == 0:
         return
-
     col_test = col_test.sample(min(sample_size, len(col_test)))
     col_synth = col_synth.sample(min(sample_size, len(col_synth)))
-
     percentiles = [remove_outliers * 100. / 2, 100 - remove_outliers * 100. / 2]
     start, end = np.percentile(col_test, percentiles)
     if start == end:
         start, end = min(col_test), max(col_test)
-
     # In case the synthesized data has overflown and has much different domain
     col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
     if len(col_synth) == 0:
         return
-
     # workaround for kde failing on datasets with only one value
     if col_test.nunique() < 2 or col_synth.nunique() < 2:
-        kde = False
-        kde_kws = None
+        kde_kws = {}
     else:
-        kde = True
         kde_kws = {'clip': (start, end)}
-
     try:
-        sns.distplot(col_test, color=COLOR_ORIG, label='orig', kde=kde, kde_kws=kde_kws,
-                     hist_kws={'color': COLOR_ORIG, 'range': [start, end]}, ax=ax)
-        sns.distplot(col_synth, color=COLOR_SYNTH, label='synth', kde=kde, kde_kws=kde_kws,
-                     hist_kws={'color': COLOR_SYNTH, 'range': [start, end]}, ax=ax)
+        sns.kdeplot(col_test, lw=1, alpha=0.5, shade=True, color=COLOR_ORIG, label='orig', ax=ax, **kde_kws)
+        sns.kdeplot(col_synth, lw=1, alpha=0.5, shade=True, color=COLOR_SYNTH, label='synth', ax=ax, **kde_kws)
     except Exception as e:
         logger.error('Column {} cant be shown :: {}'.format(col_test.name, e))
-
-    ax.set_title(title)
+    ax.tick_params('y', length=3, width=1, which='major', color='#D7E0FE')
     plt.legend()
 
 

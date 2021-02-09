@@ -10,7 +10,6 @@ import pandas as pd
 from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
                        plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics,
                        set_plotting_style)
-from ..insight import metrics
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..metadata_new import DataFrameMeta
@@ -78,21 +77,23 @@ class Assessor:
         for col, model in self.df_models.items():
             if isinstance(model, DiscreteModel):
                 ax = fig.add_subplot(gs[n // cols, n % cols])
-
-                emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
-                title = f'{col} (EMD Dist={emd_distance:.3f})'
-                categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
+                ax.set_title(col)
+                categorical_distribution_plot(self.df_orig[col], self.df_synth[col], sample_size, ax=ax)
+                ax.get_legend().remove()
+                ax.set_xlabel("")
                 n += 1
 
             elif isinstance(model, ContinuousModel):
-                ax = fig.add_subplot(gs[n // 2, n % 2])
-
-                ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
-                title = f'{col} (KS Dist={ks_distance:.3f})'
-                continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
+                ax = fig.add_subplot(gs[n // cols, n % cols])
+                ax.set_title(col)
+                continuous_distribution_plot(self.df_orig[col], self.df_synth[col], remove_outliers, sample_size, ax)
+                ax.get_legend().remove()
+                ax.set_xlabel("")
                 n += 1
 
-        plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper left', prop={'size': 14})
+
         plt.show()
 
     def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):

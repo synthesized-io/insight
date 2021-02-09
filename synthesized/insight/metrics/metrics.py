@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import logging
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
-from ...metadata_new import (Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Model, Nominal,
-                             Ordinal)
+from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Model, Ordinal
+from ...metadata_new.model import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,12 @@ class KendellTauCorrelation(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None):
-        dp, _ = self.extract_metas_models(sr_a, sr_b, dp, models)
+                           models: Optional[Dict[str, Model]] = None,
+                           calculate_categorical: bool = False):
+        dp, df_model = self.extract_metas_models(sr_a, sr_b, dp, models)
+        if not calculate_categorical and (not isinstance(df_model[sr_a.name], ContinuousModel)
+                                          or not isinstance(df_model[sr_b.name], ContinuousModel)):
+            return False
 
         if not isinstance(dp[sr_a.name], Ordinal) or not isinstance(dp[sr_b.name], Ordinal):
             return False
@@ -280,10 +284,14 @@ def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
     dp = kwargs.get('vf')
     if dp is None:
         dp = MetaExtractor.extract(df=df)
-    categorical = [cast(Nominal, vm) for vm in dp.values() if not isinstance(vm, Affine)]
 
-    if y_label not in [v.name for v in categorical]:
+    df_models = kwargs.get('df_models')
+    if df_models is None:
+        df_models = ModelFactory()._from_dataframe_meta(dp)
+
+    if not isinstance(df_models[y_label], DiscreteModel):
         return None
+
     if len(x_labels) == 0:
         return None
 
