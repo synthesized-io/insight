@@ -1,14 +1,15 @@
 import logging
 
-import pandas as pd
 import pytest
 
 from synthesized.metadata_new import Meta
 
+from .dataframes import MetaTestData
+
 logger = logging.getLogger(__name__)
 
 
-class TestMeta:
+class TestMeta(MetaTestData):
     """Test set for testing the base Meta class.
 
     To Define in Subclasses:
@@ -21,26 +22,10 @@ class TestMeta:
         - expand/collapse
         - serialisation
     """
-    @pytest.fixture(scope='function')
-    def name(self) -> str:
-        return 'x'
-
-    @pytest.fixture(scope='function')
+    @pytest.fixture(scope='class')
     def meta(self, name) -> 'Meta':
         meta = Meta(name=name)
         return meta
-
-    @pytest.fixture(scope='function')
-    def dataframe_orig(self, name) -> pd.DataFrame:
-        return pd.DataFrame(pd.Series(name=name, dtype=object))
-
-    @pytest.fixture(scope='function')
-    def expanded_dataframe(self, dataframe_orig):
-        return dataframe_orig.copy()
-
-    @pytest.fixture(scope='function')
-    def dataframe(self, dataframe_orig) -> pd.DataFrame:
-        return dataframe_orig.copy()
 
     def test_name(self, meta, name):
         assert meta.name == name
@@ -49,32 +34,38 @@ class TestMeta:
 
     @pytest.fixture(scope='function')
     def extracted_meta(self, meta, dataframe):
-        meta.extract(dataframe)
-        return meta
+        df = dataframe.copy()
+        meta.extract(df)
+        assert dataframe.equals(df)
+        yield meta
+        meta.__init__(name=meta.name)
 
-    def test_extract(self, extracted_meta, dataframe, dataframe_orig):
+    def test_extract(self, extracted_meta, dataframe):
         assert extracted_meta._extracted
         for child in extracted_meta.children:
             assert child._extracted
 
-        assert dataframe.equals(dataframe_orig)
+    @pytest.fixture(scope='class')
+    def meta_expanded_dataframe(self, meta, dataframe):
+        df = dataframe.copy()
+        meta.expand(df)
+        return df
 
-    @pytest.fixture(scope='function')
-    def expand_dataframe(self, meta, dataframe):
-        meta.expand(dataframe)
+    @pytest.fixture(scope='class')
+    def collapsed_dataframe(self, meta, meta_expanded_dataframe):
+        df = meta_expanded_dataframe.copy()
+        meta.collapse(df)
+        return df
 
-    @pytest.fixture(scope='function')
-    def collapse_dataframe(self, meta, expand_dataframe, dataframe):
-        meta.collapse(dataframe)
+    def test_expand(self, meta, meta_expanded_dataframe, expanded_dataframe):
 
-    def test_expand(self, meta, expand_dataframe, dataframe, expanded_dataframe):
         for child in meta.children:
-            assert child.name in dataframe.columns
+            assert child.name in meta_expanded_dataframe.columns
 
-        assert dataframe.equals(expanded_dataframe)
+        assert expanded_dataframe.equals(meta_expanded_dataframe)
 
-    def test_collapse(self, expand_dataframe, collapse_dataframe, dataframe, dataframe_orig):
-        assert dataframe.equals(dataframe_orig)
+    def test_collapse(self, collapsed_dataframe, dataframe):
+        assert dataframe.equals(collapsed_dataframe)
 
     def test_serialisation(self, extracted_meta):
         dct = extracted_meta.to_dict()

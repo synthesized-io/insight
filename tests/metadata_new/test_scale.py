@@ -1,15 +1,15 @@
 import numpy as np
-import pandas as pd
 import pytest
 
 from synthesized.metadata_new import Integer, Scale, TimeDeltaDay
 
+from .dataframes import IntData, TimeDeltaDayData
 from .test_affine import TestAffine as _TestAffine
 
 
 class TestScale(_TestAffine):
 
-    @pytest.fixture(scope='function')
+    @pytest.fixture(scope='class')
     def meta(self, name) -> Scale:
         meta = Scale(name=name)
         return meta
@@ -19,53 +19,17 @@ class TestScale(_TestAffine):
             assert (extracted_meta.max / extracted_meta.precision).dtype == np.dtype('float64')
 
 
-class TestInteger(TestScale):
+class TestInteger(TestScale, IntData):
 
-    @pytest.fixture(scope='function')
-    def dataframe_orig(self, name, request) -> pd.DataFrame:
-        return pd.DataFrame(
-            pd.Series([-3, 3, 2, 7, 1, 4], name=name, dtype='int64')
-        )
-
-    @pytest.fixture(scope='function')
+    @pytest.fixture(scope='class')
     def meta(self, name) -> Integer:
         meta = Integer(name=name)
         return meta
 
-    @pytest.fixture(scope='function')
-    def categories(self) -> list:
-        return [-3, 1, 2, 3, 4, 7]
 
-    @pytest.fixture(scope='function')
-    def min(self):
-        return np.int64(-3)
+class TestTimeDeltaDay(TestScale, TimeDeltaDayData):
 
-    @pytest.fixture(scope='function')
-    def max(self):
-        return np.int64(7)
-
-
-class TestTimeDeltaDay(TestScale):
-
-    @pytest.fixture(scope='function')
-    def dataframe_orig(self, name, request) -> pd.DataFrame:
-        return pd.DataFrame(
-            pd.Series([np.timedelta64(3, 'D'), np.timedelta64(1, 'D'), np.timedelta64(4, 'D')], name=name, dtype='timedelta64[D]')
-        )
-
-    @pytest.fixture(scope='function')
+    @pytest.fixture(scope='class')
     def meta(self, name) -> TimeDeltaDay:
         meta = TimeDeltaDay(name=name)
         return meta
-
-    @pytest.fixture(scope='function')
-    def categories(self) -> list:
-        return [np.timedelta64(1, 'D'), np.timedelta64(3, 'D'), np.timedelta64(4, 'D')]
-
-    @pytest.fixture(scope='function')
-    def min(self):
-        return np.timedelta64(1, 'D')
-
-    @pytest.fixture(scope='function')
-    def max(self):
-        return np.timedelta64(4, 'D')
