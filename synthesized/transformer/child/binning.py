@@ -67,5 +67,5 @@ class BinningTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = pd.cut(df[self.name], bins=self._bins, **self.kwargs)
+        df.loc[:, self.name] = pd.cut(df.loc[:, self.name], bins=self._bins, **self.kwargs)
         return df

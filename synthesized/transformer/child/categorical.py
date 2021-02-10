@@ -49,12 +49,12 @@ class CategoricalTransformer(Transformer):
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
-        df[self.name] = df[self.name].fillna('nan')
-        df[self.name] = df[self.name].apply(lambda x: self.category_to_idx[x])
+        df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
+        df.loc[:, self.name] = df.loc[:, self.name].apply(lambda x: self.category_to_idx[x])
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = df[self.name].apply(lambda x: self.idx_to_category[x])
+        df.loc[:, self.name] = df.loc[:, self.name].apply(lambda x: self.idx_to_category[x])
         return df
 
     @classmethod
