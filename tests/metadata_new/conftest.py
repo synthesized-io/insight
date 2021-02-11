@@ -7,5 +7,5 @@ pytest_plugins = [
 
 @pytest.fixture(scope='package')
 def name():
-    """A default name used when testiing metas."""
+    """A default name used when testing metas."""
     return 'meta'

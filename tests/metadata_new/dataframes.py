@@ -1,3 +1,21 @@
+"""Hard Coded Data fixtures for testing the Metas.
+
+This module contains fixtures that provide the hard coded data frames/values to assess the different Metas. Each
+Meta class, <ValueMeta[DType]> has some description of the data's representation given by ValueMeta and some
+description of the data type, given by DType. Each TestData class in this module is used for a particular DType:
+
+TestData Objects  ->  DType
+-------------------|-------------------
+StringData         |  'U'
+BoolData           |  '?'
+OrderedString      |  pd.categorical
+DateData           |  'datetime64[D]'
+IntData            |  'i8'
+TimeDeltaDay       |  'timedelta64[D]'
+FloatData          |  'f8'
+IntBoolData        |  'i8'
+AddressData        |  addresses
+"""
 import numpy as np
 import pandas as pd
 import pytest
