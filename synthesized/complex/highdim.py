@@ -1,7 +1,7 @@
 """This module implements the BasicSynthesizer class."""
 import logging
 import pickle
-from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple
+from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
-from ..metadata_new import DataFrameMeta
+from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.model import ModelFactory
 from ..transformer import DataFrameTransformer
 from ..version import __version__
@@ -55,6 +55,10 @@ class HighDimSynthesizer(Synthesizer):
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
         self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
+
+        for model in self.df_model.values():
+            if model.name in self.df_value:
+                self.df_model.pop(model.name)
 
         # VAE
         self.engine = HighDimEngine(
@@ -137,8 +141,11 @@ class HighDimSynthesizer(Synthesizer):
         if not self.df_transformer._fitted:
             self.df_transformer.fit(df_train)
         df_train_pre = self.df_transformer.transform(df_train)
-        if self.df_value.learned_input_size() == 0:
+        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
+
+        for model in self.df_model.values():
+            cast(Model, model).fit(df_train_pre)
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
             keep_learning = True
@@ -266,6 +273,11 @@ class HighDimSynthesizer(Synthesizer):
         if self.writer is not None:
             tf.summary.trace_export(name='Synthesize', step=0)
             tf.summary.trace_off()
+
+        independent_columns = [cast(Model, model).sample(num_rows) for model in self.df_model]
+
+        df_synthesized = pd.concat(([df_synthesized] + independent_columns), axis=1)
+        df_synthesized = df_synthesized[columns]
 
         if progress_callback is not None:
             progress_callback(100)
