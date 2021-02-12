@@ -37,20 +37,25 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         assert self.categories is not None
         if isinstance(self.categories, pd.IntervalIndex):
             cut = pd.cut(df[self.name], bins=self.categories)
-            value_counts = pd.value_counts(cut, normalize=True, dropna=False, sort=False)
+            value_counts = pd.value_counts(cut, normalize=True, dropna=True, sort=False)
         else:
-            value_counts = pd.value_counts(df[self.name], normalize=True, dropna=False, sort=False)
+            value_counts = pd.value_counts(df[self.name], normalize=True, dropna=True, sort=False)
 
         self.probabilities = {cat: value_counts.get(cat, 0.0) for cat in self.categories}
         return self
 
-    def sample(self, n: int) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 
         assert self.probabilities is not None
-        samples = np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])
-        return pd.DataFrame({self.name: samples})
+        df = pd.DataFrame(
+            {self.name: np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])})
+
+        if produce_nans:
+            df[self.name] = self.add_nans(df[self.name], self.nan_freq)
+
+        return df
 
     def probability(self, x: Any) -> float:
         if not self._extracted:

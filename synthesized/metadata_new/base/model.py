@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Generic, Optional, Sequence, TypeVar
 
+import numpy as np
 import pandas as pd
 
 from .value_meta import Affine, AType, Nominal, NType
@@ -21,13 +22,18 @@ class Model:
         return self
 
     @abstractmethod
-    def sample(self, n: int) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         raise NotImplementedError
 
     @abstractmethod
     def probability(self, x: Any) -> float:
         """Get the probability mass of the category x."""
         raise NotImplementedError
+
+    def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:
+        if nan_freq and nan_freq > 0:
+            sr = np.where(sr.index.isin(np.random.choice(sr.index, size=int(len(sr) * 0.1))), np.nan, sr)
+        return sr
 
 
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
@@ -42,7 +48,7 @@ class DiscreteModel(Nominal[NType], Model, Generic[NType]):
         return self
 
     @abstractmethod
-    def sample(self, n: int) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         pass
 
     @abstractmethod
@@ -65,7 +71,7 @@ class ContinuousModel(Affine[AType], Model, Generic[AType]):
         return self
 
     @abstractmethod
-    def sample(self, n: int) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         pass
 
     @abstractmethod

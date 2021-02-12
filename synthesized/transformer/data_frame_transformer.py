@@ -72,7 +72,7 @@ class DataFrameTransformer(BagOfTransformers):
 
     def set_dtypes(self, df: pd.DataFrame) -> None:
         for col_name, col_dtype in self.in_dtypes.items():
-            if str(df[col_name].dtype) != str(col_dtype):
+            if col_name in df.columns and str(df[col_name].dtype) != str(col_dtype):
                 df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     @classmethod

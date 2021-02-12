@@ -41,14 +41,17 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             raise ValueError
         return dtype_map.get(self.unit_meta.dtype, self.unit_meta.dtype)
 
-    def sample(self, n: int) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
-        return pd.DataFrame({
-            self.name: np.squeeze(
-                cast(gaussian_kde, self._kernel).resample(size=n)
-            ).astype(self.unit_meta.dtype) + self.min
-        })
+
+        df = pd.DataFrame({self.name: np.squeeze(cast(gaussian_kde, self._kernel).resample(size=n)).astype(
+            self.unit_meta.dtype) + self.min})
+
+        if produce_nans:
+            df[self.name] = self.add_nans(df[self.name], self.nan_freq)
+
+        return df
 
     def probability(self, x: Any) -> float:
         if not self._extracted:
