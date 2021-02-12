@@ -53,8 +53,8 @@ class Address(String):
         df.drop(columns=self.name, inplace=True)
 
     def collapse(self, df: pd.DataFrame):
-        df[self.name] = df[list(self.keys())[0]].astype('string').str.cat(
-            [df[k].astype('string') for k in list(self.keys())[1:]], sep="|", na_rep=''
+        df[self.name] = df[list(self.keys())[0]].astype(str).str.cat(
+            [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )
         df.drop(columns=list(self.keys()), inplace=True)
 

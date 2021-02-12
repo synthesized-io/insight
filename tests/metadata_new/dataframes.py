@@ -15,6 +15,7 @@ TimeDeltaDay       |  'timedelta64[D]'
 FloatData          |  'f8'
 IntBoolData        |  'i8'
 AddressData        |  addresses
+BankData           |  bank accounts
 """
 import numpy as np
 import pandas as pd
@@ -215,15 +216,15 @@ class AddressData(MetaTestData):
             name: ["1||Blah Drive|Cambridge",
                    "|Housey McHouseface|Placeholder Avenue|London",
                    "42||Test Road|Swansea"]
-        }, dtype='string')
+        })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
-            "house number": ["1", "", "42"],
-            "house name": ["", "Housey McHouseface", ""],
-            "street": ["Blah Drive", "Placeholder Avenue", "Test Road"],
-            "city": ["Cambridge", "London", "Swansea"],
+            "house number": pd.Series(["1", "", "42"], dtype=object),
+            "house name": pd.Series(["", "Housey McHouseface", ""], dtype=object),
+            "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
+            "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object)
         })
 
     @pytest.fixture(scope='class')
@@ -231,6 +232,26 @@ class AddressData(MetaTestData):
         return ["1||Blah Drive|Cambridge",
                 "|Housey McHouseface|Placeholder Avenue|London",
                 "42||Test Road|Swansea"]
+
+
+class BankData(MetaTestData):
+    @pytest.fixture(scope='class')
+    def dataframe(self, name) -> pd.DataFrame:
+        return pd.DataFrame({
+            name: ["HBUK01066212345678", "BCUK32343212345678", "HBUK01066212345678"]
+        })
+
+    @pytest.fixture(scope='class')
+    def expanded_dataframe(self, dataframe):
+        return pd.DataFrame({
+            "bic": pd.Series(["HBUK", "BCUK", "HBUK"], dtype=object),
+            "sort_code": pd.Series(["010662", "323432", "010662"], dtype=object),
+            "account": pd.Series(["12345678", "12345678", "12345678"], dtype=object)
+        })
+
+    @pytest.fixture(scope='class')
+    def categories(self) -> list:
+        return ["HBUK01066212345678", "BCUK32343212345678"]
 
 
 class DataFrameData(MetaTestData):
