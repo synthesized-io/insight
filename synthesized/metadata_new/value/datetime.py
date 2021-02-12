@@ -79,10 +79,10 @@ class Date(Affine[np.datetime64]):
 
     def collapse(self, df):
 
-        df[self.name] = pd.to_datetime(pd.DataFrame({
-            'year': df[self.name + '_year'],
-            'month': df[self.name + '_month'],
-            'day': df[self.name + '_day']}
+        df.loc[:, self.name] = pd.to_datetime(pd.DataFrame({
+            'year': df.loc[:, self.name + '_year'],
+            'month': df.loc[:, self.name + '_month'],
+            'day': df.loc[:, self.name + '_day']}
         ))
 
         df.drop(

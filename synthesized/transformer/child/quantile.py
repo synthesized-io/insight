@@ -37,27 +37,27 @@ class QuantileTransformer(Transformer):
             self._transformer = self._transformer.set_params(n_quantiles=len(df))
 
         if self.noise:
-            df[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
+            df.loc[:, self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
         self._transformer.fit(df[[self.name]])
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if self.noise:
-            df[self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
+            df.loc[:, self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
         positive = (df[self.name] > 0.0).all()
         nonnegative = (df[self.name] >= 0.0).all()
 
         if nonnegative and not positive:
-            df[self.name] = np.maximum(df[self.name], 0.001)
+            df.loc[df[self.name] < 0.001, self.name] = 0.001
 
         df[self.name] = self._transformer.transform(df[[self.name]]).astype(np.float32)
 
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = self._transformer.inverse_transform(df[[self.name]])
+        df.loc[:, self.name] = self._transformer.inverse_transform(df[[self.name]])
         return df
 
     @classmethod

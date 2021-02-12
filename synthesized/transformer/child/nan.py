@@ -30,7 +30,7 @@ class NanTransformer(Transformer):
     def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True, **kwargs) -> pd.DataFrame:
         nan = df[f'{self.name}_nan'].astype(bool)
         if produce_nans:
-            df[self.name] = df[self.name].where(~nan, np.nan)
+            df.loc[:, self.name] = df.loc[:, self.name].where(~nan, np.nan)
         df.drop(columns=[f'{self.name}_nan'], inplace=True)
         return df
 

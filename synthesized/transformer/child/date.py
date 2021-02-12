@@ -70,12 +70,12 @@ class DateToNumericTransformer(Transformer):
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if df[self.name].dtype.kind != 'M':
-            df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
-        df[self.name] = (df[self.name] - self.start_date).dt.components[self.unit]
+            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format)
+        df.loc[:, self.name] = (df.loc[:, self.name] - self.start_date).dt.components[self.unit]
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = (pd.to_timedelta(df[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
+        df.loc[:, self.name] = (pd.to_timedelta(df[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
         return df
 
     @classmethod
@@ -124,7 +124,7 @@ class DateCategoricalTransformer(Transformer):
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
         if df[self.name].dtype.kind != 'M':
-            df[self.name] = pd.to_datetime(df[self.name], format=self.date_format)
+            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format)
 
         categorical_dates = self.split_datetime(df[self.name])
         df[categorical_dates.columns] = categorical_dates
