@@ -1,6 +1,6 @@
 import pytest
 
-from synthesized.metadata_new import DataFrameMeta, String
+from synthesized.metadata_new import Address, DataFrameMeta, String
 
 from .dataframes import DataFrameData
 from .test_meta import TestMeta as _TestMeta
@@ -8,7 +8,7 @@ from .test_meta import TestMeta as _TestMeta
 
 class TestDataFrame(_TestMeta, DataFrameData):
 
-    @pytest.fixture(scope='class', params=['Empty', 'Full'])
+    @pytest.fixture(scope='class', params=['Empty', 'Full', 'Annotated Address'])
     def meta(self, request, name) -> DataFrameMeta:
         meta = DataFrameMeta(name=name)
         print(request.param)
@@ -22,6 +22,10 @@ class TestDataFrame(_TestMeta, DataFrameData):
         meta['house_number'] = number
         meta['street'] = street
         meta['city'] = city
+
+        if request.param == 'Annotated Address':
+            address = Address('address', house_number_label='house_number', street_label='street', city_label='city')
+            meta.apply_annotation(address)
 
         return meta
 

@@ -5,6 +5,7 @@ import pandas as pd
 
 from .categorical import String
 from ..base import Meta
+from ...config import AddressParams
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,16 @@ class Address(String):
         children: List[Meta] = [String(label) for label in string_labels if label is not None]
 
         self.children = children
+
+    @classmethod
+    def from_params(cls, params: AddressParams) -> 'Address':
+        ann = Address(
+            name=params.name, postcode_label=params.postcode_label, county_label=params.county_label,
+            city_label=params.city_label, district_label=params.district_label,
+            street_label=params.street_label, house_number_label=params.house_number_label,
+            flat_label=params.house_number_label, house_name_label=params.house_name_label
+        )
+        return ann
 
     def extract(self, df: pd.DataFrame):
         super().extract(df=df)

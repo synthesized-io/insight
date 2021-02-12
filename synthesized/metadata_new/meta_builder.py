@@ -1,14 +1,14 @@
 from dataclasses import asdict
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
+from .value import Address, Bank, Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
 from .value.datetime import get_date_format
-from ..config import MetaFactoryConfig
+from ..config import AddressParams, AnnotationParams, BankParams, MetaFactoryConfig
 
 
 class _MetaBuilder:
@@ -123,6 +123,31 @@ class MetaFactory():
     def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union[ValueMeta[Any], DataFrameMeta]:
         return self.create_meta(x)
 
+    def from_annotation(self, ann_params: AnnotationParams) -> 'ValueMeta[Any]':
+        if ann_params.name is None:
+            raise ValueError(f"Annotation {ann_params} label can't be None.")
+
+        if isinstance(ann_params, AddressParams):
+            ann: ValueMeta = Address.from_params(ann_params)
+
+        elif isinstance(ann_params, BankParams):
+            ann = Bank.from_params(ann_params)
+
+        else:
+            raise ValueError(f"Annotation params {ann_params} not recognnized.")
+
+        return ann
+
+    def from_annotations(self, annotations: Optional[List[AnnotationParams]]) -> List[ValueMeta[Any]]:
+        if annotations is None or len(annotations) == 0:
+            return []
+
+        ann_labels = set([ann.name for ann in annotations])
+        if len(ann_labels) != len(annotations):
+            raise ValueError(f"Annotations must have unique names. Received {ann_labels}.")
+
+        return [self.from_annotation(ann) for ann in annotations]
+
     def create_meta(
             self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df'
     ) -> Union[ValueMeta[Any], DataFrameMeta]:
@@ -177,13 +202,17 @@ class MetaExtractor(MetaFactory):
         super().__init__(config)
 
     @staticmethod
-    def extract(df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None) -> DataFrameMeta:
+    def extract(
+            df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,
+            annotation_params: Optional[List[AnnotationParams]] = None
+    ) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
 
         Args:
             df: the data frame to instantiate and extract DataFrameMeta.
             config: Optional; The configuration parameters to MetaFactory.
+            annotation_params: Optional; Annotations for the DataFrameMeta
 
         Returns:
             A DataFrameMeta instance for which all child meta have been extracted.
@@ -195,5 +224,12 @@ class MetaExtractor(MetaFactory):
 
         factory = MetaExtractor(config)
         df = df.infer_objects()
-        df_meta = factory._from_df(df).extract(df)
+        df_meta = factory._from_df(df)
+
+        annotations = factory.from_annotations(annotation_params)
+        for ann in annotations:
+            df_meta.apply_annotation(ann)
+
+        df_meta.extract(df)
+
         return df_meta
