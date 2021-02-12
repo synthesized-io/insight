@@ -3,6 +3,7 @@ from typing import Optional
 import pandas as pd
 
 from ..base import Transformer
+from ...metadata_new import Nominal
 
 
 class DTypeTransformer(Transformer):
@@ -50,9 +51,21 @@ class DTypeTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = df[self.name].astype(self.out_dtype, errors='ignore')
+        if self.out_dtype == self.in_dtype:
+            return df
+        elif self.out_dtype in ('i', 'u', 'f', 'f8', 'i8', 'u8'):
+            df[self.name] = pd.to_numeric(df[self.name], errors='coerce')
+        else:
+            df[self.name] = df[self.name].astype(self.out_dtype, errors='ignore')
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df[self.name] = df[self.name].astype(self.in_dtype, errors='ignore')
+        if self.out_dtype == self.in_dtype:
+            return df
+        else:
+            df[self.name] = df[self.name].astype(self.in_dtype, errors='ignore')
         return df
+
+    @classmethod
+    def from_meta(cls, meta: Nominal) -> 'DTypeTransformer':
+        return cls(meta.name, out_dtype=meta.dtype)
