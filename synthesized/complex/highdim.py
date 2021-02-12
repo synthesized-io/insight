@@ -52,8 +52,8 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        self.df_model = ModelFactory().create_df_model_meta(df_meta)
-        self.df_model_engine, self.df_model_independent = self.split_df_model_engine(self.df_model)
+        df_model = ModelFactory().create_df_model_meta(df_meta)
+        self.df_model_engine, self.df_model_independent = self.split_df_model_engine(df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model_engine, name='data_frame_value', config=config.value_factory_config
@@ -161,7 +161,8 @@ class HighDimSynthesizer(Synthesizer):
         if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
         df_train_pre = self.df_transformer.transform(df_train)
-        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
+        if self.df_value.learned_input_size() == 0 and len(self.df_model_engine) == 0 \
+                and len(self.df_model_independent) == 0:
             return
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -360,6 +361,8 @@ class HighDimSynthesizer(Synthesizer):
         variables = super().get_variables()
         variables.update(
             df_meta=self.df_meta.to_dict(),
+            df_model_engine=self.df_model_engine.to_dict(),
+            df_model_independent=self.df_model_independent.to_dict(),
             df_value=self.df_value.to_dict(),
             df_transformer=self.df_transformer.to_dict(),
 
@@ -448,8 +451,10 @@ class HighDimSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
-        # Data Panel
+        # Dataframes
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
+        synth.df_model_engine = DataFrameMeta.from_dict(variables['df_model_engine'])
+        synth.df_model_independent = DataFrameMeta.from_dict(variables['df_model_independent'])
         synth.df_value = DataFrameValue.from_dict(variables['df_value'])
         synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 
