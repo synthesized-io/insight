@@ -8,9 +8,9 @@ from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
 from synthesized.metadata_new.meta_builder import MetaExtractor
 from synthesized.metadata_new.model import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
-                                     DataFrameTransformer, DateTransformer, DropColumnTransformer, DTypeTransformer,
-                                     NanTransformer, QuantileTransformer, SequentialTransformer, Transformer,
-                                     TransformerFactory)
+                                     DataFrameTransformer, DateToNumericTransformer, DateTransformer,
+                                     DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,
+                                     SequentialTransformer, Transformer, TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -139,6 +139,18 @@ def test_date_transformer():
     assert transformer._fitted is True
     df_t = transformer.transform(df.copy())
     pd.testing.assert_frame_equal(df, transformer.inverse_transform(df_t))
+
+
+def test_date_to_numeric_transformer():
+    transformer = DateToNumericTransformer(name="date")
+    n = 5000
+    df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],
+                      columns=['date'])
+    df['date'] = df['date'].apply(lambda x: x.strftime("%Y-%m-%d"))
+    transformer.fit(df)
+    assert transformer._fitted is True
+    df_t = transformer.transform(df.copy())
+    pd.testing.assert_series_equal(df['date'], transformer.inverse_transform(df_t)['date'].dt.strftime("%Y-%m-%d"))
 
 
 def test_complex_sequence_of_transformers():
