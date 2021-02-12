@@ -93,11 +93,11 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
 
 
 def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
-    """For DateTime values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
+    """For Date values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
     the entire range using the defined precision. Otherwise, it should just return the specific values.
     """
     col = "date_sparse"
-    date_meta = cast(DateTime, simple_df_meta[col])
+    date_meta = cast(Date, simple_df_meta[col])
 
     logger.debug(date_meta.categories[:3])  # [numpy.datetime64('2023-07-07'), numpy.datetime64('2023-10-15'), ...]
 
@@ -131,7 +131,8 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     kde.fit(simple_df)
     kde.plot()
     hist = Histogram.bin_affine_meta(kde, max_bins=10)
-    assert hist.probabilities == simple_df_binned_probabilities[col]
+    assert hist.probabilities.keys() == simple_df_binned_probabilities[col].keys()
+    np.testing.assert_almost_equal([*simple_df_binned_probabilities[col].values()], [*hist.probabilities.values()])
 
 
 def test_factory(simple_df_meta):
