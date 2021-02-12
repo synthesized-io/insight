@@ -135,7 +135,7 @@ class TransformerFactory:
         elif isinstance(meta, DiscreteModel):
             transformers = self._from_discrete(meta)
 
-        assert transformers
+        assert len(transformers) > 0
         if len(transformers) > 1:
             transformer: Transformer = SequentialTransformer(f'{meta.name}', transformers=transformers)
         else:
