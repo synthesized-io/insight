@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, cast
 
 import pandas as pd
 
-from ...metadata_new import ContinuousModel, DataFrameMeta, Date, MetaExtractor, Model, Scale, ValueMeta
+from ...metadata_new import ContinuousModel, DataFrameMeta, DateTime, MetaExtractor, Model, Scale, ValueMeta
 from ...metadata_new.model import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
@@ -95,7 +95,7 @@ class FairnessTransformer(SequentialTransformer):
         if isinstance(meta, Scale):
             return BinningTransformer(column_name, bins=self.n_bins, duplicates='drop',
                                       include_lowest=True, remove_outliers=0.1)
-        elif isinstance(meta, Date):
+        elif isinstance(meta, DateTime):
             return BinningTransformer(column_name, bins=self.n_bins, remove_outliers=None,
                                       duplicates='drop', include_lowest=True)
         else:

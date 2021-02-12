@@ -9,7 +9,7 @@ from .continuous import Integer
 from ..base import Affine, Scale
 from ..exceptions import UnknownDateFormatError
 
-DateType = TypeVar('DateType', bound='Date')
+DateType = TypeVar('DateType', bound='DateTime')
 
 
 class TimeDelta(Scale[np.timedelta64]):
@@ -24,21 +24,21 @@ class TimeDelta(Scale[np.timedelta64]):
 
 
 class TimeDeltaDay(TimeDelta):
-    dtype = 'm8[D]'
+    dtype = 'm8[ns]'
     precision = np.timedelta64(1, 'D')
 
 
-class Date(Affine[np.datetime64]):
+class DateTime(Affine[np.datetime64]):
     """
-    Date meta.
+    DateTime meta.
 
-    Date meta describes affine data than can be interpreted as a datetime,
+    DateTime meta describes affine data than can be interpreted as a datetime,
     e.g the string '4/20/2020'.
 
     Attributes:
         date_format: Optional; string representation of date format, e.g '%d/%m/%Y'.
     """
-    dtype = 'M8[D]'
+    dtype = 'M8[ns]'
 
     def __init__(
             self, name: str, categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
@@ -50,7 +50,7 @@ class Date(Affine[np.datetime64]):
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
         ]
 
-        self._unit_meta: TimeDeltaDay = TimeDeltaDay('diff_' + self.name)
+        self._unit_meta: TimeDelta = TimeDelta('diff_' + self.name)
 
     def extract(self: DateType, df: pd.DataFrame):
         if self.date_format is None:
@@ -60,8 +60,10 @@ class Date(Affine[np.datetime64]):
                 self.date_format = None
 
         sub_df = pd.DataFrame({
-            self.name: pd.to_datetime(df[self.name], format=self.date_format),
+            self.name: pd.to_datetime(df[self.name], format=self.date_format, errors='coerce'),
         })
+
+        self.categories = list(sub_df[self.name].dropna().unique())
 
         super().extract(sub_df)  # call super here so we can get max, min from datetime.
 
@@ -91,7 +93,7 @@ class Date(Affine[np.datetime64]):
         )
 
     @property
-    def unit_meta(self) -> TimeDeltaDay:
+    def unit_meta(self) -> TimeDelta:
         return self._unit_meta
 
     def to_dict(self) -> Dict[str, object]:

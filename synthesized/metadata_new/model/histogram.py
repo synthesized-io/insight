@@ -85,7 +85,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         if meta.max is not None and meta.min is not None:
             rng = meta.max - meta.min
 
-            if meta.dtype == 'M8[D]':
+            if meta.dtype == 'M8[ns]':
                 dtype = 'interval[M8[ns]]'  # TODO: find away to handle 'interval[M8[D]]' instead of 'interval[M8[ns]]'
             else:
                 dtype = f'interval[{meta.dtype}]'

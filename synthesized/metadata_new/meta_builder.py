@@ -6,7 +6,7 @@ import pandas as pd
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
+from .value import Bool, DateTime, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
 from .value.datetime import get_date_format
 from ..config import MetaFactoryConfig
 
@@ -39,8 +39,8 @@ class _MetaBuilder:
         assert isinstance(sr.name, str), "DataFrame column names should be strings"
         return self._dtype_builders[sr.dtype.kind](sr)
 
-    def _DateBuilder(self, sr: pd.Series) -> Date:
-        return Date(sr.name)
+    def _DateBuilder(self, sr: pd.Series) -> DateTime:
+        return DateTime(sr.name)
 
     def _TimeDeltaBuilder(self, sr: pd.Series) -> TimeDelta:
         return TimeDelta(sr.name)
@@ -72,7 +72,7 @@ class _MetaBuilder:
         else:
             return String(sr.name)
 
-    def _ObjectBuilder(self, sr: pd.Series) -> Union[Date, String, OrderedString, Float, Integer, Bool, IntegerBool]:
+    def _ObjectBuilder(self, sr: pd.Series) -> Union[DateTime, String, OrderedString, Float, Integer, Bool, IntegerBool]:
         try:
             get_date_format(sr)
             return self._DateBuilder(sr)

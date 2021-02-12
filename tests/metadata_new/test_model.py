@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.metadata_new import Date, Integer, MetaExtractor
+from synthesized.metadata_new import DateTime, Integer, MetaExtractor
 from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -93,24 +93,24 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
 
 
 def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
-    """For Date values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
+    """For DateTime values, If the Histogram comes from a meta with a precision that spans multiple values, it should bin
     the entire range using the defined precision. Otherwise, it should just return the specific values.
     """
     col = "date_sparse"
-    date_meta = cast(Date, simple_df_meta[col])
+    date_meta = cast(DateTime, simple_df_meta[col])
 
     logger.debug(date_meta.categories[:3])  # [numpy.datetime64('2023-07-07'), numpy.datetime64('2023-10-15'), ...]
 
     logger.debug("precision: %s", date_meta.unit_meta.precision)  # np.timedelta64(1, 'D')
 
     hist = Histogram.from_meta(date_meta)
-    assert hist.dtype == "M8[D]"
+    assert hist.dtype == "M8[ns]"
     assert hist.categories == date_meta.categories
 
     # Now we increase the precision, but it doesn't span multiple values yet. (smallest diff is 5 days)
     date_meta.unit_meta.precision = np.timedelta64(3, 'D')
     hist = Histogram.from_meta(date_meta)
-    assert hist.dtype == "M8[D]"
+    assert hist.dtype == "M8[ns]"
     assert hist.categories == date_meta.categories
 
     # Finally we increase the precision so that it spans multiple values

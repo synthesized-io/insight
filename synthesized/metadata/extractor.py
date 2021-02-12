@@ -258,7 +258,7 @@ class MetaExtractor:
                     value = CategoricalMeta(name, true_categorical=True)
                     reason = "Small (< log(N)) number of distinct values (= 2). "
 
-        # Date value
+        # DateTime value
         elif col.dtype.kind == 'M':  # 'm' timedelta
             value = DateMeta(name)
             reason = "Column dtype kind is 'M'. "
@@ -284,7 +284,7 @@ class MetaExtractor:
                 value = CategoricalMeta(name, pandas_category=True, true_categorical=True)
                 reason = "Column dtype kind is 'O' and has 'categories' (= 2). "
 
-        # Date value if object type can be parsed
+        # DateTime value if object type can be parsed
         elif col.dtype.kind == 'O' and excl_nan_dtype.kind not in ['f', 'i']:
             try:
                 date_data = pd.to_datetime(col)

@@ -9,8 +9,8 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
-                                      String)
+from synthesized.metadata_new import (Bool, DateTime, Float, Integer, IntegerBool, MetaExtractor, OrderedString,
+                                      Ordinal, String)
 
 logger = logging.getLogger(__name__)
 
@@ -145,4 +145,4 @@ def test_dates(df, date_format, sort_list):
 
     df['date'] = pd.to_datetime(df['date'], format=date_format)
     sort_list = pd.to_datetime(sort_list).tolist()
-    _test_ordinal(date_meta, Date, df['date'], sort_list)
+    _test_ordinal(date_meta, DateTime, df['date'], sort_list)

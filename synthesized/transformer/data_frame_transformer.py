@@ -133,7 +133,7 @@ class TransformerFactory:
         if meta.nan_freq is not None and meta.nan_freq > 0:
             transformers.append(NanTransformer.from_meta(meta))
 
-        if isinstance(meta, ContinuousModel) and meta.dtype == 'M8[D]':
+        if isinstance(meta, ContinuousModel) and meta.dtype == 'M8[ns]':
             transformers.append(DateTransformer.from_meta(meta, config=self.config.date_transformer_config))
 
         elif isinstance(meta, ContinuousModel):

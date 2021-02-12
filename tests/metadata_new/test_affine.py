@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from synthesized.metadata_new import Affine, Date, Scale
+from synthesized.metadata_new import Affine, DateTime, Scale
 
 from .dataframes import DateData
 from .test_ordinal import TestOrdinal as _TestOrdinal
@@ -25,6 +25,6 @@ class TestAffine(_TestOrdinal):
 class TestDate(TestAffine, DateData):
 
     @pytest.fixture(scope='class')
-    def meta(self, name) -> Date:
-        meta = Date(name=name)
+    def meta(self, name) -> DateTime:
+        meta = DateTime(name=name)
         return meta
