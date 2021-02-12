@@ -130,7 +130,7 @@ def test_sampling_nans():
         'sample': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(size)]
     })
     df_original['sample'] = np.where(
-        df_original.index.isin(np.random.choice(df_original.index, size=int(len(df_original) * 0.3))), np.nan,
+        df_original.index.isin(np.random.choice(df_original.index, size=int(len(df_original) * nans_prop))), np.nan,
         df_original['sample'])
 
     df_meta = MetaExtractor.extract(df=df_original)
