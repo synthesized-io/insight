@@ -113,7 +113,7 @@ def test_sampling():
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
 
-    assert all([c in synthesizer.df_model_engine for c in ['x1', 'x2', 'y1', 'y2']])
+    assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
     assert 'sample' in synthesizer.df_model_independent
 
 
@@ -137,7 +137,7 @@ def test_sampling_nans():
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
 
-    assert all([c in synthesizer.df_model_engine for c in ['x1', 'x2', 'y1', 'y2']])
+    assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
     assert 'sample' in synthesizer.df_model_independent
 
     df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=False,
