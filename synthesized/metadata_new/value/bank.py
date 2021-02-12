@@ -51,10 +51,10 @@ class Bank(String):
 
     def collapse(self, df):
         df[self.name] = ''
-        df[self.name].str.cat(self.keys())
+        df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
 
         df.drop(
-            columns=self.keys(),
+            columns=[k for k in self.keys()],
             inplace=True
         )
 
