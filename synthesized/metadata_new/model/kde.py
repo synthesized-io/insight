@@ -27,7 +27,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
 
         self._kernel = gaussian_kde(
-            (df[self.name].values.astype(self.dtype) - c).astype(self.kde_dtype),
+            (df[self.name].dropna().values.astype(self.dtype) - c).astype(self.kde_dtype),
             bw_method='silverman'
         )
         return self

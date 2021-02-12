@@ -32,7 +32,7 @@ class Model:
 
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:
         if nan_freq and nan_freq > 0:
-            sr = np.where(sr.index.isin(np.random.choice(sr.index, size=int(len(sr) * 0.1))), np.nan, sr)
+            sr = np.where(sr.index.isin(np.random.choice(sr.index, size=int(len(sr) * nan_freq))), np.nan, sr)
         return sr
 
 
