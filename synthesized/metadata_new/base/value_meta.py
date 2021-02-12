@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from functools import cmp_to_key
 from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
 
@@ -175,18 +174,20 @@ class Affine(Ordinal[AType], Generic[AType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[AType] = None, max: Optional[AType] = None, num_rows: Optional[int] = None
+            min: Optional[AType] = None, max: Optional[AType] = None, num_rows: Optional[int] = None,
+            unit_meta: Optional['Scale'] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        super().__init__(
+            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        self._unit_meta: Scale = Scale(name=f'{name}_unit') if unit_meta is None else unit_meta
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         super().extract(df)
         return self
 
     @property
-    @abstractmethod
     def unit_meta(self: AffineType) -> 'Scale[Any]':
-        raise NotImplementedError
+        return self._unit_meta
 
     def __repr__(self) -> str:
         return f'<Affine[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
@@ -211,17 +212,17 @@ class Scale(Affine[SType], Generic[SType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[SType] = None, max: Optional[SType] = None, num_rows: Optional[int] = None
+            min: Optional[SType] = None, max: Optional[SType] = None, num_rows: Optional[int] = None,
+            unit_meta: Optional['Scale'] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        super().__init__(
+            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,
+            unit_meta=unit_meta if unit_meta is not None else self
+        )
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         super().extract(df)
 
-        return self
-
-    @property
-    def unit_meta(self: ScaleType) -> ScaleType:
         return self
 
     def __repr__(self) -> str:
