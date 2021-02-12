@@ -7,7 +7,8 @@ import pandas as pd
 import pytest
 
 from synthesized.metadata_new import DateTime, Integer, MetaExtractor
-from synthesized.metadata_new.model import Histogram, KernelDensityEstimate, ModelFactory
+from synthesized.metadata_new.model import (FormattedString, Histogram, KernelDensityEstimate, ModelFactory,
+                                            SequentialFormattedString)
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,19 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     hist = Histogram.bin_affine_meta(kde, max_bins=10)
     assert hist.probabilities.keys() == simple_df_binned_probabilities[col].keys()
     np.testing.assert_almost_equal([*simple_df_binned_probabilities[col].values()], [*hist.probabilities.values()])
+
+
+def test_formatted_string_model():
+    pattern = '[0-9]{5}'
+    model = FormattedString('test', pattern=pattern, nan_freq=0.3)
+    assert model.sample(100)['test'].str.match(pattern).sum() == 100
+    assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
+
+
+def test_sequential_formatted_string_model():
+    model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
+    assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
+    assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
 def test_factory(simple_df_meta):
