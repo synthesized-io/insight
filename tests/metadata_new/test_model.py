@@ -31,9 +31,37 @@ def simple_df():
 @pytest.fixture
 def simple_df_binned_probabilities():
     probs = {
-        'date': {pd.Interval(pd.Timestamp(datetime.strptime('2020-02-24 00:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.0032244955008293133, pd.Interval(pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.011699174133465277, pd.Interval(pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.05498513716790392, pd.Interval(pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.14416831367994937, pd.Interval(pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.22353093217772335, pd.Interval(pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.24885100781537467, pd.Interval(pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.18608688433096188, pd.Interval(pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.09085677663066802, pd.Interval(pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.03138891193009287, pd.Interval(pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-02-11 00:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.005208366633031028},
-        'int': {pd.Interval(0, 1, closed='left'): 0.060437068579862134, pd.Interval(1, 2, closed='left'): 0.030799447835097436, pd.Interval(2, 3, closed='left'): 0.12191977892474855, pd.Interval(3, 4, closed='left'): 0.3633195010374817, pd.Interval(4, 5, closed='left'): 0.42352420362280985},
-        'float': {pd.Interval(-3.6625330162590917, -2.930615228589776, closed='left'): 0.002515169527140779, pd.Interval(-2.930615228589776, -2.1986974409204603, closed='left'): 0.016909613332347164, pd.Interval(-2.1986974409204603, -1.4667796532511446, closed='left'): 0.05968321861823208, pd.Interval(-1.4667796532511446, -0.7348618655818289, closed='left'): 0.1505943457380943, pd.Interval(-0.7348618655818289, -0.0029440779125131655, closed='left'): 0.26938996058883313, pd.Interval(-0.0029440779125131655, 0.7289737097568025, closed='left'): 0.25887642078328754, pd.Interval(0.7289737097568025, 1.4608914974261182, closed='left'): 0.16429211636779523, pd.Interval(1.4608914974261182, 2.192809285095434, closed='left'): 0.06263625372938374, pd.Interval(2.192809285095434, 2.9247270727647496, closed='left'): 0.012323832964755947, pd.Interval(2.9247270727647496, 3.6566448604340653, closed='left'): 0.00277906835012976},
+        'date': {
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-02-24 00:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.003264343477073837,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.012080479437589253,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.05704717081517405,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.14274587206677292,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.2260434151289749,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.2504990467142084,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.18124031428456638,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.0911180687237961,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.030980612733336497,
+            pd.Interval(pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-02-11 00:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.00498067661850735
+        },
+        'int': {
+            pd.Interval(0, 1, closed='left'): 0.060437068579862134,
+            pd.Interval(1, 2, closed='left'): 0.030799447835097436,
+            pd.Interval(2, 3, closed='left'): 0.12191977892474855,
+            pd.Interval(3, 4, closed='left'): 0.3633195010374817,
+            pd.Interval(4, 5, closed='left'): 0.42352420362280985
+        },
+        'float': {
+            pd.Interval(-3.6625330162590917, -2.930615228589776, closed='left'): 0.002515169527140779,
+            pd.Interval(-2.930615228589776, -2.1986974409204603, closed='left'): 0.016909613332347164,
+            pd.Interval(-2.1986974409204603, -1.4667796532511446, closed='left'): 0.05968321861823208,
+            pd.Interval(-1.4667796532511446, -0.7348618655818289, closed='left'): 0.1505943457380943,
+            pd.Interval(-0.7348618655818289, -0.0029440779125131655, closed='left'): 0.26938996058883313,
+            pd.Interval(-0.0029440779125131655, 0.7289737097568025, closed='left'): 0.25887642078328754,
+            pd.Interval(0.7289737097568025, 1.4608914974261182, closed='left'): 0.16429211636779523,
+            pd.Interval(1.4608914974261182, 2.192809285095434, closed='left'): 0.06263625372938374,
+            pd.Interval(2.192809285095434, 2.9247270727647496, closed='left'): 0.012323832964755947,
+            pd.Interval(2.9247270727647496, 3.6566448604340653, closed='left'): 0.00277906835012976
+        },
         'int_bool': {pd.Interval(0, 1, closed='left'): 1.0}
     }
     return probs
