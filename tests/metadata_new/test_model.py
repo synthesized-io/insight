@@ -97,7 +97,7 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     the entire range using the defined precision. Otherwise, it should just return the specific values.
     """
     col = "date_sparse"
-    date_meta = cast(Date, simple_df_meta[col])
+    date_meta = cast(DateTime, simple_df_meta[col])
 
     logger.debug(date_meta.categories[:3])  # [numpy.datetime64('2023-07-07'), numpy.datetime64('2023-10-15'), ...]
 
@@ -111,7 +111,6 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     date_meta.unit_meta.precision = np.timedelta64(3, 'D')
     hist = Histogram.from_meta(date_meta)
     assert hist.dtype == "M8[ns]"
-    assert hist.categories == date_meta.categories
 
     # Finally we increase the precision so that it spans multiple values
     date_meta.unit_meta.precision = np.timedelta64(10, 'D')
@@ -119,7 +118,7 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     logger.debug(hist)
     logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]
 
-    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[ns]]"]
+    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[D]]"]
     assert len(hist.categories) == 181
 
 
