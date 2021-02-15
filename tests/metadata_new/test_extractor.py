@@ -9,6 +9,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
+from synthesized.config import AddressParams, BankParams
 from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
                                       String)
 
@@ -146,3 +147,23 @@ def test_dates(df, date_format, sort_list):
     df['date'] = pd.to_datetime(df['date'], format=date_format)
     sort_list = pd.to_datetime(sort_list).tolist()
     _test_ordinal(date_meta, Date, df['date'], sort_list)
+
+
+def test_annotation_params():
+
+    df = pd.DataFrame({
+        'a': ['a', 'b', 'c'],
+        'b': ['MAUS', 'HBUK', 'HBUK'],
+        'c': ['010468', '616232', '131315'],
+        'd': ['d', 'm', 'm']
+    })
+
+    annotations = [
+        AddressParams(name='address', city_label='a', street_label='d'),
+        BankParams(name='bank', bic_label='b', sort_code_label='c')
+    ]
+
+    df_meta = MetaExtractor.extract(df=df, annotation_params=annotations)
+
+    assert list(df_meta['address'].keys()) == ['d', 'a']
+    assert list(df_meta['bank'].keys()) == ['b', 'c']
