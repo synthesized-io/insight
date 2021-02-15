@@ -24,7 +24,7 @@ class TimeDelta(Scale[np.timedelta64]):
 
 
 class TimeDeltaDay(TimeDelta):
-    dtype = 'm8[ns]'
+    dtype = 'm8[D]'
     precision = np.timedelta64(1, 'D')
 
 

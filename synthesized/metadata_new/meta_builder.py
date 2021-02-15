@@ -24,13 +24,13 @@ class _MetaBuilder:
             categorical_threshold_log_multiplier: float
     ):
         self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any]]] = {
-            'i': self._IntBuilder,
-            'u': self._IntBuilder,
-            'M': self._DateTimeBuilder,
-            'm': self._TimeDeltaBuilder,
-            'b': self._BoolBuilder,
-            'f': self._FloatBuilder,
-            'O': self._ObjectBuilder
+            'i': self.int_builder,
+            'u': self.int_builder,
+            'M': self.datetime_builder,
+            'm': self.timedelta_builder,
+            'b': self.bool_builder,
+            'f': self.float_builder,
+            'O': self.object_builder
         }
 
         self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
@@ -39,28 +39,28 @@ class _MetaBuilder:
         assert isinstance(sr.name, str), "DataFrame column names should be strings"
         return self._dtype_builders[sr.dtype.kind](sr)
 
-    def _DateTimeBuilder(self, sr: pd.Series) -> DateTime:
+    def datetime_builder(self, sr: pd.Series) -> DateTime:
         return DateTime(sr.name)
 
-    def _TimeDeltaBuilder(self, sr: pd.Series) -> TimeDelta:
+    def timedelta_builder(self, sr: pd.Series) -> TimeDelta:
         return TimeDelta(sr.name)
 
-    def _BoolBuilder(self, sr: pd.Series,) -> Bool:
+    def bool_builder(self, sr: pd.Series,) -> Bool:
         return Bool(sr.name)
 
-    def _IntBuilder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
+    def int_builder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
         if sr.dropna().isin([0, 1]).all():
             return IntegerBool(sr.name)
         return Integer(sr.name)
 
-    def _FloatBuilder(self, sr: pd.Series) -> Union[Float, Integer, Bool, IntegerBool]:
+    def float_builder(self, sr: pd.Series) -> Union[Float, Integer, Bool, IntegerBool]:
 
         # check if is integer (in case NaNs which cast to float64)
         # delegate to __IntegerBuilder
         if self._contains_genuine_floats(sr):
             return Float(sr.name)
         else:
-            return self._IntBuilder(sr)
+            return self.int_builder(sr)
 
     def _CategoricalBuilder(self, sr: pd.Series) -> Union[OrderedString, String]:
         if isinstance(sr.dtype, pd.CategoricalDtype):
@@ -72,10 +72,10 @@ class _MetaBuilder:
         else:
             return String(sr.name)
 
-    def _ObjectBuilder(self, sr: pd.Series) -> Union[DateTime, String, OrderedString, Float, Integer, Bool, IntegerBool]:
+    def object_builder(self, sr: pd.Series) -> Union[DateTime, String, OrderedString, Float, Integer, Bool, IntegerBool]:
         try:
             get_date_format(sr)
-            return self._DateTimeBuilder(sr)
+            return self.datetime_builder(sr)
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
             n_rows = len(sr)
@@ -88,9 +88,9 @@ class _MetaBuilder:
 
             elif num_nan / n_rows < self.parsing_nan_fraction_threshold:
                 if self._contains_genuine_floats(x_numeric):
-                    return self._FloatBuilder(x_numeric)
+                    return self.float_builder(x_numeric)
                 else:
-                    return self._IntBuilder(x_numeric)
+                    return self.int_builder(x_numeric)
 
             else:
                 return String(sr.name)
