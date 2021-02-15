@@ -154,11 +154,15 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.restart_learning_manager()
             self.learning_manager.set_check_frequency(self.batch_size)
 
+        for model in self.df_model_independent.values():
+            assert isinstance(model, Model)
+            model.fit(df_train)
+
         num_data = len(df_train)
         if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
         df_train_pre = self.df_transformer.transform(df_train)
-        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0 and len(self.df_model_independent) == 0:
+        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -211,10 +215,6 @@ class HighDimSynthesizer(Synthesizer):
                         logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                     if self.learning_manager:
                         self.learning_manager.set_check_frequency(self.batch_size)
-
-        for model in self.df_model_independent.values():
-            assert isinstance(model, Model)
-            model.fit(df_train)
 
     def synthesize(
             self, num_rows: int, produce_nans: bool = False,
