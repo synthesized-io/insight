@@ -38,8 +38,9 @@ class Model:
 
 class DiscreteModel(Nominal[NType], Model, Generic[NType]):
 
-    def __init__(self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+    def __init__(self, name: str, categories: Optional[Sequence[NType]] = None,
+                 nan_freq: Optional[float] = None, num_rows: Optional[int] = None):
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
 
     def fit(self: DiscreteModelType, df: pd.DataFrame) -> DiscreteModelType:
         super().fit(df=df)

@@ -23,9 +23,9 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
-            probabilities: Optional[Dict[NType, float]] = None
+            probabilities: Optional[Dict[NType, float]] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)  # type: ignore
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
         if self.categories is not None:
             self._extracted = True
         self.probabilities: Optional[Dict[NType, float]] = probabilities
@@ -157,7 +157,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
                 except ZeroDivisionError:
                     pass
 
-        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, probabilities=probabilities)
+        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq,
+                         probabilities=probabilities, num_rows=meta.num_rows)
         hist.dtype = dtype
 
         return hist

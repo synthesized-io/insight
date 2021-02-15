@@ -122,11 +122,8 @@ class HighDimSynthesizer(Synthesizer):
                 df_model_engine[name] = model
 
             if isinstance(model, DiscreteModel):
-                meta = self.df_meta[name]
-                assert isinstance(meta, Nominal)
-                categories, num_rows = meta.categories, meta.num_rows
-                assert categories and num_rows
-                if len(categories) <= sqrt(num_rows):
+                assert model.categories and model.num_rows
+                if len(model.categories) <= sqrt(model.num_rows):
                     df_model_engine[name] = model
                 else:
                     df_model_independent[name] = model
