@@ -57,9 +57,9 @@ class UtilityTesting:
         self.continuous: List[str] = []
 
         for name, meta in self.df_models.items():
-            if isinstance(meta, Affine) and meta.dtype != 'M8[D]':
+            if isinstance(meta, Affine) and meta.dtype != 'M8[ns]':
                 self.continuous.append(name)
-            elif isinstance(meta, Nominal) and meta.dtype != 'M8[D]':
+            elif isinstance(meta, Nominal) and meta.dtype != 'M8[ns]':
                 self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 
