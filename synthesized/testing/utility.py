@@ -7,7 +7,7 @@
 import logging
 import math
 from enum import Enum
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +19,7 @@ from ..common.synthesizer import Synthesizer
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
-from ..metadata_new import Affine
+from ..metadata_new import Affine, Nominal
 from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
@@ -51,18 +51,23 @@ class UtilityTesting:
         self.df_test = df_test.copy()
         self.df_synth = df_synth.copy()
 
-        self.dp = synthesizer.df_meta
-        self.categorical = []
-        self.continuous = []
-        for vm in self.dp.values():
-            self.continuous.append(vm.name) if isinstance(vm, Affine) else self.categorical.append(vm.name)
+        self.df_meta = synthesizer.df_meta
+        self.df_models = synthesizer.df_model
+        self.categorical: List[str] = []
+        self.continuous: List[str] = []
+
+        for name, meta in self.df_models.items():
+            if isinstance(meta, Affine) and meta.dtype != 'M8[D]':
+                self.continuous.append(name)
+            elif isinstance(meta, Nominal) and meta.dtype != 'M8[D]':
+                self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 
         # Set the style of plots
         set_plotting_style()
 
     def show_standard_metrics(self, ax=None):
-        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.dp, ax=ax)
+        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.df_meta, ax=ax)
         plt.show()
 
         return current_result
@@ -128,7 +133,7 @@ class UtilityTesting:
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_test, self.df_synth, dp=self.dp, **kwargs)
+        result = metric_vector(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -157,7 +162,7 @@ class UtilityTesting:
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, dp=self.dp, **kwargs)
+            matrix = metric_matrix(df, dp=self.df_meta, models=self.df_models, **kwargs)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
@@ -194,7 +199,7 @@ class UtilityTesting:
 
         metric_matrix = TwoColumnMetricMatrix(metric)
         diff_metric_matrix = DiffMetricMatrix(metric_matrix)
-        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.dp, **kwargs))
+        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs))
 
         result = []
         for i in range(len(distances.index)):
@@ -225,7 +230,7 @@ class UtilityTesting:
         if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
 
-        x = metric(self.df_orig, self.df_synth, dp=self.dp, **kwargs)
+        x = metric(self.df_orig, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
 
         if x is not None and len(x) > 0:
             x = x.values

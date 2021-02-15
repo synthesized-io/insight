@@ -1,10 +1,30 @@
 import logging
 
+import numpy as np
 import pandas as pd
 
 from synthesized.insight.metrics import categorical_logistic_correlation, kendell_tau_correlation
 
 logger = logging.getLogger(__name__)
+
+
+def test_categorical_logistic_correlation():
+    sr_a = pd.Series(np.random.normal(0, 1, 100), name='x')
+    sr_a_dates = pd.Series(pd.date_range('01/01/01', '01/12/01', name='x'))
+    sr_b = pd.Series(np.random.choice([1, 0], 100), name='y')
+
+
+    value = categorical_logistic_correlation(sr_a, sr_a)
+    assert value is None  # continuous, continuous -> None
+
+    value = categorical_logistic_correlation(sr_b, sr_b)
+    assert value is None  # categorical, categorical -> None
+
+    value = categorical_logistic_correlation(sr_a_dates, sr_b)
+    assert value is None  # continuous date, categorical -> None
+
+    value = categorical_logistic_correlation(sr_a, sr_b)
+    assert value is not None # continuous, categorical -> not None
 
 
 def test_categorical_logistic_correlation_datetimes():

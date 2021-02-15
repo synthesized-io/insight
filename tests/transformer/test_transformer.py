@@ -34,19 +34,30 @@ def df_credit_with_dates():
 def transformers_credit_with_dates():
     return [
         CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1]),
-        QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines"),
-        QuantileTransformer(name="age"),
+        SequentialTransformer(name="RevolvingUtilizationOfUnsecuredLines", dtypes=None, transformers=[
+            DTypeTransformer(name="RevolvingUtilizationOfUnsecuredLines", out_dtype='f8'),
+            QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines"),
+        ]),
+        SequentialTransformer(name="age", dtypes=None, transformers=[
+            DTypeTransformer(name="age", out_dtype='i8'),
+            QuantileTransformer(name="age"),
+        ]),
         CategoricalTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 96, 98]),
         CategoricalTransformer(name="effort", categories=['(0.00649, 0.04]', '(0.00134, 0.00214]', '(-0.001, 0.000309]', '(0.00214, 0.00287]', '(0.04, 12.67]', '(12.67, 3296.64]', '(0.00367, 0.00468]', '(0.00468, 0.00649]', '(0.000309, 0.00134]', '(0.00287, 0.00367]']),
         SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[
+            DTypeTransformer(name="MonthlyIncome", out_dtype='i8'),
             NanTransformer(name="MonthlyIncome"),
             QuantileTransformer(name="MonthlyIncome"),
         ]),
-        QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans"),
+        SequentialTransformer(name="NumberOfOpenCreditLinesAndLoans", dtypes=None, transformers=[
+            DTypeTransformer(name="NumberOfOpenCreditLinesAndLoans", out_dtype='f8'),
+            QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans"),
+        ]),
         CategoricalTransformer(name="NumberOfTimes90DaysLate", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 96, 98]),
         CategoricalTransformer(name="NumberRealEstateLoansOrLines", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17]),
         CategoricalTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 96, 98]),
         SequentialTransformer(name="NumberOfDependents", dtypes=None, transformers=[
+            DTypeTransformer(name="NumberOfDependents", out_dtype='i8'),
             NanTransformer(name="NumberOfDependents"),
             QuantileTransformer(name="NumberOfDependents"),
         ]),
