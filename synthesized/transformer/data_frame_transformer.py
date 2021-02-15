@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 
 from .base import BagOfTransformers, SequentialTransformer, Transformer
-from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, NanTransformer,
-                    QuantileTransformer)
+from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, DTypeTransformer,
+                    NanTransformer, QuantileTransformer)
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
+from ..metadata_new.base.value_meta import AType, NType
 
 
 class DataFrameTransformer(BagOfTransformers):
@@ -128,29 +129,50 @@ class TransformerFactory:
         if not isinstance(meta, Nominal):
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
-        transformers: List[Transformer] = []
-
-        if meta.nan_freq is not None and meta.nan_freq > 0:
-            transformers.append(NanTransformer.from_meta(meta))
-
-        if isinstance(meta, ContinuousModel) and meta.dtype == 'M8[D]':
-            transformers.append(DateTransformer.from_meta(meta, config=self.config.date_transformer_config))
-
-        elif isinstance(meta, ContinuousModel):
-            transformers.append(QuantileTransformer.from_meta(meta, config=self.config.quantile_transformer_config))
+        if isinstance(meta, ContinuousModel):
+            transformers = self._from_continuous(meta)
 
         elif isinstance(meta, DiscreteModel):
-            if meta.categories is not None and len(meta.categories) == 0:
-                transformers.append(DropConstantColumnTransformer(f'{meta.name}', constant_value=np.nan))
-            elif meta.categories is not None and len(meta.categories) == 1:
-                transformers.append(DropConstantColumnTransformer.from_meta(meta))
-            else:
-                transformers.append(CategoricalTransformer.from_meta(meta))
+            transformers = self._from_discrete(meta)
 
+        assert len(transformers) > 0
         if len(transformers) > 1:
             transformer: Transformer = SequentialTransformer(f'{meta.name}', transformers=transformers)
         else:
-            assert len(transformers) == 1
             transformer = transformers[0]
 
         return transformer
+
+    def _from_continuous(self, model: ContinuousModel[AType]) -> List[Transformer]:
+        transformers: List[Transformer] = []
+
+        if model.dtype == 'M8[D]':
+            transformers.append(DateTransformer.from_meta(model, config=self.config.date_transformer_config))
+
+            if model.nan_freq:
+                transformers.append(NanTransformer.from_meta(model))
+
+        elif model.dtype in ['u8', 'f8', 'i8']:
+            transformers.append(DTypeTransformer.from_meta(model))
+
+            if model.nan_freq:  # NanTransformer must be here as DTypeTransforemr may produce NaNs
+                transformers.append(NanTransformer.from_meta(model))
+
+            transformers.append(QuantileTransformer.from_meta(model, config=self.config.quantile_transformer_config))
+
+        return transformers
+
+    def _from_discrete(self, model: DiscreteModel[NType]) -> List[Transformer]:
+        transformers: List[Transformer] = []
+
+        if model.nan_freq:
+            transformers.append(NanTransformer.from_meta(model))
+
+        if model.categories is not None and len(model.categories) == 0:
+            transformers.append(DropConstantColumnTransformer(f'{model.name}', constant_value=np.nan))
+        elif model.categories is not None and len(model.categories) == 1:
+            transformers.append(DropConstantColumnTransformer.from_meta(model))
+        else:
+            transformers.append(CategoricalTransformer.from_meta(model))
+
+        return transformers
