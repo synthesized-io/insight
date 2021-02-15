@@ -1,5 +1,6 @@
 import logging
 import math
+from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 import matplotlib as mpl
@@ -11,6 +12,8 @@ from matplotlib import cm, cycler
 from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from sklearn.preprocessing import OneHotEncoder
+
+import synthesized
 
 from ..insight.evaluation import calculate_evaluation_metrics
 from ..insight.metrics import earth_movers_distance, kolmogorov_smirnov_distance
@@ -32,7 +35,9 @@ idx = pd.IndexSlice
 # -- Plotting functions
 def set_plotting_style():
     plt.style.use('seaborn')
-    mpl.font_manager.fontManager.addfont('fonts/inter/inter-v3-latin-regular.ttf')
+    mpl.font_manager.fontManager.addfont(
+        Path(synthesized.__path__[0]).parent.joinpath('fonts/inter/inter-v3-latin-regular.ttf').as_posix()
+    )
     mpl.rc('font', family='Inter-Regular'
                           '')
     mpl.rcParams['axes.spines.right'] = False

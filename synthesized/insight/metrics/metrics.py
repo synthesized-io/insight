@@ -72,7 +72,7 @@ class KendellTauCorrelation(TwoColumnMetric):
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
                            models: Optional[Dict[str, Model]] = None,
-                           calculate_categorical: bool = False):
+                           calculate_categorical: bool = False, **kwargs):
         dp, df_model = self.extract_metas_models(sr_a, sr_b, dp, models)
         if not calculate_categorical and (not isinstance(df_model[sr_a.name], ContinuousModel)
                                           or not isinstance(df_model[sr_b.name], ContinuousModel)):
@@ -180,12 +180,16 @@ class CategoricalLogisticR2(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None) -> bool:
+                           models: Optional[Dict[str, Model]] = None, **kwargs) -> bool:
         _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
 
-        if not isinstance(models[sr_a.name], ContinuousModel):
+        x_model = models[sr_a.name]
+        y_model = models[sr_b.name]
+
+        if not isinstance(x_model, ContinuousModel) or\
+           (isinstance(x_model, ContinuousModel) and x_model.dtype == 'M8[D]'):
             return False
-        if not isinstance(models[sr_b.name], DiscreteModel):
+        if not isinstance(y_model, DiscreteModel):
             return False
         return True
 
@@ -305,12 +309,12 @@ def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
     x_labels_pre = list(filter(lambda v: v != y_label, df_pre.columns))
 
     x_array = df_pre[x_labels_pre].to_numpy()
-    y_array = df[y_label].to_numpy()
+    y_array = df_pre[y_label].to_numpy()
 
     rg = LogisticRegression()
     rg.fit(x_array, y_array)
 
-    labels = df[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
+    labels = df_pre[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
     oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
 
     lp = rg.predict_log_proba(x_array)
