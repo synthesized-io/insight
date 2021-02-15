@@ -49,6 +49,8 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             raise ValueError(f"Annotation {annotation} already applied.")
 
         # Make sure that the annotation's children are the same as the ones in the dataframe.
+        # TODO: Whilst this guarantees correctly named children, the types aren't necessarily correct.
+        #       Also, setting the children of an annotation technically shouldn't be allowed (not mutable).
         annotation.children = [self.pop(child) for child in annotation]
         self[annotation.name] = annotation
 
