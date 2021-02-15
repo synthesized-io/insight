@@ -16,7 +16,7 @@ from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
-from ..metadata_new.base import ContinuousModel, DiscreteModel, Nominal
+from ..metadata_new.base import ContinuousModel, DiscreteModel
 from ..metadata_new.model import ModelFactory
 from ..transformer import DataFrameTransformer
 from ..version import __version__
