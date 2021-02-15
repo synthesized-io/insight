@@ -1,7 +1,8 @@
 """This module implements the BasicSynthesizer class."""
 import logging
 import pickle
-from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple
+from math import sqrt
+from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -14,7 +15,8 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
-from ..metadata_new import DataFrameMeta
+from ..metadata_new import DataFrameMeta, Model
+from ..metadata_new.base import ContinuousModel, DiscreteModel
 from ..metadata_new.model import ModelFactory
 from ..transformer import DataFrameTransformer
 from ..version import __version__
@@ -50,7 +52,9 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        self.df_model = ModelFactory().create_df_model_meta(df_meta)
+        df_model = ModelFactory().create_df_model_meta(df_meta)
+        self.df_model, self.df_model_independent = self.split_df_model(df_model)
+
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
@@ -109,6 +113,23 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
+    def split_df_model(self, df_model: DataFrameMeta) -> Tuple[DataFrameMeta, DataFrameMeta]:
+        df_model_independent = DataFrameMeta(name='independent_models')
+        df_model_engine = DataFrameMeta(name='engine_models')
+        for name, model in df_model.items():
+
+            if isinstance(model, ContinuousModel):
+                df_model_engine[name] = model
+
+            if isinstance(model, DiscreteModel):
+                assert model.categories and model.num_rows
+                if len(model.categories) <= sqrt(model.num_rows):
+                    df_model_engine[name] = model
+                else:
+                    df_model_independent[name] = model
+
+        return df_model_engine, df_model_independent
+
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
             callback: Callable[[Synthesizer, int, dict], bool] = None,
@@ -133,11 +154,15 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.restart_learning_manager()
             self.learning_manager.set_check_frequency(self.batch_size)
 
+        for model in self.df_model_independent.values():
+            assert isinstance(model, Model)
+            model.fit(df_train)
+
         num_data = len(df_train)
-        if not self.df_transformer._fitted:
+        if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
         df_train_pre = self.df_transformer.transform(df_train)
-        if self.df_value.learned_input_size() == 0:
+        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
 
         with record_summaries_every_n_global_steps(callback_freq, self.global_step):
@@ -217,55 +242,58 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
 
-        if self.df_value.learned_input_size() == 0:
-            return self.df_transformer.inverse_transform(pd.DataFrame([[], ] * num_rows))
+        if self.df_value.learned_input_size() > 0:
+            if self.writer is not None:
+                tf.summary.trace_on(graph=True, profiler=False)
 
-        if self.writer is not None:
-            tf.summary.trace_on(graph=True, profiler=False)
-
-        if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
-            synthesized = None
-            synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64))
-            assert synthesized is not None
-            synthesized = self.df_value.split_outputs(synthesized)
-            df_synthesized = pd.DataFrame.from_dict(synthesized)
-            if progress_callback is not None:
-                progress_callback(98)
-
-        else:
-            dict_synthesized = None
-            if num_rows % self.synthesis_batch_size > 0:
-                synthesized = None
-                synthesized = self.engine.synthesize(
-                    tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64)
-                )
+            if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
+                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64))
                 assert synthesized is not None
-                dict_synthesized = self.df_value.split_outputs(synthesized)
-                dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
-
-            n_batches = num_rows // self.synthesis_batch_size
-
-            for k in range(n_batches):
-                other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64))
-                other = self.df_value.split_outputs(other)
-                if dict_synthesized is None:
-                    dict_synthesized = other
-                    dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
-                else:
-                    for c in other.keys():
-                        dict_synthesized[c].extend(other[c].tolist())
-
+                synthesized = self.df_value.split_outputs(synthesized)
+                df_synthesized = pd.DataFrame.from_dict(synthesized)
                 if progress_callback is not None:
-                    # report approximate progress from 0% to 98% (2% are reserved for post actions)
-                    progress_callback(round((k + 1) * 98.0 / n_batches))
+                    progress_callback(98)
 
-            df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
+            else:
+                dict_synthesized = None
+                if num_rows % self.synthesis_batch_size > 0:
+                    synthesized = self.engine.synthesize(
+                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64)
+                    )
+                    assert synthesized is not None
+                    dict_synthesized = self.df_value.split_outputs(synthesized)
+                    dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
-        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)[columns]
+                n_batches = num_rows // self.synthesis_batch_size
 
-        if self.writer is not None:
-            tf.summary.trace_export(name='Synthesize', step=0)
-            tf.summary.trace_off()
+                for k in range(n_batches):
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64))
+                    other = self.df_value.split_outputs(other)
+                    if dict_synthesized is None:
+                        dict_synthesized = other
+                        dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
+                    else:
+                        for c in other.keys():
+                            dict_synthesized[c].extend(other[c].tolist())
+
+                    if progress_callback is not None:
+                        # report approximate progress from 0% to 98% (2% are reserved for post actions)
+                        progress_callback(round((k + 1) * 98.0 / n_batches))
+
+                df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
+
+            df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+
+            if self.writer is not None:
+                tf.summary.trace_export(name='Synthesize', step=0)
+                tf.summary.trace_off()
+        else:
+            df_synthesized = pd.DataFrame([[], ] * num_rows)
+
+        independent_columns = [cast(Model, model).sample(num_rows, produce_nans=produce_nans)
+                               for model in self.df_model_independent.values()]
+        df_synthesized = pd.concat(([df_synthesized] + independent_columns), axis=1)
+        df_synthesized = df_synthesized[columns]
 
         if progress_callback is not None:
             progress_callback(100)
@@ -329,6 +357,8 @@ class HighDimSynthesizer(Synthesizer):
         variables = super().get_variables()
         variables.update(
             df_meta=self.df_meta.to_dict(),
+            df_model=self.df_model.to_dict(),
+            df_model_independent=self.df_model_independent.to_dict(),
             df_value=self.df_value.to_dict(),
             df_transformer=self.df_transformer.to_dict(),
 
@@ -417,8 +447,10 @@ class HighDimSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
-        # Data Panel
+        # Dataframes
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
+        synth.df_model = DataFrameMeta.from_dict(variables['df_model'])
+        synth.df_model_independent = DataFrameMeta.from_dict(variables['df_model_independent'])
         synth.df_value = DataFrameValue.from_dict(variables['df_value'])
         synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 

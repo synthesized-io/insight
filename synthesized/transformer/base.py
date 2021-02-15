@@ -58,6 +58,9 @@ class Transformer:
             self._fitted = True
         return self
 
+    def is_fitted(self) -> bool:
+        return self._fitted
+
     @abstractmethod
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         raise NotImplementedError
