@@ -55,7 +55,7 @@ class Address(String):
         super().extract(df=df)
         return self
 
-    def expand(self, df: pd.DataFrame):
+    def convert_df_for_children(self, df: pd.DataFrame):
         if self.name not in df.columns:
             raise KeyError
         sr_collapsed_address = df[self.name]
@@ -63,7 +63,7 @@ class Address(String):
 
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self, df: pd.DataFrame):
+    def revert_df_from_children(self, df: pd.DataFrame):
         df[self.name] = df[list(self.keys())[0]].astype(str).str.cat(
             [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )

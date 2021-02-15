@@ -58,19 +58,19 @@ class Meta(Mapping[str, 'Meta']):
         self._extracted = True
         return self
 
-    def expand(self, df):
+    def convert_df_for_children(self, df):
         """Expands the dataframe to contain the columns of the metas children."""
         pass
 
-    def collapse(self, df):
+    def revert_df_from_children(self, df):
         """Collapses the dataframe to no longer contain the meta's children columns."""
         pass
 
     @contextmanager
     def unfold(self, df: pd.DataFrame) -> pd.DataFrame:
-        self.expand(df)
+        self.convert_df_for_children(df)
         yield df
-        self.collapse(df)
+        self.revert_df_from_children(df)
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]

@@ -36,13 +36,13 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         self.num_rows = len(df)
         return self
 
-    def expand(self, df: pd.DataFrame):
+    def convert_df_for_children(self, df: pd.DataFrame):
         for ann in self.annotations:
-            self[ann].collapse(df)
+            self[ann].revert_df_from_children(df)
 
-    def collapse(self, df: pd.DataFrame):
+    def revert_df_from_children(self, df: pd.DataFrame):
         for ann in self.annotations:
-            self[ann].expand(df)
+            self[ann].convert_df_for_children(df)
 
     def apply_annotation(self, annotation: Meta):
         if annotation.name in self.annotations:

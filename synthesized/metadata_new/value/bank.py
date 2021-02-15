@@ -41,7 +41,7 @@ class Bank(String):
 
         return self
 
-    def expand(self, df: pd.DataFrame):
+    def convert_df_for_children(self, df: pd.DataFrame):
 
         sr_bank = df[self.name]
         index = 0
@@ -59,7 +59,7 @@ class Bank(String):
 
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self, df):
+    def revert_df_from_children(self, df):
         df[self.name] = ''
         df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
 
