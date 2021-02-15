@@ -26,7 +26,7 @@ class _MetaBuilder:
         self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any]]] = {
             'i': self._IntBuilder,
             'u': self._IntBuilder,
-            'M': self._DateBuilder,
+            'M': self._DateTimeBuilder,
             'm': self._TimeDeltaBuilder,
             'b': self._BoolBuilder,
             'f': self._FloatBuilder,
@@ -39,7 +39,7 @@ class _MetaBuilder:
         assert isinstance(sr.name, str), "DataFrame column names should be strings"
         return self._dtype_builders[sr.dtype.kind](sr)
 
-    def _DateBuilder(self, sr: pd.Series) -> DateTime:
+    def _DateTimeBuilder(self, sr: pd.Series) -> DateTime:
         return DateTime(sr.name)
 
     def _TimeDeltaBuilder(self, sr: pd.Series) -> TimeDelta:
@@ -75,7 +75,7 @@ class _MetaBuilder:
     def _ObjectBuilder(self, sr: pd.Series) -> Union[DateTime, String, OrderedString, Float, Integer, Bool, IntegerBool]:
         try:
             get_date_format(sr)
-            return self._DateBuilder(sr)
+            return self._DateTimeBuilder(sr)
         except (UnknownDateFormatError, ValueError, TypeError, OverflowError):
 
             n_rows = len(sr)
