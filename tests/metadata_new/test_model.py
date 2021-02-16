@@ -1,4 +1,6 @@
 import logging
+import random
+import string
 from datetime import datetime
 from typing import cast
 
@@ -187,3 +189,29 @@ def test_factory(simple_df_meta):
     assert isinstance(df_models['int'], Histogram)
     assert isinstance(df_models['float'], KernelDensityEstimate)
     assert isinstance(df_models['int_bool'], Histogram)
+
+
+def test_models_with_nans():
+    num_rows = 1000
+    nan_freq = 0.3
+    df_original = pd.DataFrame({
+        'x': np.random.normal(loc=0, scale=1, size=num_rows),
+        'y': np.random.choice(['A', 'B'], size=num_rows),
+    })
+    df_original.loc[np.random.uniform(size=len(df_original)) < nan_freq, 'x'] = np.nan
+    df_original.loc[np.random.uniform(size=len(df_original)) < nan_freq, 'y'] = np.nan
+
+    df_meta = MetaExtractor.extract(df_original)
+    df_model = ModelFactory().create_df_model_meta(df_meta)
+
+    assert isinstance(df_model['x'], KernelDensityEstimate)
+    assert isinstance(df_model['y'], Histogram)
+
+    for model in df_model.values():
+        model.fit(df_original)
+
+    df_synthesized = pd.concat([model.sample(num_rows, produce_nans=False) for model in df_model.values()], axis=1)
+    assert all([df_synthesized[c].isna().sum() == 0 for c in df_synthesized.columns])
+
+    df_synthesized = pd.concat([model.sample(num_rows, produce_nans=True) for model in df_model.values()], axis=1)
+    assert all([df_synthesized[c].isna().sum() > 0 for c in df_synthesized.columns])
