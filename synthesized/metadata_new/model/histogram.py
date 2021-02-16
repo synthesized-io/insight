@@ -130,7 +130,6 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
     @classmethod
     def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
-
         dtype = meta.dtype
         probabilities = None
         categories: Union[None, Sequence, pd.IntervalIndex] = meta.categories
@@ -157,8 +156,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
                 except ZeroDivisionError:
                     pass
 
-        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq,
-                         probabilities=probabilities, num_rows=meta.num_rows)
+        hist = cls(name=meta.name, categories=categories, nan_freq=meta.nan_freq,
+                   probabilities=probabilities, num_rows=meta.num_rows)
         hist.dtype = dtype
 
         return hist

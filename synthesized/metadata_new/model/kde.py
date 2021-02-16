@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, cast
+from typing import Any, Dict, Generic, Optional, Sequence, Type, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -98,8 +98,8 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         return d
 
     @classmethod
-    def from_meta(cls, meta: Affine[AType]) -> 'KernelDensityEstimate[AType]':
-        kde = KernelDensityEstimate(
+    def from_meta(cls: Type['KernelDensityEstimate'], meta: Affine[AType]) -> 'KernelDensityEstimate[AType]':
+        kde = cls(
             name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, min=meta.min, max=meta.max,
             unit_meta=meta.unit_meta
         )
