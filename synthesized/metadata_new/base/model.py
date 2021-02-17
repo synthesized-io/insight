@@ -1,5 +1,5 @@
-from abc import abstractmethod
-from typing import Any, Generic, Optional, Sequence, TypeVar
+from abc import ABC, abstractmethod
+from typing import Any, Generic, Optional, Sequence, TypeVar  # noqa: F401 (flake8 doesn't like the Any import here)
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]
 DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
 
 
-class Model:
+class Model(ABC):
 
     def __init__(self) -> None:
         super().__init__()
@@ -23,12 +23,7 @@ class Model:
 
     @abstractmethod
     def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
-        raise NotImplementedError
-
-    @abstractmethod
-    def probability(self, x: Any) -> float:
-        """Get the probability mass of the category x."""
-        raise NotImplementedError
+        pass
 
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:
         if nan_freq and nan_freq > 0:
@@ -48,14 +43,6 @@ class DiscreteModel(Nominal[NType], Model, Generic[NType]):
             self.extract(df=df)
         return self
 
-    @abstractmethod
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
-        pass
-
-    @abstractmethod
-    def probability(self, x: Any) -> float:
-        pass
-
 
 class ContinuousModel(Affine[AType], Model, Generic[AType]):
 
@@ -70,11 +57,3 @@ class ContinuousModel(Affine[AType], Model, Generic[AType]):
         if not self._extracted:
             self.extract(df=df)
         return self
-
-    @abstractmethod
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
-        pass
-
-    @abstractmethod
-    def probability(self, x: Any) -> float:
-        pass
