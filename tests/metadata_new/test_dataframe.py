@@ -50,7 +50,7 @@ class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
         meta['street'] = street
         meta['city'] = city
 
-        meta.apply_annotation(
+        meta.annotate(
             Address('address', house_number_label='house_number', street_label='street', city_label='city')
         )
         return meta

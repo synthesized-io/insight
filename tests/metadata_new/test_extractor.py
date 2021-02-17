@@ -9,9 +9,8 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.config import AddressParams, BankParams
-from synthesized.metadata_new import (Bool, Date, Float, Integer, IntegerBool, MetaExtractor, OrderedString, Ordinal,
-                                      String)
+from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, MetaExtractor,
+                                      OrderedString, Ordinal, String)
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +148,7 @@ def test_dates(df, date_format, sort_list):
     _test_ordinal(date_meta, Date, df['date'], sort_list)
 
 
-def test_annotation_params():
+def test_annotations():
 
     df = pd.DataFrame({
         'a': ['a', 'b', 'c'],
@@ -159,11 +158,11 @@ def test_annotation_params():
     })
 
     annotations = [
-        AddressParams(name='address', city_label='a', street_label='d'),
-        BankParams(name='bank', bic_label='b', sort_code_label='c')
+        Address(name='address', city_label='a', street_label='d'),
+        Bank(name='bank', bic_label='b', sort_code_label='c')
     ]
 
-    df_meta = MetaExtractor.extract(df=df, annotation_params=annotations)
+    df_meta = MetaExtractor.extract(df=df, annotations=annotations)
 
     assert list(df_meta['address'].keys()) == ['d', 'a']
     assert list(df_meta['bank'].keys()) == ['b', 'c']

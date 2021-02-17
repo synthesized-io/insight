@@ -6,9 +6,9 @@ import pandas as pd
 from .base import ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from .value import Address, Bank, Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
+from .value import Bool, Date, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
 from .value.datetime import get_date_format
-from ..config import AddressParams, AnnotationParams, BankParams, MetaFactoryConfig
+from ..config import MetaFactoryConfig
 
 
 class _MetaBuilder:
@@ -120,36 +120,14 @@ class MetaFactory():
 
         self._builder = _MetaBuilder(**asdict(self.config))
 
-    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union[ValueMeta[Any], DataFrameMeta]:
-        return self.create_meta(x)
-
-    def from_annotation(self, ann_params: AnnotationParams) -> 'ValueMeta[Any]':
-        if ann_params.name is None:
-            raise ValueError(f"Annotation {ann_params} label can't be None.")
-
-        if isinstance(ann_params, AddressParams):
-            ann: ValueMeta = Address.from_params(ann_params)
-
-        elif isinstance(ann_params, BankParams):
-            ann = Bank.from_params(ann_params)
-
-        else:
-            raise ValueError(f"Annotation params {ann_params} not recognnized.")
-
-        return ann
-
-    def from_annotations(self, annotations: Optional[List[AnnotationParams]]) -> List[ValueMeta[Any]]:
-        if annotations is None or len(annotations) == 0:
-            return []
-
-        ann_labels = set([ann.name for ann in annotations])
-        if len(ann_labels) != len(annotations):
-            raise ValueError(f"Annotations must have unique names. Received {ann_labels}.")
-
-        return [self.from_annotation(ann) for ann in annotations]
+    def __call__(
+            self, x: Union[pd.Series, pd.DataFrame], annotations: Optional[List[ValueMeta]] = None
+    ) -> Union[ValueMeta[Any], DataFrameMeta]:
+        return self.create_meta(x, annotations=annotations)
 
     def create_meta(
-            self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df'
+            self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df',
+            annotations: Optional[List[ValueMeta]] = None
     ) -> Union[ValueMeta[Any], DataFrameMeta]:
         """
         Instantiate a Meta object from a pandas series or data frame.
@@ -159,6 +137,7 @@ class MetaFactory():
         Args:
             x: a pandas series or data frame for which to create the Meta instance
             name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
+            annotations: Any metas that should be applied on a DataFrame and incorporated into the meta hierarchy.
 
         Returns:
             A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
@@ -168,7 +147,7 @@ class MetaFactory():
             TypeError: An error occured during instantiation of a ValueMeta.
         """
         if isinstance(x, pd.DataFrame):
-            return self._from_df(x, name)
+            return self._from_df(x, name, annotations=annotations)
         elif isinstance(x, pd.Series):
             return self._from_series(x)
         else:
@@ -179,16 +158,26 @@ class MetaFactory():
             raise UnsupportedDtypeError(f"'{sr.dtype}' is unsupported")
         return self._builder(sr)
 
-    def _from_df(self, df: pd.DataFrame, name: Optional[str] = 'df') -> DataFrameMeta:
+    def _from_df(
+            self, df: pd.DataFrame, name: Optional[str] = 'df', annotations: Optional[List[ValueMeta]] = None
+    ) -> DataFrameMeta:
         if name is None:
             raise ValueError("name must not be a string, not None")
-        meta = DataFrameMeta(name)
+        annotations = annotations or []
+        annotation_children = [c.name for ann in annotations for c in ann.children]
+        meta = DataFrameMeta(name, annotations=[ann.name for ann in annotations])
         for col in df.columns:
+            if col in annotation_children:
+                continue
             try:
                 child = self._from_series(df[col])
                 meta[child.name] = child
             except TypeError as e:
                 print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
+
+        for ann in annotations:
+            meta[ann.name] = ann
+
         return meta
 
     @staticmethod
@@ -204,7 +193,7 @@ class MetaExtractor(MetaFactory):
     @staticmethod
     def extract(
             df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,
-            annotation_params: Optional[List[AnnotationParams]] = None
+            annotations: Optional[List[ValueMeta]] = None
     ) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
@@ -212,7 +201,7 @@ class MetaExtractor(MetaFactory):
         Args:
             df: the data frame to instantiate and extract DataFrameMeta.
             config: Optional; The configuration parameters to MetaFactory.
-            annotation_params: Optional; Annotations for the DataFrameMeta
+            annotations: Optional; Annotations for the DataFrameMeta
 
         Returns:
             A DataFrameMeta instance for which all child meta have been extracted.
@@ -221,15 +210,9 @@ class MetaExtractor(MetaFactory):
             UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
             TypeError: An error occured during instantiation of a ValueMeta.
         """
-
         factory = MetaExtractor(config)
         df = df.infer_objects()
-        df_meta = factory._from_df(df)
-
-        annotations = factory.from_annotations(annotation_params)
-        for ann in annotations:
-            df_meta.apply_annotation(ann)
-
+        df_meta = factory(df, annotations=annotations)
         df_meta.extract(df)
-
+        assert isinstance(df_meta, DataFrameMeta)
         return df_meta

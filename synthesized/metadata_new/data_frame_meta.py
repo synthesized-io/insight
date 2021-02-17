@@ -22,6 +22,8 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             column_aliases: Optional[Dict[str, str]] = None, num_columns: Optional[int] = None,
             num_rows: Optional[int] = None, annotations: Optional[List[str]] = None
     ):
+        # TODO: This init should receive children as an optional argument so that id_index, time_index,
+        #       column_aliases, and annotations can all be checked to be consistant.
         super().__init__(name=name)
         self.id_index = id_index
         self.time_index = time_index
@@ -44,7 +46,7 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         for ann in self.annotations:
             self[ann].convert_df_for_children(df)
 
-    def apply_annotation(self, annotation: Meta):
+    def annotate(self, annotation: Meta):
         if annotation.name in self.annotations:
             raise ValueError(f"Annotation {annotation} already applied.")
 
@@ -56,10 +58,12 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
 
         self.annotations.append(annotation.name)
 
-    def strip_annotation(self, annotation: Meta):
+    def unannotate(self, annotation: Meta):
         if annotation.name not in self.annotations:
             raise ValueError(f"Annotation {annotation} cannot be stripped as it isn't in the DF Meta.")
 
+        # TODO: This may create a state in the df_meta different to just extracting the df with no
+        #       annotations. See the todo in `DataFrameMeta.annotate`.
         for name, child in annotation.items():
             self[name] = child
 
