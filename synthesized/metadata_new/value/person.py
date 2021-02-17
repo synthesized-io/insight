@@ -46,6 +46,12 @@ class Person(String):
         super().extract(df=df)
         return self
 
+    def expand(self, df: pd.DataFrame):
+        return self.convert_df_for_children(df)
+
+    def collapse(self, df: pd.DataFrame):
+        return self.revert_df_from_children(df)
+
     def convert_df_for_children(self, df: pd.DataFrame):
         if self.name not in df.columns:
             raise KeyError

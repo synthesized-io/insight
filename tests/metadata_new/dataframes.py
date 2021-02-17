@@ -271,7 +271,7 @@ class PersonData(MetaTestData):
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["M", "F", "U"]
+        return ["M|joe|doe", "F|jane|smith", "U|alex|black"]
 
 
 class DataFrameData(MetaTestData):
