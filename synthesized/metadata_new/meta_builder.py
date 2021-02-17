@@ -62,7 +62,7 @@ class _MetaBuilder:
         else:
             return self.int_builder(sr)
 
-    def _CategoricalBuilder(self, sr: pd.Series) -> Union[OrderedString, String]:
+    def categorical_builder(self, sr: pd.Series) -> Union[OrderedString, String]:
         if isinstance(sr.dtype, pd.CategoricalDtype):
             if sr.cat.ordered:
                 return OrderedString(sr.name)
@@ -84,7 +84,7 @@ class _MetaBuilder:
             num_nan = x_numeric.isna().sum()
 
             if isinstance(sr.dtype, pd.CategoricalDtype):
-                return self._CategoricalBuilder(sr)
+                return self.categorical_builder(sr)
 
             elif num_nan / n_rows < self.parsing_nan_fraction_threshold:
                 if self._contains_genuine_floats(x_numeric):
