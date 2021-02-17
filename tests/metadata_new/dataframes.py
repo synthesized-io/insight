@@ -254,6 +254,26 @@ class BankData(MetaTestData):
         return ["HBUK01066212345678", "BCUK32343212345678"]
 
 
+class PersonData(MetaTestData):
+    @pytest.fixture(scope='class')
+    def dataframe(self, name) -> pd.DataFrame:
+        return pd.DataFrame({
+            name: ["M|joe|doe", "F|jane|smith", "U|alex|black"]
+        })
+
+    @pytest.fixture(scope='class')
+    def expanded_dataframe(self, dataframe):
+        return pd.DataFrame({
+            "gender": pd.Series(["M", "F", "U"], dtype=object),
+            "firstname": pd.Series(["joe", "jane", "alex"], dtype=object),
+            "lastname": pd.Series(["doe", "smith", "black"], dtype=object),
+        })
+
+    @pytest.fixture(scope='class')
+    def categories(self) -> list:
+        return ["M", "F", "U"]
+
+
 class DataFrameData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self) -> pd.DataFrame:

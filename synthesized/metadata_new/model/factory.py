@@ -2,7 +2,8 @@ from typing import Any, Dict, Optional, Union, cast
 
 import numpy as np
 
-from . import Histogram, KernelDensityEstimate
+from .histogram import Histogram
+from .kde import KernelDensityEstimate
 from ..base import Affine, Meta, Model, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
 from ...config import ModelFactoryConfig

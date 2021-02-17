@@ -52,15 +52,30 @@ class PersonParams:
 
 
 @dataclass
-class PersonMetaConfig:
+class PersonLabels:
+    title_label: Optional[str] = None
+    gender_label: Optional[str] = None
+    name_label: Optional[str] = None
+    firstname_label: Optional[str] = None
+    lastname_label: Optional[str] = None
+    email_label: Optional[str] = None
+    username_label: Optional[str] = None
+    password_label: Optional[str] = None
+    mobile_number_label: Optional[str] = None
+    home_number_label: Optional[str] = None
+    work_number_label: Optional[str] = None
+
+
+@dataclass
+class PersonModelConfig:
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
 
     @property
-    def person_meta_config(self):
-        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+    def person_model_config(self):
+        return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
 
 
 @dataclass
@@ -98,7 +113,7 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonModelConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):
@@ -106,7 +121,7 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
 
 
 @dataclass
-class ModelFactoryConfig:
+class ModelFactoryConfig(PersonModelConfig):
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
 
