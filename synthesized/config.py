@@ -41,7 +41,7 @@ class BankParams(AnnotationParams):
     account_label: Optional[str] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class PersonLabels:
     title_label: Optional[str] = None
     gender_label: Optional[str] = None

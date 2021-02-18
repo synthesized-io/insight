@@ -1,4 +1,4 @@
-from dataclasses import asdict, fields
+from dataclasses import asdict
 from typing import Dict, Optional, Sequence
 
 import pandas as pd
@@ -12,18 +12,23 @@ class Person(String):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            num_rows: Optional[int] = None, labels: Optional[PersonLabels] = None,
+            num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
-        self._labels = asdict(labels) if labels is not None else asdict(PersonLabels())
+        self._params = {k: v for k, v in asdict(labels).items() if v is not None}
+
         self.children = [
             String(name)
-            for name in self._labels.values() if name is not None
+            for name in self._params.values() if name is not None
         ]
 
     @property
-    def labels(self) -> Dict[str, Optional[str]]:
-        return self._labels
+    def params(self) -> Dict[str, Optional[str]]:
+        return self._params
+
+    @property
+    def labels(self) -> PersonLabels:
+        return PersonLabels(**self.params)
 
     def extract(self, df: pd.DataFrame):
         super().extract(df)
@@ -47,7 +52,7 @@ class Person(String):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "_labels": self.labels
+            "_params": self.params
         })
 
         return d
