@@ -3,6 +3,7 @@ from typing import Dict, Optional, Sequence
 import pandas as pd
 
 from .categorical import String
+from ...config import BankParams
 
 
 class Bank(String):
@@ -26,12 +27,21 @@ class Bank(String):
             String(child_label) for child_label in [bic_label, sort_code_label, account_label] if child_label is not None
         ]
 
+    @classmethod
+    def from_params(cls, params: BankParams) -> 'Bank':
+        bank = Bank(
+            name=params.name, bic_label=params.bic_label, sort_code_label=params.sort_code_label,
+            account_label=params.account_label
+        )
+
+        return bank
+
     def extract(self, df: pd.DataFrame):
         super().extract(df)
 
         return self
 
-    def expand(self, df: pd.DataFrame):
+    def convert_df_for_children(self, df: pd.DataFrame):
 
         sr_bank = df[self.name]
         index = 0
@@ -49,7 +59,7 @@ class Bank(String):
 
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self, df):
+    def revert_df_from_children(self, df):
         df[self.name] = ''
         df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
 

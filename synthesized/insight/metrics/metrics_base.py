@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from ...metadata_new import DataFrameMeta, MetaExtractor, Model
+from ...metadata_new import DataFrameMeta, MetaExtractor
 from ...metadata_new.model import ModelFactory
 
 
@@ -45,12 +45,12 @@ class ColumnMetric(_Metric):
 
     def extract_metas_models(self, sr: pd.Series,
                              dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: Optional[Dict[str, Model]] = None) -> Tuple[DataFrameMeta, Dict[str, Model]]:
+                             models: DataFrameMeta = None) -> Tuple[DataFrameMeta, DataFrameMeta]:
         """ method for extracting datametas and models from dataframe if not already extracted"""
         if dp is None:
             dp = pd.DataFrame(data={sr.name: sr})
         dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = ModelFactory()._from_dataframe_meta(dp) if models is None else models
+        models = ModelFactory()(dp) if models is None else models
 
         return dp, models
 
@@ -71,12 +71,12 @@ class TwoColumnMetric(_Metric):
 
     def extract_metas_models(self, sr_a: pd.Series, sr_b: pd.Series,
                              dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: Optional[Dict[str, Model]] = None) -> Tuple[DataFrameMeta, Dict[str, Model]]:
+                             models: DataFrameMeta = None) -> Tuple[DataFrameMeta, DataFrameMeta]:
         """ method for extracting datametas and models from dataframe if not already extracted"""
         if dp is None:
             dp = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
         dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = ModelFactory()._from_dataframe_meta(dp) if models is None else models
+        models = ModelFactory()(dp) if models is None else models
 
         return dp, models
 

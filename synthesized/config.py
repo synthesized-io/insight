@@ -7,16 +7,21 @@ import pandas as pd
 
 
 @dataclass
-class AddressParams:
-    postcode_label: Union[str, List[str], None] = None
-    county_label: Union[str, List[str], None] = None
-    city_label: Union[str, List[str], None] = None
-    district_label: Union[str, List[str], None] = None
-    street_label: Union[str, List[str], None] = None
-    house_number_label: Union[str, List[str], None] = None
-    flat_label: Union[str, List[str], None] = None
-    house_name_label: Union[str, List[str], None] = None
-    full_address_label: Union[str, List[str], None] = None
+class AnnotationParams:
+    name: str
+
+
+@dataclass
+class AddressParams(AnnotationParams):
+    postcode_label: Optional[str] = None
+    county_label: Optional[str] = None
+    city_label: Optional[str] = None
+    district_label: Optional[str] = None
+    street_label: Optional[str] = None
+    house_number_label: Optional[str] = None
+    flat_label: Optional[str] = None
+    house_name_label: Optional[str] = None
+    full_address_label: Optional[str] = None
 
 
 @dataclass
@@ -30,10 +35,10 @@ class AddressMetaConfig:
 
 
 @dataclass
-class BankParams:
-    bic_label: Union[str, List[str], None] = None
-    sort_code_label: Union[str, List[str], None] = None
-    account_label: Union[str, List[str], None] = None
+class BankParams(AnnotationParams):
+    bic_label: Optional[str] = None
+    sort_code_label: Optional[str] = None
+    account_label: Optional[str] = None
 
 
 @dataclass
@@ -130,7 +135,7 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonModelConfi
 
 
 @dataclass
-class ModelFactoryConfig(PersonModelConfig):
+class ModelBuilderConfig(PersonModelConfig):
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
 

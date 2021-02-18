@@ -107,7 +107,7 @@ def test_sequential_transformer_transform(sequential_transformer):
 
 def test_transformer_factory(df_credit_with_dates, transformers_credit_with_dates, out_columns_credit_with_dates):
     df_meta = MetaExtractor.extract(df_credit_with_dates)
-    df_model = ModelFactory().create_df_model_meta(df_meta)
+    df_model = ModelFactory()(df_meta)
     transformer = TransformerFactory().create_transformers(df_model)
     df_transformer = DataFrameTransformer.from_meta(df_model)
 
