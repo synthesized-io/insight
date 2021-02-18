@@ -1,7 +1,8 @@
+import importlib
 import random
 import re
 import string
-from typing import Any, List, Optional
+from typing import Optional
 
 import faker
 import numpy as np
@@ -20,27 +21,19 @@ class PersonModel(Histogram):
                  labels: PersonLabels = PersonLabels(),
                  config: PersonModelConfig = PersonModelConfig()):
 
-        self.title_label = labels.title_label
-        self.gender_label = labels.gender_label
-        self.name_label = labels.name_label
-        self.firstname_label = labels.firstname_label
-        self.lastname_label = labels.lastname_label
-        self.email_label = labels.email_label
-        self.username_label = labels.username_label
-        self.password_label = labels.password_label
-        self.mobile_number_label = labels.mobile_number_label
-        self.home_number_label = labels.home_number_label
-        self.work_number_label = labels.work_number_label
-
-        if all([c is None for c in self.columns]):
+        columns = [c for c in labels.__dict__.values() if c is not None]
+        if all([c is None for c in columns]):
             raise ValueError("At least one of labels must be given")
-        if name in self.columns:
+        if name in columns:
             raise ValueError("Value of 'name' can't be equal to any other label.")
+        if len(columns) > len(np.unique(columns)):
+            raise ValueError("There can't be any duplicated labels.")
+
+        self.labels = labels
 
         # Assume the gender are always encoded like M or F or U(???)
-        self.title_mapping = {'M': 'MR', 'F': 'MS', 'U': 'MX'}
-        self.gender_mapping = {'MR': 'M', 'MRS': 'F', 'MS': 'F', 'MISS': 'F', 'MX': 'U'}
-        self.titles = list(self.title_mapping.values())
+        self.title_mapping = config.title_mapping
+        self.gender_mapping = config.gender_mapping
         self.genders = list(self.title_mapping.keys())
 
         super().__init__(name=name, categories=self.genders,
@@ -50,20 +43,12 @@ class PersonModel(Histogram):
         self.mobile_number_format = config.mobile_number_format
         self.home_number_format = config.home_number_format
         self.work_number_format = config.work_number_format
-
         self.dict_cache_size = config.dict_cache_size
-
-    @property
-    def columns(self) -> List[str]:
-        columns = [
-            self.title_label, self.gender_label, self.name_label, self.firstname_label, self.lastname_label,
-            self.email_label, self.username_label, self.password_label,
-            self.mobile_number_label, self.home_number_label, self.work_number_label
-        ]
-        return list(np.unique([c for c in columns if c is not None]))
+        self.locale = config.locale
+        self.provider = self.get_provider(self.locale)
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
-        if self.gender_label or self.title_label:
+        if self.labels.gender_label or self.labels.title_label:
             gender_sr = self.get_gender_series(df)
             super().fit(gender_sr.to_frame(self.name))
 
@@ -74,7 +59,6 @@ class PersonModel(Histogram):
         return self.sample_conditional(df)
 
     def sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
-        fkr = faker.Faker(locale='en_GB')
         num_rows = len(df)
 
         gender = df.loc[:, self.name].astype(dtype=str)
@@ -83,52 +67,51 @@ class PersonModel(Histogram):
         firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
 
-        if self.gender_label is not None:
-            df.loc[:, self.gender_label] = gender
-        if self.title_label is not None:
-            df.loc[:, self.title_label] = title
-        if self.name_label is not None:
-            df.loc[:, self.name_label] = firstname.str.cat(others=lastname, sep=' ')
-        if self.firstname_label is not None:
-            df.loc[:, self.firstname_label] = firstname
-        if self.lastname_label is not None:
-            df.loc[:, self.lastname_label] = lastname
-        if self.email_label is not None:
+        if self.labels.gender_label is not None:
+            df.loc[:, self.labels.gender_label] = gender
+        if self.labels.title_label is not None:
+            df.loc[:, self.labels.title_label] = title
+        if self.labels.name_label is not None:
+            df.loc[:, self.labels.name_label] = firstname.str.cat(others=lastname, sep=' ')
+        if self.labels.firstname_label is not None:
+            df.loc[:, self.labels.firstname_label] = firstname
+        if self.labels.lastname_label is not None:
+            df.loc[:, self.labels.lastname_label] = lastname
+        if self.labels.email_label is not None:
             # https://email-verify.my-addr.com/list-of-most-popular-email-domains.php
             # we don't want clashes with real emails
             # domain = np.random.choice(a=['gmail.com', 'yahoo.com', 'hotmail.com'], size=len(data))
-            df.loc[:, self.email_label] = self.generate_usernames(firstname, lastname)
-            df.loc[:, self.email_label] = df.loc[:, self.email_label].str.cat(
+            fkr = faker.Faker(locale=self.locale)
+            df.loc[:, self.labels.email_label] = self.generate_usernames(firstname, lastname)
+            df.loc[:, self.labels.email_label] = df.loc[:, self.labels.email_label].str.cat(
                 others=[fkr.domain_name() for _ in range(num_rows)],
                 sep='@')
-            assert all(df.loc[:, self.email_label].apply(self.check_email))
+            assert all(df.loc[:, self.labels.email_label].apply(self.check_email))
 
-        if self.username_label is not None:
-            df.loc[:, self.username_label] = self.generate_usernames(firstname, lastname)
-        if self.password_label is not None:
-            df.loc[:, self.password_label] = [self.generate_password() for _ in range(num_rows)]
-        if self.mobile_number_label is not None:
-            df.loc[:, self.mobile_number_label] = [self.generate_phone_number(self.mobile_number_format)
-                                                   for _ in range(num_rows)]
-        if self.home_number_label is not None:
-            df.loc[:, self.home_number_label] = [self.generate_phone_number(self.home_number_format)
-                                                 for _ in range(num_rows)]
-        if self.work_number_label is not None:
-            df.loc[:, self.work_number_label] = [self.generate_phone_number(self.work_number_format)
-                                                 for _ in range(num_rows)]
+        if self.labels.username_label is not None:
+            df.loc[:, self.labels.username_label] = self.generate_usernames(firstname, lastname)
+        if self.labels.password_label is not None:
+            df.loc[:, self.labels.password_label] = [self.generate_password() for _ in range(num_rows)]
+        if self.labels.mobile_number_label is not None:
+            df.loc[:, self.labels.mobile_number_label] = [self.generate_phone_number(self.mobile_number_format)
+                                                          for _ in range(num_rows)]
+        if self.labels.home_number_label is not None:
+            df.loc[:, self.labels.home_number_label] = [self.generate_phone_number(self.home_number_format)
+                                                        for _ in range(num_rows)]
+        if self.labels.work_number_label is not None:
+            df.loc[:, self.labels.work_number_label] = [self.generate_phone_number(self.work_number_format)
+                                                        for _ in range(num_rows)]
 
-        df.loc[df[self.name].isna(), self.columns] = np.nan
+        columns = [c for c in self.labels.__dict__.values() if c is not None]
+        df.loc[df[self.name].isna(), columns] = np.nan
         df.drop(columns=self.name, inplace=True)
         return df
 
-    def probability(self, x: Any) -> float:
-        raise NotImplementedError
-
     def get_gender_series(self, df: pd.DataFrame) -> pd.Series:
-        if self.gender_label is not None:
-            return df[self.gender_label].astype(str).str.upper()
-        elif self.title_label is not None:
-            return df[self.title_label].astype(str).str.upper().map(self.gender_mapping)
+        if self.labels.gender_label is not None:
+            return df[self.labels.gender_label].astype(str).str.upper()
+        elif self.labels.title_label is not None:
+            return df[self.labels.title_label].astype(str).str.upper().map(self.gender_mapping)
         else:
             raise ValueError("Can't extract gender series as 'gender_label' is not given.")
 
@@ -158,14 +141,13 @@ class PersonModel(Histogram):
     def generate_phone_number(number_format: str = '07xxxxxxxx') -> str:
         return re.sub(r'x', lambda _: str(random.randint(0, 9)), number_format)
 
-    @staticmethod
-    def generate_random_first_name(gender: str):
+    def generate_random_first_name(self, gender: str):
         if gender == 'M':
-            return np.random.choice(Provider.first_names_male)
+            return np.random.choice(self.provider.first_names_male)
         elif gender == 'F':
-            return np.random.choice(Provider.first_names_female)
+            return np.random.choice(self.provider.first_names_female)
         else:
-            return np.random.choice(Provider.first_names)
+            return np.random.choice(self.provider.first_names)
 
     @staticmethod
     def check_email(s: str) -> bool:
@@ -175,6 +157,32 @@ class PersonModel(Histogram):
         (?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[A-Za-z0-9-]*[A-Za-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f
         \x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])""", s)
         return True if m is not None else False
+
+    @staticmethod
+    def get_provider(locale):
+        try:
+            provider = importlib.import_module(f"faker.providers.person.{locale}")
+        except ModuleNotFoundError:
+            raise ValueError(f"Given locale '{locale}' not valid")
+        return provider.Provider
+
+    def get_gender_from_gender(self, gender):
+        gender = gender.strip().lower()
+        for k, v in self.gender_mapping.items():
+            if gender in v:
+                return k
+        return np.nan
+
+    def get_gender_from_title(self, title):
+        title = title.replace('.', '').strip().lower()
+        for k, v in self.title_mapping.items():
+            if title in v:
+                return k
+        return np.nan
+
+    def get_title_from_gender(self, gender):
+        gender = self.get_gender_from_gender(gender)
+        return self.title_mapping[gender][0] if gender in self.title_mapping.keys() else np.nan
 
     @classmethod
     def from_meta(cls, meta: Nominal[NType], config: PersonModelConfig = PersonModelConfig()) -> 'PersonModel':

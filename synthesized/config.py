@@ -68,6 +68,7 @@ class PersonLabels:
 
 @dataclass
 class PersonModelConfig:
+    locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
@@ -76,6 +77,14 @@ class PersonModelConfig:
     @property
     def person_model_config(self):
         return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
 
 
 @dataclass

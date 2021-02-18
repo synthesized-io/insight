@@ -200,6 +200,7 @@ def test_person(labels, expected_columns):
 
     with pytest.raises(ValueError):
         PersonModel('gender', nan_freq=0.3, labels=PersonLabels(gender_label='gender'))
+        PersonModel('gender', nan_freq=0.3, labels=PersonLabels(firstname_label='name', lastname_label='name'))
         PersonModel('gender', nan_freq=0.3)
 
 

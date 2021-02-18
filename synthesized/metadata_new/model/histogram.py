@@ -42,7 +42,6 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             value_counts = pd.value_counts(df[self.name], normalize=True, dropna=True, sort=False)
 
         self.probabilities = {cat: value_counts.get(cat, 0.0) for cat in self.categories}
-        self._fitted = True
         return self
 
     def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
