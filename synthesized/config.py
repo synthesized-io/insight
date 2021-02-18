@@ -42,7 +42,7 @@ class BankParams(AnnotationParams):
 
 
 @dataclass
-class PersonParams(AnnotationParams):
+class PersonLabels:
     title_label: Optional[str] = None
     gender_label: Optional[str] = None
     name_label: Optional[str] = None
