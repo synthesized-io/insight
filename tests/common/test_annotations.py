@@ -122,6 +122,7 @@ def test_addresses_from_file():
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently in development")
 def test_pre_post_processing():
     df = pd.read_csv('data/annotations_nd.csv')
     person_params = PersonParams(

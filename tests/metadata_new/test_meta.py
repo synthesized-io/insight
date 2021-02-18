@@ -48,13 +48,13 @@ class TestMeta(MetaTestData):
     @pytest.fixture(scope='class')
     def meta_expanded_dataframe(self, meta, dataframe):
         df = dataframe.copy()
-        meta.expand(df)
+        meta.convert_df_for_children(df)
         return df
 
     @pytest.fixture(scope='class')
     def collapsed_dataframe(self, meta, meta_expanded_dataframe):
         df = meta_expanded_dataframe.copy()
-        meta.collapse(df)
+        meta.revert_df_from_children(df)
         return df
 
     def test_expand(self, meta, meta_expanded_dataframe, expanded_dataframe):
