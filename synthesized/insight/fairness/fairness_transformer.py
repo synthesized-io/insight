@@ -1,9 +1,9 @@
 import logging
-from typing import Dict, List, Optional, cast
+from typing import List, Optional, cast
 
 import pandas as pd
 
-from ...metadata_new import ContinuousModel, DataFrameMeta, Date, MetaExtractor, Model, Scale, ValueMeta
+from ...metadata_new import ContinuousModel, DataFrameMeta, Date, MetaExtractor, Scale, ValueMeta
 from ...metadata_new.model import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
@@ -25,7 +25,7 @@ class FairnessTransformer(SequentialTransformer):
     """
 
     def __init__(self, sensitive_attrs: List[str], target: str, df_meta: Optional[DataFrameMeta] = None,
-                 df_models: Optional[Dict[str, Model]] = None, n_bins: int = 5, target_n_bins: Optional[int] = 5,
+                 df_models: DataFrameMeta = None, n_bins: int = 5, target_n_bins: Optional[int] = 5,
                  positive_class: Optional[str] = None):
 
         self.df_meta = df_meta
@@ -50,8 +50,8 @@ class FairnessTransformer(SequentialTransformer):
             self.df_meta = MetaExtractor.extract(df)
 
         if self.df_models is None:
-            models = ModelFactory().create_model(self.df_meta)
-            assert isinstance(models, dict)
+            models = ModelFactory()(self.df_meta)
+            assert isinstance(models, DataFrameMeta)
             self.df_models = models
 
         # Transformer for target column

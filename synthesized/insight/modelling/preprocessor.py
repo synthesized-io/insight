@@ -8,23 +8,25 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Model
+from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor
 from ...metadata_new.model import ModelFactory
 
 logger = logging.getLogger(__name__)
 
 
 class ModellingPreprocessor:
-    def __init__(self, target: Optional[str], df: pd.DataFrame = None, dp: DataFrameMeta = None, models: Dict[str, Model] = None):
+    def __init__(self, target: Optional[str], df: pd.DataFrame = None, dp: DataFrameMeta = None, models: DataFrameMeta = None):
         self.target = target
 
         if dp is None and df is not None:
             self.dp: Optional[DataFrameMeta] = MetaExtractor.extract(df)
-        else:
+        elif dp is not None:
             self.dp = dp
+        else:
+            self.dp = None
 
         if models is None and self.dp is not None:
-            self.models: Optional[Dict[str, Model]] = ModelFactory()._from_dataframe_meta(self.dp)
+            self.models: Optional[DataFrameMeta] = ModelFactory()(self.dp)
         else:
             self.models = models
 
@@ -42,7 +44,7 @@ class ModellingPreprocessor:
             self.dp = MetaExtractor.extract(data)
 
         if self.models is None:
-            self.models = ModelFactory()._from_dataframe_meta(self.dp)
+            self.models = ModelFactory()(self.dp)
 
         categorical, continuous = [], []
         for model in self.models.values():

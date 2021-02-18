@@ -22,11 +22,6 @@ import pandas as pd
 import pytest
 
 
-@pytest.fixture(scope='class', params=[False, True], ids=['complete', 'with nans'])
-def with_nans(request):
-    return request.param
-
-
 class MetaTestData:
     @pytest.fixture(scope='class')
     def dataframe(self, name):

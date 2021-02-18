@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import logging
-from typing import Dict, List, Optional, Union
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
-from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Model, Ordinal
+from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Ordinal
 from ...metadata_new.model import ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Mean(ColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None):
+                           models: DataFrameMeta = None):
         dp, _ = self.extract_metas_models(sr_a, dp, models)
 
         if not isinstance(dp[sr_a.name], Affine):
@@ -44,7 +44,7 @@ class StandardDeviation(ColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None):
+                           models: DataFrameMeta = None):
         dp, _ = self.extract_metas_models(sr_a, dp, models)
 
         if not isinstance(dp[sr_a.name], Affine):
@@ -71,7 +71,7 @@ class KendellTauCorrelation(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None,
+                           models: DataFrameMeta = None,
                            calculate_categorical: bool = False, **kwargs):
         dp, df_model = self.extract_metas_models(sr_a, sr_b, dp, models)
         if not calculate_categorical and (not isinstance(df_model[sr_a.name], ContinuousModel)
@@ -105,7 +105,7 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None):
+                           models: DataFrameMeta = None):
         dp, _ = self.extract_metas_models(sr_a, sr_b, dp, models)
 
         if not isinstance(dp[sr_a.name], Ordinal) or not isinstance(dp[sr_b.name], Ordinal):
@@ -133,7 +133,7 @@ class CramersV(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None) -> bool:
+                           models: DataFrameMeta = None) -> bool:
         _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
 
         if not isinstance(models[sr_a.name], DiscreteModel) or not isinstance(models[sr_b.name], DiscreteModel):
@@ -180,7 +180,7 @@ class CategoricalLogisticR2(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None, **kwargs) -> bool:
+                           models: DataFrameMeta = None, **kwargs) -> bool:
         _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
 
         x_model = models[sr_a.name]
@@ -211,7 +211,7 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None) -> bool:
+                           models: DataFrameMeta = None) -> bool:
         _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
 
         if not isinstance(models[sr_a.name], ContinuousModel) and not isinstance(models[sr_b.name], ContinuousModel):
@@ -238,7 +238,7 @@ class EarthMoversDistance(TwoColumnMetric):
 
     def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series,
                            dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                           models: Optional[Dict[str, Model]] = None) -> bool:
+                           models: DataFrameMeta = None) -> bool:
         _, models = self.extract_metas_models(sr_a, sr_b, dp, models)
 
         if not isinstance(models[sr_a.name], DiscreteModel) and not isinstance(models[sr_b.name], DiscreteModel):
@@ -291,7 +291,7 @@ def logistic_regression_r2(df: pd.DataFrame, y_label: str, x_labels: List[str],
 
     df_models = kwargs.get('df_models')
     if df_models is None:
-        df_models = ModelFactory()._from_dataframe_meta(dp)
+        df_models = ModelFactory()(dp)
 
     if not isinstance(df_models[y_label], DiscreteModel):
         return None

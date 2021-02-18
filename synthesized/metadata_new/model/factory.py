@@ -1,56 +1,65 @@
-from typing import Any, Dict, Optional, Union, cast
+from typing import List, Optional, Union
 
 import numpy as np
 
-from . import Histogram, KernelDensityEstimate
-from ..base import Affine, Meta, Model, Nominal, ValueMeta
+from .histogram import Histogram
+from .kde import KernelDensityEstimate
+from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
-from ...config import ModelFactoryConfig
+from ...config import ModelBuilderConfig
+
+DisContModel = Union[DiscreteModel, ContinuousModel]
 
 
 class ModelFactory:
-    """Factory class to create Model instances from Meta."""
-    def __init__(self, config: Optional[ModelFactoryConfig] = None):
-        if config is None:
-            self.config = ModelFactoryConfig()
-        else:
-            self.config = config
+    """Factory class to create DataFrameMetas of Model instances from DataFrameMetas."""
 
-    def create_df_model_meta(self, df_meta: DataFrameMeta) -> DataFrameMeta:
+    def __init__(self, config: ModelBuilderConfig = None):
+        self._builder = ModelBuilder(config)
+
+    def __call__(self, df_meta: DataFrameMeta, type_overrides: Optional[List[DisContModel]] = None) -> DataFrameMeta:
+        """
+        Public method for creating a model container from a DataFrameMeta
+        Args:
+            meta: DataFrameMeta instance.
+            type_overrides: List containing the models that override the default mappings
+        Returns:
+            df_model: a DataFrameMeta mapping column name to model instance.
+        """
+        type_override_dict = {m.name: m for m in type_overrides} if type_overrides is not None else {}
         df_model = DataFrameMeta(name='models')
         for name, meta in df_meta.items():
-            if isinstance(meta, ValueMeta):
-                model = self._from_value_meta(meta)
-                if isinstance(model, ValueMeta):
-                    df_model[name] = model
+            if meta.name in type_override_dict:
+                model = type_override_dict[meta.name]
+            else:
+                model = self._builder(meta)
+
+            if isinstance(model, ValueMeta):
+                df_model[name] = model
 
         return df_model
 
-    def create_model(self, meta: Meta) -> Union[Model, Dict[str, Model]]:
+
+class ModelBuilder:
+    """ Wraps the logic around how the default mapping of meta -> model takes place """
+    def __init__(self, config: ModelBuilderConfig = None):
+        if config is None:
+            self.config = ModelBuilderConfig()
+        else:
+            self.config = config
+
+    def __call__(self, meta):
         """
-        Create a KernelDensityEstimate for an Affine Meta, or a Histogram for Nominal. If the number
+        Creates a KernelDensityEstimate for an Affine Meta, or a Histogram for Nominal. If the number
         of unique categories is smaller than the maximum of of min_num_unique, sqrt(num_rows), or
         categorical_threshold * log(num_rows) then a Histogram is returned.
 
         Args:
-            x: ValueMeta or DataFrameMeta instance.
-            num_rows: Optional; number of rows in the column.
+            meta: Meta instance, if not of type at least Nominal, will raise an error
 
         Returns:
-            Single Model if x is a ValueMeta or a dictionary mapping column name to model instance if a DataFrameMeta.
+            Model if meta is a ValueMeta
         """
-
-        if isinstance(meta, ValueMeta):
-            return self._from_value_meta(meta)
-
-        elif isinstance(meta, DataFrameMeta):
-            return self._from_dataframe_meta(meta)
-
-        else:
-            raise TypeError(f"Cannot create Model from {type(meta)}")
-
-    def _from_value_meta(self, meta: ValueMeta[Any]) -> Model:
-
         if isinstance(meta, Affine):
             n_unique = len(meta.categories) if meta.categories else 0
             if (meta.categories is None) or\
@@ -64,11 +73,3 @@ class ModelFactory:
 
         else:
             raise TypeError(f"Cannot create Model from {type(meta)}")
-
-    def _from_dataframe_meta(self, meta: DataFrameMeta) -> Dict[str, Model]:
-        models: Dict[str, Model] = {}
-        for name, value_meta in meta.items():
-            value_meta = cast(ValueMeta, value_meta)
-            model = self._from_value_meta(value_meta)
-            models[name] = model
-        return models

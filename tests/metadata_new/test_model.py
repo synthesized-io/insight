@@ -9,7 +9,9 @@ import pandas as pd
 import pytest
 
 from synthesized.metadata_new import Date, Integer, MetaExtractor
-from synthesized.metadata_new.model import SequentialFormattedString, FormattedString, Histogram, KernelDensityEstimate, ModelFactory
+from synthesized.metadata_new.data_frame_meta import DataFrameMeta
+from synthesized.metadata_new.model import (FormattedString, Histogram, KernelDensityEstimate, ModelBuilder,
+                                            ModelFactory, SequentialFormattedString)
 
 logger = logging.getLogger(__name__)
 
@@ -150,10 +152,10 @@ def test_sequential_formatted_string_model():
 
 
 def test_factory(simple_df_meta):
-    df_models = ModelFactory().create_model(simple_df_meta)
+    df_models = ModelFactory()(simple_df_meta)
 
-    assert isinstance(ModelFactory().create_model(simple_df_meta), dict)
-    assert isinstance(ModelFactory().create_model(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
+    assert isinstance(ModelFactory()(simple_df_meta), DataFrameMeta)
+    assert isinstance(ModelBuilder()(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
     assert isinstance(df_models['string'], Histogram)
     assert isinstance(df_models['bool'], Histogram)
     assert isinstance(df_models['date'], KernelDensityEstimate)
@@ -173,7 +175,7 @@ def test_models_with_nans():
     df_original.loc[np.random.uniform(size=len(df_original)) < nan_freq, 'y'] = np.nan
 
     df_meta = MetaExtractor.extract(df_original)
-    df_model = ModelFactory().create_df_model_meta(df_meta)
+    df_model = ModelFactory()(df_meta)
 
     assert isinstance(df_model['x'], KernelDensityEstimate)
     assert isinstance(df_model['y'], Histogram)
@@ -186,3 +188,17 @@ def test_models_with_nans():
 
     df_synthesized = pd.concat([model.sample(num_rows, produce_nans=True) for model in df_model.values()], axis=1)
     assert all([df_synthesized[c].isna().sum() > 0 for c in df_synthesized.columns])
+
+
+def test_factory_type_override(simple_df_meta):
+    type_overrides = [
+        KernelDensityEstimate.from_meta(simple_df_meta["int"]),
+        KernelDensityEstimate.from_meta(simple_df_meta["int_bool"]),
+        Histogram.from_meta(simple_df_meta["float"])
+    ]
+
+    df_models = ModelFactory()(simple_df_meta, type_overrides)
+
+    assert isinstance(df_models["int"], KernelDensityEstimate)
+    assert isinstance(df_models["int_bool"], KernelDensityEstimate)
+    assert isinstance(df_models["float"], Histogram)
