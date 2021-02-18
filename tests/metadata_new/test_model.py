@@ -196,7 +196,10 @@ def test_sequential_formatted_string_model():
 def test_person(labels, expected_columns):
     meta = Person('person', nan_freq=0.3, labels=labels)
     model = PersonModel.from_meta(meta)
-
+    n = 1000
+    df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
+                       'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
+    model.fit(df)
     assert_model_output(model, expected_columns=expected_columns)
 
     with pytest.raises(ValueError):

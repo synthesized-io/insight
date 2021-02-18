@@ -1,56 +1,39 @@
-import logging
-from typing import Dict, List, Sequence
+from dataclasses import asdict
+from typing import Dict, Optional, Sequence
 
 import pandas as pd
 
 from .categorical import String
-from ..base import Meta
 from ...config import PersonLabels
-
-logger = logging.getLogger(__name__)
 
 
 class Person(String):
-    """
-    Person
-    """
+    """Person meta."""
 
     def __init__(
-            self, name, categories: Sequence[str] = None, nan_freq: float = None,
-            num_rows: int = None, labels: PersonLabels = PersonLabels()
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
-
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+        self._params = {k: v for k, v in asdict(labels).items() if v is not None}
 
-        self.title_label = labels.title_label
-        self.gender_label = labels.gender_label
-        self.name_label = labels.name_label
-        self.firstname_label = labels.firstname_label
-        self.lastname_label = labels.lastname_label
-        self.email_label = labels.email_label
-        self.username_label = labels.username_label
-        self.password_label = labels.password_label
-        self.mobile_number_label = labels.mobile_number_label
-        self.home_number_label = labels.home_number_label
-        self.work_number_label = labels.work_number_label
+        self.children = [
+            String(name)
+            for name in self._params.values() if name is not None
+        ]
 
-        string_labels = [self.title_label, self.gender_label, self.name_label, self.firstname_label,
-                         self.lastname_label, self.email_label, self.username_label, self.password_label,
-                         self.mobile_number_label, self.home_number_label, self.work_number_label]
+    @property
+    def params(self) -> Dict[str, Optional[str]]:
+        return self._params
 
-        children: List[Meta] = [String(label) for label in string_labels if label is not None]
-
-        self.children = children
+    @property
+    def labels(self) -> PersonLabels:
+        return PersonLabels(**self.params)
 
     def extract(self, df: pd.DataFrame):
-        super().extract(df=df)
+        super().extract(df)
+
         return self
-
-    def expand(self, df: pd.DataFrame):
-        return self.convert_df_for_children(df)
-
-    def collapse(self, df: pd.DataFrame):
-        return self.revert_df_from_children(df)
 
     def convert_df_for_children(self, df: pd.DataFrame):
         if self.name not in df.columns:
@@ -69,16 +52,7 @@ class Person(String):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            'title_label': self.title_label,
-            'gender_label': self.gender_label,
-            'name_label': self.name_label,
-            'firstname_label': self.firstname_label,
-            'lastname_label': self.lastname_label,
-            'email_label': self.email_label,
-            'username_label': self.username_label,
-            'password_label': self.password_label,
-            'mobile_number_label': self.mobile_number_label,
-            'home_number_label': self.home_number_label,
-            'work_number_label': self.work_number_label,
+            "_params": self.params
         })
+
         return d

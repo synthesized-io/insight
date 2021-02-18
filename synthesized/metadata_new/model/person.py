@@ -10,12 +10,12 @@ import pandas as pd
 from faker.providers.person.en import Provider
 
 from .histogram import Histogram
-from ..base.value_meta import Nominal, NType
+from ..base import Model
 from ..value import Person
 from ...config import PersonLabels, PersonModelConfig
 
 
-class PersonModel(Histogram):
+class PersonModel(Person, Model):
 
     def __init__(self, name, nan_freq: Optional[float] = None,
                  labels: PersonLabels = PersonLabels(),
@@ -29,16 +29,15 @@ class PersonModel(Histogram):
         if len(columns) > len(np.unique(columns)):
             raise ValueError("There can't be any duplicated labels.")
 
-        self.labels = labels
-
         # Assume the gender are always encoded like M or F or U(???)
         self.title_mapping = config.title_mapping
         self.gender_mapping = config.gender_mapping
         self.genders = list(self.title_mapping.keys())
 
-        super().__init__(name=name, categories=self.genders,
-                         probabilities={gender: 1 / len(self.genders) for gender in self.genders},
-                         nan_freq=nan_freq)
+        super().__init__(name=name, categories=self.genders, nan_freq=nan_freq, labels=labels)
+        self.gender_model = Histogram(name=f"{name}_gender", categories=self.genders,
+                                      probabilities={gender: 1 / len(self.genders) for gender in self.genders},
+                                      nan_freq=nan_freq)
 
         self.mobile_number_format = config.mobile_number_format
         self.home_number_format = config.home_number_format
@@ -50,19 +49,20 @@ class PersonModel(Histogram):
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
         if self.labels.gender_label or self.labels.title_label:
             gender_sr = self.get_gender_series(df)
-            super().fit(gender_sr.to_frame(self.name))
+            self.gender_model.fit(gender_sr.to_frame(self.gender_model.name))
 
+        self._fitted = True
         return self
 
     def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
-        df = super().sample(n, produce_nans=produce_nans)
+        df = self.gender_model.sample(n, produce_nans=produce_nans)
         return self.sample_conditional(df)
 
     def sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
         num_rows = len(df)
 
-        gender = df.loc[:, self.name].astype(dtype=str)
-        title = gender.astype(dtype=str).map(self.title_mapping)
+        gender = df.loc[:, self.gender_model.name].astype(dtype=str)
+        title = gender.astype(dtype=str).apply(self.get_title_from_gender)
 
         firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
@@ -103,15 +103,15 @@ class PersonModel(Histogram):
                                                         for _ in range(num_rows)]
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
-        df.loc[df[self.name].isna(), columns] = np.nan
-        df.drop(columns=self.name, inplace=True)
+        df.loc[df[self.gender_model.name].isna(), columns] = np.nan
+        df.drop(columns=self.gender_model.name, inplace=True)
         return df
 
     def get_gender_series(self, df: pd.DataFrame) -> pd.Series:
         if self.labels.gender_label is not None:
-            return df[self.labels.gender_label].astype(str).str.upper()
+            return df[self.labels.gender_label].astype(str).apply(self.get_gender_from_gender)
         elif self.labels.title_label is not None:
-            return df[self.labels.title_label].astype(str).str.upper().map(self.gender_mapping)
+            return df[self.labels.title_label].astype(str).apply(self.get_gender_from_title)
         else:
             raise ValueError("Can't extract gender series as 'gender_label' is not given.")
 
@@ -166,38 +166,24 @@ class PersonModel(Histogram):
             raise ValueError(f"Given locale '{locale}' not valid")
         return provider.Provider
 
-    def get_gender_from_gender(self, gender):
+    def get_gender_from_gender(self, gender: str) -> str:
         gender = gender.strip().lower()
         for k, v in self.gender_mapping.items():
             if gender in v:
                 return k
         return np.nan
 
-    def get_gender_from_title(self, title):
+    def get_gender_from_title(self, title: str) -> str:
         title = title.replace('.', '').strip().lower()
         for k, v in self.title_mapping.items():
             if title in v:
                 return k
         return np.nan
 
-    def get_title_from_gender(self, gender):
+    def get_title_from_gender(self, gender: str) -> str:
         gender = self.get_gender_from_gender(gender)
         return self.title_mapping[gender][0] if gender in self.title_mapping.keys() else np.nan
 
     @classmethod
-    def from_meta(cls, meta: Nominal[NType], config: PersonModelConfig = PersonModelConfig()) -> 'PersonModel':
-        assert isinstance(meta, Person)
-        labels = PersonLabels(
-            title_label=meta.title_label,
-            gender_label=meta.gender_label,
-            name_label=meta.name_label,
-            firstname_label=meta.firstname_label,
-            lastname_label=meta.lastname_label,
-            email_label=meta.email_label,
-            username_label=meta.username_label,
-            password_label=meta.password_label,
-            mobile_number_label=meta.mobile_number_label,
-            home_number_label=meta.home_number_label,
-            work_number_label=meta.work_number_label,
-        )
-        return cls(name=meta.name, nan_freq=meta.nan_freq, labels=labels, config=config)
+    def from_meta(cls, meta: Person, config: PersonModelConfig = PersonModelConfig()) -> 'PersonModel':
+        return cls(name=meta.name, nan_freq=meta.nan_freq, labels=meta.labels, config=config)

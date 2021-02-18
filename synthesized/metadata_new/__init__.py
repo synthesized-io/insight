@@ -6,7 +6,7 @@ from .value import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, Orde
 
 __all__ = [
     'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring',
-    'Address', 'Bank', 'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta', 'TimeDeltaDay', 'Person',
+    'Address', 'Bank', 'Person', 'Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta', 'TimeDeltaDay',
     'DataFrameMeta', 'MetaExtractor', 'IntegerBool', 'OrderedString',
     'Model', 'DiscreteModel', 'ContinuousModel'
 ]

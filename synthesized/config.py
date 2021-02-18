@@ -41,26 +41,12 @@ class BankParams(AnnotationParams):
     account_label: Optional[str] = None
 
 
-@dataclass
-class PersonParams:
-    title_label: Union[str, List[str], None] = None
-    gender_label: Union[str, List[str], None] = None
-    name_label: Union[str, List[str], None] = None
-    firstname_label: Union[str, List[str], None] = None
-    lastname_label: Union[str, List[str], None] = None
-    email_label: Union[str, List[str], None] = None
-    username_label: Union[str, List[str], None] = None
-    password_label: Union[str, List[str], None] = None
-    mobile_number_label: Union[str, List[str], None] = None
-    home_number_label: Union[str, List[str], None] = None
-    work_number_label: Union[str, List[str], None] = None
-
-
-@dataclass
+@dataclass(frozen=True)
 class PersonLabels:
     title_label: Optional[str] = None
     gender_label: Optional[str] = None
     name_label: Optional[str] = None
+    fullname_label: Optional[str] = None
     firstname_label: Optional[str] = None
     lastname_label: Optional[str] = None
     email_label: Optional[str] = None

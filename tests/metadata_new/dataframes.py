@@ -16,6 +16,7 @@ FloatData          |  'f8'
 IntBoolData        |  'i8'
 AddressData        |  addresses
 BankData           |  bank accounts
+PersonData         |  persons
 """
 import numpy as np
 import pandas as pd
@@ -253,20 +254,19 @@ class PersonData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["M|joe|doe", "F|jane|smith", "U|alex|black"]
+            name: ["Robert|Bell", "Alice|Smith", "Alice|Bell", "Robert|Bell"]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
-            "gender": pd.Series(["M", "F", "U"], dtype=object),
-            "firstname": pd.Series(["joe", "jane", "alex"], dtype=object),
-            "lastname": pd.Series(["doe", "smith", "black"], dtype=object),
+            "first_name": pd.Series(["Robert", "Alice", "Alice", "Robert"], dtype=object),
+            "last_name": pd.Series(["Bell", "Smith", "Bell", "Bell"], dtype=object),
         })
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["M|joe|doe", "F|jane|smith", "U|alex|black"]
+        return ["Robert|Bell", "Alice|Smith", "Alice|Bell"]
 
 
 class DataFrameData(MetaTestData):
