@@ -1,11 +1,11 @@
 import logging
-from typing import Dict, List, Optional, Sequence
+from dataclasses import asdict
+from typing import Dict, Optional, Sequence
 
 import pandas as pd
 
 from .categorical import String
-from ..base import Meta
-from ...config import AddressParams
+from ...config import AddressLabels
 
 logger = logging.getLogger(__name__)
 
@@ -16,40 +16,25 @@ class Address(String):
     """
 
     def __init__(
-            self, name, categories: Sequence[str] = None, nan_freq: float = None,
-            num_rows: int = None, postcode_label: Optional[str] = None, county_label: Optional[str] = None,
-            city_label: Optional[str] = None, district_label: Optional[str] = None,
-            street_label: Optional[str] = None, house_number_label: Optional[str] = None,
-            flat_label: Optional[str] = None, house_name_label: Optional[str] = None
+            self, name, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None, labels: AddressLabels = AddressLabels()
     ):
 
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+        self._params = {k: v for k, v in asdict(labels).items() if v is not None}
 
-        self.postcode_label = postcode_label
-        self.county_label = county_label
-        self.city_label = city_label
-        self.district_label = district_label
-        self.street_label = street_label
-        self.house_number_label = house_number_label
-        self.flat_label = flat_label
-        self.house_name_label = house_name_label
+        self.children = [
+            String(name)
+            for name in self._params.values() if name is not None
+        ]
 
-        string_labels = [house_number_label, flat_label, house_name_label, street_label, district_label,
-                         city_label, county_label, postcode_label]
+    @property
+    def params(self) -> Dict[str, Optional[str]]:
+        return self._params
 
-        children: List[Meta] = [String(label) for label in string_labels if label is not None]
-
-        self.children = children
-
-    @classmethod
-    def from_params(cls, params: AddressParams) -> 'Address':
-        ann = Address(
-            name=params.name, postcode_label=params.postcode_label, county_label=params.county_label,
-            city_label=params.city_label, district_label=params.district_label,
-            street_label=params.street_label, house_number_label=params.house_number_label,
-            flat_label=params.house_number_label, house_name_label=params.house_name_label
-        )
-        return ann
+    @property
+    def labels(self) -> AddressLabels:
+        return AddressLabels(**self.params)
 
     def extract(self, df: pd.DataFrame):
         super().extract(df=df)
@@ -72,13 +57,6 @@ class Address(String):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            'postcode_label': self.postcode_label,
-            'county_label': self.county_label,
-            'city_label': self.city_label,
-            'district_label': self.district_label,
-            'street_label': self.street_label,
-            'house_number_label': self.house_number_label,
-            'flat_label': self.flat_label,
-            'house_name_label': self.house_name_label,
+            "_params": self.params
         })
         return d
