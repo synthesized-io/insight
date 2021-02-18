@@ -13,7 +13,7 @@ from .identify_rules import identify_rules
 from .values import (AddressMeta, AssociationMeta, BankNumberMeta, CategoricalMeta, ConstantMeta, ContinuousMeta,
                      DateMeta, EnumerationMeta, FormattedStringMeta, IdentifierMeta, NanMeta, PersonMeta, SamplingMeta,
                      TimeIndexMeta, ValueMeta)
-from ..config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonLabels
+from ..config import AddressParams, BankLabels, FormattedStringParams, MetaExtractorConfig, PersonLabels
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class MetaExtractor:
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None,
+            address_params: AddressParams = None, bank_params: BankLabels = None,
             person_params: PersonLabels = None, formatted_string_params: FormattedStringParams = None,
     ) -> DataFrameMeta:
         extractor = cls(config)
@@ -54,7 +54,7 @@ class MetaExtractor:
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
             find_rules: Union[str, List[str]] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None,
+            address_params: AddressParams = None, bank_params: BankLabels = None,
             person_params: PersonLabels = None, formatted_string_params: FormattedStringParams = None
     ) -> DataFrameMeta:
         column_aliases = column_aliases or dict()
@@ -92,7 +92,7 @@ class MetaExtractor:
                              column_aliases=column_aliases, association_meta=association_meta)
 
     def _identify_annotations(self, df: pd.DataFrame, address_params: AddressParams = None,
-                              bank_params: BankParams = None, person_params: PersonLabels = None,
+                              bank_params: BankLabels = None, person_params: PersonLabels = None,
                               formatted_string_params: FormattedStringParams = None) -> List[ValueMeta]:
 
         values: List[ValueMeta] = []
