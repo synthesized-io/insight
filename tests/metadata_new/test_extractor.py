@@ -10,7 +10,7 @@ from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, MetaExtractor,
-                                      OrderedString, Ordinal, String)
+                                      OrderedString, Ordinal, Person, String)
 
 logger = logging.getLogger(__name__)
 
@@ -154,15 +154,19 @@ def test_annotations():
         'a': ['a', 'b', 'c'],
         'b': ['MAUS', 'HBUK', 'HBUK'],
         'c': ['010468', '616232', '131315'],
-        'd': ['d', 'm', 'm']
+        'd': ['d', 'm', 'm'],
+        'e': ['Alice', 'Bob', 'Charlie'],
+        'f': ['Smith', 'Holmes', 'Smith']
     })
 
     annotations = [
         Address(name='address', city_label='a', street_label='d'),
-        Bank(name='bank', bic_label='b', sort_code_label='c')
+        Bank(name='bank', bic_label='b', sort_code_label='c'),
+        Person(name='person', first_name_label='e', last_name_label='f')
     ]
 
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)
 
     assert list(df_meta['address'].keys()) == ['d', 'a']
     assert list(df_meta['bank'].keys()) == ['b', 'c']
+    assert list(df_meta['person'].keys()) == ['e', 'f']
