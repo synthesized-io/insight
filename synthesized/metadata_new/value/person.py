@@ -15,15 +15,15 @@ class Person(String):
             num_rows: Optional[int] = None, labels: Optional[PersonLabels] = None,
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
-        self._labels = labels if labels is not None else PersonLabels()
+        self._labels = asdict(labels) if labels is not None else asdict(PersonLabels())
         self.children = [
-            String(getattr(self._labels, label.name))
-            for label in fields(self._labels) if getattr(self._labels, label.name) is not None
+            String(name)
+            for name in self._labels.values() if name is not None
         ]
 
     @property
     def labels(self) -> Dict[str, Optional[str]]:
-        return asdict(self._labels)
+        return self._labels
 
     def extract(self, df: pd.DataFrame):
         super().extract(df)
