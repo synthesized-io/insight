@@ -1,17 +1,18 @@
 import logging
-import random
-import string
 from datetime import datetime
-from typing import cast
+from typing import List, Optional, cast
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from synthesized.config import PersonLabels
 from synthesized.metadata_new import Date, Integer, MetaExtractor
+from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.model import (FormattedString, Histogram, KernelDensityEstimate, ModelBuilder,
-                                            ModelFactory, SequentialFormattedString)
+                                            ModelFactory, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.value import Person
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 def simple_df():
     np.random.seed(6235901)
     df = pd.DataFrame({
-        'string': np.random.choice(['A','B','C','D','E'], size=1000),
+        'string': np.random.choice(['A', 'B', 'C', 'D', 'E'], size=1000),
         'bool': np.random.choice([False, True], size=1000).astype('?'),
         'date': pd.to_datetime(18_000 + np.random.normal(500, 50, size=1000).astype(int), unit='D'),
         'int': [n for n in [0, 1, 2, 3, 4, 5] for i in range([50, 50, 0, 200, 400, 300][n])],
@@ -47,6 +48,20 @@ def simple_df_meta(simple_df):
     df_meta = MetaExtractor.extract(simple_df)
     return df_meta
 
+
+def assert_model_output(model: Model, expected_columns: List[str], n: int = 1000,
+                        nan_columns: Optional[List[str]] = None):
+
+    nan_columns = nan_columns if nan_columns else expected_columns
+
+    for produce_nans in [True, False]:
+        df = model.sample(n, produce_nans=produce_nans)
+        assert len(df) == n
+        assert sorted(df.columns) == sorted(expected_columns)
+        if produce_nans:
+            assert all([df[c].isna().sum() > 0 for c in nan_columns])
+        else:
+            assert all([df[c].isna().sum() == 0 for c in nan_columns])
 
 @pytest.mark.slow
 @pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
@@ -149,6 +164,52 @@ def test_sequential_formatted_string_model():
     model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
     assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
+
+
+@pytest.mark.parametrize(
+    "labels,expected_columns",
+    [
+        pytest.param(PersonLabels(title_label='title', gender_label='gender', name_label='name',
+                                  firstname_label='firstname', lastname_label='lastname',
+                                  email_label='email', username_label='username', password_label='password',
+                                  mobile_number_label='mobile_number', home_number_label='home_number',
+                                  work_number_label='work_number'),
+                     ['title', 'gender', 'name', 'firstname', 'lastname', 'email', 'username', 'password',
+                      'mobile_number', 'home_number', 'work_number'],
+                     id="all_labels"),
+        pytest.param(PersonLabels(title_label='title', gender_label=None, name_label=None,
+                                  firstname_label='firstname', lastname_label='lastname',
+                                  email_label='email', username_label='username', password_label='password',
+                                  mobile_number_label=None, home_number_label=None,
+                                  work_number_label=None),
+                     ['title', 'firstname', 'lastname', 'email', 'username', 'password'],
+                     id="some_labels_no_gender"),
+        pytest.param(PersonLabels(title_label=None, gender_label=None, name_label='name',
+                                  firstname_label=None, lastname_label=None,
+                                  email_label=None, username_label=None, password_label=None,
+                                  mobile_number_label='mobile_number', home_number_label='home_number',
+                                  work_number_label='work_number'),
+                     ['name', 'mobile_number', 'home_number', 'work_number'],
+                     id="other_labels_no_gender_title")
+    ])
+def test_person(labels, expected_columns):
+    meta = Person('person', nan_freq=0.3, labels=labels)
+    model = PersonModel.from_meta(meta)
+    n = 1000
+    df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
+                       'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
+    model.fit(df)
+    assert_model_output(model, expected_columns=expected_columns)
+
+    conditions = pd.DataFrame({'person_gender': np.random.choice(['m', 'f', 'u'], size=n)})
+    df_sampled = model.sample(conditions=conditions)
+    assert sorted(df_sampled.columns) == sorted(expected_columns)
+
+    with pytest.raises(ValueError):
+        model.sample()
+        PersonModel('gender', nan_freq=0.3, labels=PersonLabels(gender_label='gender'))
+        PersonModel('gender', nan_freq=0.3, labels=PersonLabels(firstname_label='name', lastname_label='name'))
+        PersonModel('gender', nan_freq=0.3)
 
 
 def test_factory(simple_df_meta):

@@ -77,7 +77,7 @@ class TestPerson(TestNominal, PersonData):
     @pytest.fixture(scope='class')
     def meta(self, name) -> Person:
         meta = Person(
-            name=name, labels=PersonLabels(firstname_label="first_name", lastname_label="last_name")
+            name=name, labels=PersonLabels(firstname_label='first_name', lastname_label='last_name')
         )
         return meta
 
