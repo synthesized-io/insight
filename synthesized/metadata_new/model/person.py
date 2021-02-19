@@ -10,12 +10,12 @@ import pandas as pd
 from faker.providers.person.en import Provider
 
 from .histogram import Histogram
-from ..base import Model
+from ..base import DiscreteModel
 from ..value import Person
 from ...config import PersonLabels, PersonModelConfig
 
 
-class PersonModel(Person, Model):
+class PersonModel(Person, DiscreteModel):
 
     def __init__(self, name, nan_freq: Optional[float] = None,
                  labels: PersonLabels = PersonLabels(),
@@ -34,7 +34,7 @@ class PersonModel(Person, Model):
         self.gender_mapping = config.gender_mapping
         self.genders = list(self.title_mapping.keys())
 
-        super().__init__(name=name, categories=self.genders, nan_freq=nan_freq, labels=labels)
+        super().__init__(name=name, nan_freq=nan_freq, labels=labels)
         self.gender_model = Histogram(name=f"{name}_gender", categories=self.genders,
                                       probabilities={gender: 1 / len(self.genders) for gender in self.genders},
                                       nan_freq=nan_freq)
