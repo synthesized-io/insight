@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -58,15 +58,25 @@ class BankLabels:
 
 
 @dataclass
-class PersonMetaConfig:
+class PersonModelConfig:
+    locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
+    pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
 
     @property
-    def person_meta_config(self):
-        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+    def person_model_config(self):
+        return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
 
 
 @dataclass
@@ -104,7 +114,7 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonModelConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):
@@ -112,7 +122,7 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
 
 
 @dataclass
-class ModelBuilderConfig:
+class ModelBuilderConfig(PersonModelConfig):
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
 

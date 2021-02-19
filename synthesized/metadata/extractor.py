@@ -97,7 +97,7 @@ class MetaExtractor:
 
         values: List[ValueMeta] = []
         if person_params is not None:
-            values.extend(self._identify_annotation(df, meta=PersonMeta, params=person_params, config=self.config.person_meta_config))
+            values.extend(self._identify_annotation(df, meta=PersonMeta, params=person_params, config=self.config.person_model_config))
         if bank_params is not None:
             values.extend(self._identify_annotation(df, meta=BankNumberMeta, params=bank_params))
         if address_params is not None:
