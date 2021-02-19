@@ -61,7 +61,11 @@ class TestMeta(MetaTestData):
 
         for child in meta.children:
             assert child.name in meta_expanded_dataframe.columns
-
+        print("***")
+        print("meta_expanded_dataframe", meta_expanded_dataframe)
+        print("***")
+        print("expanded_dataframe", expanded_dataframe)
+        print("***")
         assert expanded_dataframe.equals(meta_expanded_dataframe)
 
     def test_collapse(self, collapsed_dataframe, dataframe):

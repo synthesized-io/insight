@@ -209,25 +209,25 @@ class AddressData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["1||Blah Drive|Cambridge",
-                   "|Housey McHouseface|Placeholder Avenue|London",
-                   "42||Test Road|Swansea"]
+            name: ["Cambridge|Blah Drive|1|",
+                   "London|Placeholder Avenue||Housey McHouseface",
+                   "Swansea|Test Road|42|"]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
+            "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object),
+            "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
             "house number": pd.Series(["1", "", "42"], dtype=object),
             "house name": pd.Series(["", "Housey McHouseface", ""], dtype=object),
-            "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
-            "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object)
         })
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["1||Blah Drive|Cambridge",
-                "|Housey McHouseface|Placeholder Avenue|London",
-                "42||Test Road|Swansea"]
+        return ["Cambridge|Blah Drive|1|",
+                "London|Placeholder Avenue||Housey McHouseface",
+                "Swansea|Test Road|42|"]
 
 
 class BankData(MetaTestData):
