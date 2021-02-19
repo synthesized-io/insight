@@ -4,7 +4,7 @@ from typing import Dict, List
 import pandas as pd
 
 from .data_frame_meta import DataFrameMeta
-from ..config import AddressParams, BankParams, MetaExtractorConfig, PersonLabels
+from ..config import AddressLabels, BankParams, MetaExtractorConfig, PersonLabels
 from ..metadata import MetaExtractor as _MetaExtractor
 from ..metadata import TypeOverride
 
@@ -24,7 +24,7 @@ class MetaExtractor:
             cls, df: pd.DataFrame, config: MetaExtractorConfig = MetaExtractorConfig(),
             column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
             type_overrides: Dict[str, TypeOverride] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None, person_params: PersonLabels = None
+            address_params: AddressLabels = None, bank_params: BankParams = None, person_params: PersonLabels = None
     ) -> DataFrameMeta:
         """Extracts the DataFrame metadata with the provided configuration options.
 
@@ -53,7 +53,7 @@ class MetaExtractor:
     def extract_dataframe_meta(
             self, df: pd.DataFrame, column_aliases: Dict[str, str] = None,
             associations: Dict[str, List[str]] = None, type_overrides: Dict[str, TypeOverride] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None, person_params: PersonLabels = None
+            address_params: AddressLabels = None, bank_params: BankParams = None, person_params: PersonLabels = None
     ) -> DataFrameMeta:
         """Extracts the DataFrame metadata with the instance's configuration options.
 

@@ -168,6 +168,6 @@ def test_annotations():
 
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)
 
-    assert list(df_meta['address'].keys()) == ['d', 'a']
-    assert list(df_meta['bank'].keys()) == ['b', 'c']
-    assert list(df_meta['person'].keys()) == ['e', 'f']
+    assert sorted(list(df_meta['address'].keys())) == ['a', 'd']
+    assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
+    assert sorted(list(df_meta['person'].keys())) == ['e', 'f']

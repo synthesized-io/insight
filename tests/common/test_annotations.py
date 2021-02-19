@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonLabels
+from synthesized.config import AddressLabels, BankParams, FormattedStringParams, MetaExtractorConfig, PersonLabels
 from synthesized.metadata import DataFrameMeta
 
 
