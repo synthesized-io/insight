@@ -11,9 +11,9 @@ from ..value import Bank
 from ...config import BankLabels
 
 
-class BankModel(Bank, DiscreteModel):
+class BankModel(Bank, DiscreteModel[str]):
 
-    def __init__(self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
+    def __init__(self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
                  labels: BankLabels = BankLabels()):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
 
