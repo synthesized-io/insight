@@ -45,6 +45,7 @@ class PersonModel(Person, Model):
         self.dict_cache_size = config.dict_cache_size
         self.locale = config.locale
         self.provider = self.get_provider(self.locale)
+        self.pwd_length = config.pwd_length
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
         if self.labels.gender_label or self.labels.title_label:
@@ -54,9 +55,17 @@ class PersonModel(Person, Model):
         self._fitted = True
         return self
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
-        df = self.gender_model.sample(n, produce_nans=produce_nans)
-        return self.sample_conditional(df)
+    def sample(self, n: Optional[int] = None, produce_nans: bool = False,
+               conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+
+        if n is None and conditions is None:
+            raise ValueError("One of 'n' or 'conditions' must be given.")
+
+        if conditions is None or self.gender_model.name not in conditions.columns:
+            n = len(conditions) if conditions is not None else n
+            assert n is not None
+            conditions = self.gender_model.sample(n, produce_nans=produce_nans)
+        return self.sample_conditional(conditions)
 
     def sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
         num_rows = len(df)
@@ -91,7 +100,7 @@ class PersonModel(Person, Model):
         if self.labels.username_label is not None:
             df.loc[:, self.labels.username_label] = self.generate_usernames(firstname, lastname)
         if self.labels.password_label is not None:
-            df.loc[:, self.labels.password_label] = [self.generate_password() for _ in range(num_rows)]
+            df.loc[:, self.labels.password_label] = [self.generate_password(*self.pwd_length) for _ in range(num_rows)]
         if self.labels.mobile_number_label is not None:
             df.loc[:, self.labels.mobile_number_label] = [self.generate_phone_number(self.mobile_number_format)
                                                           for _ in range(num_rows)]

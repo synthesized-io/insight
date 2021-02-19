@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -64,6 +64,7 @@ class PersonModelConfig:
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
+    pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
 
     @property
     def person_model_config(self):

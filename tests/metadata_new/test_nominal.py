@@ -52,26 +52,6 @@ class TestAddress(TestNominal, AddressData):
         )
 
 
-class TestPerson(TestNominal, PersonData):
-
-    @pytest.fixture(scope='class')
-    def meta(self, name) -> Person:
-        meta = Person(
-            name=name, labels=PersonLabels(firstname_label='firstname', lastname_label='lastname')
-        )
-        return meta
-
-    @pytest.fixture(scope='function')
-    def extracted_meta(self, meta, dataframe):
-        df = dataframe.copy()
-        meta.extract(df)
-        assert dataframe.equals(df)
-        yield meta
-        meta.__init__(
-            name=meta.name, labels=PersonLabels(firstname_label="first_name", lastname_label="last_name")
-        )
-
-
 class TestBank(TestNominal, BankData):
 
     @pytest.fixture(scope='class')
@@ -89,4 +69,24 @@ class TestBank(TestNominal, BankData):
         yield meta
         meta.__init__(
             name=meta.name, bic_label='bic', sort_code_label='sort_code', account_label='account'
+        )
+
+
+class TestPerson(TestNominal, PersonData):
+
+    @pytest.fixture(scope='class')
+    def meta(self, name) -> Person:
+        meta = Person(
+            name=name, labels=PersonLabels(firstname_label='firstname', lastname_label='lastname')
+        )
+        return meta
+
+    @pytest.fixture(scope='function')
+    def extracted_meta(self, meta, dataframe):
+        df = dataframe.copy()
+        meta.extract(df)
+        assert dataframe.equals(df)
+        yield meta
+        meta.__init__(
+            name=meta.name, labels=PersonLabels(firstname_label="first_name", lastname_label="last_name")
         )

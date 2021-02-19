@@ -61,7 +61,6 @@ def assert_model_output(model: Model, expected_columns: List[str], n: int = 1000
         if produce_nans:
             assert all([df[c].isna().sum() > 0 for c in nan_columns])
         else:
-            print(df.isna().sum())
             assert all([df[c].isna().sum() == 0 for c in nan_columns])
 
 @pytest.mark.slow
@@ -202,7 +201,12 @@ def test_person(labels, expected_columns):
     model.fit(df)
     assert_model_output(model, expected_columns=expected_columns)
 
+    conditions = pd.DataFrame({'person_gender': np.random.choice(['m', 'f', 'u'], size=n)})
+    df_sampled = model.sample(conditions=conditions)
+    assert sorted(df_sampled.columns) == sorted(expected_columns)
+
     with pytest.raises(ValueError):
+        model.sample()
         PersonModel('gender', nan_freq=0.3, labels=PersonLabels(gender_label='gender'))
         PersonModel('gender', nan_freq=0.3, labels=PersonLabels(firstname_label='name', lastname_label='name'))
         PersonModel('gender', nan_freq=0.3)
