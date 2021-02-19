@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 from faker import Faker
 
-from ..base import Model
+from ..base import DiscreteModel
 from ..base.value_meta import NType
 from ..exceptions import ModelNotFittedError
 from ..value import Bank
 from ...config import BankLabels
 
 
-class BankModel(Bank, Model):
+class BankModel(Bank, DiscreteModel):
 
     def __init__(self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
                  labels: BankLabels = BankLabels()):
