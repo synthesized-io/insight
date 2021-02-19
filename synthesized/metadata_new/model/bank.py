@@ -5,7 +5,6 @@ import pandas as pd
 from faker import Faker
 
 from ..base import DiscreteModel
-from ..base.value_meta import NType
 from ..exceptions import ModelNotFittedError
 from ..value import Bank
 from ...config import BankLabels
