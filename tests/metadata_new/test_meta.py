@@ -72,3 +72,9 @@ class TestMeta(MetaTestData):
         dct = extracted_meta.to_dict()
         new_meta = extracted_meta.from_dict(dct)
         assert new_meta == extracted_meta
+
+
+def test_meta_equals():
+
+    assert Meta(name='a') == Meta(name='a')
+    assert Meta(name='a') != Meta(name='b')

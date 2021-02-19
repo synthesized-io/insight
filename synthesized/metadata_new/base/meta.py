@@ -154,3 +154,7 @@ class Meta(Mapping[str, 'Meta']):
     @classmethod
     def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
         return {sc.__name__: sc for sc in get_all_subclasses(cls)}
+
+    def __eq__(self, other) -> bool:
+        return {k: v for k, v in self.__dict__.items()
+                if v is not self} == {k: v for k, v in other.__dict__.items() if v is not other}

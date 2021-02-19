@@ -156,6 +156,15 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def __repr__(self) -> str:
         return f'<Ordinal[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "_max": self.max,
+            "_min": self.min
+        })
+
+        return d
+
 
 class Affine(Ordinal[AType], Generic[AType]):
     """
