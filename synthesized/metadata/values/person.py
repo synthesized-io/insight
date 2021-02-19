@@ -9,7 +9,7 @@ import pandas as pd
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-from ...config import PersonMetaConfig
+from ...config import PersonModelConfig
 
 
 class PersonMeta(ValueMeta):
@@ -18,7 +18,7 @@ class PersonMeta(ValueMeta):
                  firstname_label=None, lastname_label=None,
                  email_label=None, username_label=None, password_label=None,
                  mobile_number_label=None, home_number_label=None, work_number_label=None,
-                 config: PersonMetaConfig = PersonMetaConfig()):
+                 config: PersonModelConfig = PersonModelConfig()):
 
         super().__init__(name=name)
 

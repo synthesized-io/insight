@@ -67,6 +67,7 @@ class TestMeta(MetaTestData):
         print("expanded_dataframe", expanded_dataframe)
         print("***")
         assert expanded_dataframe.equals(meta_expanded_dataframe)
+        assert expanded_dataframe.columns.equals(meta_expanded_dataframe.columns)
 
     def test_collapse(self, collapsed_dataframe, dataframe):
         assert dataframe.equals(collapsed_dataframe)
@@ -75,3 +76,9 @@ class TestMeta(MetaTestData):
         dct = extracted_meta.to_dict()
         new_meta = extracted_meta.from_dict(dct)
         assert new_meta == extracted_meta
+
+
+def test_meta_equals():
+
+    assert Meta(name='a') == Meta(name='a')
+    assert Meta(name='a') != Meta(name='b')

@@ -8,4 +8,4 @@ from .ordinal import OrderedString
 from .person import Person
 
 __all__ = ['Bool', 'String', 'Integer', 'Float', 'Date', 'TimeDelta', 'OrderedString', 'IntegerBool',
-           'Address', 'Bank', 'TimeDeltaDay', 'Person']
+           'Address', 'Bank', 'Person', 'TimeDeltaDay']
