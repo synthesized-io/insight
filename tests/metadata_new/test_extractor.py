@@ -9,7 +9,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.config import PersonLabels
+from synthesized.config import AddressLabels, PersonLabels
 from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, MetaExtractor,
                                       OrderedString, Ordinal, Person, String)
 
@@ -161,7 +161,7 @@ def test_annotations():
     })
 
     annotations = [
-        Address(name='address', city_label='a', street_label='d'),
+        Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
         Bank(name='bank', bic_label='b', sort_code_label='c'),
         Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f'))
     ]
