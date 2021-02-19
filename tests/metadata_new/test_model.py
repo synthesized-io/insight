@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized.config import PersonLabels
-from synthesized.metadata_new import Date, Integer, MetaExtractor
+from synthesized.config import BankLabels, PersonLabels
+from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (FormattedString, Histogram, KernelDensityEstimate, ModelBuilder,
+from synthesized.metadata_new.model import (BankModel, FormattedString, Histogram, KernelDensityEstimate, ModelBuilder,
                                             ModelFactory, PersonModel, SequentialFormattedString)
 from synthesized.metadata_new.value import Person
 
@@ -164,6 +164,16 @@ def test_sequential_formatted_string_model():
     model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
     assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
+
+
+def test_bank_number():
+
+    meta = Bank('bank', nan_freq=0.3,
+                labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account'))
+    model = BankModel.from_meta(meta)
+
+    expected_columns = ['bic', 'sort_code', 'account']
+    assert_model_output(model, expected_columns=expected_columns)
 
 
 @pytest.mark.parametrize(
