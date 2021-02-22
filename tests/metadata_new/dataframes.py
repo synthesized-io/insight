@@ -283,14 +283,18 @@ class AnnotatedDataFrameData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self) -> pd.DataFrame:
         return pd.DataFrame({
-            'house_number': pd.Series(['1', '2a', '4', '1'], dtype=object),
+            'city': pd.Series(['London', 'London', 'London', 'London'], dtype=object),
             'street': pd.Series(['Euston Road', 'Old Kent Road', 'Park Lane', 'Euston Road'], dtype=object),
-            'city': pd.Series(['London', 'London', 'London', 'London'], dtype=object)
+            'house_number': pd.Series(['1', '2a', '4', '1'], dtype=object),
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, name):
-        return pd.DataFrame({'address': pd.Series(
-            ["1|Euston Road|London", "2a|Old Kent Road|London", "4|Park Lane|London", "1|Euston Road|London"],
-            dtype=str
+        return pd.DataFrame({
+            'address': pd.Series([
+                "London|Euston Road|1",
+                "London|Old Kent Road|2a",
+                "London|Park Lane|4",
+                "London|Euston Road|1",
+            ], dtype=str
         )})
