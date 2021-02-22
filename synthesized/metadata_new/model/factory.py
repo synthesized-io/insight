@@ -2,10 +2,13 @@ from typing import List, Optional, Union
 
 import numpy as np
 
+from .bank import BankModel
 from .histogram import Histogram
 from .kde import KernelDensityEstimate
+from .person import PersonModel
 from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
+from ..value import Bank, Person
 from ...config import ModelBuilderConfig
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -27,10 +30,12 @@ class ModelFactory:
             df_model: a DataFrameMeta mapping column name to model instance.
         """
         type_override_dict = {m.name: m for m in type_overrides} if type_overrides is not None else {}
-        df_model = DataFrameMeta(name='models')
+        df_model = DataFrameMeta(name='models', annotations=df_meta.annotations)
         for name, meta in df_meta.items():
             if meta.name in type_override_dict:
                 model = type_override_dict[meta.name]
+            elif meta.name in df_meta.annotations:
+                model = self._builder._from_annotation(meta)
             else:
                 model = self._builder(meta)
 
@@ -73,3 +78,21 @@ class ModelBuilder:
 
         else:
             raise TypeError(f"Cannot create Model from {type(meta)}")
+
+    def _from_annotation(self, meta):
+        """
+        Create a model from an annotated meta.
+
+        Args:
+            meta: Meta instance
+
+        Returns:
+            Model if meta is a ValueMeta
+        """
+        # TODO: Add address model when merged in
+        if isinstance(meta, Bank):
+            return BankModel.from_meta(meta)
+        elif isinstance(meta, Person):
+            return PersonModel.from_meta(meta)
+        else:
+            raise ValueError(f"Unable to recognise given annotation meta '{meta}'")
