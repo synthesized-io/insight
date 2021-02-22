@@ -5,14 +5,15 @@ from typing import List, Optional, cast
 import numpy as np
 import pandas as pd
 import pytest
+from faker import Faker
 
-from synthesized.config import BankLabels, PersonLabels
+from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
 from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (BankModel, FormattedString, Histogram, KernelDensityEstimate, ModelBuilder,
-                                            ModelFactory, PersonModel, SequentialFormattedString)
-from synthesized.metadata_new.value import Person
+from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedString, Histogram, KernelDensityEstimate,
+                                            ModelBuilder, ModelFactory, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.value import Address, Person
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,83 @@ def test_sequential_formatted_string_model():
     model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
     assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "postcode_label,full_address_label",
+    [
+        pytest.param('postcode', 'full_address', id='both_PC_full_address'),
+        pytest.param(None, 'full_address', id='only_full_address'),
+        pytest.param(None, None, id='no_PC_full_address'),
+    ]
+)
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(AddressModelConfig(addresses_file=None), id='fake_addresses'),
+        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz'), id='real_addresses_not_learned'),
+        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz', learn_postcodes=True), id='real_addresses_learned'),
+    ]
+)
+def test_address(config, postcode_label, full_address_label):
+    meta = Address('address', nan_freq=0.3,
+                   labels=AddressLabels(postcode_label=postcode_label, county_label='county',
+                                        city_label='city',
+                                        district_label='district', street_label='street',
+                                        house_number_label='house_number', flat_label='flat',
+                                        house_name_label='house_name',
+                                        full_address_label=full_address_label)
+                   )
+    model = AddressModel.from_meta(meta, config=config)
+
+    expected_columns = ['postcode', 'full_address', 'county', 'city', 'district', 'street', 'house_number', 'flat',
+                        'house_name']
+    if postcode_label is None:
+        expected_columns.remove('postcode')
+    if full_address_label is None:
+        expected_columns.remove('full_address')
+
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(1000)],
+        'full_address': [fkr.address() for _ in range(1000)],
+        'x': np.random.normal(size=1000),
+    })
+    model.fit(df_orig)
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+    n_cond = 100
+    conditions = pd.DataFrame({'address_postcode': np.random.choice(['N', 'IV', 'CA', 'NW'], size=n_cond)})
+    df = model.sample(n=None, conditions=conditions)
+    assert len(df) == n_cond
+    assert sorted(df.columns) == sorted(expected_columns)
+
+    with pytest.raises(ValueError):
+        AddressModel('address', nan_freq=0.3, labels=AddressLabels(full_address_label='address'))
+        AddressModel('address', nan_freq=0.3)
+
+
+def test_address_different_labels():
+    model = AddressModel('address', nan_freq=0.3,
+                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                              county_label=None, city_label=None, district_label=None,
+                                              street_label='street', house_number_label='house_number',
+                                              flat_label='flat', house_name_label='house_name'))
+
+    expected_columns = ['postcode', 'full_address', 'street', 'house_number', 'flat',
+                        'house_name']
+
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+    model = AddressModel('address', nan_freq=0.3,
+                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                              county_label='county', city_label='city', district_label='district',
+                                              street_label=None, house_number_label=None, flat_label=None,
+                                              house_name_label=None))
+
+    expected_columns = ['postcode', 'full_address', 'county', 'city', 'district']
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
 
 def test_bank_number():

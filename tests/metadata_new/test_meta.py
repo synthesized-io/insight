@@ -61,12 +61,13 @@ class TestMeta(MetaTestData):
 
         for child in meta.children:
             assert child.name in meta_expanded_dataframe.columns
-
         assert expanded_dataframe.equals(meta_expanded_dataframe)
         assert expanded_dataframe.columns.equals(meta_expanded_dataframe.columns)
 
     def test_collapse(self, collapsed_dataframe, dataframe):
-        assert dataframe.equals(collapsed_dataframe)
+        columns = sorted(dataframe.columns)
+        assert columns == sorted(dataframe.columns)
+        assert dataframe[columns].equals(collapsed_dataframe[columns])
 
     def test_serialisation(self, extracted_meta):
         dct = extracted_meta.to_dict()

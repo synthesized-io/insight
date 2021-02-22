@@ -9,7 +9,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.config import BankLabels, PersonLabels
+from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, MetaExtractor,
                                       OrderedString, Ordinal, Person, String)
 
@@ -161,13 +161,13 @@ def test_annotations():
     })
 
     annotations = [
-        Address(name='address', city_label='a', street_label='d'),
+        Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
         Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
         Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f'))
     ]
 
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)
 
-    assert list(df_meta['address'].keys()) == ['d', 'a']
-    assert list(df_meta['bank'].keys()) == ['b', 'c']
-    assert list(df_meta['person'].keys()) == ['e', 'f']
+    assert sorted(list(df_meta['address'].keys())) == ['a', 'd']
+    assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
+    assert sorted(list(df_meta['person'].keys())) == ['e', 'f']

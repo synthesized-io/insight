@@ -1,5 +1,6 @@
 import pytest
 
+from synthesized.config import AddressLabels
 from synthesized.metadata_new import Address, DataFrameMeta, String
 
 from .dataframes import AnnotatedDataFrameData, DataFrameData
@@ -51,7 +52,8 @@ class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
         meta['city'] = city
 
         meta.annotate(
-            Address('address', house_number_label='house_number', street_label='street', city_label='city')
+            Address('address', labels=AddressLabels(house_number_label='house_number',
+                                                    street_label='street', city_label='city'))
         )
         return meta
 

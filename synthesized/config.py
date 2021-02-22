@@ -12,7 +12,19 @@ class AnnotationParams:
 
 
 @dataclass
-class AddressParams(AnnotationParams):
+class AddressModelConfig:
+    locale = 'en_GB'
+    postcode_level: int = 0
+    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+    learn_postcodes: bool = False
+
+    @property
+    def address_model_config(self):
+        return AddressModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressModelConfig)})
+
+
+@dataclass(frozen=True)
+class AddressLabels:
     postcode_label: Optional[str] = None
     county_label: Optional[str] = None
     city_label: Optional[str] = None
@@ -22,16 +34,6 @@ class AddressParams(AnnotationParams):
     flat_label: Optional[str] = None
     house_name_label: Optional[str] = None
     full_address_label: Optional[str] = None
-
-
-@dataclass
-class AddressMetaConfig:
-    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
-    learn_postcodes: bool = False
-
-    @property
-    def address_meta_config(self):
-        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
 
 
 @dataclass(frozen=True)
@@ -114,7 +116,7 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonModelConfig, FormattedStringMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressModelConfig, PersonModelConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):

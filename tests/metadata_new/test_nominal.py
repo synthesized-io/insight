@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from synthesized.config import BankLabels, PersonLabels
+from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata_new import Address, Bank, Nominal, Person, String
 
 from .dataframes import AddressData, BankData, PersonData, StringData
@@ -35,8 +35,8 @@ class TestAddress(TestNominal, AddressData):
     @pytest.fixture(scope='class')
     def meta(self, name) -> Address:
         meta = Address(
-            name=name, street_label='street', city_label='city', house_name_label='house name',
-            house_number_label='house number'
+            name=name, labels=AddressLabels(street_label='street', city_label='city', house_name_label='house name',
+                                            house_number_label='house number')
         )
         return meta
 
@@ -47,8 +47,8 @@ class TestAddress(TestNominal, AddressData):
         assert dataframe.equals(df)
         yield meta
         meta.__init__(
-            name=meta.name, street_label='street', city_label='city', house_name_label='house name',
-            house_number_label='house number'
+            name=meta.name, labels=AddressLabels(street_label='street', city_label='city', house_name_label='house name',
+                                                 house_number_label='house number')
         )
 
 
