@@ -205,10 +205,17 @@ def test_address(config, postcode_label, full_address_label):
     fkr = Faker('en_GB')
     df_orig = pd.DataFrame({
         'postcode': [fkr.postcode() for _ in range(1000)],
-        'full_address': [fkr.address() for _ in range(1000)]
+        'full_address': [fkr.address() for _ in range(1000)],
+        'x': np.random.normal(size=1000),
     })
     model.fit(df_orig)
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+    n_cond = 100
+    conditions = pd.DataFrame({'address_postcode': np.random.choice(['N', 'IV', 'CA', 'NW'], size=n_cond)})
+    df = model.sample(n=None, conditions=conditions)
+    assert len(df) == n_cond
+    assert sorted(df.columns) == sorted(expected_columns)
 
     with pytest.raises(ValueError):
         AddressModel('address', nan_freq=0.3, labels=AddressLabels(full_address_label='address'))

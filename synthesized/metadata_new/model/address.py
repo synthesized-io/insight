@@ -36,12 +36,8 @@ class AddressRecord:
         for f in fields(self):
             if f.name != 'full_address':
                 field_val = getattr(self, f.name)
-                setattr(self, f.name, self.replace_apostrophe(field_val))
+                setattr(self, f.name, field_val.replace("'", "") if field_val is not None else None)
         self.full_address = self.compute_full_address()
-
-    @staticmethod
-    def replace_apostrophe(s: Optional[str]) -> Optional[str]:
-        return s.replace("'", "") if s is not None else None
 
     def compute_full_address(self) -> str:
         address_str = ""
@@ -81,7 +77,7 @@ class AddressModel(Address, Model):
             raise ValueError("Value of 'name' can't be equal to any other label.")
 
         self.locale = config.locale
-        self.provider = self.get_provider(self.locale)
+        self.provider = self._get_provider(self.locale)
         self.postcode_level = config.postcode_level
         if self.postcode_level < 0 or self.postcode_level > 2:
             raise NotImplementedError
@@ -151,22 +147,24 @@ class AddressModel(Address, Model):
 
         return self
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: Optional[int], produce_nans: bool = False,
+               conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
 
-        df = self.postcode_model.sample(n, produce_nans=produce_nans)
-        df = self._sample_conditional(df, postcode_column=self.postcode_model.name)
+        if n is None and conditions is None:
+            raise ValueError("One of 'n' or 'conditions' must be given.")
+
+        if conditions is None:
+            assert n is not None
+            conditions = self.postcode_model.sample(n, produce_nans=produce_nans)
+
+        elif self.postcode_model.name not in conditions.columns:
+            n = len(conditions)
+            conditions[self.postcode_model.name] = self.postcode_model.sample(n, produce_nans=produce_nans)
+
+        df = self._sample_conditional(conditions, postcode_column=self.postcode_model.name)
         df.drop(columns=self.postcode_model.name, inplace=True)
 
         return df
-
-    def sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
-
-        if self.labels.postcode_label is None:
-            raise ValueError("This model can't sample conditionally as 'postcode_label' is not given.")
-        if self.labels.postcode_label not in df.columns:
-            raise ValueError(f"Can't sample conditionally from a dataframe without '{self.labels.postcode_label}'")
-
-        return self._sample_conditional(df, postcode_column=self.labels.postcode_label)
 
     def _sample_conditional(self, df: pd.DataFrame, postcode_column: str) -> pd.DataFrame:
 
@@ -174,7 +172,7 @@ class AddressModel(Address, Model):
 
         if self.fake:
             n = len(df)
-            address_records = self.generate_fake_address_records(n)
+            address_records = self._generate_fake_address_records(n)
             df_address_records = pd.DataFrame(address_records).rename(columns=self.label_to_address_record_key)[columns]
             df = pd.concat((df, df_address_records), axis=1)
 
@@ -270,22 +268,22 @@ class AddressModel(Address, Model):
         g = self.postcode_regex.search(x)
         return self._get_postcode_key(g.group(0)) if g else 'nan'
 
-    def check_null(self, generate_value: Callable[[], str], label: Optional[str]) -> Optional[str]:
+    def _check_null(self, generate_value: Callable[[], str], label: Optional[str]) -> Optional[str]:
         return generate_value() if label or self.labels.full_address_label else None
 
-    def generate_fake_address_records(self, n: int) -> List[AddressRecord]:
+    def _generate_fake_address_records(self, n: int) -> List[AddressRecord]:
         fkr = faker.Faker(locale=self.locale)
         address_records = []
         for _ in range(n):
-            postcode = self.check_null(fkr.postcode, self.labels.postcode_label)
-            county = self.check_null(fkr.county, self.labels.county_label)
-            city = self.check_null(fkr.city, self.labels.city_label)
-            district = self.check_null(fkr.city, self.labels.district_label)
-            street = self.check_null(fkr.street_name, self.labels.street_label)
-            house_number = self.check_null(fkr.building_number, self.labels.house_number_label)
-            flat = self.check_null(fkr.secondary_address, self.labels.flat_label)
-            house_name = self.check_null(lambda: f"{fkr.last_name()} {fkr.street_suffix()}",
-                                         self.labels.house_name_label)
+            postcode = self._check_null(fkr.postcode, self.labels.postcode_label)
+            county = self._check_null(fkr.county, self.labels.county_label)
+            city = self._check_null(fkr.city, self.labels.city_label)
+            district = self._check_null(fkr.city, self.labels.district_label)
+            street = self._check_null(fkr.street_name, self.labels.street_label)
+            house_number = self._check_null(fkr.building_number, self.labels.house_number_label)
+            flat = self._check_null(fkr.secondary_address, self.labels.flat_label)
+            house_name = self._check_null(lambda: f"{fkr.last_name()} {fkr.street_suffix()}",
+                                          self.labels.house_name_label)
 
             address_records.append(
                 AddressRecord(postcode=postcode, county=county, city=city, district=district, street=street,
@@ -294,7 +292,7 @@ class AddressModel(Address, Model):
         return address_records
 
     @staticmethod
-    def get_provider(locale):
+    def _get_provider(locale):
         try:
             provider = importlib.import_module(f"faker.providers.address.{locale}")
         except ModuleNotFoundError:
