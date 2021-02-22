@@ -2,7 +2,7 @@ import importlib
 import random
 import re
 import string
-from typing import Optional
+from typing import Optional, Sequence
 
 import faker
 import numpy as np
@@ -15,11 +15,10 @@ from ..value import Person
 from ...config import PersonLabels, PersonModelConfig
 
 
-class PersonModel(Person, DiscreteModel):
+class PersonModel(Person, DiscreteModel[str]):
 
-    def __init__(self, name, nan_freq: Optional[float] = None,
-                 labels: PersonLabels = PersonLabels(),
-                 config: PersonModelConfig = PersonModelConfig()):
+    def __init__(self, name, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+                 labels: PersonLabels = PersonLabels(), config: PersonModelConfig = PersonModelConfig()):
 
         columns = [c for c in labels.__dict__.values() if c is not None]
         if all([c is None for c in columns]):
@@ -34,7 +33,7 @@ class PersonModel(Person, DiscreteModel):
         self.gender_mapping = config.gender_mapping
         self.genders = list(self.title_mapping.keys())
 
-        super().__init__(name=name, nan_freq=nan_freq, labels=labels)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
         self.gender_model = Histogram(name=f"{name}_gender", categories=self.genders,
                                       probabilities={gender: 1 / len(self.genders) for gender in self.genders},
                                       nan_freq=nan_freq)

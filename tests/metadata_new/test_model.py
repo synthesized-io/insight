@@ -7,11 +7,11 @@ import pandas as pd
 import pytest
 from faker import Faker
 
-from synthesized.config import AddressLabels, AddressModelConfig, PersonLabels
-from synthesized.metadata_new import Date, Integer, MetaExtractor
+from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
+from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (AddressModel, FormattedString, Histogram, KernelDensityEstimate,
+from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedString, Histogram, KernelDensityEstimate,
                                             ModelBuilder, ModelFactory, PersonModel, SequentialFormattedString)
 from synthesized.metadata_new.value import Address, Person
 
@@ -235,6 +235,16 @@ def test_address_different_labels():
 
     expected_columns = ['postcode', 'full_address', 'county', 'city', 'district']
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+
+def test_bank_number():
+
+    meta = Bank('bank', nan_freq=0.3,
+                labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account'))
+    model = BankModel.from_meta(meta)
+
+    expected_columns = ['bic', 'sort_code', 'account']
+    assert_model_output(model, expected_columns=expected_columns)
 
 
 @pytest.mark.parametrize(

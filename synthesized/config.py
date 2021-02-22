@@ -23,13 +23,6 @@ class AddressModelConfig:
         return AddressModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressModelConfig)})
 
 
-@dataclass
-class BankParams(AnnotationParams):
-    bic_label: Optional[str] = None
-    sort_code_label: Optional[str] = None
-    account_label: Optional[str] = None
-
-
 @dataclass(frozen=True)
 class AddressLabels:
     postcode_label: Optional[str] = None
@@ -57,6 +50,13 @@ class PersonLabels:
     mobile_number_label: Optional[str] = None
     home_number_label: Optional[str] = None
     work_number_label: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class BankLabels:
+    bic_label: Optional[str] = None
+    sort_code_label: Optional[str] = None
+    account_label: Optional[str] = None
 
 
 @dataclass
