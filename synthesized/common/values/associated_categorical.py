@@ -1,11 +1,12 @@
 import logging
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 from collections import OrderedDict
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 
 import numpy as np
 import tensorflow as tf
 
 from synthesized.common.module import tensorflow_name_scoped
+
 from .categorical import CategoricalValue
 from .value import Value
 
@@ -77,23 +78,14 @@ class AssociatedCategoricalValue(Value, Mapping):
             prob = tf.math.softmax(y_flat, axis=-1)
             probs.append(prob)
 
-        joint = tf_joint_probs(*probs)
+        # construct joint distribution and mask out the outputs specified by binding mask
+        joint = tf_joint_prob_tensor(*probs)
         masked = tf_masked_probs(joint, self.binding_mask)
         flattened = tf.reshape(masked, (-1, tf.reduce_prod(masked.shape[1:])))
 
         y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=(-1,))
-        value_list = list(self.values())
-        ot = [tf.math.mod(y, value_list[-1].num_categories)]
-        for n in range(1, len(value_list)):
-            ot.append(tf.math.mod(
-                tf.math.floordiv(
-                    y,
-                    tf.cast(tf.reduce_prod([value_list[-m - 1].num_categories for m in range(n)]), dtype=tf.int64)
-                ),
-                value_list[-n - 1].num_categories
-            ))
-
-        return tuple(ot[::-1])
+        output_tensor = unflatten_joint_sample(y, list(self.values()))
+        return output_tensor
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
@@ -116,9 +108,21 @@ class AssociatedCategoricalValue(Value, Mapping):
         return output_dict
 
 
-def tf_joint_probs(*args):
+def tf_joint_prob_tensor(*args):
+    """
+    Constructs a tensor where each element represents a single joint probability, when len(args) > 4 this can
+        become computationally costly, especially when each argument has many categories
+
+    Args
+        *args: container where args[i] is the tensor of probabilities with batch dimension at 0th position
+
+    Returns
+        Tensor where element [b, i, j, k] equals joint probability bth batch has
+            i in 1st dim, j in 2nd dim and k in 3rd dim
+    """
     rank = len(args)
     probs = []
+
     for n, x in enumerate(args):
         for m in range(n):
             x = tf.expand_dims(x, axis=-2 - m)
@@ -134,13 +138,31 @@ def tf_joint_probs(*args):
 
 
 def tf_masked_probs(jp, mask):
-    if jp.shape[-len(mask.shape):] != mask.shape:
-        raise ValueError("Mask shape doesn't match joint probability's shape.")
+    """
+    Take joint probability jp and mask outputs that are impossible, renormalise jp now those entries are set to zero
+    """
+    if jp.shape[1:] != mask.shape:
+        raise ValueError("Mask shape doesn't match joint probability's shape (ignoring batch dimension).")
 
     d = jp * mask
-    for n in range(len(jp.shape) - len(mask.shape), len(jp.shape)):
-        d_a = (tf.reduce_sum(jp, axis=n, keepdims=True) / tf.reduce_sum(jp * mask, axis=n, keepdims=True) - 1) * (
-            jp * mask)
-        d += d_a
+    d = d / tf.reduce_sum(d, axis=range(1, len(jp.shape)), keepdims=True)
 
     return d
+
+
+def unflatten_joint_sample(flattened_sample, value_list):
+    """
+    Reshape sample from a flattened joint probability (bsz, -1), repackage into output tensor
+        size (bsz, self.value[0].num_categories, ...)
+    """
+    output_tensors = [tf.math.mod(flattened_sample, value_list[-1].num_categories)]
+    for n in range(1, len(value_list)):
+        output_tensors.append(tf.math.mod(
+            tf.math.floordiv(
+                flattened_sample,
+                tf.cast(tf.reduce_prod([value_list[-m - 1].num_categories for m in range(n)]), dtype=tf.int64)
+            ),
+            value_list[-n - 1].num_categories
+        ))
+
+    return tuple(output_tensors[::-1])
