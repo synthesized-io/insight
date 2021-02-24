@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, List, Mapping, Type, TypeVar, cast
+from typing import Dict, Iterator, Mapping, Sequence, Type, TypeVar, cast
 
 import pandas as pd
 
@@ -39,12 +39,12 @@ class Meta(Mapping[str, 'Meta']):
         self._extracted: bool = False
 
     @property
-    def children(self) -> List['Meta']:
+    def children(self) -> Sequence['Meta']:
         """Return the children of this Meta."""
         return [child for child in self.values()]
 
     @children.setter
-    def children(self, children: List['Meta']) -> None:
+    def children(self, children: Sequence['Meta']) -> None:
         self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
