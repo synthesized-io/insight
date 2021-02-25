@@ -194,4 +194,4 @@ class PersonModel(Person, DiscreteModel[str]):
 
     @classmethod
     def from_meta(cls, meta: Person, config: PersonModelConfig = PersonModelConfig()) -> 'PersonModel':
-        return cls(name=meta.name, nan_freq=meta.nan_freq, labels=meta.labels, config=config)
+        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, labels=meta.labels, config=config)

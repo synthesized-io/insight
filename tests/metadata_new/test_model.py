@@ -8,7 +8,7 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
+from synthesized.metadata_new import Bank, Date, FormattedString, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
@@ -352,3 +352,34 @@ def test_factory_type_override(simple_df_meta):
     assert isinstance(df_models["int"], KernelDensityEstimate)
     assert isinstance(df_models["int_bool"], KernelDensityEstimate)
     assert isinstance(df_models["float"], Histogram)
+
+
+def test_factory_annotations():
+
+    df = pd.DataFrame({
+        'a': ['a', 'b', 'c'],
+        'b': ['MAUS', 'HBUK', 'HBUK'],
+        'c': ['010468', '616232', '131315'],
+        'd': ['d', 'm', 'm'],
+        'e': ['Alice', 'Bob', 'Charlie'],
+        'f': ['Smith', 'Holmes', 'Smith'],
+        'g': ['SJ-3921', 'LE-0826', 'PQ-0871'],
+    })
+
+    annotations=[
+        Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
+        Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
+        Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f')),
+        FormattedString(name='formatted_string', label='g', pattern='[A-Z]{2}-[0-9]{4}'),
+    ]
+
+    df_meta = MetaExtractor.extract(df=df, annotations=annotations)
+    df_model = ModelFactory()(df_meta)
+
+    for name, model in df_model.items():
+        model.fit(df)
+
+    columns = [model.sample(len(df)) for model in df_model.values()]
+    df_synthesized = pd.concat((columns), axis=1)
+
+    assert df_synthesized.shape == df.shape

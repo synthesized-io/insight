@@ -2,6 +2,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 
+from .address import AddressModel
 from .bank import BankModel
 from .histogram import Histogram
 from .kde import KernelDensityEstimate
@@ -9,7 +10,7 @@ from .person import PersonModel
 from .string import FormattedStringModel
 from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
-from ..value import Bank, FormattedString, Person
+from ..value import Address, Bank, FormattedString, Person
 from ...config import ModelBuilderConfig
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -90,8 +91,9 @@ class ModelBuilder:
         Returns:
             Model if meta is a ValueMeta
         """
-        # TODO: Add address model when merged in
-        if isinstance(meta, Bank):
+        if isinstance(meta, Address):
+            return AddressModel.from_meta(meta)
+        elif isinstance(meta, Bank):
             return BankModel.from_meta(meta)
         elif isinstance(meta, Person):
             return PersonModel.from_meta(meta)

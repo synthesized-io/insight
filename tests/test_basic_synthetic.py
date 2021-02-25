@@ -74,8 +74,7 @@ def test_nan_producing():
         'y1': np.random.choice(['A', 'B'], size=size),
         'y2': np.random.choice(['A', 'B'], size=size),
     })
-    df_original.loc[np.random.
-    iform(size=len(df_original)) < nans_prop, 'x2'] = np.nan
+    df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'x2'] = np.nan
     df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'y2'] = np.nan
 
     df_meta = MetaExtractor.extract(df=df_original)

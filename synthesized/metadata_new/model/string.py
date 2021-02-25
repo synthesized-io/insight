@@ -42,7 +42,7 @@ class FormattedStringModel(FormattedString, DiscreteModel[str]):
 
     @classmethod
     def from_meta(cls, meta: FormattedString) -> 'FormattedStringModel':
-        return cls(name=meta.name, nan_freq=meta.nan_freq, pattern=meta.pattern)
+        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, pattern=meta.pattern)
 
 
 class SequentialFormattedString(DiscreteModel[str]):

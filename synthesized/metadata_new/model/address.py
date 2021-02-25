@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field, fields
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Sequence
 
 import faker
 import numpy as np
@@ -64,11 +64,11 @@ class AddressRecord:
 class AddressModel(Address, Model):
     postcode_regex = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
 
-    def __init__(self, name, nan_freq: Optional[float] = None,
+    def __init__(self, name, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
                  labels: AddressLabels = AddressLabels(),
                  config: AddressModelConfig = AddressModelConfig()):
 
-        super().__init__(name=name, nan_freq=nan_freq, labels=labels)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
         self.postcode_model = Histogram(name=f"{name}_postcode", nan_freq=self.nan_freq)
 
         if all([c is None for c in self.params.values()]):
@@ -111,16 +111,16 @@ class AddressModel(Address, Model):
             self.postcodes = self._load_postcodes_dict(addresses_file)
 
     @property
-    def label_to_address_record_key(self) -> Dict[str, str]:
+    def address_record_key_to_label(self) -> Dict[str, str]:
         d: Dict[str, str] = dict()
-        for label, key in zip([self.labels.postcode_label, self.labels.full_address_label, self.labels.county_label,
-                               self.labels.city_label, self.labels.district_label, self.labels.street_label,
-                               self.labels.house_number_label, self.labels.flat_label, self.labels.house_name_label],
-                              ['postcode', 'full_address', 'county',
+        for key, label in zip(['postcode', 'full_address', 'county',
                                'city', 'district', 'street',
-                               'house_number', 'flat', 'house_name']):
+                               'house_number', 'flat', 'house_name'],
+                               [self.labels.postcode_label, self.labels.full_address_label, self.labels.county_label,
+                               self.labels.city_label, self.labels.district_label, self.labels.street_label,
+                               self.labels.house_number_label, self.labels.flat_label, self.labels.house_name_label]):
             if label is not None:
-                d[label] = key
+                d[key] = label
         return d
 
     def fit(self, df: pd.DataFrame) -> 'AddressModel':
@@ -132,7 +132,7 @@ class AddressModel(Address, Model):
             postcodes = self.provider.POSTAL_ZONES
             self.postcode_model.categories = postcodes
             self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
-            self._fitted = True
+            self._fitted = self.postcode_model._fitted = True
             return self
 
         categories = list(self.postcodes.keys())
@@ -145,6 +145,7 @@ class AddressModel(Address, Model):
             self.postcode_model.probabilities = {c: 1 / len(categories) for c in categories}
             self.postcode_model._fitted = True
 
+        self._fitted = True
         return self
 
     def sample(self, n: Optional[int], produce_nans: bool = False,
@@ -173,7 +174,7 @@ class AddressModel(Address, Model):
         if self.fake:
             n = len(df)
             address_records = self._generate_fake_address_records(n)
-            df_address_records = pd.DataFrame(address_records).rename(columns=self.label_to_address_record_key)[columns]
+            df_address_records = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
             df = pd.concat((df, df_address_records), axis=1)
 
             # Add NaNs
@@ -188,7 +189,7 @@ class AddressModel(Address, Model):
             postcode_sr = df[postcode_column].fillna('nan').apply(self._get_postcode_key)
             address_records = list(np.vectorize(sample_address)(postcode_sr))
 
-            df_address_records = pd.DataFrame(address_records).rename(columns=self.label_to_address_record_key)[columns]
+            df_address_records = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
             df = pd.concat((df, df_address_records), axis=1)
 
             df.loc[df[postcode_column].isna(), columns] = np.nan
@@ -302,4 +303,4 @@ class AddressModel(Address, Model):
     @classmethod
     def from_meta(cls, meta: Nominal[NType], config: AddressModelConfig = AddressModelConfig()) -> 'AddressModel':
         assert isinstance(meta, Address)
-        return cls(name=meta.name, nan_freq=meta.nan_freq, labels=meta.labels, config=config)
+        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, labels=meta.labels, config=config)
