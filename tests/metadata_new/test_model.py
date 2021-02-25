@@ -11,8 +11,9 @@ from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, Pe
 from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedString, Histogram, KernelDensityEstimate,
-                                            ModelBuilder, ModelFactory, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
+                                            KernelDensityEstimate, ModelBuilder, ModelFactory, PersonModel,
+                                            SequentialFormattedString)
 from synthesized.metadata_new.value import Address, Person
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
 
 def test_formatted_string_model():
     pattern = '[0-9]{5}'
-    model = FormattedString('test', pattern=pattern, nan_freq=0.3)
+    model = FormattedStringModel('test', pattern=pattern, nan_freq=0.3)
     assert model.sample(100)['test'].str.match(pattern).sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 

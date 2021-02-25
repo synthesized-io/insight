@@ -10,8 +10,8 @@ from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, MetaExtractor,
-                                      OrderedString, Ordinal, Person, String)
+from synthesized.metadata_new import (Address, Bank, Bool, Date, Float, FormattedString, Integer, IntegerBool,
+                                      MetaExtractor, OrderedString, Ordinal, Person, String)
 
 logger = logging.getLogger(__name__)
 
@@ -157,13 +157,15 @@ def test_annotations():
         'c': ['010468', '616232', '131315'],
         'd': ['d', 'm', 'm'],
         'e': ['Alice', 'Bob', 'Charlie'],
-        'f': ['Smith', 'Holmes', 'Smith']
+        'f': ['Smith', 'Holmes', 'Smith'],
+        'g': ['SJ-3921', 'LE-0826', 'PQ-0871'],
     })
 
     annotations = [
         Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
         Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
-        Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f'))
+        Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f')),
+        FormattedString(name='formatted_string', label='g', pattern='[A-Z]{2}-[0-9]{4}'),
     ]
 
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)

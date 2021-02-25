@@ -1,8 +1,8 @@
 from .base import Affine, ContinuousModel, DiscreteModel, Meta, Model, Nominal, Ordinal, Ring, Scale, ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .meta_builder import MetaExtractor
-from .value import (Address, Bank, Bool, Date, Float, Integer, IntegerBool, OrderedString, Person, String, TimeDelta,
-                    TimeDeltaDay)
+from .value import (Address, Bank, Bool, Date, Float, FormattedString, Integer, IntegerBool, OrderedString, Person,
+                    String, TimeDelta, TimeDeltaDay)
 
 __all__ = [
     'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring',

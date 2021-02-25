@@ -11,3 +11,14 @@ class String(Nominal[str]):
             num_rows: Optional[int] = None
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+
+
+class FormattedString(String):
+    dtype = 'U'
+
+    def __init__(
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None, pattern: str = None
+    ):
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+        self.pattern = pattern
