@@ -116,7 +116,7 @@ class AddressModel(Address, Model):
         for key, label in zip(['postcode', 'full_address', 'county',
                                'city', 'district', 'street',
                                'house_number', 'flat', 'house_name'],
-                               [self.labels.postcode_label, self.labels.full_address_label, self.labels.county_label,
+                              [self.labels.postcode_label, self.labels.full_address_label, self.labels.county_label,
                                self.labels.city_label, self.labels.district_label, self.labels.street_label,
                                self.labels.house_number_label, self.labels.flat_label, self.labels.house_name_label]):
             if label is not None:
