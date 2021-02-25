@@ -78,9 +78,6 @@ class ValueFactory:
         else:
             raise ValueError("Bad Nominal Value Meta")
 
-    def _create_value_from_annotation(self, vm: Meta) -> Optional[Value]:
-        pass
-
     def _build_nan(self, name, value_meta: Nominal) -> Optional[CategoricalValue]:
         """ builds a nan_value from a value_meta if needed else returns None"""
         if value_meta.nan_freq is None or value_meta.nan_freq == 0:

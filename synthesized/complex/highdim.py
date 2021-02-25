@@ -52,8 +52,8 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        df_model = ModelFactory()(df_meta)
-        self.df_model, self.df_model_independent = self.split_df_model(df_model)
+        self.df_model = ModelFactory()(df_meta)
+        self.df_model_independent = self.split_df_model(self.df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
@@ -113,7 +113,11 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def split_df_model(self, df_model: DataFrameMeta) -> Tuple[DataFrameMeta, DataFrameMeta]:
+    def split_df_model(self, df_model: DataFrameMeta) -> DataFrameMeta:
+        """Given a df_model, pop out those models that are not learned in the engine and
+        return a df_model_independent containing these models.
+        """
+
         df_model_independent = DataFrameMeta(name='independent_models')
         models_to_pop = []
         for name, model in df_model.items():
@@ -132,7 +136,7 @@ class HighDimSynthesizer(Synthesizer):
         for model_name in models_to_pop:
             df_model_independent[model_name] = df_model.pop(model_name)
 
-        return df_model, df_model_independent
+        return df_model_independent
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
