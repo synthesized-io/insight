@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new import Address, Bank, Nominal, Person, String
+from synthesized.metadata_new import Address, Bank, FormattedString, Nominal, Person, String
 
 from .dataframes import AddressData, BankData, PersonData, StringData
 from .test_meta import TestMeta as _TestMeta
@@ -27,6 +27,14 @@ class TestString(TestNominal, StringData):
     @pytest.fixture(scope='class')
     def meta(self, name) -> Nominal:
         meta = String(name=name)
+        return meta
+
+
+class TestFormattedString(TestNominal, StringData):
+
+    @pytest.fixture(scope='class')
+    def meta(self, name) -> Nominal:
+        meta = FormattedString(name=name, pattern="\w")
         return meta
 
 

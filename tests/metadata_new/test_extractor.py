@@ -173,3 +173,4 @@ def test_annotations():
     assert sorted(list(df_meta['address'].keys())) == ['a', 'd']
     assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
     assert sorted(list(df_meta['person'].keys())) == ['e', 'f']
+    assert sorted(list(df_meta['sample'].keys())) == []

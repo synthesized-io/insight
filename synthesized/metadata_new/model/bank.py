@@ -46,4 +46,4 @@ class BankModel(Bank, DiscreteModel[str]):
     @classmethod
     def from_meta(cls, meta: 'Bank') -> 'BankModel':
         assert isinstance(meta, Bank)
-        return cls(name=meta.name, nan_freq=meta.nan_freq, labels=meta.labels)
+        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, labels=meta.labels)

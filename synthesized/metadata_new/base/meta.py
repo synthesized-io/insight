@@ -52,7 +52,7 @@ class Meta(Mapping[str, 'Meta']):
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
-        with self.unfold(df) as sub_df:
+        with self.unfold(df.copy()) as sub_df:
             for child in self.children:
                 child.extract(sub_df)
         self._extracted = True
@@ -71,6 +71,15 @@ class Meta(Mapping[str, 'Meta']):
         self.convert_df_for_children(df)
         yield df
         self.revert_df_from_children(df)
+
+    def _is_folded(self, df: pd.DataFrame) -> bool:
+        """Check if the given dataframe is folded or unfolded."""
+        if self.name in df.columns and not any([child.name in df.columns for child in self.values()]):
+            return True
+        elif self.name not in df.columns and all([child.name in df.columns for child in self.values()]):
+            return False
+        else:
+            raise ValueError("Can't determine whether the dataframe is folded or unfolded.")
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]

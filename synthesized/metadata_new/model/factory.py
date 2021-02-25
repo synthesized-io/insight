@@ -6,9 +6,10 @@ from .bank import BankModel
 from .histogram import Histogram
 from .kde import KernelDensityEstimate
 from .person import PersonModel
+from .string import FormattedStringModel
 from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
-from ..value import Bank, Person
+from ..value import Bank, FormattedString, Person
 from ...config import ModelBuilderConfig
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -94,5 +95,7 @@ class ModelBuilder:
             return BankModel.from_meta(meta)
         elif isinstance(meta, Person):
             return PersonModel.from_meta(meta)
+        elif isinstance(meta, FormattedString):
+            return FormattedStringModel.from_meta(meta)
         else:
             raise ValueError(f"Unable to recognise given annotation meta '{meta}'")
