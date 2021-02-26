@@ -52,6 +52,7 @@ class Bank(String):
         df.drop(columns=self.name, inplace=True)
 
     def revert_df_from_children(self, df):
+
         df[self.name] = ''
         df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
 

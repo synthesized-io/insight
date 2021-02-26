@@ -8,11 +8,12 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new import Bank, Date, Integer, MetaExtractor
+from synthesized.metadata_new import Bank, Date, FormattedString, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedString, Histogram, KernelDensityEstimate,
-                                            ModelBuilder, ModelFactory, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
+                                            KernelDensityEstimate, ModelBuilder, ModelFactory, PersonModel,
+                                            SequentialFormattedString)
 from synthesized.metadata_new.value import Address, Person
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
 
 def test_formatted_string_model():
     pattern = '[0-9]{5}'
-    model = FormattedString('test', pattern=pattern, nan_freq=0.3)
+    model = FormattedStringModel('test', pattern=pattern, nan_freq=0.3)
     assert model.sample(100)['test'].str.match(pattern).sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
@@ -351,3 +352,35 @@ def test_factory_type_override(simple_df_meta):
     assert isinstance(df_models["int"], KernelDensityEstimate)
     assert isinstance(df_models["int_bool"], KernelDensityEstimate)
     assert isinstance(df_models["float"], Histogram)
+
+
+def test_factory_annotations():
+
+    df = pd.DataFrame({
+        'a': ['a', 'b', 'c'],
+        'b': ['MAUS', 'HBUK', 'HBUK'],
+        'c': ['010468', '616232', '131315'],
+        'd': ['d', 'm', 'm'],
+        'e': ['Alice', 'Bob', 'Charlie'],
+        'f': ['Smith', 'Holmes', 'Smith'],
+        'g': ['SJ-3921', 'LE-0826', 'PQ-0871'],
+    })
+
+    annotations=[
+        Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
+        Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
+        Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f')),
+        FormattedString(name='g', pattern='[A-Z]{2}-[0-9]{4}'),
+    ]
+
+    df_meta = MetaExtractor.extract(df=df, annotations=annotations)
+    df_model = ModelFactory()(df_meta)
+
+    with df_meta.unfold(df) as sub_df:
+        for name, model in df_model.items():
+            model.fit(sub_df)
+
+    columns = [model.sample(len(df)) for model in df_model.values()]
+    df_synthesized = pd.concat((columns), axis=1)
+
+    assert df_synthesized.shape == df.shape

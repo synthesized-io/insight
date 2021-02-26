@@ -2,7 +2,7 @@
 import logging
 import pickle
 from math import sqrt
-from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple, cast
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.base import ContinuousModel, DiscreteModel
-from ..metadata_new.model import ModelFactory
+from ..metadata_new.model import BankModel, FormattedStringModel, ModelFactory
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -52,8 +52,8 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        df_model = ModelFactory()(df_meta)
-        self.df_model, self.df_model_independent = self.split_df_model(df_model)
+        self.df_model = ModelFactory()(df_meta)
+        self.df_model_independent = self.split_df_model(self.df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
@@ -113,22 +113,30 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def split_df_model(self, df_model: DataFrameMeta) -> Tuple[DataFrameMeta, DataFrameMeta]:
+    def split_df_model(self, df_model: DataFrameMeta) -> DataFrameMeta:
+        """Given a df_model, pop out those models that are not learned in the engine and
+        return a df_model_independent containing these models.
+        """
+
         df_model_independent = DataFrameMeta(name='independent_models')
-        df_model_engine = DataFrameMeta(name='engine_models')
+        models_to_pop: List[str] = []
         for name, model in df_model.items():
 
             if isinstance(model, ContinuousModel):
-                df_model_engine[name] = model
+                continue
 
-            if isinstance(model, DiscreteModel):
+            if isinstance(model, (BankModel, FormattedStringModel)):
+                models_to_pop.append(name)
+
+            elif isinstance(model, DiscreteModel):
                 assert model.categories and model.num_rows
-                if len(model.categories) <= sqrt(model.num_rows):
-                    df_model_engine[name] = model
-                else:
-                    df_model_independent[name] = model
+                if len(model.categories) > sqrt(model.num_rows):
+                    models_to_pop.append(name)
 
-        return df_model_engine, df_model_independent
+        for model_name in models_to_pop:
+            df_model_independent[model_name] = df_model.pop(model_name)
+
+        return df_model_independent
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -154,9 +162,13 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager.restart_learning_manager()
             self.learning_manager.set_check_frequency(self.batch_size)
 
-        for model in self.df_model_independent.values():
-            assert isinstance(model, Model)
-            model.fit(df_train)
+        if not self.df_meta._extracted:
+            self.df_meta.extract(df_train)
+
+        with self.df_meta.unfold(df_train) as sub_df_train:
+            for model in self.df_model_independent.values():
+                assert isinstance(model, Model)
+                model.fit(sub_df_train)
 
         num_data = len(df_train)
         if not self.df_transformer.is_fitted():
@@ -239,6 +251,7 @@ class HighDimSynthesizer(Synthesizer):
 
         columns = self.df_meta.columns
 
+        assert columns is not None
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
 
