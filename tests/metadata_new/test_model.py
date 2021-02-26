@@ -370,7 +370,7 @@ def test_factory_annotations():
         Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
         Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
         Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f')),
-        FormattedString(name='formatted_string', label='g', pattern='[A-Z]{2}-[0-9]{4}'),
+        FormattedString(name='g', pattern='[A-Z]{2}-[0-9]{4}'),
     ]
 
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)

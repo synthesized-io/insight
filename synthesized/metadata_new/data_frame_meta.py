@@ -84,6 +84,7 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             "id_index": self.id_index,
             "time_index": self.time_index,
             "column_aliases": self.column_aliases,
+            "columns": self.columns,
             "num_columns": self.num_columns,
             "num_rows": self.num_rows,
             "annotations": self.annotations

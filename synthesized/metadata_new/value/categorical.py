@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 from ..base import Nominal
 
@@ -22,3 +22,11 @@ class FormattedString(String):
     ):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self.pattern = pattern
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "pattern": self.pattern
+        })
+
+        return d

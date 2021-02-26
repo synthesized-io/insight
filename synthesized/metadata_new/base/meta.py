@@ -124,9 +124,9 @@ class Meta(Mapping[str, 'Meta']):
             Meta.to_dict: convert a Meta to a dictionary
         """
         name = cast(str, d["name"])
-        d.pop("class_name")
+        d.pop("class_name", None)
 
-        extracted = d.pop("extracted")
+        extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
 
         meta = cls(name=name)

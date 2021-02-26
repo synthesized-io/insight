@@ -2,7 +2,7 @@
 import logging
 import pickle
 from math import sqrt
-from typing import Any, BinaryIO, Callable, Dict, Optional, Sequence, Tuple, cast
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -119,7 +119,7 @@ class HighDimSynthesizer(Synthesizer):
         """
 
         df_model_independent = DataFrameMeta(name='independent_models')
-        models_to_pop = []
+        models_to_pop: List[str] = []
         for name, model in df_model.items():
 
             if isinstance(model, ContinuousModel):
@@ -161,6 +161,9 @@ class HighDimSynthesizer(Synthesizer):
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
             self.learning_manager.set_check_frequency(self.batch_size)
+
+        if not self.df_meta._extracted:
+            self.df_meta.extract(df_train)
 
         for model in self.df_model_independent.values():
             assert isinstance(model, Model)
