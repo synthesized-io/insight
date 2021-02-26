@@ -376,8 +376,9 @@ def test_factory_annotations():
     df_meta = MetaExtractor.extract(df=df, annotations=annotations)
     df_model = ModelFactory()(df_meta)
 
-    for name, model in df_model.items():
-        model.fit(df)
+    with df_meta.unfold(df) as sub_df:
+        for name, model in df_model.items():
+            model.fit(sub_df)
 
     columns = [model.sample(len(df)) for model in df_model.values()]
     df_synthesized = pd.concat((columns), axis=1)
