@@ -52,7 +52,7 @@ class Meta(Mapping[str, 'Meta']):
 
     def extract(self, df: pd.DataFrame) -> 'Meta':
         """Extract the children of this Meta."""
-        with self.unfold(df.copy()) as sub_df:
+        with self.unfold(df) as sub_df:
             for child in self.children:
                 child.extract(sub_df)
         self._extracted = True

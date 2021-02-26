@@ -35,9 +35,6 @@ class Bank(String):
 
     def convert_df_for_children(self, df: pd.DataFrame):
 
-        if not self._is_folded(df):
-            return df
-
         sr_bank = df[self.name]
         index = 0
         if self.labels.bic_label is not None:
@@ -55,9 +52,6 @@ class Bank(String):
         df.drop(columns=self.name, inplace=True)
 
     def revert_df_from_children(self, df):
-
-        if self._is_folded(df):
-            return df
 
         df[self.name] = ''
         df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
