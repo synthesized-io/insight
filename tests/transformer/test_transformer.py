@@ -153,8 +153,11 @@ def test_date_transformer():
 
 
 def test_gender_transformer():
-    transformer = GenderTransformer(name="date", config=config)
+    transformer = GenderTransformer(name="date")
 
+
+def test_date_to_numeric_transformer():
+    transformer = DateToNumericTransformer(name="date")
     n = 5000
     df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],
                       columns=['date'])
@@ -162,6 +165,7 @@ def test_gender_transformer():
     transformer.fit(df)
     assert transformer._fitted is True
     df_t = transformer.transform(df.copy())
+
     pd.testing.assert_frame_equal(df, transformer.inverse_transform(df_t))
 
 

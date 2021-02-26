@@ -9,7 +9,7 @@ TestData Objects  ->  DType
 StringData         |  'U'
 BoolData           |  '?'
 OrderedString      |  pd.categorical
-DateData           |  'datetime64[D]'
+DateData           |  'datetime64[ns]'
 IntData            |  'i8'
 TimeDeltaDay       |  'timedelta64[D]'
 FloatData          |  'f8'

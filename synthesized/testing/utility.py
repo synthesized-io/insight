@@ -57,10 +57,11 @@ class UtilityTesting:
         self.continuous: List[str] = []
 
         for name, meta in self.df_models.items():
-            if isinstance(meta, Affine) and meta.dtype != 'M8[D]':
-                self.continuous.append(name)
-            elif isinstance(meta, Nominal) and meta.dtype != 'M8[D]':
-                self.categorical.append(name)
+            if meta.dtype != 'M8[ns]':
+                if isinstance(meta, Affine):
+                    self.continuous.append(name)
+                elif isinstance(meta, Nominal):
+                    self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 
         # Set the style of plots

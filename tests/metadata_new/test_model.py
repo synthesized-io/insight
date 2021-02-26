@@ -8,7 +8,7 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new import Bank, Date, FormattedString, Integer, MetaExtractor
+from synthesized.metadata_new import Bank, DateTime, FormattedString, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
@@ -37,9 +37,37 @@ def simple_df():
 @pytest.fixture
 def simple_df_binned_probabilities():
     probs = {
-        'date': {pd.Interval(pd.Timestamp(datetime.strptime('2020-02-24 00:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.0032244955008293133, pd.Interval(pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.011699174133465277, pd.Interval(pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.05498513716790392, pd.Interval(pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.14416831367994937, pd.Interval(pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.22353093217772335, pd.Interval(pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.24885100781537467, pd.Interval(pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.18608688433096188, pd.Interval(pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.09085677663066802, pd.Interval(pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.03138891193009287, pd.Interval(pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-02-11 00:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.005208366633031028},
-        'int': {pd.Interval(0, 1, closed='left'): 0.060437068579862134, pd.Interval(1, 2, closed='left'): 0.030799447835097436, pd.Interval(2, 3, closed='left'): 0.12191977892474855, pd.Interval(3, 4, closed='left'): 0.3633195010374817, pd.Interval(4, 5, closed='left'): 0.42352420362280985},
-        'float': {pd.Interval(-3.6625330162590917, -2.930615228589776, closed='left'): 0.002515169527140779, pd.Interval(-2.930615228589776, -2.1986974409204603, closed='left'): 0.016909613332347164, pd.Interval(-2.1986974409204603, -1.4667796532511446, closed='left'): 0.05968321861823208, pd.Interval(-1.4667796532511446, -0.7348618655818289, closed='left'): 0.1505943457380943, pd.Interval(-0.7348618655818289, -0.0029440779125131655, closed='left'): 0.26938996058883313, pd.Interval(-0.0029440779125131655, 0.7289737097568025, closed='left'): 0.25887642078328754, pd.Interval(0.7289737097568025, 1.4608914974261182, closed='left'): 0.16429211636779523, pd.Interval(1.4608914974261182, 2.192809285095434, closed='left'): 0.06263625372938374, pd.Interval(2.192809285095434, 2.9247270727647496, closed='left'): 0.012323832964755947, pd.Interval(2.9247270727647496, 3.6566448604340653, closed='left'): 0.00277906835012976},
+        'date': {
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-02-24 00:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.003264343477073837,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-03-30 07:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.012080479437589253,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-05-04 14:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.05704717081517405,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-06-08 21:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.14274587206677292,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-07-14 04:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.2260434151289749,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-08-18 12:00:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.2504990467142084,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-09-22 19:12:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.18124031428456638,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-10-28 02:24:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.0911180687237961,
+            pd.Interval(pd.Timestamp(datetime.strptime('2020-12-02 09:36:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.030980612733336497,
+            pd.Interval(pd.Timestamp(datetime.strptime('2021-01-06 16:48:00', "%Y-%m-%d %H:%M:%S")), pd.Timestamp(datetime.strptime('2021-02-11 00:00:00', "%Y-%m-%d %H:%M:%S")), closed='left'): 0.00498067661850735
+        },
+        'int': {
+            pd.Interval(0, 1, closed='left'): 0.060437068579862134,
+            pd.Interval(1, 2, closed='left'): 0.030799447835097436,
+            pd.Interval(2, 3, closed='left'): 0.12191977892474855,
+            pd.Interval(3, 4, closed='left'): 0.3633195010374817,
+            pd.Interval(4, 5, closed='left'): 0.42352420362280985
+        },
+        'float': {
+            pd.Interval(-3.6625330162590917, -2.930615228589776, closed='left'): 0.002515169527140779,
+            pd.Interval(-2.930615228589776, -2.1986974409204603, closed='left'): 0.016909613332347164,
+            pd.Interval(-2.1986974409204603, -1.4667796532511446, closed='left'): 0.05968321861823208,
+            pd.Interval(-1.4667796532511446, -0.7348618655818289, closed='left'): 0.1505943457380943,
+            pd.Interval(-0.7348618655818289, -0.0029440779125131655, closed='left'): 0.26938996058883313,
+            pd.Interval(-0.0029440779125131655, 0.7289737097568025, closed='left'): 0.25887642078328754,
+            pd.Interval(0.7289737097568025, 1.4608914974261182, closed='left'): 0.16429211636779523,
+            pd.Interval(1.4608914974261182, 2.192809285095434, closed='left'): 0.06263625372938374,
+            pd.Interval(2.192809285095434, 2.9247270727647496, closed='left'): 0.012323832964755947,
+            pd.Interval(2.9247270727647496, 3.6566448604340653, closed='left'): 0.00277906835012976
+        },
         'int_bool': {pd.Interval(0, 1, closed='left'): 1.0}
     }
     return probs
@@ -118,21 +146,20 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     the entire range using the defined precision. Otherwise, it should just return the specific values.
     """
     col = "date_sparse"
-    date_meta = cast(Date, simple_df_meta[col])
+    date_meta = cast(DateTime, simple_df_meta[col])
 
     logger.debug(date_meta.categories[:3])  # [numpy.datetime64('2023-07-07'), numpy.datetime64('2023-10-15'), ...]
 
     logger.debug("precision: %s", date_meta.unit_meta.precision)  # np.timedelta64(1, 'D')
 
     hist = Histogram.from_meta(date_meta)
-    assert hist.dtype == "M8[D]"
+    assert hist.dtype == "M8[ns]"
     assert hist.categories == date_meta.categories
 
     # Now we increase the precision, but it doesn't span multiple values yet. (smallest diff is 5 days)
     date_meta.unit_meta.precision = np.timedelta64(3, 'D')
     hist = Histogram.from_meta(date_meta)
-    assert hist.dtype == "M8[D]"
-    assert hist.categories == date_meta.categories
+    assert hist.dtype == "M8[ns]"
 
     # Finally we increase the precision so that it spans multiple values
     date_meta.unit_meta.precision = np.timedelta64(10, 'D')
@@ -140,7 +167,7 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     logger.debug(hist)
     logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]
 
-    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[ns]]"]
+    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[D]]"]
     assert len(hist.categories) == 181
 
 
@@ -152,7 +179,8 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
     kde.fit(simple_df)
     kde.plot()
     hist = Histogram.bin_affine_meta(kde, max_bins=10)
-    assert hist.probabilities == simple_df_binned_probabilities[col]
+    assert hist.probabilities.keys() == simple_df_binned_probabilities[col].keys()
+    np.testing.assert_almost_equal([*simple_df_binned_probabilities[col].values()], [*hist.probabilities.values()])
 
 
 def test_formatted_string_model():

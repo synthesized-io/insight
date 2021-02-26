@@ -152,7 +152,7 @@ class TransformerFactory:
     def _from_continuous(self, model: ContinuousModel[AType]) -> List[Transformer]:
         transformers: List[Transformer] = []
 
-        if model.dtype == 'M8[D]':
+        if model.dtype == 'M8[ns]':
             transformers.append(DateTransformer.from_meta(model, config=self.config.date_transformer_config))
 
             if model.nan_freq:

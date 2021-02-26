@@ -35,7 +35,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
     @property
     def kde_dtype(self) -> str:
         dtype_map = {
-            'm8[D]': 'i8'
+            'm8[ns]': 'i8'
         }
         if self.unit_meta.dtype is None:
             raise ValueError

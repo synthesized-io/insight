@@ -23,6 +23,11 @@ class DateTransformer(SequentialTransformer):
         ]
         super().__init__(name, transformers=transformers)
 
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        df = super().inverse_transform(df)
+        df.loc[:, self.name] = pd.to_datetime(df[self.name]).dt.strftime(self[0].date_format)
+        return df
+
     @classmethod
     def from_meta(cls, meta: Affine[np.datetime64], config: Optional[DateTransformerConfig] = None) -> 'DateTransformer':
         return cls(meta.name, start_date=meta.min, config=config)
@@ -61,7 +66,7 @@ class DateToNumericTransformer(Transformer):
 
         if sr.dtype.kind != 'M':
             assert self.date_format is not None
-            sr = pd.to_datetime(sr, format=self.date_format)
+            sr = pd.to_datetime(sr, format=self.date_format, errors='coerce')
 
         if self.start_date is None:
             self.start_date = sr.min()
@@ -70,12 +75,12 @@ class DateToNumericTransformer(Transformer):
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if df[self.name].dtype.kind != 'M':
-            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format)
-        df.loc[:, self.name] = (df.loc[:, self.name] - self.start_date).dt.components[self.unit]
+            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format, errors='coerce')
+        df.loc[:, self.name] = (df.loc[:, self.name] - self.start_date).dt.total_seconds() / 86400
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df.loc[:, self.name] = (pd.to_timedelta(df[self.name], unit=self.unit) + self.start_date).apply(lambda x: x.strftime(self.date_format))
+        df.loc[:, self.name] = pd.to_timedelta(df[self.name], unit=self.unit) + self.start_date
         return df
 
     @classmethod
@@ -124,7 +129,7 @@ class DateCategoricalTransformer(Transformer):
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
         if df[self.name].dtype.kind != 'M':
-            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format)
+            df.loc[:, self.name] = pd.to_datetime(df.loc[:, self.name], format=self.date_format, errors='coerce')
 
         categorical_dates = self.split_datetime(df[self.name])
         df[categorical_dates.columns] = categorical_dates
