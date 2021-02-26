@@ -41,17 +41,18 @@ class ValueFactory:
         Manages creation of associated value for NaNs
         """
         values: Dict[str, Value] = dict()
-        for name, value_meta in df_meta.items():
-            if isinstance(value_meta, Nominal):
-                nan_value = self._build_nan(name, value_meta)
-                if nan_value is not None:
-                    values[f"{name}_nan"] = nan_value
-                value = self._create_value(value_meta)
-            else:
-                raise ValueError('Unsupported Building of DataFrameValue with non-nominal metas')
+        for value_meta in df_meta.values():
+            if not isinstance(value_meta, Nominal):
+                raise ValueError('Unsupported building of DataFrameValue with non-nominal metas')
+
+            nan_value = self._build_nan(value_meta.name, value_meta)
+            if nan_value is not None:
+                values[f"{value_meta.name}_nan"] = nan_value
+
+            value = self._create_value(value_meta)
 
             if value is not None:
-                values[name] = value
+                values[value_meta.name] = value
 
         return DataFrameValue(name="dataframe_value", values=values)
 

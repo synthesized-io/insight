@@ -36,14 +36,20 @@ class Person(String):
         return self
 
     def convert_df_for_children(self, df: pd.DataFrame):
-        if self.name not in df.columns:
-            raise KeyError
+
+        if not self._is_folded(df):
+            return df
+
         sr_collapsed_address = df[self.name]
         df[list(self.keys())] = sr_collapsed_address.astype(str).str.split("|", n=len(self.keys()) - 1, expand=True)
 
         df.drop(columns=self.name, inplace=True)
 
     def revert_df_from_children(self, df: pd.DataFrame):
+
+        if self._is_folded(df):
+            return df
+
         df[self.name] = df[list(self.keys())[0]].astype(str).str.cat(
             [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )

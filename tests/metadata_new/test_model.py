@@ -182,7 +182,7 @@ def test_sequential_formatted_string_model():
     [
         pytest.param(AddressModelConfig(addresses_file=None), id='fake_addresses'),
         pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz'), id='real_addresses_not_learned'),
-        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz', learn_postcodes=True), id='real_addresses_learned'),
+        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz', learn_postcode=True), id='real_addresses_learned'),
     ]
 )
 def test_address(config, postcode_label, full_address_label):

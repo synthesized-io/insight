@@ -16,8 +16,8 @@ from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
-from ..metadata_new.base import ContinuousModel, DiscreteModel
-from ..metadata_new.model import BankModel, FormattedStringModel, ModelFactory
+from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
+from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel, ModelFactory, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -120,12 +120,22 @@ class HighDimSynthesizer(Synthesizer):
 
         df_model_independent = DataFrameMeta(name='independent_models')
         models_to_pop: List[str] = []
+        models_to_add: List[Meta] = []
+
         for name, model in df_model.items():
 
             if isinstance(model, ContinuousModel):
                 continue
 
-            if isinstance(model, (BankModel, FormattedStringModel)):
+            elif isinstance(model, (BankModel, FormattedStringModel)):
+                models_to_pop.append(name)
+
+            elif isinstance(model, PersonModel):
+                models_to_add.append(model.gender_model)
+                models_to_pop.append(name)
+
+            elif isinstance(model, AddressModel):
+                models_to_add.append(model.postcode_model)
                 models_to_pop.append(name)
 
             elif isinstance(model, DiscreteModel):
@@ -135,6 +145,9 @@ class HighDimSynthesizer(Synthesizer):
 
         for model_name in models_to_pop:
             df_model_independent[model_name] = df_model.pop(model_name)
+
+        for model in models_to_add:
+            df_model[model.name] = model
 
         return df_model_independent
 
@@ -303,9 +316,11 @@ class HighDimSynthesizer(Synthesizer):
         else:
             df_synthesized = pd.DataFrame([[], ] * num_rows)
 
+        print(df_synthesized.columns)
         independent_columns = [cast(Model, model).sample(num_rows, produce_nans=produce_nans)
                                for model in self.df_model_independent.values()]
         df_synthesized = pd.concat(([df_synthesized] + independent_columns), axis=1)
+        print(df_synthesized.columns)
         df_synthesized = df_synthesized[columns]
 
         if progress_callback is not None:

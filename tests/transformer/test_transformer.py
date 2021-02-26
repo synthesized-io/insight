@@ -9,8 +9,8 @@ from synthesized.metadata_new.meta_builder import MetaExtractor
 from synthesized.metadata_new.model import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,
-                                     DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,
-                                     SequentialTransformer, Transformer, TransformerFactory)
+                                     DropColumnTransformer, DTypeTransformer, GenderTransformer, NanTransformer,
+                                     QuantileTransformer, SequentialTransformer, Transformer, TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -141,6 +141,19 @@ def test_transformer(transformer, data):
 def test_date_transformer():
     config = DateTransformerConfig(noise=None)
     transformer = DateTransformer(name="date", config=config)
+
+    n = 5000
+    df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],
+                      columns=['date'])
+    df['date'] = df['date'].apply(lambda x: x.strftime("%Y-%m-%d"))
+    transformer.fit(df)
+    assert transformer._fitted is True
+    df_t = transformer.transform(df.copy())
+    pd.testing.assert_frame_equal(df, transformer.inverse_transform(df_t))
+
+
+def test_gender_transformer():
+    transformer = GenderTransformer(name="date", config=config)
 
     n = 5000
     df = pd.DataFrame([np.datetime64('2017-01-01 00:00:00') + np.random.randint(1000, 1_000_000) for _ in range(n)],

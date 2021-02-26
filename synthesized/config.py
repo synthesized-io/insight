@@ -16,7 +16,7 @@ class AddressModelConfig:
     locale = 'en_GB'
     postcode_level: int = 0
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
-    learn_postcodes: bool = False
+    learn_postcode: bool = False
 
     @property
     def address_model_config(self):
@@ -71,14 +71,6 @@ class PersonModelConfig:
     @property
     def person_model_config(self):
         return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
-
-    @property
-    def gender_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
-
-    @property
-    def title_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
 
 
 @dataclass
@@ -153,6 +145,16 @@ class DateTransformerConfig(QuantileTransformerConfig):
         return DateTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
         )
+
+
+class GenderTransformerConfig:
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
 
 
 @dataclass
