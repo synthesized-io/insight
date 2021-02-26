@@ -6,9 +6,10 @@ import rstr
 
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
+from ..value import FormattedString
 
 
-class FormattedString(DiscreteModel[str]):
+class FormattedStringModel(FormattedString, DiscreteModel[str]):
     """A model to sample formatted strings from a regex pattern.
 
     Attributes:
@@ -23,8 +24,7 @@ class FormattedString(DiscreteModel[str]):
             self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             pattern: str = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
-        self.pattern = pattern
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, pattern=pattern)
 
         if nan_freq is not None:
             self._fitted = True
@@ -39,6 +39,10 @@ class FormattedString(DiscreteModel[str]):
             is_nan = np.random.binomial(1, p=self.nan_freq, size=n) == 1
             samples[is_nan] = np.nan
         return samples.to_frame()
+
+    @classmethod
+    def from_meta(cls, meta: FormattedString) -> 'FormattedStringModel':
+        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, pattern=meta.pattern)
 
 
 class SequentialFormattedString(DiscreteModel[str]):

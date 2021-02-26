@@ -28,12 +28,14 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         self.id_index = id_index
         self.time_index = time_index
         self.column_aliases = column_aliases if column_aliases is not None else {}
+        self.columns = None
         self.num_columns = num_columns
         self.num_rows = num_rows
         self.annotations = annotations if annotations is not None else []
 
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
         super().extract(df)
+        self.columns = df.columns
         self.num_columns = len(df.columns)
         self.num_rows = len(df)
         return self
@@ -76,16 +78,13 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
     def __delitem__(self, k: str) -> None:
         del self._children[k]
 
-    @property
-    def columns(self) -> List:
-        return list(self.keys())
-
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
             "id_index": self.id_index,
             "time_index": self.time_index,
             "column_aliases": self.column_aliases,
+            "columns": self.columns,
             "num_columns": self.num_columns,
             "num_rows": self.num_rows,
             "annotations": self.annotations

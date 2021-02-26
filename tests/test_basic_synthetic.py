@@ -8,8 +8,9 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue, DateValue
+from synthesized.config import BankLabels
 from synthesized.metadata import TypeOverride
-from synthesized.metadata_new import DataFrameMeta, Float, Integer, MetaExtractor, String
+from synthesized.metadata_new import Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor, String
 from tests.utils import progress_bar_testing
 
 
@@ -217,4 +218,26 @@ def test_encode_deterministic():
     with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
         synthesizer.learn(num_iterations=10, df_train=df_original)
         df_synthesized = synthesizer.encode_deterministic(df_original)
+    assert df_synthesized.shape == df_original.shape
+
+
+def test_synthesis_w_annotations():
+    n = 1000
+    df_original = pd.DataFrame({
+        'x': np.random.normal(size=n),
+        'y': np.random.choice(['a', 'b', 'c'], size=n),
+        'sample': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
+        'bic': [''.join([random.choice(string.ascii_letters) for _ in range(4)]) for _ in range(n)],
+        'sort_code': [''.join([random.choice(string.ascii_letters) for _ in range(6)]) for _ in range(n)],
+        'account': [''.join([random.choice(string.digits) for _ in range(6)]) for _ in range(n)],
+    })
+    annotations=[
+        FormattedString(name='sample', pattern='[A-Za-z]{10}'),
+        Bank(name='bank', labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account')),
+    ]
+
+    df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)
+    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
+        synthesizer.learn(num_iterations=10, df_train=df_original)
+        df_synthesized = synthesizer.synthesize(n)
     assert df_synthesized.shape == df_original.shape

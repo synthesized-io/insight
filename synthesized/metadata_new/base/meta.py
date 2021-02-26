@@ -72,6 +72,15 @@ class Meta(Mapping[str, 'Meta']):
         yield df
         self.revert_df_from_children(df)
 
+    def _is_folded(self, df: pd.DataFrame) -> bool:
+        """Check if the given dataframe is folded or unfolded."""
+        if self.name in df.columns and not any([child.name in df.columns for child in self.values()]):
+            return True
+        elif self.name not in df.columns and all([child.name in df.columns for child in self.values()]):
+            return False
+        else:
+            raise ValueError("Can't determine whether the dataframe is folded or unfolded.")
+
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
 
@@ -115,9 +124,9 @@ class Meta(Mapping[str, 'Meta']):
             Meta.to_dict: convert a Meta to a dictionary
         """
         name = cast(str, d["name"])
-        d.pop("class_name")
+        d.pop("class_name", None)
 
-        extracted = d.pop("extracted")
+        extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
 
         meta = cls(name=name)
