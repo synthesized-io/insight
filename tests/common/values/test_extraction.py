@@ -30,7 +30,7 @@ def test_kde_extraction():
 
 def test_date_kde_extraction():
     model = KernelDensityEstimate(name="kde", nan_freq=0.1)
-    model.dtype = 'M8[D]'
+    model.dtype = 'M8[ns]'
     df_value = extract_value_from_model(model)
 
     assert isinstance(df_value["kde"], DateValue)

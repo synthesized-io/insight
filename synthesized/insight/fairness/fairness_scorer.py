@@ -16,7 +16,7 @@ from .classification_bias import ClassificationBias
 from .fairness_transformer import FairnessTransformer
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CategoricalLogisticR2, CramersV
-from ...metadata_new import DataFrameMeta, Date, MetaExtractor, String
+from ...metadata_new import DataFrameMeta, DateTime, MetaExtractor, String
 from ...metadata_new.base.model import ContinuousModel, DiscreteModel, Model
 from ...metadata_new.model import Histogram, ModelBuilder, ModelFactory
 from ...transformer import SequentialTransformer
@@ -482,11 +482,11 @@ class FairnessScorer:
         if isinstance(df_meta[target], String) and len(df_meta[target].categories) > np.sqrt(df_meta.num_rows):  # type: ignore
             raise ValueError("Unable to compute fairness. Target column has too many unique non-numeric values.")
 
-        if isinstance(df_meta[target], Date):
+        if isinstance(df_meta[target], DateTime):
             raise TypeError("Datetime target columns not supported.")
 
         for attr in sensitive_attrs:
-            if isinstance(df_meta[attr], Date) and self.drop_dates:
+            if isinstance(df_meta[attr], DateTime) and self.drop_dates:
                 self.sensitive_attrs.remove(attr)
 
         # If target in sensitive_attrs, drop it
