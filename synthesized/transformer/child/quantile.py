@@ -36,20 +36,22 @@ class QuantileTransformer(Transformer):
         if len(df) < self._transformer.n_quantiles:
             self._transformer = self._transformer.set_params(n_quantiles=len(df))
 
-        if self.noise:
-            df.loc[:, self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
+        self._positive = (df[self.name] > 0.0).all()
+        self._nonnegative = (df[self.name] >= 0.0).all()
 
-        self._transformer.fit(df[[self.name]])
+        column = df.loc[:, self.name].astype('float32')
+
+        if self.noise:
+            column += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
+
+        self._transformer.fit(column.to_numpy().reshape(-1, 1))
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if self.noise:
             df.loc[:, self.name] += np.random.normal(loc=0, scale=self.noise, size=(len(df)))
 
-        positive = (df[self.name] > 0.0).all()
-        nonnegative = (df[self.name] >= 0.0).all()
-
-        if nonnegative and not positive:
+        if self._nonnegative and not self._positive:
             df.loc[df[self.name] < 0.001, self.name] = 0.001
 
         df[self.name] = self._transformer.transform(df[[self.name]]).astype(np.float32)
@@ -58,6 +60,8 @@ class QuantileTransformer(Transformer):
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df.loc[:, self.name] = self._transformer.inverse_transform(df[[self.name]])
+        if self._nonnegative:
+            df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
         return df
 
     @classmethod
