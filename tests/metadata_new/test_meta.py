@@ -48,26 +48,34 @@ class TestMeta(MetaTestData):
     @pytest.fixture(scope='class')
     def meta_expanded_dataframe(self, meta, dataframe):
         df = dataframe.copy()
-        meta.expand(df)
+        meta.convert_df_for_children(df)
         return df
 
     @pytest.fixture(scope='class')
     def collapsed_dataframe(self, meta, meta_expanded_dataframe):
         df = meta_expanded_dataframe.copy()
-        meta.collapse(df)
+        meta.revert_df_from_children(df)
         return df
 
     def test_expand(self, meta, meta_expanded_dataframe, expanded_dataframe):
 
         for child in meta.children:
             assert child.name in meta_expanded_dataframe.columns
-
         assert expanded_dataframe.equals(meta_expanded_dataframe)
+        assert expanded_dataframe.columns.equals(meta_expanded_dataframe.columns)
 
     def test_collapse(self, collapsed_dataframe, dataframe):
-        assert dataframe.equals(collapsed_dataframe)
+        columns = sorted(dataframe.columns)
+        assert columns == sorted(dataframe.columns)
+        assert dataframe[columns].equals(collapsed_dataframe[columns])
 
     def test_serialisation(self, extracted_meta):
         dct = extracted_meta.to_dict()
         new_meta = extracted_meta.from_dict(dct)
         assert new_meta == extracted_meta
+
+
+def test_meta_equals():
+
+    assert Meta(name='a') == Meta(name='a')
+    assert Meta(name='a') != Meta(name='b')

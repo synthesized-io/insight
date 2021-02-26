@@ -1,14 +1,15 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .plotting import set_plotting_style, plot_continuous_time_series, plot_categorical_time_series, \
-    plot_cross_correlations, plot_series
-from ..metadata import DataFrameMeta, MetaExtractor
+from .plotting import (plot_categorical_time_series, plot_continuous_time_series, plot_cross_correlations, plot_series,
+                       set_plotting_style)
 from ..insight import metrics
 from ..insight.metrics import ColumnVector
+from ..metadata import DataFrameMeta, MetaExtractor
+from ..metadata.values import IdentifierMeta
 
 COLOR_ORIG = '#1C5D7A'
 COLOR_SYNTH = '#801761'
@@ -43,7 +44,7 @@ class TimeSeriesUtilityTesting:
         self.unique_ids_orig = self.df_orig.index.get_level_values(self.id_index).unique()
         self.unique_ids_synth = self.df_synth.index.get_level_values(self.id_index).unique()
 
-        self.identifiers = df_meta.id_value.identifiers if df_meta.id_value is not None else []
+        self.identifiers: List[IdentifierMeta] = df_meta.id_value.identifiers if df_meta.id_value is not None else []
 
         # Set the style of plots
         set_plotting_style()

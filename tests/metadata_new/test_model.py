@@ -1,16 +1,19 @@
 import logging
-import random
-import string
 from datetime import datetime
-from typing import cast
+from typing import List, Optional, cast
 
 import numpy as np
 import pandas as pd
 import pytest
+from faker import Faker
 
-from synthesized.metadata_new import DateTime, Integer, MetaExtractor
-from synthesized.metadata_new.model import (FormattedString, Histogram, KernelDensityEstimate, ModelFactory,
-                                            SequentialFormattedString)
+from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
+from synthesized.metadata_new import Bank, DateTime, Integer, MetaExtractor
+from synthesized.metadata_new.base import Model
+from synthesized.metadata_new.data_frame_meta import DataFrameMeta
+from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedString, Histogram, KernelDensityEstimate,
+                                            ModelBuilder, ModelFactory, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.value import Address, Person
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +22,7 @@ logger = logging.getLogger(__name__)
 def simple_df():
     np.random.seed(6235901)
     df = pd.DataFrame({
-        'string': np.random.choice(['A','B','C','D','E'], size=1000),
+        'string': np.random.choice(['A', 'B', 'C', 'D', 'E'], size=1000),
         'bool': np.random.choice([False, True], size=1000).astype('?'),
         'date': pd.to_datetime(18_000 + np.random.normal(500, 50, size=1000).astype(int), unit='D'),
         'int': [n for n in [0, 1, 2, 3, 4, 5] for i in range([50, 50, 0, 200, 400, 300][n])],
@@ -74,6 +77,20 @@ def simple_df_meta(simple_df):
     df_meta = MetaExtractor.extract(simple_df)
     return df_meta
 
+
+def assert_model_output(model: Model, expected_columns: List[str], n: int = 1000,
+                        nan_columns: Optional[List[str]] = None):
+
+    nan_columns = nan_columns if nan_columns else expected_columns
+
+    for produce_nans in [True, False]:
+        df = model.sample(n, produce_nans=produce_nans)
+        assert len(df) == n
+        assert sorted(df.columns) == sorted(expected_columns)
+        if produce_nans:
+            assert all([df[c].isna().sum() > 0 for c in nan_columns])
+        else:
+            assert all([df[c].isna().sum() == 0 for c in nan_columns])
 
 @pytest.mark.slow
 @pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
@@ -178,11 +195,144 @@ def test_sequential_formatted_string_model():
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
-def test_factory(simple_df_meta):
-    df_models = ModelFactory().create_model(simple_df_meta)
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "postcode_label,full_address_label",
+    [
+        pytest.param('postcode', 'full_address', id='both_PC_full_address'),
+        pytest.param(None, 'full_address', id='only_full_address'),
+        pytest.param(None, None, id='no_PC_full_address'),
+    ]
+)
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(AddressModelConfig(addresses_file=None), id='fake_addresses'),
+        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz'), id='real_addresses_not_learned'),
+        pytest.param(AddressModelConfig(addresses_file='data/addresses.jsonl.gz', learn_postcodes=True), id='real_addresses_learned'),
+    ]
+)
+def test_address(config, postcode_label, full_address_label):
+    meta = Address('address', nan_freq=0.3,
+                   labels=AddressLabels(postcode_label=postcode_label, county_label='county',
+                                        city_label='city',
+                                        district_label='district', street_label='street',
+                                        house_number_label='house_number', flat_label='flat',
+                                        house_name_label='house_name',
+                                        full_address_label=full_address_label)
+                   )
+    model = AddressModel.from_meta(meta, config=config)
 
-    assert isinstance(ModelFactory().create_model(simple_df_meta), dict)
-    assert isinstance(ModelFactory().create_model(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
+    expected_columns = ['postcode', 'full_address', 'county', 'city', 'district', 'street', 'house_number', 'flat',
+                        'house_name']
+    if postcode_label is None:
+        expected_columns.remove('postcode')
+    if full_address_label is None:
+        expected_columns.remove('full_address')
+
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(1000)],
+        'full_address': [fkr.address() for _ in range(1000)],
+        'x': np.random.normal(size=1000),
+    })
+    model.fit(df_orig)
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+    n_cond = 100
+    conditions = pd.DataFrame({'address_postcode': np.random.choice(['N', 'IV', 'CA', 'NW'], size=n_cond)})
+    df = model.sample(n=None, conditions=conditions)
+    assert len(df) == n_cond
+    assert sorted(df.columns) == sorted(expected_columns)
+
+    with pytest.raises(ValueError):
+        AddressModel('address', nan_freq=0.3, labels=AddressLabels(full_address_label='address'))
+        AddressModel('address', nan_freq=0.3)
+
+
+def test_address_different_labels():
+    model = AddressModel('address', nan_freq=0.3,
+                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                              county_label=None, city_label=None, district_label=None,
+                                              street_label='street', house_number_label='house_number',
+                                              flat_label='flat', house_name_label='house_name'))
+
+    expected_columns = ['postcode', 'full_address', 'street', 'house_number', 'flat',
+                        'house_name']
+
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+    model = AddressModel('address', nan_freq=0.3,
+                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                              county_label='county', city_label='city', district_label='district',
+                                              street_label=None, house_number_label=None, flat_label=None,
+                                              house_name_label=None))
+
+    expected_columns = ['postcode', 'full_address', 'county', 'city', 'district']
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+
+def test_bank_number():
+
+    meta = Bank('bank', nan_freq=0.3,
+                labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account'))
+    model = BankModel.from_meta(meta)
+
+    expected_columns = ['bic', 'sort_code', 'account']
+    assert_model_output(model, expected_columns=expected_columns)
+
+
+@pytest.mark.parametrize(
+    "labels,expected_columns",
+    [
+        pytest.param(PersonLabels(title_label='title', gender_label='gender', name_label='name',
+                                  firstname_label='firstname', lastname_label='lastname',
+                                  email_label='email', username_label='username', password_label='password',
+                                  mobile_number_label='mobile_number', home_number_label='home_number',
+                                  work_number_label='work_number'),
+                     ['title', 'gender', 'name', 'firstname', 'lastname', 'email', 'username', 'password',
+                      'mobile_number', 'home_number', 'work_number'],
+                     id="all_labels"),
+        pytest.param(PersonLabels(title_label='title', gender_label=None, name_label=None,
+                                  firstname_label='firstname', lastname_label='lastname',
+                                  email_label='email', username_label='username', password_label='password',
+                                  mobile_number_label=None, home_number_label=None,
+                                  work_number_label=None),
+                     ['title', 'firstname', 'lastname', 'email', 'username', 'password'],
+                     id="some_labels_no_gender"),
+        pytest.param(PersonLabels(title_label=None, gender_label=None, name_label='name',
+                                  firstname_label=None, lastname_label=None,
+                                  email_label=None, username_label=None, password_label=None,
+                                  mobile_number_label='mobile_number', home_number_label='home_number',
+                                  work_number_label='work_number'),
+                     ['name', 'mobile_number', 'home_number', 'work_number'],
+                     id="other_labels_no_gender_title")
+    ])
+def test_person(labels, expected_columns):
+    meta = Person('person', nan_freq=0.3, labels=labels)
+    model = PersonModel.from_meta(meta)
+    n = 1000
+    df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
+                       'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
+    model.fit(df)
+    assert_model_output(model, expected_columns=expected_columns)
+
+    conditions = pd.DataFrame({'person_gender': np.random.choice(['m', 'f', 'u'], size=n)})
+    df_sampled = model.sample(conditions=conditions)
+    assert sorted(df_sampled.columns) == sorted(expected_columns)
+
+    with pytest.raises(ValueError):
+        model.sample()
+        PersonModel('gender', nan_freq=0.3, labels=PersonLabels(gender_label='gender'))
+        PersonModel('gender', nan_freq=0.3, labels=PersonLabels(firstname_label='name', lastname_label='name'))
+        PersonModel('gender', nan_freq=0.3)
+
+
+def test_factory(simple_df_meta):
+    df_models = ModelFactory()(simple_df_meta)
+
+    assert isinstance(ModelFactory()(simple_df_meta), DataFrameMeta)
+    assert isinstance(ModelBuilder()(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
     assert isinstance(df_models['string'], Histogram)
     assert isinstance(df_models['bool'], Histogram)
     assert isinstance(df_models['date'], KernelDensityEstimate)
@@ -202,7 +352,7 @@ def test_models_with_nans():
     df_original.loc[np.random.uniform(size=len(df_original)) < nan_freq, 'y'] = np.nan
 
     df_meta = MetaExtractor.extract(df_original)
-    df_model = ModelFactory().create_df_model_meta(df_meta)
+    df_model = ModelFactory()(df_meta)
 
     assert isinstance(df_model['x'], KernelDensityEstimate)
     assert isinstance(df_model['y'], Histogram)
@@ -215,3 +365,17 @@ def test_models_with_nans():
 
     df_synthesized = pd.concat([model.sample(num_rows, produce_nans=True) for model in df_model.values()], axis=1)
     assert all([df_synthesized[c].isna().sum() > 0 for c in df_synthesized.columns])
+
+
+def test_factory_type_override(simple_df_meta):
+    type_overrides = [
+        KernelDensityEstimate.from_meta(simple_df_meta["int"]),
+        KernelDensityEstimate.from_meta(simple_df_meta["int_bool"]),
+        Histogram.from_meta(simple_df_meta["float"])
+    ]
+
+    df_models = ModelFactory()(simple_df_meta, type_overrides)
+
+    assert isinstance(df_models["int"], KernelDensityEstimate)
+    assert isinstance(df_models["int_bool"], KernelDensityEstimate)
+    assert isinstance(df_models["float"], Histogram)

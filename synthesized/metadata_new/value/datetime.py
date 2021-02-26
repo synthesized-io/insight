@@ -69,7 +69,7 @@ class DateTime(Affine[np.datetime64]):
 
         return self
 
-    def expand(self, df: pd.DataFrame):
+    def convert_df_for_children(self, df: pd.DataFrame):
 
         sr_dt = df[self.name]
 
@@ -79,7 +79,7 @@ class DateTime(Affine[np.datetime64]):
         df[self.name + '_year'] = sr_dt.dt.year
         df.drop(columns=self.name, inplace=True)
 
-    def collapse(self, df):
+    def revert_df_from_children(self, df):
 
         df.loc[:, self.name] = pd.to_datetime(pd.DataFrame({
             'year': df.loc[:, self.name + '_year'],

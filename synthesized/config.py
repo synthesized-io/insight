@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -7,60 +7,78 @@ import pandas as pd
 
 
 @dataclass
-class AddressParams:
-    postcode_label: Union[str, List[str], None] = None
-    county_label: Union[str, List[str], None] = None
-    city_label: Union[str, List[str], None] = None
-    district_label: Union[str, List[str], None] = None
-    street_label: Union[str, List[str], None] = None
-    house_number_label: Union[str, List[str], None] = None
-    flat_label: Union[str, List[str], None] = None
-    house_name_label: Union[str, List[str], None] = None
-    full_address_label: Union[str, List[str], None] = None
+class AnnotationParams:
+    name: str
 
 
 @dataclass
-class AddressMetaConfig:
+class AddressModelConfig:
+    locale = 'en_GB'
+    postcode_level: int = 0
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
     learn_postcodes: bool = False
 
     @property
-    def address_meta_config(self):
-        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
+    def address_model_config(self):
+        return AddressModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressModelConfig)})
+
+
+@dataclass(frozen=True)
+class AddressLabels:
+    postcode_label: Optional[str] = None
+    county_label: Optional[str] = None
+    city_label: Optional[str] = None
+    district_label: Optional[str] = None
+    street_label: Optional[str] = None
+    house_number_label: Optional[str] = None
+    flat_label: Optional[str] = None
+    house_name_label: Optional[str] = None
+    full_address_label: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class PersonLabels:
+    title_label: Optional[str] = None
+    gender_label: Optional[str] = None
+    name_label: Optional[str] = None
+    fullname_label: Optional[str] = None
+    firstname_label: Optional[str] = None
+    lastname_label: Optional[str] = None
+    email_label: Optional[str] = None
+    username_label: Optional[str] = None
+    password_label: Optional[str] = None
+    mobile_number_label: Optional[str] = None
+    home_number_label: Optional[str] = None
+    work_number_label: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class BankLabels:
+    bic_label: Optional[str] = None
+    sort_code_label: Optional[str] = None
+    account_label: Optional[str] = None
 
 
 @dataclass
-class BankParams:
-    bic_label: Union[str, List[str], None] = None
-    sort_code_label: Union[str, List[str], None] = None
-    account_label: Union[str, List[str], None] = None
-
-
-@dataclass
-class PersonParams:
-    title_label: Union[str, List[str], None] = None
-    gender_label: Union[str, List[str], None] = None
-    name_label: Union[str, List[str], None] = None
-    firstname_label: Union[str, List[str], None] = None
-    lastname_label: Union[str, List[str], None] = None
-    email_label: Union[str, List[str], None] = None
-    username_label: Union[str, List[str], None] = None
-    password_label: Union[str, List[str], None] = None
-    mobile_number_label: Union[str, List[str], None] = None
-    home_number_label: Union[str, List[str], None] = None
-    work_number_label: Union[str, List[str], None] = None
-
-
-@dataclass
-class PersonMetaConfig:
+class PersonModelConfig:
+    locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
+    pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
 
     @property
-    def person_meta_config(self):
-        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+    def person_model_config(self):
+        return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
 
 
 @dataclass
@@ -98,7 +116,7 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressModelConfig, PersonModelConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):
@@ -106,7 +124,7 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
 
 
 @dataclass
-class ModelFactoryConfig:
+class ModelBuilderConfig(PersonModelConfig):
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
 

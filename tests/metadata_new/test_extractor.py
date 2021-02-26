@@ -9,8 +9,9 @@ import pytest
 from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
-from synthesized.metadata_new import (Bool, DateTime, Float, Integer, IntegerBool, MetaExtractor, OrderedString,
-                                      Ordinal, String)
+from synthesized.config import AddressLabels, BankLabels, PersonLabels
+from synthesized.metadata_new import (Address, Bank, Bool, DateTime, Float, Integer, IntegerBool, MetaExtractor,
+                                      OrderedString, Ordinal, Person, String)
 
 logger = logging.getLogger(__name__)
 
@@ -146,3 +147,27 @@ def test_dates(df, date_format, sort_list):
     df['date'] = pd.to_datetime(df['date'], format=date_format)
     sort_list = pd.to_datetime(sort_list).tolist()
     _test_ordinal(date_meta, DateTime, df['date'], sort_list)
+
+
+def test_annotations():
+
+    df = pd.DataFrame({
+        'a': ['a', 'b', 'c'],
+        'b': ['MAUS', 'HBUK', 'HBUK'],
+        'c': ['010468', '616232', '131315'],
+        'd': ['d', 'm', 'm'],
+        'e': ['Alice', 'Bob', 'Charlie'],
+        'f': ['Smith', 'Holmes', 'Smith']
+    })
+
+    annotations = [
+        Address(name='address', labels=AddressLabels(city_label='a', street_label='d')),
+        Bank(name='bank', labels=BankLabels(bic_label='b', sort_code_label='c')),
+        Person(name='person', labels=PersonLabels(firstname_label='e', lastname_label='f'))
+    ]
+
+    df_meta = MetaExtractor.extract(df=df, annotations=annotations)
+
+    assert sorted(list(df_meta['address'].keys())) == ['a', 'd']
+    assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
+    assert sorted(list(df_meta['person'].keys())) == ['e', 'f']

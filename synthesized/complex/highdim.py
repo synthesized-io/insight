@@ -52,7 +52,7 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        df_model = ModelFactory().create_df_model_meta(df_meta)
+        df_model = ModelFactory()(df_meta)
         self.df_model, self.df_model_independent = self.split_df_model(df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(

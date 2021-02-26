@@ -45,7 +45,7 @@ class Assessor:
         self.df_synth = df_synth
 
         self.df_meta = df_meta
-        self.df_models = ModelFactory()._from_dataframe_meta(df_meta)
+        self.df_models = ModelFactory()(df_meta)
 
         # Set the style of plots
         set_plotting_style()

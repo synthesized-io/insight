@@ -16,15 +16,11 @@ FloatData          |  'f8'
 IntBoolData        |  'i8'
 AddressData        |  addresses
 BankData           |  bank accounts
+PersonData         |  persons
 """
 import numpy as np
 import pandas as pd
 import pytest
-
-
-@pytest.fixture(scope='class', params=[False, True], ids=['complete', 'with nans'])
-def with_nans(request):
-    return request.param
 
 
 class MetaTestData:
@@ -213,25 +209,25 @@ class AddressData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["1||Blah Drive|Cambridge",
-                   "|Housey McHouseface|Placeholder Avenue|London",
-                   "42||Test Road|Swansea"]
+            name: ["Cambridge|Blah Drive|1|",
+                   "London|Placeholder Avenue||Housey McHouseface",
+                   "Swansea|Test Road|42|"]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
+            "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object),
+            "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
             "house number": pd.Series(["1", "", "42"], dtype=object),
             "house name": pd.Series(["", "Housey McHouseface", ""], dtype=object),
-            "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
-            "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object)
         })
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["1||Blah Drive|Cambridge",
-                "|Housey McHouseface|Placeholder Avenue|London",
-                "42||Test Road|Swansea"]
+        return ["Cambridge|Blah Drive|1|",
+                "London|Placeholder Avenue||Housey McHouseface",
+                "Swansea|Test Road|42|"]
 
 
 class BankData(MetaTestData):
@@ -254,6 +250,25 @@ class BankData(MetaTestData):
         return ["HBUK01066212345678", "BCUK32343212345678"]
 
 
+class PersonData(MetaTestData):
+    @pytest.fixture(scope='class')
+    def dataframe(self, name) -> pd.DataFrame:
+        return pd.DataFrame({
+            name: ["Robert|Bell", "Alice|Smith", "Alice|Bell", "Robert|Bell"]
+        })
+
+    @pytest.fixture(scope='class')
+    def expanded_dataframe(self, dataframe):
+        return pd.DataFrame({
+            "first_name": pd.Series(["Robert", "Alice", "Alice", "Robert"], dtype=object),
+            "last_name": pd.Series(["Bell", "Smith", "Bell", "Bell"], dtype=object),
+        })
+
+    @pytest.fixture(scope='class')
+    def categories(self) -> list:
+        return ["Robert|Bell", "Alice|Smith", "Alice|Bell"]
+
+
 class DataFrameData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self) -> pd.DataFrame:
@@ -262,3 +277,24 @@ class DataFrameData(MetaTestData):
             'street': pd.Series(['Euston Road', 'Old Kent Road', 'Park Lane', 'Euston Road'], dtype=object),
             'house_number': pd.Series(['1', '2a', '4', '1'], dtype=object)
         })
+
+
+class AnnotatedDataFrameData(MetaTestData):
+    @pytest.fixture(scope='class')
+    def dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            'city': pd.Series(['London', 'London', 'London', 'London'], dtype=object),
+            'street': pd.Series(['Euston Road', 'Old Kent Road', 'Park Lane', 'Euston Road'], dtype=object),
+            'house_number': pd.Series(['1', '2a', '4', '1'], dtype=object),
+        })
+
+    @pytest.fixture(scope='class')
+    def expanded_dataframe(self, name):
+        return pd.DataFrame({
+            'address': pd.Series([
+                "London|Euston Road|1",
+                "London|Old Kent Road|2a",
+                "London|Park Lane|4",
+                "London|Euston Road|1",
+            ], dtype=str
+        )})

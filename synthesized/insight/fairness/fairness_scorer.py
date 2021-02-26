@@ -18,7 +18,7 @@ from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_
 from ..metrics import CategoricalLogisticR2, CramersV
 from ...metadata_new import DataFrameMeta, DateTime, MetaExtractor, String
 from ...metadata_new.base.model import ContinuousModel, DiscreteModel, Model
-from ...metadata_new.model import Histogram, ModelFactory
+from ...metadata_new.model import Histogram, ModelBuilder, ModelFactory
 from ...transformer import SequentialTransformer
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class FairnessScorer:
         target_transformer.fit(df)
         transformed_target = target_transformer(df[[self.target]])
         target_meta = MetaExtractor.extract(transformed_target)[self.target]
-        target_model = ModelFactory().create_model(target_meta)
+        target_model = ModelBuilder()(target_meta)
         assert isinstance(target_model, Model)
         return target_model.fit(df)
 
@@ -545,7 +545,7 @@ class FairnessScorer:
         columns = list(filter(lambda c: c not in self.sensitive_attrs + [self.target], df.columns))
         df = df.dropna().copy()
         dp = MetaExtractor.extract(df[columns])
-        models = ModelFactory()._from_dataframe_meta(dp)
+        models = ModelFactory()(dp)
         cramers_v = CramersV()
         categorical_logistic_r2 = CategoricalLogisticR2()
 

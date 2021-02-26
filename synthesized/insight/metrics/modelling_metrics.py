@@ -15,7 +15,7 @@ from sklearn.utils.validation import check_is_fitted
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata_new import DataFrameMeta, MetaExtractor, Model, Nominal
+from ...metadata_new import DataFrameMeta, MetaExtractor, Nominal
 from ...metadata_new.base import ContinuousModel, DiscreteModel
 from ...metadata_new.model import ModelFactory
 
@@ -205,7 +205,7 @@ class R2_Score(RegressionMetric):
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
                                model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
                                copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
-                               dp: DataFrameMeta = None, models: Dict[str, Model] = None):
+                               dp: DataFrameMeta = None, models: DataFrameMeta = None):
 
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 
@@ -241,7 +241,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
     if dp is None:
         dp = MetaExtractor.extract(df=data)
     if models is None:
-        models = cast(Dict[str, Model], ModelFactory().create_model(dp))
+        models = ModelFactory()(dp)
 
     x_labels = list(filter(lambda v: v in cast(DataFrameMeta, dp), x_labels))
 

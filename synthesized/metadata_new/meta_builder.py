@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -120,11 +120,14 @@ class MetaFactory():
 
         self._builder = _MetaBuilder(**asdict(self.config))
 
-    def __call__(self, x: Union[pd.Series, pd.DataFrame]) -> Union[ValueMeta[Any], DataFrameMeta]:
-        return self.create_meta(x)
+    def __call__(
+            self, x: Union[pd.Series, pd.DataFrame], annotations: Optional[List[ValueMeta]] = None
+    ) -> Union[ValueMeta[Any], DataFrameMeta]:
+        return self.create_meta(x, annotations=annotations)
 
     def create_meta(
-            self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df'
+            self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df',
+            annotations: Optional[List[ValueMeta]] = None
     ) -> Union[ValueMeta[Any], DataFrameMeta]:
         """
         Instantiate a Meta object from a pandas series or data frame.
@@ -134,6 +137,7 @@ class MetaFactory():
         Args:
             x: a pandas series or data frame for which to create the Meta instance
             name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
+            annotations: Any metas that should be applied on a DataFrame and incorporated into the meta hierarchy.
 
         Returns:
             A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
@@ -143,7 +147,7 @@ class MetaFactory():
             TypeError: An error occured during instantiation of a ValueMeta.
         """
         if isinstance(x, pd.DataFrame):
-            return self._from_df(x, name)
+            return self._from_df(x, name, annotations=annotations)
         elif isinstance(x, pd.Series):
             return self._from_series(x)
         else:
@@ -154,16 +158,26 @@ class MetaFactory():
             raise UnsupportedDtypeError(f"'{sr.dtype}' is unsupported")
         return self._builder(sr)
 
-    def _from_df(self, df: pd.DataFrame, name: Optional[str] = 'df') -> DataFrameMeta:
+    def _from_df(
+            self, df: pd.DataFrame, name: Optional[str] = 'df', annotations: Optional[List[ValueMeta]] = None
+    ) -> DataFrameMeta:
         if name is None:
             raise ValueError("name must not be a string, not None")
-        meta = DataFrameMeta(name)
+        annotations = annotations or []
+        annotation_children = [c.name for ann in annotations for c in ann.children]
+        meta = DataFrameMeta(name, annotations=[ann.name for ann in annotations])
         for col in df.columns:
+            if col in annotation_children:
+                continue
             try:
                 child = self._from_series(df[col])
                 meta[child.name] = child
             except TypeError as e:
                 print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
+
+        for ann in annotations:
+            meta[ann.name] = ann
+
         return meta
 
     @staticmethod
@@ -177,13 +191,17 @@ class MetaExtractor(MetaFactory):
         super().__init__(config)
 
     @staticmethod
-    def extract(df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None) -> DataFrameMeta:
+    def extract(
+            df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,
+            annotations: Optional[List[ValueMeta]] = None
+    ) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
 
         Args:
             df: the data frame to instantiate and extract DataFrameMeta.
             config: Optional; The configuration parameters to MetaFactory.
+            annotations: Optional; Annotations for the DataFrameMeta
 
         Returns:
             A DataFrameMeta instance for which all child meta have been extracted.
@@ -192,8 +210,9 @@ class MetaExtractor(MetaFactory):
             UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
             TypeError: An error occured during instantiation of a ValueMeta.
         """
-
         factory = MetaExtractor(config)
         df = df.infer_objects()
-        df_meta = factory._from_df(df).extract(df)
+        df_meta = factory(df, annotations=annotations)
+        df_meta.extract(df)
+        assert isinstance(df_meta, DataFrameMeta)
         return df_meta

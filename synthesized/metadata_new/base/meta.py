@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, List, Mapping, Type, TypeVar, cast
+from typing import Dict, Iterator, Mapping, Sequence, Type, TypeVar, cast
 
 import pandas as pd
 
@@ -39,12 +39,12 @@ class Meta(Mapping[str, 'Meta']):
         self._extracted: bool = False
 
     @property
-    def children(self) -> List['Meta']:
+    def children(self) -> Sequence['Meta']:
         """Return the children of this Meta."""
         return [child for child in self.values()]
 
     @children.setter
-    def children(self, children: List['Meta']) -> None:
+    def children(self, children: Sequence['Meta']) -> None:
         self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
@@ -58,19 +58,19 @@ class Meta(Mapping[str, 'Meta']):
         self._extracted = True
         return self
 
-    def expand(self, df):
+    def convert_df_for_children(self, df):
         """Expands the dataframe to contain the columns of the metas children."""
         pass
 
-    def collapse(self, df):
+    def revert_df_from_children(self, df):
         """Collapses the dataframe to no longer contain the meta's children columns."""
         pass
 
     @contextmanager
     def unfold(self, df: pd.DataFrame) -> pd.DataFrame:
-        self.expand(df)
+        self.convert_df_for_children(df)
         yield df
-        self.collapse(df)
+        self.revert_df_from_children(df)
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
@@ -154,3 +154,7 @@ class Meta(Mapping[str, 'Meta']):
     @classmethod
     def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
         return {sc.__name__: sc for sc in get_all_subclasses(cls)}
+
+    def __eq__(self, other) -> bool:
+        return {k: v for k, v in self.__dict__.items()
+                if v is not self} == {k: v for k, v in other.__dict__.items() if v is not other}

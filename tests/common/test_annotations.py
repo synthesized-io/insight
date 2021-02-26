@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.config import AddressParams, BankParams, FormattedStringParams, MetaExtractorConfig, PersonParams
+from synthesized.config import AddressLabels, BankLabels, FormattedStringParams, MetaExtractorConfig, PersonLabels
 from synthesized.metadata import DataFrameMeta
 
 
@@ -12,7 +12,7 @@ from synthesized.metadata import DataFrameMeta
 @pytest.mark.skip(reason="Currently in development")
 def test_annotations_all():
     data = pd.read_csv('data/annotations_nd.csv')
-    person_params = PersonParams(
+    person_params = PersonLabels(
         gender_label=None,
         title_label='Title (Tab selection)',
         firstname_label='First Name',
@@ -122,9 +122,10 @@ def test_addresses_from_file():
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="Currently in development")
 def test_pre_post_processing():
     df = pd.read_csv('data/annotations_nd.csv')
-    person_params = PersonParams(
+    person_params = PersonLabels(
         gender_label=None,
         title_label='Title (Tab selection)',
         firstname_label='First Name',

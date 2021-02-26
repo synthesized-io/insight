@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from .categorical import CategoricalMeta
 from .value_meta import ValueMeta
-from ...config import AddressMetaConfig
+from ...config import AddressModelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class AddressMeta(ValueMeta):
                  county_label: str = None, city_label: str = None, district_label: str = None, street_label: str = None,
                  house_number_label: str = None, flat_label: str = None, house_name_label: str = None,
                  full_address_label: str = None,
-                 config: AddressMetaConfig = AddressMetaConfig()):
+                 config: AddressModelConfig = AddressModelConfig()):
 
         super().__init__(name=name)
 

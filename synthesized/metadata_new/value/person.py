@@ -1,25 +1,19 @@
-import logging
 from dataclasses import asdict
 from typing import Dict, Optional, Sequence
 
 import pandas as pd
 
 from .categorical import String
-from ...config import AddressLabels
-
-logger = logging.getLogger(__name__)
+from ...config import PersonLabels
 
 
-class Address(String):
-    """
-    Address
-    """
+class Person(String):
+    """Person meta."""
 
     def __init__(
-            self, name, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            num_rows: Optional[int] = None, labels: AddressLabels = AddressLabels()
+            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
-
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
 
@@ -33,11 +27,12 @@ class Address(String):
         return self._params
 
     @property
-    def labels(self) -> AddressLabels:
-        return AddressLabels(**self.params)
+    def labels(self) -> PersonLabels:
+        return PersonLabels(**self.params)
 
     def extract(self, df: pd.DataFrame):
-        super().extract(df=df)
+        super().extract(df)
+
         return self
 
     def convert_df_for_children(self, df: pd.DataFrame):
@@ -59,4 +54,5 @@ class Address(String):
         d.update({
             "_params": self.params
         })
+
         return d
