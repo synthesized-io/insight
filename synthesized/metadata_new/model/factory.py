@@ -10,7 +10,8 @@ from .person import PersonModel
 from .string import FormattedStringModel
 from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
-from ..value import Address, Bank, FormattedString, Person
+from ..value import Address, Bank, FormattedString
+from ..value.person import Person
 from ...config import ModelBuilderConfig
 
 DisContModel = Union[DiscreteModel, ContinuousModel]

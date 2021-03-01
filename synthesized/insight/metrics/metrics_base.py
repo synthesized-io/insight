@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ...metadata_new import DataFrameMeta, MetaExtractor
-from ...metadata_new.model import ModelFactory
+from ...metadata_new.model.factory import ModelFactory
 
 
 def _register(metric, cls):

@@ -17,8 +17,10 @@ from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
-from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel, ModelFactory, PersonModel
-from ..transformer import DataFrameTransformer
+from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel
+from ..metadata_new.model.factory import ModelFactory
+from ..metadata_new.model.person import PersonModel
+from ..transformer.data_frame_transformer import DataFrameTransformer
 from ..version import __version__
 
 logger = logging.getLogger(__name__)

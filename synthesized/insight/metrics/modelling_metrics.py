@@ -17,7 +17,7 @@ from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataF
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
 from ...metadata_new import DataFrameMeta, MetaExtractor, Nominal
 from ...metadata_new.base import ContinuousModel, DiscreteModel
-from ...metadata_new.model import ModelFactory
+from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 

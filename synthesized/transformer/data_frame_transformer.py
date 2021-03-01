@@ -8,6 +8,7 @@ import pandas as pd
 from .base import BagOfTransformers, SequentialTransformer, Transformer
 from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, DTypeTransformer,
                     NanTransformer, QuantileTransformer)
+from .child.gender import GenderTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
@@ -137,7 +138,7 @@ class TransformerFactory:
             transformers = []
 
             if isinstance(meta, GenderModel):
-                transformers.append(meta.gender_transformer)
+                transformers.append(GenderTransformer.from_meta(meta))
 
             transformers.extend(self._from_discrete(cast(DiscreteModel, meta)))
 

@@ -9,11 +9,10 @@ import numpy as np
 import pandas as pd
 from faker.providers.person.en import Provider
 
-from .histogram import Histogram
 from ..base import DiscreteModel
-from ..value import Person
+from ..model.histogram import Histogram
+from ..value.person import Person
 from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
-from ...transformer.child.gender import GenderTransformer
 
 
 class GenderModel(Histogram[str]):
@@ -22,22 +21,37 @@ class GenderModel(Histogram[str]):
                  gender_label: Optional[str] = None, title_label: Optional[str] = None,
                  config: GenderTransformerConfig = GenderTransformerConfig()):
 
-        self.title_mapping = config.title_mapping
-        self.gender_mapping = config.gender_mapping
-        self.genders = list(self.title_mapping.keys())
+        self.config = config
+        self.gender_label = gender_label
+        self.title_label = title_label
 
-        super().__init__(name=name, categories=self.genders, nan_freq=nan_freq,
-                         probabilities={gender: 1 / len(self.genders) for gender in self.genders})
-
-        self.gender_transformer = GenderTransformer(name=self.name, gender_label=gender_label,
-                                                    title_label=title_label)
+        super().__init__(name=name, categories=self.config.genders, nan_freq=nan_freq,
+                         probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders})
 
     def fit(self, df):
         return super().fit(self.gender_transformer(df))
 
     def sample(self, n, produce_nans=False):
         df = super().sample(n, produce_nans=produce_nans)
-        return self.gender_transformer.inverse_transform(df)
+        return self.inverse_transform(df)
+
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        if self.gender_label is not None:
+            df[self.name] = df[self.gender_label].astype(str).apply(self.config.get_gender_from_gender)
+        elif self.title_label is not None:
+            df[self.name] = df[self.title_label].astype(str).apply(self.config.get_gender_from_title)
+        else:
+            raise ValueError("Can't extract gender series as 'gender_label' nor 'title_label' are given.")
+
+        return df
+
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        if self.gender_label is not None:
+            df[self.gender_label] = df[self.name]
+        if self.title_label is not None:
+            df[self.title_label] = df[self.name].astype(dtype=str).apply(self.config.get_title_from_gender)
+
+        return df
 
 
 class PersonModel(Person, DiscreteModel[str]):
