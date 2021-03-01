@@ -29,7 +29,7 @@ class GenderModel(Histogram[str]):
                          probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders})
 
     def fit(self, df):
-        return super().fit(self.gender_transformer(df))
+        return super().fit(self.transform(df))
 
     def sample(self, n, produce_nans=False):
         df = super().sample(n, produce_nans=produce_nans)
