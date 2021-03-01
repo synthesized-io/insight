@@ -4,7 +4,7 @@ from typing import List, Optional, cast
 import pandas as pd
 
 from ...metadata_new import ContinuousModel, DataFrameMeta, DateTime, MetaExtractor, Scale, ValueMeta
-from ...metadata_new.model import ModelFactory
+from ...metadata_new.model.factory import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)

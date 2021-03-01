@@ -18,7 +18,8 @@ from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_
 from ..metrics import CategoricalLogisticR2, CramersV
 from ...metadata_new import DataFrameMeta, DateTime, MetaExtractor, String
 from ...metadata_new.base.model import ContinuousModel, DiscreteModel, Model
-from ...metadata_new.model import Histogram, ModelBuilder, ModelFactory
+from ...metadata_new.model import Histogram
+from ...metadata_new.model.factory import ModelBuilder, ModelFactory
 from ...transformer import SequentialTransformer
 
 logger = logging.getLogger(__name__)
