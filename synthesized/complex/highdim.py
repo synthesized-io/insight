@@ -319,7 +319,6 @@ class HighDimSynthesizer(Synthesizer):
         else:
             df_synthesized = pd.DataFrame([[], ] * num_rows)
 
-        print("after engine ", df_synthesized.columns)
         independent_columns = []
         for model in self.df_model_independent.values():
             assert isinstance(model, Model)

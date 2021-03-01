@@ -148,6 +148,7 @@ class DateTransformerConfig(QuantileTransformerConfig):
         )
 
 
+@dataclass
 class GenderTransformerConfig:
     include_undefined: bool = False
 
@@ -162,24 +163,6 @@ class GenderTransformerConfig:
     @property
     def title_mapping(self) -> Dict[str, List[str]]:
         return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
-
-    def get_gender_from_gender(self, gender: str) -> str:
-        gender = gender.strip().upper()
-        for k, v in self.gender_mapping.items():
-            if gender in v:
-                return k
-        return np.nan
-
-    def get_gender_from_title(self, title: str) -> str:
-        title = title.replace('.', '').strip().upper()
-        for k, v in self.title_mapping.items():
-            if title in v:
-                return k
-        return np.nan
-
-    def get_title_from_gender(self, gender: str) -> str:
-        gender = self.get_gender_from_gender(gender)
-        return self.title_mapping[gender][0] if gender in self.title_mapping.keys() else np.nan
 
 
 @dataclass

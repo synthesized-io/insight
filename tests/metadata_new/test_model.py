@@ -12,8 +12,8 @@ from synthesized.metadata_new import Bank, DateTime, FormattedString, Integer, M
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
-                                            KernelDensityEstimate, ModelBuilder, ModelFactory, PersonModel,
-                                            SequentialFormattedString)
+                                            KernelDensityEstimate, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.model.factory import ModelBuilder, ModelFactory
 from synthesized.metadata_new.value import Address, Person
 
 logger = logging.getLogger(__name__)
@@ -315,10 +315,18 @@ def test_person(labels, expected_columns):
     n = 1000
     df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
                        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
+    df[[c for c in model.params.values() if c not in df.columns]] = 'test'
+
+    model.revert_df_from_children(df)
     model.fit(df)
+
     assert_model_output(model, expected_columns=expected_columns)
 
-    conditions = pd.DataFrame({'person_gender': np.random.choice(['m', 'f', 'u'], size=n)})
+    conditions = pd.DataFrame({
+        'person_gender': np.random.choice(['m', 'f', 'u'], size=n),
+        'gender': np.random.choice(['m', 'f', 'u'], size=n),
+        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)
+    })
     df_sampled = model.sample(conditions=conditions)
     assert sorted(df_sampled.columns) == sorted(expected_columns)
 

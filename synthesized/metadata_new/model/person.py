@@ -13,6 +13,7 @@ from ..base import DiscreteModel
 from ..model.histogram import Histogram
 from ..value.person import Person
 from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
+from ...util import get_gender_from_df, get_gender_title_from_df
 
 
 class GenderModel(Histogram[str]):
@@ -29,29 +30,15 @@ class GenderModel(Histogram[str]):
                          probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders})
 
     def fit(self, df):
-        return super().fit(self.transform(df))
+        return super().fit(get_gender_from_df(df, name=self.name, gender_label=self.gender_label,
+                                              title_label=self.title_label, gender_mapping=self.config.gender_mapping,
+                                              title_mapping=self.config.title_mapping))
 
     def sample(self, n, produce_nans=False):
         df = super().sample(n, produce_nans=produce_nans)
-        return self.inverse_transform(df)
-
-    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        if self.gender_label is not None:
-            df[self.name] = df[self.gender_label].astype(str).apply(self.config.get_gender_from_gender)
-        elif self.title_label is not None:
-            df[self.name] = df[self.title_label].astype(str).apply(self.config.get_gender_from_title)
-        else:
-            raise ValueError("Can't extract gender series as 'gender_label' nor 'title_label' are given.")
-
-        return df
-
-    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        if self.gender_label is not None:
-            df[self.gender_label] = df[self.name]
-        if self.title_label is not None:
-            df[self.title_label] = df[self.name].astype(dtype=str).apply(self.config.get_title_from_gender)
-
-        return df
+        return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
+                                        title_label=self.title_label, gender_mapping=self.config.gender_mapping,
+                                        title_mapping=self.config.title_mapping)
 
 
 class PersonModel(Person, DiscreteModel[str]):
@@ -89,6 +76,7 @@ class PersonModel(Person, DiscreteModel[str]):
 
         self._fitted = True
         self.revert_df_from_children(df)
+        # super().fit
         return self
 
     def sample(self, n: Optional[int] = None, produce_nans: bool = False,
@@ -110,7 +98,7 @@ class PersonModel(Person, DiscreteModel[str]):
             raise ValueError(f"Given dataframe doesn't contain column '{self.gender_model.name}' to "
                              "sample conditionally from.")
 
-        gender = conditions.loc[:, self.gender_model.name].astype(dtype=str)
+        gender = conditions.loc[:, self.gender_model.name]
 
         firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
@@ -153,7 +141,6 @@ class PersonModel(Person, DiscreteModel[str]):
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
         df.loc[gender.isna(), columns] = np.nan
-        print("in person transfr ", df.columns)
         return df
 
     @staticmethod

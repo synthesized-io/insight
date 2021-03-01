@@ -19,12 +19,6 @@ class Model(ABC):
 
     def fit(self, df: pd.DataFrame) -> 'Model':
         """Extract the children of this Meta."""
-        children = getattr(self, 'children', [])
-
-        assert isinstance(self, Meta)
-        with self.unfold(df) as sub_df:
-            for child in children:
-                child.fit(sub_df)
         self._fitted = True
         return self
 

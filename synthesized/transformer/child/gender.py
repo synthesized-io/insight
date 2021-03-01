@@ -6,6 +6,7 @@ import pandas as pd
 from ..base import Transformer
 from ...config import GenderTransformerConfig
 from ...metadata_new.model.person import GenderModel
+from ...util import get_gender_from_df, get_gender_title_from_df
 
 
 class GenderTransformer(Transformer):
@@ -32,22 +33,14 @@ class GenderTransformer(Transformer):
                 f'title_label="{self.title_label}")')
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        if self.gender_label is not None:
-            df[self.name] = df[self.gender_label].astype(str).apply(self.config.get_gender_from_gender)
-        elif self.title_label is not None:
-            df[self.name] = df[self.title_label].astype(str).apply(self.config.get_gender_from_title)
-        else:
-            raise ValueError("Can't extract gender series as 'gender_label' nor 'title_label' are given.")
-
-        return df
+        return get_gender_from_df(df, name=self.name, gender_label=self.gender_label,
+                                  title_label=self.title_label, gender_mapping=self.config.gender_mapping,
+                                  title_mapping=self.config.title_mapping)
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        if self.gender_label is not None:
-            df[self.gender_label] = df[self.name]
-        if self.title_label is not None:
-            df[self.title_label] = df[self.name].astype(dtype=str).apply(self.config.get_title_from_gender)
-
-        return df
+        return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
+                                        title_label=self.title_label, gender_mapping=self.config.gender_mapping,
+                                        title_mapping=self.config.title_mapping)
 
     @classmethod
     def from_meta(cls, meta: GenderModel) -> 'GenderTransformer':
