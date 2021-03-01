@@ -39,8 +39,10 @@ class GenderModel(Histogram[str]):
     def sample(self, n: Optional[int], produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None):
         if n is None and conditions is None:
             raise ValueError("One of 'n' or 'conditions' must be given")
+        elif n is None and conditions is not None:
+            n = len(conditions)
 
-        n = n if n is not None else len(conditions) if conditions is not None else 0
+        assert n is not None
         df = super().sample(n, produce_nans=produce_nans)
         return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
                                         title_label=self.title_label, gender_mapping=self.config.gender_mapping,
