@@ -30,9 +30,11 @@ class GenderModel(Histogram[str]):
                          probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders})
 
     def fit(self, df):
-        return super().fit(get_gender_from_df(df, name=self.name, gender_label=self.gender_label,
-                                              title_label=self.title_label, gender_mapping=self.config.gender_mapping,
-                                              title_mapping=self.config.title_mapping))
+        df_gender = get_gender_from_df(df[[self.gender_label or self.title_label]].copy(), name=self.name,
+                                       gender_label=self.gender_label, title_label=self.title_label,
+                                       gender_mapping=self.config.gender_mapping,
+                                       title_mapping=self.config.title_mapping)
+        return super().fit(df_gender)
 
     def sample(self, n, produce_nans=False):
         df = super().sample(n, produce_nans=produce_nans)
@@ -76,7 +78,6 @@ class PersonModel(Person, DiscreteModel[str]):
 
         self._fitted = True
         self.revert_df_from_children(df)
-        # super().fit
         return self
 
     def sample(self, n: Optional[int] = None, produce_nans: bool = False,
