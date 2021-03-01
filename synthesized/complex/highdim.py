@@ -17,9 +17,7 @@ from ..common.values import DataFrameValue, ValueExtractor
 from ..config import HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
-from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel
-from ..metadata_new.model.factory import ModelFactory
-from ..metadata_new.model.person import PersonModel
+from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel, ModelFactory, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -180,19 +178,14 @@ class HighDimSynthesizer(Synthesizer):
         if not self.df_meta._extracted:
             self.df_meta.extract(df_train)
 
-        print(df_train.columns)
-
         with self.df_meta.unfold(df_train) as sub_df_train:
             for model in self.df_model_independent.values():
                 assert isinstance(model, Model)
                 model.fit(sub_df_train)
 
-        print(df_train.columns)
-
         num_data = len(df_train)
         if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
-
         df_train_pre = self.df_transformer.transform(df_train)
         if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
