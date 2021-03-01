@@ -148,13 +148,15 @@ class DateTransformerConfig(QuantileTransformerConfig):
 
 
 class GenderTransformerConfig:
+    include_undefined: bool = False
+
     @property
     def gender_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
+        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
 
     @property
     def title_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
+        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
 
 
 @dataclass

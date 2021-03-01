@@ -2,7 +2,7 @@
 import logging
 import pickle
 from math import sqrt
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -186,6 +186,7 @@ class HighDimSynthesizer(Synthesizer):
         num_data = len(df_train)
         if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
+
         df_train_pre = self.df_transformer.transform(df_train)
         if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
@@ -316,11 +317,14 @@ class HighDimSynthesizer(Synthesizer):
         else:
             df_synthesized = pd.DataFrame([[], ] * num_rows)
 
-        print(df_synthesized.columns)
-        independent_columns = [cast(Model, model).sample(num_rows, produce_nans=produce_nans)
-                               for model in self.df_model_independent.values()]
+        print("after engine ", df_synthesized.columns)
+        independent_columns = []
+        for model in self.df_model_independent.values():
+            assert isinstance(model, Model)
+            df_sampled = model.sample(num_rows, produce_nans=produce_nans, conditions=df_synthesized)
+            independent_columns.append(df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]])
+
         df_synthesized = pd.concat(([df_synthesized] + independent_columns), axis=1)
-        print(df_synthesized.columns)
         df_synthesized = df_synthesized[columns]
 
         if progress_callback is not None:

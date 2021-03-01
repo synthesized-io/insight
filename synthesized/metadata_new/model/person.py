@@ -18,7 +18,8 @@ from ...transformer.child.gender import GenderTransformer
 
 class GenderModel(Histogram[str]):
 
-    def __init__(self, name, nan_freq: Optional[float] = None, labels: PersonLabels = PersonLabels(),
+    def __init__(self, name, nan_freq: Optional[float] = None,
+                 gender_label: Optional[str] = None, title_label: Optional[str] = None,
                  config: GenderTransformerConfig = GenderTransformerConfig()):
 
         self.title_mapping = config.title_mapping
@@ -28,8 +29,8 @@ class GenderModel(Histogram[str]):
         super().__init__(name=name, categories=self.genders, nan_freq=nan_freq,
                          probabilities={gender: 1 / len(self.genders) for gender in self.genders})
 
-        self.gender_transformer = GenderTransformer(name=self.name, gender_label=labels.gender_label,
-                                                    title_label=labels.title_label)
+        self.gender_transformer = GenderTransformer(name=self.name, gender_label=gender_label,
+                                                    title_label=title_label)
 
     def fit(self, df):
         return super().fit(self.gender_transformer(df))
@@ -53,7 +54,8 @@ class PersonModel(Person, DiscreteModel[str]):
             raise ValueError("There can't be any duplicated labels.")
 
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
-        self.gender_model = GenderModel(name=f"{name}_gender", nan_freq=nan_freq)
+        self.gender_model = GenderModel(name=f"{name}_gender", nan_freq=nan_freq, gender_label=labels.gender_label,
+                                        title_label=labels.title_label)
 
         # Whether the gender can be learned from data or randomly sampled
         self.learn_gender = True if self.labels.gender_label or self.labels.title_label else False
@@ -67,10 +69,12 @@ class PersonModel(Person, DiscreteModel[str]):
         self.pwd_length = config.pwd_length
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
+        self.convert_df_for_children(df)
         if self.learn_gender:
             self.gender_model.fit(df)
 
         self._fitted = True
+        self.revert_df_from_children(df)
         return self
 
     def sample(self, n: Optional[int] = None, produce_nans: bool = False,
@@ -83,21 +87,25 @@ class PersonModel(Person, DiscreteModel[str]):
             assert n is not None
             conditions = self.gender_model.sample(n, produce_nans=produce_nans)
         elif self.gender_model.name not in conditions.columns:
-            df_gender = self.gender_model.sample(len(conditions), produce_nans=produce_nans)
-            conditions = pd.concat((conditions, df_gender), axis=1)
+            conditions = self.gender_model.sample(len(conditions), produce_nans=produce_nans)
         return self._sample_conditional(conditions)
 
-    def _sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
-        num_rows = len(df)
-        if self.gender_model.name not in df:
+    def _sample_conditional(self, conditions: pd.DataFrame) -> pd.DataFrame:
+        num_rows = len(conditions)
+        if self.gender_model.name not in conditions:
             raise ValueError(f"Given dataframe doesn't contain column '{self.gender_model.name}' to "
                              "sample conditionally from.")
 
-        gender = df.loc[:, self.gender_model.name].astype(dtype=str)
+        gender = conditions.loc[:, self.gender_model.name].astype(dtype=str)
 
         firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
 
+        df = pd.DataFrame([[]] * num_rows)
+        if self.labels.gender_label is not None:
+            df.loc[:, self.labels.gender_label] = conditions.loc[:, self.labels.gender_label]
+        if self.labels.title_label is not None:
+            df.loc[:, self.labels.title_label] = conditions.loc[:, self.labels.title_label]
         if self.labels.name_label is not None:
             df.loc[:, self.labels.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.labels.firstname_label is not None:
@@ -130,8 +138,8 @@ class PersonModel(Person, DiscreteModel[str]):
                                                         for _ in range(num_rows)]
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
-        df.loc[df[self.gender_model.name].isna(), columns] = np.nan
-        df.drop(columns=self.gender_model.name, inplace=True)
+        df.loc[gender.isna(), columns] = np.nan
+        print("in person transfr ", df.columns)
         return df
 
     @staticmethod

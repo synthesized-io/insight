@@ -29,7 +29,7 @@ class FormattedStringModel(FormattedString, DiscreteModel[str]):
         if nan_freq is not None:
             self._fitted = True
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 
@@ -70,7 +70,7 @@ class SequentialFormattedString(DiscreteModel[str]):
         if nan_freq is not None:
             self._fitted = True
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 

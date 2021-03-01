@@ -4,7 +4,7 @@ from typing import Any, Generic, Optional, Sequence, TypeVar  # noqa: F401 (flak
 import numpy as np
 import pandas as pd
 
-from .value_meta import Affine, AType, Nominal, NType
+from .value_meta import Affine, AType, Meta, Nominal, NType
 
 ModelType = TypeVar('ModelType', bound='Model')
 ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')
@@ -17,12 +17,19 @@ class Model(ABC):
         super().__init__()
         self._fitted = False
 
-    def fit(self: ModelType, df: pd.DataFrame) -> ModelType:
+    def fit(self, df: pd.DataFrame) -> 'Model':
+        """Extract the children of this Meta."""
+        children = getattr(self, 'children', [])
+
+        assert isinstance(self, Meta)
+        with self.unfold(df) as sub_df:
+            for child in children:
+                child.fit(sub_df)
         self._fitted = True
         return self
 
     @abstractmethod
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         pass
 
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:

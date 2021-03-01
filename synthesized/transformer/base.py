@@ -253,13 +253,16 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
     def _parallel_transform(self, df: pd.DataFrame, max_workers: Optional[int] = None, inverse: bool = False, **kwargs):
         if inverse:
             arguments = ((transformer.inverse_transform,
-                          df[list(filter(lambda c: c in df.columns, transformer.out_columns))],
+                          df[[c for c in transformer.out_columns if c in df.columns]],
                           transformer.in_columns,
                           kwargs
                           ) for transformer in self)
         else:
-            arguments = ((transformer.transform, df[transformer.in_columns], transformer.out_columns, kwargs)
-                         for transformer in self)
+            arguments = ((transformer.transform,
+                          df[[c for c in transformer.in_columns if c in df.columns]],
+                          transformer.out_columns,
+                          kwargs
+                          ) for transformer in self)
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             columns_transformed = executor.map(self.apply_single_transformation, arguments)
@@ -303,3 +306,7 @@ class SequentialTransformer(BagOfTransformers, MutableSequence[Transformer]):
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         kwargs['max_workers'] = 1
         return super().inverse_transform(df, **kwargs)
+
+    @property
+    def in_columns(self) -> List[str]:
+        return list(set([column for transformer in self for column in transformer.in_columns]))
