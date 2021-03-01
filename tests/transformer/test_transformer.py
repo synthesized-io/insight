@@ -124,6 +124,8 @@ def test_transformer_factory(df_credit_with_dates, transformers_credit_with_date
         (QuantileTransformer('x', config=QuantileTransformerConfig(noise=None)), pd.DataFrame({'x': np.random.normal(0, 1, size=100)}).astype(np.float32)),
         (CategoricalTransformer('x'), pd.DataFrame({'x': ['A', 'B', 'C']})),
         (CategoricalTransformer('x'), pd.DataFrame({'x': [0, 1, np.nan]})),
+        (CategoricalTransformer('x', categories=[0, 1, 2]), pd.DataFrame({'x': [0, 1, np.nan]})),
+        (CategoricalTransformer('x', category_to_idx={"0": 2, "1": 1, "2": 10}), pd.DataFrame({'x': [0, 1, np.nan]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
         (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]})),
         (DropColumnTransformer('x'), pd.DataFrame({'x': [1, 2, 3]})),
@@ -136,6 +138,13 @@ def test_transformer(transformer, data):
         pd.testing.assert_frame_equal(data, transformer.inverse_transform(transformer.transform(data)))
     except NonInvertibleTransformError:
         pass
+
+
+def test_categorical_transformer_errors():
+    with pytest.raises(ValueError):
+        CategoricalTransformer(name="categorical", categories=["A", "B", "C"], category_to_idx={"A": 1, "B": 2, "C": 3})
+    with pytest.raises(ValueError):
+        CategoricalTransformer(name="categorical", category_to_idx={"A": 0, "B": 1, "C": 2})
 
 
 def test_date_transformer():
