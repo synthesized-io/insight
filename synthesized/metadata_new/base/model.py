@@ -17,7 +17,7 @@ class Model(ABC):
         super().__init__()
         self._fitted = False
 
-    def fit(self, df: pd.DataFrame) -> 'Model':
+    def fit(self: ModelType, df: pd.DataFrame) -> ModelType:
         """Extract the children of this Meta."""
         self._fitted = True
         return self
