@@ -7,5 +7,4 @@ __all__ = [
     'Transformer', 'BagOfTransformers', 'SequentialTransformer', 'BinningTransformer', 'CategoricalTransformer',
     'DataFrameTransformer', 'TransformerFactory', 'DateTransformer', 'DateCategoricalTransformer',
     'DateToNumericTransformer', 'DropColumnTransformer', 'DTypeTransformer', 'NanTransformer', 'QuantileTransformer'
-
 ]

@@ -20,7 +20,7 @@ from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
 from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel
 from ..metadata_new.model.factory import ModelFactory
 from ..metadata_new.model.person import PersonModel
-from ..transformer.data_frame_transformer import DataFrameTransformer
+from ..transformer import DataFrameTransformer
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
@@ -180,10 +180,14 @@ class HighDimSynthesizer(Synthesizer):
         if not self.df_meta._extracted:
             self.df_meta.extract(df_train)
 
+        print(df_train.columns)
+
         with self.df_meta.unfold(df_train) as sub_df_train:
             for model in self.df_model_independent.values():
                 assert isinstance(model, Model)
                 model.fit(sub_df_train)
+
+        print(df_train.columns)
 
         num_data = len(df_train)
         if not self.df_transformer.is_fitted():

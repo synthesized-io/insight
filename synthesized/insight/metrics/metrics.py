@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
 from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor, Ordinal
-from ...metadata_new.model.factory import ModelFactory
+from ...metadata_new.model import ModelFactory
 
 logger = logging.getLogger(__name__)
 

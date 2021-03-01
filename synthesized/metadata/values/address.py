@@ -106,7 +106,7 @@ class AddressMeta(ValueMeta):
             self.postcode = None
 
         # Generate real addresses from random postcode
-        elif (self.postcode_label is None and self.full_address_label is None) or not self.config.learn_postcode:
+        elif (self.postcode_label is None and self.full_address_label is None) or not self.config.learn_postcodes:
             self.fake = False
             logger.info("Loading address dictionary from '{}'".format(addresses_file))
             self.postcodes = self._load_postcodes_dict(addresses_file)

@@ -16,7 +16,7 @@ class AddressModelConfig:
     locale = 'en_GB'
     postcode_level: int = 0
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
-    learn_postcode: bool = False
+    learn_postcodes: bool = False
 
     @property
     def address_model_config(self):

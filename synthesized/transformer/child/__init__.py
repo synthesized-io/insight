@@ -8,6 +8,6 @@ from .quantile import QuantileTransformer
 
 __all__ = [
     'BinningTransformer', 'CategoricalTransformer', 'DateTransformer', 'DateCategoricalTransformer',
-    'DateToNumericTransformer', 'DropColumnTransformer', 'DTypeTransformer',
-    'NanTransformer', 'QuantileTransformer', 'DropConstantColumnTransformer'
+    'DateToNumericTransformer', 'DropColumnTransformer', 'DTypeTransformer', 'NanTransformer', 'QuantileTransformer',
+    'DropConstantColumnTransformer'
 ]

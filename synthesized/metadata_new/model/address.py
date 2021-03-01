@@ -81,9 +81,9 @@ class AddressModel(Address, Model):
         self.postcode_level = config.postcode_level
         if self.postcode_level < 0 or self.postcode_level > 2:
             raise NotImplementedError
-        self.learn_postcode = config.learn_postcode
+        self.learn_postcodes = config.learn_postcodes
         if self.labels.postcode_label is None and self.labels.full_address_label is None:
-            self.learn_postcode = False
+            self.learn_postcodes = False
 
         addresses_file = config.addresses_file
         # Check if given 'addresses_file' exist, otherwise set to None.
@@ -136,7 +136,7 @@ class AddressModel(Address, Model):
             return self
 
         categories = list(self.postcodes.keys())
-        if self.learn_postcode:
+        if self.learn_postcodes:
             postcode_sr = self._get_postcode_key_from_df(df)
             self.postcode_model.fit(postcode_sr.to_frame(self.postcode_model.name))
 
