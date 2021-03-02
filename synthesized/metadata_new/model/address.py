@@ -207,7 +207,7 @@ class AddressModel(Address, Model):
             postcode_sr = conditions[self.postcode_model.name].fillna('nan').apply(
                 get_postcode_key,
                 postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
-                categories=self.postcode_model.categories)
+                postcodes=self.postcode_model.categories)
             address_records = list(np.vectorize(sample_address)(postcode_sr))
 
             df = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
