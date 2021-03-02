@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
 from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor
-from ...metadata_new.model import ModelFactory
+from ...metadata_new.model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 

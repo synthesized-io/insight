@@ -1,6 +1,6 @@
 import pickle
 from base64 import b64decode, b64encode
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -8,10 +8,12 @@ import pandas as pd
 from .base import BagOfTransformers, SequentialTransformer, Transformer
 from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, DTypeTransformer,
                     NanTransformer, QuantileTransformer)
+from .child.gender import GenderTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
 from ..metadata_new.base.value_meta import AType, NType
+from ..metadata_new.model.person import GenderModel
 
 
 class DataFrameTransformer(BagOfTransformers):
@@ -129,11 +131,16 @@ class TransformerFactory:
         if not isinstance(meta, Nominal):
             raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
-        if isinstance(meta, ContinuousModel):
+        elif isinstance(meta, ContinuousModel):
             transformers = self._from_continuous(meta)
 
         elif isinstance(meta, DiscreteModel):
-            transformers = self._from_discrete(meta)
+            transformers = []
+
+            if isinstance(meta, GenderModel):
+                transformers.append(GenderTransformer.from_meta(meta))
+
+            transformers.extend(self._from_discrete(cast(DiscreteModel, meta)))
 
         assert len(transformers) > 0
         if len(transformers) > 1:

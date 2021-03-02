@@ -8,9 +8,9 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue, DateValue
-from synthesized.config import BankLabels
+from synthesized.config import BankLabels, PersonLabels
 from synthesized.metadata import TypeOverride
-from synthesized.metadata_new import Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor, String
+from synthesized.metadata_new import Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor, Person, String
 from tests.utils import progress_bar_testing
 
 
@@ -230,10 +230,16 @@ def test_synthesis_w_annotations():
         'bic': [''.join([random.choice(string.ascii_letters) for _ in range(4)]) for _ in range(n)],
         'sort_code': [''.join([random.choice(string.ascii_letters) for _ in range(6)]) for _ in range(n)],
         'account': [''.join([random.choice(string.digits) for _ in range(6)]) for _ in range(n)],
+        'gender': np.random.choice(['m', 'f', 'u'], size=n),
+        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n),
+        'name': ['test_name'] * n,
+        'email': ['test_name@email.com'] * n,
     })
     annotations=[
         FormattedString(name='sample', pattern='[A-Za-z]{10}'),
         Bank(name='bank', labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account')),
+        Person(name='person', labels=PersonLabels(gender_label='gender', title_label='title',
+                                                  firstname_label='name', email_label='email'))
     ]
 
     df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)

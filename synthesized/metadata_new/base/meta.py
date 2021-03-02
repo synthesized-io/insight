@@ -72,15 +72,6 @@ class Meta(Mapping[str, 'Meta']):
         yield df
         self.revert_df_from_children(df)
 
-    def _is_folded(self, df: pd.DataFrame) -> bool:
-        """Check if the given dataframe is folded or unfolded."""
-        if self.name in df.columns and not any([child.name in df.columns for child in self.values()]):
-            return True
-        elif self.name not in df.columns and all([child.name in df.columns for child in self.values()]):
-            return False
-        else:
-            raise ValueError("Can't determine whether the dataframe is folded or unfolded.")
-
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
 

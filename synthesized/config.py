@@ -72,14 +72,6 @@ class PersonModelConfig:
     def person_model_config(self):
         return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
 
-    @property
-    def gender_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['m', 'male'], 'f': ['f', 'female'], 'u': ['u', 'undefined', 'na']}
-
-    @property
-    def title_mapping(self) -> Dict[str, List[str]]:
-        return {'m': ['mr'], 'f': ['ms', 'mrs', 'miss'], 'u': ['mx']}
-
 
 @dataclass
 class FormattedStringParams:
@@ -153,6 +145,23 @@ class DateTransformerConfig(QuantileTransformerConfig):
         return DateTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
         )
+
+
+@dataclass
+class GenderTransformerConfig:
+    include_undefined: bool = False
+
+    @property
+    def genders(self):
+        return list(self.title_mapping.keys())
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
 
 
 @dataclass

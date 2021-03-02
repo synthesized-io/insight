@@ -18,11 +18,12 @@ class Model(ABC):
         self._fitted = False
 
     def fit(self: ModelType, df: pd.DataFrame) -> ModelType:
+        """Extract the children of this Meta."""
         self._fitted = True
         return self
 
     @abstractmethod
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         pass
 
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:

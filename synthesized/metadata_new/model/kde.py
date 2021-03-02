@@ -41,7 +41,7 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
             raise ValueError
         return dtype_map.get(self.unit_meta.dtype, self.unit_meta.dtype)
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 

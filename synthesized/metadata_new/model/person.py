@@ -9,10 +9,44 @@ import numpy as np
 import pandas as pd
 from faker.providers.person.en import Provider
 
-from .histogram import Histogram
 from ..base import DiscreteModel
-from ..value import Person
-from ...config import PersonLabels, PersonModelConfig
+from ..model.histogram import Histogram
+from ..value.person import Person
+from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
+from ...util import get_gender_from_df, get_gender_title_from_df
+
+
+class GenderModel(Histogram[str]):
+
+    def __init__(self, name, nan_freq: Optional[float] = None,
+                 gender_label: Optional[str] = None, title_label: Optional[str] = None,
+                 config: GenderTransformerConfig = GenderTransformerConfig()):
+
+        self.config = config
+        self.gender_label = gender_label
+        self.title_label = title_label
+
+        super().__init__(name=name, categories=self.config.genders, nan_freq=nan_freq,
+                         probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders})
+
+    def fit(self, df):
+        df_gender = get_gender_from_df(df[[self.gender_label or self.title_label]].copy(), name=self.name,
+                                       gender_label=self.gender_label, title_label=self.title_label,
+                                       gender_mapping=self.config.gender_mapping,
+                                       title_mapping=self.config.title_mapping)
+        return super().fit(df_gender)
+
+    def sample(self, n: Optional[int], produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None):
+        if n is None and conditions is None:
+            raise ValueError("One of 'n' or 'conditions' must be given")
+        elif n is None and conditions is not None:
+            n = len(conditions)
+
+        assert n is not None
+        df = super().sample(n, produce_nans=produce_nans)
+        return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
+                                        title_label=self.title_label, gender_mapping=self.config.gender_mapping,
+                                        title_mapping=self.config.title_mapping)
 
 
 class PersonModel(Person, DiscreteModel[str]):
@@ -28,15 +62,12 @@ class PersonModel(Person, DiscreteModel[str]):
         if len(columns) > len(np.unique(columns)):
             raise ValueError("There can't be any duplicated labels.")
 
-        # Assume the gender are always encoded like M or F or U(???)
-        self.title_mapping = config.title_mapping
-        self.gender_mapping = config.gender_mapping
-        self.genders = list(self.title_mapping.keys())
-
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
-        self.gender_model = Histogram(name=f"{name}_gender", categories=self.genders,
-                                      probabilities={gender: 1 / len(self.genders) for gender in self.genders},
-                                      nan_freq=nan_freq)
+        self.gender_model = GenderModel(name=f"{name}_gender", nan_freq=nan_freq, gender_label=labels.gender_label,
+                                        title_label=labels.title_label)
+
+        # Whether the gender can be learned from data or randomly sampled
+        self.learn_gender = True if self.labels.gender_label or self.labels.title_label else False
 
         self.mobile_number_format = config.mobile_number_format
         self.home_number_format = config.home_number_format
@@ -47,11 +78,12 @@ class PersonModel(Person, DiscreteModel[str]):
         self.pwd_length = config.pwd_length
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
-        if self.labels.gender_label or self.labels.title_label:
-            gender_sr = self.get_gender_series(df)
-            self.gender_model.fit(gender_sr.to_frame(self.gender_model.name))
+        self.convert_df_for_children(df)
+        if self.learn_gender:
+            self.gender_model.fit(df)
 
         self._fitted = True
+        self.revert_df_from_children(df)
         return self
 
     def sample(self, n: Optional[int] = None, produce_nans: bool = False,
@@ -60,25 +92,29 @@ class PersonModel(Person, DiscreteModel[str]):
         if n is None and conditions is None:
             raise ValueError("One of 'n' or 'conditions' must be given.")
 
-        if conditions is None or self.gender_model.name not in conditions.columns:
-            n = len(conditions) if conditions is not None else n
+        if conditions is None:
             assert n is not None
             conditions = self.gender_model.sample(n, produce_nans=produce_nans)
-        return self.sample_conditional(conditions)
+        elif self.gender_model.name not in conditions.columns:
+            conditions = self.gender_model.sample(len(conditions), produce_nans=produce_nans)
+        return self._sample_conditional(conditions)
 
-    def sample_conditional(self, df: pd.DataFrame) -> pd.DataFrame:
-        num_rows = len(df)
+    def _sample_conditional(self, conditions: pd.DataFrame) -> pd.DataFrame:
+        num_rows = len(conditions)
+        if self.gender_model.name not in conditions:
+            raise ValueError(f"Given dataframe doesn't contain column '{self.gender_model.name}' to "
+                             "sample conditionally from.")
 
-        gender = df.loc[:, self.gender_model.name].astype(dtype=str)
-        title = gender.astype(dtype=str).apply(self.get_title_from_gender)
+        gender = conditions.loc[:, self.gender_model.name]
 
         firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
 
+        df = pd.DataFrame([[]] * num_rows)
         if self.labels.gender_label is not None:
-            df.loc[:, self.labels.gender_label] = gender
+            df.loc[:, self.labels.gender_label] = conditions.loc[:, self.labels.gender_label]
         if self.labels.title_label is not None:
-            df.loc[:, self.labels.title_label] = title
+            df.loc[:, self.labels.title_label] = conditions.loc[:, self.labels.title_label]
         if self.labels.name_label is not None:
             df.loc[:, self.labels.name_label] = firstname.str.cat(others=lastname, sep=' ')
         if self.labels.firstname_label is not None:
@@ -111,17 +147,8 @@ class PersonModel(Person, DiscreteModel[str]):
                                                         for _ in range(num_rows)]
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
-        df.loc[df[self.gender_model.name].isna(), columns] = np.nan
-        df.drop(columns=self.gender_model.name, inplace=True)
+        df.loc[gender.isna(), columns] = np.nan
         return df
-
-    def get_gender_series(self, df: pd.DataFrame) -> pd.Series:
-        if self.labels.gender_label is not None:
-            return df[self.labels.gender_label].astype(str).apply(self.get_gender_from_gender)
-        elif self.labels.title_label is not None:
-            return df[self.labels.title_label].astype(str).apply(self.get_gender_from_title)
-        else:
-            raise ValueError("Can't extract gender series as 'gender_label' is not given.")
 
     @staticmethod
     def generate_usernames(firstname: pd.Series, lastname: pd.Series) -> pd.Series:
@@ -173,24 +200,6 @@ class PersonModel(Person, DiscreteModel[str]):
         except ModuleNotFoundError:
             raise ValueError(f"Given locale '{locale}' not valid")
         return provider.Provider
-
-    def get_gender_from_gender(self, gender: str) -> str:
-        gender = gender.strip().lower()
-        for k, v in self.gender_mapping.items():
-            if gender in v:
-                return k
-        return np.nan
-
-    def get_gender_from_title(self, title: str) -> str:
-        title = title.replace('.', '').strip().lower()
-        for k, v in self.title_mapping.items():
-            if title in v:
-                return k
-        return np.nan
-
-    def get_title_from_gender(self, gender: str) -> str:
-        gender = self.get_gender_from_gender(gender)
-        return self.title_mapping[gender][0] if gender in self.title_mapping.keys() else np.nan
 
     @classmethod
     def from_meta(cls, meta: Person, config: PersonModelConfig = PersonModelConfig()) -> 'PersonModel':

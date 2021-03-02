@@ -44,7 +44,7 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         self.probabilities = {cat: value_counts.get(cat, 0.0) for cat in self.categories}
         return self
 
-    def sample(self, n: int, produce_nans: bool = False) -> pd.DataFrame:
+    def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
 
