@@ -8,9 +8,10 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue, DateValue
-from synthesized.config import BankLabels, PersonLabels
+from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata import TypeOverride
-from synthesized.metadata_new import Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor, Person, String
+from synthesized.metadata_new import (Address, Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor,
+                                      Person, String)
 from tests.utils import progress_bar_testing
 
 
@@ -234,12 +235,17 @@ def test_synthesis_w_annotations():
         'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n),
         'name': ['test_name'] * n,
         'email': ['test_name@email.com'] * n,
+        'postcode': np.random.choice(['NW5 2JN', 'RG1 0GN', 'YO31 1MR', 'BD1 0WN'], size=n),
+        'street': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
+        'building_number': [''.join([random.choice(string.digits) for _ in range(3)]) for _ in range(n)],
     })
     annotations=[
         FormattedString(name='sample', pattern='[A-Za-z]{10}'),
         Bank(name='bank', labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account')),
         Person(name='person', labels=PersonLabels(gender_label='gender', title_label='title',
-                                                  firstname_label='name', email_label='email'))
+                                                  firstname_label='name', email_label='email')),
+        Address(name='address', labels=AddressLabels(postcode_label='postcode', street_label='street',
+                                                     house_number_label='building_number')),
     ]
 
     df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)

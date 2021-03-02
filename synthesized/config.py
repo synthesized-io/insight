@@ -1,5 +1,6 @@
+import re
 from dataclasses import dataclass, fields
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Pattern, Tuple, Union
 
 import pandas as pd
 
@@ -12,8 +13,17 @@ class AnnotationParams:
 
 
 @dataclass
-class AddressModelConfig:
-    locale = 'en_GB'
+class PostcodeModelConfig:
+    postcode_regex: Pattern[str] = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
+
+    @property
+    def postcode_model_config(self):
+        return PostcodeModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PostcodeModelConfig)})
+
+
+@dataclass
+class AddressModelConfig(PostcodeModelConfig):
+    locale: str = 'en_GB'
     postcode_level: int = 0
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
     learn_postcodes: bool = False

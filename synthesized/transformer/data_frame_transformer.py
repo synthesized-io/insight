@@ -9,10 +9,12 @@ from .base import BagOfTransformers, SequentialTransformer, Transformer
 from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnTransformer, DTypeTransformer,
                     NanTransformer, QuantileTransformer)
 from .child.gender import GenderTransformer
+from .child.postcode import PostcodeTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
 from ..metadata_new.base.value_meta import AType, NType
+from ..metadata_new.model.address import PostcodeModel
 from ..metadata_new.model.person import GenderModel
 
 
@@ -139,6 +141,8 @@ class TransformerFactory:
 
             if isinstance(meta, GenderModel):
                 transformers.append(GenderTransformer.from_meta(meta))
+            elif isinstance(meta, PostcodeModel):
+                transformers.append(PostcodeTransformer.from_meta(meta))
 
             transformers.extend(self._from_discrete(cast(DiscreteModel, meta)))
 

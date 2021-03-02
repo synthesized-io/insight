@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field, fields
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Pattern, Sequence
 
 import faker
 import numpy as np
@@ -15,7 +15,8 @@ from .histogram import Histogram
 from ..base import Model
 from ..base.value_meta import Nominal, NType
 from ..value import Address
-from ...config import AddressLabels, AddressModelConfig
+from ...config import AddressLabels, AddressModelConfig, PostcodeModelConfig
+from ...util import get_postcode_key, get_postcode_key_from_df
 
 logger = logging.getLogger(__name__)
 
@@ -61,15 +62,35 @@ class AddressRecord:
         return address_str
 
 
-class AddressModel(Address, Model):
-    postcode_regex = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
-
+class PostcodeModel(Histogram[str]):
     def __init__(self, name, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-                 labels: AddressLabels = AddressLabels(),
-                 config: AddressModelConfig = AddressModelConfig()):
+                 postcode_label: Optional[str] = None, full_address_label: Optional[str] = None,
+                 config: PostcodeModelConfig = PostcodeModelConfig()):
+
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        self.postcode_label = postcode_label
+        self.full_address_label = full_address_label
+        self.postcode_regex = config.postcode_regex
+
+    def fit(self, df: pd.DataFrame) -> 'PostcodeModel':
+        postcode_sr = get_postcode_key_from_df(
+            df, postcode_regex=self.postcode_regex,
+            postcode_label=self.postcode_label, full_address_label=self.full_address_label,
+            postcodes=self.categories)
+        super().fit(postcode_sr.to_frame(self.name))
+        return self
+
+
+class AddressModel(Address, Model):
+    postcode_regex: Pattern[str] = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
+
+    def __init__(self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+                 labels: AddressLabels = AddressLabels(), config: AddressModelConfig = AddressModelConfig()):
 
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
-        self.postcode_model = Histogram(name=f"{name}_postcode", nan_freq=self.nan_freq)
+        self.postcode_model = PostcodeModel(
+            name=f"{name}_postcode", nan_freq=self.nan_freq, postcode_label=labels.postcode_label,
+            full_address_label=labels.full_address_label, config=config.postcode_model_config)
 
         if all([c is None for c in self.params.values()]):
             raise ValueError("At least one of labels must be given")
@@ -135,12 +156,11 @@ class AddressModel(Address, Model):
             self._fitted = self.postcode_model._fitted = True
             return self
 
-        categories = list(self.postcodes.keys())
         if self.learn_postcodes:
-            postcode_sr = self._get_postcode_key_from_df(df)
-            self.postcode_model.fit(postcode_sr.to_frame(self.postcode_model.name))
+            self.postcode_model.fit(df)
 
         else:
+            categories = list(self.postcodes.keys())
             self.postcode_model.categories = categories
             self.postcode_model.probabilities = {c: 1 / len(categories) for c in categories}
             self.postcode_model._fitted = True
@@ -162,23 +182,21 @@ class AddressModel(Address, Model):
             n = len(conditions)
             conditions[self.postcode_model.name] = self.postcode_model.sample(n, produce_nans=produce_nans)
 
-        df = self._sample_conditional(conditions, postcode_column=self.postcode_model.name)
-        df.drop(columns=self.postcode_model.name, inplace=True)
-
+        df = self._sample_conditional(conditions)
         return df
 
-    def _sample_conditional(self, df: pd.DataFrame, postcode_column: str) -> pd.DataFrame:
+    def _sample_conditional(self, conditions: pd.DataFrame) -> pd.DataFrame:
+        assert self.postcode_model.name in conditions.columns
 
         columns = self.params.values()
 
         if self.fake:
-            n = len(df)
+            n = len(conditions)
             address_records = self._generate_fake_address_records(n)
-            df_address_records = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
-            df = pd.concat((df, df_address_records), axis=1)
+            df = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
 
             # Add NaNs
-            df.loc[df[postcode_column].isna(), self.params.values()] = np.nan
+            df.loc[conditions[self.postcode_model.name].isna(), self.params.values()] = np.nan
 
         else:
             def sample_address(postcode_key):
@@ -186,42 +204,16 @@ class AddressModel(Address, Model):
                     return np.random.choice(self.postcodes[postcode_key])
                 return AddressRecord()
 
-            postcode_sr = df[postcode_column].fillna('nan').apply(self._get_postcode_key)
+            postcode_sr = conditions[self.postcode_model.name].fillna('nan').apply(
+                get_postcode_key,
+                postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
+                categories=self.postcode_model.categories)
             address_records = list(np.vectorize(sample_address)(postcode_sr))
 
-            df_address_records = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
-            df = pd.concat((df, df_address_records), axis=1)
-
-            df.loc[df[postcode_column].isna(), columns] = np.nan
+            df = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
+            df.loc[conditions[self.postcode_model.name].isna(), columns] = np.nan
 
         return df
-
-    def _get_postcode_key_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        if self.labels.postcode_label is not None:
-            return df[self.labels.postcode_label].fillna('nan').apply(self._get_postcode_key)
-        elif self.labels.full_address_label is not None:
-            return df[self.labels.full_address_label].fillna('nan').apply(self._get_postcode_key_from_address)
-        else:
-            raise ValueError("Can't extract postcode if 'postcode_label' or 'full_address_label' are not defined.")
-
-    def _get_postcode_key(self, postcode: str):
-        if self.postcode_model.categories and postcode in self.postcode_model.categories:
-            return postcode
-
-        if postcode == 'nan':
-            return 'nan'
-
-        if not AddressModel.postcode_regex.match(postcode):
-            return 'nan'
-        if self.postcode_level == 0:  # 1-2 letters
-            index = 2 - postcode[1].isdigit()
-        elif self.postcode_level == 1:
-            index = postcode.index(' ')
-        elif self.postcode_level == 2:
-            index = postcode.index(' ') + 2
-        else:
-            raise ValueError(self.postcode_level)
-        return postcode[:index]
 
     def _load_postcodes_dict(self, addresses_file) -> Dict[str, np.ndarray]:  # Dict[str, List[AddressRecord]]
 
@@ -252,11 +244,19 @@ class AddressModel(Address, Model):
                             house_name=js_i['building_name']
                             if self.labels.house_name_label or self.labels.full_address_label else None,
                         ))
-                    postcode_key = self._get_postcode_key(js['postcode'])
+                    postcode_key = get_postcode_key(
+                        js['postcode'], postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
+                        postcodes=self.postcode_model.categories)
                     if postcode_key not in d.keys():
-                        d[self._get_postcode_key(js['postcode'])] = addresses
+                        d[get_postcode_key(
+                            js['postcode'], postcode_regex=self.postcode_regex,
+                            postcode_level=self.postcode_level, postcodes=self.postcode_model.categories
+                        )] = addresses
                     else:
-                        d[self._get_postcode_key(js['postcode'])].extend(addresses)
+                        d[get_postcode_key(
+                            js['postcode'], postcode_regex=self.postcode_regex,
+                            postcode_level=self.postcode_level, postcodes=self.postcode_model.categories
+                        )].extend(addresses)
 
         # convert list to ndarray for better performance
         d_out: Dict[str, np.ndarray] = dict()
@@ -264,10 +264,6 @@ class AddressModel(Address, Model):
             d_out[key] = np.array(postcode)
 
         return d_out
-
-    def _get_postcode_key_from_address(self, x):
-        g = self.postcode_regex.search(x)
-        return self._get_postcode_key(g.group(0)) if g else 'nan'
 
     def _check_null(self, generate_value: Callable[[], str], label: Optional[str]) -> Optional[str]:
         return generate_value() if label or self.labels.full_address_label else None
