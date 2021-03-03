@@ -9,10 +9,14 @@ from ...util import get_postcode_key_from_df
 
 class PostcodeTransformer(Transformer):
     """
-    Transform a continuous distribution using the quantile transform.
+    Transform a address columns into postcodes.
 
     Attributes:
         name (str) : the data frame column to transform.
+        postcode_regex (Pattern[str]): the regex used to extract postcodes.
+        postcode_label (Optional[str]): The name of the postcode column.
+        full_address_label (Optional[str]): Name of the column containing the full address.
+        postcodes (Optional[Sequence[str]]): Optional Series of postcodes to filter to.
     """
 
     def __init__(self, name: str, postcode_regex: Pattern[str], postcode_label: Optional[str] = None,
@@ -43,8 +47,8 @@ class PostcodeTransformer(Transformer):
 
     @classmethod
     def from_meta(cls, meta: PostcodeModel) -> 'PostcodeTransformer':
-        return cls(meta.name, postcode_regex=meta.postcode_regex, postcode_label=meta.postcode_label, full_address_label=meta.full_address_label,
-                   postcodes=meta.categories)
+        return cls(meta.name, postcode_regex=meta.postcode_regex, postcode_label=meta.postcode_label,
+                   full_address_label=meta.full_address_label, postcodes=meta.categories)
 
     @property
     def in_columns(self) -> List[str]:

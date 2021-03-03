@@ -68,15 +68,9 @@ class Meta(Mapping[str, 'Meta']):
 
     @contextmanager
     def unfold(self, df: pd.DataFrame) -> pd.DataFrame:
-        print(f"{self.name}.convert_df_for_children")
-        print(1, df.columns)
         self.convert_df_for_children(df)
-        print(2, df.columns)
         yield df
-        print(f"{self.name}.revert_df_from_children")
-        print(1, df.columns)
         self.revert_df_from_children(df)
-        print(2, df.columns)
 
     def __getitem__(self, k: str) -> 'Meta':
         return self._children[k]
