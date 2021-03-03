@@ -88,7 +88,7 @@ class BiasMitigator:
         else:
             raise ValueError(f"Given type '{type(marginal_softener)}' not understood.")
 
-        if not (0 <= marginal_softener_pos <= 1) or not (0 <= marginal_softener_pos <= 1):
+        if not (0 <= marginal_softener_pos <= 1):
             raise ValueError(f"Marginal softener value must be in the interval [0., 1.], "
                              f"given ({marginal_softener_pos}, {marginal_softener_neg})")
 
