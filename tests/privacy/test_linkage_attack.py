@@ -38,7 +38,6 @@ def test_failed_linkage_attack():
     assert df_attacked is None
 
 
-@pytest.mark.fast
 def test_successful_linkage_attack():
     n = 1000
 
