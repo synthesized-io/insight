@@ -269,6 +269,7 @@ class LearningManagerConfig:
     def learning_manager_config(self):
         return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
+
 @dataclass
 class EngineConfig:
     """
@@ -312,6 +313,7 @@ class EngineConfig:
         return EngineConfig(**{f.name: self.__getattribute__(f.name) for f in fields(EngineConfig)})
 
 # Synthesizer Config Classes ----------------------------------------
+
 
 @dataclass
 class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig):

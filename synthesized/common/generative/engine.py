@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence, Tuple
 
 import tensorflow as tf
 

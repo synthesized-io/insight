@@ -61,7 +61,7 @@ class HighDimSynthesizer(Synthesizer):
         self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
 
         # VAE
-        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=self.config.engine_config)
+        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=config.engine_config)
 
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
