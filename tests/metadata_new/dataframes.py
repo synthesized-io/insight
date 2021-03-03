@@ -205,13 +205,16 @@ class IntBoolData(MetaTestData):
         return np.int64(1)
 
 
+address_cambridge = "Cambridge|Blah Drive|1|"
+address_london = "London|Placeholder Avenue||Housey McHouseface"
+address_swansea = "Swansea|Test Road|42|"
+
+
 class AddressData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["Cambridge|Blah Drive|1|",
-                   "London|Placeholder Avenue||Housey McHouseface",
-                   "Swansea|Test Road|42|"]
+            name: [address_cambridge, address_london, address_swansea]
         })
 
     @pytest.fixture(scope='class')
@@ -225,9 +228,7 @@ class AddressData(MetaTestData):
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["Cambridge|Blah Drive|1|",
-                "London|Placeholder Avenue||Housey McHouseface",
-                "Swansea|Test Road|42|"]
+        return [address_cambridge, address_london, address_swansea]
 
 
 class BankData(MetaTestData):
@@ -250,11 +251,16 @@ class BankData(MetaTestData):
         return ["HBUK01066212345678", "BCUK32343212345678"]
 
 
+rob = "Robert|Bell"
+alice_s = "Alice|Smith"
+alice_b = "Alice|Bell"
+
+
 class PersonData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["Robert|Bell", "Alice|Smith", "Alice|Bell", "Robert|Bell"]
+            name: [rob, alice_s, alice_b, rob]
         })
 
     @pytest.fixture(scope='class')
@@ -266,7 +272,8 @@ class PersonData(MetaTestData):
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["Robert|Bell", "Alice|Smith", "Alice|Bell"]
+        return [rob, alice_s, alice_b]
+
 
 
 class DataFrameData(MetaTestData):
