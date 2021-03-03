@@ -32,7 +32,6 @@ class Person(String):
 
     def extract(self, df: pd.DataFrame):
         super().extract(df)
-
         return self
 
     def convert_df_for_children(self, df: pd.DataFrame):
@@ -54,5 +53,4 @@ class Person(String):
         d.update({
             "_params": self.params
         })
-
         return d
