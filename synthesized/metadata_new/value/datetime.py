@@ -18,9 +18,10 @@ class TimeDelta(Scale[np.timedelta64]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[np.timedelta64]] = None,
-            nan_freq: Optional[float] = None
+            nan_freq: Optional[float] = None, num_rows: Optional[int] = None,
+            min: Optional[np.timedelta64] = None, max: Optional[np.timedelta64] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
 
 
 class TimeDeltaDay(TimeDelta):
@@ -42,9 +43,10 @@ class DateTime(Affine[np.datetime64]):
 
     def __init__(
             self, name: str, categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
-            num_rows: Optional[int] = None, date_format: Optional[str] = None
+            num_rows: Optional[int] = None, min: Optional[np.datetime64] = None, max: Optional[np.datetime64] = None,
+            date_format: Optional[str] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
         self.date_format = date_format
         self.children = [
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')

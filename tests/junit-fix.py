@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+
 tree = ET.parse('test-results/junit.xml')
 root = tree.getroot()
 
@@ -24,7 +25,7 @@ suites = []
 for file in files:
     suite1 = ET.Element('testsuite', attrib={
         'name': (file or '').replace('.', '/')+'.py',
-        'file': (file or '').replace('.', '/')+'.py',
+        'file': (file or '').replace('.', '/') + '.py',
         'errors': str(sum([1 if 'error' in [c.tag for c in case.getchildren()] else 0 for case in file_to_case[file]])),
         'failures': str(sum([1 if 'failure' in [c.tag for c in case.getchildren()] else 0 for case in file_to_case[file]])),
         'hostname': suite.get('hostname') or '',
@@ -35,7 +36,8 @@ for file in files:
     })
 
     for case in file_to_case[file]:
-        case.set('classname', (file or '').replace('.', '/')+'.py')
+        # case.set('classname', (file or '').replace('.', '/')+'.py')
+        case.attrib.pop('classname')
 
     suite1.extend(file_to_case[file])
     # print(ET.tostring(suite1))

@@ -48,4 +48,4 @@ class Synthesizer:
         self._synthesizer.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self._synthesizer.__exit__()
+        self._synthesizer.__exit__(exc_type, exc_value, traceback)

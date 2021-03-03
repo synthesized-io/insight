@@ -77,12 +77,12 @@ class Distribution(tf.keras.layers.Layer):
         if self.distribution == 'deterministic':
             # Deterministic distribution
             loc = self.mean(inputs)
-            kwargs = dict(loc=loc)
+            kwargs.update(loc=loc)
         elif self.distribution == 'normal':
             # Normal distribution
             loc = self.mean(inputs)
             scale = tf.exp(x=self.stddev(inputs))
-            kwargs = dict(loc=loc, scale=scale)
+            kwargs.update(dict(loc=loc, scale=scale))
         else:
             raise NotImplementedError
 

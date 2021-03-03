@@ -68,7 +68,7 @@ class Assessor:
         """
         rows = math.ceil(len(self.df_models) / cols)
         if not figsize:
-            figsize = (14, 5 * rows + 2)
+            figsize = (6 * cols + 2, 5 * rows + 2)
 
         fig = plt.figure(figsize=figsize)
         gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.3)
