@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, Type, Union, cast, overload
+from typing import Any, Dict, Generic, Optional, Sequence, Type, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -117,16 +117,6 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         hist.dtype = dtype
 
         return hist
-
-    @classmethod
-    @overload
-    def from_meta(cls: Type['Histogram'], meta: Affine[AType]) -> 'Union[Histogram[AType], Histogram[pd.IntervalDtype[AType]]]':
-        ...
-
-    @classmethod
-    @overload
-    def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Histogram[NType]':
-        ...
 
     @classmethod
     def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
