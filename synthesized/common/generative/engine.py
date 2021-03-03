@@ -8,6 +8,7 @@ from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
 from ..values import DataFrameValue
+from ...config import EngineConfig
 
 
 class HighDimEngine(Generative):
@@ -19,64 +20,50 @@ class HighDimEngine(Generative):
     The input and output are concatenated / split tensors per value. The encoder and decoder network use the same
     hyperparameters.
     """
-    def __init__(
-            self, name: str, df_value: DataFrameValue,
-            # Latent distribution
-            latent_size: int,
-            # Encoder and decoder network
-            network: str, capacity: int, num_layers: int, residual_depths: Union[None, int, List[int]],
-            batch_norm: bool, activation: str,
-            # Optimizer
-            optimizer: str, learning_rate: float, decay_steps: Optional[int], decay_rate: Optional[float],
-            initial_boost: int, clip_gradients: float,
-            # Beta KL loss coefficient
-            beta: float,
-            # Weight decay
-            weight_decay: float
-    ):
+    def __init__(self, name: str, df_value: DataFrameValue, config: EngineConfig = EngineConfig()):
         super(HighDimEngine, self).__init__(name=name, df_value=df_value)
 
-        self.latent_size = latent_size
-        self.network = network
-        self.capacity = capacity
-        self.num_layers = num_layers
-        self.residual_depths = residual_depths
-        self.batch_norm = batch_norm
-        self.activation = activation
-        self.optimizer_name = optimizer
-        self.learning_rate = learning_rate
-        self.decay_steps = decay_steps
-        self.decay_rate = decay_rate
-        self.initial_boost = initial_boost
-        self.clip_gradients = clip_gradients
-        self.beta = beta
-        self.weight_decay = weight_decay
-        self.l2 = tf.keras.regularizers.l2(weight_decay)
+        self.latent_size = config.latent_size
+        self.network = config.network
+        self.capacity = config.capacity
+        self.num_layers = config.num_layers
+        self.residual_depths = config.residual_depths
+        self.batch_norm = config.batch_norm
+        self.activation = config.activation
+        self.optimizer_name = config.optimizer
+        self.learning_rate = config.learning_rate
+        self.decay_steps = config.decay_steps
+        self.decay_rate = config.decay_rate
+        self.initial_boost = config.initial_boost
+        self.clip_gradients = config.clip_gradients
+        self.beta = config.beta
+        self.weight_decay = config.weight_decay
+        self.l2 = tf.keras.regularizers.l2(config.weight_decay)
 
         self.linear_input = DenseTransformation(
-            name='linear-input',
-            input_size=self.df_value.learned_input_size(), output_size=capacity, batch_norm=False, activation='none'
+            name='linear-input', input_size=self.df_value.learned_input_size(), output_size=self.capacity,
+            batch_norm=False, activation='none'
         )
 
         kwargs = dict(
-            name='encoder', input_size=self.linear_input.size(), depths=residual_depths,
-            layer_sizes=[capacity for _ in range(num_layers)] if num_layers else None,
-            output_size=capacity if not num_layers else None, activation=activation, batch_norm=batch_norm
+            name='encoder', input_size=self.linear_input.size(), depths=self.residual_depths,
+            layer_sizes=[self.capacity for _ in range(self.num_layers)] if self.num_layers else None,
+            output_size=self.capacity if not self.num_layers else None, activation=self.activation,
+            batch_norm=self.batch_norm
         )
         for k in list(kwargs.keys()):
             if kwargs[k] is None:
                 del kwargs[k]
-        self.encoder = module_registry[network](**kwargs)
+        self.encoder = module_registry[self.network](**kwargs)
 
         self.encoding = VariationalEncoding(
             name='encoding',
-            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=beta
+            input_size=self.encoder.size(), encoding_size=self.latent_size, beta=self.beta
         )
-
         self.modulation = None
 
         kwargs['name'], kwargs['input_size'] = 'decoder', (self.encoding.size())
-        self.decoder = module_registry[network](**kwargs)
+        self.decoder = module_registry[self.network](**kwargs)
 
         self.linear_output = DenseTransformation(
             name='linear-output',
@@ -84,9 +71,9 @@ class HighDimEngine(Generative):
         )
 
         self.optimizer = Optimizer(
-            name='optimizer', optimizer=optimizer,
-            learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
-            clip_gradients=clip_gradients, initial_boost=initial_boost
+            name='optimizer', optimizer=self.optimizer_name,
+            learning_rate=self.learning_rate, decay_steps=self.decay_steps, decay_rate=self.decay_rate,
+            clip_gradients=self.clip_gradients, initial_boost=self.initial_boost
         )
 
     def specification(self) -> dict:
