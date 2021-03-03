@@ -54,12 +54,12 @@ class QuantileTransformer(Transformer):
         if self._nonnegative and not self._positive:
             df.loc[df[self.name] < 0.001, self.name] = 0.001
 
-        df[self.name] = self._transformer.transform(df[[self.name]]).astype(np.float32)
+        df[self.name] = self._transformer.transform(df[[self.name]]).astype('float32')
 
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        df.loc[:, self.name] = self._transformer.inverse_transform(df[[self.name]])
+        df.loc[:, self.name] = self._transformer.inverse_transform(df[[self.name]]).astype('float32')
         if self._nonnegative:
             df.loc[(df.loc[:, self.name] < 0.001), self.name] = 0
         return df
