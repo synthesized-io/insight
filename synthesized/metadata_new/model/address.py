@@ -239,7 +239,7 @@ class AddressModel(Address, Model):
                             if self.labels.street_label or self.labels.full_address_label else None,
                             house_number=js_i['building_number']
                             if self.labels.house_number_label or self.labels.full_address_label else None,
-                            flat=(js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name'])
+                            flat=js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name']
                             if self.labels.flat_label or self.labels.full_address_label else None,
                             house_name=js_i['building_name']
                             if self.labels.house_name_label or self.labels.full_address_label else None,
