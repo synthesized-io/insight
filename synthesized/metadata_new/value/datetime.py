@@ -138,7 +138,7 @@ def get_date_format(sr: pd.Series) -> str:
         func = datetime.strptime  # type: ignore
     for date_format in formats:
         try:
-            sr = sr.apply(lambda x: func(x, date_format))
+            sr = sr.apply(lambda x, date_format=date_format: func(x, date_format))
             parsed_format = date_format
         except ValueError:
             pass
