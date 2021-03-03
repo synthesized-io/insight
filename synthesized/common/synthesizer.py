@@ -32,9 +32,6 @@ def _check_license():
         plain = ''.join([chr((char ** key) % n) for char in list(license_key_bytes)])
         date = datetime.strptime(plain.split(' ')[1], "%Y-%m-%d")
         now = datetime.now()
-        if now < date:
-            print('Expires at: ' + str(date))
-            return True
         if now >= date:
             print('License has been expired')
             return False

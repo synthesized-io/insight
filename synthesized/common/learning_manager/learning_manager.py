@@ -74,16 +74,11 @@ class LearningManager:
         self.good_enough_metric = good_enough_metric
 
         allowed_stop_metric_names = ['ks_distance', 'corr_dist', 'emd_categ']
-        if stop_metric_name:
-            if isinstance(stop_metric_name, str):
-                if stop_metric_name not in allowed_stop_metric_names:
-                    raise ValueError("Only {} supported, given stop_metric='{}'"
-                                     .format(stop_metric_name, allowed_stop_metric_names))
-            elif isinstance(stop_metric_name, list):
-                if not np.all([metric_name in allowed_stop_metric_names for metric_name in stop_metric_name]):
-                    raise ValueError("Only {} supported, given stop_metric='{}'"
-                                     .format(stop_metric_name, allowed_stop_metric_names))
-        self.stop_metric_name = stop_metric_name
+        stop_metric_names = [stop_metric_name] if isinstance(stop_metric_name, str) else stop_metric_name
+        if stop_metric_names is not None and not np.all([m in allowed_stop_metric_names for m in stop_metric_names]):
+            raise ValueError("Only {} supported, given stop_metric='{}'".format(stop_metric_name,
+                                                                                allowed_stop_metric_names))
+        self.stop_metric_name = stop_metric_names
         self.sample_size = sample_size
         self.max_training_time = max_training_time
         self.use_engine_loss = use_engine_loss
@@ -120,11 +115,8 @@ class LearningManager:
             return False
 
         if isinstance(stop_metric, dict):
-            if self.stop_metric_name:
-                if isinstance(self.stop_metric_name, str):
-                    stop_metric = {self.stop_metric_name: stop_metric[self.stop_metric_name]}
-                if isinstance(self.stop_metric_name, list):
-                    stop_metric = {k: v for k, v in stop_metric.items() if k in self.stop_metric_name}
+            if self.stop_metric_name is not None:
+                stop_metric = {k: v for k, v in stop_metric.items() if k in self.stop_metric_name}
 
             total_stop_metric = np.nanmean(np.concatenate(list(stop_metric.values())))
 
