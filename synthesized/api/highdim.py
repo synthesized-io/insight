@@ -1,11 +1,14 @@
-from typing import BinaryIO, Callable, Optional, Tuple
+from typing import BinaryIO, Callable, List, Optional, Tuple, Union
 
 import pandas as pd
 
 from .data_frame_meta import DataFrameMeta
+from .models import ContinuousModel, DiscreteModel
 from .synthesizer import Synthesizer
 from ..complex import HighDimSynthesizer as _HighDimSynthesizer
 from ..config import HighDimConfig
+from ..metadata_new import ContinuousModel as _ContinuousModel
+from ..metadata_new import DiscreteModel as _DiscreteModel
 
 
 class HighDimSynthesizer(Synthesizer):
@@ -14,18 +17,24 @@ class HighDimSynthesizer(Synthesizer):
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
     is, no temporal or otherwise conditional relation between the rows.
     """
-    def __init__(self, df_meta: DataFrameMeta, config: HighDimConfig = HighDimConfig()):
+    def __init__(self, df_meta: DataFrameMeta, config: HighDimConfig = HighDimConfig(),
+                 type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None):
         """Initialize a new BasicSynthesizer instance.
 
         Args:
             df_meta: Data sample which summarizes all relevant characteristics,
                 so for instance all values a discrete-value column can take.
             config: The configuration for the synthesizer.
+            type_overrides: list of modelling assumptions that will override the default behaviour of the Synthesizer
         """
         if df_meta._df_meta is None:
             raise ValueError
         super().__init__()
-        self._synthesizer = _HighDimSynthesizer(df_meta=df_meta._df_meta, config=config)
+        _type_overrides: Optional[List[Union[_ContinuousModel, _DiscreteModel]]] = None
+        if type_overrides is not None:
+            _type_overrides = [model._model for model in type_overrides]
+
+        self._synthesizer = _HighDimSynthesizer(df_meta=df_meta._df_meta, config=config, type_overrides=_type_overrides)
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],

@@ -2,7 +2,7 @@
 import logging
 import pickle
 from math import sqrt
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -34,6 +34,7 @@ class HighDimSynthesizer(Synthesizer):
     def __init__(
             self, df_meta: DataFrameMeta, summarizer_dir: str = None,
             summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
+            type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -52,7 +53,7 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        self.df_model = ModelFactory()(df_meta)
+        self.df_model = ModelFactory()(df_meta, type_overrides=type_overrides)
         self.df_model_independent = self.split_df_model(self.df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(
