@@ -12,11 +12,9 @@ from .child.gender import GenderTransformer
 from .child.postcode import PostcodeTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
-from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
-from ..metadata_new.base.value_meta import AType, NType
-from ..metadata_new.model.address import PostcodeModel
-from ..metadata_new.model.association import AssociatedHistogram
-from ..metadata_new.model.person import GenderModel
+from ..metadata_new import AType, DataFrameMeta, Meta, Nominal, NType
+from ..model import ContinuousModel, DiscreteModel
+from ..model.models import AssociatedHistogram, GenderModel, PostcodeModel
 
 
 class DataFrameTransformer(BagOfTransformers):

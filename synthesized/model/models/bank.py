@@ -6,8 +6,8 @@ from faker import Faker
 
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ..value import Bank
 from ...config import BankLabels
+from ...metadata_new.value import Bank
 
 
 class BankModel(Bank, DiscreteModel[str]):

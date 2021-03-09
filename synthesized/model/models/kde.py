@@ -7,8 +7,8 @@ import seaborn as sns
 from scipy.stats import gaussian_kde
 
 from ..base import ContinuousModel
-from ..base.value_meta import Affine, AType, Scale
-from ..exceptions import MetaNotExtractedError, ModelNotFittedError
+from ..exceptions import ModelNotFittedError
+from ...metadata_new import Affine, AType, MetaNotExtractedError, Scale
 
 
 class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):

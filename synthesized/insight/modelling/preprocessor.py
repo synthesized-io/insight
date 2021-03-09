@@ -8,8 +8,10 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ...metadata_new import Affine, ContinuousModel, DataFrameMeta, DiscreteModel, MetaExtractor
-from ...metadata_new.model.factory import ModelFactory
+from ...metadata_new import Affine, DataFrameMeta
+from ...metadata_new.meta_builder import MetaExtractor
+from ...model import ContinuousModel, DiscreteModel
+from ...model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 

@@ -15,9 +15,10 @@ from sklearn.utils.validation import check_is_fitted
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata_new import DataFrameMeta, MetaExtractor, Nominal
-from ...metadata_new.base import ContinuousModel, DiscreteModel
-from ...metadata_new.model import ModelFactory
+from ...metadata_new import DataFrameMeta, Nominal
+from ...metadata_new.meta_builder import MetaExtractor
+from ...model import ContinuousModel, DiscreteModel
+from ...model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
