@@ -56,7 +56,6 @@ class Synthesizer(tf.Module):
 
         self.logdir = None
         self.loss_history: List[dict] = list()
-        self.writer: Optional[tf.summary.SummaryWriter] = None
 
         # Set up logging.
         if summarizer_dir is not None:
@@ -66,7 +65,9 @@ class Synthesizer(tf.Module):
             else:
                 self.logdir = f"{summarizer_dir}/{stamp}"
 
-            self.writer = tf.summary.create_file_writer(self.logdir)
+            self.writer: tf.summary.SummaryWriter = tf.summary.create_file_writer(self.logdir)
+        else:
+            self.writer = tf.summary.create_noop_writer()
 
     @abstractmethod
     def get_values(self) -> List[Value]:
@@ -133,13 +134,10 @@ class Synthesizer(tf.Module):
         raise NotImplementedError
 
     def __enter__(self):
-        if self.writer is not None:
-            self.writer.set_as_default()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.writer is not None:
-            self.writer.close()
+        pass
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(
