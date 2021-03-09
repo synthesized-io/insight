@@ -270,12 +270,9 @@ class LearningManagerConfig:
         return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
 
-# Synthesizer Config Classes ----------------------------------------
-
 @dataclass
-class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
+class EngineConfig:
     """
-    distribution: Distribution type: "normal".
     latent_size: Latent size.
     network: Network type: "mlp" or "resnet".
     capacity: Architecture capacity.
@@ -289,12 +286,9 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     decay_rate: Learning rate decay rate.
     initial_boost: Number of steps for initial x10 learning rate boost.
     clip_gradients: Gradient norm clipping.
-    batch_size: Batch size.
     beta: beta.
     weight_decay: Weight decay.
-    learning_manager: Whether to use LearningManager.
     """
-    distribution: str = 'normal'
     latent_size: int = 32
     # Network
     network: str = 'resnet'
@@ -310,14 +304,29 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     decay_rate: Optional[float] = None
     initial_boost: int = 0
     clip_gradients: float = 1.0
-    # Batch size
+    # Losses
+    beta: float = 1.0
+    weight_decay: float = 1e-3
+
+    @property
+    def engine_config(self):
+        return EngineConfig(**{f.name: self.__getattribute__(f.name) for f in fields(EngineConfig)})
+
+# Synthesizer Config Classes ----------------------------------------
+
+
+@dataclass
+class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig):
+    """
+    distribution: Distribution type: "normal".
+    batch_size: Batch size.
+    learning_manager: Whether to use LearningManager.
+    """
+    distribution: str = 'normal'
     batch_size: int = 64
     increase_batch_size_every: Optional[int] = 500
     max_batch_size: Optional[int] = 1024
     synthesis_batch_size: Optional[int] = 16384
-    # Losses
-    beta: float = 1.0
-    weight_decay: float = 1e-3
     learning_manager: bool = True
 
 

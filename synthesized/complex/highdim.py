@@ -14,7 +14,7 @@ from ..common.learning_manager import LearningManager
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
-from ..config import HighDimConfig
+from ..config import EngineConfig, HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
 from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel, ModelFactory, PersonModel
@@ -62,15 +62,7 @@ class HighDimSynthesizer(Synthesizer):
         self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
 
         # VAE
-        self.engine = HighDimEngine(
-            name='vae', df_value=self.df_value,
-            latent_size=config.latent_size, network=config.network, capacity=config.capacity,
-            num_layers=config.num_layers, residual_depths=config.residual_depths, batch_norm=config.batch_norm,
-            activation=config.activation,
-            optimizer=config.optimizer, learning_rate=config.learning_rate, decay_steps=config.decay_steps,
-            decay_rate=config.decay_rate, initial_boost=config.initial_boost, clip_gradients=config.clip_gradients,
-            beta=config.beta, weight_decay=config.weight_decay
-        )
+        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=config.engine_config)
 
         # Input argument placeholder for num_rows
         self.num_rows: Optional[tf.Tensor] = None
@@ -487,13 +479,15 @@ class HighDimSynthesizer(Synthesizer):
 
         # VAE
         synth.engine = HighDimEngine(
-            name='vae', df_value=synth.df_value,
-            latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
-            num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
-            batch_norm=variables['batch_norm'], activation=variables['activation'], optimizer=variables['optimizer'],
-            learning_rate=variables['learning_rate'], decay_steps=variables['decay_steps'],
-            decay_rate=variables['decay_rate'], initial_boost=variables['initial_boost'],
-            clip_gradients=variables['clip_gradients'], beta=variables['beta'], weight_decay=variables['weight_decay']
+            name='vae', df_value=synth.df_value, config=EngineConfig(
+                latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
+                num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
+                batch_norm=variables['batch_norm'], activation=variables['activation'],
+                optimizer=variables['optimizer'], learning_rate=variables['learning_rate'],
+                decay_steps=variables['decay_steps'], decay_rate=variables['decay_rate'],
+                initial_boost=variables['initial_boost'], clip_gradients=variables['clip_gradients'],
+                beta=variables['beta'], weight_decay=variables['weight_decay']
+            )
         )
         synth.engine.set_variables(variables['engine'])
 
