@@ -10,8 +10,8 @@ from scipy.stats import ks_2samp
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue
 from synthesized.config import HighDimConfig
-from synthesized.metadata import TypeOverride
 from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.model import KernelDensityEstimate
 
 atol = 0.05
 
@@ -94,12 +94,12 @@ def test_nan_producing():
 
 
 @pytest.mark.slow
-@pytest.mark.skip(reason="Currently don't have type override functionality in new metadata")
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
-    df_meta = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    df_meta = MetaExtractor.extract(df=df_original)
+    r_override = KernelDensityEstimate.from_meta(df_meta['r'])
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=[r_override])
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
     temp_dir = tempfile.mkdtemp()
@@ -112,4 +112,4 @@ def test_type_overrides():
         synthesizer2 = HighDimSynthesizer.import_model(f)
     shutil.rmtree(temp_dir)
 
-    assert type(synthesizer2.get_values()[0]) == ContinuousValue
+    assert isinstance(synthesizer2.df_value['r'], ContinuousValue)

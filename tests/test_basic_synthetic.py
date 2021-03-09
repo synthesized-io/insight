@@ -9,9 +9,9 @@ from scipy.stats import ks_2samp
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue, DateValue
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata import TypeOverride
 from synthesized.metadata_new import (Address, Bank, DataFrameMeta, Float, FormattedString, Integer, MetaExtractor,
                                       Person, String)
+from synthesized.metadata_new.model import KernelDensityEstimate
 from tests.utils import progress_bar_testing
 
 
@@ -167,13 +167,12 @@ def test_inf_not_producing():
 
 
 @pytest.mark.slow
-@pytest.mark.skip(reason="Not yet implemented for new metadata")
 def test_type_overrides():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
-    df_meta = MetaExtractor.extract(df=df_original, type_overrides={'r': TypeOverride.CONTINUOUS})
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
-    assert type(synthesizer.get_values()[0]) == ContinuousValue
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=[KernelDensityEstimate.from_meta(df_meta['r'])])
+    assert type(synthesizer.df_value['r']) == ContinuousValue
 
 
 @pytest.mark.slow
