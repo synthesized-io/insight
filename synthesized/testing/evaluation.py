@@ -101,7 +101,7 @@ def synthesize_and_plot(
     hd_config = HighDimConfig(**config['params'])
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=hd_config)
     synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-                        callback_freq=100)
+                      callback_freq=100)
     training_time = time.time() - start
     synthesized = synthesizer.synthesize(num_rows=len_eval_data)
     print('took', training_time, 's')
@@ -237,7 +237,7 @@ def synthesize_and_plot_time_series(
     synthesized = data.copy()
     identifiers = data[identifier_label].unique()
     id_map = {a: b
-                for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
+              for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
     synthesized[identifier_label] = synthesized[identifier_label].map(id_map)
     print('took', training_time, 's')
 
