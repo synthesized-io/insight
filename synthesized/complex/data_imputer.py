@@ -29,9 +29,6 @@ class DataImputer(Synthesizer):
         self.loss_history = synthesizer.loss_history
         self.writer = synthesizer.writer
 
-    def __enter__(self):
-        return self.synthesizer.__enter__()
-
     def get_values(self) -> List[Value]:
         return self.synthesizer.get_values()
 

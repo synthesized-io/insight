@@ -15,8 +15,8 @@ def test_continuous_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.normal(loc=0, scale=1, size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
     df_synthesized = data_imputer.impute_nans(df_original)
@@ -31,8 +31,8 @@ def test_categorical_nans_imputation():
     df_original = pd.DataFrame({'x': np.random.choice(['a', 'b', 'c'], size=1000)})
     df_original.loc[np.random.uniform(size=len(df_original)) < NANS_PROP_TEST, 'x'] = np.nan
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
 
     data_imputer = DataImputer(synthesizer=synthesizer)
     df_synthesized = data_imputer.impute_nans(df_original)
@@ -52,7 +52,6 @@ def test_mixed_dtypes_nan_imputation():
     df_original = pd.read_csv("data/credit.csv")
     df_meta = MetaExtractor.extract(df=df_original)
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
-    synthesizer.__enter__()
     synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
     df_synthesized = synthesizer.synthesize(num_rows=10)
     print(df_original.shape, df_synthesized.shape)  # (9999, 11) (10, 11)
