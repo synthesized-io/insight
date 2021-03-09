@@ -3,10 +3,10 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
-from .base import ValueMeta
+from .base import Nominal, ValueMeta
 from .data_frame_meta import DataFrameMeta
 from .exceptions import UnknownDateFormatError, UnsupportedDtypeError
-from .value import Bool, DateTime, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
+from .value import AssociatedCategorical, Bool, DateTime, Float, Integer, IntegerBool, OrderedString, String, TimeDelta
 from .value.datetime import get_date_format
 from ..config import MetaFactoryConfig
 
@@ -45,7 +45,7 @@ class _MetaBuilder:
     def timedelta_builder(self, sr: pd.Series) -> TimeDelta:
         return TimeDelta(sr.name)
 
-    def bool_builder(self, sr: pd.Series,) -> Bool:
+    def bool_builder(self, sr: pd.Series) -> Bool:
         return Bool(sr.name)
 
     def int_builder(self, sr: pd.Series) -> Union[Integer, IntegerBool]:
@@ -121,13 +121,14 @@ class MetaFactory():
         self._builder = _MetaBuilder(**asdict(self.config))
 
     def __call__(
-            self, x: Union[pd.Series, pd.DataFrame], annotations: Optional[List[ValueMeta]] = None
+            self, x: Union[pd.Series, pd.DataFrame], annotations: Optional[List[ValueMeta]] = None,
+            associations: Optional[List[List[str]]] = None
     ) -> Union[ValueMeta[Any], DataFrameMeta]:
-        return self.create_meta(x, annotations=annotations)
+        return self.create_meta(x, annotations=annotations, associations=associations)
 
     def create_meta(
             self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df',
-            annotations: Optional[List[ValueMeta]] = None
+            annotations: Optional[List[ValueMeta]] = None, associations: Optional[List[List[str]]] = None,
     ) -> Union[ValueMeta[Any], DataFrameMeta]:
         """
         Instantiate a Meta object from a pandas series or data frame.
@@ -138,6 +139,7 @@ class MetaFactory():
             x: a pandas series or data frame for which to create the Meta instance
             name: Optional; The name of the instantianted DataFrameMeta if x is a data frame
             annotations: Any metas that should be applied on a DataFrame and incorporated into the meta hierarchy.
+            associations: Names of categorical columns that should be associated
 
         Returns:
             A derived ValueMeta instance or DataFrameMeta instance if x is a pd.Series or pd.DataFrame, respectively.
@@ -147,7 +149,7 @@ class MetaFactory():
             TypeError: An error occured during instantiation of a ValueMeta.
         """
         if isinstance(x, pd.DataFrame):
-            return self._from_df(x, name, annotations=annotations)
+            return self._from_df(x, name, annotations=annotations, associations=associations)
         elif isinstance(x, pd.Series):
             return self._from_series(x)
         else:
@@ -159,15 +161,19 @@ class MetaFactory():
         return self._builder(sr)
 
     def _from_df(
-            self, df: pd.DataFrame, name: Optional[str] = 'df', annotations: Optional[List[ValueMeta]] = None
+            self, df: pd.DataFrame, name: Optional[str] = 'df', annotations: Optional[List[ValueMeta]] = None,
+            associations: Optional[List[List[str]]] = None
     ) -> DataFrameMeta:
         if name is None:
             raise ValueError("name must not be a string, not None")
         annotations = annotations or []
         annotation_children = [c.name for ann in annotations for c in ann.children]
+        associations = associations or []
+        association_children = [c for assoc in associations for c in assoc]
+
         meta = DataFrameMeta(name, annotations=[ann.name for ann in annotations])
         for col in df.columns:
-            if col in annotation_children:
+            if col in annotation_children or col in association_children:
                 continue
             try:
                 child = self._from_series(df[col])
@@ -178,7 +184,23 @@ class MetaFactory():
         for ann in annotations:
             meta[ann.name] = ann
 
+        for associated_cols in associations:
+            association_meta = self._create_association(df, associated_cols)
+            meta[association_meta.name] = association_meta
         return meta
+
+    def _create_association(self, df: pd.DataFrame, associated_cols: List[str]):
+        associated_metas = []
+        for col in associated_cols:
+            meta = self._from_series(df[col])
+            if not isinstance(meta, Nominal):
+                raise ValueError(f"Column {col} is not of Nominal type")
+            associated_metas.append(meta)
+
+        name = "association_" + "_".join([name for name in associated_cols])
+        association_meta = AssociatedCategorical(name, associated_metas)
+
+        return association_meta
 
     @staticmethod
     def default_config() -> MetaFactoryConfig:
@@ -193,7 +215,8 @@ class MetaExtractor(MetaFactory):
     @staticmethod
     def extract(
             df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,
-            annotations: Optional[List[ValueMeta]] = None
+            annotations: Optional[List[ValueMeta]] = None,
+            associations: Optional[List[List[str]]] = None,
     ) -> DataFrameMeta:
         """
         Instantiate and extract the DataFrameMeta that describes a data frame.
@@ -202,6 +225,7 @@ class MetaExtractor(MetaFactory):
             df: the data frame to instantiate and extract DataFrameMeta.
             config: Optional; The configuration parameters to MetaFactory.
             annotations: Optional; Annotations for the DataFrameMeta
+            associations: Optional; List of List of names of columns to associate
 
         Returns:
             A DataFrameMeta instance for which all child meta have been extracted.
@@ -212,7 +236,7 @@ class MetaExtractor(MetaFactory):
         """
         factory = MetaExtractor(config)
         df = df.infer_objects()
-        df_meta = factory(df, annotations=annotations)
+        df_meta = factory(df, annotations=annotations, associations=associations)
         df_meta.extract(df)
         assert isinstance(df_meta, DataFrameMeta)
         return df_meta

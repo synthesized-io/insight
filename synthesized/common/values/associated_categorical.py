@@ -60,8 +60,11 @@ class AssociatedCategoricalValue(Value, Mapping):
         return sum([v.learned_output_size() for v in self.values()])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
-        inputs = [value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values())]
+    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Sequence[tf.Tensor] = None) -> tf.Tensor:
+        if mask is None:
+            inputs = [value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values())]
+        else:
+            inputs = [value.unify_inputs(xs[n:n + 1], mask[n: n + 1]) for n, value in enumerate(self.values())]
         return tf.concat(inputs, axis=-1)
 
     @tensorflow_name_scoped
@@ -74,7 +77,7 @@ class AssociatedCategoricalValue(Value, Mapping):
 
         probs = []
         for y in ys:
-            y_flat = tf.reshape(y, shape=(-1, y.shape[-1]))
+            y_flat = tf.reshape(y[:, 1:], shape=(-1, y.shape[-1] - 1))
             prob = tf.math.softmax(y_flat, axis=-1)
             probs.append(prob)
 
@@ -84,8 +87,11 @@ class AssociatedCategoricalValue(Value, Mapping):
         flattened = tf.reshape(masked, (-1, tf.reduce_prod(masked.shape[1:])))
 
         y = tf.reshape(tf.random.categorical(tf.math.log(flattened), num_samples=1), shape=(-1,))
-        output_tensor = unflatten_joint_sample(y, list(self.values()))
-        return output_tensor
+        output_tensors = unflatten_joint_sample(y, list(self.values()))
+        for i in range(len(output_tensors)):
+            output_tensors[i] = output_tensors[i] + 1
+
+        return output_tensors
 
     @tensorflow_name_scoped
     def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
@@ -165,4 +171,4 @@ def unflatten_joint_sample(flattened_sample, value_list):
             value_list[-n - 1].num_categories
         ))
 
-    return tuple(output_tensors[::-1])
+    return list(output_tensors[::-1])

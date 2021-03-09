@@ -16,7 +16,7 @@ class TestAssociatedCategoricalValue:
 
     @pytest.fixture(scope="class")
     def value(self):
-        return AssociatedCategoricalValue(values=self.child_values, binding_mask=np.ones((7, 4)))
+        return AssociatedCategoricalValue(values=self.child_values, binding_mask=np.ones((6, 3)))
 
     @pytest.fixture(scope="class")
     def inputs(self):

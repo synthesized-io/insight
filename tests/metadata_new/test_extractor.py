@@ -174,3 +174,17 @@ def test_annotations():
     assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
     assert sorted(list(df_meta['person'].keys())) == ['e', 'f']
     assert sorted(list(df_meta['g'].keys())) == []
+
+
+def test_associations():
+
+    df = pd.DataFrame({
+        'a': [0, 0, 1, 1],
+        'b': [0, 1, 0, 1],
+        'c': [0, 0, 0, 1]
+    })
+
+    df_meta = MetaExtractor.extract(df, associations=[['a', 'b', 'c']])
+
+    true_binding_mask = np.array([[[1, 0], [1, 0]], [[1, 0], [0, 1]]])
+    np.testing.assert_array_almost_equal(df_meta["association_a_b_c"].binding_mask, true_binding_mask)

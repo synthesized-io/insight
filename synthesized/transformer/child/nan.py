@@ -28,7 +28,7 @@ class NanTransformer(Transformer):
         return df
 
     def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True, **kwargs) -> pd.DataFrame:
-        nan = df[f'{self.name}_nan'].astype(bool)
+        nan = (df[f'{self.name}_nan'] - 1).astype(bool)  # output produced by value lies in (1, 2)
         if produce_nans:
             df.loc[:, self.name] = df.loc[:, self.name].where(~nan, np.nan)
         df.drop(columns=[f'{self.name}_nan'], inplace=True)

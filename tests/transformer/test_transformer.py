@@ -188,3 +188,17 @@ def test_complex_sequence_of_transformers():
     df = pd.DataFrame({'x1': np.random.normal(size=n), 'x21': np.random.normal(size=n), 'x22': np.random.normal(size=n), 'x3': np.random.normal(size=n)})
     bag_of_transformers.fit(df)
     bag_of_transformers.inverse_transform(bag_of_transformers.transform(df))
+
+
+def test_transformer_associations():
+    df = pd.DataFrame({
+        'a': [0, 1],
+        'b': [1, 0],
+    })
+
+    df_meta = MetaExtractor.extract(df, associations=[['a', 'b']])
+    df_models = ModelFactory()(df_meta)
+    transformers = TransformerFactory().create_transformers(df_models)
+
+    assert df_meta['association_a_b'].categories_to_idx['a'] == transformers._transformers[0][0].category_to_idx
+    assert df_meta['association_a_b'].categories_to_idx['b'] == transformers._transformers[0][1].category_to_idx

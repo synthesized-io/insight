@@ -1,7 +1,8 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
+from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
 from .dataframe_value import DataFrameValue
@@ -9,6 +10,7 @@ from .date import DateValue
 from .value import Value
 from ...config import ValueFactoryConfig
 from ...metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
+from ...metadata_new.model import AssociatedHistogram
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +47,10 @@ class ValueFactory:
             if not isinstance(value_meta, Nominal):
                 raise ValueError('Unsupported building of DataFrameValue with non-nominal metas')
 
-            nan_value = self._build_nan(value_meta.name, value_meta)
-            if nan_value is not None:
-                values[f"{value_meta.name}_nan"] = nan_value
+            nan_values = self._build_nan(value_meta.name, value_meta)
+
+            for nan_value in nan_values:
+                values[f"{nan_value.name}"] = nan_value
 
             value = self._create_value(value_meta)
 
@@ -67,6 +70,12 @@ class ValueFactory:
             return ContinuousValue(
                 vm.name, config=self.config.continuous_config,
             )
+        elif isinstance(vm, AssociatedHistogram):
+            values = {}
+            for model in vm.values():
+                values[model.name] = CategoricalValue(name=model.name, num_categories=len(model.categories),  # type: ignore
+                                                      config=self.config.categorical_config)
+            return AssociatedCategoricalValue(values=values, binding_mask=vm.binding_mask, name=vm.name)
         elif isinstance(vm, DiscreteModel):
             assert vm.categories is not None
             if len(vm.categories) > 1:
@@ -79,15 +88,22 @@ class ValueFactory:
         else:
             raise ValueError("Bad Nominal Value Meta")
 
-    def _build_nan(self, name, value_meta: Nominal) -> Optional[CategoricalValue]:
+    def _build_nan(self, name, value_meta: Nominal) -> List[CategoricalValue]:
         """ builds a nan_value from a value_meta if needed else returns None"""
+        if isinstance(value_meta, AssociatedHistogram):
+            nan_values: List[CategoricalValue] = []
+            for model in value_meta.values():
+                nan_values += self._build_nan(model.name, model)  # type: ignore
+            return nan_values
+
         if value_meta.nan_freq is None or value_meta.nan_freq == 0:
-            return None
+            return []
+
         nan_value = CategoricalValue(
             name=f"{name}_nan", num_categories=2,
             config=self.config.categorical_config
         )
-        return nan_value
+        return [nan_value]
 
 
 class ValueExtractor(ValueFactory):

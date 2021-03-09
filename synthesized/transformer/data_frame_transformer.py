@@ -15,6 +15,7 @@ from ..config import MetaTransformerConfig
 from ..metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
 from ..metadata_new.base.value_meta import AType, NType
 from ..metadata_new.model.address import PostcodeModel
+from ..metadata_new.model.association import AssociatedHistogram
 from ..metadata_new.model.person import GenderModel
 
 
@@ -136,6 +137,9 @@ class TransformerFactory:
         elif isinstance(meta, ContinuousModel):
             transformers = self._from_continuous(meta)
 
+        elif isinstance(meta, AssociatedHistogram):
+            transformers = self._from_association(meta)
+
         elif isinstance(meta, DiscreteModel):
             transformers = []
 
@@ -173,7 +177,7 @@ class TransformerFactory:
 
         return transformers
 
-    def _from_discrete(self, model: DiscreteModel[NType]) -> List[Transformer]:
+    def _from_discrete(self, model: DiscreteModel[NType], category_to_idx: Dict[str, int] = None) -> List[Transformer]:
         transformers: List[Transformer] = []
 
         if model.nan_freq:
@@ -185,5 +189,13 @@ class TransformerFactory:
             transformers.append(DropConstantColumnTransformer.from_meta(model))
         else:
             transformers.append(CategoricalTransformer.from_meta(model))
+
+        return transformers
+
+    def _from_association(self, model: AssociatedHistogram):
+        transformers: List[Transformer] = []
+
+        for name, child_model in model.items():
+            transformers += self._from_discrete(child_model, category_to_idx=model.categories_to_idx[name])  # type: ignore
 
         return transformers

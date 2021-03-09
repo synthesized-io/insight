@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import numpy as np
 
 from .address import AddressModel
+from .association import AssociatedHistogram
 from .bank import BankModel
 from .histogram import Histogram
 from .kde import KernelDensityEstimate
@@ -10,7 +11,7 @@ from .person import PersonModel
 from .string import FormattedStringModel
 from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
 from ..data_frame_meta import DataFrameMeta
-from ..value import Address, Bank, FormattedString, Person
+from ..value import Address, AssociatedCategorical, Bank, FormattedString, Person
 from ...config import ModelBuilderConfig
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -78,6 +79,8 @@ class ModelBuilder:
         if isinstance(meta, Nominal):
             return Histogram.from_meta(meta)
 
+        if isinstance(meta, AssociatedCategorical):
+            return AssociatedHistogram.from_meta(meta)
         else:
             raise TypeError(f"Cannot create Model from {type(meta)}")
 

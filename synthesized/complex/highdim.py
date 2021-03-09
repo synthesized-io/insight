@@ -17,7 +17,8 @@ from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
 from ..metadata_new import DataFrameMeta, Model
 from ..metadata_new.base import ContinuousModel, DiscreteModel, Meta
-from ..metadata_new.model import AddressModel, BankModel, FormattedStringModel, ModelFactory, PersonModel
+from ..metadata_new.model import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, ModelFactory,
+                                  PersonModel)
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -118,6 +119,9 @@ class HighDimSynthesizer(Synthesizer):
         for name, model in df_model.items():
 
             if isinstance(model, ContinuousModel):
+                continue
+
+            if isinstance(model, AssociatedHistogram):
                 continue
 
             elif isinstance(model, (BankModel, FormattedStringModel)):

@@ -11,8 +11,8 @@ from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, Pe
 from synthesized.metadata_new import Bank, DateTime, FormattedString, Integer, MetaExtractor
 from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (AddressModel, BankModel, FormattedStringModel, Histogram,
-                                            KernelDensityEstimate, PersonModel, SequentialFormattedString)
+from synthesized.metadata_new.model import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel,
+                                            Histogram, KernelDensityEstimate, PersonModel, SequentialFormattedString)
 from synthesized.metadata_new.model.factory import ModelBuilder, ModelFactory
 from synthesized.metadata_new.value import Address, Person
 
@@ -420,3 +420,12 @@ def test_factory_annotations():
     df_synthesized = pd.concat((columns), axis=1)
 
     assert df_synthesized.shape == df.shape
+
+
+@pytest.mark.slow
+def test_factory_association(simple_df):
+    df_meta = MetaExtractor.extract(simple_df, associations=[['string', 'bool']])
+    df_model = ModelFactory()(df_meta)
+
+    associated_model = df_model["association_string_bool"]
+    assert isinstance(associated_model, AssociatedHistogram)
