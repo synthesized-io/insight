@@ -53,11 +53,11 @@ def test_annotations_all():
         config=MetaExtractorConfig(label_to_regex={'COUNTY': '[a-z]{5,10}', 'PA_DISTRICT': '[a-z]{5,10}'})
     )
 
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=10)
-        df_synthesized = synthesizer.synthesize(num_rows=len(data))
-        _ = synthesizer.encode(data)
-        _ = synthesizer.encode_deterministic(data)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(df_train=data, num_iterations=10)
+    df_synthesized = synthesizer.synthesize(num_rows=len(data))
+    _ = synthesizer.encode(data)
+    _ = synthesizer.encode_deterministic(data)
 
     assert df_synthesized.shape == data.shape
 
@@ -97,11 +97,11 @@ def test_addresses_from_file():
         address_params=address_params
     )
 
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=10)
-        df_synthesized = synthesizer.synthesize(num_rows=len(data))
-        _ = synthesizer.encode(data)
-        _ = synthesizer.encode_deterministic(data)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(df_train=data, num_iterations=10)
+    df_synthesized = synthesizer.synthesize(num_rows=len(data))
+    _ = synthesizer.encode(data)
+    _ = synthesizer.encode_deterministic(data)
 
     assert df_synthesized.shape == data.shape
 
@@ -114,9 +114,9 @@ def test_addresses_from_file():
         address_params=address_params,
     )
 
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=10)
-        df_synthesized = synthesizer.synthesize(num_rows=len(data))
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(df_train=data, num_iterations=10)
+    df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
     assert df_synthesized.shape == data.shape
 
