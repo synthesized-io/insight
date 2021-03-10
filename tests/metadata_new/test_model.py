@@ -8,13 +8,13 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new import Bank, DateTime, FormattedString, Integer, MetaExtractor
-from synthesized.metadata_new.base import Model
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.model import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel,
-                                            Histogram, KernelDensityEstimate, PersonModel, SequentialFormattedString)
-from synthesized.metadata_new.model.factory import ModelBuilder, ModelFactory
-from synthesized.metadata_new.value import Address, Person
+from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person
+from synthesized.model import Model
+from synthesized.model.factory import ModelBuilder, ModelFactory
+from synthesized.model.models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
+                                      KernelDensityEstimate, PersonModel, SequentialFormattedString)
 
 logger = logging.getLogger(__name__)
 

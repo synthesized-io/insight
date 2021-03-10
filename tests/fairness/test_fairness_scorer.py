@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from synthesized.insight.fairness import FairnessScorer
-from synthesized.metadata_new.base.model import DiscreteModel
+from synthesized.model import DiscreteModel
 from tests.utils import progress_bar_testing
 
 

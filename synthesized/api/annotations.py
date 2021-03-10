@@ -1,9 +1,9 @@
 from dataclasses import astuple
 
 from ..config import AddressLabels, BankLabels, PersonLabels
-from ..metadata_new import Address as _Address
-from ..metadata_new import Bank as _Bank
-from ..metadata_new import Person as _Person
+from ..metadata_new.value import Address as _Address
+from ..metadata_new.value import Bank as _Bank
+from ..metadata_new.value import Person as _Person
 
 
 class Bank:

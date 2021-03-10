@@ -6,7 +6,7 @@ import pytest
 
 from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
 from synthesized.metadata_new.meta_builder import MetaExtractor
-from synthesized.metadata_new.model import ModelFactory
+from synthesized.model.factory import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,
                                      DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,

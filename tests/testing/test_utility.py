@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from synthesized.complex import HighDimSynthesizer
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.meta_builder import MetaExtractor
 from synthesized.testing import UtilityTesting
 
 

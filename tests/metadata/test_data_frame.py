@@ -3,7 +3,8 @@ import logging
 import pandas as pd
 import pytest
 
-from synthesized.metadata_new import DataFrameMeta, MetaExtractor
+from synthesized.metadata_new import DataFrameMeta
+from synthesized.metadata_new.meta_builder import MetaExtractor
 
 logger = logging.getLogger(__name__)
 

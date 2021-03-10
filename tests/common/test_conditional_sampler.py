@@ -4,7 +4,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer
 from synthesized.complex import ConditionalSampler
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.meta_builder import MetaExtractor
 from tests.utils import progress_bar_testing
 
 

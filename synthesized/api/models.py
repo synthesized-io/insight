@@ -1,8 +1,8 @@
 from .data_frame_meta import DataFrameMeta
 from ..metadata_new import Affine as _Affine
 from ..metadata_new import Nominal as _Nominal
-from ..metadata_new.model import Histogram as _Histogram
-from ..metadata_new.model import KernelDensityEstimate as _KernelDensityEstimate
+from ..model.models import Histogram as _Histogram
+from ..model.models import KernelDensityEstimate as _KernelDensityEstimate
 
 
 class DiscreteModel:

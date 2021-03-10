@@ -3,7 +3,7 @@ import numpy as np
 from synthesized.common.values import (AssociatedCategoricalValue, CategoricalValue, ContinuousValue, DateValue,
                                        ValueExtractor)
 from synthesized.metadata_new import DataFrameMeta
-from synthesized.metadata_new.model import AssociatedHistogram, Histogram, KernelDensityEstimate
+from synthesized.model.models import AssociatedHistogram, Histogram, KernelDensityEstimate
 
 
 def extract_value_from_model(model):
