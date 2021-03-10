@@ -1,18 +1,19 @@
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Sequence, cast
+from typing import Any, DefaultDict, Dict, Generic, Sequence, cast
 
 import numpy as np
 import pandas as pd
 
-from ..base import Nominal, ValueMeta
+from ..base import Meta
+from ..base.value_meta import NominalType
 from ..exceptions import MetaNotExtractedError
 
 
-class AssociatedCategorical(ValueMeta[Nominal, str]):
-    dtype = 'O'
+class AssociatedCategorical(Meta[NominalType], Generic[NominalType]):
+    """A collection of associated Nominal Metas."""
 
     def __init__(
-        self, name: str, children: Sequence[Nominal], binding_mask: np.ndarray = None,
+        self, name: str, children: Sequence[NominalType], binding_mask: np.ndarray = None,
     ):
         super().__init__(name, children=children)
         self.binding_mask = binding_mask
@@ -38,7 +39,7 @@ class AssociatedCategorical(ValueMeta[Nominal, str]):
         for name, idx_mapping in self.categories_to_idx.items():
             df_associated[name] = df_associated[name].map(idx_mapping).astype(int)
 
-        counts = np.zeros(shape=[len(model.categories) + 1 for model in self.values()])  # type: ignore
+        counts = np.zeros(shape=[len(cast(Sequence[Any], model.categories)) + 1 for model in self.values()])
 
         for _, row in df_associated.iterrows():
             idx = tuple(v for v in row.values)

@@ -6,7 +6,7 @@ import pandas as pd
 from .base import Meta, ValueMeta
 
 
-class DataFrameMeta(Meta[ValueMeta], MutableMapping[str, ValueMeta]):
+class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
     """
     Meta to describe an arbitrary data frame.
 
@@ -19,7 +19,7 @@ class DataFrameMeta(Meta[ValueMeta], MutableMapping[str, ValueMeta]):
         annotations: A list of the metas' names in the DF that have been annotated.
     """
     def __init__(
-            self, name: str, children: Optional[Sequence[ValueMeta]] = None, id_index: Optional[str] = None,
+            self, name: str, children: Optional[Sequence[Meta]] = None, id_index: Optional[str] = None,
             time_index: Optional[str] = None, column_aliases: Optional[Dict[str, str]] = None,
             num_columns: Optional[int] = None, num_rows: Optional[int] = None, annotations: Optional[List[str]] = None
     ):
@@ -62,10 +62,10 @@ class DataFrameMeta(Meta[ValueMeta], MutableMapping[str, ValueMeta]):
         if annotation.name in self.annotations:
             raise ValueError(f"Annotation {annotation} already applied.")
 
-        # Make sure that the annotation's children are the same as the ones in the dataframe.
-        # TODO: Whilst this guarantees correctly named children, the types aren't necessarily correct.
-        #       Also, setting the children of an annotation technically shouldn't be allowed (not mutable).
-        annotation.children = [self.pop(child) for child in annotation]
+        # Make sure the children in the annotation are the same as in the dataframe
+        ann_children = [self.pop(child_name) for child_name in annotation]
+        if not all([c1 is c2 for c1, c2 in zip(annotation.children, ann_children)]):
+            raise ValueError(f"The children of Annotation {annotation} aren't in this dataframe.")
         self[annotation.name] = annotation
 
         self.annotations.append(annotation.name)
@@ -74,15 +74,21 @@ class DataFrameMeta(Meta[ValueMeta], MutableMapping[str, ValueMeta]):
         if annotation.name not in self.annotations:
             raise ValueError(f"Annotation {annotation} cannot be stripped as it isn't in the DF Meta.")
 
-        # TODO: This may create a state in the df_meta different to just extracting the df with no
-        #       annotations. See the todo in `DataFrameMeta.annotate`.
         for name, child in annotation.items():
             self[name] = child
 
         self.pop(annotation.name)
         self.annotations.remove(annotation.name)
 
-    def __setitem__(self, k: str, v: ValueMeta) -> None:
+    @property
+    def children(self) -> Sequence[Meta]:
+        return [child for child in self.values()]
+
+    @children.setter
+    def children(self, children: Sequence[Meta]) -> None:
+        self._children = {child.name: child for child in children}
+
+    def __setitem__(self, k: str, v: Meta) -> None:
         self._children[k] = v
 
     def __delitem__(self, k: str) -> None:

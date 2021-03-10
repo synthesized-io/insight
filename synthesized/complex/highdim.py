@@ -15,7 +15,7 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
-from ..metadata_new import DataFrameMeta, ValueMeta
+from ..metadata_new import DataFrameMeta, Meta
 from ..model import ContinuousModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
 from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel
@@ -114,7 +114,7 @@ class HighDimSynthesizer(Synthesizer):
 
         df_model_independent = DataFrameMeta(name='independent_models')
         models_to_pop: List[str] = []
-        models_to_add: List[ValueMeta] = []
+        models_to_add: List[Meta] = []
 
         for name, model in df_model.items():
 

@@ -50,7 +50,7 @@ class DateTime(Affine[np.datetime64]):
         children = [
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
         ] if children is None else children
-        unit_meta = TimeDelta('diff_' + self.name) if unit_meta is None else unit_meta
+        unit_meta = TimeDelta('diff_' + name) if unit_meta is None else unit_meta
 
         super().__init__(
             name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,

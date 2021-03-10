@@ -6,7 +6,7 @@ from .base import ContinuousModel, DiscreteModel
 from .models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
                      KernelDensityEstimate, PersonModel)
 from ..config import ModelBuilderConfig
-from ..metadata_new import Affine, DataFrameMeta, Nominal, ValueMeta
+from ..metadata_new import Affine, DataFrameMeta, Meta, Nominal
 from ..metadata_new.value import Address, AssociatedCategorical, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -37,7 +37,7 @@ class ModelFactory:
             else:
                 model = self._builder(meta)
 
-            if isinstance(model, ValueMeta):
+            if isinstance(model, Meta):
                 df_model[name] = model
 
         return df_model
@@ -61,7 +61,7 @@ class ModelBuilder:
             meta: Meta instance, if not of type at least Nominal, will raise an error
 
         Returns:
-            Model if meta is a ValueMeta
+            Model if meta is a valid meta Meta
         """
         if isinstance(meta, Affine):
             n_unique = len(meta.categories) if meta.categories else 0

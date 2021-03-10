@@ -13,17 +13,21 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     """
     Base class for meta information that describes a dataset.
 
+    The generic MetaType parameter defines the type of the children metas.
+
     Implements a hierarchical tree structure to describe arbitrary nested
     relations between data. Instances of Meta act as root nodes in the tree,
     and each branch can lead to another Meta or a leaf node, see ValueMeta.
 
     Attributes:
         name: a descriptive name.
+        children (Sequence[MetaType]): the children owned by this meta. This is immutable
+            and must be defined during initialization.
 
     Examples:
         Custom nested structures can be easily built with this class, for example:
 
-        >>> customer = Meta('customer')
+        >>> customer = Meta('customer', children=[Meta('name'), Meta('age')])
 
         Meta objects are iterable, and allow iterating through the
         children:
@@ -43,10 +47,6 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     def children(self) -> Sequence[MetaType]:
         """Return the children of this Meta."""
         return [child for child in self.values()]
-
-    @children.setter
-    def children(self, children: Sequence[MetaType]) -> None:
-        self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name})'

@@ -1,6 +1,6 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, cast
 
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
@@ -45,9 +45,6 @@ class ValueFactory:
         """
         values: Dict[str, Value] = dict()
         for name, value_meta in df_meta.items():
-            if not isinstance(value_meta, Nominal):
-                raise ValueError('Unsupported building of DataFrameValue with non-nominal metas')
-
             nan_values = self._build_nan(value_meta.name, value_meta)
 
             for nan_value in nan_values:
@@ -74,8 +71,10 @@ class ValueFactory:
         elif isinstance(vm, AssociatedHistogram):
             values = {}
             for model in vm.values():
-                values[model.name] = CategoricalValue(name=model.name, num_categories=len(model.categories),  # type: ignore
-                                                      config=self.config.categorical_config)
+                values[model.name] = CategoricalValue(
+                    name=model.name, num_categories=len(cast(Sequence[Any], model.categories)),
+                    config=self.config.categorical_config
+                )
             return AssociatedCategoricalValue(values=values, binding_mask=vm.binding_mask, name=vm.name)
         elif isinstance(vm, DiscreteModel):
             assert vm.categories is not None
@@ -87,24 +86,27 @@ class ValueFactory:
             else:
                 return None
         else:
-            raise ValueError("Bad Nominal Value Meta")
+            raise ValueError("Cannot build Value from given Meta/Model")
 
-    def _build_nan(self, name, value_meta: Nominal) -> List[CategoricalValue]:
+    def _build_nan(self, name, meta: Meta) -> List[CategoricalValue]:
         """ builds a nan_value from a value_meta if needed else returns None"""
-        if isinstance(value_meta, AssociatedHistogram):
+        if isinstance(meta, AssociatedHistogram):
             nan_values: List[CategoricalValue] = []
-            for model in value_meta.values():
-                nan_values += self._build_nan(model.name, model)  # type: ignore
+            for model in cast(AssociatedHistogram, meta).values():
+                nan_values += self._build_nan(model.name, model)
             return nan_values
 
-        if value_meta.nan_freq is None or value_meta.nan_freq == 0:
+        elif isinstance(meta, Nominal):
+            if meta.nan_freq is None or meta.nan_freq == 0:
+                return []
+            else:
+                nan_value = CategoricalValue(
+                    name=f"{name}_nan", num_categories=2,
+                    config=self.config.categorical_config
+                )
+                return [nan_value]
+        else:
             return []
-
-        nan_value = CategoricalValue(
-            name=f"{name}_nan", num_categories=2,
-            config=self.config.categorical_config
-        )
-        return [nan_value]
 
 
 class ValueExtractor(ValueFactory):

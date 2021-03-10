@@ -10,7 +10,7 @@ from .child.postcode import PostcodeTransformer
 from .data_frame import DataFrameTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
-from ..metadata_new import AType, DataFrameMeta, Meta, Nominal, NType
+from ..metadata_new import AType, DataFrameMeta, Meta, NType
 from ..model import ContinuousModel, DiscreteModel
 from ..model.models import AssociatedHistogram, GenderModel, PostcodeModel
 
@@ -28,12 +28,12 @@ class TransformerFactory:
         else:
             self.config = transformer_config
 
-    def create_transformers(self, meta: Union[Nominal, DataFrameMeta]) -> Union[DataFrameTransformer, Transformer]:
+    def create_transformers(self, meta: Meta) -> Union[DataFrameTransformer, Transformer]:
         """
         Instantiate Transformers from a Meta instance.
 
         Args:
-            meta: DataFrameMeta or Nominal.
+            meta: from a meta.
 
         Returns:
             A Transformer instance.
@@ -49,10 +49,7 @@ class TransformerFactory:
 
     def _from_meta(self, meta: Meta) -> Transformer:
 
-        if not isinstance(meta, Nominal):
-            raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
-
-        elif isinstance(meta, ContinuousModel):
+        if isinstance(meta, ContinuousModel):
             transformers = self._from_continuous(meta)
 
         elif isinstance(meta, AssociatedHistogram):
@@ -67,6 +64,8 @@ class TransformerFactory:
                 transformers.append(PostcodeTransformer.from_meta(meta))
 
             transformers.extend(self._from_discrete(cast(DiscreteModel, meta)))
+        else:
+            raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
         assert len(transformers) > 0
         if len(transformers) > 1:
@@ -110,10 +109,10 @@ class TransformerFactory:
 
         return transformers
 
-    def _from_association(self, model: AssociatedHistogram):
+    def _from_association(self, model: AssociatedHistogram) -> List[Transformer]:
         transformers: List[Transformer] = []
 
         for name, child_model in model.items():
-            transformers += self._from_discrete(child_model, category_to_idx=model.categories_to_idx[name])  # type: ignore
+            transformers += self._from_discrete(child_model, category_to_idx=model.categories_to_idx[name])
 
         return transformers
