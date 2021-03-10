@@ -9,10 +9,10 @@ import numpy as np
 import pandas as pd
 from faker.providers.person.en import Provider
 
+from .histogram import Histogram
 from ..base import DiscreteModel
-from ..model.histogram import Histogram
-from ..value.person import Person
 from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
+from ...metadata_new.value import Person
 from ...util import get_gender_from_df, get_gender_title_from_df
 
 

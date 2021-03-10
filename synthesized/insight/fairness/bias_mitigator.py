@@ -8,7 +8,7 @@ import pandas as pd
 from .fairness_scorer import FairnessScorer
 from ...common import Synthesizer
 from ...complex import ConditionalSampler, DataImputer
-from ...metadata_new.base.model import ContinuousModel
+from ...model import ContinuousModel
 
 logger = logging.getLogger(__name__)
 

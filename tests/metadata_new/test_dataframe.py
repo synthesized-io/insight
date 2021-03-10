@@ -1,7 +1,8 @@
 import pytest
 
 from synthesized.config import AddressLabels
-from synthesized.metadata_new import Address, DataFrameMeta, String
+from synthesized.metadata_new import DataFrameMeta
+from synthesized.metadata_new.value import Address, String
 
 from .dataframes import AnnotatedDataFrameData, DataFrameData
 from .test_meta import TestMeta as _TestMeta

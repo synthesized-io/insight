@@ -16,9 +16,12 @@ from .classification_bias import ClassificationBias
 from .fairness_transformer import FairnessTransformer
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CategoricalLogisticR2, CramersV
-from ...metadata_new import DataFrameMeta, DateTime, MetaExtractor, String
-from ...metadata_new.base.model import ContinuousModel, DiscreteModel, Model
-from ...metadata_new.model import Histogram, ModelBuilder, ModelFactory
+from ...metadata_new import DataFrameMeta
+from ...metadata_new.factory import MetaExtractor
+from ...metadata_new.value import DateTime, String
+from ...model import ContinuousModel, DiscreteModel, Model
+from ...model.factory import ModelBuilder, ModelFactory
+from ...model.models import Histogram
 from ...transformer import SequentialTransformer
 
 logger = logging.getLogger(__name__)

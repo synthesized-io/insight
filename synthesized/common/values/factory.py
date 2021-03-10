@@ -9,8 +9,9 @@ from .dataframe_value import DataFrameValue
 from .date import DateValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata_new import ContinuousModel, DataFrameMeta, DiscreteModel, Meta, Nominal
-from ...metadata_new.model import AssociatedHistogram
+from ...metadata_new import DataFrameMeta, Meta, Nominal
+from ...model import ContinuousModel, DiscreteModel
+from ...model.models import AssociatedHistogram
 
 logger = logging.getLogger(__name__)
 

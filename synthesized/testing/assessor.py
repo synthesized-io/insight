@@ -13,8 +13,8 @@ from .plotting import (categorical_distribution_plot, continuous_distribution_pl
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..metadata_new import DataFrameMeta
-from ..metadata_new.base import ContinuousModel, DiscreteModel
-from ..metadata_new.model import ModelFactory
+from ..model import ContinuousModel, DiscreteModel
+from ..model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
