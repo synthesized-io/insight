@@ -1,14 +1,15 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, Mapping, Sequence, Type, TypeVar, cast
+from typing import Any, Dict, Generic, Iterator, Mapping, Optional, Sequence, Type, TypeVar, cast  # noqa
 
 import pandas as pd
 
 from ...util import get_all_subclasses
 
-MetaType = TypeVar('MetaType', bound='Meta')
+MetaType = TypeVar('MetaType', bound='Meta[Any]')
+MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta[Any]')
 
 
-class Meta(Mapping[str, 'Meta']):
+class Meta(Mapping[str, MetaType], Generic[MetaType]):
     """
     Base class for meta information that describes a dataset.
 
@@ -32,19 +33,19 @@ class Meta(Mapping[str, 'Meta']):
     """
     class_name: str = 'Meta'
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, children: Optional[Sequence[MetaType]] = None):
         super().__init__()
         self.name = name
-        self._children: Dict[str, 'Meta'] = dict()
+        self._children: Dict[str, MetaType] = {c.name: c for c in children} if children is not None else dict()
         self._extracted: bool = False
 
     @property
-    def children(self) -> Sequence['Meta']:
+    def children(self) -> Sequence[MetaType]:
         """Return the children of this Meta."""
         return [child for child in self.values()]
 
     @children.setter
-    def children(self, children: Sequence['Meta']) -> None:
+    def children(self, children: Sequence[MetaType]) -> None:
         self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
@@ -72,7 +73,7 @@ class Meta(Mapping[str, 'Meta']):
         yield df
         self.revert_df_from_children(df)
 
-    def __getitem__(self, k: str) -> 'Meta':
+    def __getitem__(self, k: str) -> MetaType:
         return self._children[k]
 
     def __iter__(self) -> Iterator[str]:
@@ -107,7 +108,7 @@ class Meta(Mapping[str, 'Meta']):
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: Dict[str, object]) -> MetaType:
+    def from_dict(cls: Type['MetaTypeArg'], d: Dict[str, object]) -> MetaTypeArg:
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
@@ -119,20 +120,20 @@ class Meta(Mapping[str, 'Meta']):
 
         extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
-
-        meta = cls(name=name)
-        for attr, value in d.items():
-            setattr(meta, attr, value)
-
-        setattr(meta, '_extracted', extracted)
-
         if children is not None:
             meta_children = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
                 meta_children.append(Meta.from_name_and_dict(class_name, child))
 
-            meta.children = meta_children
+            meta = cls(name=name, children=meta_children)
+        else:
+            meta = cls(name=name)
+
+        for attr, value in d.items():
+            setattr(meta, attr, value)
+
+        setattr(meta, '_extracted', extracted)
 
         return meta
 

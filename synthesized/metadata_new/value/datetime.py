@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Dict, Optional, Sequence, TypeVar
+from typing import Dict, Optional, Sequence, TypeVar, cast
 
 import numpy as np
 import pandas as pd
 
 from .categorical import String
 from .continuous import Integer
-from ..base import Affine, Scale
+from ..base import Affine, Scale, ValueMeta
 from ..exceptions import UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='DateTime')
@@ -42,17 +42,21 @@ class DateTime(Affine[np.datetime64]):
     dtype = 'M8[ns]'
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, min: Optional[np.datetime64] = None, max: Optional[np.datetime64] = None,
-            date_format: Optional[str] = None
+            unit_meta: Optional[TimeDelta] = None, date_format: Optional[str] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
-        self.date_format = date_format
-        self.children = [
+        children = [
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
-        ]
+        ] if children is None else children
+        unit_meta = TimeDelta('diff_' + self.name) if unit_meta is None else unit_meta
 
-        self._unit_meta: TimeDelta = TimeDelta('diff_' + self.name)
+        super().__init__(
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,
+            unit_meta=unit_meta
+        )
+        self.date_format = date_format
 
     def extract(self: DateType, df: pd.DataFrame):
         if self.date_format is None:
@@ -96,7 +100,7 @@ class DateTime(Affine[np.datetime64]):
 
     @property
     def unit_meta(self) -> TimeDelta:
-        return self._unit_meta
+        return cast(TimeDelta, self._unit_meta)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()

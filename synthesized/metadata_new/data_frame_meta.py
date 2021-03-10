@@ -1,11 +1,12 @@
-from typing import Dict, List, MutableMapping, Optional
+from itertools import chain
+from typing import Dict, List, MutableMapping, Optional, Sequence
 
 import pandas as pd
 
-from .base import Meta
+from .base import Meta, ValueMeta
 
 
-class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
+class DataFrameMeta(Meta[ValueMeta], MutableMapping[str, ValueMeta]):
     """
     Meta to describe an arbitrary data frame.
 
@@ -18,20 +19,29 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         annotations: A list of the metas' names in the DF that have been annotated.
     """
     def __init__(
-            self, name: str, id_index: Optional[str] = None, time_index: Optional[str] = None,
-            column_aliases: Optional[Dict[str, str]] = None, num_columns: Optional[int] = None,
-            num_rows: Optional[int] = None, annotations: Optional[List[str]] = None
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None, id_index: Optional[str] = None,
+            time_index: Optional[str] = None, column_aliases: Optional[Dict[str, str]] = None,
+            num_columns: Optional[int] = None, num_rows: Optional[int] = None, annotations: Optional[List[str]] = None
     ):
-        # TODO: This init should receive children as an optional argument so that id_index, time_index,
-        #       column_aliases, and annotations can all be checked to be consistant.
-        super().__init__(name=name)
+        child_names = [c.name for c in children] if children is not None else []
+        annotations_list = annotations if annotations is not None else []
+        column_aliases_dict = column_aliases if column_aliases is not None else {}
+
+        if any([
+            n in child_names
+            for n in chain([id_index, time_index], annotations_list, column_aliases_dict)
+            if n is not None
+        ]):
+            raise ValueError("Children metas don't match the given indices/aliases/annotations")
+
+        super().__init__(name=name, children=children)
         self.id_index = id_index
         self.time_index = time_index
-        self.column_aliases = column_aliases if column_aliases is not None else {}
+        self.column_aliases = column_aliases_dict
         self.columns = None
         self.num_columns = num_columns
         self.num_rows = num_rows
-        self.annotations = annotations if annotations is not None else []
+        self.annotations = annotations_list
 
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
         super().extract(df)
@@ -48,7 +58,7 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         for ann in self.annotations:
             self[ann].convert_df_for_children(df)
 
-    def annotate(self, annotation: Meta):
+    def annotate(self, annotation: ValueMeta):
         if annotation.name in self.annotations:
             raise ValueError(f"Annotation {annotation} already applied.")
 
@@ -60,7 +70,7 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
 
         self.annotations.append(annotation.name)
 
-    def unannotate(self, annotation: Meta):
+    def unannotate(self, annotation: ValueMeta):
         if annotation.name not in self.annotations:
             raise ValueError(f"Annotation {annotation} cannot be stripped as it isn't in the DF Meta.")
 
@@ -72,7 +82,7 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         self.pop(annotation.name)
         self.annotations.remove(annotation.name)
 
-    def __setitem__(self, k: str, v: Meta) -> None:
+    def __setitem__(self, k: str, v: ValueMeta) -> None:
         self._children[k] = v
 
     def __delitem__(self, k: str) -> None:
