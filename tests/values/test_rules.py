@@ -52,9 +52,9 @@ def test_piecewise_generation():
     df.loc[:, 19] = 5 * (df.loc[:, 4] > 1) + 2 * (df.loc[:,4] < 0)
     df.columns = [str(x) for x in df.columns]
     df_meta = MetaExtractor.extract(df, find_rules=['find_piecewise'])
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(df_train=df, num_iterations=200)
-        synthesized = synthesizer.synthesize(num_rows=5000)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(df_train=df, num_iterations=200)
+    synthesized = synthesizer.synthesize(num_rows=5000)
 
     # The threshold may not be exact. For a standard normal, this is quite compact, let us allow for 2 errors
     assert abs((synthesized['0'] > 0).sum() - synthesized['15'].sum()) <= MAX_ERRORS
@@ -99,9 +99,9 @@ def test_pulse_generation():
     df.columns = [str(x) for x in df.columns]
 
     df_meta = MetaExtractor.extract(df, find_rules=['find_pulse'])
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(df_train=df, num_iterations=200)
-        synthesized = synthesizer.synthesize(num_rows=5000)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(df_train=df, num_iterations=200)
+    synthesized = synthesizer.synthesize(num_rows=5000)
 
     assert abs(((synthesized['0'] > 0) & (synthesized['0'] < 1)).sum() - synthesized['15'].sum()) <= MAX_ERRORS
     assert abs(((synthesized['1'] < 0) | (synthesized['1'] > 1)).sum() - synthesized['16'].sum()) <= MAX_ERRORS

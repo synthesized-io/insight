@@ -26,12 +26,12 @@ def export_model_given_df(df_original: pd.DataFrame, num_iterations: int = 500, 
 
     df_meta = MetaExtractor.extract(df=df_original)
     config = HighDimConfig(**highdim_kwargs)
-    with HighDimSynthesizer(df_meta=df_meta, config=config) as synthesizer:
-        synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), **synthesize_kwargs)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
+    synthesizer.learn(num_iterations=num_iterations, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), **synthesize_kwargs)
 
-        with open(temp_fname, 'wb') as f:
-            synthesizer.export_model(f)
+    with open(temp_fname, 'wb') as f:
+        synthesizer.export_model(f)
 
     with open(temp_fname, 'rb') as f:
         synthesizer2 = HighDimSynthesizer.import_model(f)

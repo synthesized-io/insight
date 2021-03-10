@@ -19,8 +19,8 @@ def test_categorical_continuous_sampling():
     df_original = df_original.sample(frac=1.)
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     conditional_sampler = ConditionalSampler(synthesizer)
 
@@ -71,8 +71,8 @@ def test_alter_distributions():
     })
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     conditional_sampler = ConditionalSampler(synthesizer)
 
@@ -123,8 +123,8 @@ def test_alter_distributions_nans():
                                 'y': np.random.choice(['a', 'b', 'c'], num_rows)})
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     # Single marginal
     marginals = {'y': {'a': 0.6, 'b': 0.3, 'c': 0.1}}

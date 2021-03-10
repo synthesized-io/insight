@@ -27,16 +27,16 @@ ax.create_experiment(
 
 def train_evaluate(parameterization):
     print(parameterization)
-    with HighDimSynthesizer(df=data, **parameterization) as synthesizer:
-        synthesizer.learn(data, num_iterations=None)
-        data_ = synthesizer.preprocess(data.sample(loss_sample_size))
-        feed_dict = synthesizer.get_data_feed_dict(data_)
-        losses = synthesizer.get_losses(data=feed_dict)
-        loss = losses['kl-loss'] + losses['reconstruction-loss']
-        loss = loss.numpy().item()
-        track.log(
-            mean_loss=loss,
-        )
+    synthesizer = HighDimSynthesizer(df=data, **parameterization)
+    synthesizer.learn(data, num_iterations=None)
+    data_ = synthesizer.preprocess(data.sample(loss_sample_size))
+    feed_dict = synthesizer.get_data_feed_dict(data_)
+    losses = synthesizer.get_losses(data=feed_dict)
+    loss = losses['kl-loss'] + losses['reconstruction-loss']
+    loss = loss.numpy().item()
+    track.log(
+        mean_loss=loss,
+    )
 
 
 ray.init(address='auto', redis_password='5241590000000000')
