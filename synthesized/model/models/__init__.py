@@ -7,4 +7,4 @@ from .person import GenderModel, PersonModel
 from .string import FormattedStringModel, SequentialFormattedString
 
 __all__ = ['AddressModel', 'AssociatedHistogram', 'BankModel', 'Histogram', 'KernelDensityEstimate', 'PersonModel',
-           'PostcodeModel', 'FormattedStringModel', 'SequentialFormattedString']
+           'GenderModel', 'PostcodeModel', 'FormattedStringModel', 'SequentialFormattedString']
