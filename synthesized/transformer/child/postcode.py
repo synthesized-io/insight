@@ -3,7 +3,7 @@ from typing import List, Optional, Pattern, Sequence
 import pandas as pd
 
 from ..base import Transformer
-from ...metadata_new.model.address import PostcodeModel
+from ...model.models import PostcodeModel
 from ...util import get_postcode_key_from_df
 
 

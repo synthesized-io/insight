@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..base import Transformer
 from ...config import GenderTransformerConfig
-from ...metadata_new.model.person import GenderModel
+from ...model.models import GenderModel
 from ...util import get_gender_from_df, get_gender_title_from_df
 
 

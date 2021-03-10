@@ -15,10 +15,10 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
-from ..metadata_new import DataFrameMeta, Model
-from ..metadata_new.base import ContinuousModel, DiscreteModel, ValueMeta
-from ..metadata_new.model import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, ModelFactory,
-                                  PersonModel)
+from ..metadata_new import DataFrameMeta, ValueMeta
+from ..model import ContinuousModel, DiscreteModel, Model
+from ..model.factory import ModelFactory
+from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 

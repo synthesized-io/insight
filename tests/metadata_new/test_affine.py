@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from synthesized.metadata_new import Affine, DateTime, Scale
+from synthesized.metadata_new import Affine, Scale
+from synthesized.metadata_new.value import DateTime
 
 from .dataframes import DateData
 from .test_ordinal import TestOrdinal as _TestOrdinal

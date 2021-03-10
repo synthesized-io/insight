@@ -4,7 +4,7 @@ from typing import Any, Generic, Optional, Sequence, TypeVar  # noqa: F401 (flak
 import numpy as np
 import pandas as pd
 
-from .value_meta import Affine, AType, Nominal, NType
+from ..metadata_new import Affine, AType, Nominal, NType
 
 ModelType = TypeVar('ModelType', bound='Model')
 ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')

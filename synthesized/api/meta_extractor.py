@@ -6,7 +6,7 @@ import pandas as pd
 from .annotations import Address, Bank, Person
 from .data_frame_meta import DataFrameMeta
 from ..config import MetaFactoryConfig
-from ..metadata_new import MetaExtractor as _MetaExtractor
+from ..metadata_new.factory import MetaExtractor as _MetaExtractor
 
 Annotations = Union[Address, Bank, Person]
 

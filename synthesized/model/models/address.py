@@ -13,9 +13,9 @@ import simplejson
 
 from .histogram import Histogram
 from ..base import Model
-from ..base.value_meta import Nominal, NType
-from ..value import Address
 from ...config import AddressLabels, AddressModelConfig, PostcodeModelConfig
+from ...metadata_new import Nominal, NType
+from ...metadata_new.value import Address
 from ...util import get_postcode_key, get_postcode_key_from_df
 
 logger = logging.getLogger(__name__)

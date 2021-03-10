@@ -11,7 +11,7 @@ from synthesized import HighDimSynthesizer
 from synthesized.common.values import ContinuousValue
 from synthesized.config import HighDimConfig
 from synthesized.metadata import TypeOverride
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 
 atol = 0.05
 

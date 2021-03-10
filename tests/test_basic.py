@@ -7,7 +7,7 @@ from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
 from synthesized.config import HighDimConfig
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from tests.utils import progress_bar_testing
 
 logger = logging.getLogger(__name__)
