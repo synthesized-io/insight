@@ -3,7 +3,8 @@ import logging
 import pytest
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new import Address, Bank, FormattedString, Nominal, Person, String
+from synthesized.metadata_new import Nominal
+from synthesized.metadata_new.value import Address, Bank, FormattedString, Person, String
 
 from .dataframes import AddressData, BankData, PersonData, StringData
 from .test_meta import TestMeta as _TestMeta

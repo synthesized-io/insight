@@ -2,17 +2,12 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from .address import AddressModel
-from .association import AssociatedHistogram
-from .bank import BankModel
-from .histogram import Histogram
-from .kde import KernelDensityEstimate
-from .person import PersonModel
-from .string import FormattedStringModel
-from ..base import Affine, ContinuousModel, DiscreteModel, Nominal, ValueMeta
-from ..data_frame_meta import DataFrameMeta
-from ..value import Address, AssociatedCategorical, Bank, FormattedString, Person
-from ...config import ModelBuilderConfig
+from .base import ContinuousModel, DiscreteModel
+from .models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
+                     KernelDensityEstimate, PersonModel)
+from ..config import ModelBuilderConfig
+from ..metadata_new import Affine, DataFrameMeta, Nominal, ValueMeta
+from ..metadata_new.value import Address, AssociatedCategorical, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
 

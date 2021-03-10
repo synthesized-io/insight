@@ -5,8 +5,8 @@ import pandas as pd
 
 from .histogram import Histogram
 from ..base import DiscreteModel
-from ..base.value_meta import NType
-from ..value import AssociatedCategorical
+from ...metadata_new import NType
+from ...metadata_new.value import AssociatedCategorical
 
 
 class AssociatedHistogram(DiscreteModel[NType], Generic[NType], Mapping[str, DiscreteModel]):

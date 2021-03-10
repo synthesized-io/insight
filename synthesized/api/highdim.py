@@ -7,8 +7,8 @@ from .models import ContinuousModel, DiscreteModel
 from .synthesizer import Synthesizer
 from ..complex import HighDimSynthesizer as _HighDimSynthesizer
 from ..config import HighDimConfig
-from ..metadata_new import ContinuousModel as _ContinuousModel
-from ..metadata_new import DiscreteModel as _DiscreteModel
+from ..model import ContinuousModel as _ContinuousModel
+from ..model import DiscreteModel as _DiscreteModel
 
 
 class HighDimSynthesizer(Synthesizer):

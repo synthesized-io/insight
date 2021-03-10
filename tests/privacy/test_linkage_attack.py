@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer
-from synthesized.metadata_new import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.privacy import LinkageAttack
 
 logger = logging.getLogger(__name__)

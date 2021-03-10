@@ -3,8 +3,11 @@ from typing import List, Optional, cast
 
 import pandas as pd
 
-from ...metadata_new import ContinuousModel, DataFrameMeta, DateTime, MetaExtractor, Scale, ValueMeta
-from ...metadata_new.model import ModelFactory
+from ...metadata_new import DataFrameMeta, Scale, ValueMeta
+from ...metadata_new.factory import MetaExtractor
+from ...metadata_new.value import DateTime
+from ...model import ContinuousModel
+from ...model.factory import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
 logger = logging.getLogger(__name__)

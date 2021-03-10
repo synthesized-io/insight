@@ -7,8 +7,8 @@ import seaborn as sns
 
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
-from ..base.value_meta import Affine, AType, Nominal, NType
-from ..exceptions import ExtractionError, MetaNotExtractedError, ModelNotFittedError
+from ..exceptions import ModelNotFittedError
+from ...metadata_new import Affine, AType, ExtractionError, MetaNotExtractedError, Nominal, NType
 
 
 class Histogram(DiscreteModel[NType], Generic[NType]):
