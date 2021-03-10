@@ -11,7 +11,7 @@ from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata_new import Ordinal
-from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import (Address, Bank, Bool, DateTime, Float, FormattedString, Integer, IntegerBool,
                                             OrderedString, Person, String)
 

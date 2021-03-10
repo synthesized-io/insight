@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
 from ...metadata_new import Affine, DataFrameMeta
-from ...metadata_new.meta_builder import MetaExtractor
+from ...metadata_new.factory import MetaExtractor
 from ...model import ContinuousModel, DiscreteModel
 from ...model.factory import ModelFactory
 

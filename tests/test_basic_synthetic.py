@@ -11,7 +11,7 @@ from synthesized.common.values import ContinuousValue, DateValue
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata import TypeOverride
 from synthesized.metadata_new import DataFrameMeta
-from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import Address, Bank, Float, FormattedString, Integer, Person, String
 from tests.utils import progress_bar_testing
 

@@ -9,7 +9,7 @@ from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
-from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person
 from synthesized.model import Model
 from synthesized.model.factory import ModelBuilder, ModelFactory

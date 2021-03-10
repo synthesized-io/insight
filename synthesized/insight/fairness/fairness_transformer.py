@@ -4,7 +4,7 @@ from typing import List, Optional, cast
 import pandas as pd
 
 from ...metadata_new import DataFrameMeta, Scale, ValueMeta
-from ...metadata_new.meta_builder import MetaExtractor
+from ...metadata_new.factory import MetaExtractor
 from ...metadata_new.value import DateTime
 from ...model import ContinuousModel
 from ...model.factory import ModelFactory

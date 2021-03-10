@@ -16,7 +16,7 @@ from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataF
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
 from ...metadata_new import DataFrameMeta, Nominal
-from ...metadata_new.meta_builder import MetaExtractor
+from ...metadata_new.factory import MetaExtractor
 from ...model import ContinuousModel, DiscreteModel
 from ...model.factory import ModelFactory
 

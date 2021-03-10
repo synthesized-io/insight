@@ -17,7 +17,7 @@ from .fairness_transformer import FairnessTransformer
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CategoricalLogisticR2, CramersV
 from ...metadata_new import DataFrameMeta
-from ...metadata_new.meta_builder import MetaExtractor
+from ...metadata_new.factory import MetaExtractor
 from ...metadata_new.value import DateTime, String
 from ...model import ContinuousModel, DiscreteModel, Model
 from ...model.factory import ModelBuilder, ModelFactory

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ...metadata_new import DataFrameMeta
-from ...metadata_new.meta_builder import MetaExtractor
+from ...metadata_new.factory import MetaExtractor
 from ...model.factory import ModelFactory
 
 
