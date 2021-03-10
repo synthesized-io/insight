@@ -15,7 +15,7 @@ from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import Value, ValueFactory
 from ..config import SeriesConfig
-from ..metadata import DataFrameMeta, IdentifierMeta
+from ..metadata_new.data_frame_meta import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 

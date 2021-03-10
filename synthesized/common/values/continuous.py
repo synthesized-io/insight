@@ -2,12 +2,22 @@ from math import log
 from typing import Any, Dict, Optional, Sequence
 
 import tensorflow as tf
+from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, uniform, weibull_min
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import tensorflow_name_scoped
 from ...config import ContinuousConfig
-from ...metadata.values.continuous import DISTRIBUTIONS
+
+DISTRIBUTIONS = dict(
+    # beta=(beta, tfd.Beta),
+    gamma=(gamma, tfd.Gamma),
+    gilbrat=(gilbrat, None),
+    gumbel=(gumbel_r, tfd.Gumbel),
+    log_normal=(lognorm, tfd.LogNormal),
+    uniform=(uniform, tfd.Uniform),
+    weibull=(weibull_min, None)
+)
 
 
 class ContinuousValue(Value):

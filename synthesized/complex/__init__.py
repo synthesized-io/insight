@@ -5,9 +5,8 @@ from .highdim import HighDimSynthesizer
 from .sanitizer import Sanitizer
 from .scenario import ScenarioSynthesizer
 from .series import SeriesSynthesizer  # type: ignore
-from .testing_data_generator import TestingDataGenerator
 
 __all__ = [
     'BinaryType', 'CompressionType', 'ModelBinary', 'DatasetBinary', 'Binary', 'ConditionalSampler', 'DataImputer',
-    'HighDimSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Sanitizer', 'TestingDataGenerator'
+    'HighDimSynthesizer', 'ScenarioSynthesizer', 'SeriesSynthesizer', 'Sanitizer'
 ]

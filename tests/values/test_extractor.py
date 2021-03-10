@@ -8,22 +8,14 @@ from hypothesis import HealthCheck, event, example, given, seed, settings
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.config import MetaExtractorConfig
-from synthesized.metadata import (AssociationMeta, CategoricalMeta, ConstantMeta, ContinuousMeta, MetaExtractor,
-                                  NanMeta, SamplingMeta)
+from synthesized.metadata_new.factory import MetaExtractor
+from synthesized.metadata_new.value import DateTime, Float, Integer, String
 
 
 @pytest.mark.slow
 def test_pre_post_processing():
     df = pd.read_csv('data/unittest.csv')
     df_meta = MetaExtractor.extract(df=df)
-
-    df_pre = df_meta.preprocess(df=df)
-    df_post = df_meta.postprocess(df=df_pre)
-    assert df.shape == df_post.shape
-
-    df_pre = df_meta.preprocess(df=df, max_workers=None)
-    df_post = df_meta.postprocess(df=df_pre, max_workers=None)
-    assert df.shape == df_post.shape
 
 
 @pytest.mark.slow
@@ -35,22 +27,10 @@ def test_pre_post_processing():
 ))
 def test_vf_floats(df):
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanValue:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
-
+    assert isinstance(value, Float)
 
 @pytest.mark.slow
 @seed(42)
@@ -61,21 +41,10 @@ def test_vf_floats(df):
 ))
 def test_vf_floats_inf(df):
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanValue:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    assert isinstance(value, Float)
 
 
 @pytest.mark.slow
@@ -95,21 +64,10 @@ def test_vf_floats_inf(df):
 ))
 def test_vf_datetimes(df):
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanMeta:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    assert isinstance(value, DateTime)
 
 
 @pytest.mark.slow
@@ -124,21 +82,10 @@ def test_vf_datetimes(df):
 )
 def test_vf_text(df):
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanMeta:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    assert isinstance(value, String)
 
 
 @pytest.mark.slow
@@ -155,21 +102,10 @@ def test_vf_text(df):
 ))
 def test_vf_text_floats(df):
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanMeta:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    assert isinstance(value, (Float, String))
 
 
 @pytest.mark.slow
@@ -184,177 +120,101 @@ def test_vf_text_floats(df):
 def test_vf_na_int(df):
     print(df)
     df_meta = MetaExtractor.extract(df=df)
-    value = df_meta.all_values[0]
-    value_name = ''
-
-    if isinstance(value, NanMeta):
-        value_name += 'NanMeta:'
-        value = value.value
-
-    value_name += value.__class__.__name__
-
-    if isinstance(value, ContinuousMeta):
-        value_name += '(int)' if value.integer else '(float)'
-        assert value.integer
-    elif isinstance(value, SamplingMeta):
-        for v in value.categories.index:
-            assert v in [pd.NaT, np.NaN] or \
-                   sum(df[value.name].isna())/len(df) >= MetaExtractorConfig.parsing_nan_fraction_threshold
-    else:
-        assert isinstance(value, ConstantMeta) or isinstance(value, CategoricalMeta)
-
+    value = df_meta['A']
+    value_name = value.__class__.__name__
     event(value_name)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    assert(isinstance(value, Integer))
 
 
 # Normal Data Columns
 # ----------------------------------------------------------------------
 def test_vf_int64():
     df = pd.DataFrame({'int64': list(range(0, 1000))})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
-
+    assert isinstance(df_meta['int64'], Integer)
 
 def test_vf_string():
     df = pd.DataFrame({'string': list('abcde')*200})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
-
 
 def test_vf_uint8():
     df = pd.DataFrame({'uint8': np.arange(0, 1000).astype('u1')})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
 
 def test_vf_float():
     df = pd.DataFrame({'float64': np.arange(0.0, 1000.0)})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
 
 def test_vf_bool():
     df = pd.DataFrame({'bool': [True, False]*500})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
 
 def test_vf_bool_constant():
     df = pd.DataFrame({'bool_false': [False, ]*1000})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
 
 def test_vf_dates():
     df = pd.DataFrame({'dates': pd.date_range('now', periods=1000).values})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
 
 def test_vf_category_string():
     df = pd.DataFrame({'category_string': pd.Categorical(list("ABCDE")*200)})
-
     dp = MetaExtractor.extract(df=df)
-    df_p = dp.preprocess(df=df)
-    dp.postprocess(df=df_p)
 
 
 # Missing Value Data Columns
 # ----------------------------------------------------------------------
 def test_vf_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([1, 1, 1, 0]*250)/np.array([1, 1, 1, 0]*250) * np.arange(0, 1000)})
-
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
-    value = df_meta.all_values[0]
-    assert isinstance(value, NanMeta)
-    assert isinstance(value.value, ContinuousMeta)
-    assert value.value.integer
+    value = df_meta['missing_ints']
+    assert isinstance(value, Integer)
 
 
 def test_vf_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', 'c', None]*100})
 
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
-    value = df_meta.all_values[0]
-    assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', 'a', 'b', 'c']
-    assert value.nans_valid
+    value = df_meta['missing_strings']
+    assert isinstance(value, String)
+    assert value.categories == ['a', 'b', 'c']
+    assert value.nan_freq > 0
 
 
 def test_vf_missing_categories():
     df = pd.DataFrame({'missing_strings': pd.Categorical(['a', 'b', 1, None]*100)})
 
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
-    value = df_meta.all_values[0]
-    assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', '1', 'a', 'b']
-    assert value.nans_valid
+    value = df_meta['missing_strings']
+    assert isinstance(value, String)
+    assert value.categories == ['a', 'b', '1']
+    assert value.nan_freq > 0
 
 
 def test_vf_double_missing_strings():
     df = pd.DataFrame({'missing_strings': ['a', 'b', np.NaN, None]*100})
 
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
-    value = df_meta.all_values[0]
-    assert isinstance(value, CategoricalMeta)
-    assert value.categories == ['nan', 'a', 'b']
-    assert value.nans_valid
+    value = df_meta['missing_strings']
+    assert isinstance(value, String)
+    assert value.categories == ['a', 'b']
+    assert value.nan_freq > 0
 
 
 def test_vf_double_missing_ints():
     df = pd.DataFrame({'missing_ints': np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, np.NaN, None]*2)})
 
     df_meta = MetaExtractor.extract(df=df)
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
 
-    value = df_meta.all_values[0]
-    assert isinstance(value, NanMeta)
-
-
-def test_vf_associated_columns():
-    df = pd.DataFrame({
-        'car_brand': ['Porsche', 'Volkwagen', 'BMW', 'Porsche', 'Volkwagen', 'BMW']*2,
-        'car_model': ['Boxter', 'Polo', 'M3', 'Macaan', 'Golf', 'X5']*2,
-        'car_year': [2012, 2016, 2011, 2011, 2014, 2016] + [2012, 2012, 2011, 2013, 2014, 2013]
-    })
-
-    associations = {
-        'car_brand': ['car_model'],
-        'car_model': ['car_year']
-    }
-
-    df_meta = MetaExtractor.extract(df=df, associations=associations)
-    value = df_meta.association_meta
-    assert isinstance(value, AssociationMeta)
-    assert value.associations == [['car_brand', 'car_model', 'car_year']]
-
-    df_p = df_meta.preprocess(df=df)
-    df_meta.postprocess(df=df_p)
+    value = df_meta['missing_ints']
+    assert isinstance(value, Integer)
+    assert value.nan_freq > 0

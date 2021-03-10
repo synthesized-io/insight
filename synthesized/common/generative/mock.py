@@ -1,3 +1,4 @@
+# type: ignore
 """Mock Synthesizer"""
 from typing import Callable, Optional
 
@@ -5,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..synthesizer import Synthesizer
-from ...metadata import DataFrameMeta
+from ...metadata_new.data_frame_meta import DataFrameMeta
 
 
 class MockSynthesizer(Synthesizer):

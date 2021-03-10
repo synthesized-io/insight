@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -7,7 +7,6 @@ import tensorflow as tf
 
 from ..common import Synthesizer
 from ..common.values import Value
-from ..metadata import ValueMeta
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +108,6 @@ class DataImputer(Synthesizer):
 
         self._impute_mask(df, outliers, inplace=True, progress_callback=progress_callback)
         return df
-
-    def get_conditions(self) -> List[Value]:
-        return self.synthesizer.get_conditions()
-
-    def get_value_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return self.synthesizer.get_value_meta_pairs()
-
-    def get_condition_meta_pairs(self) -> List[Tuple[Value, ValueMeta]]:
-        return self.synthesizer.get_condition_meta_pairs()
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         return self.synthesizer.get_losses()

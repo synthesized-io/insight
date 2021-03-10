@@ -1,3 +1,5 @@
+# type: ignore
+"""TODO: deprecated under the current new metadata, needs updating """
 import logging
 from collections import Counter
 from typing import Any, Dict, List, Optional
@@ -5,7 +7,8 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import yaml
 
-from ..metadata import DataFrameMeta, ValueMeta
+from ..metadata_new import ValueMeta
+from ..metadata_new.data_frame_meta import DataFrameMeta
 from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)

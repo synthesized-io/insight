@@ -8,7 +8,8 @@ if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
 
 from .common import Synthesizer  # noqa: F402
 from .complex import HighDimSynthesizer, ScenarioSynthesizer, SeriesSynthesizer  # noqa: F402
-from .metadata import DataFrameMeta, MetaExtractor  # noqa: F402
+from .metadata_new.data_frame_meta import DataFrameMeta
+from .metadata_new.factory import MetaExtractor  # noqa: F402
 from .version import __version__  # noqa: F402
 
 __all__ = [
