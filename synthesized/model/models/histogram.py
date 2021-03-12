@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,7 +50,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         return None
 
     @property
-    def categories(self) -> Union[Sequence[NType], Sequence[pd.IntervalDtype[NType]]]:
+    def categories(self) -> Union[Sequence[NType], Sequence[pd.IntervalDtype]]:
         bin_width = self.bin_width
         if isinstance(self._meta, Affine) and bin_width is not None:
             assert self._meta.min is not None and self._meta.max is not None

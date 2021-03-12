@@ -68,13 +68,13 @@ class ModelBuilder:
                (meta.num_rows and (n_unique > max(self.config.min_num_unique,
                                                   self.config.categorical_threshold_log_multiplier * np.log(meta.num_rows)
                                                   ))):
-                return KernelDensityEstimate.from_meta(meta)
+                return KernelDensityEstimate(meta)
 
         if isinstance(meta, Nominal):
-            return Histogram.from_meta(meta)
+            return Histogram(meta)
 
         if isinstance(meta, AssociatedCategorical):
-            return AssociatedHistogram.from_meta(meta)
+            return AssociatedHistogram(meta)
         else:
             raise TypeError(f"Cannot create Model from {type(meta)}")
 
@@ -89,12 +89,12 @@ class ModelBuilder:
             Model if meta is a ValueMeta
         """
         if isinstance(meta, Address):
-            return AddressModel.from_meta(meta)
+            return AddressModel(meta)
         elif isinstance(meta, Bank):
-            return BankModel.from_meta(meta)
+            return BankModel(meta)
         elif isinstance(meta, Person):
-            return PersonModel.from_meta(meta)
+            return PersonModel(meta)
         elif isinstance(meta, FormattedString):
-            return FormattedStringModel.from_meta(meta)
+            return FormattedStringModel(meta)
         else:
             raise ValueError(f"Unable to recognise given annotation meta '{meta}'")

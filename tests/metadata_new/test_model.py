@@ -93,11 +93,12 @@ def assert_model_output(model: Model, expected_columns: List[str], n: int = 1000
         else:
             assert all([df[c].isna().sum() == 0 for c in nan_columns])
 
+
 @pytest.mark.slow
-@pytest.mark.parametrize("col", ['string',  'bool', 'date', 'int', 'float', 'int_bool'])
+@pytest.mark.parametrize("col", ['string', 'bool', 'date', 'int', 'float', 'int_bool'])
 def test_histogram_from_meta(col, simple_df, simple_df_meta):
     """Test basic construction of histograms."""
-    hist = Histogram.from_meta(simple_df_meta[col])
+    hist = Histogram(simple_df_meta[col])
     logger.info(hist)
     hist.fit(simple_df)
     hist.plot()
@@ -125,7 +126,7 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     logger.debug(int_meta.categories)  # [0, 1, 3, 4, 5]
     logger.debug("precision: %s", int_meta.unit_meta.precision)  # 1
 
-    hist = Histogram.from_meta(int_meta)
+    hist = Histogram(int_meta)
     logger.debug(hist)
     logger.debug(hist.categories)  # [0, 1, 3, 4, 5]
     assert hist.dtype == "i8"
@@ -133,7 +134,7 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
 
     # Now we increase the precision to span multiple values.
     int_meta.unit_meta.precision = np.int64(2)
-    hist = Histogram.from_meta(int_meta)
+    hist = Histogram(int_meta)
     logger.debug(hist)
     logger.debug(hist.categories)  # [[0, 2), [2, 4), [4, 6)]
 
@@ -152,18 +153,18 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
 
     logger.debug("precision: %s", date_meta.unit_meta.precision)  # np.timedelta64(1, 'D')
 
-    hist = Histogram.from_meta(date_meta)
+    hist = Histogram(date_meta)
     assert hist.dtype == "M8[ns]"
     assert hist.categories == date_meta.categories
 
     # Now we increase the precision, but it doesn't span multiple values yet. (smallest diff is 5 days)
     date_meta.unit_meta.precision = np.timedelta64(3, 'D')
-    hist = Histogram.from_meta(date_meta)
+    hist = Histogram(date_meta)
     assert hist.dtype == "M8[ns]"
 
     # Finally we increase the precision so that it spans multiple values
     date_meta.unit_meta.precision = np.timedelta64(10, 'D')
-    hist = Histogram.from_meta(date_meta)
+    hist = Histogram(date_meta)
     logger.debug(hist)
     logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]
 
@@ -174,7 +175,7 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
 @pytest.mark.slow
 @pytest.mark.parametrize("col", ['date', 'int', 'float', 'int_bool'])
 def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_meta):
-    kde = KernelDensityEstimate.from_meta(simple_df_meta[col])
+    kde = KernelDensityEstimate(simple_df_meta[col])
     logger.info(kde)
     kde.fit(simple_df)
     kde.plot()
@@ -222,7 +223,7 @@ def test_address(config, postcode_label, full_address_label):
                                         house_name_label='house_name',
                                         full_address_label=full_address_label)
                    )
-    model = AddressModel.from_meta(meta, config=config)
+    model = AddressModel(meta, config=config)
 
     expected_columns = ['postcode', 'full_address', 'county', 'city', 'district', 'street', 'house_number', 'flat',
                         'house_name']
@@ -277,7 +278,7 @@ def test_bank_number():
 
     meta = Bank('bank', nan_freq=0.3,
                 labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account'))
-    model = BankModel.from_meta(meta)
+    model = BankModel(meta)
 
     expected_columns = ['bic', 'sort_code', 'account']
     assert_model_output(model, expected_columns=expected_columns)
@@ -311,7 +312,7 @@ def test_bank_number():
     ])
 def test_person(labels, expected_columns):
     meta = Person('person', nan_freq=0.3, labels=labels)
-    model = PersonModel.from_meta(meta)
+    model = PersonModel(meta)
     n = 1000
     df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
                        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
@@ -378,9 +379,9 @@ def test_models_with_nans():
 
 def test_factory_type_override(simple_df_meta):
     type_overrides = [
-        KernelDensityEstimate.from_meta(simple_df_meta["int"]),
-        KernelDensityEstimate.from_meta(simple_df_meta["int_bool"]),
-        Histogram.from_meta(simple_df_meta["float"])
+        KernelDensityEstimate(simple_df_meta["int"]),
+        KernelDensityEstimate(simple_df_meta["int_bool"]),
+        Histogram(simple_df_meta["float"])
     ]
 
     df_models = ModelFactory()(simple_df_meta, type_overrides)
