@@ -1,6 +1,6 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
@@ -9,8 +9,7 @@ from .dataframe_value import DataFrameValue
 from .date import DateValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata_new import DataFrameMeta, Meta, Nominal
-from ...model import ContinuousModel, DiscreteModel
+from ...model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ...model.models import AssociatedHistogram
 
 logger = logging.getLogger(__name__)
@@ -38,17 +37,19 @@ class ValueFactory:
         self.capacity = config.capacity
         self.identifier_value: Optional[Value] = None
 
-    def _build(self, df_meta: DataFrameMeta) -> DataFrameValue:
+    def _build(self, df_meta: DataFrameModel) -> DataFrameValue:
         """
         Loops over entries in the DataFrameMeta and creates a Value for each
         Manages creation of associated value for NaNs
         """
         values: Dict[str, Value] = dict()
         for name, value_meta in df_meta.items():
-            if not isinstance(value_meta, Nominal):
-                raise ValueError('Unsupported building of DataFrameValue with non-nominal metas')
-
-            nan_values = self._build_nan(value_meta.name, value_meta)
+            nan_values: List[CategoricalValue] = []
+            if isinstance(value_meta, AssociatedHistogram):
+                nan_values = [v for v in [self._build_nan(vm) for vm in value_meta.children] if v is not None]
+            elif isinstance(value_meta, DiscreteModel) or isinstance(value_meta, ContinuousModel):
+                nv = self._build_nan(value_meta)
+                nan_values = [nv] if nv is not None else []
 
             for nan_value in nan_values:
                 values[f"{nan_value.name}"] = nan_value
@@ -60,9 +61,9 @@ class ValueFactory:
 
         return DataFrameValue(name="dataframe_value", values=values)
 
-    def _create_value(self, vm: Meta) -> Optional[Value]:
+    def _create_value(self, vm: Model) -> Optional[Value]:
         """Lookup function for determining correct value for given value meta"""
-        if isinstance(vm, ContinuousModel) and vm.dtype == 'M8[ns]':
+        if isinstance(vm, ContinuousModel) and vm._meta.dtype == 'M8[ns]':
             return DateValue(
                 vm.name, categorical_config=self.config.categorical_config,
                 continuous_config=self.config.continuous_config,
@@ -89,22 +90,17 @@ class ValueFactory:
         else:
             raise ValueError("Bad Nominal Value Meta")
 
-    def _build_nan(self, name, value_meta: Nominal) -> List[CategoricalValue]:
+    def _build_nan(self, value_meta: Union[DiscreteModel, ContinuousModel]) -> Optional[CategoricalValue]:
         """ builds a nan_value from a value_meta if needed else returns None"""
-        if isinstance(value_meta, AssociatedHistogram):
-            nan_values: List[CategoricalValue] = []
-            for model in value_meta.values():
-                nan_values += self._build_nan(model.name, model)  # type: ignore
-            return nan_values
 
         if value_meta.nan_freq is None or value_meta.nan_freq == 0:
-            return []
+            return None
 
         nan_value = CategoricalValue(
-            name=f"{name}_nan", num_categories=2,
+            name=f"{value_meta.name}_nan", num_categories=2,
             config=self.config.categorical_config
         )
-        return [nan_value]
+        return nan_value
 
 
 class ValueExtractor(ValueFactory):
@@ -114,7 +110,7 @@ class ValueExtractor(ValueFactory):
         super().__init__(name, config)
 
     @staticmethod
-    def extract(df_meta: DataFrameMeta, name: str = 'data_frame_value',
+    def extract(df_meta: DataFrameModel, name: str = 'data_frame_value',
                 config: ValueFactoryConfig = ValueFactoryConfig()) -> DataFrameValue:
         """
         Instantiate and extract the DataFrameValue that provides the value functionality for the whole dataframe.

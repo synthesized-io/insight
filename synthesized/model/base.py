@@ -1,25 +1,37 @@
-from abc import ABC, abstractmethod
-from typing import Any, Generic, Optional, Sequence, TypeVar  # noqa: F401 (flake8 doesn't like the Any import here)
+from abc import abstractmethod
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
 
-from ..metadata_new import Affine, AType, Nominal, NType
+from ..metadata_new import AffineType, AType, MetaType, NominalType, NType
 
 ModelType = TypeVar('ModelType', bound='Model')
-ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel[Any]')
-DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel[Any]')
+ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel')
+DiscreteModelType = TypeVar('DiscreteModelType', bound='DiscreteModel')
 
 
-class Model(ABC):
+class Model(Generic[MetaType]):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, meta: MetaType) -> None:
+        self._meta = meta
         self._fitted = False
 
-    def fit(self: ModelType, df: pd.DataFrame) -> ModelType:
+    @property
+    def name(self):
+        return self._meta.name
+
+    @property
+    def num_rows(self) -> Optional[int]:
+        return self._meta.num_rows
+
+    def fit(self, df: pd.DataFrame) -> 'Model':
         """Extract the children of this Meta."""
+
+        if not self._meta._extracted:
+            self._meta.extract(df=df)
         self._fitted = True
+
         return self
 
     @abstractmethod
@@ -29,32 +41,48 @@ class Model(ABC):
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:
         if nan_freq and nan_freq > 0:
             sr = np.where(sr.index.isin(np.random.choice(sr.index, size=int(len(sr) * nan_freq))), np.nan, sr)
+
         return sr
 
+    def to_dict(self) -> Dict[str, Any]:
+        d = {
+            "meta": self._meta.to_dict(),
+            "fitted": self._fitted
+        }
 
-class DiscreteModel(Nominal[NType], Model, Generic[NType]):
-
-    def __init__(self, name: str, categories: Optional[Sequence[NType]] = None,
-                 nan_freq: Optional[float] = None, num_rows: Optional[int] = None):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
-
-    def fit(self: DiscreteModelType, df: pd.DataFrame) -> DiscreteModelType:
-        super().fit(df=df)
-        if not self._extracted:
-            self.extract(df=df)
-        return self
+        return d
 
 
-class ContinuousModel(Affine[AType], Model, Generic[AType]):
+class DiscreteModel(Model[NominalType], Generic[NominalType, NType]):
 
-    def __init__(
-            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[AType] = None, max: Optional[AType] = None
-    ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+    def __init__(self, meta: NominalType):
+        super().__init__(meta=meta)
 
-    def fit(self: ContinuousModelType, df: pd.DataFrame) -> ContinuousModelType:
-        super().fit(df=df)
-        if not self._extracted:
-            self.extract(df=df)
-        return self
+    @property
+    @abstractmethod
+    def categories(self) -> Sequence[NType]:
+        pass
+
+    @property
+    def nan_freq(self) -> Optional[float]:
+        return self._meta.nan_freq
+
+
+class ContinuousModel(Model[AffineType], Generic[AffineType, AType]):
+
+    def __init__(self, meta: AffineType):
+        super().__init__(meta=meta)
+
+    @property
+    @abstractmethod
+    def min(self) -> AType:
+        pass
+
+    @property
+    @abstractmethod
+    def max(self) -> AType:
+        pass
+
+    @property
+    def nan_freq(self) -> Optional[float]:
+        return self._meta.nan_freq

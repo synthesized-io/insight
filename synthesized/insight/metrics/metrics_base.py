@@ -8,6 +8,7 @@ import pandas as pd
 
 from ...metadata_new import DataFrameMeta
 from ...metadata_new.factory import MetaExtractor
+from ...model import DataFrameModel
 from ...model.factory import ModelFactory
 
 
@@ -46,7 +47,7 @@ class ColumnMetric(_Metric):
 
     def extract_metas_models(self, sr: pd.Series,
                              dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: DataFrameMeta = None) -> Tuple[DataFrameMeta, DataFrameMeta]:
+                             models: DataFrameModel = None) -> Tuple[DataFrameMeta, DataFrameModel]:
         """ method for extracting datametas and models from dataframe if not already extracted"""
         if dp is None:
             dp = pd.DataFrame(data={sr.name: sr})
@@ -72,7 +73,7 @@ class TwoColumnMetric(_Metric):
 
     def extract_metas_models(self, sr_a: pd.Series, sr_b: pd.Series,
                              dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: DataFrameMeta = None) -> Tuple[DataFrameMeta, DataFrameMeta]:
+                             models: DataFrameModel = None) -> Tuple[DataFrameMeta, DataFrameModel]:
         """ method for extracting datametas and models from dataframe if not already extracted"""
         if dp is None:
             dp = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})

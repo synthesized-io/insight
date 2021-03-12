@@ -3,10 +3,11 @@ from typing import List, Optional, Union
 import numpy as np
 
 from .base import ContinuousModel, DiscreteModel
+from .data_frame_model import DataFrameModel
 from .models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
                      KernelDensityEstimate, PersonModel)
 from ..config import ModelBuilderConfig
-from ..metadata_new import Affine, DataFrameMeta, Nominal, ValueMeta
+from ..metadata_new import Affine, DataFrameMeta, Nominal
 from ..metadata_new.value import Address, AssociatedCategorical, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -18,7 +19,7 @@ class ModelFactory:
     def __init__(self, config: ModelBuilderConfig = None):
         self._builder = ModelBuilder(config)
 
-    def __call__(self, df_meta: DataFrameMeta, type_overrides: Optional[List[DisContModel]] = None) -> DataFrameMeta:
+    def __call__(self, df_meta: DataFrameMeta, type_overrides: Optional[List[DisContModel]] = None) -> DataFrameModel:
         """
         Public method for creating a model container from a DataFrameMeta
         Args:
@@ -28,18 +29,16 @@ class ModelFactory:
             df_model: a DataFrameMeta mapping column name to model instance.
         """
         type_override_dict = {m.name: m for m in type_overrides} if type_overrides is not None else {}
-        df_model = DataFrameMeta(name='models', annotations=df_meta.annotations)
+        models = []
         for name, meta in df_meta.items():
             if meta.name in type_override_dict:
-                model = type_override_dict[meta.name]
+                models.append(type_override_dict[meta.name])
             elif meta.name in df_meta.annotations:
-                model = self._builder._from_annotation(meta)
+                models.append(self._builder._from_annotation(meta))
             else:
-                model = self._builder(meta)
+                models.append(self._builder(meta))
 
-            if isinstance(model, ValueMeta):
-                df_model[name] = model
-
+        df_model = DataFrameModel(meta=df_meta, models=models)
         return df_model
 
 

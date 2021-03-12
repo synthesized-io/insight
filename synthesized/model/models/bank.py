@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -10,14 +10,21 @@ from ...config import BankLabels
 from ...metadata_new.value import Bank
 
 
-class BankModel(Bank, DiscreteModel[str]):
+class BankModel(DiscreteModel[Bank, str]):
 
-    def __init__(self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-                 labels: BankLabels = BankLabels()):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, labels=labels)
+    def __init__(self, meta: Bank):
+        super().__init__(meta=meta)
 
-        if nan_freq is not None:
+        if self._meta.nan_freq is not None:
             self._fitted = True
+
+    @property
+    def labels(self) -> BankLabels:
+        return self._meta.labels
+
+    @property
+    def params(self) -> Dict[str, str]:
+        return self._meta.params
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
@@ -36,14 +43,9 @@ class BankModel(Bank, DiscreteModel[str]):
             df[self.labels.account_label] = [str(iban[14:]) for iban in ibans]
 
         if produce_nans and (self.nan_freq is not None and self.nan_freq > 0):
-            for c in self._params.values():
+            for c in self.params.values():
                 if c is not None:
                     is_nan = np.random.binomial(1, p=self.nan_freq, size=n) == 1
                     df.loc[is_nan, c] = np.nan
 
         return df
-
-    @classmethod
-    def from_meta(cls, meta: 'Bank') -> 'BankModel':
-        assert isinstance(meta, Bank)
-        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, labels=meta.labels)

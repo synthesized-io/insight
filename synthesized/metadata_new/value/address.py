@@ -23,13 +23,19 @@ class Address(String):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
 
+        if len(self.params.values()) == 0:
+            raise ValueError("At least one of labels must be given")
+
+        if name in self.params.values():
+            raise ValueError("Value of 'name' can't be equal to any other label.")
+
         self.children = [
             String(name)
             for name in self._params.values() if name is not None
         ]
 
     @property
-    def params(self) -> Dict[str, Optional[str]]:
+    def params(self) -> Dict[str, str]:
         return self._params
 
     @property

@@ -10,14 +10,14 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
 from ...metadata_new import Affine, DataFrameMeta
 from ...metadata_new.factory import MetaExtractor
-from ...model import ContinuousModel, DiscreteModel
+from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
 
 class ModellingPreprocessor:
-    def __init__(self, target: Optional[str], df: pd.DataFrame = None, dp: DataFrameMeta = None, models: DataFrameMeta = None):
+    def __init__(self, target: Optional[str], df: pd.DataFrame = None, dp: DataFrameMeta = None, models: DataFrameModel = None):
         self.target = target
 
         if dp is None and df is not None:
@@ -28,7 +28,7 @@ class ModellingPreprocessor:
             self.dp = None
 
         if models is None and self.dp is not None:
-            self.models: Optional[DataFrameMeta] = ModelFactory()(self.dp)
+            self.models: Optional[DataFrameModel] = ModelFactory()(self.dp)
         else:
             self.models = models
 

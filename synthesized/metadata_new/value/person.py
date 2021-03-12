@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from typing import Dict, Optional, Sequence
 
+import numpy as np
 import pandas as pd
 
 from .categorical import String
@@ -14,6 +15,14 @@ class Person(String):
             self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
+        columns = [c for c in labels.__dict__.values() if c is not None]
+        if all([c is None for c in columns]):
+            raise ValueError("At least one of labels must be given")
+        if name in columns:
+            raise ValueError("Value of 'name' can't be equal to any other label.")
+        if len(columns) > len(np.unique(columns)):
+            raise ValueError("There can't be any duplicated labels.")
+
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
 
@@ -23,7 +32,7 @@ class Person(String):
         ]
 
     @property
-    def params(self) -> Dict[str, Optional[str]]:
+    def params(self) -> Dict[str, str]:
         return self._params
 
     @property

@@ -34,8 +34,8 @@ class ValueMeta(Meta, Generic[DType]):
     """
     dtype: Optional[str] = None
 
-    def __init__(self, name: str):
-        super().__init__(name=name)
+    def __init__(self, name: str, num_rows: Optional[int] = None):
+        super().__init__(name=name, num_rows=num_rows)
 
     def __repr__(self) -> str:
         return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
@@ -58,10 +58,9 @@ class Nominal(ValueMeta[NType], Generic[NType]):
             self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):
-        super().__init__(name=name)
+        super().__init__(name=name, num_rows=num_rows)
         self.categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
-        self.num_rows = num_rows
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
@@ -73,9 +72,6 @@ class Nominal(ValueMeta[NType], Generic[NType]):
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df) if len(df) > 0 else 0
-
-        if self.num_rows is None:
-            self.num_rows = len(df)
 
         return self
 

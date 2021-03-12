@@ -16,7 +16,7 @@ from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
 from ..metadata_new import DataFrameMeta, Meta
-from ..model import ContinuousModel, DiscreteModel, Model
+from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
 from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel
 from ..transformer import DataFrameTransformer
@@ -107,14 +107,15 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def split_df_model(self, df_model: DataFrameMeta) -> DataFrameMeta:
+    def split_df_model(self, df_model: DataFrameModel) -> DataFrameModel:
         """Given a df_model, pop out those models that are not learned in the engine and
         return a df_model_independent containing these models.
         """
 
-        df_model_independent = DataFrameMeta(name='independent_models')
+        df_meta_independent = DataFrameMeta(name='independent_models')
+        df_model_independent = DataFrameModel(df_meta_independent)
         models_to_pop: List[str] = []
-        models_to_add: List[Meta] = []
+        models_to_add: List[Model] = []
 
         for name, model in df_model.items():
 

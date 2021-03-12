@@ -22,7 +22,7 @@ class Bank(String):
         self.children = [String(name) for name in self._params.values()]
 
     @property
-    def params(self) -> Dict[str, Optional[str]]:
+    def params(self) -> Dict[str, str]:
         return self._params
 
     @property

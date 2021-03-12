@@ -70,7 +70,30 @@ class BankLabels:
 
 
 @dataclass
-class PersonModelConfig:
+class GenderTransformerConfig:
+    include_undefined: bool = False
+
+    @property
+    def genders(self):
+        return list(self.title_mapping.keys())
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
+
+    @property
+    def gender_transformer_config(self):
+        return GenderTransformerConfig(
+            **{f.name: self.__getattribute__(f.name) for f in fields(GenderTransformerConfig)}
+        )
+
+
+@dataclass
+class PersonModelConfig(GenderTransformerConfig):
     locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
@@ -155,23 +178,6 @@ class DateTransformerConfig(QuantileTransformerConfig):
         return DateTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
         )
-
-
-@dataclass
-class GenderTransformerConfig:
-    include_undefined: bool = False
-
-    @property
-    def genders(self):
-        return list(self.title_mapping.keys())
-
-    @property
-    def gender_mapping(self) -> Dict[str, List[str]]:
-        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
-
-    @property
-    def title_mapping(self) -> Dict[str, List[str]]:
-        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
 
 
 @dataclass
