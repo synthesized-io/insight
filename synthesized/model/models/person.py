@@ -11,6 +11,7 @@ from faker.providers.person.en import Provider
 
 from .histogram import Histogram
 from ..base import DiscreteModel
+from ..exceptions import ModelNotFittedError
 from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
 from ...metadata_new import MetaNotExtractedError, Nominal
 from ...metadata_new.value import Person, String
@@ -75,18 +76,19 @@ class PersonModel(DiscreteModel[Person, str]):
         self.pwd_length = config.pwd_length
 
     @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
+
+    @property
     def labels(self) -> PersonLabels:
         return self._meta.labels
 
     @property
     def params(self) -> Dict[str, str]:
         return self._meta.params
-
-    @property
-    def categories(self) -> Sequence[str]:
-        if self._meta.categories is None:
-            raise MetaNotExtractedError
-        return self._meta.categories
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
         self._meta.convert_df_for_children(df)

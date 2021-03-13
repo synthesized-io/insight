@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -27,6 +27,13 @@ class FormattedStringModel(DiscreteModel[FormattedString, str]):
             self._fitted = True
 
     @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
+
+    @property
     def pattern(self) -> Optional[str]:
         return self._meta.pattern
 
@@ -47,9 +54,6 @@ class SequentialFormattedString(DiscreteModel[String, str]):
     """A model to sample formatted sequential numeric identifiers with an optional suffix or prefix.
 
     Attributes:
-        name (str): The name of the data column to model.
-        categories (MutableSequence[NType]): A list of the categories.
-        probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
         length (int): The length of the numeric identifier. Numbers are zero padded up to this length.
         prefix (str): The prefix of the identifier.
         suffix (str): The suffix of the identifier.
@@ -64,6 +68,13 @@ class SequentialFormattedString(DiscreteModel[String, str]):
 
         if self._meta.nan_freq is not None:
             self._fitted = True
+
+    @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:

@@ -59,6 +59,10 @@ class DiscreteModel(Model[NominalType], Generic[NominalType, NType]):
         super().__init__(meta=meta)
 
     @property
+    def dtype(self) -> str:
+        return self._meta.dtype
+
+    @property
     @abstractmethod
     def categories(self) -> Sequence[NType]:
         pass
@@ -72,6 +76,10 @@ class ContinuousModel(Model[AffineType], Generic[AffineType, AType]):
 
     def __init__(self, meta: AffineType):
         super().__init__(meta=meta)
+
+    @property
+    def dtype(self) -> str:
+        return self._meta.dtype
 
     @property
     @abstractmethod

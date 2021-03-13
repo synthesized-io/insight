@@ -10,8 +10,8 @@ from faker import Faker
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
 from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.factory import MetaExtractor
-from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person
-from synthesized.model import Model
+from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
+from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
 from synthesized.model.models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
                                       KernelDensityEstimate, PersonModel, SequentialFormattedString)
@@ -168,7 +168,7 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     logger.debug(hist)
     logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]
 
-    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[D]]"]
+    assert hist.dtype in ["interval[datetime64[ns]]", "interval[M8[ns]]"]
     assert len(hist.categories) == 181
 
 
@@ -186,13 +186,15 @@ def test_kde_model(col, simple_df_binned_probabilities, simple_df, simple_df_met
 
 def test_formatted_string_model():
     pattern = '[0-9]{5}'
-    model = FormattedStringModel('test', pattern=pattern, nan_freq=0.3)
+    meta = FormattedString('test', pattern=pattern, nan_freq=0.3)
+    model = FormattedStringModel(meta=meta)
     assert model.sample(100)['test'].str.match(pattern).sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
 
 def test_sequential_formatted_string_model():
-    model = SequentialFormattedString('test', length=9, prefix='A', suffix='Z', nan_freq=0.3)
+    meta = String('test', nan_freq=0.3)
+    model = SequentialFormattedString(meta=meta, length=9, prefix='A', suffix='Z')
     assert model.sample(100)['test'].str.match('A[0-9]{9}Z').sum() == 100
     assert model.sample(100, produce_nans=True)['test'].isna().sum() > 0
 
@@ -253,23 +255,23 @@ def test_address(config, postcode_label, full_address_label):
 
 
 def test_address_different_labels():
-    model = AddressModel('address', nan_freq=0.3,
-                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
-                                              county_label=None, city_label=None, district_label=None,
-                                              street_label='street', house_number_label='house_number',
-                                              flat_label='flat', house_name_label='house_name'))
-
+    meta = Address('address', nan_freq=0.3,
+                    labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                         county_label=None, city_label=None, district_label=None,
+                                         street_label='street', house_number_label='house_number',
+                                         flat_label='flat', house_name_label='house_name'))
+    model = AddressModel(meta=meta)
     expected_columns = ['postcode', 'full_address', 'street', 'house_number', 'flat',
                         'house_name']
 
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
-    model = AddressModel('address', nan_freq=0.3,
-                         labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
-                                              county_label='county', city_label='city', district_label='district',
-                                              street_label=None, house_number_label=None, flat_label=None,
-                                              house_name_label=None))
-
+    meta = Address('address', nan_freq=0.3,
+                   labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                        county_label='county', city_label='city', district_label='district',
+                                        street_label=None, house_number_label=None, flat_label=None,
+                                        house_name_label=None))
+    model = AddressModel(meta=meta)
     expected_columns = ['postcode', 'full_address', 'county', 'city', 'district']
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
@@ -318,7 +320,7 @@ def test_person(labels, expected_columns):
                        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
     df[[c for c in model.params.values() if c not in df.columns]] = 'test'
 
-    model.revert_df_from_children(df)
+    model._meta.revert_df_from_children(df)
     model.fit(df)
 
     assert_model_output(model, expected_columns=expected_columns)
@@ -341,7 +343,7 @@ def test_person(labels, expected_columns):
 def test_factory(simple_df_meta):
     df_models = ModelFactory()(simple_df_meta)
 
-    assert isinstance(ModelFactory()(simple_df_meta), DataFrameMeta)
+    assert isinstance(ModelFactory()(simple_df_meta), DataFrameModel)
     assert isinstance(ModelBuilder()(simple_df_meta['bool']), (Histogram, KernelDensityEstimate))
     assert isinstance(df_models['string'], Histogram)
     assert isinstance(df_models['bool'], Histogram)

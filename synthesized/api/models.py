@@ -18,7 +18,7 @@ class DiscreteModel:
         assert df_meta._df_meta is not None, "underlying df_meta.df_meta is not defined"
         self._meta = df_meta._df_meta[name]
         if isinstance(self._meta, _Nominal):
-            self._model = _Histogram.from_meta(self._meta)
+            self._model = _Histogram(self._meta)
         else:
             raise ValueError("Column specified cannot be treated as a discrete model")
 
@@ -36,6 +36,6 @@ class ContinuousModel:
         assert df_meta._df_meta is not None, "underlying df_meta.df_meta is not defined"
         self._meta = df_meta._df_meta[name]
         if isinstance(self._meta, _Affine):
-            self._model = _KernelDensityEstimate.from_meta(self._meta)
+            self._model = _KernelDensityEstimate(self._meta)
         else:
             raise ValueError("Column specified cannot be treated as continuous model")

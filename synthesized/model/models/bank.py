@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,13 @@ class BankModel(DiscreteModel[Bank, str]):
             self._fitted = True
 
     @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
+
+    @property
     def labels(self) -> BankLabels:
         return self._meta.labels
 
@@ -37,8 +44,10 @@ class BankModel(DiscreteModel[Bank, str]):
 
         if self.labels.bic_label is not None:
             df[self.labels.bic_label] = [str(iban[4:8]) for iban in ibans]
+
         if self.labels.sort_code_label is not None:
             df[self.labels.sort_code_label] = [str(iban[8:14]) for iban in ibans]
+
         if self.labels.account_label is not None:
             df[self.labels.account_label] = [str(iban[14:]) for iban in ibans]
 

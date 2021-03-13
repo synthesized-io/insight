@@ -1,4 +1,4 @@
-from typing import Any, DefaultDict, Dict, Mapping, Optional, Sequence
+from typing import Any, DefaultDict, Dict, Iterator, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,21 @@ class AssociatedHistogram(Model[AssociatedCategorical], Mapping[str, Histogram])
     def __init__(self, meta: AssociatedCategorical, models: Optional[Sequence[Histogram]] = None):
         models = [Histogram(meta) for meta in meta.values()] if models is None else models  # type: ignore
         super().__init__(meta=meta)
-        self.children = models
+        self._children = {m.name: m for m in models} if models is not None else {}
+
+    @property
+    def children(self) -> Sequence[Histogram]:
+        return [m for m in self._children.values()]
+
+    def __getitem__(self, k: str) -> Histogram:
+        return self._children[k]
+
+    def __iter__(self) -> Iterator[str]:
+        for key in self._children:
+            yield key
+
+    def __len__(self) -> int:
+        return len(self._children)
 
     @property
     def binding_mask(self) -> np.ndarray:

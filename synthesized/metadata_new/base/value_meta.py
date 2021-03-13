@@ -32,7 +32,7 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    dtype: Optional[str] = None
+    dtype: str = 'object'
 
     def __init__(self, name: str, num_rows: Optional[int] = None):
         super().__init__(name=name, num_rows=num_rows)
@@ -78,7 +78,6 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "num_rows": self.num_rows,
             "nan_freq": self.nan_freq,
             "categories": [c for c in self.categories] if self.categories is not None else None
         })

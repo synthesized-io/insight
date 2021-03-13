@@ -33,6 +33,13 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
             self._fitted = True
 
     @property
+    def dtype(self) -> str:
+        if self.bin_width is not None:
+            return f"interval[{self._meta.dtype}]"
+        else:
+            return self._meta.dtype
+
+    @property
     def bin_width(self) -> Union[None, SType]:
         if not isinstance(self._meta, Affine):
             return None

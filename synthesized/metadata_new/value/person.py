@@ -1,10 +1,11 @@
 from dataclasses import asdict
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, Type, cast
 
 import numpy as np
 import pandas as pd
 
 from .categorical import String
+from ..base import Meta
 from ...config import PersonLabels
 
 
@@ -63,3 +64,29 @@ class Person(String):
             "_params": self.params
         })
         return d
+
+    @classmethod
+    def from_dict(cls: Type['Person'], d: Dict[str, object]) -> 'Person':
+        name = cast(str, d["name"])
+        d.pop("class_name", None)
+        params = cast(Dict[str, str], d.pop("_params"))
+        labels = PersonLabels(**params)
+
+        extracted = d.pop("extracted", False)
+        children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
+
+        meta = cls(name=name, labels=labels)
+        for attr, value in d.items():
+            setattr(meta, attr, value)
+
+        setattr(meta, '_extracted', extracted)
+
+        if children is not None:
+            meta_children = []
+            for child in children.values():
+                class_name = cast(str, child['class_name'])
+                meta_children.append(Meta.from_name_and_dict(class_name, child))
+
+            meta.children = meta_children
+
+        return meta

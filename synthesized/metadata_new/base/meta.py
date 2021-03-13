@@ -99,7 +99,8 @@ class Meta(Mapping[str, 'Meta']):
         d = {
             "name": self.name,
             "class_name": self.__class__.__name__,
-            "extracted": self._extracted
+            "extracted": self._extracted,
+            "num_rows": self.num_rows
         }
 
         if len(self.children) > 0:

@@ -167,6 +167,7 @@ class AddressModel(DiscreteModel[Address, str]):
     def categories(self) -> Sequence[str]:
         if self._meta.categories is None:
             raise MetaNotExtractedError
+
         return self._meta.categories
 
     def fit(self, df: pd.DataFrame) -> 'AddressModel':
