@@ -15,7 +15,7 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
-from ..metadata_new import DataFrameMeta, Meta
+from ..metadata_new import DataFrameMeta
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
 from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel

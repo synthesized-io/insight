@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, Type, cast
+from typing import Any, Dict, Generic, Optional, cast
 
 import matplotlib.pyplot as plt
 import numpy as np

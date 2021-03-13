@@ -13,7 +13,7 @@ from .histogram import Histogram
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
 from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
-from ...metadata_new import MetaNotExtractedError, Nominal
+from ...metadata_new import Nominal
 from ...metadata_new.value import Person, String
 from ...util import get_gender_from_df, get_gender_title_from_df
 
