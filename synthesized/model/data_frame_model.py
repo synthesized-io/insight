@@ -1,4 +1,4 @@
-from typing import Iterator, MutableMapping, Optional, Sequence
+from typing import Dict, Iterator, MutableMapping, Optional, Sequence, cast
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ from ..metadata_new import DataFrameMeta
 
 class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
     def __init__(self, meta: DataFrameMeta, models: Optional[Sequence[Model]] = None):
-        super().__init__(meta=meta)
+        super().__init__(meta=meta.copy())
 
         if models is None:
             from .factory import ModelBuilder
@@ -45,7 +45,6 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
     @property
     def children(self) -> Sequence[Model]:
         """Return the children of this DataFrameModel."""
-
         return [child for child in self.values()]
 
     @children.setter
@@ -64,6 +63,24 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
 
     def __setitem__(self, k: str, v: Model) -> None:
         self._children[k] = v
+        self._meta[k] = v._meta
 
     def __delitem__(self, k: str) -> None:
         del self._children[k]
+        del self._meta[k]
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "children": {m.name: m.to_dict() for m in self.children}
+        })
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'DataFrameModel':
+        df_meta = DataFrameMeta.from_dict(cast(Dict[str, object], d["meta"]))
+        models: Sequence[Model] = [Model.from_dict_with_class_name(child_d) for child_d in cast(Dict[str, Dict[str, object]], d["children"]).values()]
+        df_model = DataFrameModel(meta=df_meta, models=models)
+        df_model._fitted = cast(bool, d["fitted"])
+
+        return df_model

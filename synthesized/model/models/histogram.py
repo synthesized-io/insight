@@ -41,6 +41,9 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
 
     @property
     def bin_width(self) -> Union[None, SType]:
+        if self._meta.categories is None or len(self._meta.categories) < 2:
+            return None
+
         if not isinstance(self._meta, Affine):
             return None
         mn, mx = self._meta.min, self._meta.max
@@ -59,6 +62,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
     @property
     def categories(self) -> Union[Sequence[NType], Sequence[pd.IntervalDtype]]:
         bin_width = self.bin_width
+
         if isinstance(self._meta, Affine) and bin_width is not None:
             assert self._meta.min is not None and self._meta.max is not None
             rng = self._meta.max - self._meta.min
@@ -128,6 +132,16 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         return d
 
     @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'Histogram':
+
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Nominal.from_name_and_dict(cast(str, meta_dict["class_name"]), meta_dict)
+        model = cls(meta=meta, probabilities=cast(Optional[Dict[NType, float]], d["probabilities"]))
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
+
+    @classmethod
     def bin_affine_meta(cls, meta: Affine[AType], max_bins: int = 20) -> 'Histogram[pd.IntervalDtype[AType]]':
 
         if meta.max is not None and meta.min is not None:
@@ -157,8 +171,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         else:
             probabilities = None
 
-        binned_meta = Nominal[pd.IntervalDtype[AType]](meta.name, categories=categories,
-                                                       nan_freq=meta.nan_freq, num_rows=meta.num_rows)
+        binned_meta = Nominal(meta.name, categories=categories, nan_freq=meta.nan_freq, num_rows=meta.num_rows)
         binned_meta.dtype = dtype
         hist = Histogram(meta=binned_meta, probabilities=probabilities)
 

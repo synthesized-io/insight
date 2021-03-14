@@ -81,10 +81,14 @@ class PostcodeModel(Histogram[str]):
         self.postcode_regex = config.postcode_regex
 
     def fit(self, df: pd.DataFrame) -> 'PostcodeModel':
+        try:
+            categories: Optional[Sequence[str]] = self.categories
+        except MetaNotExtractedError:
+            categories = None
         postcode_sr = get_postcode_key_from_df(
             df, postcode_regex=self.postcode_regex,
             postcode_label=self.postcode_label, full_address_label=self.full_address_label,
-            postcodes=self.categories)
+            postcodes=categories)
         super().fit(postcode_sr.to_frame(self.name))
 
         return self
@@ -254,20 +258,24 @@ class AddressModel(DiscreteModel[Address, str]):
                 for line in f:
                     js = simplejson.loads(line)
                     addresses = _create_address_records_with_labels(js, self.labels)
+                    try:
+                        postcodes: Optional[Sequence[str]] = self.postcode_model.categories
+                    except MetaNotExtractedError:
+                        postcodes = None
 
                     postcode_key = get_postcode_key(
                         js['postcode'], postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
-                        postcodes=self.postcode_model.categories)
+                        postcodes=postcodes)
 
                     if postcode_key not in d.keys():
                         d[get_postcode_key(
                             js['postcode'], postcode_regex=self.postcode_regex,
-                            postcode_level=self.postcode_level, postcodes=self.postcode_model.categories
+                            postcode_level=self.postcode_level, postcodes=postcodes
                         )] = addresses
                     else:
                         d[get_postcode_key(
                             js['postcode'], postcode_regex=self.postcode_regex,
-                            postcode_level=self.postcode_level, postcodes=self.postcode_model.categories
+                            postcode_level=self.postcode_level, postcodes=postcodes
                         )].extend(addresses)
 
         # convert list to ndarray for better performance

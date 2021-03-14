@@ -1,10 +1,11 @@
 from abc import abstractmethod
-from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
+from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar, cast
 
 import numpy as np
 import pandas as pd
 
-from ..metadata_new import AffineType, AType, MetaType, NominalType, NType
+from ..metadata_new import AffineType, AType, Meta, MetaType, NominalType, NType
+from ..util import get_all_subclasses
 
 ModelType = TypeVar('ModelType', bound='Model')
 ContinuousModelType = TypeVar('ContinuousModelType', bound='ContinuousModel')
@@ -46,11 +47,34 @@ class Model(Generic[MetaType]):
 
     def to_dict(self) -> Dict[str, Any]:
         d = {
+            "class_name": self.__class__.__name__,
             "meta": self._meta.to_dict(),
             "fitted": self._fitted
         }
 
         return d
+
+    @classmethod
+    def from_dict(cls: Type[ModelType], d: Dict[str, object]) -> ModelType:
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Meta.from_name_and_dict(cast(str, meta_dict["class_name"]), meta_dict)
+        model = cls(meta=meta)
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
+
+    @classmethod
+    def from_dict_with_class_name(cls: Type[ModelType], d: Dict[str, object]) -> ModelType:
+        registy = cls.get_registry()
+        class_name = cast(str, d["class_name"])
+        if class_name not in registy.keys():
+            raise ValueError(f"Given meta {class_name} not found in Meta subclasses.")
+        model = registy[class_name].from_dict(d)
+        return model
+
+    @classmethod
+    def get_registry(cls: Type[ModelType]) -> Dict[str, Type[ModelType]]:
+        return {sc.__name__: sc for sc in get_all_subclasses(cls)}
 
 
 class DiscreteModel(Model[NominalType], Generic[NominalType, NType]):

@@ -464,8 +464,8 @@ class HighDimSynthesizer(Synthesizer):
 
         # Dataframes
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
-        synth.df_model = DataFrameMeta.from_dict(variables['df_model'])
-        synth.df_model_independent = DataFrameMeta.from_dict(variables['df_model_independent'])
+        synth.df_model = DataFrameModel.from_dict(variables['df_model'])
+        synth.df_model_independent = DataFrameModel.from_dict(variables['df_model_independent'])
         synth.df_value = DataFrameValue.from_dict(variables['df_value'])
         synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 

@@ -139,7 +139,7 @@ class Meta(Mapping[str, 'Meta']):
         return meta
 
     @classmethod
-    def from_name_and_dict(cls, class_name: str, d: Dict[str, object]) -> 'Meta':
+    def from_name_and_dict(cls: Type[MetaType], class_name: str, d: Dict[str, object]) -> MetaType:
         """
         Construct a Meta from a meta class name and a dictionary.
 

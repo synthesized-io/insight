@@ -8,7 +8,6 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new.data_frame_meta import DataFrameMeta
 from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
 from synthesized.model import DataFrameModel, Model
@@ -217,7 +216,7 @@ def test_sequential_formatted_string_model():
     ]
 )
 def test_address(config, postcode_label, full_address_label):
-    meta = Address('address', nan_freq=0.3,
+    meta = Address('address', categories=[], nan_freq=0.3,
                    labels=AddressLabels(postcode_label=postcode_label, county_label='county',
                                         city_label='city',
                                         district_label='district', street_label='street',
@@ -250,23 +249,23 @@ def test_address(config, postcode_label, full_address_label):
     assert sorted(df.columns) == sorted(expected_columns)
 
     with pytest.raises(ValueError):
-        AddressModel('address', nan_freq=0.3, labels=AddressLabels(full_address_label='address'))
-        AddressModel('address', nan_freq=0.3)
+        AddressModel(Address('address', categories=[], nan_freq=0.3, labels=AddressLabels(full_address_label='address')))
+        AddressModel(Address('address', categories=[], nan_freq=0.3))
 
 
 def test_address_different_labels():
-    meta = Address('address', nan_freq=0.3,
-                    labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
-                                         county_label=None, city_label=None, district_label=None,
-                                         street_label='street', house_number_label='house_number',
-                                         flat_label='flat', house_name_label='house_name'))
+    meta = Address('address', categories=[], nan_freq=0.3,
+                   labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
+                                        county_label=None, city_label=None, district_label=None,
+                                        street_label='street', house_number_label='house_number',
+                                        flat_label='flat', house_name_label='house_name'))
     model = AddressModel(meta=meta)
     expected_columns = ['postcode', 'full_address', 'street', 'house_number', 'flat',
                         'house_name']
 
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
-    meta = Address('address', nan_freq=0.3,
+    meta = Address('address', categories=[], nan_freq=0.3,
                    labels=AddressLabels(postcode_label='postcode', full_address_label='full_address',
                                         county_label='county', city_label='city', district_label='district',
                                         street_label=None, house_number_label=None, flat_label=None,
@@ -278,7 +277,7 @@ def test_address_different_labels():
 
 def test_bank_number():
 
-    meta = Bank('bank', nan_freq=0.3,
+    meta = Bank('bank', categories=[], nan_freq=0.3,
                 labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account'))
     model = BankModel(meta)
 
@@ -313,7 +312,7 @@ def test_bank_number():
                      id="other_labels_no_gender_title")
     ])
 def test_person(labels, expected_columns):
-    meta = Person('person', nan_freq=0.3, labels=labels)
+    meta = Person('person', categories=[], nan_freq=0.3, labels=labels)
     model = PersonModel(meta)
     n = 1000
     df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=n),
