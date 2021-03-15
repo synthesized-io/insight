@@ -32,7 +32,6 @@ class Model(Generic[MetaType]):
 
     def fit(self, df: pd.DataFrame) -> 'Model':
         """Extract the children of this Meta."""
-
         if not self._meta._extracted:
             self._meta.extract(df=df)
         self._fitted = True

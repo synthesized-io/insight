@@ -91,13 +91,10 @@ class PersonModel(DiscreteModel[Person, str]):
         return self._meta.params
 
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
-        self._meta.convert_df_for_children(df)
-
-        if self.learn_gender:
-            self.gender_model.fit(df)
-
-        self._fitted = True
-        self._meta.revert_df_from_children(df)
+        super().fit(df=df)
+        with self._meta.unfold(df=df):
+            if self.learn_gender:
+                self.gender_model.fit(df)
 
         return self
 

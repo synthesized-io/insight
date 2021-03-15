@@ -34,6 +34,9 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         self.annotations = annotations if annotations is not None else []
 
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"annotations: {self.annotations}")
         super().extract(df)
         self.columns = df.columns
         self.num_columns = len(df.columns)
@@ -70,13 +73,14 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             self[name] = child
 
         self.pop(annotation.name)
-        self.annotations.remove(annotation.name)
 
     def __setitem__(self, k: str, v: Meta) -> None:
         self._children[k] = v
 
     def __delitem__(self, k: str) -> None:
         del self._children[k]
+        if k in self.annotations:
+            self.annotations.remove(k)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()

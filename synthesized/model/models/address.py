@@ -175,7 +175,7 @@ class AddressModel(DiscreteModel[Address, str]):
         return self._meta.categories
 
     def fit(self, df: pd.DataFrame) -> 'AddressModel':
-
+        super().fit(df=df)
         if self.nan_freq is None:
             self._meta.nan_freq = df[next(s for s in self.params.values() if s)].isna().sum()
 
@@ -188,15 +188,14 @@ class AddressModel(DiscreteModel[Address, str]):
             return self
 
         if self.learn_postcodes:
-            self.postcode_model.fit(df)
+            with self._meta.unfold(df):
+                self.postcode_model.fit(df)
 
         else:
             categories = list(self.postcodes.keys())
             self.postcode_model._meta.categories = categories
             self.postcode_model.probabilities = {c: 1 / len(categories) for c in categories}
             self.postcode_model._fitted = True
-
-        self._fitted = True
 
         return self
 
