@@ -88,7 +88,7 @@ class GenderTransformerConfig:
     @property
     def gender_transformer_config(self):
         return GenderTransformerConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(GenderTransformerConfig)}
+            **{f.name: getattr(self, f.name) for f in fields(GenderTransformerConfig)}
         )
 
 
