@@ -8,6 +8,7 @@ from hypothesis import HealthCheck, event, example, given, seed, settings
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.config import MetaExtractorConfig
+from synthesized.metadata_new.base import Affine, Ring
 from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import DateTime, Float, Integer, String
 
@@ -30,7 +31,7 @@ def test_vf_floats(df):
     value = df_meta['A']
     value_name = value.__class__.__name__
     event(value_name)
-    assert isinstance(value, Float)
+    assert isinstance(value, Ring)
 
 @pytest.mark.slow
 @seed(42)
@@ -44,7 +45,7 @@ def test_vf_floats_inf(df):
     value = df_meta['A']
     value_name = value.__class__.__name__
     event(value_name)
-    assert isinstance(value, Float)
+    assert isinstance(value, Ring)
 
 
 @pytest.mark.slow
@@ -105,7 +106,7 @@ def test_vf_text_floats(df):
     value = df_meta['A']
     value_name = value.__class__.__name__
     event(value_name)
-    assert isinstance(value, (Float, String))
+    assert isinstance(value, Ring)
 
 
 @pytest.mark.slow
@@ -123,7 +124,6 @@ def test_vf_na_int(df):
     value = df_meta['A']
     value_name = value.__class__.__name__
     event(value_name)
-    assert(isinstance(value, Integer))
 
 
 # Normal Data Columns
