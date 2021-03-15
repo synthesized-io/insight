@@ -63,7 +63,7 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
 
     def __setitem__(self, k: str, v: Model) -> None:
         self._children[k] = v
-        self._meta[k] = v._meta
+        self._meta[k] = v.meta
 
     def __delitem__(self, k: str) -> None:
         del self._children[k]

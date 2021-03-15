@@ -19,6 +19,10 @@ class Model(Generic[MetaType]):
         self._fitted = False
 
     @property
+    def meta(self) -> MetaType:
+        return self._meta
+
+    @property
     def name(self):
         return self._meta.name
 

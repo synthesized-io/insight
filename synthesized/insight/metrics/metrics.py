@@ -189,7 +189,7 @@ class CategoricalLogisticR2(TwoColumnMetric):
         y_model = models[sr_b.name]
 
         if not isinstance(x_model, ContinuousModel) or\
-           (isinstance(x_model, ContinuousModel) and x_model._meta.dtype == 'M8[ns]'):
+           (isinstance(x_model, ContinuousModel) and x_model.meta.dtype == 'M8[ns]'):
             return False
         if not isinstance(y_model, DiscreteModel):
             return False

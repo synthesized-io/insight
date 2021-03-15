@@ -41,7 +41,7 @@ class TransformerFactory:
             for m in model.children:
                 transformers.append(self._from_meta(m))
 
-            return DataFrameTransformer(meta=model._meta, name=model.name, transformers=transformers)
+            return DataFrameTransformer(meta=model.meta, name=model.name, transformers=transformers)
         else:
             return self._from_meta(model)
 
@@ -74,19 +74,19 @@ class TransformerFactory:
     def _from_continuous(self, model: ContinuousModel) -> List[Transformer]:
         transformers: List[Transformer] = []
 
-        if model._meta.dtype == 'M8[ns]':
-            transformers.append(DateTransformer.from_meta(model._meta, config=self.config.date_transformer_config))
+        if model.meta.dtype == 'M8[ns]':
+            transformers.append(DateTransformer.from_meta(model.meta, config=self.config.date_transformer_config))
 
             if model.nan_freq:
-                transformers.append(NanTransformer.from_meta(model._meta))
+                transformers.append(NanTransformer.from_meta(model.meta))
 
-        elif model._meta.dtype in ['u8', 'f8', 'i8']:
-            transformers.append(DTypeTransformer.from_meta(model._meta))
+        elif model.meta.dtype in ['u8', 'f8', 'i8']:
+            transformers.append(DTypeTransformer.from_meta(model.meta))
 
             if model.nan_freq:  # NanTransformer must be here as DTypeTransforemr may produce NaNs
-                transformers.append(NanTransformer.from_meta(model._meta))
+                transformers.append(NanTransformer.from_meta(model.meta))
 
-            transformers.append(QuantileTransformer.from_meta(model._meta, config=self.config.quantile_transformer_config))
+            transformers.append(QuantileTransformer.from_meta(model.meta, config=self.config.quantile_transformer_config))
 
         return transformers
 
@@ -94,14 +94,14 @@ class TransformerFactory:
         transformers: List[Transformer] = []
 
         if model.nan_freq:
-            transformers.append(NanTransformer.from_meta(model._meta))
+            transformers.append(NanTransformer.from_meta(model.meta))
 
         if model.categories is not None and len(model.categories) == 0:
             transformers.append(DropConstantColumnTransformer(f'{model.name}', constant_value=np.nan))
         elif model.categories is not None and len(model.categories) == 1:
-            transformers.append(DropConstantColumnTransformer.from_meta(model._meta))
+            transformers.append(DropConstantColumnTransformer.from_meta(model.meta))
         else:
-            transformers.append(CategoricalTransformer.from_meta(model._meta))
+            transformers.append(CategoricalTransformer.from_meta(model.meta))
 
         return transformers
 

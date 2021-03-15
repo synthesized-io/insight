@@ -63,7 +63,7 @@ class ValueFactory:
 
     def _create_value(self, vm: Model) -> Optional[Value]:
         """Lookup function for determining correct value for given value meta"""
-        if isinstance(vm, ContinuousModel) and vm._meta.dtype == 'M8[ns]':
+        if isinstance(vm, ContinuousModel) and vm.meta.dtype == 'M8[ns]':
             return DateValue(
                 vm.name, categorical_config=self.config.categorical_config,
                 continuous_config=self.config.continuous_config,

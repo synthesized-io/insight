@@ -319,7 +319,7 @@ def test_person(labels, expected_columns):
                        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n)})
     df[[c for c in model.params.values() if c not in df.columns]] = 'test'
 
-    model._meta.revert_df_from_children(df)
+    model.meta.revert_df_from_children(df)
     model.fit(df)
 
     assert_model_output(model, expected_columns=expected_columns)
