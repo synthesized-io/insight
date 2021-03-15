@@ -27,8 +27,9 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
     def fit(self, df: pd.DataFrame) -> 'DataFrameModel':
         super().fit(df=df)
 
-        for model in self.children:
-            model.fit(df=df)
+        with self._meta.unfold(df=df):
+            for model in self.children:
+                model.fit(df=df)
 
         return self
 
