@@ -8,7 +8,7 @@ from hypothesis import HealthCheck, event, example, given, seed, settings
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
 from synthesized.config import MetaExtractorConfig
-from synthesized.metadata_new.base import Affine, Ring
+from synthesized.metadata_new.base import Affine, Nominal, Ring
 from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import DateTime, Float, Integer, String
 
@@ -106,7 +106,7 @@ def test_vf_text_floats(df):
     value = df_meta['A']
     value_name = value.__class__.__name__
     event(value_name)
-    assert isinstance(value, Ring)
+    assert isinstance(value, Nominal)
 
 
 @pytest.mark.slow
