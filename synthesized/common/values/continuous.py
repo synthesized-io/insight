@@ -10,7 +10,6 @@ from ..module import tensorflow_name_scoped
 from ...config import ContinuousConfig
 
 DISTRIBUTIONS = dict(
-    # beta=(beta, tfd.Beta),
     gamma=(gamma, tfd.Gamma),
     gilbrat=(gilbrat, None),
     gumbel=(gumbel_r, tfd.Gumbel),
