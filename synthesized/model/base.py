@@ -60,7 +60,7 @@ class Model(Generic[MetaType]):
     @classmethod
     def from_dict(cls: Type[ModelType], d: Dict[str, object]) -> ModelType:
         meta_dict = cast(Dict[str, object], d["meta"])
-        meta: Meta = Meta.from_name_and_dict(cast(str, meta_dict["class_name"]), meta_dict)
+        meta = Meta[Any].from_dict(meta_dict)
         model = cls(meta=meta)
         model._fitted = cast(bool, d["fitted"])
 
