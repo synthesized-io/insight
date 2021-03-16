@@ -34,9 +34,6 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         self.annotations = annotations if annotations is not None else []
 
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"annotations: {self.annotations}")
         super().extract(df)
         self.columns = df.columns
         self.num_columns = len(df.columns)
