@@ -136,14 +136,10 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     @property
     def min(self) -> Optional[OType]:
-        if not self._extracted:
-            raise MetaNotExtractedError
         return self._min
 
     @property
     def max(self) -> Optional[OType]:
-        if not self._extracted:
-            raise MetaNotExtractedError
         return self._max
 
     def less_than(self, x: OType, y: OType) -> bool:

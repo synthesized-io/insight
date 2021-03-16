@@ -217,17 +217,13 @@ def test_sequential_formatted_string_model():
 )
 def test_address(config, postcode_label, full_address_label):
     meta = Address('address', categories=[], nan_freq=0.3,
-                   labels=AddressLabels(postcode_label=postcode_label, county_label='county',
+                   labels=AddressLabels(postcode_label=postcode_label,
                                         city_label='city',
-                                        district_label='district', street_label='street',
-                                        house_number_label='house_number', flat_label='flat',
-                                        house_name_label='house_name',
                                         full_address_label=full_address_label)
                    )
     model = AddressModel(meta, config=config)
 
-    expected_columns = ['postcode', 'full_address', 'county', 'city', 'district', 'street', 'house_number', 'flat',
-                        'house_name']
+    expected_columns = ['postcode', 'full_address', 'city']
     if postcode_label is None:
         expected_columns.remove('postcode')
     if full_address_label is None:
@@ -238,7 +234,10 @@ def test_address(config, postcode_label, full_address_label):
         'postcode': [fkr.postcode() for _ in range(1000)],
         'full_address': [fkr.address() for _ in range(1000)],
         'x': np.random.normal(size=1000),
+        'city': [fkr.city() for _ in range(1000)]
     })
+
+    model.meta.revert_df_from_children(df_orig)
     model.fit(df_orig)
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
