@@ -36,11 +36,12 @@ class PostcodeTransformer(Transformer):
                 f'full_address_label="{self.full_address_label}")')
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        postcode_sr = get_postcode_key_from_df(
+        df[self.name] = get_postcode_key_from_df(
             df, postcode_regex=self.postcode_regex,
             postcode_label=self.postcode_label, full_address_label=self.full_address_label,
             postcodes=self.postcodes)
-        return postcode_sr.to_frame(self.name)
+        df.drop(columns=self.postcode_label, inplace=True)
+        return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         return df
