@@ -41,11 +41,15 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
         for model in self.children:
             dfs.append(model.sample(n=n, produce_nans=produce_nans, conditions=conditions))
 
+        if len(dfs) == 0:
+            return pd.DataFrame(index=pd.RangeIndex(n))
+
         return pd.concat(dfs, axis=1)
 
     @property
     def children(self) -> Sequence[Model]:
         """Return the children of this DataFrameModel."""
+
         return [child for child in self.values()]
 
     @children.setter
