@@ -16,7 +16,7 @@ def test_synthesis_w_annotations():
         'x': np.random.normal(size=n),
         'y': np.random.choice(['a', 'b', 'c'], size=n),
         'sample': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
-        'sample2': [''.join([random.choice(string.ascii_letters.uper()) for _ in range(5)]) for _ in range(n)],
+        'sample2': [''.join([random.choice(string.ascii_letters.upper()) for _ in range(5)]) for _ in range(n)],
         'bic': [''.join([random.choice(string.ascii_letters) for _ in range(4)]) for _ in range(n)],
         'sort_code': [''.join([random.choice(string.ascii_letters) for _ in range(6)]) for _ in range(n)],
         'account': [''.join([random.choice(string.digits) for _ in range(6)]) for _ in range(n)],
