@@ -10,10 +10,10 @@ from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new import Ordinal
+from synthesized.metadata_new import DataFrameMeta, Ordinal
 from synthesized.metadata_new.factory import MetaExtractor
-from synthesized.metadata_new.value import (Address, Bank, Bool, DateTime, Float, FormattedString, Integer, IntegerBool,
-                                            OrderedString, Person, String)
+from synthesized.metadata_new.value import (Address, AssociatedCategorical, Bank, Bool, DateTime, Float,
+                                            FormattedString, Integer, IntegerBool, OrderedString, Person, String)
 
 logger = logging.getLogger(__name__)
 
@@ -190,3 +190,16 @@ def test_associations():
 
     true_binding_mask = np.array([[[1, 0], [1, 0]], [[1, 0], [0, 1]]])
     np.testing.assert_array_almost_equal(df_meta["association_a_b_c"].binding_mask, true_binding_mask)
+
+
+def test_load_data_frame_associations():
+    associations = [["NumberOfTimes90DaysLate", "NumberOfTime60-89DaysPastDueNotWorse"]]
+
+    df = pd.read_csv('data/unittest.csv')
+    df_meta = MetaExtractor.extract(df=df, associations=associations)
+    meta_dict = df_meta.to_dict()
+
+    df_meta2 = DataFrameMeta.from_dict(meta_dict)
+    meta = df_meta2.children[0]
+    assert isinstance(meta, AssociatedCategorical)
+    assert meta.binding_mask is not None
