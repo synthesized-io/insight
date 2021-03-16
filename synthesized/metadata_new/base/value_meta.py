@@ -79,7 +79,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         super().extract(df)
         # Consider inf/-inf as nan
         df = df.copy().replace([np.inf, -np.inf], np.nan)
-        if self.categories is None:
+        if self._categories is None:
             self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
