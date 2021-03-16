@@ -31,6 +31,8 @@ def test_synthesis_w_annotations():
         'postcode': np.random.choice(['NW5 2JN', 'RG1 0GN', 'YO31 1MR', 'BD1 0WN'], size=n),
         'street': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
         'building_number': [''.join([random.choice(string.digits) for _ in range(3)]) for _ in range(n)],
+        'postcode2': np.random.choice(['NW5 2JN', 'RG1 0GN', 'YO31 1MR', 'BD1 0WN'], size=n),
+        'street2': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
     })
     annotations = [
         FormattedString(name='sample', pattern='[A-Za-z]{10}'),
@@ -42,6 +44,7 @@ def test_synthesis_w_annotations():
         Person(name='person2', labels=PersonLabels(gender_label='gender2')),
         Address(name='address', labels=AddressLabels(postcode_label='postcode', street_label='street',
                                                      house_number_label='building_number')),
+        Address(name='address2', labels=AddressLabels(postcode_label='postcode2', street_label='street2')),
     ]
 
     df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)
@@ -81,17 +84,16 @@ def test_annotations_all():
         full_address_label='Full Address',
     ))
 
-    # TODO: fix multiple addresses (ML-253)
-    # pa_address = Address(
-    #     name='pa_address',
-    #     labels=AddressLabels(
-    #         postcode_label='PA_POSTCODE',
-    #         county_label='PA_COUNTY',
-    #         city_label='PA_POSTTOWN',
-    #         street_label='PA_STREET',
-    #         flat_label='PA_FLAT',
-    #         house_name_label='PA_HOUSENAME',
-    # ))
+    pa_address = Address(
+        name='pa_address',
+        labels=AddressLabels(
+            postcode_label='PA_POSTCODE',
+            county_label='PA_COUNTY',
+            city_label='PA_POSTTOWN',
+            street_label='PA_STREET',
+            flat_label='PA_FLAT',
+            house_name_label='PA_HOUSENAME',
+    ))
 
     county = FormattedString(
         name='COUNTY',
