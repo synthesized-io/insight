@@ -131,7 +131,7 @@ class AddressModel(DiscreteModel[Address, str]):
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             # Manually 'fit' the postcode model so that it is not needed to call .fit().
             postcodes = self.provider.POSTAL_ZONES
-            self.postcode_model._meta.categories = postcodes
+            self.postcode_model.meta.categories = postcodes
             self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
 
             if self.nan_freq:
@@ -169,9 +169,6 @@ class AddressModel(DiscreteModel[Address, str]):
 
     @property
     def categories(self) -> Sequence[str]:
-        if self._meta.categories is None:
-            raise MetaNotExtractedError
-
         return self._meta.categories
 
     def fit(self, df: pd.DataFrame) -> 'AddressModel':
@@ -181,9 +178,8 @@ class AddressModel(DiscreteModel[Address, str]):
 
         if self.fake:
             postcodes = self.provider.POSTAL_ZONES
-            self.postcode_model._meta.categories = postcodes
+            self.postcode_model.meta.categories = postcodes
             self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
-            self._fitted = self.postcode_model._fitted = True
 
             return self
 
@@ -193,7 +189,7 @@ class AddressModel(DiscreteModel[Address, str]):
 
         else:
             categories = list(self.postcodes.keys())
-            self.postcode_model._meta.categories = categories
+            self.postcode_model.meta.categories = categories
             self.postcode_model.probabilities = {c: 1 / len(categories) for c in categories}
             self.postcode_model._fitted = True
 

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .meta import Meta
+from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
 NType = TypeVar("NType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
@@ -59,8 +60,19 @@ class Nominal(ValueMeta[NType], Generic[NType]):
             num_rows: Optional[int] = None
     ):
         super().__init__(name=name, num_rows=num_rows)
-        self.categories: Optional[Sequence[NType]] = categories
+        self._categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
+
+    @property
+    def categories(self) -> Sequence[NType]:
+        if self._categories is None:
+            raise MetaNotExtractedError
+
+        return [c for c in self._categories]
+
+    @categories.setter
+    def categories(self, c: Sequence[NType]) -> None:
+        self._categories = c
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
@@ -79,7 +91,7 @@ class Nominal(ValueMeta[NType], Generic[NType]):
         d = super().to_dict()
         d.update({
             "nan_freq": self.nan_freq,
-            "categories": [c for c in self.categories] if self.categories is not None else None
+            "categories": [c for c in self._categories] if self._categories is not None else None
         })
 
         return d
@@ -113,7 +125,6 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         df = df.copy().replace('', np.nan)
         super().extract(df)
-        assert self.categories is not None
         self.categories = self.sort(self.categories)
 
         if len(self.categories) > 0:
@@ -125,10 +136,14 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     @property
     def min(self) -> Optional[OType]:
+        if not self._extracted:
+            raise MetaNotExtractedError
         return self._min
 
     @property
     def max(self) -> Optional[OType]:
+        if not self._extracted:
+            raise MetaNotExtractedError
         return self._max
 
     def less_than(self, x: OType, y: OType) -> bool:
@@ -145,6 +160,9 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     def sort(self, sr: Sequence[OType]) -> Sequence[OType]:
         """Sort pd.Series according to the ordering of this meta"""
+        if len(sr) == 0:
+            return sr
+
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
 
@@ -154,8 +172,8 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "_max": self.max,
-            "_min": self.min
+            "_max": self._max,
+            "_min": self._min
         })
 
         return d
@@ -197,6 +215,8 @@ class Affine(Ordinal[AType], Generic[AType]):
         return f'<Affine[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
     def sort(self, sr: Sequence[AType]) -> Sequence[AType]:
+        if len(sr) == 0:
+            return sr
         return list(np.sort(sr))
 
 

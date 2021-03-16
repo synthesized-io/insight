@@ -8,7 +8,7 @@ import seaborn as sns
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new import Affine, AType, ExtractionError, MetaNotExtractedError, Nominal, NType, SType
+from ...metadata_new import Affine, AType, ExtractionError, Nominal, NType, SType
 
 HistogramType = TypeVar('HistogramType', bound='Histogram')
 
@@ -27,10 +27,20 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
             self, meta: Nominal[NType], probabilities: Optional[Dict[NType, float]] = None,
     ):
         super().__init__(meta=meta)  # type: ignore
-        self.probabilities: Optional[Dict[NType, float]] = probabilities
+        self._probabilities: Optional[Dict[NType, float]] = probabilities
 
-        if self.probabilities is not None:
+        if probabilities is not None:
             self._fitted = True
+
+    @property
+    def probabilities(self) -> Dict[NType, float]:
+        if self._probabilities is None:
+            raise ModelNotFittedError
+        return self._probabilities
+
+    @probabilities.setter
+    def probabilities(self, probs: Dict[NType, float]) -> None:
+        self._probabilities = probs
 
     @property
     def dtype(self) -> str:
@@ -41,7 +51,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
 
     @property
     def bin_width(self) -> Union[None, SType]:
-        if self._meta.categories is None or len(self._meta.categories) < 2:
+        if len(self._meta.categories) < 2:
             return None
 
         if not isinstance(self._meta, Affine):
@@ -72,15 +82,14 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
                 self._meta.min, rng_max, freq=bin_width.item(), closed='left'  # type: ignore
             )
         else:
-            if self._meta.categories is None:
-                raise MetaNotExtractedError
             categories = self._meta.categories
 
         return categories
 
     def fit(self: HistogramType, df: pd.DataFrame) -> HistogramType:
         super().fit(df=df)
-        assert self.categories is not None
+        if len(self.categories) == 0:
+            self.probabilities = {}
 
         if isinstance(self.categories, pd.IntervalIndex):
             cut = pd.cut(df[self.name], bins=self.categories)
@@ -93,10 +102,6 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         return self
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        if not self._fitted:
-            raise ModelNotFittedError
-
-        assert self.probabilities is not None
         df = pd.DataFrame(
             {self.name: np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])})
 
@@ -106,15 +111,8 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         return df
 
     def probability(self, x: Any) -> float:
-        if not self._fitted:
-            raise ModelNotFittedError
-
-        self.probabilities = cast(Dict[NType, float], self.probabilities)
-
-        if x is None:
-            return cast(float, self.nan_freq)
-
-        x = cast(NType, x)
+        if x is None and self.nan_freq is not None:
+            return self.nan_freq
 
         if x in self.probabilities:
             prob: float = self.probabilities[x]
@@ -126,7 +124,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "probabilities": self.probabilities
+            "probabilities": self._probabilities
         })
 
         return d
@@ -184,7 +182,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
 
         plot_data = pd.DataFrame({
             self.name: self.categories,
-            'probability': [self.probability(c) for c in self.categories] if self.categories is not None else None
+            'probability': [self.probability(c) for c in self.categories]
         })
         sns.barplot(data=plot_data, x=self.name, y='probability', ax=fig.gca())
 

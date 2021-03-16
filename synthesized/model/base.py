@@ -110,12 +110,12 @@ class ContinuousModel(Model[AffineType], Generic[AffineType, AType]):
 
     @property
     @abstractmethod
-    def min(self) -> AType:
+    def min(self) -> Optional[AType]:
         pass
 
     @property
     @abstractmethod
-    def max(self) -> AType:
+    def max(self) -> Optional[AType]:
         pass
 
     @property
