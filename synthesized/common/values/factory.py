@@ -69,8 +69,10 @@ class ValueFactory:
         elif isinstance(vm, AssociatedHistogram):
             values = {}
             for model in vm.values():
-                values[model.name] = CategoricalValue(name=model.name, num_categories=len(model.categories),  # type: ignore
-                                                      config=self.config.categorical_config)
+                values[model.name] = CategoricalValue(
+                    name=model.name, num_categories=len(model.categories),
+                    config=self.config.categorical_config
+                )
             return AssociatedCategoricalValue(values=values, binding_mask=vm.binding_mask, name=vm.name)
         elif isinstance(vm, DiscreteModel):
             assert vm.categories is not None
@@ -82,7 +84,7 @@ class ValueFactory:
             else:
                 return None
         else:
-            raise ValueError("Bad Nominal Value Meta")
+            raise ValueError("Cannot build Value from given Meta/Model")
 
     def _build_nan(self, value_meta: Model) -> Sequence[CategoricalValue]:
         """ builds a list of nan_values from a value_meta if needed else returns None"""

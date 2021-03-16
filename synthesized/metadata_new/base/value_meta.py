@@ -1,5 +1,5 @@
 from functools import cmp_to_key
-from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
+from typing import Any, Dict, Generic, Mapping, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ AType = TypeVar("AType", np.datetime64, np.timedelta64, np.int64, np.float64, co
 SType = TypeVar("SType", np.timedelta64, np.int64, np.float64, covariant=True)
 RType = TypeVar("RType", np.int64, np.float64, covariant=True)
 
-ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any, Any]')
 NominalType = TypeVar('NominalType', bound='Nominal[Any]')
 OrdinalType = TypeVar('OrdinalType', bound='Ordinal[Any]')
 AffineType = TypeVar('AffineType', bound='Affine[Any]')
@@ -22,7 +22,7 @@ ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
 RingType = TypeVar('RingType', bound='Ring[Any]')
 
 
-class ValueMeta(Meta, Generic[DType]):
+class ValueMeta(Meta[ValueMetaType], Mapping[str, 'ValueMeta'], Generic[ValueMetaType, DType]):
     """
     Base class for meta information that describes a pandas series.
 
@@ -35,14 +35,14 @@ class ValueMeta(Meta, Generic[DType]):
     """
     dtype: str = 'object'
 
-    def __init__(self, name: str, num_rows: Optional[int] = None):
-        super().__init__(name=name, num_rows=num_rows)
+    def __init__(self, name: str, children: Optional[Sequence[ValueMetaType]] = None, num_rows: Optional[int] = None):
+        super().__init__(name=name, children=children, num_rows=num_rows)
 
     def __repr__(self) -> str:
         return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
-class Nominal(ValueMeta[NType], Generic[NType]):
+class Nominal(ValueMeta[ValueMeta, NType], Generic[NType]):
     """
     Nominal meta.
 
@@ -56,10 +56,11 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, num_rows=num_rows)
+        super().__init__(name=name, children=children, num_rows=num_rows)
         self._categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
 
@@ -114,11 +115,12 @@ class Ordinal(Nominal[OType], Generic[OType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None, num_rows: Optional[int] = None
 
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
+        super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
         self._min: Optional[OType] = min
         self._max: Optional[OType] = max
 
@@ -191,12 +193,13 @@ class Affine(Ordinal[AType], Generic[AType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
             min: Optional[AType] = None, max: Optional[AType] = None, num_rows: Optional[int] = None,
             unit_meta: Optional['Scale'] = None
     ):
         super().__init__(
-            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
         self._unit_meta: Scale = Scale(name=f'{name}_unit') if unit_meta is None else unit_meta
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
@@ -231,13 +234,14 @@ class Scale(Affine[SType], Generic[SType]):
     precision: SType
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
             min: Optional[SType] = None, max: Optional[SType] = None, num_rows: Optional[int] = None,
             unit_meta: Optional['Scale'] = None
     ):
         super().__init__(
-            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,
-            unit_meta=unit_meta if unit_meta is not None else self
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
+            min=min, max=max, unit_meta=unit_meta if unit_meta is not None else self
         )
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
@@ -252,10 +256,14 @@ class Scale(Affine[SType], Generic[SType]):
 class Ring(Scale[RType], Generic[RType]):
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
             min: Optional[RType] = None, max: Optional[RType] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        super().__init__(
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
+            min=min, max=max
+        )
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)

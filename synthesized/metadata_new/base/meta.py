@@ -1,16 +1,19 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, Mapping, Optional, Sequence, Type, TypeVar, cast
+from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Sequence, Type, TypeVar, cast  # noqa
 
 import pandas as pd
 
 from ...util import get_all_subclasses
 
-MetaType = TypeVar('MetaType', bound='Meta')
+MetaType = TypeVar('MetaType', bound='Meta[Any]')
+MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta[Any]')
 
 
-class Meta(Mapping[str, 'Meta']):
+class Meta(Mapping[str, MetaType], Generic[MetaType]):
     """
     Base class for meta information that describes a dataset.
+
+    The generic MetaType parameter defines the type of the children metas.
 
     Implements a hierarchical tree structure to describe arbitrary nested
     relations between data. Instances of Meta act as root nodes in the tree,
@@ -18,11 +21,13 @@ class Meta(Mapping[str, 'Meta']):
 
     Attributes:
         name: a descriptive name.
+        children (Sequence[MetaType]): the children owned by this meta. This is immutable
+            and must be defined during initialization.
 
     Examples:
         Custom nested structures can be easily built with this class, for example:
 
-        >>> customer = Meta('customer')
+        >>> customer = Meta('customer', children=[Meta('name'), Meta('age')])
 
         Meta objects are iterable, and allow iterating through the
         children:
@@ -32,20 +37,16 @@ class Meta(Mapping[str, 'Meta']):
     """
     class_name: str = 'Meta'
 
-    def __init__(self, name: str, num_rows: Optional[int] = None):
+    def __init__(self, name: str, children: Optional[Sequence[MetaType]] = None, num_rows: Optional[int] = None):
         self.name = name
         self.num_rows = num_rows
-        self._children: Dict[str, 'Meta'] = dict()
+        self._children: Dict[str, MetaType] = {c.name: c for c in children} if children is not None else dict()
         self._extracted: bool = False
 
     @property
-    def children(self) -> Sequence['Meta']:
+    def children(self) -> Sequence[MetaType]:
         """Return the children of this Meta."""
         return [child for child in self.values()]
-
-    @children.setter
-    def children(self, children: Sequence['Meta']) -> None:
-        self._children = {child.name: child for child in children}
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name={self.name})'
@@ -73,7 +74,7 @@ class Meta(Mapping[str, 'Meta']):
         yield df
         self.revert_df_from_children(df)
 
-    def __getitem__(self, k: str) -> 'Meta':
+    def __getitem__(self, k: str) -> MetaType:
         return self._children[k]
 
     def __iter__(self) -> Iterator[str]:
@@ -109,7 +110,7 @@ class Meta(Mapping[str, 'Meta']):
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaType'], d: Dict[str, object]) -> MetaType:
+    def from_dict(cls: Type['MetaTypeArg'], d: Dict[str, object]) -> MetaTypeArg:
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
@@ -121,20 +122,20 @@ class Meta(Mapping[str, 'Meta']):
 
         extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
-
-        meta = cls(name=name)
-        for attr, value in d.items():
-            setattr(meta, attr, value)
-
-        setattr(meta, '_extracted', extracted)
-
         if children is not None:
-            meta_children = []
+            meta_children: List[Meta] = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
                 meta_children.append(Meta.from_name_and_dict(class_name, child))
 
-            meta.children = meta_children
+            meta = cls(name=name, children=meta_children)
+        else:
+            meta = cls(name=name)
+
+        for attr, value in d.items():
+            setattr(meta, attr, value)
+
+        setattr(meta, '_extracted', extracted)
 
         return meta
 

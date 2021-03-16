@@ -131,9 +131,8 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
 
     @classmethod
     def from_dict(cls, d: Dict[str, object]) -> 'Histogram':
-
         meta_dict = cast(Dict[str, object], d["meta"])
-        meta = Nominal.from_name_and_dict(cast(str, meta_dict["class_name"]), meta_dict)
+        meta = Nominal[NType].from_dict(meta_dict)
         model = cls(meta=meta, probabilities=cast(Optional[Dict[NType, float]], d["probabilities"]))
         model._fitted = cast(bool, d["fitted"])
 

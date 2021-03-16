@@ -23,7 +23,7 @@ class _MetaBuilder:
             self, min_num_unique: int, parsing_nan_fraction_threshold: float,
             categorical_threshold_log_multiplier: float
     ):
-        self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any]]] = {
+        self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any, Any]]] = {
             'i': self.int_builder,
             'u': self.int_builder,
             'M': self.datetime_builder,
@@ -35,7 +35,7 @@ class _MetaBuilder:
 
         self.parsing_nan_fraction_threshold = parsing_nan_fraction_threshold
 
-    def __call__(self, sr: pd.Series) -> ValueMeta[Any]:
+    def __call__(self, sr: pd.Series) -> ValueMeta:
         assert isinstance(sr.name, str), "DataFrame column names should be strings"
         return self._dtype_builders[sr.dtype.kind](sr)
 
@@ -123,13 +123,13 @@ class MetaFactory():
     def __call__(
             self, x: Union[pd.Series, pd.DataFrame], annotations: Optional[List[ValueMeta]] = None,
             associations: Optional[List[List[str]]] = None
-    ) -> Union[ValueMeta[Any], DataFrameMeta]:
+    ) -> Union[ValueMeta, DataFrameMeta]:
         return self.create_meta(x, annotations=annotations, associations=associations)
 
     def create_meta(
             self, x: Union[pd.Series, pd.DataFrame], name: Optional[str] = 'df',
             annotations: Optional[List[ValueMeta]] = None, associations: Optional[List[List[str]]] = None,
-    ) -> Union[ValueMeta[Any], DataFrameMeta]:
+    ) -> Union[ValueMeta, DataFrameMeta]:
         """
         Instantiate a Meta object from a pandas series or data frame.
 
@@ -155,7 +155,7 @@ class MetaFactory():
         else:
             raise TypeError(f"Cannot create meta from {type(x)}")
 
-    def _from_series(self, sr: pd.Series) -> ValueMeta[Any]:
+    def _from_series(self, sr: pd.Series) -> ValueMeta:
         if sr.dtype.kind not in self._builder._dtype_builders:
             raise UnsupportedDtypeError(f"'{sr.dtype}' is unsupported")
         return self._builder(sr)

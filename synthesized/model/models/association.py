@@ -45,14 +45,12 @@ class AssociatedHistogram(Model[AssociatedCategorical], Mapping[str, Histogram])
     def fit(self, df: pd.DataFrame):
         for model in self.children:
             model.fit(df)
-        self._fitted = True
-
-        return self
+        return super().fit(df=df)
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        df = self.children[0].sample(n, produce_nans, conditions)  # type: ignore
+        df = self.children[0].sample(n, produce_nans, conditions)
 
         for model in self.children[1:]:
-            df = df.join(model.sample(n, produce_nans, conditions))  # type: ignore
+            df = df.join(model.sample(n, produce_nans, conditions))
 
         return df

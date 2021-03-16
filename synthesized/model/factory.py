@@ -60,7 +60,7 @@ class ModelBuilder:
             meta: Meta instance, if not of type at least Nominal, will raise an error
 
         Returns:
-            Model if meta is a ValueMeta
+            Model if meta is a valid meta Meta
         """
         if isinstance(meta, Affine):
             n_unique = len(meta.categories) if meta.categories else 0

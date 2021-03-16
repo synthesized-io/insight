@@ -4,6 +4,7 @@ from typing import Dict, Optional, Sequence
 import pandas as pd
 
 from .categorical import String
+from ..base import ValueMeta
 from ...config import BankLabels
 
 
@@ -14,12 +15,16 @@ class Bank(String):
     dtype = 'U'
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, labels=BankLabels()
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
-        self.children = [String(name) for name in self._params.values()]
+        children = [
+            String(name)
+            for name in self._params.values() if name is not None
+        ] if children is None else children
+        super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     @property
     def params(self) -> Dict[str, str]:

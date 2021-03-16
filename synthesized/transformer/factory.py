@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union, cast
+from typing import List, Optional, Union, cast
 
 import numpy as np
 
@@ -8,6 +8,7 @@ from .child import (CategoricalTransformer, DateTransformer, DropConstantColumnT
 from .child.gender import GenderTransformer
 from .child.postcode import PostcodeTransformer
 from .data_frame import DataFrameTransformer
+from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.models import AssociatedHistogram, GenderModel, PostcodeModel
@@ -62,6 +63,8 @@ class TransformerFactory:
                 transformers.append(PostcodeTransformer.from_meta(meta))
 
             transformers.extend(self._from_discrete(cast(DiscreteModel, meta)))
+        else:
+            raise UnsupportedMetaError(f"{meta.__class__.__name__} has no associated Transformer")
 
         assert len(transformers) > 0
         if len(transformers) > 1:
@@ -90,7 +93,7 @@ class TransformerFactory:
 
         return transformers
 
-    def _from_discrete(self, model: DiscreteModel, category_to_idx: Dict[str, int] = None) -> List[Transformer]:
+    def _from_discrete(self, model: DiscreteModel) -> List[Transformer]:
         transformers: List[Transformer] = []
 
         if model.nan_freq:
@@ -105,10 +108,10 @@ class TransformerFactory:
 
         return transformers
 
-    def _from_association(self, model: AssociatedHistogram):
+    def _from_association(self, model: AssociatedHistogram) -> List[Transformer]:
         transformers: List[Transformer] = []
 
         for name, child_model in model.items():
-            transformers += self._from_discrete(child_model, category_to_idx=model.categories_to_idx[name])  # type: ignore
+            transformers += self._from_discrete(child_model)
 
         return transformers
