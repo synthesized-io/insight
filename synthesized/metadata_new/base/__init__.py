@@ -1,7 +1,8 @@
-from .meta import Meta
-from .value_meta import Affine, AType, DType, Nominal, NType, Ordinal, OType, Ring, RType, Scale, SType, ValueMeta
+from .meta import Meta, MetaType
+from .value_meta import (Affine, AffineType, AType, DType, Nominal, NominalType, NType, Ordinal, OType, Ring, RType,
+                         Scale, SType, ValueMeta)
 
 __all__ = [
     'Meta', 'ValueMeta', 'Nominal', 'Ordinal', 'Affine', 'Scale', 'Ring', 'AType', 'DType', 'NType', 'OType', 'RType',
-    'SType'
+    'SType', 'NominalType', 'AffineType', 'MetaType'
 ]

@@ -15,8 +15,8 @@ from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
-from ..metadata_new import DataFrameMeta, Meta
-from ..model import ContinuousModel, DiscreteModel, Model
+from ..metadata_new import DataFrameMeta
+from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
 from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel
 from ..transformer import DataFrameTransformer
@@ -107,17 +107,15 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def split_df_model(self, df_model: DataFrameMeta) -> DataFrameMeta:
+    def split_df_model(self, df_model: DataFrameModel) -> DataFrameModel:
         """Given a df_model, pop out those models that are not learned in the engine and
         return a df_model_independent containing these models.
         """
-
-        df_model_independent = DataFrameMeta(name='independent_models')
+        df_meta_independent = DataFrameMeta(name='independent_models')
+        df_model_independent = DataFrameModel(df_meta_independent)
         models_to_pop: List[str] = []
-        models_to_add: List[Meta] = []
-
+        models_to_add: List[Model] = []
         for name, model in df_model.items():
-
             if isinstance(model, ContinuousModel):
                 continue
 
@@ -139,9 +137,11 @@ class HighDimSynthesizer(Synthesizer):
                 assert model.categories and model.num_rows
                 if len(model.categories) > sqrt(model.num_rows):
                     models_to_pop.append(name)
+        annotations = [name for name in models_to_pop if name in df_model.meta.annotations]
 
         for model_name in models_to_pop:
             df_model_independent[model_name] = df_model.pop(model_name)
+        df_model_independent.meta.annotations = annotations
 
         for model in models_to_add:
             df_model[model.name] = model
@@ -175,18 +175,16 @@ class HighDimSynthesizer(Synthesizer):
         if not self.df_meta._extracted:
             self.df_meta.extract(df_train)
 
-        with self.df_meta.unfold(df_train) as sub_df_train:
-            for model in self.df_model_independent.values():
-                assert isinstance(model, Model)
-                model.fit(sub_df_train)
+        self.df_model_independent.fit(df=df_train)
 
-        num_data = len(df_train)
         if not self.df_transformer.is_fitted():
             self.df_transformer.fit(df_train)
+
         df_train_pre = self.df_transformer.transform(df_train)
         if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
             return
 
+        num_data = len(df_train)
         with self.writer.as_default():
             with record_summaries_every_n_global_steps(callback_freq, self.global_step):
                 keep_learning = True
@@ -300,13 +298,10 @@ class HighDimSynthesizer(Synthesizer):
         else:
             df_synthesized = pd.DataFrame([[], ] * num_rows)
 
-        independent_columns = []
-        for model in self.df_model_independent.values():
-            assert isinstance(model, Model)
-            df_sampled = model.sample(num_rows, produce_nans=produce_nans, conditions=df_synthesized)
-            independent_columns.append(df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]])
+        df_sampled = self.df_model_independent.sample(n=num_rows, produce_nans=produce_nans, conditions=df_synthesized)
+        df_independent = df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]]
 
-        df_synthesized = pd.concat(([df_synthesized] + independent_columns), axis=1)
+        df_synthesized = pd.concat((df_synthesized, df_independent), axis=1)
         df_synthesized = df_synthesized[columns]
 
         if progress_callback is not None:
@@ -463,8 +458,8 @@ class HighDimSynthesizer(Synthesizer):
 
         # Dataframes
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
-        synth.df_model = DataFrameMeta.from_dict(variables['df_model'])
-        synth.df_model_independent = DataFrameMeta.from_dict(variables['df_model_independent'])
+        synth.df_model = DataFrameModel.from_dict(variables['df_model'])
+        synth.df_model_independent = DataFrameModel.from_dict(variables['df_model_independent'])
         synth.df_value = DataFrameValue.from_dict(variables['df_value'])
         synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 

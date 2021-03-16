@@ -70,13 +70,14 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
             self[name] = child
 
         self.pop(annotation.name)
-        self.annotations.remove(annotation.name)
 
     def __setitem__(self, k: str, v: Meta) -> None:
         self._children[k] = v
 
     def __delitem__(self, k: str) -> None:
         del self._children[k]
+        if k in self.annotations:
+            self.annotations.remove(k)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
@@ -91,3 +92,13 @@ class DataFrameMeta(Meta, MutableMapping[str, 'Meta']):
         })
 
         return d
+
+    def copy(self) -> 'DataFrameMeta':
+        """Returns a shallow copy of the data frame meta."""
+        df_meta = DataFrameMeta(
+            name=self.name, id_index=self.id_index, time_index=self.time_index,
+            column_aliases=self.column_aliases.copy(), num_columns=self.num_columns, num_rows=self.num_rows,
+            annotations=self.annotations.copy()
+        )
+        df_meta.update(self)
+        return df_meta

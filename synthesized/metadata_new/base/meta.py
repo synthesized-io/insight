@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Dict, Iterator, Mapping, Sequence, Type, TypeVar, cast
+from typing import Dict, Iterator, Mapping, Optional, Sequence, Type, TypeVar, cast
 
 import pandas as pd
 
@@ -32,9 +32,9 @@ class Meta(Mapping[str, 'Meta']):
     """
     class_name: str = 'Meta'
 
-    def __init__(self, name: str):
-        super().__init__()
+    def __init__(self, name: str, num_rows: Optional[int] = None):
         self.name = name
+        self.num_rows = num_rows
         self._children: Dict[str, 'Meta'] = dict()
         self._extracted: bool = False
 
@@ -55,6 +55,7 @@ class Meta(Mapping[str, 'Meta']):
         with self.unfold(df) as sub_df:
             for child in self.children:
                 child.extract(sub_df)
+        self.num_rows = len(df)
         self._extracted = True
         return self
 
@@ -98,7 +99,8 @@ class Meta(Mapping[str, 'Meta']):
         d = {
             "name": self.name,
             "class_name": self.__class__.__name__,
-            "extracted": self._extracted
+            "extracted": self._extracted,
+            "num_rows": self.num_rows
         }
 
         if len(self.children) > 0:
@@ -137,7 +139,7 @@ class Meta(Mapping[str, 'Meta']):
         return meta
 
     @classmethod
-    def from_name_and_dict(cls, class_name: str, d: Dict[str, object]) -> 'Meta':
+    def from_name_and_dict(cls: Type[MetaType], class_name: str, d: Dict[str, object]) -> MetaType:
         """
         Construct a Meta from a meta class name and a dictionary.
 
