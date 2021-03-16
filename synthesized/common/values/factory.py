@@ -1,6 +1,6 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence
 
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
@@ -44,13 +44,7 @@ class ValueFactory:
         """
         values: Dict[str, Value] = dict()
         for name, value_meta in df_meta.items():
-            nan_values: List[CategoricalValue] = []
-            if isinstance(value_meta, AssociatedHistogram):
-                nan_values = [v for v in [self._build_nan(vm) for vm in value_meta.children] if v is not None]
-            elif isinstance(value_meta, DiscreteModel) or isinstance(value_meta, ContinuousModel):
-                nv = self._build_nan(value_meta)
-                nan_values = [nv] if nv is not None else []
-
+            nan_values = self._build_nan(value_meta)
             for nan_value in nan_values:
                 values[f"{nan_value.name}"] = nan_value
 
@@ -90,17 +84,24 @@ class ValueFactory:
         else:
             raise ValueError("Bad Nominal Value Meta")
 
-    def _build_nan(self, value_meta: Union[DiscreteModel, ContinuousModel]) -> Optional[CategoricalValue]:
-        """ builds a nan_value from a value_meta if needed else returns None"""
+    def _build_nan(self, value_meta: Model) -> Sequence[CategoricalValue]:
+        """ builds a list of nan_values from a value_meta if needed else returns None"""
+        if isinstance(value_meta, AssociatedHistogram):
+            nans: List[CategoricalValue] = []
+            for vm in value_meta.children:
+                nans.extend(self._build_nan(vm))
+            return nans
+        elif isinstance(value_meta, ContinuousModel) or isinstance(value_meta, DiscreteModel):
+            if value_meta.nan_freq is None or value_meta.nan_freq == 0:
+                return []
 
-        if value_meta.nan_freq is None or value_meta.nan_freq == 0:
-            return None
+            nan_value = CategoricalValue(
+                name=f"{value_meta.name}_nan", num_categories=2,
+                config=self.config.categorical_config
+            )
+            return [nan_value]
 
-        nan_value = CategoricalValue(
-            name=f"{value_meta.name}_nan", num_categories=2,
-            config=self.config.categorical_config
-        )
-        return nan_value
+        return []
 
 
 class ValueExtractor(ValueFactory):
