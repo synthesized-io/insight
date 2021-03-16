@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Dict, cast
+from typing import Dict, Optional, Sequence, cast
 
 import pandas as pd
 
@@ -16,7 +16,7 @@ class OrderedString(Ordinal[str]):
         super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     def extract(self, df: pd.DataFrame) -> 'OrderedString':
-        if self.categories is None:
+        if self._categories is None:
             if isinstance(df[self.name].dtype, pd.CategoricalDtype) and df[self.name].cat.ordered:
                 self.categories = df[self.name].cat.categories.to_list()
             else:

@@ -19,7 +19,7 @@ from ..common.synthesizer import Synthesizer
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
-from ..metadata_new import Affine, Nominal
+from ..model import ContinuousModel, DiscreteModel
 from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,9 @@ class UtilityTesting:
 
         for name, meta in self.df_models.items():
             if meta.dtype != 'M8[ns]':
-                if isinstance(meta, Affine):
+                if isinstance(meta, ContinuousModel):
                     self.continuous.append(name)
-                elif isinstance(meta, Nominal):
+                elif isinstance(meta, DiscreteModel):
                     self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 

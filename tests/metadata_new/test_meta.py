@@ -9,6 +9,16 @@ from .dataframes import MetaTestData
 logger = logging.getLogger(__name__)
 
 
+def reset_meta(meta: Meta):
+    children = meta.children
+    if len(children) > 0:
+        for child in children:
+            reset_meta(child)
+        meta.__init__(name=meta.name, children=children)  # type: ignore
+    else:
+        meta.__init__(name=meta.name)  # type: ignore
+
+
 class TestMeta(MetaTestData):
     """Test set for testing the base Meta class.
 
@@ -23,8 +33,8 @@ class TestMeta(MetaTestData):
         - serialisation
     """
     @pytest.fixture(scope='class')
-    def meta(self, name) -> 'Meta':
-        meta = Meta(name=name)
+    def meta(self, name) -> Meta:
+        meta: Meta = Meta(name=name)
         return meta
 
     def test_name(self, meta, name):
@@ -38,7 +48,7 @@ class TestMeta(MetaTestData):
         meta.extract(df)
         assert dataframe.equals(df)
         yield meta
-        meta.__init__(name=meta.name)
+        reset_meta(meta)
 
     def test_extract(self, extracted_meta, dataframe):
         assert extracted_meta._extracted

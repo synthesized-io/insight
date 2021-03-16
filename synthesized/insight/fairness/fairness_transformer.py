@@ -6,7 +6,7 @@ import pandas as pd
 from ...metadata_new import DataFrameMeta, Scale, ValueMeta
 from ...metadata_new.factory import MetaExtractor
 from ...metadata_new.value import DateTime
-from ...model import ContinuousModel
+from ...model import ContinuousModel, DataFrameModel
 from ...model.factory import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer
 
@@ -28,7 +28,7 @@ class FairnessTransformer(SequentialTransformer):
     """
 
     def __init__(self, sensitive_attrs: List[str], target: str, df_meta: Optional[DataFrameMeta] = None,
-                 df_models: DataFrameMeta = None, n_bins: int = 5, target_n_bins: Optional[int] = 5,
+                 df_models: DataFrameModel = None, n_bins: int = 5, target_n_bins: Optional[int] = 5,
                  positive_class: Optional[str] = None):
 
         self.df_meta = df_meta
@@ -54,7 +54,6 @@ class FairnessTransformer(SequentialTransformer):
 
         if self.df_models is None:
             models = ModelFactory()(self.df_meta)
-            assert isinstance(models, DataFrameMeta)
             self.df_models = models
 
         # Transformer for target column

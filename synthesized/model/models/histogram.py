@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, Type, Union, cast
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,10 +8,12 @@ import seaborn as sns
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new import Affine, AType, ExtractionError, MetaNotExtractedError, Nominal, NType
+from ...metadata_new import Affine, AType, ExtractionError, Nominal, NType, SType
+
+HistogramType = TypeVar('HistogramType', bound='Histogram')
 
 
-class Histogram(DiscreteModel[NType], Generic[NType]):
+class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
     """A Histogram used to model a discrete variable
 
     Attributes:
@@ -22,19 +24,73 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
-            probabilities: Optional[Dict[NType, float]] = None, num_rows: Optional[int] = None
+            self, meta: Nominal[NType], probabilities: Optional[Dict[NType, float]] = None,
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
-        if self.categories is not None:
-            self._extracted = True
-        self.probabilities: Optional[Dict[NType, float]] = probabilities
-        if self.probabilities is not None:
+        super().__init__(meta=meta)  # type: ignore
+        self._probabilities: Optional[Dict[NType, float]] = probabilities
+
+        if probabilities is not None:
             self._fitted = True
 
-    def fit(self: 'Histogram[NType]', df: pd.DataFrame) -> 'Histogram[NType]':
+    @property
+    def probabilities(self) -> Dict[NType, float]:
+        if self._probabilities is None:
+            raise ModelNotFittedError
+        return self._probabilities
+
+    @probabilities.setter
+    def probabilities(self, probs: Dict[NType, float]) -> None:
+        self._probabilities = probs
+
+    @property
+    def dtype(self) -> str:
+        if self.bin_width is not None:
+            return f"interval[{self._meta.dtype}]"
+        else:
+            return self._meta.dtype
+
+    @property
+    def bin_width(self) -> Union[None, SType]:
+        if len(self._meta.categories) < 2:
+            return None
+
+        if not isinstance(self._meta, Affine):
+            return None
+        mn, mx = self._meta.min, self._meta.max
+
+        if mn is None or mx is None:
+            return None
+
+        bin_width: SType = self._meta.unit_meta.precision
+        smallest_diff: SType = np.diff(self._meta.categories).min()
+
+        if bin_width > smallest_diff and bin_width.astype(np.float64) > 0:
+            return bin_width
+
+        return None
+
+    @property
+    def categories(self) -> Union[Sequence[NType], Sequence[pd.IntervalDtype]]:
+        bin_width = self.bin_width
+
+        if isinstance(self._meta, Affine) and bin_width is not None:
+            assert self._meta.min is not None and self._meta.max is not None
+            rng = self._meta.max - self._meta.min
+            # makes sure we include the max
+            rng_max = self._meta.max + bin_width if (rng % bin_width).item() != 0 else self._meta.max
+            categories: Union[Sequence[NType], Sequence[pd.IntervalDtype[NType]]] = pd.interval_range(
+                self._meta.min, rng_max, freq=bin_width.item(), closed='left'  # type: ignore
+            )
+        else:
+            categories = self._meta.categories
+
+        return categories
+
+    def fit(self: HistogramType, df: pd.DataFrame) -> HistogramType:
         super().fit(df=df)
-        assert self.categories is not None
+        if len(self.categories) == 0:
+            self.probabilities = {}
+
         if isinstance(self.categories, pd.IntervalIndex):
             cut = pd.cut(df[self.name], bins=self.categories)
             value_counts = pd.value_counts(cut, normalize=True, dropna=True, sort=False)
@@ -42,13 +98,10 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             value_counts = pd.value_counts(df[self.name], normalize=True, dropna=True, sort=False)
 
         self.probabilities = {cat: value_counts.get(cat, 0.0) for cat in self.categories}
+
         return self
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        if not self._fitted:
-            raise ModelNotFittedError
-
-        assert self.probabilities is not None
         df = pd.DataFrame(
             {self.name: np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])})
 
@@ -58,17 +111,8 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
         return df
 
     def probability(self, x: Any) -> float:
-        if not self._extracted:
-            raise MetaNotExtractedError
-        if not self._fitted:
-            raise ModelNotFittedError
-
-        self.probabilities = cast(Dict[NType, float], self.probabilities)
-
-        if x is None:
-            return cast(float, self.nan_freq)
-
-        x = cast(NType, x)
+        if x is None and self.nan_freq is not None:
+            return self.nan_freq
 
         if x in self.probabilities:
             prob: float = self.probabilities[x]
@@ -80,9 +124,19 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "probabilities": self.probabilities
+            "probabilities": self._probabilities
         })
+
         return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'Histogram':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Nominal[NType].from_dict(meta_dict)
+        model = cls(meta=meta, probabilities=cast(Optional[Dict[NType, float]], d["probabilities"]))
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
 
     @classmethod
     def bin_affine_meta(cls, meta: Affine[AType], max_bins: int = 20) -> 'Histogram[pd.IntervalDtype[AType]]':
@@ -108,47 +162,15 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
             norm = meta.integrate(meta.min, meta.max)
             probabilities: Optional[Dict[AType, float]] = {
                 c: meta.integrate(np.array(c.left, dtype=meta.dtype), np.array(c.right, dtype=meta.dtype)) / norm
+
                 for c in categories
             }
         else:
             probabilities = None
 
-        hist = Histogram(name=meta.name, categories=categories, nan_freq=meta.nan_freq, probabilities=probabilities)
-        hist.dtype = dtype
-
-        return hist
-
-    @classmethod
-    def from_meta(cls: Type['Histogram'], meta: Nominal[NType]) -> 'Union[Histogram[NType], Histogram[pd.IntervalDtype[AType]]]':
-        dtype = meta.dtype
-        probabilities = None
-        categories: Union[None, Sequence, pd.IntervalIndex] = meta.categories
-
-        if isinstance(meta, Affine) and meta.max is not None and meta.min is not None and meta.max != meta.min:
-            rng = meta.max - meta.min
-            bin_width = meta.unit_meta.precision
-            smallest_diff = np.diff(meta.categories).min()
-
-            if bin_width > smallest_diff:
-                try:
-                    rng / bin_width
-                    rng_max = meta.max + bin_width if (rng % bin_width).item() != 0 else meta.max  # makes sure we include the max
-                    categories = cast(pd.IntervalIndex, pd.interval_range(
-                        meta.min, rng_max, freq=bin_width.item(), closed='left'
-                    ))
-                    dtype = str(categories.dtype)  # TODO: find way for 'interval[M8[D]]' instead of 'interval[M8[ns]]'
-                    if isinstance(meta, KernelDensityEstimate) and meta._fitted:
-                        norm = meta.integrate(categories.left[0], categories.right[-1])
-                        probabilities = {
-                            c: meta.integrate(c.left.to_numpy(), c.right.to_numpy()) / norm
-                            for c in categories
-                        }
-                except ZeroDivisionError:
-                    pass
-
-        hist = cls(name=meta.name, categories=categories, nan_freq=meta.nan_freq,
-                   probabilities=probabilities, num_rows=meta.num_rows)
-        hist.dtype = dtype
+        binned_meta = Nominal(meta.name, categories=categories, nan_freq=meta.nan_freq, num_rows=meta.num_rows)
+        binned_meta.dtype = dtype
+        hist = Histogram(meta=binned_meta, probabilities=probabilities)
 
         return hist
 
@@ -159,11 +181,13 @@ class Histogram(DiscreteModel[NType], Generic[NType]):
 
         plot_data = pd.DataFrame({
             self.name: self.categories,
-            'probability': [self.probability(c) for c in self.categories] if self.categories is not None else None
+            'probability': [self.probability(c) for c in self.categories]
         })
         sns.barplot(data=plot_data, x=self.name, y='probability', ax=fig.gca())
+
         for tick in fig.gca().get_xticklabels():
             tick.set_rotation(90)
 
         np.datetime64()
+
         return fig

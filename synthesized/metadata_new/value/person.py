@@ -1,9 +1,11 @@
 from dataclasses import asdict
-from typing import Dict, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Type, cast
 
+import numpy as np
 import pandas as pd
 
 from .categorical import String
+from ..base import ValueMeta
 from ...config import PersonLabels
 
 
@@ -11,19 +13,27 @@ class Person(String):
     """Person meta."""
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
-        self._params = {k: v for k, v in asdict(labels).items() if v is not None}
+        columns = [c for c in labels.__dict__.values() if c is not None]
+        if all([c is None for c in columns]):
+            raise ValueError("At least one of labels must be given")
+        if name in columns:
+            raise ValueError("Value of 'name' can't be equal to any other label.")
+        if len(columns) > len(np.unique(columns)):
+            raise ValueError("There can't be any duplicated labels.")
 
-        self.children = [
+        self._params = {k: v for k, v in asdict(labels).items() if v is not None}
+        children = [
             String(name)
             for name in self._params.values() if name is not None
-        ]
+        ] if children is None else children
+        super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     @property
-    def params(self) -> Dict[str, Optional[str]]:
+    def params(self) -> Dict[str, str]:
         return self._params
 
     @property
@@ -54,3 +64,26 @@ class Person(String):
             "_params": self.params
         })
         return d
+
+    @classmethod
+    def from_dict(cls: Type['Person'], d: Dict[str, object]) -> 'Person':
+        name = cast(str, d["name"])
+        d.pop("class_name", None)
+        params = cast(Dict[str, str], d.pop("_params"))
+        labels = PersonLabels(**params)
+
+        extracted = d.pop("extracted", False)
+        children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
+        if children is not None:
+            meta_children: List[ValueMeta] = []
+            for child in children.values():
+                class_name = cast(str, child['class_name'])
+                meta_children.append(ValueMeta.from_name_and_dict(class_name, child))
+
+        meta = cls(name=name, children=meta_children, labels=labels)
+        for attr, value in d.items():
+            setattr(meta, attr, value)
+
+        setattr(meta, '_extracted', extracted)
+
+        return meta

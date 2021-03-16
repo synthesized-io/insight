@@ -7,12 +7,11 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common.values import ContinuousValue, DateValue
-from synthesized.config import AddressLabels, BankLabels, PersonLabels
+from synthesized.common.values import DateValue
 from synthesized.metadata_new import DataFrameMeta
 from synthesized.metadata_new.meta_builder import MetaExtractor
-from synthesized.metadata_new.model import KernelDensityEstimate
-from synthesized.metadata_new.value import Address, Bank, Float, FormattedString, Integer, Person, String
+from synthesized.metadata_new.value import Float, Integer, String
+from synthesized.model.models import Histogram, KernelDensityEstimate
 from tests.utils import progress_bar_testing
 
 
@@ -172,11 +171,24 @@ def test_inf_not_producing():
 
 @pytest.mark.slow
 def test_type_overrides():
-    r = np.random.normal(loc=10, scale=2, size=1000)
-    df_original = pd.DataFrame({'r': list(map(int, r))})
+    n = 1000
+    df_original = pd.DataFrame({
+        'r1': np.random.randint(1, 5, size=n),
+        'r2': np.random.randint(1, 5, size=n),
+    })
+
     df_meta = MetaExtractor.extract(df=df_original)
-    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=[KernelDensityEstimate.from_meta(df_meta['r'])])
-    assert type(synthesizer.df_value['r']) == ContinuousValue
+
+    type_overrides = [
+        KernelDensityEstimate(df_meta["r1"]),
+        Histogram(df_meta["r2"])
+    ]
+
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=type_overrides)
+    synthesizer.learn(df_original, num_iterations=10)
+
+    assert isinstance(synthesizer.df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer.df_model['r2'], Histogram)
 
 
 @pytest.mark.slow
@@ -222,37 +234,4 @@ def test_encode_deterministic():
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
     df_synthesized = synthesizer.encode_deterministic(df_original)
-    assert df_synthesized.shape == df_original.shape
-
-
-def test_synthesis_w_annotations():
-    n = 1000
-    df_original = pd.DataFrame({
-        'x': np.random.normal(size=n),
-        'y': np.random.choice(['a', 'b', 'c'], size=n),
-        'sample': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
-        'bic': [''.join([random.choice(string.ascii_letters) for _ in range(4)]) for _ in range(n)],
-        'sort_code': [''.join([random.choice(string.ascii_letters) for _ in range(6)]) for _ in range(n)],
-        'account': [''.join([random.choice(string.digits) for _ in range(6)]) for _ in range(n)],
-        'gender': np.random.choice(['m', 'f', 'u'], size=n),
-        'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n),
-        'name': ['test_name'] * n,
-        'email': ['test_name@email.com'] * n,
-        'postcode': np.random.choice(['NW5 2JN', 'RG1 0GN', 'YO31 1MR', 'BD1 0WN'], size=n),
-        'street': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
-        'building_number': [''.join([random.choice(string.digits) for _ in range(3)]) for _ in range(n)],
-    })
-    annotations=[
-        FormattedString(name='sample', pattern='[A-Za-z]{10}'),
-        Bank(name='bank', labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account')),
-        Person(name='person', labels=PersonLabels(gender_label='gender', title_label='title',
-                                                  firstname_label='name', email_label='email')),
-        Address(name='address', labels=AddressLabels(postcode_label='postcode', street_label='street',
-                                                     house_number_label='building_number')),
-    ]
-
-    df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
-    synthesizer.learn(num_iterations=10, df_train=df_original)
-    df_synthesized = synthesizer.synthesize(n)
     assert df_synthesized.shape == df_original.shape

@@ -17,6 +17,7 @@ IntBoolData        |  'i8'
 AddressData        |  addresses
 BankData           |  bank accounts
 PersonData         |  persons
+AssociatedData     |
 """
 import numpy as np
 import pandas as pd
@@ -305,3 +306,22 @@ class AnnotatedDataFrameData(MetaTestData):
                 "London|Euston Road|1",
             ], dtype=str
         )})
+
+
+class AssociatedData(MetaTestData):
+    @pytest.fixture(scope='class')
+    def dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            's1': pd.Series(['a', 'a', 'b', 'b', 'c', 'c'], dtype=object),
+            's2': pd.Series(['a', 'b', 'b', 'c', 'b', 'c'], dtype=object)
+        })
+
+    @pytest.fixture(scope='class')
+    def child_names(self, dataframe):
+        return [col for col in dataframe.columns]
+
+    @pytest.fixture(scope='class')
+    def binding_mask(self):
+        return np.array([[1, 1, 0],
+                         [0, 1, 1],
+                         [0, 1, 1]], dtype=np.int64)

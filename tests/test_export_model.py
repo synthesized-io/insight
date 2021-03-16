@@ -8,10 +8,10 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common.values import ContinuousValue
+from synthesized.common.values import CategoricalValue, ContinuousValue
 from synthesized.config import HighDimConfig
 from synthesized.metadata_new.factory import MetaExtractor
-from synthesized.metadata_new.model import KernelDensityEstimate
+from synthesized.model.models import Histogram, KernelDensityEstimate
 
 atol = 0.05
 
@@ -95,12 +95,24 @@ def test_nan_producing():
 
 @pytest.mark.slow
 def test_type_overrides():
-    r = np.random.normal(loc=10, scale=2, size=1000)
-    df_original = pd.DataFrame({'r': list(map(int, r))})
+    n = 1000
+    df_original = pd.DataFrame({
+        'r1': np.random.randint(1, 5, size=n),
+        'r2': np.random.randint(1, 5, size=n),
+    })
+
     df_meta = MetaExtractor.extract(df=df_original)
-    r_override = KernelDensityEstimate.from_meta(df_meta['r'])
-    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=[r_override])
-    synthesizer.learn(num_iterations=10, df_train=df_original)
+
+    type_overrides = [
+        KernelDensityEstimate(df_meta["r1"]),
+        Histogram(df_meta["r2"])
+    ]
+
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=type_overrides)
+    synthesizer.learn(df_original, num_iterations=10)
+
+    assert isinstance(synthesizer.df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer.df_model['r2'], Histogram)
 
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
@@ -112,4 +124,7 @@ def test_type_overrides():
         synthesizer2 = HighDimSynthesizer.import_model(f)
     shutil.rmtree(temp_dir)
 
-    assert isinstance(synthesizer2.df_value['r'], ContinuousValue)
+    assert isinstance(synthesizer2.df_value['r1'], ContinuousValue)
+    assert isinstance(synthesizer2.df_value['r1'], CategoricalValue)
+    assert isinstance(synthesizer2.df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer2.df_model['r2'], Histogram)

@@ -1,10 +1,11 @@
 from functools import cmp_to_key
-from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
+from typing import Any, Dict, Generic, Mapping, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
 
 from .meta import Meta
+from ..exceptions import MetaNotExtractedError
 
 DType = TypeVar('DType', covariant=True)
 NType = TypeVar("NType", str, np.datetime64, np.timedelta64, np.int64, np.float64, np.bool8, covariant=True)
@@ -13,7 +14,7 @@ AType = TypeVar("AType", np.datetime64, np.timedelta64, np.int64, np.float64, co
 SType = TypeVar("SType", np.timedelta64, np.int64, np.float64, covariant=True)
 RType = TypeVar("RType", np.int64, np.float64, covariant=True)
 
-ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any]')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any, Any]')
 NominalType = TypeVar('NominalType', bound='Nominal[Any]')
 OrdinalType = TypeVar('OrdinalType', bound='Ordinal[Any]')
 AffineType = TypeVar('AffineType', bound='Affine[Any]')
@@ -21,7 +22,7 @@ ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
 RingType = TypeVar('RingType', bound='Ring[Any]')
 
 
-class ValueMeta(Meta, Generic[DType]):
+class ValueMeta(Meta[ValueMetaType], Mapping[str, 'ValueMeta'], Generic[ValueMetaType, DType]):
     """
     Base class for meta information that describes a pandas series.
 
@@ -32,16 +33,16 @@ class ValueMeta(Meta, Generic[DType]):
         name: The pd.Series name that this ValueMeta describes.
         dtype: Optional; The numpy dtype that this meta describes.
     """
-    dtype: Optional[str] = None
+    dtype: str = 'object'
 
-    def __init__(self, name: str):
-        super().__init__(name=name)
+    def __init__(self, name: str, children: Optional[Sequence[ValueMetaType]] = None, num_rows: Optional[int] = None):
+        super().__init__(name=name, children=children, num_rows=num_rows)
 
     def __repr__(self) -> str:
         return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
-class Nominal(ValueMeta[NType], Generic[NType]):
+class Nominal(ValueMeta[ValueMeta, NType], Generic[NType]):
     """
     Nominal meta.
 
@@ -55,36 +56,43 @@ class Nominal(ValueMeta[NType], Generic[NType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):
-        super().__init__(name=name)
-        self.categories: Optional[Sequence[NType]] = categories
+        super().__init__(name=name, children=children, num_rows=num_rows)
+        self._categories: Optional[Sequence[NType]] = categories
         self.nan_freq = nan_freq
-        self.num_rows = num_rows
+
+    @property
+    def categories(self) -> Sequence[NType]:
+        if self._categories is None:
+            raise MetaNotExtractedError
+
+        return [c for c in self._categories]
+
+    @categories.setter
+    def categories(self, c: Sequence[NType]) -> None:
+        self._categories = c
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
         super().extract(df)
         # Consider inf/-inf as nan
         df = df.copy().replace([np.inf, -np.inf], np.nan)
-        if self.categories is None:
+        if self._categories is None:
             self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df) if len(df) > 0 else 0
-
-        if self.num_rows is None:
-            self.num_rows = len(df)
 
         return self
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "num_rows": self.num_rows,
             "nan_freq": self.nan_freq,
-            "categories": [c for c in self.categories] if self.categories is not None else None
+            "categories": [c for c in self._categories] if self._categories is not None else None
         })
 
         return d
@@ -107,18 +115,18 @@ class Ordinal(Nominal[OType], Generic[OType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[OType]] = None, nan_freq: Optional[float] = None,
             min: Optional[OType] = None, max: Optional[OType] = None, num_rows: Optional[int] = None
 
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
+        super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)  # type: ignore
         self._min: Optional[OType] = min
         self._max: Optional[OType] = max
 
     def extract(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
         df = df.copy().replace('', np.nan)
         super().extract(df)
-        assert self.categories is not None
         self.categories = self.sort(self.categories)
 
         if len(self.categories) > 0:
@@ -150,6 +158,9 @@ class Ordinal(Nominal[OType], Generic[OType]):
 
     def sort(self, sr: Sequence[OType]) -> Sequence[OType]:
         """Sort pd.Series according to the ordering of this meta"""
+        if len(sr) == 0:
+            return sr
+
         key = cmp_to_key(self._predicate)
         return sorted(sr, key=key, reverse=True)
 
@@ -159,8 +170,8 @@ class Ordinal(Nominal[OType], Generic[OType]):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "_max": self.max,
-            "_min": self.min
+            "_max": self._max,
+            "_min": self._min
         })
 
         return d
@@ -182,12 +193,13 @@ class Affine(Ordinal[AType], Generic[AType]):
     """
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
             min: Optional[AType] = None, max: Optional[AType] = None, num_rows: Optional[int] = None,
             unit_meta: Optional['Scale'] = None
     ):
         super().__init__(
-            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
         self._unit_meta: Scale = Scale(name=f'{name}_unit') if unit_meta is None else unit_meta
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
@@ -202,6 +214,8 @@ class Affine(Ordinal[AType], Generic[AType]):
         return f'<Affine[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
     def sort(self, sr: Sequence[AType]) -> Sequence[AType]:
+        if len(sr) == 0:
+            return sr
         return list(np.sort(sr))
 
 
@@ -220,13 +234,14 @@ class Scale(Affine[SType], Generic[SType]):
     precision: SType
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[SType]] = None, nan_freq: Optional[float] = None,
             min: Optional[SType] = None, max: Optional[SType] = None, num_rows: Optional[int] = None,
             unit_meta: Optional['Scale'] = None
     ):
         super().__init__(
-            name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,
-            unit_meta=unit_meta if unit_meta is not None else self
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
+            min=min, max=max, unit_meta=unit_meta if unit_meta is not None else self
         )
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
@@ -241,10 +256,14 @@ class Scale(Affine[SType], Generic[SType]):
 class Ring(Scale[RType], Generic[RType]):
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[RType]] = None, nan_freq: Optional[float] = None,
             min: Optional[RType] = None, max: Optional[RType] = None, num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        super().__init__(
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
+            min=min, max=max
+        )
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)

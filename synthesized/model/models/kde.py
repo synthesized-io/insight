@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Optional, Sequence, Type, cast
+from typing import Any, Dict, Generic, Optional, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,26 +8,29 @@ from scipy.stats import gaussian_kde
 
 from ..base import ContinuousModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new import Affine, AType, MetaNotExtractedError, Scale
+from ...metadata_new import Affine, AType, Scale
 
 
-class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
+class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType]):
 
-    def __init__(
-            self, name: str, categories: Optional[Sequence[AType]] = None, nan_freq: Optional[float] = None,
-            min: Optional[AType] = None, max: Optional[AType] = None, unit_meta=None
-    ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, min=min, max=max)  # type: ignore
+    def __init__(self, meta: Affine[AType]):
+        super().__init__(meta=meta)  # type: ignore
         self._kernel: Optional[gaussian_kde] = None
-        self._unit_meta = unit_meta
-        self._extracted = True
+
+    @property
+    def min(self) -> Optional[AType]:
+        return self._meta.min
+
+    @property
+    def max(self) -> Optional[AType]:
+        return self._meta.max
 
     def fit(self, df: pd.DataFrame):
         super().fit(df)
-        c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
+        c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
 
         self._kernel = gaussian_kde(
-            (df[self.name].dropna().values.astype(self.dtype) - c).astype(self.kde_dtype),
+            (df[self.name].dropna().values.astype(self._meta.dtype) - c).astype(self.kde_dtype),
             bw_method='silverman'
         )
         return self
@@ -37,16 +40,17 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         dtype_map = {
             'm8[ns]': 'i8'
         }
-        if self.unit_meta.dtype is None:
+        if self._meta.unit_meta.dtype is None:
             raise ValueError
-        return dtype_map.get(self.unit_meta.dtype, self.unit_meta.dtype)
+        return dtype_map.get(self._meta.unit_meta.dtype, self._meta.unit_meta.dtype)
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        if not self._fitted:
+        if self._kernel is None:
             raise ModelNotFittedError
 
-        df = pd.DataFrame({self.name: np.squeeze(cast(gaussian_kde, self._kernel).resample(size=n)).astype(
-            self.unit_meta.dtype) + self.min})
+        c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
+        df = pd.DataFrame({self.name: np.squeeze(self._kernel.resample(size=n)).astype(
+            self._meta.unit_meta.dtype) + c})
 
         if produce_nans:
             df[self.name] = self.add_nans(df[self.name], self.nan_freq)
@@ -54,42 +58,38 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         return df
 
     def probability(self, x: Any) -> float:
-        if not self._extracted:
-            raise MetaNotExtractedError
-        if not self._fitted:
+        if self._kernel is None:
             raise ModelNotFittedError
 
         if x is None:
             return cast(float, self.nan_freq)
 
-        c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
+        c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
         x = (x - c).astype(self.kde_dtype)
 
         if self.kde_dtype == 'i8':
-            half_win = self.unit_meta.precision.astype(self.kde_dtype) / 2
+            half_win = self._meta.unit_meta.precision.astype(self.kde_dtype) / 2
             if not np.isscalar(x):
-                prob = np.array([cast(gaussian_kde, self._kernel).integrate_box_1d(low=y - half_win, high=y + half_win) for y in x])
+                prob = np.array([self._kernel.integrate_box_1d(low=y - half_win, high=y + half_win) for y in x])
             else:
-                prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=(x - half_win), high=x + half_win)
+                prob = self._kernel.integrate_box_1d(low=(x - half_win), high=x + half_win)
         else:
-            prob = cast(gaussian_kde, self._kernel)(x)
+            prob = self._kernel(x)
 
         return prob
 
     def integrate(self, low: Any, high: Any) -> float:
-        if not self._extracted:
-            raise MetaNotExtractedError
-        if not self._fitted:
+        if self._kernel is None:
             raise ModelNotFittedError
 
-        c = self.min if self.min is not None else np.array(0, dtype=self.dtype)
-        low = np.array(low, dtype=self.dtype)
-        high = np.array(high, dtype=self.dtype)
+        c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
+        low = np.array(low, dtype=self._meta.dtype)
+        high = np.array(high, dtype=self._meta.dtype)
 
         low = np.array(low - c, dtype=self.kde_dtype).item()
         high = np.array(high - c, dtype=self.kde_dtype).item()
 
-        prob = cast(gaussian_kde, self._kernel).integrate_box_1d(low=low, high=high)
+        prob = self._kernel.integrate_box_1d(low=low, high=high)
 
         return prob
 
@@ -97,19 +97,9 @@ class KernelDensityEstimate(ContinuousModel[AType], Generic[AType]):
         d = super().to_dict()
         return d
 
-    @classmethod
-    def from_meta(cls: Type['KernelDensityEstimate'], meta: Affine[AType]) -> 'KernelDensityEstimate[AType]':
-        kde = cls(
-            name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, min=meta.min, max=meta.max,
-            unit_meta=meta.unit_meta
-        )
-        kde.dtype = meta.dtype
-
-        return kde
-
     @property
     def unit_meta(self) -> 'Scale[Any]':
-        return self._unit_meta
+        return self._meta._unit_meta
 
     def plot(self, kde_grid_num=100, **kwargs) -> plt.Figure:
         if self.max is None or self.min is None:

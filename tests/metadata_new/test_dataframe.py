@@ -53,8 +53,10 @@ class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
         meta['city'] = city
 
         meta.annotate(
-            Address('address', labels=AddressLabels(house_number_label='house_number',
-                                                    street_label='street', city_label='city'))
+            Address(
+                'address', children=[city, street, number],
+                labels=AddressLabels(house_number_label='house_number', street_label='street', city_label='city')
+            )
         )
         return meta
 
