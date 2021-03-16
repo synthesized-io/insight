@@ -48,7 +48,7 @@ def test_date_kde_extraction():
 
 def test_associated_value_extraction():
     metas = [Integer(name=str(i), categories=[0, 1], nan_freq=0.1) for i in range(2)]
-    meta = AssociatedCategorical(name="associated", associated_metas=metas, binding_mask=np.ones((2, 2)))
+    meta = AssociatedCategorical(name="associated", children=metas, binding_mask=np.ones((2, 2)))
     model = AssociatedHistogram(meta=meta)
     df_value = extract_value_from_model(model)
 
