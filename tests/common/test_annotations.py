@@ -36,7 +36,7 @@ def test_synthesis_w_annotations():
         'postcode2': np.random.choice(['NW5 2JN', 'RG1 0GN', 'YO31 1MR', 'BD1 0WN'], size=n),
         'street2': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(n)],
     })
-    annotations=[
+    annotations = [
         FormattedString(name='sample', pattern='[A-Za-z]{10}'),
         FormattedString(name='sample2', pattern='[A-Za-z]{5}'),
         Bank(name='bank', labels=BankLabels(bic_label='bic', sort_code_label='sort_code', account_label='account')),
@@ -70,16 +70,16 @@ def test_annotations_all():
             email_label='Email address',
             mobile_number_label='Mobile No.',
             username_label='username',
-            password_label='password',
-    ))
-
+            password_label='password'
+        )
+    )
     bank = Bank(
         name='bank',
-            labels=BankLabels(
+        labels=BankLabels(
             sort_code_label='Sort code',
             account_label='Bank Account Number',
-    ))
-
+        )
+    )
     address = Address(
         name='address',
         labels=AddressLabels(
@@ -90,7 +90,8 @@ def test_annotations_all():
             flat_label='FLAT',
             house_name_label='HOUSENAME',
             full_address_label='Full Address',
-    ))
+        )
+    )
 
     pa_address = Address(
         name='pa_address',
@@ -101,7 +102,8 @@ def test_annotations_all():
             street_label='PA_STREET',
             flat_label='PA_FLAT',
             house_name_label='PA_HOUSENAME',
-    ))
+        )
+    )
 
     county = FormattedString(
         name='COUNTY',
@@ -113,7 +115,7 @@ def test_annotations_all():
         pattern='[A-Z][a-z]{8,15}'
     )
 
-    annotations=[person, bank, address, county, pa_district]
+    annotations = [person, bank, address, pa_address, county, pa_district]
 
     df_meta = MetaExtractor.extract(
         df=data,
@@ -124,9 +126,8 @@ def test_annotations_all():
     synthesizer.learn(df_train=data, num_iterations=10)
     df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
-    # TODO: fix encode for annotations (ML-254)
-    # _ = synthesizer.encode(data)
-    # _ = synthesizer.encode_deterministic(data)
+    _ = synthesizer.encode(data)
+    _ = synthesizer.encode_deterministic(data)
 
     assert df_synthesized.shape == data.shape
 
@@ -137,6 +138,6 @@ def test_annotations_all():
 
     # f.seek(0)
     # synthesizer2 = HighDimSynthesizer.import_model(f)
-    # df_synthesized2 = synthesizer.synthesize(num_rows=len(data))
+    # df_synthesized2 = synthesizer2.synthesize(num_rows=len(data))
 
     # assert df_synthesized2.shape == data.shape
