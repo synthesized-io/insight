@@ -6,10 +6,10 @@ import rstr
 
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new.value import FormattedString
+from ...metadata_new.value import FormattedString, String
 
 
-class FormattedStringModel(FormattedString, DiscreteModel[str]):
+class FormattedStringModel(DiscreteModel[FormattedString, str]):
     """A model to sample formatted strings from a regex pattern.
 
     Attributes:
@@ -20,14 +20,22 @@ class FormattedStringModel(FormattedString, DiscreteModel[str]):
 
     """
 
-    def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            pattern: str = None
-    ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, pattern=pattern)
+    def __init__(self, meta: FormattedString):
+        super().__init__(meta=meta)
 
-        if nan_freq is not None:
+        if self.nan_freq is not None:
             self._fitted = True
+
+    @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
+
+    @property
+    def pattern(self) -> Optional[str]:
+        return self._meta.pattern
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
@@ -38,37 +46,35 @@ class FormattedStringModel(FormattedString, DiscreteModel[str]):
         if produce_nans and (self.nan_freq is not None and self.nan_freq > 0):
             is_nan = np.random.binomial(1, p=self.nan_freq, size=n) == 1
             samples[is_nan] = np.nan
+
         return samples.to_frame()
 
-    @classmethod
-    def from_meta(cls, meta: FormattedString) -> 'FormattedStringModel':
-        return cls(name=meta.name, categories=meta.categories, nan_freq=meta.nan_freq, pattern=meta.pattern)
 
-
-class SequentialFormattedString(DiscreteModel[str]):
+class SequentialFormattedString(DiscreteModel[String, str]):
     """A model to sample formatted sequential numeric identifiers with an optional suffix or prefix.
 
     Attributes:
-        name (str): The name of the data column to model.
-        categories (MutableSequence[NType]): A list of the categories.
-        probabilities (Dict[NType, float]): A mapping of each of the categories to a probability.
         length (int): The length of the numeric identifier. Numbers are zero padded up to this length.
         prefix (str): The prefix of the identifier.
         suffix (str): The suffix of the identifier.
 
     """
 
-    def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
-            length: int = None, prefix: str = None, suffix: str = None
-    ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq)
+    def __init__(self, meta: String, length: int = None, prefix: str = None, suffix: str = None):
+        super().__init__(meta=meta)
         self.length = length
         self.prefix = prefix
         self.suffix = suffix
 
-        if nan_freq is not None:
+        if self._meta.nan_freq is not None:
             self._fitted = True
+
+    @property
+    def categories(self) -> Sequence[str]:
+        if self._meta.categories is None:
+            raise ModelNotFittedError
+
+        return self._meta.categories
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
@@ -76,8 +82,10 @@ class SequentialFormattedString(DiscreteModel[str]):
 
         samples = pd.Series(np.arange(0, n), name=self.name, dtype=str)
         samples = samples.str.zfill(self.length)
+
         if self.prefix is not None:
             samples = self.prefix + samples
+
         if self.suffix is not None:
             samples = samples + self.suffix
 

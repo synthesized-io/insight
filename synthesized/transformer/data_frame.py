@@ -6,6 +6,7 @@ import pandas as pd
 
 from .base import BagOfTransformers, Transformer
 from ..metadata_new import DataFrameMeta
+from ..model import DataFrameModel
 
 
 class DataFrameTransformer(BagOfTransformers):
@@ -71,7 +72,7 @@ class DataFrameTransformer(BagOfTransformers):
                 df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     @classmethod
-    def from_meta(cls, meta: DataFrameMeta) -> 'DataFrameTransformer':
+    def from_meta(cls, meta: DataFrameModel) -> 'DataFrameTransformer':
         from .factory import TransformerFactory
         obj: 'DataFrameTransformer' = TransformerFactory().create_transformers(meta)  # type: ignore
         return obj

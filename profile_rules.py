@@ -1,12 +1,13 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from synthesized.highdim import HighDimSynthesizer
-from synthesized.common.values.identify_value import identify_value
-from synthesized.common.values.identify_rules import identify_rules
-
 import os
 import time
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+from synthesized.common.values.identify_rules import identify_rules
+from synthesized.common.values.identify_value import identify_value
+from synthesized.highdim import HighDimSynthesizer
 
 BASEDIR = os.path.dirname(__file__)
 
@@ -14,9 +15,9 @@ BASEDIR = os.path.dirname(__file__)
 def main():
     df = pd.read_csv(os.path.join(BASEDIR, 'data', 'credit_retired.csv'))
     train, test = train_test_split(df, test_size=0.2, random_state=0)
-    with HighDimSynthesizer(df=train, find_rules='all') as synthesizer:
-        synthesizer.learn(df_train=train, num_iterations=200)
-        synthesized = synthesizer.synthesize(num_rows=len(test))
+    synthesizer = HighDimSynthesizer(df=train, find_rules='all')
+    synthesizer.learn(df_train=train, num_iterations=200)
+    synthesized = synthesizer.synthesize(num_rows=len(test))
 
     assert (synthesized['age'] >= 65).sum() == synthesized['retired'].sum()
 

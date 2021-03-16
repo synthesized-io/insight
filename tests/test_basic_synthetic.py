@@ -21,9 +21,10 @@ def test_continuous_variable_generation():
     r = np.random.normal(loc=5000, scale=1000, size=1000)
     df_original = pd.DataFrame({'r': r})
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
 
@@ -33,9 +34,10 @@ def test_categorical_similarity_variable_generation():
     r = np.random.normal(loc=10, scale=2, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
 
@@ -45,9 +47,10 @@ def test_categorical_variable_generation():
     r = np.random.normal(loc=5, scale=1, size=1000)
     df_original = pd.DataFrame({'r': list(map(int, r))})
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+
     distribution_distance = ks_2samp(df_original['r'], df_synthesized['r'])[0]
     assert distribution_distance < 0.3
 
@@ -58,9 +61,9 @@ def test_date_variable_generation():
         'z': pd.date_range(start='01/01/1900', end='01/01/2020', periods=1000).strftime("%d/%m/%Y"),
     }).sample(frac=1.)
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
 
     assert isinstance(synthesizer.df_value['z'], DateValue)
 
@@ -80,21 +83,21 @@ def test_nan_producing():
     df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'y2'] = np.nan
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True,
-                                                progress_callback=progress_bar_testing)
-        assert df_synthesized['x1'].isna().sum() == 0
-        assert df_synthesized['y1'].isna().sum() == 0
-        assert df_synthesized['x2'].isna().sum() > 0
-        assert df_synthesized['y2'].isna().sum() > 0
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True,
+                                            progress_callback=progress_bar_testing)
+    assert df_synthesized['x1'].isna().sum() == 0
+    assert df_synthesized['y1'].isna().sum() == 0
+    assert df_synthesized['x2'].isna().sum() > 0
+    assert df_synthesized['y2'].isna().sum() > 0
 
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=False,
-                                                progress_callback=progress_bar_testing)
-        assert df_synthesized['x1'].isna().sum() == 0
-        assert df_synthesized['y1'].isna().sum() == 0
-        assert df_synthesized['x2'].isna().sum() == 0
-        assert df_synthesized['y2'].isna().sum() == 0
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=False,
+                                            progress_callback=progress_bar_testing)
+    assert df_synthesized['x1'].isna().sum() == 0
+    assert df_synthesized['y1'].isna().sum() == 0
+    assert df_synthesized['x2'].isna().sum() == 0
+    assert df_synthesized['y2'].isna().sum() == 0
 
 
 @pytest.mark.slow
@@ -112,9 +115,9 @@ def test_sampling():
     })
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
 
     assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
     assert 'sample' in synthesizer.df_model_independent
@@ -137,8 +140,8 @@ def test_sampling_nans():
         df_original['sample'])
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
 
     assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
     assert 'sample' in synthesizer.df_model_independent
@@ -161,9 +164,9 @@ def test_inf_not_producing():
     indices = np.random.choice(np.arange(r.size), replace=False, size=int(r.size * 0.1))
     df_original.iloc[indices] = -np.inf
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
     assert df_synthesized['r'].isin([np.Inf, -np.Inf]).sum() == 0
 
 
@@ -182,9 +185,9 @@ def test_encode():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
-        _, df_synthesized = synthesizer.encode(df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+    _, df_synthesized = synthesizer.encode(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
@@ -206,9 +209,9 @@ def test_encode_unlearned_meta():
     for meta in [x, y, z]:
         df_meta[meta.name] = meta
 
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-            synthesizer.learn(num_iterations=10, df_train=df_original)
-            _, df_synthesized = synthesizer.encode(df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+    _, df_synthesized = synthesizer.encode(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
@@ -217,9 +220,9 @@ def test_encode_deterministic():
     n = 1000
     df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.encode_deterministic(df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+    df_synthesized = synthesizer.encode_deterministic(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
@@ -250,7 +253,7 @@ def test_synthesis_w_annotations():
     ]
 
     df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=10, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(n)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(n)
     assert df_synthesized.shape == df_original.shape

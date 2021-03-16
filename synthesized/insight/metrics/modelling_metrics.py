@@ -17,7 +17,7 @@ from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataF
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
 from ...metadata_new import DataFrameMeta, Nominal
 from ...metadata_new.factory import MetaExtractor
-from ...model import ContinuousModel, DiscreteModel
+from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ class R2_Score(RegressionMetric):
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
                                model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
                                copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
-                               dp: DataFrameMeta = None, models: DataFrameMeta = None):
+                               dp: DataFrameMeta = None, models: DataFrameModel = None):
 
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 

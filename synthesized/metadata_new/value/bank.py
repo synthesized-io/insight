@@ -27,7 +27,7 @@ class Bank(String):
         super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     @property
-    def params(self) -> Dict[str, Optional[str]]:
+    def params(self) -> Dict[str, str]:
         return self._params
 
     @property

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Dict, Generic, Iterator, Mapping, Optional, Sequence, Type, TypeVar, cast  # noqa
+from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Sequence, Type, TypeVar, cast  # noqa
 
 import pandas as pd
 
@@ -37,9 +37,9 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     """
     class_name: str = 'Meta'
 
-    def __init__(self, name: str, children: Optional[Sequence[MetaType]] = None):
-        super().__init__()
+    def __init__(self, name: str, children: Optional[Sequence[MetaType]] = None, num_rows: Optional[int] = None):
         self.name = name
+        self.num_rows = num_rows
         self._children: Dict[str, MetaType] = {c.name: c for c in children} if children is not None else dict()
         self._extracted: bool = False
 
@@ -56,6 +56,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         with self.unfold(df) as sub_df:
             for child in self.children:
                 child.extract(sub_df)
+        self.num_rows = len(df)
         self._extracted = True
         return self
 
@@ -99,7 +100,8 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         d = {
             "name": self.name,
             "class_name": self.__class__.__name__,
-            "extracted": self._extracted
+            "extracted": self._extracted,
+            "num_rows": self.num_rows
         }
 
         if len(self.children) > 0:
@@ -121,7 +123,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
         if children is not None:
-            meta_children = []
+            meta_children: List[Meta] = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
                 meta_children.append(Meta.from_name_and_dict(class_name, child))
@@ -138,7 +140,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         return meta
 
     @classmethod
-    def from_name_and_dict(cls, class_name: str, d: Dict[str, object]) -> 'Meta':
+    def from_name_and_dict(cls: Type[MetaType], class_name: str, d: Dict[str, object]) -> MetaType:
         """
         Construct a Meta from a meta class name and a dictionary.
 
