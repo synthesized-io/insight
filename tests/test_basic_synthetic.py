@@ -181,8 +181,8 @@ def test_type_overrides():
     df_meta = MetaExtractor.extract(df=df_original)
 
     type_overrides = [
-        KernelDensityEstimate.from_meta(df_meta["r1"]),
-        Histogram.from_meta(df_meta["r2"])
+        KernelDensityEstimate(df_meta["r1"]),
+        Histogram(df_meta["r2"])
     ]
 
     synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=type_overrides)
