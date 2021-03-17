@@ -128,7 +128,7 @@ def test_annotations_all():
 
     _ = synthesizer.encode(data)
     _ = synthesizer.encode_deterministic(data)
-
+    _ = synthesizer.encode_deterministic(data, produce_nans=True)
     assert df_synthesized.shape == data.shape
 
     # TODO: fix import export for annotations (ML-255)
