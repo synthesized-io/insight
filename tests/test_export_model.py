@@ -8,7 +8,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common.values import ContinuousValue
+from synthesized.common.values import CategoricalValue, ContinuousValue
 from synthesized.config import HighDimConfig
 from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.model.models import Histogram, KernelDensityEstimate
@@ -124,5 +124,7 @@ def test_type_overrides():
         synthesizer2 = HighDimSynthesizer.import_model(f)
     shutil.rmtree(temp_dir)
 
+    assert isinstance(synthesizer2.df_value['r1'], ContinuousValue)
+    assert isinstance(synthesizer2.df_value['r2'], CategoricalValue)
     assert isinstance(synthesizer2.df_model['r1'], KernelDensityEstimate)
     assert isinstance(synthesizer2.df_model['r2'], Histogram)
