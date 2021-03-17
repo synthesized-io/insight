@@ -200,6 +200,6 @@ def test_load_data_frame_associations():
     meta_dict = df_meta.to_dict()
 
     df_meta2 = DataFrameMeta.from_dict(meta_dict)
-    meta = df_meta2.children[0]
+    meta = df_meta2["association_NumberOfTimes90DaysLate_NumberOfTime60-89DaysPastDueNotWorse"]
     assert isinstance(meta, AssociatedCategorical)
     assert meta.binding_mask is not None

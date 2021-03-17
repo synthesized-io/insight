@@ -125,6 +125,6 @@ def test_type_overrides():
     shutil.rmtree(temp_dir)
 
     assert isinstance(synthesizer2.df_value['r1'], ContinuousValue)
-    assert isinstance(synthesizer2.df_value['r1'], CategoricalValue)
+    assert isinstance(synthesizer2.df_value['r2'], CategoricalValue)
     assert isinstance(synthesizer2.df_model['r1'], KernelDensityEstimate)
     assert isinstance(synthesizer2.df_model['r2'], Histogram)

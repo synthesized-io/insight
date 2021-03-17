@@ -9,7 +9,7 @@ from scipy.stats import ks_2samp
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import DateValue
 from synthesized.metadata_new import DataFrameMeta
-from synthesized.metadata_new.meta_builder import MetaExtractor
+from synthesized.metadata_new.factory import MetaExtractor
 from synthesized.metadata_new.value import Float, Integer, String
 from synthesized.model.models import Histogram, KernelDensityEstimate
 from tests.utils import progress_bar_testing
