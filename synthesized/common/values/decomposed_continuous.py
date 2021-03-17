@@ -1,3 +1,4 @@
+"""TODO: deprecated under the current new metadata, needs updating """
 from typing import Any, Dict, Sequence
 
 import tensorflow as tf

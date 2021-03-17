@@ -27,7 +27,7 @@ def describe_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     properties = {f'num_{value}': count for value, count in value_counts.items()}
     properties['total_rows'] = len(df)
-    properties['total_columns'] = sum([n for v, n in value_counts.items() if v != 'NanValue'])
+    properties['total_columns'] = sum([n for n in value_counts.values()])
 
     return pd.DataFrame.from_records([properties]).T.reset_index().rename(columns={'index': 'property', 0: 'value'})
 
