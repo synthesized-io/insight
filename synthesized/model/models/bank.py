@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -58,3 +58,12 @@ class BankModel(DiscreteModel[Bank, str]):
                     df.loc[is_nan, c] = np.nan
 
         return df
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'BankModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Bank.from_dict(meta_dict)
+        model = cls(meta=meta)
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
