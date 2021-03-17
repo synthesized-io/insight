@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Dict, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -49,6 +49,15 @@ class FormattedStringModel(DiscreteModel[FormattedString, str]):
 
         return samples.to_frame()
 
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'FormattedStringModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = FormattedString.from_dict(meta_dict)
+        model = cls(meta=meta)
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
+
 
 class SequentialFormattedString(DiscreteModel[String, str]):
     """A model to sample formatted sequential numeric identifiers with an optional suffix or prefix.
@@ -94,3 +103,24 @@ class SequentialFormattedString(DiscreteModel[String, str]):
             samples[is_nan] = np.nan
 
         return samples.to_frame()
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "prefix": self.prefix,
+            "suffix": self.suffix,
+            "length": self.length
+        })
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'SequentialFormattedString':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = String.from_dict(meta_dict)
+        model = cls(
+            meta=meta, prefix=cast(Optional[str], d["prefix"]), suffix=cast(Optional[str], d["suffix"]),
+            length=cast(Optional[int], d["length"])
+        )
+        model._fitted = cast(bool, d["fitted"])
+
+        return model

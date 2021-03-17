@@ -2,7 +2,8 @@ import importlib
 import random
 import re
 import string
-from typing import Dict, Optional, Sequence
+from dataclasses import asdict
+from typing import Any, Dict, Optional, Sequence, cast
 
 import faker
 import numpy as np
@@ -52,6 +53,29 @@ class GenderModel(Histogram[str]):
         return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
                                         title_label=self.title_label, gender_mapping=self.config.gender_mapping,
                                         title_mapping=self.config.title_mapping)
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "gender_label": self.gender_label,
+            "title_label": self.title_label,
+            "config": asdict(self.config)
+        })
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'GenderModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = String.from_dict(meta_dict)
+        model = cls(
+            meta=meta, gender_label=cast(Optional[str], d["gender_label"]),
+            title_label=cast(Optional[str], d["title_label"]),
+            config=GenderTransformerConfig(**cast(Dict[str, bool], d["config"]))
+        )
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
 
 
 class PersonModel(DiscreteModel[Person, str]):
@@ -228,3 +252,21 @@ class PersonModel(DiscreteModel[Person, str]):
             raise ValueError(f"Given locale '{locale}' not valid")
 
         return provider.Provider
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "config": asdict(self.config)
+        })
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'PersonModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Person.from_dict(meta_dict)
+        config = cast(Dict[str, Any], d["config"])
+        model = cls(meta=meta, config=PersonModelConfig(**config))
+        model._fitted = cast(bool, d["fitted"])
+
+        return model

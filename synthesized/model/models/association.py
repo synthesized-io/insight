@@ -1,4 +1,4 @@
-from typing import Any, DefaultDict, Dict, Iterator, Mapping, Optional, Sequence
+from typing import Any, DefaultDict, Dict, Iterator, Mapping, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -45,6 +45,7 @@ class AssociatedHistogram(Model[AssociatedCategorical], Mapping[str, Histogram])
     def fit(self, df: pd.DataFrame):
         for model in self.children:
             model.fit(df)
+
         return super().fit(df=df)
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
@@ -54,3 +55,23 @@ class AssociatedHistogram(Model[AssociatedCategorical], Mapping[str, Histogram])
             df = df.join(model.sample(n, produce_nans, conditions))
 
         return df
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "children": {m.name: m.to_dict() for m in self.children}
+        })
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'AssociatedHistogram':
+        meta = AssociatedCategorical[Any].from_dict(cast(Dict[str, object], d["meta"]))
+        models = [
+            Histogram.from_dict_with_class_name(child_d)
+            for child_d in cast(Dict[str, Dict[str, object]], d["children"]).values()
+        ]
+        df_model = AssociatedHistogram(meta=meta, models=models)
+        df_model._fitted = cast(bool, d["fitted"])
+
+        return df_model

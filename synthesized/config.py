@@ -1,6 +1,5 @@
-import re
 from dataclasses import dataclass, fields
-from typing import Callable, Dict, List, Optional, Pattern, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -14,7 +13,7 @@ class AnnotationParams:
 
 @dataclass
 class PostcodeModelConfig:
-    postcode_regex: Pattern[str] = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
+    postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
 
     @property
     def postcode_model_config(self):

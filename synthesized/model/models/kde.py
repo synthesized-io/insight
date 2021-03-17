@@ -1,3 +1,4 @@
+import pickle
 from typing import Any, Dict, Generic, Optional, cast
 
 import matplotlib.pyplot as plt
@@ -95,7 +96,20 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
+        d.update({
+            "kernel": pickle.dumps(self._kernel) if self._kernel is not None else None
+        })
         return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'KernelDensityEstimate':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Affine[AType].from_dict(meta_dict)
+        model = cls(meta=meta)
+        model._fitted = cast(bool, d["fitted"])
+        kernel = pickle.loads(cast(bytes, d["kernel"])) if d["kernel"] is not None else None
+        model._kernel = kernel
+        return model
 
     @property
     def unit_meta(self) -> 'Scale[Any]':
