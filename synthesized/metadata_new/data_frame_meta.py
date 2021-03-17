@@ -21,6 +21,7 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
     def __init__(
             self, name: str, children: Optional[Sequence[Meta]] = None, id_index: Optional[str] = None,
             time_index: Optional[str] = None, column_aliases: Optional[Dict[str, str]] = None,
+            columns: Optional[List[str]] = None,
             num_columns: Optional[int] = None, num_rows: Optional[int] = None, annotations: Optional[List[str]] = None
     ):
         child_names = [c.name for c in children] if children is not None else []
@@ -38,7 +39,7 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         self.id_index = id_index
         self.time_index = time_index
         self.column_aliases = column_aliases_dict
-        self.columns = None
+        self.columns = columns
         self.num_columns = num_columns
         self.num_rows = num_rows
         self.annotations = annotations_list
@@ -114,7 +115,7 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         df_meta = DataFrameMeta(
             name=self.name, id_index=self.id_index, time_index=self.time_index,
             column_aliases=self.column_aliases.copy(), num_columns=self.num_columns, num_rows=self.num_rows,
-            annotations=self.annotations.copy()
+            annotations=self.annotations.copy(), columns=self.columns.copy() if self.columns is not None else None
         )
         df_meta.update(self)
         return df_meta

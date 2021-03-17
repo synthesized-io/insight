@@ -330,6 +330,11 @@ class HighDimSynthesizer(Synthesizer):
         decoded = self.df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
         df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+
+        df_sampled = self.df_model_independent.sample(
+            n=len(df_synthesized), produce_nans=produce_nans, conditions=df_synthesized)
+        df_independent = df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]]
+        df_synthesized = pd.concat((df_synthesized, df_independent), axis=1)
         df_synthesized = df_synthesized[self.df_meta.columns]
 
         latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
@@ -350,17 +355,27 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             Pandas DataFrame of decoded space corresponding to input data
         """
-        df_encode = self.df_transformer.transform(df=df_encode)
-
+        df_orig = df_encode
+        df_encode = self.df_transformer.transform(df=df_encode.copy().reset_index(drop=True))
         data = self.get_data_feed_dict(df_encode)
         decoded = self.engine.encode_deterministic(xs=data)
-
         decoded = self.df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
         df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
-        df_synthesized = df_synthesized[self.df_meta.columns]
 
-        return df_synthesized.set_index(df_encode.index)
+        df_independent: pd.DataFrame = df_orig.reset_index(drop=True)[
+            [c for c in df_orig.columns if c not in df_synthesized.columns]]
+        if not produce_nans:
+            df_sampled = self.df_model_independent.sample(
+                n=len(df_synthesized), produce_nans=False, conditions=df_synthesized)
+            df_sampled = df_sampled[[c for c in df_independent.columns]]
+            df_independent = df_independent.where(df_independent.notna(), other=df_sampled)
+
+        df_synthesized = pd.concat((df_synthesized, df_independent), axis=1)
+
+        df_synthesized = df_synthesized[self.df_meta.columns]
+        df_synthesized.index = df_orig.index.copy()
+        return df_synthesized
 
     def get_variables(self) -> Dict[str, Any]:
         variables = super().get_variables()
