@@ -3,8 +3,8 @@ import importlib
 import logging
 import os
 import re
-from dataclasses import dataclass, field, fields
-from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence, cast
 
 import faker
 import numpy as np
@@ -71,14 +71,14 @@ class AddressRecord:
 
 
 class PostcodeModel(Histogram[str]):
-    def __init__(self, meta: Nominal[str],
+    def __init__(self, meta: Nominal[str], probabilities: Optional[Dict[str, float]] = None,
                  postcode_label: Optional[str] = None, full_address_label: Optional[str] = None,
                  config: PostcodeModelConfig = PostcodeModelConfig()):
 
-        super().__init__(meta=meta)
+        super().__init__(meta=meta, probabilities=probabilities)
         self.postcode_label = postcode_label
         self.full_address_label = full_address_label
-        self.postcode_regex = config.postcode_regex
+        self.postcode_regex: Pattern[str] = re.compile(config.postcode_regex)
 
     def fit(self, df: pd.DataFrame) -> 'PostcodeModel':
         try:
@@ -93,13 +93,36 @@ class PostcodeModel(Histogram[str]):
 
         return self
 
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "postcode_label": self.postcode_label,
+            "full_address_label": self.full_address_label,
+            "postcode_regex": self.postcode_regex.pattern
+        })
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'PostcodeModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = String.from_dict(meta_dict)
+        model = cls(
+            meta=meta, probabilities=cast(Optional[Dict[str, float]], d["probabilities"]),
+            postcode_label=cast(Optional[str], d["postcode_label"]),
+            full_address_label=cast(Optional[str], d["full_address_label"]),
+            config=PostcodeModelConfig(cast(str, d["postcode_regex"]))
+        )
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
+
 
 class AddressModel(DiscreteModel[Address, str]):
-    postcode_regex: Pattern[str] = re.compile(r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}')
-
     def __init__(self, meta: Address, config: AddressModelConfig = AddressModelConfig()):
         super().__init__(meta=meta)
         postcode_meta = String(name=f"{meta.name}_postcode", nan_freq=meta.nan_freq, num_rows=meta.num_rows)
+        self.config = config
         self.postcode_model = PostcodeModel(
             meta=postcode_meta, postcode_label=self.labels.postcode_label,
             full_address_label=self.labels.full_address_label, config=config.postcode_model_config
@@ -235,7 +258,7 @@ class AddressModel(DiscreteModel[Address, str]):
 
             postcode_sr = conditions[self.postcode_model.name].fillna('nan').apply(
                 get_postcode_key,
-                postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
+                postcode_regex=self.postcode_model.postcode_regex, postcode_level=self.postcode_level,
                 postcodes=self.postcode_model.categories)
             address_records = list(np.vectorize(sample_address)(postcode_sr))
 
@@ -259,17 +282,18 @@ class AddressModel(DiscreteModel[Address, str]):
                         postcodes = None
 
                     postcode_key = get_postcode_key(
-                        js['postcode'], postcode_regex=self.postcode_regex, postcode_level=self.postcode_level,
-                        postcodes=postcodes)
+                        js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
+                        postcode_level=self.postcode_level, postcodes=postcodes
+                    )
 
                     if postcode_key not in d.keys():
                         d[get_postcode_key(
-                            js['postcode'], postcode_regex=self.postcode_regex,
+                            js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
                             postcode_level=self.postcode_level, postcodes=postcodes
                         )] = addresses
                     else:
                         d[get_postcode_key(
-                            js['postcode'], postcode_regex=self.postcode_regex,
+                            js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
                             postcode_level=self.postcode_level, postcodes=postcodes
                         )].extend(addresses)
 
@@ -313,6 +337,24 @@ class AddressModel(DiscreteModel[Address, str]):
             raise ValueError(f"Given locale '{locale}' not valid")
 
         return provider.Provider
+
+    def to_dict(self) -> Dict[str, object]:
+        d = super().to_dict()
+        d.update({
+            "config": asdict(self.config)
+        })
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'AddressModel':
+        meta_dict = cast(Dict[str, object], d["meta"])
+        meta = Address.from_dict(meta_dict)
+        config = cast(Dict[str, Any], d["config"])
+        model = cls(meta=meta, config=AddressModelConfig(**config))
+        model._fitted = cast(bool, d["fitted"])
+
+        return model
 
 
 def _create_address_records(js: Dict[str, Any]) -> List[AddressRecord]:

@@ -7,8 +7,7 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.config import AddressLabels, BankLabels, FormattedStringParams, MetaExtractorConfig, PersonLabels
-from synthesized.metadata_new import DataFrameMeta
+from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata_new.value import Address, Bank, FormattedString, Person
 
 
@@ -130,13 +129,11 @@ def test_annotations_all():
 
     assert df_synthesized.shape == data.shape
 
-    # TODO: fix import export for annotations (ML-255)
-    # Ensure that import-export works
-    # f = BytesIO()
-    # synthesizer.export_model(f)
+    f = BytesIO()
+    synthesizer.export_model(f)
 
-    # f.seek(0)
-    # synthesizer2 = HighDimSynthesizer.import_model(f)
-    # df_synthesized2 = synthesizer.synthesize(num_rows=len(data))
+    f.seek(0)
+    synthesizer2 = HighDimSynthesizer.import_model(f)
+    df_synthesized2 = synthesizer2.synthesize(num_rows=len(data))
 
-    # assert df_synthesized2.shape == data.shape
+    assert df_synthesized2.shape == data.shape
