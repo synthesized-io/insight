@@ -8,14 +8,14 @@ from ..encodings import RecurrentDSSEncoding, VariationalLSTMEncoding, Variation
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
 from ..transformations import DenseTransformation
-from ..values import DataFrameValue, IdentifierValue, Value
+from ..values import DataFrameValue, Value
 
 
 # TODO: broken with new values and metadata
 class SeriesEngine(Generative):
     def __init__(
             self, name: str, values: List[Value], conditions: List[Value],
-            encoding: str, identifier_label: Optional[str], identifier_value: Optional[IdentifierValue],
+            encoding: str, identifier_label: Optional[str],
             # Latent space
             latent_size: int,
             # Encoder and decoder network
@@ -48,7 +48,6 @@ class SeriesEngine(Generative):
         self.l2 = tf.keras.regularizers.l2(weight_decay)
 
         self.identifier_label = identifier_label
-        self.identifier_value = identifier_value
 
         self.value_ops = DataFrameValue(values=values)
 
