@@ -7,7 +7,7 @@ from .categorical import CategoricalTransformer
 from .quantile import QuantileTransformer
 from ..base import SequentialTransformer, Transformer
 from ...config import DateTransformerConfig
-from ...metadata_new.value.datetime import Affine, get_date_format
+from ...metadata.value.datetime import Affine, get_date_format
 
 
 class DateTransformer(SequentialTransformer):

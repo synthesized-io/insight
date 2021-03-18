@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from synthesized.metadata_new import Meta
+from synthesized.metadata import Meta
 
 from .dataframes import MetaTestData
 

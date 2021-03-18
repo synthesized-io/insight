@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..base import Transformer
-from ...metadata_new import Nominal
+from ...metadata import Nominal
 
 
 class NanTransformer(Transformer):

@@ -11,8 +11,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
-from ...metadata_new import Affine, DataFrameMeta, Ordinal
-from ...metadata_new.factory import MetaExtractor
+from ...metadata import Affine, DataFrameMeta, Ordinal
+from ...metadata.factory import MetaExtractor
 from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 

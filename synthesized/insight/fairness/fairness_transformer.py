@@ -3,9 +3,9 @@ from typing import List, Optional, cast
 
 import pandas as pd
 
-from ...metadata_new import DataFrameMeta, Scale, ValueMeta
-from ...metadata_new.factory import MetaExtractor
-from ...metadata_new.value import DateTime
+from ...metadata import DataFrameMeta, Scale, ValueMeta
+from ...metadata.factory import MetaExtractor
+from ...metadata.value import DateTime
 from ...model import ContinuousModel, DataFrameModel
 from ...model.factory import ModelFactory
 from ...transformer import BinningTransformer, DTypeTransformer, SequentialTransformer, Transformer

@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..base import Transformer
 from ..exceptions import FittingError, NonInvertibleTransformError
-from ...metadata_new import Nominal
+from ...metadata import Nominal
 
 
 class DropColumnTransformer(Transformer):

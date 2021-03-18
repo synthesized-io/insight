@@ -8,8 +8,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ...metadata_new import Affine, DataFrameMeta
-from ...metadata_new.factory import MetaExtractor
+from ...metadata import Affine, DataFrameMeta
+from ...metadata.factory import MetaExtractor
 from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 

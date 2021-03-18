@@ -10,7 +10,7 @@ from scipy.stats import ks_2samp
 from synthesized import HighDimSynthesizer
 from synthesized.common.values import CategoricalValue, ContinuousValue
 from synthesized.config import HighDimConfig
-from synthesized.metadata_new.factory import MetaExtractor
+from synthesized.metadata.factory import MetaExtractor
 from synthesized.model.models import Histogram, KernelDensityEstimate
 
 atol = 0.05

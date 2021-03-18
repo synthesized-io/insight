@@ -6,7 +6,7 @@ import rstr
 
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new.value import FormattedString, String
+from ...metadata.value import FormattedString, String
 
 
 class FormattedStringModel(DiscreteModel[FormattedString, str]):

@@ -7,8 +7,8 @@ from .data_frame_model import DataFrameModel
 from .models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
                      KernelDensityEstimate, PersonModel)
 from ..config import ModelBuilderConfig
-from ..metadata_new import Affine, DataFrameMeta, Nominal
-from ..metadata_new.value import Address, AssociatedCategorical, Bank, FormattedString, Person
+from ..metadata import Affine, DataFrameMeta, Nominal
+from ..metadata.value import Address, AssociatedCategorical, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
 

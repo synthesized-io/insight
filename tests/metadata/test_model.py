@@ -8,8 +8,8 @@ import pytest
 from faker import Faker
 
 from synthesized.config import AddressLabels, AddressModelConfig, BankLabels, PersonLabels
-from synthesized.metadata_new.factory import MetaExtractor
-from synthesized.metadata_new.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
+from synthesized.metadata.factory import MetaExtractor
+from synthesized.metadata.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
 from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
 from synthesized.model.models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,

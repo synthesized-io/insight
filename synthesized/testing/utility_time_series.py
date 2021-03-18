@@ -10,8 +10,8 @@ from .plotting import (plot_categorical_time_series, plot_continuous_time_series
                        set_plotting_style)
 from ..insight import metrics
 from ..insight.metrics import ColumnVector
-from ..metadata_new import DataFrameMeta
-from ..metadata_new.factory import MetaExtractor
+from ..metadata import DataFrameMeta
+from ..metadata.factory import MetaExtractor
 
 COLOR_ORIG = '#1C5D7A'
 COLOR_SYNTH = '#801761'

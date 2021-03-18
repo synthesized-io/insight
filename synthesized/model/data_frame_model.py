@@ -5,7 +5,7 @@ import pandas as pd
 from . import factory
 from .base import Model
 from .exceptions import ModelNotFittedError
-from ..metadata_new import DataFrameMeta
+from ..metadata import DataFrameMeta
 
 
 class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):

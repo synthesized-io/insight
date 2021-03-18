@@ -9,7 +9,7 @@ from scipy.stats import gaussian_kde
 
 from ..base import ContinuousModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new import Affine, AType, Scale
+from ...metadata import Affine, AType, Scale
 
 
 class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType]):

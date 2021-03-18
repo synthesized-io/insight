@@ -21,7 +21,7 @@ from .utility_time_series import TimeSeriesUtilityTesting
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
-from ..metadata_new.factory import MetaExtractor
+from ..metadata.factory import MetaExtractor
 
 
 class Evaluation:

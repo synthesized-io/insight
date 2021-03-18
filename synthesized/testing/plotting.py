@@ -17,8 +17,8 @@ import synthesized
 
 from ..insight.evaluation import calculate_evaluation_metrics
 from ..insight.metrics import earth_movers_distance, kolmogorov_smirnov_distance
-from ..metadata_new import DataFrameMeta
-from ..metadata_new.factory import MetaExtractor
+from ..metadata import DataFrameMeta
+from ..metadata.factory import MetaExtractor
 
 logger = logging.getLogger(__name__)
 

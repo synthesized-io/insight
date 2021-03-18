@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import yaml
 
-from ..metadata_new import ValueMeta
-from ..metadata_new.data_frame_meta import DataFrameMeta
+from ..metadata import ValueMeta
+from ..metadata.data_frame_meta import DataFrameMeta
 from ..util import get_all_subclasses
 
 logger = logging.getLogger(__name__)

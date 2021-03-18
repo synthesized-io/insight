@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..insight import metrics
-from ..metadata_new import DataFrameMeta
+from ..metadata import DataFrameMeta
 
 MAX_PVAL = 0.05
 

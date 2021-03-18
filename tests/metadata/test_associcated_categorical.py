@@ -1,6 +1,6 @@
 import pytest
 
-from synthesized.metadata_new.value import AssociatedCategorical, String
+from synthesized.metadata.value import AssociatedCategorical, String
 
 from .dataframes import AssociatedData
 from .test_meta import TestMeta as _TestMeta

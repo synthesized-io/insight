@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..synthesizer import Synthesizer
-from ...metadata_new.data_frame_meta import DataFrameMeta
+from ...metadata.data_frame_meta import DataFrameMeta
 
 
 class MockSynthesizer(Synthesizer):

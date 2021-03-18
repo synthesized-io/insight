@@ -7,7 +7,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer
 from synthesized.insight.fairness import BiasMitigator, FairnessScorer
-from synthesized.metadata_new.factory import MetaExtractor
+from synthesized.metadata.factory import MetaExtractor
 from tests.utils import progress_bar_testing
 
 

@@ -12,7 +12,7 @@ from .plotting import (categorical_distribution_plot, continuous_distribution_pl
                        set_plotting_style)
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
-from ..metadata_new import DataFrameMeta
+from ..metadata import DataFrameMeta
 from ..model import ContinuousModel, DiscreteModel
 from ..model.factory import ModelFactory
 
