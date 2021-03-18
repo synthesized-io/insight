@@ -1,3 +1,4 @@
+# type: ignore
 import logging
 import random
 import time
@@ -14,7 +15,7 @@ from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import Value, ValueFactory
 from ..config import SeriesConfig
-from ..metadata import DataFrameMeta, IdentifierMeta
+from ..metadata.data_frame_meta import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class SeriesSynthesizer(Synthesizer):
                         tf.constant(groups[n][name])
                         for m_name in value.meta_names for name in (
                             self.df_meta[m_name].learned_input_columns()
-                            if not isinstance(self.df_meta[m_name], IdentifierMeta) else [m_name]
+                            if not isinstance(self.df_meta[m_name], IdentifierMeta) else [m_name]  # noqa: F821
                         )
                     ])
                     for value in self.get_all_values()

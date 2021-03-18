@@ -3,9 +3,12 @@ from typing import BinaryIO, Callable, List, Optional, Tuple, Union
 import pandas as pd
 
 from .data_frame_meta import DataFrameMeta
+from .models import ContinuousModel, DiscreteModel
 from .synthesizer import Synthesizer
 from ..complex import HighDimSynthesizer as _HighDimSynthesizer
 from ..config import HighDimConfig
+from ..model import ContinuousModel as _ContinuousModel
+from ..model import DiscreteModel as _DiscreteModel
 
 
 class HighDimSynthesizer(Synthesizer):
@@ -14,19 +17,24 @@ class HighDimSynthesizer(Synthesizer):
     Synthesizer which can learn from data to produce basic tabular data with independent rows, that
     is, no temporal or otherwise conditional relation between the rows.
     """
-    def __init__(self, df_meta: DataFrameMeta, conditions: List[str] = None, config: HighDimConfig = HighDimConfig()):
+    def __init__(self, df_meta: DataFrameMeta, config: HighDimConfig = HighDimConfig(),
+                 type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None):
         """Initialize a new BasicSynthesizer instance.
 
         Args:
             df_meta: Data sample which summarizes all relevant characteristics,
                 so for instance all values a discrete-value column can take.
-            conditions: List of column names that serve as conditional values.
             config: The configuration for the synthesizer.
+            type_overrides: list of modelling assumptions that will override the default behaviour of the Synthesizer
         """
         if df_meta._df_meta is None:
             raise ValueError
         super().__init__()
-        self._synthesizer = _HighDimSynthesizer(df_meta=df_meta._df_meta, conditions=conditions, config=config)
+        _type_overrides: Optional[List[Union[_ContinuousModel, _DiscreteModel]]] = None
+        if type_overrides is not None:
+            _type_overrides = [model._model for model in type_overrides]
+
+        self._synthesizer = _HighDimSynthesizer(df_meta=df_meta._df_meta, config=config, type_overrides=_type_overrides)
 
     def learn(
             self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -52,14 +60,12 @@ class HighDimSynthesizer(Synthesizer):
         )
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            self, num_rows: int, progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             progress_callback: Progress bar callback.
 
         Returns:
@@ -67,36 +73,34 @@ class HighDimSynthesizer(Synthesizer):
 
         """
         return self._synthesizer.synthesize(
-            num_rows=num_rows, conditions=conditions, progress_callback=progress_callback
+            num_rows=num_rows, progress_callback=progress_callback
         )
 
     def encode(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+            self, df_encode: pd.DataFrame,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
 
         Args:
             df_encode: Input dataset
-            conditions: The condition values for the generated rows.
 
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data.
         """
-        return self._synthesizer.encode(df_encode=df_encode, conditions=conditions)
+        return self._synthesizer.encode(df_encode=df_encode)
 
     def encode_deterministic(
-            self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None
+            self, df_encode: pd.DataFrame,
     ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
 
         Args:
             df_encode: Input dataset
-            conditions: The condition values for the generated rows.
 
         Returns:
             Pandas DataFrame of decoded space corresponding to input data.
         """
-        return self._synthesizer.encode_deterministic(df_encode=df_encode, conditions=conditions)
+        return self._synthesizer.encode_deterministic(df_encode=df_encode)
 
     def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
         """Exports the synthesizer as a binary in its trained state to the provided file.

@@ -1,6 +1,9 @@
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, Iterator, List, MutableSequence, Optional, Type, TypeVar, Union
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
+from typing import (Any, Callable, Collection, Dict, Iterator, List, MutableSequence, Optional, Tuple, Type, TypeVar,
+                    Union)
 
 import numpy as np
 import pandas as pd
@@ -31,9 +34,6 @@ class Transformer:
         self.dtypes = dtypes
         self._fitted = False
 
-    def __add__(self, other: 'Transformer') -> 'SequentialTransformer':
-        return SequentialTransformer(name=self.name, transformers=[self, other])
-
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, dtypes={self.dtypes})'
 
@@ -46,23 +46,26 @@ class Transformer:
         except AssertionError:
             return False
 
-    def __call__(self, x: pd.DataFrame, inverse=False) -> pd.DataFrame:
+    def __call__(self, x: pd.DataFrame, inverse=False, **kwargs) -> pd.DataFrame:
         self._assert_fitted()
         if not inverse:
-            return self.transform(x)
+            return self.transform(x, **kwargs)
         else:
-            return self.inverse_transform(x)
+            return self.inverse_transform(x, **kwargs)
 
     def fit(self: TransformerType, x: Union[pd.Series, pd.DataFrame]) -> TransformerType:
         if not self._fitted:
             self._fitted = True
         return self
 
+    def is_fitted(self) -> bool:
+        return self._fitted
+
     @abstractmethod
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         raise NotImplementedError
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         raise NonInvertibleTransformError
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -100,8 +103,16 @@ class Transformer:
     def get_registry(cls: Type[TransformerType]) -> Dict[str, Type[TransformerType]]:
         return {sc.__name__: sc for sc in get_all_subclasses(cls)}
 
+    @property
+    def in_columns(self) -> List[str]:
+        return [self.name]
 
-class SequentialTransformer(Transformer, MutableSequence[Transformer]):
+    @property
+    def out_columns(self) -> List[str]:
+        return [self.name]
+
+
+class BagOfTransformers(Transformer, Collection[Transformer]):
     """
     Transform data using a sequence of pre-defined Transformers.
     Each transformer can act on different columns of a data frame,
@@ -125,8 +136,8 @@ class SequentialTransformer(Transformer, MutableSequence[Transformer]):
         1   B   10.0
         2   C   NaN
 
-        Define a SequentialTransformer:
-        >>> t = SequentialTransformer(
+        Define a BagOfTransformers:
+        >>> t = BagOfTransformers(
                     name='t',
                     transformers=[
                         CategoricalTransformer('x'),
@@ -143,15 +154,15 @@ class SequentialTransformer(Transformer, MutableSequence[Transformer]):
         2   3    NaN     1
 
         Alternatively, transformers can be appended (or added)
-        >>> t = SequentialTransformer(name='t')
+        >>> t = BagOfTransformers(name='t')
         >>> t.append(CategoricalTransformer('x')
-        >>> t = t + SequentialTransformer(
-                                name='y_transform',
-                                transformers=[
-                                    NanTransformer('y'),
-                                    QuantileTransformer('y')
-                                ]
-                            )
+        >>> t = t + BagOfTransformers(
+                        name='y_transform',
+                        transformers=[
+                            NanTransformer('y'),
+                            QuantileTransformer('y')
+                        ]
+                    )
         Transform the data frame:
         >>> df_transformed = t.transform(df)
             x    y     y_nan
@@ -183,28 +194,119 @@ class SequentialTransformer(Transformer, MutableSequence[Transformer]):
     def __iter__(self) -> Iterator[Transformer]:
         yield from self._transformers
 
-    def __getitem__(self, idx: Union[int, slice]):
-        return self._transformers[idx]
-
     def __len__(self) -> int:
         return len(self._transformers)
 
-    def __add__(self, other: Transformer) -> 'SequentialTransformer':
-        return SequentialTransformer(name=self.name, transformers=self._transformers + [other])
+    def __add__(self, other: 'BagOfTransformers') -> 'BagOfTransformers':
+        return BagOfTransformers(name=self.name, transformers=self._transformers + other._transformers)
 
-    def fit(self, df: pd.DataFrame) -> 'SequentialTransformer':
+    def __contains__(self, key: object) -> bool:
+        assert isinstance(key, str)
+        return True if key in [t.name for t in self._transformers] else False
+
+    def __reversed__(self):
+        return reversed(self._transformers)
+
+    def fit(self, df: pd.DataFrame) -> 'BagOfTransformers':
         df = df.copy()  # have to copy because Transformer.transform modifies df
+
         for transformer in self:
             transformer.fit(df)
             df = transformer.transform(df)
+
         return super().fit(df)
 
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        for transformer in self:
-            df = transformer.transform(df)
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        self._assert_fitted()
+
+        max_workers = kwargs.pop("max_workers", None)
+        if max_workers is None or max_workers > 1:
+            try:
+                df = self._parallel_transform(df, max_workers, inverse=False, **kwargs)
+            except (BrokenProcessPool, OSError):
+                logger.warning('Process pool is broken. Running sequentially.')
+                self.transform(df, max_workers=1)
+        else:
+            df = df.copy()
+            for transformer in self:
+                df = transformer.transform(df, **kwargs)
+
         return df
 
-    def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        for transformer in reversed(self):
-            df = transformer.inverse_transform(df)
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        self._assert_fitted()
+
+        max_workers = kwargs.pop("max_workers", None)
+        if max_workers is None or max_workers > 1:
+            try:
+                df = self._parallel_transform(df, max_workers, inverse=True, **kwargs)
+            except (BrokenProcessPool, OSError):
+                logger.warning('Process pool is broken. Running sequentially.')
+                self.inverse_transform(df, max_workers=1)
+        else:
+            df = df.copy()
+            for transformer in reversed(self):
+                df = transformer.inverse_transform(df, **kwargs)
+
         return df
+
+    def _parallel_transform(self, df: pd.DataFrame, max_workers: Optional[int] = None, inverse: bool = False, **kwargs):
+        if inverse:
+            arguments = ((transformer.inverse_transform,
+                          df[[c for c in transformer.out_columns if c in df.columns]],
+                          transformer.in_columns,
+                          kwargs
+                          ) for transformer in self)
+        else:
+            arguments = ((transformer.transform,
+                          df[[c for c in transformer.in_columns if c in df.columns]],
+                          transformer.out_columns,
+                          kwargs
+                          ) for transformer in self)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            columns_transformed = executor.map(self.apply_single_transformation, arguments)
+            series = []
+            for f in columns_transformed:
+                series.append(f)
+            return pd.concat(series, axis=1)
+
+    @staticmethod
+    def apply_single_transformation(
+        argument: Tuple[Callable, pd.DataFrame, List[str], Dict[str, Any]]
+    ) -> pd.DataFrame:
+        func, df, out_columns, kwargs = argument
+        df = func(df, **kwargs)
+        out_columns = list(filter(lambda c: c in df.columns, out_columns))
+        return df[out_columns]
+
+    @property
+    def in_columns(self) -> List[str]:
+        return list(set([column for transformer in self for column in transformer.in_columns]))
+
+    @property
+    def out_columns(self) -> List[str]:
+        return list(set([column for transformer in self for column in transformer.out_columns]))
+
+
+class SequentialTransformer(BagOfTransformers, MutableSequence[Transformer]):
+    def __init__(self, name: str, transformers: Optional[List[Transformer]] = None, dtypes: Optional[List] = None):
+        super().__init__(name, transformers=transformers, dtypes=dtypes)
+
+    def __getitem__(self, idx: Union[int, slice]):
+        return self._transformers[idx]
+
+    def __add__(self, other: 'BagOfTransformers') -> 'SequentialTransformer':
+        return SequentialTransformer(name=self.name, transformers=self._transformers + other._transformers)
+
+    def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        kwargs['max_workers'] = 1
+        return super().transform(df, **kwargs)
+
+    def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        kwargs['max_workers'] = 1
+        return super().inverse_transform(df, **kwargs)
+
+    @property
+    def in_columns(self) -> List[str]:
+        return list(set([column for transformer in self for column in transformer.in_columns]))

@@ -75,7 +75,9 @@ def sample_split_data(data: pd.DataFrame, response_variable: str, explanatory_va
     if sample_size is not None and sample_size < len(data):
         data = data.sample(sample_size, random_state=RANDOM_SEED)
 
-    if all(data[response_variable].value_counts().values > 1) and data[response_variable].nunique() <= sqrt(len(data)):
+    if data[response_variable].nunique() > sqrt(len(data)):
+        df_train, df_test = train_test_split(data, test_size=test_size, random_state=RANDOM_SEED)
+    elif all(data[response_variable].value_counts().values > 1) and data[response_variable].nunique() <= sqrt(len(data)):
         df_train, df_test = train_test_split(data, test_size=test_size, stratify=data[response_variable],
                                              random_state=RANDOM_SEED)
     else:

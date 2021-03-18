@@ -1,3 +1,4 @@
+# type: ignore
 import os
 import time
 
@@ -129,14 +130,14 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
             dp = MetaExtractor.extract(data_missing)
             conf = HighDimConfig(**config['params'])
 
-            with HighDimSynthesizer(df_meta=dp, config=conf) as synthesizer:
-                synthesizer.learn(df_train=data_missing, num_iterations=n_iter)
-                synthesized = synthesizer.synthesize(num_rows=len(data))
+            synthesizer = HighDimSynthesizer(df_meta=dp, config=conf)
+            synthesizer.learn(df_train=data_missing, num_iterations=n_iter)
+            synthesized = synthesizer.synthesize(num_rows=len(data))
 
-                max_ks_iter.append(max_ks_distance(data, synthesized))
-                mean_ks_iter.append(mean_ks_distance(data, synthesized))
-                max_corr_iter.append(max_correlation_distance(data, synthesized))
-                mean_corr_iter.append(mean_correlation_distance(data, synthesized))
+            max_ks_iter.append(max_ks_distance(data, synthesized))
+            mean_ks_iter.append(mean_ks_distance(data, synthesized))
+            max_corr_iter.append(max_correlation_distance(data, synthesized))
+            mean_corr_iter.append(mean_correlation_distance(data, synthesized))
 
         print('Computed results for {}% NaNs for {}. Took {:.2f}s.'.format(100 - i, mechanism, time.time() - t_start))
         max_ks_vec.append(np.mean(max_ks_iter))

@@ -68,7 +68,7 @@ class BiasMitigator:
         """
         return self._bias_mitigator.drop_given_biases(df=df, biases=biases, progress_callback=progress_callback)
 
-    def drop_biases(self, df: pd.DataFrame, mode: Optional[str] = None, alpha: float = 0.05,
+    def drop_biases(self, df: pd.DataFrame, mode: str = 'emd', alpha: float = 0.05,
                     min_dist: Optional[float] = 0.05, min_count: Optional[int] = 50,
                     progress_callback: Optional[Callable[[int], None]] = None) -> pd.DataFrame:
         """Drop all rows affected by any bias.

@@ -1,193 +1,131 @@
 """Utilities that help you create Value objects."""
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence
 
 from .associated_categorical import AssociatedCategoricalValue
 from .categorical import CategoricalValue
 from .continuous import ContinuousValue
+from .dataframe_value import DataFrameValue
 from .date import DateValue
-from .decomposed_continuous import DecomposedContinuousValue
-from .identifier import IdentifierValue
-from .nan import NanValue
-from .rule import RuleValue
 from .value import Value
 from ...config import ValueFactoryConfig
-from ...metadata import (AddressMeta, BankNumberMeta, CategoricalMeta, ContinuousMeta, DataFrameMeta, DateMeta,
-                         DecomposedContinuousMeta, IdentifierMeta, NanMeta, PersonMeta, RuleMeta, ValueMeta)
+from ...model import ContinuousModel, DataFrameModel, DiscreteModel, Model
+from ...model.models import AssociatedHistogram
 
 logger = logging.getLogger(__name__)
 
 
 class ValueFactory:
-    """A Mix-In that you extend to be able to create various values."""
-    def __init__(self, df_meta: DataFrameMeta, name: str = 'value_factory', conditions: List[str] = None,
-                 config: ValueFactoryConfig = ValueFactoryConfig()):
+    """
+    Factory for creating Values, through being subclassesed by MetaExtractor
+    and building from a DataFrame meta.
+    Additionally manages the creation of an Associated NaN values
+
+    Attributes:
+        name: A string labelling the instance
+        config: (dataclass) configuration namespace
+        capacity: Integer taken from config denoting capacity of network
+        identifier_value: (Unused)
+
+    """
+    def __init__(self, name: str = 'value_factory', config: ValueFactoryConfig = ValueFactoryConfig()):
 
         """Init ValueFactory."""
         self.name = name
-        self.condition_columns = conditions or list()
         self.config = config
 
         self.capacity = config.capacity
-
-        # Values
-        self.columns = list(df_meta.columns)
-        self.values: List[Value] = list()
-        self.conditions: List[Value] = list()
         self.identifier_value: Optional[Value] = None
 
-        self.create_values(df_meta)
+    def _build(self, df_meta: DataFrameModel) -> DataFrameValue:
+        """
+        Loops over entries in the DataFrameMeta and creates a Value for each
+        Manages creation of associated value for NaNs
+        """
+        values: Dict[str, Value] = dict()
+        for name, value_meta in df_meta.items():
+            nan_values = self._build_nan(value_meta)
+            for nan_value in nan_values:
+                values[f"{nan_value.name}"] = nan_value
 
-    def create_values(self, df_meta: DataFrameMeta):
-        if df_meta.association_meta is not None:
-            associated_metas = [v.name for v in df_meta.association_meta.values]
-        else:
-            associated_metas = []
+            value = self._create_value(value_meta)
 
-        associated_values = []
-
-        for value_meta in df_meta.values:
-            value = self.create_value(value_meta)
             if value is not None:
-                if value.name in associated_metas:
-                    if isinstance(value, CategoricalValue):
-                        associated_values.append(value)
-                    else:
-                        raise ValueError(f'Associated value {value.name} not CategoricalValue.')
-                elif value.name in self.condition_columns:
-                    assert value_meta.learned_input_columns() == value_meta.learned_output_columns()
-                    self.conditions.append(value)
-                else:
-                    self.values.append(value)
+                values[name] = value
 
-        if len(associated_values) > 0 and df_meta.association_meta is not None:
-            if df_meta.association_meta.binding_mask is None:
-                raise ValueError('AssocationMeta has no binding mask.')
-            self.values.append(AssociatedCategoricalValue(
-                values=associated_values, associations=df_meta.association_meta.associations,
-                binding_mask=df_meta.association_meta.binding_mask
-            ))
+        return DataFrameValue(name="dataframe_value", values=values)
 
-        if df_meta.id_value is not None:
-            self.identifier_value = self.create_value(df_meta.id_value)
-
-    def create_value(self, vm: Union[ValueMeta, None]) -> Optional[Value]:
-        if isinstance(vm, CategoricalMeta):
-            if vm.num_categories is None:
-                raise ValueError
-            return CategoricalValue(
-                vm.name, num_categories=vm.num_categories, similarity_based=vm.similarity_based,
-                nans_valid=vm.nans_valid, config=self.config.categorical_config
-            )
-        elif isinstance(vm, DateMeta):
+    def _create_value(self, vm: Model) -> Optional[Value]:
+        """Lookup function for determining correct value for given value meta"""
+        if isinstance(vm, ContinuousModel) and vm.meta.dtype == 'M8[ns]':
             return DateValue(
                 vm.name, categorical_config=self.config.categorical_config,
-                continuous_config=self.config.continuous_config
+                continuous_config=self.config.continuous_config,
             )
-        elif isinstance(vm, NanMeta):
-            value = self.create_value(vm.value)
-            if value is None:
-                raise ValueError
-            return NanValue(vm.name, value=value, config=self.config.nan_config)
-        elif isinstance(vm, ContinuousMeta):
+        elif isinstance(vm, ContinuousModel):
             return ContinuousValue(
-                vm.name, config=self.config.continuous_config
+                vm.name, config=self.config.continuous_config,
             )
-        elif isinstance(vm, DecomposedContinuousMeta):
-            return DecomposedContinuousValue(
-                vm.name, config=self.config.decomposed_continuous_config
-            )
-        elif isinstance(vm, IdentifierMeta):
-            return IdentifierValue(vm.name, num_identifiers=vm.num_identifiers, config=self.config.identifier_config)
-        elif isinstance(vm, AddressMeta):
-            if isinstance(vm.postcode, CategoricalMeta):
-                if vm.postcode.num_categories is None:
-                    raise ValueError
-                return CategoricalValue(
-                    vm.name, num_categories=vm.postcode.num_categories, similarity_based=vm.postcode.similarity_based,
-                    nans_valid=vm.postcode.nans_valid, config=self.config.categorical_config
+        elif isinstance(vm, AssociatedHistogram):
+            values = {}
+            for model in vm.values():
+                values[model.name] = CategoricalValue(
+                    name=model.name, num_categories=len(model.categories),
+                    config=self.config.categorical_config
                 )
-        elif isinstance(vm, PersonMeta):
-            if isinstance(vm.gender, CategoricalMeta):
-                if vm.gender.num_categories is None:
-                    raise ValueError
+            return AssociatedCategoricalValue(values=values, binding_mask=vm.binding_mask, name=vm.name)
+        elif isinstance(vm, DiscreteModel):
+            assert vm.categories is not None
+            if len(vm.categories) > 1:
                 return CategoricalValue(
-                    vm.name, num_categories=vm.gender.num_categories, similarity_based=vm.gender.similarity_based,
-                    nans_valid=vm.gender.nans_valid, config=self.config.categorical_config
+                    vm.name, num_categories=len(vm.categories),
+                    config=self.config.categorical_config,
                 )
-        elif isinstance(vm, BankNumberMeta):
-            # TODO: create BankNumberMeta logic
-            return None
-        elif isinstance(vm, RuleMeta):
-            values: List[Value] = list()
-            for meta in vm.values:
-                v = self.create_value(meta)
-                if v is None:
-                    raise ValueError
-                else:
-                    values.append(v)
-            return RuleValue(
-                name=vm.name, values=values, num_learned=vm.num_learned
-            )
-
-        return None
-
-    @property
-    def all_values(self):
-        if self.identifier_value:
-            return self.values + self.conditions + [self.identifier_value]
+            else:
+                return None
         else:
-            return self.values + self.conditions
+            raise ValueError("Cannot build Value from given Meta/Model")
 
-    def get_values(self) -> List[Value]:
-        return self.values
+    def _build_nan(self, value_meta: Model) -> Sequence[CategoricalValue]:
+        """ builds a list of nan_values from a value_meta if needed else returns None"""
+        if isinstance(value_meta, AssociatedHistogram):
+            nans: List[CategoricalValue] = []
+            for vm in value_meta.children:
+                nans.extend(self._build_nan(vm))
+            return nans
+        elif isinstance(value_meta, ContinuousModel) or isinstance(value_meta, DiscreteModel):
+            if value_meta.nan_freq is None or value_meta.nan_freq == 0:
+                return []
 
-    def get_conditions(self) -> List[Value]:
-        return self.conditions
+            nan_value = CategoricalValue(
+                name=f"{value_meta.name}_nan", num_categories=2,
+                config=self.config.categorical_config
+            )
+            return [nan_value]
 
-    def get_column_names(self) -> List[str]:
-        columns = [
-            name for value in self.all_values
-            for name in value.learned_output_columns()
-        ]
-        return columns
+        return []
 
-    def get_variables(self) -> Dict[str, Any]:
-        variables: Dict[str, Any] = dict(
-            name=self.name,
-            columns=self.columns,
-            identifier_value=self.identifier_value.get_variables() if self.identifier_value else None
-        )
 
-        variables['num_values'] = len(self.values)
-        for i, value in enumerate(self.values):
-            variables['value_{}'.format(i)] = value.get_variables()
-
-        variables['num_conditions'] = len(self.conditions)
-        for i, condition in enumerate(self.conditions):
-            variables['condition_{}'.format(i)] = condition.get_variables()
-
-        return variables
-
-    def set_variables(self, variables: Dict[str, Any]):
-        assert self.name == variables['name']
-
-        self.columns = variables['columns']
-        self.identifier_value = Value.set_variables(variables['identifier_value']) \
-            if variables['identifier_value'] is not None else None
-
-        self.values = []
-        for i in range(variables['num_values']):
-            self.values.append(Value.set_variables(variables['value_{}'.format(i)]))
-
-        self.conditions = []
-        for i in range(variables['num_conditions']):
-            self.values.append(Value.set_variables(variables['condition_{}'.format(i)]))
+class ValueExtractor(ValueFactory):
+    """Extract the DataFrameMeta for a data frame"""
+    def __init__(self, name: str = 'value_factory',
+                 config: ValueFactoryConfig = ValueFactoryConfig()):
+        super().__init__(name, config)
 
     @staticmethod
-    def from_dict(variables: dict):
-        vf = ValueFactory.__new__(ValueFactory)
-        vf.name = 'value_factory'
-        vf.set_variables(variables)
+    def extract(df_meta: DataFrameModel, name: str = 'data_frame_value',
+                config: ValueFactoryConfig = ValueFactoryConfig()) -> DataFrameValue:
+        """
+        Instantiate and extract the DataFrameValue that provides the value functionality for the whole dataframe.
 
-        return vf
+        Args:
+            df_meta: the data frame meta object that describes the properties of the data.
+            config: Optional; The configuration parameters to teh ValueFactory.
+
+        Returns:
+            A DataFrameValue instance for which all child values have been instantiated.
+        """
+
+        factory = ValueExtractor(name, config)
+        df_value = factory._build(df_meta)
+        return df_value

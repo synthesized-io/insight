@@ -15,7 +15,10 @@ from sklearn.utils.validation import check_is_fitted
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata import DataFrameMeta, MetaExtractor, ValueMeta
+from ...metadata import DataFrameMeta, Nominal
+from ...metadata.factory import MetaExtractor
+from ...model import ContinuousModel, DataFrameModel, DiscreteModel
+from ...model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -201,8 +204,9 @@ class R2_Score(RegressionMetric):
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
-                               model: Union[str, BaseEstimator], copy_model: bool = True,
-                               preprocessor: ModellingPreprocessor = None, dp: DataFrameMeta = None):
+                               model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
+                               copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
+                               dp: DataFrameMeta = None, models: DataFrameModel = None):
 
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 
@@ -215,6 +219,8 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
         x_labels: A list of the input column names/explanatory variables. If none, all except y_label will be used.
         model: One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP', 'LinearSVM', or 'Logistic'. Note that
             'Logistic' only applies to categorical response variables.
+        synth_data: for training the model on some separate synthetic data but evaluating on the original, will take
+            training data from this dataframe but still evaluate on the original data
         copy_model:
         preprocessor:
         dp:
@@ -235,21 +241,20 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
     if dp is None:
         dp = MetaExtractor.extract(df=data)
+    if models is None:
+        models = ModelFactory()(dp)
 
-    categorical, continuous = dp.get_categorical_and_continuous()
-    available_columns = [v.name for v in cast(List[ValueMeta], categorical) + continuous]
-    data = data[available_columns]
-    x_labels = list(filter(lambda v: v in available_columns, x_labels))
+    x_labels = list(filter(lambda v: v in cast(DataFrameMeta, dp), x_labels))
 
-    if y_label not in available_columns:
+    if y_label not in dp:
         raise ValueError('Response variable type not handled.')
     elif len(x_labels) == 0:
         raise ValueError('No explanatory variables with acceptable type.')
 
     # Check predictor
-    if y_label in [v.name for v in categorical]:
+    if isinstance(models[y_label], DiscreteModel):
         estimator = check_model_type(model, copy_model, 'clf')
-    elif y_label in [v.name for v in continuous]:
+    elif isinstance(models[y_label], ContinuousModel):
         estimator = check_model_type(model, copy_model, 'rgr')
     else:
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
@@ -258,9 +263,16 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=y_label, dp=dp)
+        if synth_data is not None:
+            # fit data together as preprocessor needs to know all categorical variables
+            preprocessor.fit(pd.concat((data, synth_data)))
 
     df_train_pre, df_test_pre = preprocess_split_data(data, response_variable=y_label, explanatory_variables=x_labels,
                                                       sample_size=sample_size, preprocessor=preprocessor)
+    if synth_data is not None:
+        synth_data = synth_data[available_columns]
+        df_train_pre, _ = preprocess_split_data(synth_data, response_variable=y_label, explanatory_variables=x_labels,
+                                                sample_size=sample_size, preprocessor=preprocessor)
 
     x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
     x_train = df_train_pre[x_labels_pre].to_numpy()
@@ -268,16 +280,16 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
     x_test = df_test_pre[x_labels_pre].to_numpy()
     y_test = df_test_pre[y_label].to_numpy()
 
-    if y_label in [v.name for v in continuous]:
+    if isinstance(models[y_label], ContinuousModel):
         metric = 'r2_score'
         task = 'regression'
         scores = regressor_scores(x_train, y_train, x_test, y_test, rgr=estimator, metrics=metric)
         score = scores[metric]
 
-    elif y_label in [v.name for v in categorical]:
-        y_val = [val for val in categorical if val.name == y_label][0]
-        assert y_val.num_categories
-        num_classes = y_val.num_categories if y_val.nans_valid else y_val.num_categories - 1
+    elif isinstance(models[y_label], DiscreteModel):
+        y_val = cast(Nominal, dp[y_label])
+        assert y_val.categories is not None and len(y_val.categories)
+        num_classes = len(y_val.categories)
         metric = 'roc_auc' if num_classes == 2 else 'macro roc_auc'
         task = 'binary ' if num_classes == 2 else f'multinomial [{num_classes}]'
         scores = classifier_scores(x_train, y_train, x_test, y_test, clf=estimator, metrics='roc_auc')
@@ -289,7 +301,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
                                     y_label: str, x_labels: List[str], model: str):
     score, metric, task = predictive_modelling_score(data, y_label, x_labels, model)
-    synth_score, _, _ = predictive_modelling_score(synth_data, y_label, x_labels, model)
+    synth_score, _, _ = predictive_modelling_score(data, y_label, x_labels, model, synth_data=synth_data)
 
     return score, synth_score, metric, task
 

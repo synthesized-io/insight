@@ -10,10 +10,11 @@ import pandas as pd
 from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
                        plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics,
                        set_plotting_style)
-from ..insight import metrics
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..metadata import DataFrameMeta
+from ..model import ContinuousModel, DiscreteModel
+from ..model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,7 @@ class Assessor:
         self.df_synth = df_synth
 
         self.df_meta = df_meta
-        categorical, continuous = self.df_meta.get_categorical_and_continuous()
-
-        self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
-        self.plotable_values = self.categorical + self.continuous
+        self.df_models = ModelFactory()(df_meta)
 
         # Set the style of plots
         set_plotting_style()
@@ -68,7 +66,7 @@ class Assessor:
             cols: Number of columns in the plot grid.
             sample_size: Maximum sample size tot show distributions.
         """
-        rows = math.ceil(len(self.plotable_values) / cols)
+        rows = math.ceil(len(self.df_models) / cols)
         if not figsize:
             figsize = (6 * cols + 2, 5 * rows + 2)
 
@@ -76,23 +74,26 @@ class Assessor:
         gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.3)
         n = 0
 
-        for i, col in enumerate(self.categorical):
-            ax = fig.add_subplot(gs[n // cols, n % cols])
+        for col, model in self.df_models.items():
+            if isinstance(model, DiscreteModel):
+                ax = fig.add_subplot(gs[n // cols, n % cols])
+                ax.set_title(col)
+                categorical_distribution_plot(self.df_orig[col], self.df_synth[col], sample_size, ax=ax)
+                ax.get_legend().remove()
+                ax.set_xlabel("")
+                n += 1
 
-            emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
-            title = f'{col} (EMD Dist={emd_distance:.3f})'
-            categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
-            n += 1
+            elif isinstance(model, ContinuousModel):
+                ax = fig.add_subplot(gs[n // cols, n % cols])
+                ax.set_title(col)
+                continuous_distribution_plot(self.df_orig[col], self.df_synth[col], remove_outliers, sample_size, ax)
+                ax.get_legend().remove()
+                ax.set_xlabel("")
+                n += 1
 
-        for i, col in enumerate(self.continuous):
-            ax = fig.add_subplot(gs[n // cols, n % cols])
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper left', prop={'size': 14})
 
-            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.df_meta)
-            title = f'{col} (KS Dist={ks_distance:.3f})'
-            continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
-            n += 1
-
-        plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
         plt.show()
 
     def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):

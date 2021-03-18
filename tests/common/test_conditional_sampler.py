@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized import HighDimSynthesizer
 from synthesized.complex import ConditionalSampler
-from synthesized.testing.utils import testing_progress_bar
+from synthesized.metadata.factory import MetaExtractor
+from tests.utils import progress_bar_testing
 
 
 @pytest.mark.slow
@@ -18,15 +19,15 @@ def test_categorical_continuous_sampling():
     df_original = df_original.sample(frac=1.)
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     conditional_sampler = ConditionalSampler(synthesizer)
 
     # Single marginal
     marginals = {'y': {'a': 0.6, 'b': 0.3, 'c': 0.1}}
     df_synthesized = conditional_sampler.synthesize(num_rows=num_rows, explicit_marginals=marginals,
-                                                    progress_callback=testing_progress_bar)
+                                                    progress_callback=progress_bar_testing)
 
     value_counts_y = df_synthesized['y'].value_counts(normalize=True)
     for k, marginal_k in marginals['y'].items():
@@ -38,7 +39,7 @@ def test_categorical_continuous_sampling():
                  'z': {'(01/01/1900, 01/01/1950]': 0.8, '(01/01/1950, 01/01/2000]': 0.2}}
 
     df_synthesized = conditional_sampler.synthesize(num_rows=num_rows, explicit_marginals=marginals,
-                                                    progress_callback=testing_progress_bar)
+                                                    progress_callback=progress_bar_testing)
 
     assert np.isclose(len(df_synthesized[df_synthesized['x'] < 0]) / num_rows, 0.8, atol=0.05)
     assert np.isclose(len(df_synthesized[df_synthesized['x'] >= 0]) / num_rows, 0.2, atol=0.05)
@@ -56,7 +57,7 @@ def test_categorical_continuous_sampling():
                  'z': {'(01/01/1200, 01/01/1300]': 0.8, '(01/01/2050, 01/01/2150]': 0.2}}
 
     df_synthesized = conditional_sampler.synthesize(num_rows=num_rows, explicit_marginals=marginals,
-                                                    progress_callback=testing_progress_bar)
+                                                    progress_callback=progress_bar_testing)
     assert len(df_synthesized) == 0
 
 
@@ -70,8 +71,8 @@ def test_alter_distributions():
     })
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     conditional_sampler = ConditionalSampler(synthesizer)
 
@@ -79,7 +80,7 @@ def test_alter_distributions():
     marginals = {'y': {'a': 0.6, 'b': 0.3, 'c': 0.1}}
     df_synthesized = conditional_sampler.alter_distributions(df_original, num_rows=num_rows,
                                                              explicit_marginals=marginals,
-                                                             progress_callback=testing_progress_bar)
+                                                             progress_callback=progress_bar_testing)
 
     value_counts_y = df_synthesized['y'].value_counts(normalize=True)
     for k, marginal_k in marginals['y'].items():
@@ -92,7 +93,7 @@ def test_alter_distributions():
 
     df_synthesized = conditional_sampler.alter_distributions(df_original, num_rows=num_rows,
                                                              explicit_marginals=marginals,
-                                                             progress_callback=testing_progress_bar)
+                                                             progress_callback=progress_bar_testing)
 
     value_counts_y = df_synthesized['y'].value_counts(normalize=True)
     for k, marginal_k in marginals['y'].items():
@@ -108,7 +109,7 @@ def test_alter_distributions():
 
     df_synthesized = conditional_sampler.alter_distributions(df_original, num_rows=num_rows,
                                                              explicit_marginals=marginals,
-                                                             progress_callback=testing_progress_bar)
+                                                             progress_callback=progress_bar_testing)
     assert len(df_synthesized) == 0
 
 
@@ -122,8 +123,8 @@ def test_alter_distributions_nans():
                                 'y': np.random.choice(['a', 'b', 'c'], num_rows)})
 
     df_meta = MetaExtractor.extract(df=df_original)
-    with HighDimSynthesizer(df_meta=df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=100, df_train=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=100, df_train=df_original)
 
     # Single marginal
     marginals = {'y': {'a': 0.6, 'b': 0.3, 'c': 0.1}}
@@ -132,7 +133,7 @@ def test_alter_distributions_nans():
     # WITH nans
     df_synthesized_w_nans = conditional_sampler.alter_distributions(
         df_original, num_rows=num_rows, produce_nans=True, explicit_marginals=marginals,
-        progress_callback=testing_progress_bar)
+        progress_callback=progress_bar_testing)
 
     assert df_synthesized_w_nans.isna().values.any()
     value_counts_y = df_synthesized_w_nans['y'].value_counts(normalize=True)
@@ -142,7 +143,7 @@ def test_alter_distributions_nans():
     # WITHOUT nans
     df_synthesized_wo_nans = conditional_sampler.alter_distributions(
         df_original, num_rows=num_rows, produce_nans=False, explicit_marginals=marginals,
-        progress_callback=testing_progress_bar)
+        progress_callback=progress_bar_testing)
 
     assert not df_synthesized_wo_nans.isna().values.any()
     value_counts_y = df_synthesized_wo_nans['y'].value_counts(normalize=True)

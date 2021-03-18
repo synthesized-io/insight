@@ -1,18 +1,17 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import tensorflow as tf
 
 from ..module import tensorflow_name_scoped
-from ..values import Value
+from ..values import DataFrameValue
 
 
 class Generative(tf.Module):
     """Base class for generative models."""
-    def __init__(self, name: str, values: List[Value], conditions: List[Value]):
+    def __init__(self, name: str, df_value: DataFrameValue):
         super(Generative, self).__init__(name=name)
 
-        self.values = values
-        self.conditions = conditions
+        self.df_value = df_value
         self._trainable_variables = None
         self.reconstruction_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)
         self.regularization_loss = tf.Variable(0.0, dtype=tf.float32, trainable=False)

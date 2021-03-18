@@ -1,3 +1,4 @@
+# type: ignore
 import datetime
 import time
 from collections import OrderedDict
@@ -20,7 +21,7 @@ from .utility_time_series import TimeSeriesUtilityTesting
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
-from ..metadata import MetaExtractor
+from ..metadata.factory import MetaExtractor
 
 
 class Evaluation:
@@ -98,12 +99,12 @@ def synthesize_and_plot(
 
     df_meta = MetaExtractor.extract(df=data)
     hd_config = HighDimConfig(**config['params'])
-    with HighDimSynthesizer(df_meta=df_meta, config=hd_config) as synthesizer:
-        synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-                          callback_freq=100)
-        training_time = time.time() - start
-        synthesized = synthesizer.synthesize(num_rows=len_eval_data)
-        print('took', training_time, 's')
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, config=hd_config)
+    synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+                      callback_freq=100)
+    training_time = time.time() - start
+    synthesized = synthesizer.synthesize(num_rows=len_eval_data)
+    print('took', training_time, 's')
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
 
@@ -227,18 +228,18 @@ def synthesize_and_plot_time_series(
     df_meta = MetaExtractor.extract(df=data)
     series_config = SeriesConfig(**config['params'])
 
-    with SeriesSynthesizer(df_meta=df_meta, config=series_config) as synthesizer:
-        # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-        #                   callback_freq=100)
-        training_time = time.time() - start
+    synthesizer = SeriesSynthesizer(df_meta=df_meta, config=series_config)  # type: ignore
+    # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
+    #                   callback_freq=100)
+    training_time = time.time() - start
 
-        # synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
-        synthesized = data.copy()
-        identifiers = data[identifier_label].unique()
-        id_map = {a: b
-                  for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
-        synthesized[identifier_label] = synthesized[identifier_label].map(id_map)
-        print('took', training_time, 's')
+    # synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
+    synthesized = data.copy()
+    identifiers = data[identifier_label].unique()
+    id_map = {a: b
+              for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
+    synthesized[identifier_label] = synthesized[identifier_label].map(id_map)
+    print('took', training_time, 's')
 
     evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
 

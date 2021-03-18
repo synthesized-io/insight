@@ -7,7 +7,7 @@
 import logging
 import math
 from enum import Enum
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,11 +16,10 @@ import pandas as pd
 from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
                        plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style)
 from ..common.synthesizer import Synthesizer
-from ..insight import metrics
-from ..insight.dataset import categorical_or_continuous_values
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
+from ..model import ContinuousModel, DiscreteModel
 from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
@@ -52,17 +51,24 @@ class UtilityTesting:
         self.df_test = df_test.copy()
         self.df_synth = df_synth.copy()
 
-        self.dp = synthesizer.df_meta
-        categorical, continuous = categorical_or_continuous_values(self.dp)
+        self.df_meta = synthesizer.df_meta
+        self.df_models = synthesizer.df_model
+        self.categorical: List[str] = []
+        self.continuous: List[str] = []
 
-        self.categorical, self.continuous = [v.name for v in categorical], [v.name for v in continuous]
+        for name, meta in self.df_models.items():
+            if meta.dtype != 'M8[ns]':
+                if isinstance(meta, ContinuousModel):
+                    self.continuous.append(name)
+                elif isinstance(meta, DiscreteModel):
+                    self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 
         # Set the style of plots
         set_plotting_style()
 
     def show_standard_metrics(self, ax=None):
-        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.dp, ax=ax)
+        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.df_meta, ax=ax)
         plt.show()
 
         return current_result
@@ -88,17 +94,13 @@ class UtilityTesting:
         for i, col in enumerate(self.categorical):
             ax = fig.add_subplot(gs[n // cols, n % cols])
 
-            emd_distance = metrics.earth_movers_distance(self.df_orig[col], self.df_synth[col], dp=self.dp)
-            title = f'{col} (EMD Dist={emd_distance:.3f})'
-            categorical_distribution_plot(self.df_orig[col], self.df_synth[col], title, sample_size, ax=ax)
+            categorical_distribution_plot(self.df_orig[col], self.df_synth[col], sample_size, ax=ax)
             n += 1
 
         for i, col in enumerate(self.continuous):
             ax = fig.add_subplot(gs[n // 2, n % 2])
 
-            ks_distance = metrics.kolmogorov_smirnov_distance(self.df_orig[col], self.df_synth[col], dp=self.dp)
-            title = f'{col} (KS Dist={ks_distance:.3f})'
-            continuous_distribution_plot(self.df_orig[col], self.df_synth[col], title, remove_outliers, sample_size, ax)
+            continuous_distribution_plot(self.df_orig[col], self.df_synth[col], remove_outliers, sample_size, ax)
             n += 1
 
         plt.suptitle('Distributions', x=0.5, y=0.98, fontweight='bold')
@@ -132,7 +134,7 @@ class UtilityTesting:
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_test, self.df_synth, dp=self.dp, **kwargs)
+        result = metric_vector(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -161,7 +163,7 @@ class UtilityTesting:
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, dp=self.dp, **kwargs)
+            matrix = metric_matrix(df, dp=self.df_meta, models=self.df_models, **kwargs)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
@@ -198,7 +200,7 @@ class UtilityTesting:
 
         metric_matrix = TwoColumnMetricMatrix(metric)
         diff_metric_matrix = DiffMetricMatrix(metric_matrix)
-        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.dp, **kwargs))
+        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs))
 
         result = []
         for i in range(len(distances.index)):
@@ -229,7 +231,7 @@ class UtilityTesting:
         if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
 
-        x = metric(self.df_orig, self.df_synth, dp=self.dp, **kwargs)
+        x = metric(self.df_orig, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
 
         if x is not None and len(x) > 0:
             x = x.values

@@ -3,7 +3,7 @@ import base64
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import pandas as pd
 import tensorflow as tf
@@ -32,9 +32,6 @@ def _check_license():
         plain = ''.join([chr((char ** key) % n) for char in list(license_key_bytes)])
         date = datetime.strptime(plain.split(' ')[1], "%Y-%m-%d")
         now = datetime.now()
-        if now < date:
-            print('Expires at: ' + str(date))
-            return True
         if now >= date:
             print('License has been expired')
             return False
@@ -59,7 +56,6 @@ class Synthesizer(tf.Module):
 
         self.logdir = None
         self.loss_history: List[dict] = list()
-        self.writer: Optional[tf.summary.SummaryWriter] = None
 
         # Set up logging.
         if summarizer_dir is not None:
@@ -69,23 +65,18 @@ class Synthesizer(tf.Module):
             else:
                 self.logdir = f"{summarizer_dir}/{stamp}"
 
-            self.writer = tf.summary.create_file_writer(self.logdir)
+            self.writer: tf.summary.SummaryWriter = tf.summary.create_file_writer(self.logdir)
+        else:
+            self.writer = tf.summary.create_noop_writer()
 
     @abstractmethod
     def get_values(self) -> List[Value]:
         raise NotImplementedError()
 
-    @abstractmethod
-    def get_conditions(self) -> List[Value]:
-        raise NotImplementedError()
-
     def get_all_values(self) -> List[Value]:
-        return self.get_values() + self.get_conditions()
+        return self.get_values()
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
-        raise NotImplementedError
-
-    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         raise NotImplementedError
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
@@ -126,7 +117,6 @@ class Synthesizer(tf.Module):
 
     def synthesize(
             self, num_rows: int,
-            conditions: Union[dict, pd.DataFrame] = None,
             produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
@@ -134,7 +124,6 @@ class Synthesizer(tf.Module):
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             produce_nans: Whether to produce NaNs.
             progress_callback: A callback that receives current percentage of the progress.
 
@@ -143,15 +132,6 @@ class Synthesizer(tf.Module):
 
         """
         raise NotImplementedError
-
-    def __enter__(self):
-        if self.writer is not None:
-            self.writer.set_as_default()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.writer is not None:
-            self.writer.close()
 
     def get_variables(self) -> Dict[str, Any]:
         return dict(

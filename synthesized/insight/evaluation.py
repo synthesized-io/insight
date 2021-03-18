@@ -37,7 +37,7 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, 
 
     # Calculate 2nd order metrics for categorical/continuous
     corr_distances = np.abs(
-        metrics.diff_kendell_tau_correlation_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta, max_p_value=MAX_PVAL)
+        metrics.diff_kendell_tau_correlation_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta)
     )
 
     logistic_corr_distances = np.abs(

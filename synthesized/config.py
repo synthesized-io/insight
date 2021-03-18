@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field, fields
-from typing import Callable, Dict, List, Optional, Union
+from dataclasses import dataclass, fields
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -7,60 +7,102 @@ import pandas as pd
 
 
 @dataclass
-class AddressParams:
-    postcode_label: Union[str, List[str], None] = None
-    county_label: Union[str, List[str], None] = None
-    city_label: Union[str, List[str], None] = None
-    district_label: Union[str, List[str], None] = None
-    street_label: Union[str, List[str], None] = None
-    house_number_label: Union[str, List[str], None] = None
-    flat_label: Union[str, List[str], None] = None
-    house_name_label: Union[str, List[str], None] = None
-    full_address_label: Union[str, List[str], None] = None
+class AnnotationParams:
+    name: str
 
 
 @dataclass
-class AddressMetaConfig:
+class PostcodeModelConfig:
+    postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
+
+    @property
+    def postcode_model_config(self):
+        return PostcodeModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PostcodeModelConfig)})
+
+
+@dataclass
+class AddressModelConfig(PostcodeModelConfig):
+    locale: str = 'en_GB'
+    postcode_level: int = 0
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
     learn_postcodes: bool = False
 
     @property
-    def address_meta_config(self):
-        return AddressMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressMetaConfig)})
+    def address_model_config(self):
+        return AddressModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressModelConfig)})
+
+
+@dataclass(frozen=True)
+class AddressLabels:
+    postcode_label: Optional[str] = None
+    county_label: Optional[str] = None
+    city_label: Optional[str] = None
+    district_label: Optional[str] = None
+    street_label: Optional[str] = None
+    house_number_label: Optional[str] = None
+    flat_label: Optional[str] = None
+    house_name_label: Optional[str] = None
+    full_address_label: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class PersonLabels:
+    title_label: Optional[str] = None
+    gender_label: Optional[str] = None
+    name_label: Optional[str] = None
+    fullname_label: Optional[str] = None
+    firstname_label: Optional[str] = None
+    lastname_label: Optional[str] = None
+    email_label: Optional[str] = None
+    username_label: Optional[str] = None
+    password_label: Optional[str] = None
+    mobile_number_label: Optional[str] = None
+    home_number_label: Optional[str] = None
+    work_number_label: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class BankLabels:
+    bic_label: Optional[str] = None
+    sort_code_label: Optional[str] = None
+    account_label: Optional[str] = None
 
 
 @dataclass
-class BankParams:
-    bic_label: Union[str, List[str], None] = None
-    sort_code_label: Union[str, List[str], None] = None
-    account_label: Union[str, List[str], None] = None
+class GenderTransformerConfig:
+    include_undefined: bool = False
+
+    @property
+    def genders(self):
+        return list(self.title_mapping.keys())
+
+    @property
+    def gender_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
+
+    @property
+    def title_mapping(self) -> Dict[str, List[str]]:
+        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
+
+    @property
+    def gender_transformer_config(self):
+        return GenderTransformerConfig(
+            **{f.name: getattr(self, f.name) for f in fields(GenderTransformerConfig)}
+        )
 
 
 @dataclass
-class PersonParams:
-    title_label: Union[str, List[str], None] = None
-    gender_label: Union[str, List[str], None] = None
-    name_label: Union[str, List[str], None] = None
-    firstname_label: Union[str, List[str], None] = None
-    lastname_label: Union[str, List[str], None] = None
-    email_label: Union[str, List[str], None] = None
-    username_label: Union[str, List[str], None] = None
-    password_label: Union[str, List[str], None] = None
-    mobile_number_label: Union[str, List[str], None] = None
-    home_number_label: Union[str, List[str], None] = None
-    work_number_label: Union[str, List[str], None] = None
-
-
-@dataclass
-class PersonMetaConfig:
+class PersonModelConfig(GenderTransformerConfig):
+    locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
+    pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
 
     @property
-    def person_meta_config(self):
-        return PersonMetaConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonMetaConfig)})
+    def person_model_config(self):
+        return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
 
 
 @dataclass
@@ -98,11 +140,17 @@ class MetaFactoryConfig:
 
 
 @dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig, FormattedStringMetaConfig):
+class MetaExtractorConfig(MetaFactoryConfig, AddressModelConfig, PersonModelConfig, FormattedStringMetaConfig):
 
     @property
     def meta_extractor_config(self):
         return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
+
+
+@dataclass
+class ModelBuilderConfig(PersonModelConfig):
+    categorical_threshold_log_multiplier: float = 2.5
+    min_num_unique: int = 10
 
 
 # Transformer Config Classes ----------------------------------------
@@ -111,47 +159,29 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressMetaConfig, PersonMetaConfig
 class QuantileTransformerConfig:
     n_quantiles: int = 1000
     distribution: str = 'normal'
+    noise: Optional[float] = 1e-7
 
     @property
-    def quantile_transformer_config(self):
+    def quantile_transformer_config(self) -> 'QuantileTransformerConfig':
         return QuantileTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(QuantileTransformerConfig)}
         )
 
 
 @dataclass
-class DateTransformerConfig:
+class DateTransformerConfig(QuantileTransformerConfig):
     unit: str = 'days'
 
     @property
-    def date_transformer_config(self):
+    def date_transformer_config(self) -> 'DateTransformerConfig':
         return DateTransformerConfig(
             **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
         )
 
 
-# Todo: How do we implement logic/mappings which depend on the values of the ValueMetas? ie. an Integer with only 4
-#       unique values should be mapped to the categorical transformer. Perhaps we should just have custom logic by
-#       creating different TransformerFactory classes?
 @dataclass
-class MetaTransformerConfig():
-    Float: Union[str, List[str]] = 'QuantileTransformer'
-    Integer: Union[str, List[str]] = 'QuantileTransformer'
-    Bool: Union[str, List[str]] = 'CategoricalTransformer'
-    String: Union[str, List[str]] = 'CategoricalTransformer'
-    Date: Union[str, List[str]] = field(default_factory=lambda: ['DateCategoricalTransformer', 'DateTransformer', 'QuantileTransformer'])
-
-    @property
-    def meta_transformer_config(self):
-        return MetaTransformerConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(MetaTransformerConfig)}
-        )
-
-    def get_transformer_config(self, transformer: str):
-        if transformer == 'QuantileTransformer':
-            return QuantileTransformerConfig()
-        elif transformer == 'DateTransformer':
-            return DateTransformerConfig()
+class MetaTransformerConfig(DateTransformerConfig, QuantileTransformerConfig):
+    pass
 
 # Value Config Classes ----------------------------------------
 
@@ -245,12 +275,9 @@ class LearningManagerConfig:
         return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
 
 
-# Synthesizer Config Classes ----------------------------------------
-
 @dataclass
-class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
+class EngineConfig:
     """
-    distribution: Distribution type: "normal".
     latent_size: Latent size.
     network: Network type: "mlp" or "resnet".
     capacity: Architecture capacity.
@@ -264,12 +291,9 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     decay_rate: Learning rate decay rate.
     initial_boost: Number of steps for initial x10 learning rate boost.
     clip_gradients: Gradient norm clipping.
-    batch_size: Batch size.
     beta: beta.
     weight_decay: Weight decay.
-    learning_manager: Whether to use LearningManager.
     """
-    distribution: str = 'normal'
     latent_size: int = 32
     # Network
     network: str = 'resnet'
@@ -285,14 +309,29 @@ class HighDimConfig(ValueFactoryConfig, LearningManagerConfig):
     decay_rate: Optional[float] = None
     initial_boost: int = 0
     clip_gradients: float = 1.0
-    # Batch size
+    # Losses
+    beta: float = 1.0
+    weight_decay: float = 1e-3
+
+    @property
+    def engine_config(self):
+        return EngineConfig(**{f.name: self.__getattribute__(f.name) for f in fields(EngineConfig)})
+
+# Synthesizer Config Classes ----------------------------------------
+
+
+@dataclass
+class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig):
+    """
+    distribution: Distribution type: "normal".
+    batch_size: Batch size.
+    learning_manager: Whether to use LearningManager.
+    """
+    distribution: str = 'normal'
     batch_size: int = 64
     increase_batch_size_every: Optional[int] = 500
     max_batch_size: Optional[int] = 1024
     synthesis_batch_size: Optional[int] = 16384
-    # Losses
-    beta: float = 1.0
-    weight_decay: float = 1e-3
     learning_manager: bool = True
 
 

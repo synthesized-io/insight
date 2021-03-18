@@ -10,7 +10,7 @@ import simplejson
 from .highdim import HighDimConfig, HighDimSynthesizer
 from ..common.synthesizer import Synthesizer
 from ..common.values import CategoricalValue, ContinuousValue
-from ..metadata import MetaExtractor
+from ..metadata.factory import MetaExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -132,15 +132,15 @@ class Sanitizer(Synthesizer):
         return df_synthesized
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
+            self, num_rows: int, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None, n_columns_intersect: int = None
     ) -> pd.DataFrame:
 
         if progress_callback is not None:
             progress_callback(0)
 
-        df_synthesized = self.synthesizer.synthesize(num_rows=num_rows, conditions=conditions,
-                                                     produce_nans=produce_nans, progress_callback=progress_callback)
+        df_synthesized = self.synthesizer.synthesize(num_rows=num_rows, produce_nans=produce_nans,
+                                                     progress_callback=progress_callback)
 
         if progress_callback is not None:
             progress_callback(99)
@@ -164,7 +164,7 @@ class Sanitizer(Synthesizer):
             n_additional = round((num_rows - len(df_synthesized)) / fill_ratio * self.oversynthesis_ratio)
 
             # synthesis + dropping
-            df_additional = self.synthesizer.synthesize(num_rows=n_additional, conditions=conditions)
+            df_additional = self.synthesizer.synthesize(num_rows=n_additional)
             df_additional = self._sanitize(df_additional, n_cols=n_columns_intersect)
             df_synthesized = df_synthesized.append(df_additional, ignore_index=True)
 
@@ -199,7 +199,6 @@ def privacy_check(data: pd.DataFrame, num_iterations: int = None, synthesizer_cl
         dp = MetaExtractor.extract(df=data)
         config = HighDimConfig(**synthesizer_params)
         synthesizer = HighDimSynthesizer(df_meta=dp, config=config)
-        synthesizer.__enter__()
         synthesizer.learn(df_train=data, num_iterations=num_iterations)
     else:
         raise NotImplementedError

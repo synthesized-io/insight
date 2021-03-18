@@ -1,3 +1,4 @@
+# type: ignore
 from typing import Dict, Tuple
 
 import pandas as pd
@@ -5,7 +6,7 @@ import tensorflow as tf
 
 from ..optimizers import Optimizer
 from ..values import ValueFactory, ValueFactoryConfig, ValueOps
-from ...metadata import DataFrameMeta
+from ...metadata.data_frame_meta import DataFrameMeta
 
 
 class StateSpaceModel(tf.Module):

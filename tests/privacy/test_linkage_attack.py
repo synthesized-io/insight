@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized import HighDimSynthesizer, MetaExtractor
+from synthesized import HighDimSynthesizer
+from synthesized.metadata.factory import MetaExtractor
 from synthesized.privacy import LinkageAttack
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,10 @@ def test_failed_linkage_attack():
     df_original = pd.DataFrame({'x': x, 'y': y, 'z': z})
 
     df_meta = MetaExtractor.extract(df_original)
-    with HighDimSynthesizer(df_meta) as synthesizer:
-        synthesizer.learn(num_iterations=1000, df_train=df_original)
-        df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
-        assert len(df_synthesized) == len(df_original)
+    synthesizer = HighDimSynthesizer(df_meta)
+    synthesizer.learn(num_iterations=1000, df_train=df_original)
+    df_synthesized = synthesizer.synthesize(num_rows=len(df_original))
+    assert len(df_synthesized) == len(df_original)
 
     la = LinkageAttack(
         df_original, t_closeness=0.3, k_distance=0.05, max_n_vulnerable=25,
@@ -38,7 +39,6 @@ def test_failed_linkage_attack():
     assert df_attacked is None
 
 
-@pytest.mark.fast
 def test_successful_linkage_attack():
     n = 1000
 

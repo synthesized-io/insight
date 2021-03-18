@@ -1,15 +1,11 @@
-from .base import SequentialTransformer, Transformer
-from .binning import BinningTransformer
-from .categorical import CategoricalTransformer
-from .data_frame import DataFrameTransformer, TransformerFactory
-from .date import DateCategoricalTransformer, DateTransformer
-from .drop_column import DropColumnTransformer
-from .dtype import DTypeTransformer
-from .nan import NanTransformer
-from .quantile import QuantileTransformer
+from .base import BagOfTransformers, SequentialTransformer, Transformer
+from .child import (BinningTransformer, CategoricalTransformer, DateCategoricalTransformer, DateToNumericTransformer,
+                    DateTransformer, DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer)
+from .data_frame import DataFrameTransformer
+from .factory import TransformerFactory
 
 __all__ = [
-    'Transformer', 'SequentialTransformer', 'BinningTransformer', 'CategoricalTransformer', 'DataFrameTransformer', 'TransformerFactory',
-    'DateTransformer', 'DateCategoricalTransformer', 'DropColumnTransformer', 'DTypeTransformer',
-    'NanTransformer', 'QuantileTransformer'
+    'Transformer', 'BagOfTransformers', 'SequentialTransformer', 'BinningTransformer', 'CategoricalTransformer',
+    'DataFrameTransformer', 'TransformerFactory', 'DateTransformer', 'DateCategoricalTransformer',
+    'DateToNumericTransformer', 'DropColumnTransformer', 'DTypeTransformer', 'NanTransformer', 'QuantileTransformer'
 ]

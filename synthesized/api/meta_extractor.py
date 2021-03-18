@@ -1,16 +1,19 @@
-from typing import Dict, List
+# type: ignore
+from typing import List, Union
 
 import pandas as pd
 
+from .annotations import Address, Bank, Person
 from .data_frame_meta import DataFrameMeta
-from ..config import AddressParams, BankParams, MetaExtractorConfig, PersonParams
-from ..metadata import MetaExtractor as _MetaExtractor
-from ..metadata import TypeOverride
+from ..config import MetaFactoryConfig
+from ..metadata.factory import MetaExtractor as _MetaExtractor
+
+Annotations = Union[Address, Bank, Person]
 
 
 class MetaExtractor:
     """Extracts metadata from the columns of a tabular dataset. Used to produce DataFrameMeta objects."""
-    def __init__(self, config: MetaExtractorConfig = MetaExtractorConfig()):
+    def __init__(self, config: MetaFactoryConfig = MetaFactoryConfig()):
         """Initialises a MetaExtractor instance with a provided configuration.
 
         Args:
@@ -20,39 +23,32 @@ class MetaExtractor:
 
     @classmethod
     def extract(
-            cls, df: pd.DataFrame, config: MetaExtractorConfig = MetaExtractorConfig(),
-            column_aliases: Dict[str, str] = None, associations: Dict[str, List[str]] = None,
-            type_overrides: Dict[str, TypeOverride] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None, person_params: PersonParams = None
+            cls, df: pd.DataFrame, config: MetaFactoryConfig = MetaFactoryConfig(),
+            annotations: List[Annotations] = None
     ) -> DataFrameMeta:
         """Extracts the DataFrame metadata with the provided configuration options.
 
         Args:
             df: A pandas DataFrame containing the dataset to be extracted from.
             config: Configuration for the MetaExtractor.
-            column_aliases: Optional dictionary mapping pairs of column aliases.
-            associations: Optional dictionary assigning strict associations between categories.
-            type_overrides: Optional dictionary mapping column names to desired TypeOverrides.
-            address_params: Parameters for Address annotations.
-            bank_params: Parameters for Bank Account annotations.
-            person_params: Parameters for Person annotations
+            annotations: list of annotation objects for the dataframe
 
         Returns:
             The extracted DataFrameMeta.
         """
         df_meta = DataFrameMeta()
+        _annotations = None
+        if annotations is not None:
+            _annotations = [annotation._annotation for annotation in annotations]
+
         df_meta._df_meta = _MetaExtractor.extract(
-            df=df, config=config, id_index=None, time_index=None, column_aliases=column_aliases,
-            associations=associations, type_overrides=type_overrides, find_rules=None,
-            address_params=address_params,
-            bank_params=bank_params, person_params=person_params,
+            df=df, config=config, annotations=_annotations
         )
         return df_meta
 
     def extract_dataframe_meta(
-            self, df: pd.DataFrame, column_aliases: Dict[str, str] = None,
-            associations: Dict[str, List[str]] = None, type_overrides: Dict[str, TypeOverride] = None,
-            address_params: AddressParams = None, bank_params: BankParams = None, person_params: PersonParams = None
+            self, df: pd.DataFrame, config: MetaFactoryConfig = MetaFactoryConfig(),
+            annotations: List[Annotations] = None
     ) -> DataFrameMeta:
         """Extracts the DataFrame metadata with the instance's configuration options.
 
@@ -60,20 +56,15 @@ class MetaExtractor:
 
         Args:
             df: A pandas DataFrame containing the dataset to be extracted from.
-            column_aliases: Optional dictionary mapping pairs of column aliases.
-            associations: Optional dictionary assigning strict associations between categories.
-            type_overrides: Optional dictionary mapping column names to desired TypeOverrides.
-            address_params: Parameters for Address annotations.
-            bank_params: Parameters for Bank Account annotations.
-            person_params: Parameters for Person annotations
+            config: Configuration for the MetaExtractor.
+            annotations: list of annotation objects for the dataframe
 
         Returns:
             The extracted DataFrameMeta.
         """
         df_meta = DataFrameMeta()
-        df_meta._df_meta = self._meta_extractor.extract(
-            df=df, id_index=None, time_index=None, column_aliases=column_aliases, associations=associations,
-            type_overrides=type_overrides, find_rules=None, address_params=address_params, bank_params=bank_params,
-            person_params=person_params
+        _annotations = [annotation._annotation for annotation in annotations]
+        df_meta._df_meta = _MetaExtractor.extract(
+            df=df, config=config, annotations=_annotations
         )
         return df_meta

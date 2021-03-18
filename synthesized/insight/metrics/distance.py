@@ -436,6 +436,10 @@ class KolmogorovSmirnovDistance(DistanceMetric):
         """
         return ks_2samp(self.x, self.y)[0]
 
+    @property
+    def p_value(self):
+        return ks_2samp(self.x, self.y)[1]
+
 
 class EarthMoversDistanceBinned(BinnedDistanceMetric):
     """

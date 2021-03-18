@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import pandas as pd
 
@@ -30,14 +30,12 @@ class Synthesizer:
         raise NotImplementedError
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None,
-            progress_callback: Callable[[int], None] = None
+            self, num_rows: int, progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
         Args:
             num_rows: The number of rows to generate.
-            conditions: The condition values for the generated rows.
             progress_callback: A callback that receives current percentage of the progress.
 
         Returns:
@@ -45,9 +43,3 @@ class Synthesizer:
 
         """
         raise NotImplementedError
-
-    def __enter__(self):
-        self._synthesizer.__enter__()
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._synthesizer.__exit__(exc_type, exc_value, traceback)

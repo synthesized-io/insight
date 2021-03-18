@@ -1,22 +1,30 @@
 from math import log
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import tensorflow as tf
+from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, uniform, weibull_min
 from tensorflow_probability import distributions as tfd
 
 from .value import Value
 from ..module import tensorflow_name_scoped
 from ...config import ContinuousConfig
-from ...metadata.values.continuous import DISTRIBUTIONS
+
+DISTRIBUTIONS = dict(
+    gamma=(gamma, tfd.Gamma),
+    gilbrat=(gilbrat, None),
+    gumbel=(gumbel_r, tfd.Gumbel),
+    log_normal=(lognorm, tfd.LogNormal),
+    uniform=(uniform, tfd.Uniform),
+    weibull=(weibull_min, None)
+)
 
 
 class ContinuousValue(Value):
 
     def __init__(
-        self, name: str, config: ContinuousConfig = ContinuousConfig(),
+        self, name: str, config: ContinuousConfig = ContinuousConfig()
     ):
         super().__init__(name=name)
-
         self.weight = config.continuous_weight
 
     def specification(self) -> Dict[str, Any]:
@@ -33,9 +41,14 @@ class ContinuousValue(Value):
         return 1
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
         assert len(xs) == 1
-        x = tf.expand_dims(xs[0], axis=-1)
+
+        if mask is not None:
+            x = tf.where(mask, xs[0], tf.random.normal(xs[0].shape))
+        else:
+            x = xs[0]
+        x = tf.expand_dims(x, axis=-1)
         return x
 
     @tensorflow_name_scoped
@@ -44,7 +57,7 @@ class ContinuousValue(Value):
         return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
         target = tf.expand_dims(xs[0], axis=-1)
 
         if mask is not None:
