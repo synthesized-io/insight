@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from synthesized import ScenarioSynthesizer
+from synthesized.complex.scenario import ScenarioSynthesizer
 
 
 @pytest.mark.slow
