@@ -84,7 +84,7 @@ class SeriesSynthesizer(Synthesizer):
         return data
 
     def get_all_values(self) -> List[Value]:
-        return [v for v in self.df_value.values()]
+        return list(self.df_value.values())
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
         if data is not None:
