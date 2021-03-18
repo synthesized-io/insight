@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized import MetaExtractor, SeriesSynthesizer
+from synthesized import MetaExtractor
+from synthesized.complex.series import SeriesSynthesizer
 from synthesized.config import SeriesConfig
 
 

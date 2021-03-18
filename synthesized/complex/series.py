@@ -1,11 +1,8 @@
-# type: ignore
 import logging
-import random
 import time
 from random import randrange
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -13,9 +10,10 @@ from ..common import Synthesizer
 from ..common.generative import SeriesEngine
 from ..common.learning_manager import LearningManager
 from ..common.util import record_summaries_every_n_global_steps
-from ..common.values import Value, ValueFactory
+from ..common.values import DataFrameValue, Value, ValueExtractor
 from ..config import SeriesConfig
 from ..metadata.data_frame_meta import DataFrameMeta
+from ..transformer import DataFrameTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +31,10 @@ class SeriesSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
         self.df_meta = df_meta
-        self.value_factory = ValueFactory(
-            df_meta=df_meta, name='value_factory', conditions=condition_labels, config=config.value_factory_config
+        self.df_value: DataFrameValue = ValueExtractor.extract(
+            df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
+        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
         if config.lstm_mode not in ('lstm', 'vrae', 'rdssm'):
             raise NotImplementedError
         self.lstm_mode = config.lstm_mode
@@ -48,8 +47,8 @@ class SeriesSynthesizer(Synthesizer):
 
         # VAE
         self.engine = SeriesEngine(
-            name='vae', values=self.get_values(), conditions=self.get_conditions(),
-            identifier_label=self.df_meta.id_index_name, identifier_value=self.value_factory.identifier_value,
+            name='vae', values=self.df_value.values(),
+            identifier_label=self.df_meta.id_index,
             encoding=self.lstm_mode, latent_size=config.latent_size,
             network=config.network, capacity=config.capacity, num_layers=config.num_layers,
             residual_depths=config.residual_depths,
@@ -74,34 +73,18 @@ class SeriesSynthesizer(Synthesizer):
             self.learning_manager.set_check_frequency(self.batch_size)
             raise NotImplementedError
 
-    def get_values(self) -> List[Value]:
-        return self.value_factory.get_values()
-
-    def get_conditions(self) -> List[Value]:
-        return self.value_factory.get_conditions()
-
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
-            value.name: tuple([
-                tf.constant(df[name])
-                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
+            name: tuple([
+                tf.constant(df[column])
+                for column in value.columns()
             ])
-            for value in self.get_all_values()
-        }
-        return data
-
-    def get_conditions_feed_dict(self, df_conditions: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
-        data: Dict[str, Sequence[tf.Tensor]] = {
-            value.name: tuple([
-                tf.constant(df_conditions[name])
-                for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
-            ])
-            for value in self.get_conditions()
+            for name, value in self.df_value.items()
         }
         return data
 
     def get_all_values(self) -> List[Value]:
-        return self.value_factory.all_values
+        return list(self.df_value.values())
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> Dict[str, tf.Tensor]:
         if data is not None:
@@ -115,32 +98,7 @@ class SeriesSynthesizer(Synthesizer):
         return losses
 
     def get_groups_feed_dict(self, df: pd.DataFrame) -> Tuple[List[Dict[str, Sequence[tf.Tensor]]], List[int]]:
-        if self.df_meta.id_index_name is None:
-            num_data = [len(df)]
-            groups: List[Dict[str, Sequence[tf.Tensor]]] = [{
-                value.name: tuple([
-                    tf.constant(df[name])
-                    for m_name in value.meta_names for name in self.df_meta[m_name].learned_input_columns()
-                ])
-                for value in self.get_all_values()
-            }]
-
-        else:
-            groups = [group[1] for group in df.groupby(by=self.df_meta.id_index_name)]
-            num_data = [len(group) for group in groups]
-            for n in range(len(groups)):
-                groups[n] = {
-                    value.name: tuple([
-                        tf.constant(groups[n][name])
-                        for m_name in value.meta_names for name in (
-                            self.df_meta[m_name].learned_input_columns()
-                            if not isinstance(self.df_meta[m_name], IdentifierMeta) else [m_name]  # noqa: F821
-                        )
-                    ])
-                    for value in self.get_all_values()
-                }
-
-        return groups, num_data
+        raise NotImplementedError
 
     def get_group_feed_dict(
             self, groups: List[Dict[str, Sequence[tf.Tensor]]], num_data, max_seq_len=None, group=None
@@ -174,7 +132,7 @@ class SeriesSynthesizer(Synthesizer):
         return spec
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = self.df_meta.preprocess(df)
+        df = self.df_transformer.transform(df)
         return df
 
     def learn(
@@ -188,7 +146,7 @@ class SeriesSynthesizer(Synthesizer):
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
 
         df_train = df_train.copy()
-        df_train = self.df_meta.preprocess(df_train, max_workers=None).reset_index()
+        df_train = self.df_transformer.transform(df_train, max_workers=None).reset_index()
 
         groups, num_data = self.get_groups_feed_dict(df_train)
         max_seq_len = min(min(num_data), self.max_seq_len)
@@ -250,7 +208,7 @@ class SeriesSynthesizer(Synthesizer):
         ))
 
     def synthesize(
-            self, num_rows: int, conditions: Union[dict, pd.DataFrame] = None, produce_nans: bool = False,
+            self, num_rows: int, produce_nans: bool = False,
             progress_callback: Callable[[int], None] = None, num_series: int = 1
     ) -> pd.DataFrame:
         """Synthesize a dataset from the learned model
@@ -264,77 +222,7 @@ class SeriesSynthesizer(Synthesizer):
 
         Returns: Synthesized dataframe.
         """
-        series_length = num_rows
-        df_conditions = self.df_meta.preprocess_by_name(conditions, [c.name for c in self.get_conditions()])
-        columns = self.df_meta.columns
+        raise NotImplementedError
 
-        feed_dict = self.get_conditions_feed_dict(df_conditions)
-        synthesized = None
-
-        # Get identifiers to iterate
-        if self.value_factory.identifier_value and num_series > self.value_factory.identifier_value.num_identifiers:
-            raise ValueError("Number of series to synthesize is bigger than original dataset.")
-
-        with record_summaries_every_n_global_steps(0, self.global_step):
-            for identifier in random.sample(range(num_series), num_series):
-                tf_identifier = tf.constant([identifier])
-                other = self.engine.synthesize(tf.constant(series_length, dtype=tf.int64), cs=feed_dict,
-                                               identifier=tf_identifier)
-                other = self.df_meta.split_outputs(other)
-                other = pd.DataFrame.from_dict(other)
-                if synthesized is None:
-                    synthesized = other
-                else:
-                    synthesized = synthesized.append(other, ignore_index=True)
-
-        df_synthesized = pd.DataFrame.from_dict(synthesized)
-        df_synthesized = self.df_meta.postprocess(df=df_synthesized, max_workers=None)[columns]
-
-        return df_synthesized
-
-    def encode(self, df_encode: pd.DataFrame, conditions: Union[dict, pd.DataFrame] = None,
-               n_forecast: int = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
-
-        if conditions is not None:
-            raise NotImplementedError
-
-        columns = self.df_meta.columns
-        df_encode = df_encode.copy()
-        df_encode = self.df_meta.preprocess(df_encode)
-
-        groups, num_data = self.get_groups_feed_dict(df_encode)
-
-        encoded, decoded = None, None
-
-        for i in range(len(groups)):
-
-            feed_dict = self.get_group_feed_dict(groups, num_data, group=i)
-            encoded_i, decoded_i = self.engine.encode(xs=feed_dict, cs=dict(), n_forecast=n_forecast)
-            if len(encoded_i['sample'].shape) == 1:
-                encoded_i['sample'] = tf.expand_dims(encoded_i['sample'], axis=0)
-
-            if self.df_meta.id_index_name:
-                identifier = feed_dict[self.df_meta.id_index_name]
-                decoded_i[self.df_meta.id_index_name] = tf.tile([identifier], [num_data[i] + n_forecast])
-
-            if not encoded or not decoded:
-                encoded, decoded = encoded_i, decoded_i
-            else:
-                for k in encoded.keys():
-                    encoded[k] = tf.concat((encoded[k], encoded_i[k]), axis=0)
-                for k in decoded.keys():
-                    decoded[k] = tf.concat((decoded[k], decoded_i[k]), axis=0)
-
-        if not decoded or not encoded:
-            return pd.DataFrame(), pd.DataFrame()
-
-        decoded = self.df_meta.split_outputs(decoded)
-        df_synthesized = pd.DataFrame.from_dict(decoded)[columns]
-        df_synthesized = self.df_meta.postprocess(df=df_synthesized)
-
-        latent = np.concatenate((encoded['sample'], encoded['mean'], encoded['std']), axis=1)
-
-        df_encoded = pd.DataFrame.from_records(
-            latent, columns=[f"{ls}_{n}" for ls in ['l', 'm', 's'] for n in range(encoded['sample'].shape[1])])
-
-        return df_encoded, df_synthesized
+    def encode(self, df_encode: pd.DataFrame, n_forecast: int = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        raise NotImplementedError
