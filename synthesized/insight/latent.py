@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
-from ..metadata_new.factory import MetaExtractor
+from ..metadata.factory import MetaExtractor
 
 
 def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.DataFrame:

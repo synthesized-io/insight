@@ -5,7 +5,7 @@ import pandas as pd
 
 from .histogram import Histogram
 from ..base import Model
-from ...metadata_new.value import AssociatedCategorical
+from ...metadata.value import AssociatedCategorical
 
 
 class AssociatedHistogram(Model[AssociatedCategorical], Mapping[str, Histogram]):

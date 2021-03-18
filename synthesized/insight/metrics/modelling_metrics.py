@@ -15,8 +15,8 @@ from sklearn.utils.validation import check_is_fitted
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata_new import DataFrameMeta, Nominal
-from ...metadata_new.factory import MetaExtractor
+from ...metadata import DataFrameMeta, Nominal
+from ...metadata.factory import MetaExtractor
 from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 

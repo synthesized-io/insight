@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from ..optimizers import Optimizer
 from ..values import ValueFactory, ValueFactoryConfig, ValueOps
-from ...metadata_new.data_frame_meta import DataFrameMeta
+from ...metadata.data_frame_meta import DataFrameMeta
 
 
 class StateSpaceModel(tf.Module):

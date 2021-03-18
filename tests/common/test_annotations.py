@@ -8,7 +8,7 @@ import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new.value import Address, Bank, FormattedString, Person
+from synthesized.metadata.value import Address, Bank, FormattedString, Person
 
 
 def test_synthesis_w_annotations():

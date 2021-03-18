@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from ..synthesizer import Synthesizer
 from ...insight.evaluation import calculate_evaluation_metrics
-from ...metadata_new import DataFrameMeta
+from ...metadata import DataFrameMeta
 
 logger = logging.getLogger(__name__)
 

@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from ...metadata_new import DataFrameMeta
-from ...metadata_new.factory import MetaExtractor
+from ...metadata import DataFrameMeta
+from ...metadata.factory import MetaExtractor
 from ...model import DataFrameModel
 from ...model.factory import ModelFactory
 

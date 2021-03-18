@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from .base import BagOfTransformers, Transformer
-from ..metadata_new import DataFrameMeta
+from ..metadata import DataFrameMeta
 from ..model import DataFrameModel
 
 

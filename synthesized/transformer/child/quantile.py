@@ -6,7 +6,7 @@ from sklearn.preprocessing import QuantileTransformer as _QuantileTransformer
 
 from ..base import Transformer
 from ...config import QuantileTransformerConfig
-from ...metadata_new import Affine
+from ...metadata import Affine
 
 
 class QuantileTransformer(Transformer):

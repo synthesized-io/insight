@@ -2,7 +2,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 
-from ..base import Ring, Ordinal
+from ..base import Ordinal, Ring
 
 
 class Bool(Ordinal[np.bool8]):

@@ -5,9 +5,9 @@ import pytest
 
 from synthesized.api import Address, Bank, ContinuousModel, DiscreteModel, HighDimSynthesizer, MetaExtractor, Person
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new.value import Address as _Address
-from synthesized.metadata_new.value import Bank as _Bank
-from synthesized.metadata_new.value import Person as _Person
+from synthesized.metadata.value import Address as _Address
+from synthesized.metadata.value import Bank as _Bank
+from synthesized.metadata.value import Person as _Person
 from synthesized.model import ContinuousModel as _ContinuousModel
 from synthesized.model import DiscreteModel as _DiscreteModel
 

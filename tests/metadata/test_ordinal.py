@@ -1,7 +1,7 @@
 import pytest
 
-from synthesized.metadata_new import Ordinal
-from synthesized.metadata_new.value import Bool, OrderedString
+from synthesized.metadata import Ordinal
+from synthesized.metadata.value import Bool, OrderedString
 
 from .dataframes import BoolData, OrderedStringData
 from .test_nominal import TestNominal as _TestNominal

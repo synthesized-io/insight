@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
-from synthesized.metadata_new.factory import MetaExtractor
+from synthesized.metadata.factory import MetaExtractor
 from synthesized.model.factory import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,

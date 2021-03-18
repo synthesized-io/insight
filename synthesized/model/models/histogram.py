@@ -8,7 +8,7 @@ import seaborn as sns
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata_new import Affine, AType, ExtractionError, Nominal, NType, SType
+from ...metadata import Affine, AType, ExtractionError, Nominal, NType, SType
 
 HistogramType = TypeVar('HistogramType', bound='Histogram')
 

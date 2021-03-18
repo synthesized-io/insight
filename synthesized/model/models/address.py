@@ -14,8 +14,8 @@ import simplejson
 from .histogram import Histogram
 from ..base import DiscreteModel
 from ...config import AddressLabels, AddressModelConfig, PostcodeModelConfig
-from ...metadata_new import MetaNotExtractedError, Nominal
-from ...metadata_new.value import Address, String
+from ...metadata import MetaNotExtractedError, Nominal
+from ...metadata.value import Address, String
 from ...util import get_postcode_key, get_postcode_key_from_df
 
 logger = logging.getLogger(__name__)

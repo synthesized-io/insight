@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from .state_space import StateSpaceModel
 from ..transformations import DenseTransformation, MlpTransformation, Transformation
-from ...metadata_new.data_frame_meta import DataFrameMeta
+from ...metadata.data_frame_meta import DataFrameMeta
 
 
 class FeedForwardStateSpaceModel(StateSpaceModel):
@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     from synthesized.common.util import record_summaries_every_n_global_steps
 
-    from ...metadata_new.factory import MetaExtractor
+    from ...metadata.factory import MetaExtractor
     warnings.filterwarnings('ignore', module='pandas|sklearn')
 
     df = pd.DataFrame(dict(

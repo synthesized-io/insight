@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from synthesized.metadata_new import Scale
-from synthesized.metadata_new.value import Integer, TimeDeltaDay
+from synthesized.metadata import Scale
+from synthesized.metadata.value import Integer, TimeDeltaDay
 
 from .dataframes import IntData, TimeDeltaDayData
 from .test_affine import TestAffine as _TestAffine

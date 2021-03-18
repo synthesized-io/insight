@@ -1,7 +1,7 @@
 import pytest
 
-from synthesized.metadata_new import Ring
-from synthesized.metadata_new.value import Float, IntegerBool
+from synthesized.metadata import Ring
+from synthesized.metadata.value import Float, IntegerBool
 
 from .dataframes import FloatData, IntBoolData
 from .test_scale import TestScale as _TestScale

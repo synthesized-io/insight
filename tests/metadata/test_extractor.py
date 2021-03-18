@@ -10,10 +10,10 @@ from hypothesis import assume, given
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata_new import DataFrameMeta, Ordinal
-from synthesized.metadata_new.factory import MetaExtractor
-from synthesized.metadata_new.value import (Address, AssociatedCategorical, Bank, Bool, DateTime, Float,
-                                            FormattedString, Integer, IntegerBool, OrderedString, Person, String)
+from synthesized.metadata import DataFrameMeta, Ordinal
+from synthesized.metadata.factory import MetaExtractor
+from synthesized.metadata.value import (Address, AssociatedCategorical, Bank, Bool, DateTime, Float, FormattedString,
+                                        Integer, IntegerBool, OrderedString, Person, String)
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ from itertools import chain
 
 import pandas as pd
 
-from ..metadata_new.factory import MetaExtractor
+from ..metadata.factory import MetaExtractor
 
 
 def describe_dataset_values(df: pd.DataFrame) -> pd.DataFrame:

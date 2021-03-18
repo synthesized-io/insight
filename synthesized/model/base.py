@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar, cast
 import numpy as np
 import pandas as pd
 
-from ..metadata_new import AffineType, AType, Meta, MetaType, NominalType, NType
+from ..metadata import AffineType, AType, Meta, MetaType, NominalType, NType
 from ..util import get_all_subclasses
 
 ModelType = TypeVar('ModelType', bound='Model')

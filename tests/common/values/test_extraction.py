@@ -2,8 +2,8 @@ import numpy as np
 
 from synthesized.common.values import (AssociatedCategoricalValue, CategoricalValue, ContinuousValue, DateValue,
                                        ValueExtractor)
-from synthesized.metadata_new import DataFrameMeta
-from synthesized.metadata_new.value import AssociatedCategorical, DateTime, Integer
+from synthesized.metadata import DataFrameMeta
+from synthesized.metadata.value import AssociatedCategorical, DateTime, Integer
 from synthesized.model import DataFrameModel
 from synthesized.model.models import AssociatedHistogram, Histogram, KernelDensityEstimate
 
