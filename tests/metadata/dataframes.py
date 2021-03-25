@@ -215,16 +215,20 @@ class AddressData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: [address_cambridge, address_london, address_swansea]
+            'a': [1, 2, 3],
+            name: [address_cambridge, address_london, address_swansea],
+            'b': [1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
+            'a': [1, 2, 3],
             "city": pd.Series(["Cambridge", "London", "Swansea"], dtype=object),
             "street": pd.Series(["Blah Drive", "Placeholder Avenue", "Test Road"], dtype=object),
             "house number": pd.Series(["1", "", "42"], dtype=object),
             "house name": pd.Series(["", "Housey McHouseface", ""], dtype=object),
+            'b': [1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
@@ -236,15 +240,19 @@ class BankData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: ["HBUK01066212345678", "BCUK32343212345678", "HBUK01066212345678"]
+            'a': [1, 2, 3],
+            name: ["HBUK01066212345678", "BCUK32343212345678", "HBUK01066212345678"],
+            'b': [1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
+            'a': [1, 2, 3],
             "bic": pd.Series(["HBUK", "BCUK", "HBUK"], dtype=object),
             "sort_code": pd.Series(["010662", "323432", "010662"], dtype=object),
-            "account": pd.Series(["12345678", "12345678", "12345678"], dtype=object)
+            "account": pd.Series(["12345678", "12345678", "12345678"], dtype=object),
+            'b': [1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
@@ -261,20 +269,23 @@ class PersonData(MetaTestData):
     @pytest.fixture(scope='class')
     def dataframe(self, name) -> pd.DataFrame:
         return pd.DataFrame({
-            name: [rob, alice_s, alice_b, rob]
+            'a': [0, 1, 2, 3],
+            name: [rob, alice_s, alice_b, rob],
+            'b': [0, 1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
     def expanded_dataframe(self, dataframe):
         return pd.DataFrame({
+            'a': [0, 1, 2, 3],
             "first_name": pd.Series(["Robert", "Alice", "Alice", "Robert"], dtype=object),
             "last_name": pd.Series(["Bell", "Smith", "Bell", "Bell"], dtype=object),
+            'b': [0, 1, 2, 3]
         })
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
         return [rob, alice_s, alice_b]
-
 
 
 class DataFrameData(MetaTestData):
