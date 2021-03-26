@@ -57,11 +57,11 @@ class Address(String):
 
     def revert_df_from_children(self, df: pd.DataFrame):
         col_index = min([df.columns.get_loc(k) for k in self.keys()])
-        collapsed_sr = df[list(self.keys())[0]].astype(str).str.cat(
+        sr_collapsed_address = df[list(self.keys())[0]].astype(str).str.cat(
             [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )
         df.drop(columns=list(self.keys()), inplace=True)
-        df.insert(col_index, self.name, collapsed_sr)
+        df.insert(col_index, self.name, sr_collapsed_address)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
