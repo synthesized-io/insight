@@ -56,7 +56,7 @@ class Address(String):
             df.insert(col_index + n, col, df_child.iloc[:, n])
 
     def revert_df_from_children(self, df: pd.DataFrame):
-        col_index = df.columns.get_loc(list(self.keys())[0])
+        col_index = min([df.columns.get_loc(k) for k in self.keys()])
         collapsed_sr = df[list(self.keys())[0]].astype(str).str.cat(
             [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )
