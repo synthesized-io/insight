@@ -17,7 +17,7 @@ class PostcodeModelConfig:
 
     @property
     def postcode_model_config(self):
-        return PostcodeModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PostcodeModelConfig)})
+        return PostcodeModelConfig(**{f.name: getattr(self, f.name) for f in fields(PostcodeModelConfig)})
 
 
 @dataclass
@@ -29,7 +29,7 @@ class AddressModelConfig(PostcodeModelConfig):
 
     @property
     def address_model_config(self):
-        return AddressModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(AddressModelConfig)})
+        return AddressModelConfig(**{f.name: getattr(self, f.name) for f in fields(AddressModelConfig)})
 
 
 @dataclass(frozen=True)
@@ -95,7 +95,7 @@ class PersonModelConfig(GenderModelConfig):
 
     @property
     def person_model_config(self):
-        return PersonModelConfig(**{f.name: self.__getattribute__(f.name) for f in fields(PersonModelConfig)})
+        return PersonModelConfig(**{f.name: getattr(self, f.name) for f in fields(PersonModelConfig)})
 
 
 @dataclass
@@ -109,7 +109,7 @@ class FormattedStringMetaConfig:
 
     @property
     def formatted_string_meta_config(self):
-        return FormattedStringMetaConfig(**{f.name: self.__getattribute__(f.name)
+        return FormattedStringMetaConfig(**{f.name: getattr(self, f.name)
                                             for f in fields(FormattedStringMetaConfig)})
 
 
@@ -137,7 +137,7 @@ class MetaExtractorConfig(MetaFactoryConfig, AddressModelConfig, PersonModelConf
 
     @property
     def meta_extractor_config(self):
-        return MetaExtractorConfig(**{f.name: self.__getattribute__(f.name) for f in fields(MetaExtractorConfig)})
+        return MetaExtractorConfig(**{f.name: getattr(self, f.name) for f in fields(MetaExtractorConfig)})
 
 
 @dataclass
@@ -157,7 +157,7 @@ class QuantileTransformerConfig:
     @property
     def quantile_transformer_config(self) -> 'QuantileTransformerConfig':
         return QuantileTransformerConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(QuantileTransformerConfig)}
+            **{f.name: getattr(self, f.name) for f in fields(QuantileTransformerConfig)}
         )
 
 
@@ -168,7 +168,7 @@ class DateTransformerConfig(QuantileTransformerConfig):
     @property
     def date_transformer_config(self) -> 'DateTransformerConfig':
         return DateTransformerConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(DateTransformerConfig)}
+            **{f.name: getattr(self, f.name) for f in fields(DateTransformerConfig)}
         )
 
 
@@ -187,7 +187,7 @@ class CategoricalConfig:
 
     @property
     def categorical_config(self):
-        return CategoricalConfig(**{f.name: self.__getattribute__(f.name) for f in fields(CategoricalConfig)})
+        return CategoricalConfig(**{f.name: getattr(self, f.name) for f in fields(CategoricalConfig)})
 
 
 @dataclass
@@ -196,7 +196,7 @@ class ContinuousConfig:
 
     @property
     def continuous_config(self):
-        return ContinuousConfig(**{f.name: self.__getattribute__(f.name) for f in fields(ContinuousConfig)})
+        return ContinuousConfig(**{f.name: getattr(self, f.name) for f in fields(ContinuousConfig)})
 
 
 @dataclass
@@ -207,7 +207,7 @@ class DecomposedContinuousConfig(ContinuousConfig):
     @property
     def decomposed_continuous_config(self):
         return DecomposedContinuousConfig(
-            **{f.name: self.__getattribute__(f.name) for f in fields(DecomposedContinuousConfig)}
+            **{f.name: getattr(self, f.name) for f in fields(DecomposedContinuousConfig)}
         )
 
 
@@ -217,7 +217,7 @@ class IdentifierConfig:
 
     @property
     def identifier_config(self):
-        return IdentifierConfig(**{f.name: self.__getattribute__(f.name) for f in fields(IdentifierConfig)})
+        return IdentifierConfig(**{f.name: getattr(self, f.name) for f in fields(IdentifierConfig)})
 
 
 @dataclass
@@ -226,7 +226,7 @@ class NanConfig:
 
     @property
     def nan_config(self):
-        return NanConfig(**{f.name: self.__getattribute__(f.name) for f in fields(NanConfig)})
+        return NanConfig(**{f.name: getattr(self, f.name) for f in fields(NanConfig)})
 
 
 @dataclass
@@ -235,7 +235,7 @@ class ValueFactoryConfig(CategoricalConfig, NanConfig, IdentifierConfig, Decompo
 
     @property
     def value_factory_config(self):
-        return ValueFactoryConfig(**{f.name: self.__getattribute__(f.name) for f in fields(ValueFactoryConfig)})
+        return ValueFactoryConfig(**{f.name: getattr(self, f.name) for f in fields(ValueFactoryConfig)})
 
 
 @dataclass
@@ -265,7 +265,7 @@ class LearningManagerConfig:
 
     @property
     def learning_manager_config(self):
-        return LearningManagerConfig(**{f.name: self.__getattribute__(f.name) for f in fields(LearningManagerConfig)})
+        return LearningManagerConfig(**{f.name: getattr(self, f.name) for f in fields(LearningManagerConfig)})
 
 
 @dataclass
@@ -308,7 +308,7 @@ class EngineConfig:
 
     @property
     def engine_config(self):
-        return EngineConfig(**{f.name: self.__getattribute__(f.name) for f in fields(EngineConfig)})
+        return EngineConfig(**{f.name: getattr(self, f.name) for f in fields(EngineConfig)})
 
 # Synthesizer Config Classes ----------------------------------------
 
