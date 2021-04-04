@@ -1,51 +1,30 @@
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Sequence
 
 import numpy as np
-import pandas as pd
 
 
-def get_gender_from_gender(gender: str, gender_mapping: Dict[str, List[str]]) -> str:
-    gender = gender.strip().upper()
-    for k, v in gender_mapping.items():
-        if gender in map(str.upper, v):
-            return k
-    return np.nan
+def collections_from_mapping(
+        seq: Sequence[str], mapping: Dict[str, str], ambiguous_key: str = None
+) -> Dict[str, List[str]]:
+    unique = np.unique(seq)
+    discrete_mapping = {
+        key: [val for val in unique if re.match(pattern, val, flags=re.I) is not None]
+        for key, pattern in mapping.items()
+    }
+    ambiguous = discrete_mapping.get(ambiguous_key, []) if ambiguous_key is not None else []
 
+    for val in unique:
+        if len([key for key, values in discrete_mapping.items() if val in values]) > 1 and val not in ambiguous:
+            ambiguous.append(val)
 
-def get_gender_from_title(title: str, title_mapping: Dict[str, List[str]]) -> str:
-    title = title.replace('.', '').strip().upper()
-    for k, v in title_mapping.items():
-        if title in map(str.upper, v):
-            return k
-    return np.nan
+    if len(ambiguous) > 0:
+        if ambiguous_key is None:
+            raise ValueError("Found ambiguous regex collections using map: f{mapping} but no ambiguous_key specified.")
 
+        for key, collection in discrete_mapping.items():
+            discrete_mapping[key] = [v for v in collection if v not in ambiguous]
 
-def get_title_from_gender(gender: str, gender_mapping: Dict[str, List[str]],
-                          title_mapping: Dict[str, List[str]]) -> str:
-    gender = get_gender_from_gender(gender, gender_mapping)
-    return title_mapping[gender][0] if gender in title_mapping.keys() else np.nan
+        discrete_mapping[ambiguous_key] = ambiguous
 
-
-def get_gender_from_df(df: pd.DataFrame, name: str, gender_label: Optional[str],
-                       title_label: Optional[str], gender_mapping: Dict[str, List[str]],
-                       title_mapping: Dict[str, List[str]]) -> pd.DataFrame:
-    if gender_label is not None:
-        df[name] = df[gender_label].astype(str).apply(get_gender_from_gender, gender_mapping=gender_mapping)
-    elif title_label is not None:
-        df[name] = df[title_label].astype(str).apply(get_gender_from_title, title_mapping=title_mapping)
-    else:
-        raise ValueError("Can't extract gender series as 'gender_label' nor 'title_label' are given.")
-
-    return df
-
-
-def get_gender_title_from_df(df: pd.DataFrame, name: str, gender_label: Optional[str],
-                             title_label: Optional[str], gender_mapping: Dict[str, List[str]],
-                             title_mapping: Dict[str, List[str]]) -> pd.DataFrame:
-    if gender_label is not None:
-        df[gender_label] = df[name]
-    if title_label is not None:
-        df[title_label] = df[name].astype(dtype=str).apply(get_title_from_gender, gender_mapping=gender_mapping,
-                                                           title_mapping=title_mapping)
-
-    return df
+    return discrete_mapping

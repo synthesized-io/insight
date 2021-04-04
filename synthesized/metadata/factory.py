@@ -171,22 +171,24 @@ class MetaFactory():
         associations = associations or []
         association_children = [c for assoc in associations for c in assoc]
 
-        meta = DataFrameMeta(name, annotations=[ann.name for ann in annotations])
+        children = []
         for col in df.columns:
             if col in annotation_children or col in association_children:
                 continue
             try:
                 child = self._from_series(df[col])
-                meta[child.name] = child
+                children.append(child)
             except TypeError as e:
                 print(f"Warning. Encountered error when interpreting ValueMeta for '{col}'", e)
 
         for ann in annotations:
-            meta[ann.name] = ann
+            children.append(ann)
 
         for associated_cols in associations:
             association_meta = self._create_association(df, associated_cols)
-            meta[association_meta.name] = association_meta
+            children.append(association_meta)
+
+        meta = DataFrameMeta(name, children=children, annotations=[ann.name for ann in annotations])
         return meta
 
     def _create_association(self, df: pd.DataFrame, associated_cols: List[str]):

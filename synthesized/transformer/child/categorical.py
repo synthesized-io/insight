@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..base import Transformer
 from ...metadata import Nominal
+from ...model import DiscreteModel
 
 
 class CategoricalTransformer(Transformer):
@@ -76,3 +77,7 @@ class CategoricalTransformer(Transformer):
     @classmethod
     def from_meta(cls, meta: Nominal) -> 'CategoricalTransformer':
         return cls(meta.name, meta.categories)
+
+    @classmethod
+    def from_model(cls, model: DiscreteModel) -> 'CategoricalTransformer':
+        return cls(model.name, model.categories)

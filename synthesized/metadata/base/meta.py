@@ -5,8 +5,8 @@ import pandas as pd
 
 from ...util import get_all_subclasses
 
-MetaType = TypeVar('MetaType', bound='Meta[Any]')
-MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta[Any]')
+MetaType = TypeVar('MetaType', bound='Meta', covariant=True)
+MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta')
 
 
 class Meta(Mapping[str, MetaType], Generic[MetaType]):

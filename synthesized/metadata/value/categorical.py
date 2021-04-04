@@ -1,13 +1,13 @@
 from typing import Dict, Optional, Sequence
 
-from ..base import Nominal, ValueMeta
+from ..base import Nominal
 
 
-class String(Nominal[str]):
+class String(Nominal[str, 'String']):
     dtype = 'U'
 
     def __init__(
-            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            self, name: str, children: Optional[Sequence['String']] = None,
             categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):

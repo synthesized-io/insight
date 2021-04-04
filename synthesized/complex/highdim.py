@@ -18,7 +18,7 @@ from ..config import EngineConfig, HighDimConfig
 from ..metadata import DataFrameMeta
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
-from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, PersonModel
+from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, GenderModel, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -125,8 +125,8 @@ class HighDimSynthesizer(Synthesizer):
             elif isinstance(model, (BankModel, FormattedStringModel)):
                 models_to_pop.append(name)
 
-            elif isinstance(model, PersonModel):
-                models_to_add.append(model.gender_model)
+            elif isinstance(model, PersonModel) and isinstance(model.hidden_model, GenderModel):
+                models_to_add.append(model.hidden_model)
                 models_to_pop.append(name)
 
             elif isinstance(model, AddressModel):

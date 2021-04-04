@@ -4,7 +4,6 @@ from typing import Dict, Optional, Sequence
 import pandas as pd
 
 from .categorical import String
-from ..base import ValueMeta
 from ...config import BankLabels
 
 
@@ -15,7 +14,7 @@ class Bank(String):
     dtype = 'U'
 
     def __init__(
-            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            self, name: str, children: Optional[Sequence[String]] = None,
             categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, labels=BankLabels()
     ):

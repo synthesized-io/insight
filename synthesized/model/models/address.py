@@ -14,7 +14,7 @@ import simplejson
 from .histogram import Histogram
 from ..base import DiscreteModel
 from ...config import AddressLabels, AddressModelConfig, PostcodeModelConfig
-from ...metadata import MetaNotExtractedError, Nominal
+from ...metadata import MetaNotExtractedError
 from ...metadata.value import Address, String
 from ...util import get_postcode_key, get_postcode_key_from_df
 
@@ -71,7 +71,7 @@ class AddressRecord:
 
 
 class PostcodeModel(Histogram[str]):
-    def __init__(self, meta: Nominal[str], probabilities: Optional[Dict[str, float]] = None,
+    def __init__(self, meta: String, probabilities: Optional[Dict[str, float]] = None,
                  postcode_label: Optional[str] = None, full_address_label: Optional[str] = None,
                  config: PostcodeModelConfig = PostcodeModelConfig()):
 

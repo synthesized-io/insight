@@ -69,30 +69,23 @@ class BankLabels:
 
 
 @dataclass
-class GenderTransformerConfig:
-    include_undefined: bool = False
+class GenderModelConfig:
+    gender_female_regex: str = r'^(f|female)$'
+    gender_male_regex: str = r'^(m|male)$'
+    gender_non_binary_regex: str = r'^(n|non\Wbinary|u|undefined|NA)$'
+    title_female_regex: str = r'^(ms|mrs|miss|dr)\.?$'
+    title_male_regex: str = r'^(mr|dr)\.?$'
+    title_non_binary_regex: str = r'^(ind|per|m|mx)\.?$'
+    genders: List[str] = ['F', 'M']
 
-    @property
-    def genders(self):
-        return list(self.title_mapping.keys())
-
-    @property
-    def gender_mapping(self) -> Dict[str, List[str]]:
-        return {'M': ['M', 'male'], 'F': ['F', 'female'], 'U': ['U', 'undefined', 'NA']}
-
-    @property
-    def title_mapping(self) -> Dict[str, List[str]]:
-        return {'M': ['Mr'], 'F': ['Ms', 'Mrs', 'Miss'], 'U': ['Mx']}
-
-    @property
-    def gender_transformer_config(self):
-        return GenderTransformerConfig(
-            **{f.name: getattr(self, f.name) for f in fields(GenderTransformerConfig)}
+    def gender_model_config(self):
+        return GenderModelConfig(
+            **{f.name: getattr(self, f.name) for f in fields(GenderModelConfig)}
         )
 
 
 @dataclass
-class PersonModelConfig(GenderTransformerConfig):
+class PersonModelConfig(GenderModelConfig):
     locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
