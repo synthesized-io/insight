@@ -76,7 +76,7 @@ class GenderModelConfig:
     title_female_regex: str = r'^(ms|mrs|miss|dr)\.?$'
     title_male_regex: str = r'^(mr|dr)\.?$'
     title_non_binary_regex: str = r'^(ind|per|m|mx)\.?$'
-    genders: List[str] = ['F', 'M']
+    genders: Tuple[str, ...] = ('F', 'M')
 
     def gender_model_config(self):
         return GenderModelConfig(

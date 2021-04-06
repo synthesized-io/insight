@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Sequence, Type, cast
 import pandas as pd
 
 from .categorical import String
-from ..base import ValueMeta
 from ...config import AddressLabels
 
 logger = logging.getLogger(__name__)
