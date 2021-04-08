@@ -26,7 +26,7 @@ class Person(String):
 
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
         children = [
-            String(name)
+            String(name, num_rows=num_rows, nan_freq=nan_freq)
             for name in self._params.values() if name is not None
         ] if children is None else children
         super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
