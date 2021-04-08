@@ -282,9 +282,9 @@ class PersonModel(DiscreteModel[Person, str]):
     @staticmethod
     def generate_usernames(firstname: pd.Series, lastname: pd.Series) -> pd.Series:
         username = firstname\
-            .apply(lambda x: x + np.random.choice(['', '.', '-', '_']) if pd.notna(x) else '')\
+            .apply(lambda x: x + np.random.choice(['', '.', '-', '_']) if pd.notna(x) else x)\
             .str.cat(others=lastname)\
-            .apply(lambda x: x + str(random.randint(0, 100) if random.random() < 0.5 else ''))
+            .apply(lambda x: x + str(random.randint(0, 100)) * random.randint(0, 1) if pd.notna(x) else x)
 
         while username.nunique() < len(firstname):
             vc = username.value_counts()
