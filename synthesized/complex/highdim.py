@@ -134,7 +134,7 @@ class HighDimSynthesizer(Synthesizer):
                 models_to_pop.append(name)
 
             elif isinstance(model, DiscreteModel):
-                assert model.categories and model.num_rows
+                assert model.num_rows
                 if len(model.categories) > sqrt(model.num_rows):
                     models_to_pop.append(name)
         annotations = [name for name in models_to_pop if name in df_model.meta.annotations]

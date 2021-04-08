@@ -1,11 +1,11 @@
 import re
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
 
 def collections_from_mapping(
-        seq: Sequence[str], mapping: Dict[str, str], ambiguous_key: str = None
+        seq: Sequence[str], mapping: Dict[str, str], ambiguous_key: Optional[str] = None
 ) -> Dict[str, List[str]]:
     unique = np.unique(seq)
     discrete_mapping = {

@@ -284,7 +284,7 @@ class PersonModel(DiscreteModel[Person, str]):
         username = firstname\
             .apply(lambda x: x + np.random.choice(['', '.', '-', '_']) if pd.notna(x) else '')\
             .str.cat(others=lastname)\
-            .apply(lambda x: x if pd.isna(x) else x + str(random.randint(0, 100) if random.random() < 0.5 else ''))
+            .apply(lambda x: x + str(random.randint(0, 100) if random.random() < 0.5 else ''))
 
         while username.nunique() < len(firstname):
             vc = username.value_counts()
