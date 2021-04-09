@@ -303,6 +303,7 @@ class AnnotatedDataFrameData(MetaTestData):
     def dataframe(self) -> pd.DataFrame:
         return pd.DataFrame({
             'city': pd.Series(['London', 'London', 'London', 'London'], dtype=object),
+            'other': pd.Series([0, 1, 2, 3]),
             'street': pd.Series(['Euston Road', 'Old Kent Road', 'Park Lane', 'Euston Road'], dtype=object),
             'house_number': pd.Series(['1', '2a', '4', '1'], dtype=object),
         })
@@ -315,8 +316,9 @@ class AnnotatedDataFrameData(MetaTestData):
                 "London|Old Kent Road|2a",
                 "London|Park Lane|4",
                 "London|Euston Road|1",
-            ], dtype=str
-        )})
+            ], dtype=str),
+            'other': pd.Series([0, 1, 2, 3])
+        })
 
 
 class AssociatedData(MetaTestData):

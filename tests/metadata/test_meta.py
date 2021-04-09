@@ -67,6 +67,12 @@ class TestMeta(MetaTestData):
         meta.revert_df_from_children(df)
         return df
 
+    @pytest.fixture(scope='class')
+    def unfolded_dataframe(self, meta, dataframe):
+        df = dataframe.copy()
+        meta.unfold(df)
+        return df
+
     def test_expand(self, meta, meta_expanded_dataframe, expanded_dataframe):
 
         for child in meta.children:
@@ -75,8 +81,12 @@ class TestMeta(MetaTestData):
         assert expanded_dataframe.equals(meta_expanded_dataframe)
 
     def test_collapse(self, collapsed_dataframe, dataframe):
-        assert collapsed_dataframe.columns.equals(dataframe.columns)
-        assert dataframe.equals(collapsed_dataframe)
+        ordered_collapsed_df = collapsed_dataframe[dataframe.columns]
+        assert dataframe.equals(ordered_collapsed_df)
+
+    def test_unfold(self, unfolded_dataframe, dataframe):
+        assert unfolded_dataframe.columns.equals(dataframe.columns)
+        assert unfolded_dataframe.equals(dataframe)
 
     def test_serialisation(self, extracted_meta):
         dct = extracted_meta.to_dict()
