@@ -48,16 +48,20 @@ class Address(String):
     def convert_df_for_children(self, df: pd.DataFrame):
         if self.name not in df.columns:
             raise KeyError
+        col_index = df.columns.get_loc(self.name)
         sr_collapsed_address = df[self.name]
-        df[list(self.keys())] = sr_collapsed_address.astype(str).str.split("|", n=len(self.keys()) - 1, expand=True)
-
         df.drop(columns=self.name, inplace=True)
+        df_child = sr_collapsed_address.astype(str).str.split("|", n=len(self.keys()) - 1, expand=True)
+        for n, col in enumerate(self.keys()):
+            df.insert(col_index + n, col, df_child.iloc[:, n])
 
     def revert_df_from_children(self, df: pd.DataFrame):
-        df[self.name] = df[list(self.keys())[0]].astype(str).str.cat(
+        col_index = min([df.columns.get_loc(k) for k in self.keys()])
+        sr_collapsed_address = df[list(self.keys())[0]].astype(str).str.cat(
             [df[k].astype(str) for k in list(self.keys())[1:]], sep="|", na_rep=''
         )
         df.drop(columns=list(self.keys()), inplace=True)
+        df.insert(col_index, self.name, sr_collapsed_address)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()

@@ -6,7 +6,7 @@ import hypothesis.strategies as st
 import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames(columns([str(i) for i in range(30)], elements=st.floats(), fill=st.nothing())),
        n_col=st.integers(min_value=0, max_value=30))
 def test_data_frame(df, n_col):

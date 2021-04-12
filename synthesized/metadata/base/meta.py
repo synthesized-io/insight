@@ -70,9 +70,14 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
 
     @contextmanager
     def unfold(self, df: pd.DataFrame) -> pd.DataFrame:
+        columns = df.columns
         self.convert_df_for_children(df)
         yield df
         self.revert_df_from_children(df)
+        for col in columns:  # set the original column order
+            sr = df[col]
+            df.drop(col, axis=1, inplace=True)
+            df[col] = sr
 
     def __getitem__(self, k: str) -> MetaType:
         return self._children[k]
