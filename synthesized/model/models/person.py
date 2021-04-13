@@ -149,7 +149,7 @@ class PersonModel(DiscreteModel[Person, str]):
                 regex_male=self.config.title_male_regex, regex_non_binary=self.config.title_non_binary_regex
             )
         else:
-            gender_meta = String(f"{self.name}_gender", categories=self.config.genders, nan_freq=0)
+            gender_meta = String(f"{self.name}_gender", categories=self.config.genders, nan_freq=meta.nan_freq or 0)
             self.hidden_model = Histogram(
                 meta=gender_meta,
                 probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders}
@@ -235,9 +235,10 @@ class PersonModel(DiscreteModel[Person, str]):
 
         firstname = gender.apply(self.generate_random_first_name)
         lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
+        lastname.loc[firstname.isna()] = pd.NA
 
         if self.labels.name_label is not None:
-            df.loc[:, self.labels.name_label] = firstname.str.cat(others=lastname, sep=' ')
+            df.loc[:, self.labels.name_label] = firstname.astype(dtype='string').str.cat(others=lastname, sep=' ')
 
         if self.labels.firstname_label is not None:
             df.loc[:, self.labels.firstname_label] = firstname
@@ -254,25 +255,30 @@ class PersonModel(DiscreteModel[Person, str]):
             df.loc[:, self.labels.email_label] = df.loc[:, self.labels.email_label].str.cat(
                 others=[fkr.domain_name() for _ in range(num_rows)],
                 sep='@')
-            assert all(df.loc[:, self.labels.email_label].apply(self.check_email))
+            sr_email = df[self.labels.email_label]
+            assert all(sr_email[sr_email.notna()].apply(self.check_email))
 
         if self.labels.username_label is not None:
             df.loc[:, self.labels.username_label] = self.generate_usernames(firstname, lastname)
 
         if self.labels.password_label is not None:
             df.loc[:, self.labels.password_label] = [self.generate_password(*self.pwd_length) for _ in range(num_rows)]
+            df.loc[:, self.labels.password_label][firstname.isna()] = pd.NA
 
         if self.labels.mobile_number_label is not None:
-            df.loc[:, self.labels.mobile_number_label] = [self.generate_phone_number(self.mobile_number_format)
-                                                          for _ in range(num_rows)]
+            df.loc[:, self.labels.mobile_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.mobile_number_format
+            )
 
         if self.labels.home_number_label is not None:
-            df.loc[:, self.labels.home_number_label] = [self.generate_phone_number(self.home_number_format)
-                                                        for _ in range(num_rows)]
+            df.loc[:, self.labels.home_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.home_number_format
+            )
 
         if self.labels.work_number_label is not None:
-            df.loc[:, self.labels.work_number_label] = [self.generate_phone_number(self.work_number_format)
-                                                        for _ in range(num_rows)]
+            df.loc[:, self.labels.work_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.work_number_format
+            )
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
         df.loc[gender.isna(), columns] = np.nan
@@ -283,10 +289,10 @@ class PersonModel(DiscreteModel[Person, str]):
     def generate_usernames(firstname: pd.Series, lastname: pd.Series) -> pd.Series:
         username = firstname\
             .apply(lambda x: x + np.random.choice(['', '.', '-', '_']) if pd.notna(x) else x)\
-            .str.cat(others=lastname)\
+            .astype(dtype='string').str.cat(others=lastname)\
             .apply(lambda x: x + str(random.randint(0, 100)) * random.randint(0, 1) if pd.notna(x) else x)
 
-        while username.nunique() < len(firstname):
+        while username.nunique() < sum(firstname.notna()):
             vc = username.value_counts()
             duplicates = list(vc[vc > 1].index)
 
@@ -303,8 +309,12 @@ class PersonModel(DiscreteModel[Person, str]):
         return ''.join(random.choice(possible_chars) for _ in range(pwd_length))
 
     @staticmethod
-    def generate_phone_number(number_format: str = '07xxxxxxxx') -> str:
-        return re.sub(r'x', lambda _: str(random.randint(0, 9)), number_format)
+    def generate_phone_numbers(isna: pd.Series, number_format: str = '07xxxxxxxx') -> pd.Series:
+        return pd.Series([
+            re.sub(r'x', lambda _: str(random.randint(0, 9)), number_format)
+            if not na else pd.NA
+            for na in isna
+        ])
 
     def generate_random_first_name(self, gender: str):
         if gender == GenderModel.key_male:
@@ -314,13 +324,13 @@ class PersonModel(DiscreteModel[Person, str]):
         elif gender == GenderModel.key_non_binary:
             return np.random.choice(self.provider.first_names)
         else:
-            return np.nan
+            return pd.NA
 
     @staticmethod
     def generate_from_collections(key: str, collections: Dict[str, List[str]]):
         categories = collections.get(key, [])
         if len(categories) == 0:
-            return np.nan
+            return pd.NA
         return np.random.choice(categories)
 
     @staticmethod
