@@ -39,31 +39,30 @@ class Bank(String):
 
     def convert_df_for_children(self, df: pd.DataFrame):
 
+        col_index = df.columns.get_loc(self.name)
         sr_bank = df[self.name]
         index = 0
         if self.labels.bic_label is not None:
-            df[self.labels.bic_label] = sr_bank.str.slice(index, index + 4)
+            df.insert(col_index, self.labels.bic_label, sr_bank.str.slice(index, index + 4))
+            col_index += 1
             index += 4
 
         if self.labels.sort_code_label is not None:
-            df[self.labels.sort_code_label] = sr_bank.str.slice(index, index + 6)
+            df.insert(col_index, self.labels.sort_code_label, sr_bank.str.slice(index, index + 6))
+            col_index += 1
             index += 6
 
         if self.labels.account_label is not None:
-            df[self.labels.account_label] = sr_bank.str.slice(index, index + 8)
-            index += 8
+            df.insert(col_index, self.labels.account_label, sr_bank.str.slice(index, index + 8))
 
         df.drop(columns=self.name, inplace=True)
 
     def revert_df_from_children(self, df):
-
-        df[self.name] = ''
+        col_index = df.columns.get_loc(list(self.keys())[0])
+        df.insert(col_index, self.name, '')
         df[self.name] = df[self.name].str.cat([df[k].astype('string') for k in self.keys()])
 
-        df.drop(
-            columns=[k for k in self.keys()],
-            inplace=True
-        )
+        df.drop(columns=list(self.keys()), inplace=True)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
