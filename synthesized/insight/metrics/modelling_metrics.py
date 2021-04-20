@@ -33,7 +33,7 @@ class PredictiveModellingScore(DataFrameMetric):
     tags = ["modelling"]
 
     def __call__(self, df: pd.DataFrame = None, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs, ) -> Union[int, float, None]:
+                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs) -> Union[int, float, None]:
         if df is None:
             return None
 
@@ -260,7 +260,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
 
     # If sample_size is not passed as the parameter of the function,
-    # then set it as the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
+    # then set it to the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
     if sample_size is None:
         sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
 
