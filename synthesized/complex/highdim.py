@@ -11,6 +11,7 @@ import tensorflow as tf
 from .binary_builder import ModelBinary
 from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
+from ..common.rules import Expression, GenericRule
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
@@ -228,6 +229,50 @@ class HighDimSynthesizer(Synthesizer):
                             logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
                         if self.learning_manager:
                             self.learning_manager.set_check_frequency(self.batch_size)
+
+    def synthesize_from_rules(
+            self, num_rows: int, produce_nans: bool = False, progress_callback: Callable[[int], None] = None,
+            max_iter: int = 20, generic_rules: List[GenericRule] = None, expression_rules: List[Expression] = None
+    ) -> pd.DataFrame:
+        """ Generate a given number of data rows according to specified rules
+
+        Args:
+            num_rows: The number of rows to generate.
+            produce_nans: Whether to produce NaNs.
+            progress_callback: Progress bar callback.
+            max_iter: maximum number of iterations to try to apply generic rules before raising an error.
+            generic_rules: list of generic rules the output must conform to.
+            expression_rules: list of expressions rules to add to the output of the synthesizer.
+
+        Returns:
+            The generated data.
+
+        Raises:
+            RuntimeError: if num_rows of data that agrees with the generic rules within max_iter iterations.
+
+        """
+        generic_rules = generic_rules or []
+        expression_rules = expression_rules or []
+
+        df = pd.DataFrame({})
+        n_missing = num_rows
+        for i in range(max_iter):
+            df_ = self.synthesize(n_missing, produce_nans=produce_nans, progress_callback=progress_callback)
+            for generic_rule in generic_rules:
+                df_ = generic_rule.filter(df_)
+            df = pd.concat((df, df_), ignore_index=True)
+            n_missing = num_rows - len(df)
+            if not n_missing:
+                break
+            if i + 1 == max_iter:
+                raise RuntimeError(f"HighDimSynthesizer has tried max_iter: {max_iter} number of times to generate "
+                                   "data constrained to the generic rules but failed. Try again with a higher max_iter "
+                                   "value or less strict generic rules")
+
+        for expression_rule in expression_rules:
+            df = expression_rule.apply(df)
+
+        return df
 
     def synthesize(
             self, num_rows: int, produce_nans: bool = False,
