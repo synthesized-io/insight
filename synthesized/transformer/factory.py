@@ -104,7 +104,7 @@ class TransformerFactory:
         elif model.categories is not None and len(model.categories) == 1:
             transformers.append(DropConstantColumnTransformer.from_meta(model.meta))
         else:
-            transformers.append(CategoricalTransformer.from_meta(model.meta))
+            transformers.append(CategoricalTransformer.from_model(model))
 
         return transformers
 

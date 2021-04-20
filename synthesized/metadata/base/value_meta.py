@@ -1,5 +1,5 @@
 from functools import cmp_to_key
-from typing import Any, Dict, Generic, Mapping, Optional, Sequence, TypeVar
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -14,15 +14,15 @@ AType = TypeVar("AType", np.datetime64, np.timedelta64, np.int64, np.float64, co
 SType = TypeVar("SType", np.timedelta64, np.int64, np.float64, covariant=True)
 RType = TypeVar("RType", np.int64, np.float64, covariant=True)
 
-ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta[Any, Any]')
-NominalType = TypeVar('NominalType', bound='Nominal[Any]')
-OrdinalType = TypeVar('OrdinalType', bound='Ordinal[Any]')
-AffineType = TypeVar('AffineType', bound='Affine[Any]')
-ScaleType = TypeVar('ScaleType', bound='Scale[Any]')
-RingType = TypeVar('RingType', bound='Ring[Any]')
+ValueMetaType = TypeVar('ValueMetaType', bound='ValueMeta', covariant=True)
+NominalType = TypeVar('NominalType', bound='Nominal', covariant=True)
+OrdinalType = TypeVar('OrdinalType', bound='Ordinal', covariant=True)
+AffineType = TypeVar('AffineType', bound='Affine', covariant=True)
+ScaleType = TypeVar('ScaleType', bound='Scale', covariant=True)
+RingType = TypeVar('RingType', bound='Ring', covariant=True)
 
 
-class ValueMeta(Meta[ValueMetaType], Mapping[str, 'ValueMeta'], Generic[ValueMetaType, DType]):
+class ValueMeta(Meta[ValueMetaType], Generic[DType, ValueMetaType]):
     """
     Base class for meta information that describes a pandas series.
 
@@ -42,7 +42,7 @@ class ValueMeta(Meta[ValueMetaType], Mapping[str, 'ValueMeta'], Generic[ValueMet
         return f'<Generic[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
-class Nominal(ValueMeta[ValueMeta, NType], Generic[NType]):
+class Nominal(ValueMeta[NType, ValueMetaType], Generic[NType, ValueMetaType]):
     """
     Nominal meta.
 
@@ -53,10 +53,10 @@ class Nominal(ValueMeta[ValueMeta, NType], Generic[NType]):
 
     Attributes:
         categories: Optional; list of category names.
-    """
 
+    """
     def __init__(
-            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            self, name: str, children: Optional[Sequence[ValueMetaType]] = None,
             categories: Optional[Sequence[NType]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):
@@ -101,7 +101,7 @@ class Nominal(ValueMeta[ValueMeta, NType], Generic[NType]):
         return f'<Nominal[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
 
 
-class Ordinal(Nominal[OType], Generic[OType]):
+class Ordinal(Nominal[OType, ValueMeta], Generic[OType]):
     """
     Ordinal meta.
 

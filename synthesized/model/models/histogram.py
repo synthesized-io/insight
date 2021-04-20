@@ -8,12 +8,12 @@ import seaborn as sns
 from .kde import KernelDensityEstimate
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...metadata import Affine, AType, ExtractionError, Nominal, NType, SType
+from ...metadata import Affine, AType, ExtractionError, Nominal, NType, SType, ValueMeta
 
 HistogramType = TypeVar('HistogramType', bound='Histogram')
 
 
-class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
+class Histogram(DiscreteModel[Nominal[NType, ValueMeta], NType], Generic[NType]):
     """A Histogram used to model a discrete variable
 
     Attributes:
@@ -24,7 +24,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
     """
 
     def __init__(
-            self, meta: Nominal[NType], probabilities: Optional[Dict[NType, float]] = None,
+            self, meta: Nominal[NType, ValueMeta], probabilities: Optional[Dict[NType, float]] = None,
     ):
         super().__init__(meta=meta)  # type: ignore
         self._probabilities: Optional[Dict[NType, float]] = probabilities
@@ -132,7 +132,7 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
     @classmethod
     def from_dict(cls, d: Dict[str, object]) -> 'Histogram':
         meta_dict = cast(Dict[str, object], d["meta"])
-        meta = Nominal[NType].from_dict(meta_dict)
+        meta = Nominal[NType, ValueMeta].from_dict(meta_dict)
         model = cls(meta=meta, probabilities=cast(Optional[Dict[NType, float]], d["probabilities"]))
         model._fitted = cast(bool, d["fitted"])
 
@@ -168,7 +168,8 @@ class Histogram(DiscreteModel[Nominal[NType], NType], Generic[NType]):
         else:
             probabilities = None
 
-        binned_meta = Nominal(meta.name, categories=categories, nan_freq=meta.nan_freq, num_rows=meta.num_rows)
+        binned_meta = Nominal[pd.IntervalDtype, ValueMeta](
+            meta.name, categories=categories, nan_freq=meta.nan_freq, num_rows=meta.num_rows)
         binned_meta.dtype = dtype
         hist = Histogram(meta=binned_meta, probabilities=probabilities)
 

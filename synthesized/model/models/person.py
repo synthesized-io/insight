@@ -3,7 +3,7 @@ import random
 import re
 import string
 from dataclasses import asdict
-from typing import Any, Dict, Optional, Sequence, cast
+from typing import Any, Dict, List, Optional, Sequence, cast
 
 import faker
 import numpy as np
@@ -13,53 +13,79 @@ from faker.providers.person.en import Provider
 from .histogram import Histogram
 from ..base import DiscreteModel
 from ..exceptions import ModelNotFittedError
-from ...config import GenderTransformerConfig, PersonLabels, PersonModelConfig
-from ...metadata import Nominal
+from ...config import PersonLabels, PersonModelConfig
+from ...metadata import MetaNotExtractedError
 from ...metadata.value import Person, String
-from ...util import get_gender_from_df, get_gender_title_from_df
+from ...util.person import collections_from_mapping
 
 
 class GenderModel(Histogram[str]):
+    """A Model of the gender attribute.
 
-    def __init__(self, meta: Nominal[str],
-                 gender_label: Optional[str] = None, title_label: Optional[str] = None,
-                 config: GenderTransformerConfig = GenderTransformerConfig()):
+    This models gender with 4(+1) possible categories:
+        * "F"  - female
+        * "M"  - male
+        * "NB" - non-binary
+        * "A"  - ambiguous
+        * (<NA> - missing value)
 
-        self.config = config
-        self.gender_label = gender_label
-        self.title_label = title_label
+    The 4 correspond to collections of values in `self.meta.categories` and are calculated using 3 regex patterns,
+    1 each for "F", "M", and "NB".
 
-        super().__init__(
-            meta=meta, probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders}
-        )
+    Values that are detected by more than one regex are placed in the collection for ambiguous values, "A". This can
+    happen when, gender is modelled off another attribute, for example the title attribute. i.e.
+        * ["Mrs", "Ms"]  -> "F"
+        * ["Mr"]         -> "M"
+        * ["Ind", "Mx"]  -> "NB"
+        * ["Dr", "Prof"] -> "A"
+
+    """
+    key_female = "F"
+    key_male = "M"
+    key_non_binary = "NB"
+    key_ambiguous = "A"
+
+    def __init__(
+            self, meta: String, probabilities: Dict[str, float] = None, regex_female: str = r"^(mrs|ms).?$",
+            regex_male: str = r'^(mr).?$', regex_non_binary: str = r"^(ind|mx|per).?$"
+    ):
+        super().__init__(meta=meta, probabilities=probabilities)
+        self.regex_female = regex_female
+        self.regex_male = regex_male
+        self.regex_non_binary = regex_non_binary
+
+    @property
+    def collections(self) -> Dict[str, List[str]]:
+        mapping = {
+            self.key_female: self.regex_female,
+            self.key_male: self.regex_male,
+            self.key_non_binary: self.regex_non_binary
+        }
+        collections = collections_from_mapping(self.meta.categories, mapping, self.key_ambiguous)
+        return {key: collection for key, collection in collections.items() if len(collection) > 0}
+
+    @property
+    def categories(self) -> Sequence[str]:
+        return list(self.collections.keys())
 
     def fit(self, df):
-        df_gender = get_gender_from_df(df[[self.gender_label or self.title_label]].copy(), name=self.name,
-                                       gender_label=self.gender_label, title_label=self.title_label,
-                                       gender_mapping=self.config.gender_mapping,
-                                       title_mapping=self.config.title_mapping)
+        try:
+            value_map = {v: key for key, collection in self.collections.items() for v in collection}
+        except MetaNotExtractedError:
+            self.meta.extract(df)
+            value_map = {v: key for key, collection in self.collections.items() for v in collection}
+
+        df_gender = df[[self.name]].copy()
+        df_gender[self.name] = df_gender[self.name].astype(str).map(value_map)
 
         return super().fit(df_gender)
-
-    def sample(self, n: Optional[int], produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None):
-        if n is None and conditions is None:
-            raise ValueError("One of 'n' or 'conditions' must be given")
-        elif n is None and conditions is not None:
-            n = len(conditions)
-
-        assert n is not None
-        df = super().sample(n, produce_nans=produce_nans)
-
-        return get_gender_title_from_df(df, name=self.name, gender_label=self.gender_label,
-                                        title_label=self.title_label, gender_mapping=self.config.gender_mapping,
-                                        title_mapping=self.config.title_mapping)
 
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "gender_label": self.gender_label,
-            "title_label": self.title_label,
-            "config": asdict(self.config)
+            "regex_female": self.regex_female,
+            "regex_male": self.regex_male,
+            "regex_non_binary": self.regex_non_binary
         })
 
         return d
@@ -69,9 +95,8 @@ class GenderModel(Histogram[str]):
         meta_dict = cast(Dict[str, object], d["meta"])
         meta = String.from_dict(meta_dict)
         model = cls(
-            meta=meta, gender_label=cast(Optional[str], d["gender_label"]),
-            title_label=cast(Optional[str], d["title_label"]),
-            config=GenderTransformerConfig(**cast(Dict[str, bool], d["config"]))
+            meta=meta,
+            probabilities=cast(Optional[Dict[str, float]], d["probabilities"]),
         )
         model._fitted = cast(bool, d["fitted"])
 
@@ -79,17 +104,56 @@ class GenderModel(Histogram[str]):
 
 
 class PersonModel(DiscreteModel[Person, str]):
+    """A Model of Person which captures gender with a hidden model.
 
+    This model can be used to create the following attributes of Person:
+        * `gender` (orig.)
+        * `title` (orig.)
+        * `first_name`
+        * `last_name`
+        * `email`
+        * `username`
+        * `password`
+        * `home/work/mobile_number`
+
+    Attributes marked with 'orig.' have values that correspond to the original dataset. The rest are intelligently
+    generated based on the hidden model for the hidden attribute, '_gender' = {"F", "M", "NB", "A"}.
+
+    There are 3 special configuration cases for this model that should be considered:
+
+        1. The attribute `gender` is present: In this case the hidden model for `_gender` is based directly on the
+            `gender` attribute. All values in the `gender` attribute should correspond to "F", "M", "U" or <NA>.
+            In other words, there should be no ambiguous values in the collection "A".
+
+        2. No `gender` present but `title` is present: The hidden model for `_gender` can be based on the available
+            titles. As this is not a direct correspondance, not all values will correspond a single collection. In
+            other words, there MAY be some ambiguous values in the collection "A".
+
+        3. Neither `gender` nor `title` is present: The hidden model for gender cannot be fitted to the data and so
+            the '_gender' attribute is assumed to be evenly distributed amongst the genders specified in the config.
+
+
+    """
     def __init__(self, meta: Person, config: PersonModelConfig = PersonModelConfig()):
         super().__init__(meta=meta)
         self.config = config
-        gender_meta = String(name=f"{meta.name}_gender", categories=self.config.genders,
-                             num_rows=meta.num_rows, nan_freq=meta.nan_freq)
-        self.gender_model = GenderModel(meta=gender_meta, gender_label=self.labels.gender_label,
-                                        title_label=self.labels.title_label, config=config.gender_transformer_config)
 
-        # Whether the gender can be learned from data or randomly sampled
-        self.learn_gender = True if self.labels.gender_label or self.labels.title_label else False
+        if self.labels.gender_label:
+            self.hidden_model: Histogram = GenderModel(
+                meta=meta[self.labels.gender_label], regex_female=self.config.gender_female_regex,
+                regex_male=self.config.gender_male_regex, regex_non_binary=self.config.gender_non_binary_regex
+            )
+        elif self.labels.title_label:
+            self.hidden_model = GenderModel(
+                meta=meta[self.labels.title_label], regex_female=self.config.title_female_regex,
+                regex_male=self.config.title_male_regex, regex_non_binary=self.config.title_non_binary_regex
+            )
+        else:
+            gender_meta = String(f"{self.name}_gender", categories=self.config.genders, nan_freq=meta.nan_freq or 0)
+            self.hidden_model = Histogram(
+                meta=gender_meta,
+                probabilities={gender: 1 / len(self.config.genders) for gender in self.config.genders}
+            )
 
         self.mobile_number_format = config.mobile_number_format
         self.home_number_format = config.home_number_format
@@ -117,8 +181,8 @@ class PersonModel(DiscreteModel[Person, str]):
     def fit(self, df: pd.DataFrame) -> 'PersonModel':
         super().fit(df=df)
         with self._meta.unfold(df=df):
-            if self.learn_gender:
-                self.gender_model.fit(df)
+            if isinstance(self.hidden_model, GenderModel):
+                self.hidden_model.fit(df)
 
         return self
 
@@ -130,34 +194,51 @@ class PersonModel(DiscreteModel[Person, str]):
 
         if conditions is None:
             assert n is not None
-            conditions = self.gender_model.sample(n, produce_nans=produce_nans)
-        elif self.gender_model.name not in conditions.columns:
-            conditions = self.gender_model.sample(len(conditions), produce_nans=produce_nans)
+            conditions = self.hidden_model.sample(n, produce_nans=produce_nans)
+        elif self.hidden_model.name not in conditions.columns:
+            conditions = self.hidden_model.sample(len(conditions), produce_nans=produce_nans)
 
         return self._sample_conditional(conditions)
 
     def _sample_conditional(self, conditions: pd.DataFrame) -> pd.DataFrame:
         num_rows = len(conditions)
-
-        if self.gender_model.name not in conditions:
-            raise ValueError(f"Given dataframe doesn't contain column '{self.gender_model.name}' to "
+        if self.hidden_model.name not in conditions:
+            raise ValueError(f"Given dataframe doesn't contain column '{self.hidden_model.name}' to "
                              "sample conditionally from.")
 
-        gender = conditions.loc[:, self.gender_model.name]
-
-        firstname = gender.astype(dtype=str).apply(self.generate_random_first_name)
-        lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
-
+        gender = conditions.loc[:, self.hidden_model.name].astype(dtype=str)
         df = pd.DataFrame([[]] * num_rows)
 
         if self.labels.gender_label is not None:
-            df.loc[:, self.labels.gender_label] = conditions.loc[:, self.labels.gender_label]
+            label = self.labels.gender_label
+            mapping = {
+                GenderModel.key_female: self.config.gender_female_regex,
+                GenderModel.key_male: self.config.gender_male_regex,
+                GenderModel.key_non_binary: self.config.gender_non_binary_regex
+            }
+            # There should be no ambiguous values if the hidden model is based on gender.
+            collections = collections_from_mapping(self.meta[label].categories, mapping, None)
+            df.loc[:, label] = gender.astype(dtype=str).apply(self.generate_from_collections, collections=collections)
 
         if self.labels.title_label is not None:
-            df.loc[:, self.labels.title_label] = conditions.loc[:, self.labels.title_label]
+            label = self.labels.title_label
+            mapping = {
+                GenderModel.key_female: self.config.title_female_regex,
+                GenderModel.key_male: self.config.title_male_regex,
+                GenderModel.key_non_binary: self.config.title_non_binary_regex
+            }
+            collections = collections_from_mapping(self.meta[label].categories, mapping, GenderModel.key_ambiguous)
+            df.loc[:, label] = gender.apply(self.generate_from_collections, collections=collections)
+            # If hidden model isn't directly based on gender, "A" could exist and must be randomly resampled.
+            categories = list(mapping.keys())
+            gender = gender.apply(lambda x: random.choice(categories) if x == GenderModel.key_ambiguous else x)
+
+        firstname = gender.apply(self.generate_random_first_name)
+        lastname = pd.Series(data=np.random.choice(Provider.last_names, size=num_rows))
+        lastname.loc[firstname.isna()] = pd.NA
 
         if self.labels.name_label is not None:
-            df.loc[:, self.labels.name_label] = firstname.str.cat(others=lastname, sep=' ')
+            df.loc[:, self.labels.name_label] = firstname.astype(dtype='string').str.cat(others=lastname, sep=' ')
 
         if self.labels.firstname_label is not None:
             df.loc[:, self.labels.firstname_label] = firstname
@@ -174,25 +255,30 @@ class PersonModel(DiscreteModel[Person, str]):
             df.loc[:, self.labels.email_label] = df.loc[:, self.labels.email_label].str.cat(
                 others=[fkr.domain_name() for _ in range(num_rows)],
                 sep='@')
-            assert all(df.loc[:, self.labels.email_label].apply(self.check_email))
+            sr_email = df[self.labels.email_label]
+            assert all(sr_email[sr_email.notna()].apply(self.check_email))
 
         if self.labels.username_label is not None:
             df.loc[:, self.labels.username_label] = self.generate_usernames(firstname, lastname)
 
         if self.labels.password_label is not None:
             df.loc[:, self.labels.password_label] = [self.generate_password(*self.pwd_length) for _ in range(num_rows)]
+            df.loc[firstname.isna(), self.labels.password_label] = pd.NA
 
         if self.labels.mobile_number_label is not None:
-            df.loc[:, self.labels.mobile_number_label] = [self.generate_phone_number(self.mobile_number_format)
-                                                          for _ in range(num_rows)]
+            df.loc[:, self.labels.mobile_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.mobile_number_format
+            )
 
         if self.labels.home_number_label is not None:
-            df.loc[:, self.labels.home_number_label] = [self.generate_phone_number(self.home_number_format)
-                                                        for _ in range(num_rows)]
+            df.loc[:, self.labels.home_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.home_number_format
+            )
 
         if self.labels.work_number_label is not None:
-            df.loc[:, self.labels.work_number_label] = [self.generate_phone_number(self.work_number_format)
-                                                        for _ in range(num_rows)]
+            df.loc[:, self.labels.work_number_label] = self.generate_phone_numbers(
+                firstname.isna(), number_format=self.work_number_format
+            )
 
         columns = [c for c in self.labels.__dict__.values() if c is not None]
         df.loc[gender.isna(), columns] = np.nan
@@ -202,11 +288,11 @@ class PersonModel(DiscreteModel[Person, str]):
     @staticmethod
     def generate_usernames(firstname: pd.Series, lastname: pd.Series) -> pd.Series:
         username = firstname\
-            .apply(lambda x: x + np.random.choice(['', '.', '-', '_']))\
-            .str.cat(others=lastname)\
-            .apply(lambda x: x + str(random.randint(0, 100) if random.random() < 0.5 else ''))
+            .apply(lambda x: x + np.random.choice(['', '.', '-', '_']) if pd.notna(x) else x)\
+            .astype(dtype='string').str.cat(others=lastname)\
+            .apply(lambda x: x + str(random.randint(0, 100)) * random.randint(0, 1) if pd.notna(x) else x)
 
-        while username.nunique() < len(firstname):
+        while username.nunique() < sum(firstname.notna()):
             vc = username.value_counts()
             duplicates = list(vc[vc > 1].index)
 
@@ -223,16 +309,29 @@ class PersonModel(DiscreteModel[Person, str]):
         return ''.join(random.choice(possible_chars) for _ in range(pwd_length))
 
     @staticmethod
-    def generate_phone_number(number_format: str = '07xxxxxxxx') -> str:
-        return re.sub(r'x', lambda _: str(random.randint(0, 9)), number_format)
+    def generate_phone_numbers(isna: pd.Series, number_format: str = '07xxxxxxxx') -> pd.Series:
+        return pd.Series([
+            re.sub(r'x', lambda _: str(random.randint(0, 9)), number_format)
+            if not na else pd.NA
+            for na in isna
+        ])
 
     def generate_random_first_name(self, gender: str):
-        if gender == 'M':
+        if gender == GenderModel.key_male:
             return np.random.choice(self.provider.first_names_male)
-        elif gender == 'F':
+        elif gender == GenderModel.key_female:
             return np.random.choice(self.provider.first_names_female)
-        else:
+        elif gender == GenderModel.key_non_binary:
             return np.random.choice(self.provider.first_names)
+        else:
+            return pd.NA
+
+    @staticmethod
+    def generate_from_collections(key: str, collections: Dict[str, List[str]]):
+        categories = collections.get(key, [])
+        if len(categories) == 0:
+            return pd.NA
+        return np.random.choice(categories)
 
     @staticmethod
     def check_email(s: str) -> bool:

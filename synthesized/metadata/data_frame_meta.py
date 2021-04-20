@@ -27,13 +27,12 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         child_names = [c.name for c in children] if children is not None else []
         annotations_list = annotations if annotations is not None else []
         column_aliases_dict = column_aliases if column_aliases is not None else {}
-
         if any([
-            n in child_names
+            n not in child_names
             for n in chain([id_index, time_index], annotations_list, column_aliases_dict)
             if n is not None
         ]):
-            raise ValueError("Children metas don't match the given indices/aliases/annotations")
+            raise ValueError(f"Children metas ({child_names}) don't match the given indices/aliases/annotations ({annotations_list})")
 
         super().__init__(name=name, children=children)
         self.id_index = id_index
@@ -113,9 +112,8 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
     def copy(self) -> 'DataFrameMeta':
         """Returns a shallow copy of the data frame meta."""
         df_meta = DataFrameMeta(
-            name=self.name, id_index=self.id_index, time_index=self.time_index,
+            name=self.name, children=self.children, id_index=self.id_index, time_index=self.time_index,
             column_aliases=self.column_aliases.copy(), num_columns=self.num_columns, num_rows=self.num_rows,
             annotations=self.annotations.copy(), columns=self.columns.copy() if self.columns is not None else None
         )
-        df_meta.update(self)
         return df_meta

@@ -32,10 +32,7 @@ class TestDataFrame(_TestMeta, DataFrameData):
         meta.extract(df)
         assert dataframe.equals(df)
         yield meta
-        children = meta.children
-        meta.__init__(name=meta.name)
-        for child in children:
-            meta[child.name] = child
+        meta.__init__(name=meta.name, children=meta.children)
 
 
 class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
@@ -66,7 +63,4 @@ class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
         meta.extract(df)
         assert dataframe.equals(df)
         yield meta
-        children = meta.children
-        meta.__init__(name=meta.name, annotations=meta.annotations)
-        for child in children:
-            meta[child.name] = child
+        meta.__init__(name=meta.name, children=meta.children, annotations=meta.annotations)

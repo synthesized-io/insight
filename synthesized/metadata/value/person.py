@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from .categorical import String
-from ..base import ValueMeta
 from ...config import PersonLabels
 
 
@@ -13,7 +12,7 @@ class Person(String):
     """Person meta."""
 
     def __init__(
-            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            self, name: str, children: Optional[Sequence[String]] = None,
             categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None, labels: PersonLabels = PersonLabels(),
     ):
@@ -27,7 +26,7 @@ class Person(String):
 
         self._params = {k: v for k, v in asdict(labels).items() if v is not None}
         children = [
-            String(name)
+            String(name, num_rows=num_rows, nan_freq=nan_freq)
             for name in self._params.values() if name is not None
         ] if children is None else children
         super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
@@ -79,10 +78,10 @@ class Person(String):
         extracted = d.pop("extracted", False)
         children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
         if children is not None:
-            meta_children: List[ValueMeta] = []
+            meta_children: List[String] = []
             for child in children.values():
                 class_name = cast(str, child['class_name'])
-                meta_children.append(ValueMeta.from_name_and_dict(class_name, child))
+                meta_children.append(String.from_name_and_dict(class_name, child))
 
         meta = cls(name=name, children=meta_children, labels=labels)
         for attr, value in d.items():

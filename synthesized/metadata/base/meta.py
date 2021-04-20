@@ -5,8 +5,8 @@ import pandas as pd
 
 from ...util import get_all_subclasses
 
-MetaType = TypeVar('MetaType', bound='Meta[Any]')
-MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta[Any]')
+MetaType = TypeVar('MetaType', bound='Meta', covariant=True)
+MetaTypeArg = TypeVar('MetaTypeArg', bound='Meta')
 
 
 class Meta(Mapping[str, MetaType], Generic[MetaType]):
@@ -161,7 +161,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
 
     @classmethod
     def get_registry(cls: Type[MetaType]) -> Dict[str, Type[MetaType]]:
-        return {sc.__name__: sc for sc in get_all_subclasses(cls)}
+        return {sc.__name__: sc for sc in get_all_subclasses(cls).union({cls})}
 
     def __eq__(self, other) -> bool:
         return {k: v for k, v in self.__dict__.items()
