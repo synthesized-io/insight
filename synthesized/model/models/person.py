@@ -263,7 +263,7 @@ class PersonModel(DiscreteModel[Person, str]):
 
         if self.labels.password_label is not None:
             df.loc[:, self.labels.password_label] = [self.generate_password(*self.pwd_length) for _ in range(num_rows)]
-            df.loc[:, self.labels.password_label][firstname.isna()] = pd.NA
+            df.loc[firstname.isna(), self.labels.password_label] = pd.NA
 
         if self.labels.mobile_number_label is not None:
             df.loc[:, self.labels.mobile_number_label] = self.generate_phone_numbers(
