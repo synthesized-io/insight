@@ -33,7 +33,7 @@ class PredictiveModellingScore(DataFrameMetric):
     tags = ["modelling"]
 
     def __call__(self, df: pd.DataFrame = None, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, **kwargs) -> Union[int, float, None]:
+                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs, ) -> Union[int, float, None]:
         if df is None:
             return None
 
@@ -43,7 +43,7 @@ class PredictiveModellingScore(DataFrameMetric):
         y_label = y_label or df.columns[-1]
         x_labels = x_labels if x_labels is not None else [col for col in df.columns if col != y_label]
 
-        score, metric, task = predictive_modelling_score(df, y_label, x_labels, model)
+        score, metric, task = predictive_modelling_score(df, y_label, x_labels, model, sample_size=sample_size)
         return score
 
 
@@ -52,7 +52,7 @@ class PredictiveModellingComparison(TwoDataFrameMetric):
     tags = ["modelling"]
 
     def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, **kwargs) -> Union[None, float]:
+                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs) -> Union[None, float]:
         if df_old is None or df_new is None:
             return None
 
@@ -62,7 +62,7 @@ class PredictiveModellingComparison(TwoDataFrameMetric):
         y_label = y_label or df_old.columns[-1]
         x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
 
-        score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model)
+        score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model, sample_size=sample_size)
         return synth_score / score
 
 
@@ -206,7 +206,7 @@ class R2_Score(RegressionMetric):
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
                                model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
                                copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
-                               dp: DataFrameMeta = None, models: DataFrameModel = None):
+                               dp: DataFrameMeta = None, models: DataFrameModel = None, sample_size: Optional[int] = None):
 
     """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
 
@@ -259,7 +259,10 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
     else:
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
 
-    sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
+    # If sample_size is not passed as the parameter of the function,
+    # then set it as the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
+    if sample_size is None:
+        sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
 
     if preprocessor is None:
         preprocessor = ModellingPreprocessor(target=y_label, dp=dp)
@@ -299,9 +302,9 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
 
 def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
-                                    y_label: str, x_labels: List[str], model: str):
-    score, metric, task = predictive_modelling_score(data, y_label, x_labels, model)
-    synth_score, _, _ = predictive_modelling_score(data, y_label, x_labels, model, synth_data=synth_data)
+                                    y_label: str, x_labels: List[str], model: str, sample_size: Optional[int] = None):
+    score, metric, task = predictive_modelling_score(data, y_label, x_labels, model, sample_size=sample_size)
+    synth_score, _, _ = predictive_modelling_score(data, y_label, x_labels, model, synth_data=synth_data, sample_size=sample_size)
 
     return score, synth_score, metric, task
 
