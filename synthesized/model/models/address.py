@@ -3,7 +3,7 @@ import importlib
 import logging
 import os
 import re
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict
 from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence, cast
 
 import faker
@@ -13,61 +13,12 @@ import simplejson
 
 from .histogram import Histogram
 from ..base import DiscreteModel
-from ...config import AddressLabels, AddressModelConfig, PostcodeModelConfig
+from ...config import AddressLabels, AddressModelConfig, AddressRecord, PostcodeModelConfig
 from ...metadata import MetaNotExtractedError
 from ...metadata.value import Address, String
 from ...util import get_postcode_key, get_postcode_key_from_df
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(repr=True)
-class AddressRecord:
-    postcode: Optional[str] = None
-    county: Optional[str] = None
-    city: Optional[str] = None
-    district: Optional[str] = None
-    street: Optional[str] = None
-    house_number: Optional[str] = None
-    flat: Optional[str] = None
-    house_name: Optional[str] = None
-    full_address: str = field(init=False, repr=False)
-
-    def __post_init__(self):
-        for f in fields(self):
-            if f.name != 'full_address':
-                field_val = getattr(self, f.name)
-                setattr(self, f.name, field_val.replace("'", "") if field_val is not None else None)
-        self.full_address = self.compute_full_address()
-
-    def compute_full_address(self) -> str:
-        address_str = ""
-
-        if self.flat:
-            address_str += f"{self.flat} "
-
-        if self.house_number:
-            address_str += f"{self.house_number} "
-
-        if self.house_name:
-            address_str += f"{self.house_name}, "
-
-        if self.street:
-            address_str += f"{self.street}, "
-
-        if self.district:
-            address_str += f"{self.district}, "
-
-        if self.postcode:
-            address_str += f"{self.postcode} "
-
-        if self.city:
-            address_str += f"{self.city} "
-
-        if self.county:
-            address_str += f"{self.county}"
-
-        return address_str
 
 
 class PostcodeModel(Histogram[str]):

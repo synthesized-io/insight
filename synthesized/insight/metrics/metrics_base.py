@@ -8,8 +8,7 @@ import pandas as pd
 
 from ...metadata import DataFrameMeta
 from ...metadata.factory import MetaExtractor
-from ...model import DataFrameModel
-from ...model.factory import ModelFactory
+from ...model import DataFrameModel, factory
 
 
 def _register(metric, cls):
@@ -52,7 +51,7 @@ class ColumnMetric(_Metric):
         if dp is None:
             dp = pd.DataFrame(data={sr.name: sr})
         dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = ModelFactory()(dp) if models is None else models
+        models = factory.ModelFactory()(dp) if models is None else models
 
         return dp, models
 
@@ -78,7 +77,7 @@ class TwoColumnMetric(_Metric):
         if dp is None:
             dp = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
         dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = ModelFactory()(dp) if models is None else models
+        models = factory.ModelFactory()(dp) if models is None else models
 
         return dp, models
 

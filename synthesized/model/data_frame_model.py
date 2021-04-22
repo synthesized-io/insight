@@ -2,7 +2,8 @@ from typing import Dict, Iterator, MutableMapping, Optional, Sequence, cast
 
 import pandas as pd
 
-from . import factory
+import synthesized.model
+
 from .base import Model
 from .exceptions import ModelNotFittedError
 from ..metadata import DataFrameMeta
@@ -13,7 +14,7 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
         super().__init__(meta=meta.copy())
 
         if models is None:
-            mb = factory.ModelBuilder()
+            mb = synthesized.model.factory.ModelBuilder()
             models = []
 
             for name, child in meta.items():
