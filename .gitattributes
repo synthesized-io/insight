@@ -1,0 +1,5 @@
+# .gitattributes file which ignores certain files from github's language detector
+
+docs/* linguist-documentation
+evaluation/* linguist-documentation
+examples/* linguist-documentation

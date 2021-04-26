@@ -12,10 +12,13 @@ for case in cases:
     for child in case.getchildren():
         if child.tag == 'properties':
             case.remove(child)
-    if case.get('classname') not in file_to_case:
-        file_to_case[case.get('classname')] = [case]
+    filename = case.get('classname')
+    if filename is not None and filename.split('.')[-1].startswith('Test'):
+        filename = '.'.join(filename.split('.')[:-1])
+    if filename not in file_to_case:
+        file_to_case[filename] = [case]
     else:
-        file_to_case[case.get('classname')].append(case)
+        file_to_case[filename].append(case)
 
 
 files = [k for k in file_to_case.keys()]
@@ -35,14 +38,9 @@ for file in files:
         'timestamp': suite.get('timestamp') or ''
     })
 
-    for case in file_to_case[file]:
-        # case.set('classname', (file or '').replace('.', '/')+'.py')
-        case.attrib.pop('classname')
-
     suite1.extend(file_to_case[file])
     # print(ET.tostring(suite1))
     suites.append((suite1))
-
 
 root.remove(suite)
 root.extend(suites)
