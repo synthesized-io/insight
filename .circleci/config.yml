@@ -17,9 +17,9 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
 
       - run:
           name: Install virtualenv
@@ -41,7 +41,7 @@ jobs:
 
   test:
     docker:
-        - image: circleci/python:3.6.9
+      - image: circleci/python:3.6.9
     parallelism: 8
     steps:
       # Reuse the workspace from the build job
@@ -82,7 +82,7 @@ jobs:
       - image: circleci/python:3.6.9
     steps:
       - attach_workspace:
-            at: .
+          at: .
       - jq/install:
           when: always
       - run:
@@ -295,6 +295,15 @@ jobs:
       - store_artifacts:
           path: dist
           destination: dist
+
+      - run:
+          name: Generate requirements.txt
+          command: |
+            make venv && pip list --format freeze > generated_requirements.txt
+
+      - store_artifacts:
+          path: generated_requirements.txt
+          destination: requirements.txt
 
       - run:
           name: Publish artifacts
