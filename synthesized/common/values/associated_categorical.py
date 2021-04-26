@@ -60,11 +60,8 @@ class AssociatedCategoricalValue(Value, Mapping):
         return sum([v.learned_output_size() for v in self.values()])
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Sequence[tf.Tensor] = None) -> tf.Tensor:
-        if mask is None:
-            inputs = [value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values())]
-        else:
-            inputs = [value.unify_inputs(xs[n:n + 1], mask[n: n + 1]) for n, value in enumerate(self.values())]
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        inputs = [value.unify_inputs(xs[n:n + 1]) for n, value in enumerate(self.values())]
         return tf.concat(inputs, axis=-1)
 
     @tensorflow_name_scoped
@@ -94,7 +91,7 @@ class AssociatedCategoricalValue(Value, Mapping):
         return output_tensors
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
             axis=-1

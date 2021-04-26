@@ -52,11 +52,8 @@ class DataFrameValue(Value, Mapping[str, Value]):
         values = []
         for name, value in self.items():
             if value.learned_input_size() > 0:
-                nan_mask = None if f'{value.name}_nan' not in self else 1 - inputs[f'{value.name}_nan'][0]
-                if nan_mask is not None:
-                    nan_mask = tf.cast(nan_mask, dtype=tf.bool)
                 values.append(
-                    value.unify_inputs(xs=inputs[name], mask=nan_mask)
+                    value.unify_inputs(xs=inputs[name])
                 )
         x = tf.concat(values=values, axis=-1)
 
@@ -101,11 +98,8 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
         # Reconstruction loss per value
         for (name, value), y in zip(self.items(), ys):
-            nan_mask = None
-            if f"{value.name}_nan" in inputs:
-                nan_mask = 1 - inputs[f"{value.name}_nan"][0]
             losses[name + '-loss'] = value.loss(
-                y=y, xs=inputs[name], mask=nan_mask
+                y=y, xs=inputs[name],
             )
 
         # Reconstruction loss

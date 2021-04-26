@@ -1,7 +1,7 @@
 import pickle
 import re
 from base64 import b64decode, b64encode
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
 import tensorflow as tf
@@ -83,7 +83,7 @@ class Value(tf.Module):
         return 0
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor]) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Unifies input tensors into a single input embedding for a generative model.
 
         Args:
@@ -108,7 +108,7 @@ class Value(tf.Module):
         """
         return tuple()
 
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         """Computes the reconstruction loss of an output embedding and corresponding input tensors.
 
         Args:

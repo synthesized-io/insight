@@ -97,7 +97,7 @@ class CategoricalValue(Value):
         self.built = True
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         self.build()
         return tf.nn.embedding_lookup(params=self.embeddings, ids=xs[0])
 
@@ -117,9 +117,10 @@ class CategoricalValue(Value):
         return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: tf.Tensor = None) -> tf.Tensor:
-
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         target = xs[0]
+        # mask loss from nan inputs
+        mask = tf.math.logical_not(target == 0)
 
         if self.moving_average is not None:
             assert self.frequency is not None
@@ -140,8 +141,7 @@ class CategoricalValue(Value):
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
                 weights = tf.reshape(weights, shape=target.shape)
                 # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
-                if mask is not None:
-                    weights = tf.boolean_mask(tensor=weights, mask=mask)
+                weights = tf.boolean_mask(tensor=weights, mask=mask)
         else:
             weights = 1.0
 
@@ -151,10 +151,11 @@ class CategoricalValue(Value):
             indices=target, depth=self.learned_output_size(), on_value=1.0, off_value=0.0, axis=-1,
             dtype=tf.float32
         )
+
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=target, logits=y, axis=-1)
-        if mask is not None:
-            loss = tf.boolean_mask(loss, mask=mask)
+        loss = tf.boolean_mask(loss, mask=mask)
         loss = self.weight * tf.reduce_mean(input_tensor=(loss * weights), axis=None)
+
         tf.summary.scalar(name=self.name, data=loss)
         return loss
 

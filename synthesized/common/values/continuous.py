@@ -1,5 +1,5 @@
 from math import log
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Sequence
 
 import tensorflow as tf
 from scipy.stats import gamma, gilbrat, gumbel_r, lognorm, uniform, weibull_min
@@ -41,13 +41,10 @@ class ContinuousValue(Value):
         return 1
 
     @tensorflow_name_scoped
-    def unify_inputs(self, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
+    def unify_inputs(self, xs: Sequence[tf.Tensor]) -> tf.Tensor:
         assert len(xs) == 1
-
-        if mask is not None:
-            x = tf.where(mask, xs[0], tf.random.normal(xs[0].shape))
-        else:
-            x = xs[0]
+        nan_mask = tf.math.is_nan(xs[0])
+        x = tf.where(nan_mask, tf.random.normal(xs[0].shape), xs[0])
         x = tf.expand_dims(x, axis=-1)
         return x
 
@@ -57,12 +54,10 @@ class ContinuousValue(Value):
         return (y,)
 
     @tensorflow_name_scoped
-    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor], mask: Optional[tf.Tensor] = None) -> tf.Tensor:
-        target = tf.expand_dims(xs[0], axis=-1)
-
-        if mask is not None:
-            target = tf.boolean_mask(tensor=target, mask=mask)
-            y = tf.boolean_mask(tensor=y, mask=mask)
+    def loss(self, y: tf.Tensor, xs: Sequence[tf.Tensor]) -> tf.Tensor:
+        nan_mask = tf.math.is_nan(xs[0])
+        x = tf.where(nan_mask, tf.squeeze(y), xs[0])
+        target = tf.expand_dims(x, axis=-1)
 
         loss = tf.squeeze(input=tf.math.squared_difference(x=y, y=target), axis=-1)
         loss = self.weight * tf.reduce_mean(input_tensor=loss, axis=None)

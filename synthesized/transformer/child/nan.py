@@ -24,7 +24,7 @@ class NanTransformer(Transformer):
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df[self.name].replace([np.inf, -np.inf], np.nan, inplace=True)
         nan = df[self.name].isna()
-        df[f'{self.name}_nan'] = nan.astype(int)
+        df[f'{self.name}_nan'] = nan.astype(int) + 1
         return df
 
     def inverse_transform(self, df: pd.DataFrame, produce_nans: bool = True, **kwargs) -> pd.DataFrame:

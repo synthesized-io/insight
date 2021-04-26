@@ -40,26 +40,6 @@ class TestDataFrameValue:
         ), axis=-1)
         return outputs
 
-    @pytest.fixture(scope="class")
-    def loss_from_children(self, value, inputs, outputs):
-        """ Drops the nan values manually and calculates the loss """
-        cont_output_size = value["cont_value"].learned_output_size()
-        cat_output_size = value["cat_value"].learned_output_size()
-        nan_output_size = value["cont_value_nan"].learned_output_size()
-
-        cont_outputs = outputs[:, :cont_output_size]
-        cat_outputs = outputs[:, cont_output_size: cont_output_size + cat_output_size]
-        nan_outputs = outputs[:, -nan_output_size:]
-
-        dropped_cont_inputs = tf.boolean_mask(inputs["cont_value"][0], 1 - inputs["cont_value_nan"][0], axis=0)
-        dropped_cont_outputs = tf.boolean_mask(cont_outputs, 1 - inputs["cont_value_nan"][0], axis=0)
-        cont_loss = value["cont_value"].loss(dropped_cont_outputs, (dropped_cont_inputs,))
-
-        cat_loss = value["cat_value"].loss(cat_outputs, inputs["cat_value"])
-        nan_loss = value["cont_value_nan"].loss(nan_outputs, inputs["cont_value_nan"])
-
-        return cont_loss + cat_loss + nan_loss
-
     def test_unify_inputs(self, value, inputs):
         assert value.unify_inputs(inputs).shape[0] == self.batch_size
 
@@ -68,5 +48,5 @@ class TestDataFrameValue:
         for output_tensor in output_tensors.values():
             assert output_tensor[0].shape[0] == self.batch_size
 
-    def test_loss(self, value, outputs, inputs, loss_from_children):
-        assert (value.loss(outputs, inputs) == loss_from_children).numpy()
+    def test_loss(self, value, outputs, inputs):
+        assert value.loss(outputs, inputs).shape == ()
