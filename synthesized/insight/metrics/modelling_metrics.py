@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score, mean_absolute_error, mean_squared_error,
                              precision_recall_curve, precision_score, r2_score, recall_score, roc_auc_score, roc_curve)
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.utils.validation import check_is_fitted
 
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
@@ -231,6 +231,13 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
 
     score, metric, task = None, None, None
 
+    # Remove rows with response variable as NaN before splitting,
+    # because stratified train_test_split will fail if response contains NaNs.
+    # Also, NaN response value doesn't help with supervised learning
+    response_nan_idxs = data.index[data[y_label].isna()].tolist()
+    if response_nan_idxs:
+        data = data.drop(labels=response_nan_idxs, axis=0)
+
     if x_labels is None:
         x_labels = list(filter(lambda c: c != y_label, data.columns))
     else:
@@ -410,9 +417,12 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
             y_pred_test = np.argmax(f_proba_test, axis=1)
         else:
             y_pred_test = clf.predict(x_test)
-            f_proba_test = oh.transform(y_pred_test.reshape(-1, 1)).toarray()
+            f_proba_test = oh.transform(y_pred_test.reshape(-1, 1))
 
         y_test_oh, f_proba_test = _remove_zero_column(y_test_oh, f_proba_test)
+
+        # Normalise the prediction probabilities so that the probabilities across classes add to 1.
+        f_proba_test = _normalise_prob(f_proba_test)
 
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
@@ -572,9 +582,26 @@ def _remove_zero_column(y1, y2):
         return y1, y2
     assert y1.shape[1] == y2.shape[1]
 
-    delete_index = np.where((y1 == 0).all(axis=0) | (y2 == 0).all(axis=0))
+    delete_index = np.where((y1 == 0).all(axis=0))
 
     y1 = np.delete(y1, delete_index, axis=1)
     y2 = np.delete(y2, delete_index, axis=1)
-
     return y1, y2
+
+
+def _normalise_prob(f_proba):
+    """Given probabilities across classes, normalise them so that they add to 1 for each row.
+
+    Args:
+        f_proba: Input probability array
+
+    Returns:
+        f_proba_normalised: Output normalised probability array
+
+    """
+    f_proba_normalised = normalize(f_proba, axis=1, norm='l1')
+    idxs = np.where(~f_proba_normalised.any(axis=1))[0]
+    num_classes = f_proba_normalised.shape[1]
+    f_proba_normalised[idxs] = 1 / num_classes
+
+    return f_proba_normalised
