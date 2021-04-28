@@ -1,5 +1,6 @@
+import importlib
 from dataclasses import dataclass, field, fields
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -60,27 +61,6 @@ class AnnotationParams:
     name: str
 
 
-@dataclass
-class PostcodeModelConfig:
-    postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
-
-    @property
-    def postcode_model_config(self):
-        return PostcodeModelConfig(**{f.name: getattr(self, f.name) for f in fields(PostcodeModelConfig)})
-
-
-@dataclass
-class AddressModelConfig(PostcodeModelConfig):
-    locale: str = 'en_GB'
-    postcode_level: int = 0
-    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
-    learn_postcodes: bool = False
-
-    @property
-    def address_model_config(self):
-        return AddressModelConfig(**{f.name: getattr(self, f.name) for f in fields(AddressModelConfig)})
-
-
 @dataclass(frozen=True)
 class AddressLabels:
     postcode_label: Optional[str] = None
@@ -118,6 +98,23 @@ class BankLabels:
 
 
 @dataclass
+class MetaFactoryConfig:
+    """
+    Attributes:
+        min_nim_unique: if number of unique values in pd.Series
+            is below this a Categorical meta is returned.
+    """
+    parsing_nan_fraction_threshold: float = 0.25
+
+    @property
+    def meta_factory_config(self):
+        return MetaFactoryConfig(**{f.name: getattr(self, f.name)
+                                    for f in fields(MetaFactoryConfig)})
+
+
+# Model Config Classes ----------------------------------------
+
+@dataclass
 class GenderModelConfig:
     gender_female_regex: str = r'^(f|female)$'
     gender_male_regex: str = r'^(m|male)$'
@@ -135,12 +132,20 @@ class GenderModelConfig:
 
 @dataclass
 class PersonModelConfig(GenderModelConfig):
-    locale: str = 'en'
+    person_locale: str = 'en'
     dict_cache_size: int = 10000
     mobile_number_format: str = '07xxxxxxxx'
     home_number_format: str = '02xxxxxxxx'
     work_number_format: str = '07xxxxxxxx'
     pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
+
+    def __post_init__(self):
+        try:
+            provider = importlib.import_module(f"faker.providers.person.{self.person_locale}")
+            _ = provider.Provider.first_names
+            _ = provider.Provider.last_names
+        except ModuleNotFoundError:
+            raise ValueError(f"Given locale '{self.person_locale}' not supported.")
 
     @property
     def person_model_config(self):
@@ -148,51 +153,39 @@ class PersonModelConfig(GenderModelConfig):
 
 
 @dataclass
-class FormattedStringParams:
-    formatted_string_label: Optional[List[str]] = None
-
-
-@dataclass
-class FormattedStringMetaConfig:
-    label_to_regex: Optional[Dict[str, str]] = None
+class PostcodeModelConfig:
+    postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
 
     @property
-    def formatted_string_meta_config(self):
-        return FormattedStringMetaConfig(**{f.name: getattr(self, f.name)
-                                            for f in fields(FormattedStringMetaConfig)})
+    def postcode_model_config(self):
+        return PostcodeModelConfig(**{f.name: getattr(self, f.name) for f in fields(PostcodeModelConfig)})
 
 
 @dataclass
-class MetaFactoryConfig:
-    """
-    Attributes:
-        categorical_threshold_log_multiplier: if number of unique values
-            in a pd.Series is below this value a Categorical meta is returned.
-        min_nim_unique: if number of unique values in pd.Series
-            is below this a Categorical meta is returned.
-        acceptable_nan_frac: when interpreting a series of type 'O',
-            data is cast to numeric and non numeric types are cast to
-            NaNs. If the frequency of NaNs is below this threshold, and
-            Categorcial meta has not been inferred, then Float or Integer meta
-            is returned.
-    """
-    categorical_threshold_log_multiplier: float = 2.5
-    parsing_nan_fraction_threshold: float = 0.25
-    min_num_unique: int = 10
+class AddressModelConfig(PostcodeModelConfig):
+    address_locale: str = 'en_GB'
+    postcode_level: int = 0
+    addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+    learn_postcodes: bool = False
 
-
-@dataclass
-class MetaExtractorConfig(MetaFactoryConfig, AddressModelConfig, PersonModelConfig, FormattedStringMetaConfig):
+    def __post_init__(self):
+        if self.address_locale != 'en_GB':
+            # TODO: Handle postcodes from other coutries.
+            raise ValueError(f"Given locale '{self.address_locale}' not supported, only 'en_GB' is supported.")
 
     @property
-    def meta_extractor_config(self):
-        return MetaExtractorConfig(**{f.name: getattr(self, f.name) for f in fields(MetaExtractorConfig)})
+    def address_model_config(self):
+        return AddressModelConfig(**{f.name: getattr(self, f.name) for f in fields(AddressModelConfig)})
 
 
 @dataclass
-class ModelBuilderConfig(PersonModelConfig):
+class ModelBuilderConfig(AddressModelConfig, PersonModelConfig):
     categorical_threshold_log_multiplier: float = 2.5
     min_num_unique: int = 10
+
+    @property
+    def model_builder_config(self):
+        return ModelBuilderConfig(**{f.name: getattr(self, f.name) for f in fields(ModelBuilderConfig)})
 
 
 # Transformer Config Classes ----------------------------------------
@@ -363,7 +356,7 @@ class EngineConfig:
 
 
 @dataclass
-class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig):
+class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig, ModelBuilderConfig):
     """
     distribution: Distribution type: "normal".
     batch_size: Batch size.

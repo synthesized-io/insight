@@ -55,7 +55,8 @@ class HighDimSynthesizer(Synthesizer):
         self.synthesis_batch_size = config.synthesis_batch_size
 
         self.df_meta: DataFrameMeta = df_meta
-        self.df_model = ModelFactory()(df_meta, type_overrides=type_overrides)
+        model_factory = ModelFactory(config=config.model_builder_config)
+        self.df_model = model_factory(df_meta, type_overrides=type_overrides)
         self.df_model_independent = self.split_df_model(self.df_model)
 
         self.df_value: DataFrameValue = ValueExtractor.extract(
@@ -108,7 +109,8 @@ class HighDimSynthesizer(Synthesizer):
         )
         return spec
 
-    def split_df_model(self, df_model: DataFrameModel) -> DataFrameModel:
+    @staticmethod
+    def split_df_model(df_model: DataFrameModel) -> DataFrameModel:
         """Given a df_model, pop out those models that are not learned in the engine and
         return a df_model_independent containing these models.
         """

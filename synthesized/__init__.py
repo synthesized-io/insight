@@ -6,13 +6,15 @@ if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
     for module in ['numpy', 'pandas', 'sklearn', 'tensorflow']:
         warnings.filterwarnings('ignore', module=module, append=True)
 
-from .common import Synthesizer  # noqa: F402
-from .complex import HighDimSynthesizer  # noqa: F402
+from .common.synthesizer import Synthesizer
+from .complex.conditional import ConditionalSampler
+from .complex.data_imputer import DataImputer
+from .complex.highdim import HighDimSynthesizer
 from .metadata.data_frame_meta import DataFrameMeta
-from .metadata.factory import MetaExtractor  # noqa: F402
-from .version import __version__  # noqa: F402
+from .metadata.factory import MetaExtractor
+from .version import __version__
 
 __all__ = [
-    '__version__', 'HighDimSynthesizer', 'Synthesizer', 'DataFrameMeta',
+    '__version__', 'HighDimSynthesizer', 'ConditionalSampler', 'DataImputer', 'Synthesizer', 'DataFrameMeta',
     'MetaExtractor'
 ]

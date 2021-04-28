@@ -79,7 +79,7 @@ class AddressModel(DiscreteModel[Address, str]):
             full_address_label=self.labels.full_address_label, config=config.postcode_model_config
         )
 
-        self.locale = config.locale
+        self.locale = config.address_locale
         self.provider = self._get_provider(self.locale)
         self.postcode_level = config.postcode_level
 
@@ -105,17 +105,19 @@ class AddressModel(DiscreteModel[Address, str]):
             self.postcodes: Dict[str, List[AddressRecord]] = {}
             # Manually 'fit' the postcode model so that it is not needed to call .fit().
             postcodes = self.provider.POSTAL_ZONES
-            self.postcode_model.meta.categories = postcodes
-            self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
-
-            if self.nan_freq:
-                self._meta._extracted = self.postcode_model._meta._extracted = True
-                self._fitted = self.postcode_model._fitted = True
 
         else:
             self.fake = False
             logger.info("Loading address dictionary from '{}'".format(addresses_file))
             self.postcodes = self._load_postcodes_dict(addresses_file)
+            postcodes = list(self.postcodes.keys())
+
+        self.postcode_model.meta.categories = postcodes
+        self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
+
+        if self.nan_freq:
+            self._meta._extracted = self.postcode_model._meta._extracted = True
+            self._fitted = self.postcode_model._fitted = True
 
     @property
     def address_record_key_to_label(self) -> Dict[str, str]:
@@ -160,12 +162,6 @@ class AddressModel(DiscreteModel[Address, str]):
         if self.learn_postcodes:
             with self._meta.unfold(df):
                 self.postcode_model.fit(df)
-
-        else:
-            categories = list(self.postcodes.keys())
-            self.postcode_model.meta.categories = categories
-            self.postcode_model.probabilities = {c: 1 / len(categories) for c in categories}
-            self.postcode_model._fitted = True
 
         return self
 

@@ -20,8 +20,7 @@ class _MetaBuilder:
     determines the method that is called, and therefore the Meta that is returned.
     """
     def __init__(
-            self, min_num_unique: int, parsing_nan_fraction_threshold: float,
-            categorical_threshold_log_multiplier: float
+            self, parsing_nan_fraction_threshold: float
     ):
         self._dtype_builders: Dict[str, Callable[[pd.Series], ValueMeta[Any, Any]]] = {
             'i': self.int_builder,
@@ -212,8 +211,10 @@ class MetaFactory():
 class MetaExtractor(MetaFactory):
     """Extract the DataFrameMeta for a data frame"""
     def __init__(self, config: Optional[MetaFactoryConfig] = None):
-        super().__init__(config)
+        super().__init__(config=config.meta_factory_config if config is not None else None)
 
+    # TODO: MetaExtractor().extract() could not be static, so that we can easily call it with config instead
+    #   of having to create a extractor object.
     @staticmethod
     def extract(
             df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,

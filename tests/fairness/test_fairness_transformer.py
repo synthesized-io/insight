@@ -3,7 +3,7 @@ from math import log
 import pandas as pd
 import pytest
 
-from synthesized.config import MetaExtractorConfig
+from synthesized.config import ModelBuilderConfig
 from synthesized.insight.fairness.fairness_transformer import FairnessTransformer
 
 
@@ -33,8 +33,8 @@ def test_fairness_transformer(file_name, sensitive_attributes, target, target_n_
     df_t = ft(df)
 
     categorical_threshold = int(max(
-        float(MetaExtractorConfig.min_num_unique),
-        MetaExtractorConfig.categorical_threshold_log_multiplier * log(len(df))
+        float(ModelBuilderConfig.min_num_unique),
+        ModelBuilderConfig.categorical_threshold_log_multiplier * log(len(df))
     ))
 
     for col in sensitive_attributes:

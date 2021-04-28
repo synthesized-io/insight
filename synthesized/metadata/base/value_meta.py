@@ -67,7 +67,7 @@ class Nominal(ValueMeta[NType, ValueMetaType], Generic[NType, ValueMetaType]):
     @property
     def categories(self) -> Sequence[NType]:
         if self._categories is None:
-            raise MetaNotExtractedError
+            raise MetaNotExtractedError(f"Meta '{self.name}' hasn't been extracted yet.")
 
         return [c for c in self._categories]
 

@@ -89,11 +89,11 @@ class ModelBuilder:
             Model if meta is a ValueMeta
         """
         if isinstance(meta, Address):
-            return AddressModel(meta)
+            return AddressModel(meta, config=self.config.address_model_config)
         elif isinstance(meta, Bank):
             return BankModel(meta)
         elif isinstance(meta, Person):
-            return PersonModel(meta)
+            return PersonModel(meta, config=self.config.person_model_config)
         elif isinstance(meta, FormattedString):
             return FormattedStringModel(meta)
         else:

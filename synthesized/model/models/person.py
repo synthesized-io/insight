@@ -159,7 +159,7 @@ class PersonModel(DiscreteModel[Person, str]):
         self.home_number_format = config.home_number_format
         self.work_number_format = config.work_number_format
         self.dict_cache_size = config.dict_cache_size
-        self.locale = config.locale
+        self.locale = config.person_locale
         self.provider = self.get_provider(self.locale)
         self.pwd_length = config.pwd_length
 
@@ -333,8 +333,11 @@ class PersonModel(DiscreteModel[Person, str]):
             return pd.NA
         return np.random.choice(categories)
 
-    @staticmethod
-    def check_email(s: str) -> bool:
+    def check_email(self, s: str) -> bool:
+        if not self.locale.startswith('en'):
+            # TODO: check emails when locale is not in english
+            return True
+
         m = re.match(r"""(?:[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b
         \x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z
         0-9])?\.)+[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}

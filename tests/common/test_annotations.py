@@ -7,11 +7,20 @@ import pandas as pd
 import pytest
 
 from synthesized import HighDimSynthesizer, MetaExtractor
-from synthesized.config import AddressLabels, BankLabels, PersonLabels
+from synthesized.config import AddressLabels, BankLabels, HighDimConfig, PersonLabels
 from synthesized.metadata.value import Address, Bank, FormattedString, Person
 
 
-def test_synthesis_w_annotations():
+@pytest.mark.parametrize(
+    "high_dim_config",
+    [
+        pytest.param(HighDimConfig(), id="default_config"),
+        pytest.param(HighDimConfig(addresses_file="data/addresses.jsonl.gz"), id="addresses_file"),
+        pytest.param(HighDimConfig(learn_postcodes=True), id="learn_postcodes"),
+        pytest.param(HighDimConfig(person_locale='ru_RU'), id="russian"),
+    ]
+)
+def test_synthesis_w_annotations(high_dim_config):
     n = 1000
     df_original = pd.DataFrame({
         'x': np.random.normal(size=n),
@@ -25,7 +34,7 @@ def test_synthesis_w_annotations():
         'sort_code2': [''.join([random.choice(string.ascii_letters) for _ in range(6)]) for _ in range(n)],
         'account2': [''.join([random.choice(string.digits) for _ in range(6)]) for _ in range(n)],
         'gender': np.random.choice(['m', 'f', 'u'], size=n),
-        'gender2': np.random.choice(['m', 'f'], size=n),
+        'gender2': np.random.choice(['male', 'female'], size=n),
         'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=n),
         'name': ['test_name'] * n,
         'email': ['test_name@email.com'] * n,
@@ -49,14 +58,23 @@ def test_synthesis_w_annotations():
     ]
 
     df_meta = MetaExtractor.extract(df=df_original, annotations=annotations)
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, config=high_dim_config)
     synthesizer.learn(num_iterations=10, df_train=df_original)
     df_synthesized = synthesizer.synthesize(n)
     assert df_synthesized.shape == df_original.shape
 
 
+@pytest.mark.parametrize(
+    "high_dim_config",
+    [
+        pytest.param(HighDimConfig(), id="default_config"),
+        pytest.param(HighDimConfig(addresses_file="data/addresses.jsonl.gz"), id="addresses_file"),
+        pytest.param(HighDimConfig(learn_postcodes=True), id="learn_postcodes"),
+        pytest.param(HighDimConfig(person_locale='ru_RU'), id="russian"),
+    ]
+)
 @pytest.mark.slow
-def test_annotations_all():
+def test_annotations_all(high_dim_config):
     data = pd.read_csv('data/annotations_nd.csv')
 
     person = Person(
@@ -121,7 +139,7 @@ def test_annotations_all():
         annotations=annotations
     )
 
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta, config=high_dim_config)
     synthesizer.learn(df_train=data, num_iterations=10)
     df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
