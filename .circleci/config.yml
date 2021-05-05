@@ -34,23 +34,19 @@ jobs:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
 
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-
   test:
     docker:
-      - image: circleci/python:3.6.9
+      - image: circleci/python:3.6.11
+
+    working_directory: ~/repo
     parallelism: 8
     steps:
-      # Reuse the workspace from the build job
-      - attach_workspace:
-          at: .
+      - checkout
 
-      - run:
-          name: Linter
-          command: make lint
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
 
       - run:
           name: Run Tests
@@ -77,17 +73,40 @@ jobs:
       - store_artifacts:
           path: coverage-reports
 
+  lint:
+    docker:
+      - image: circleci/python:3.6.11
+
+    working_directory: ~/repo
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+
+      - run:
+          name: Linter
+          command: make lint
+
   post-results:
     docker:
-      - image: circleci/python:3.6.9
+      - image: circleci/python:3.6.11
+
+    working_directory: ~/repo
     steps:
-      - attach_workspace:
-          at: .
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
       - jq/install:
           when: always
       - run:
           command: |
-            prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items[1].job_number')
+            prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items|.[]|select(.name=="test").job_number')
             echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
 
@@ -281,12 +300,17 @@ jobs:
 
   publish:
     docker:
-      - image: circleci/python:3.6.9
+      - image: circleci/python:3.6.11
+
+    working_directory: ~/repo
 
     steps:
-      # Reuse the workspace from the build job
-      - attach_workspace:
-          at: .
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
 
       - run:
           name: Package
@@ -317,11 +341,15 @@ workflows:
   build-test-publish:
     jobs:
       - build
+      - lint:
+          requires:
+            - build
       - test:
           requires:
             - build
       - post-results:
           requires:
+            - lint
             - test
       - publish:
           filters: # using regex filters requires the entire branch to match
