@@ -2,7 +2,7 @@ from typing import Dict, Optional, Sequence, cast
 
 import pandas as pd
 
-from ..base import Ordinal
+from ..base import Ordinal, ValueMeta
 from ..exceptions import ExtractionError
 
 
@@ -10,10 +10,11 @@ class OrderedString(Ordinal[str]):
     dtype: str = 'U'
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[str]] = None, nan_freq: Optional[float] = None,
             num_rows: Optional[int] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
+        super().__init__(name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows)
 
     def extract(self, df: pd.DataFrame) -> 'OrderedString':
         if self._categories is None:

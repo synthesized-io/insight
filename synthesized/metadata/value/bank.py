@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, cast
 
 import pandas as pd
 
@@ -67,7 +67,25 @@ class Bank(String):
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
-            "_params": self.params
+            "params": self.params
         })
 
         return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'Bank':
+
+        name = cast(str, d["name"])
+        extracted = cast(bool, d["extracted"])
+        num_rows = cast(Optional[int], d["num_rows"])
+        nan_freq = cast(Optional[float], d["nan_freq"])
+        labels = BankLabels(**cast(Dict[str, str], d["params"]))
+        categories = cast(Optional[Sequence[str]], d["categories"])
+        children: Optional[Sequence[String]] = String.children_from_dict(d)
+
+        meta = cls(
+            name=name, children=children, num_rows=num_rows, nan_freq=nan_freq, categories=categories, labels=labels
+        )
+        meta._extracted = extracted
+
+        return meta

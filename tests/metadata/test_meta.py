@@ -90,6 +90,7 @@ class TestMeta(MetaTestData):
 
     def test_serialisation(self, extracted_meta):
         dct = extracted_meta.to_dict()
+        assert 'children' in dct and (dct['children'] is None or len(dct['children']) > 0)
         new_meta = extracted_meta.from_dict(dct)
         assert new_meta == extracted_meta
 

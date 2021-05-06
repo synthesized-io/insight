@@ -111,11 +111,13 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
 
         if len(self.children) > 0:
             d['children'] = {child.name: child.to_dict() for child in self.children}
+        else:
+            d['children'] = None
 
         return d
 
     @classmethod
-    def from_dict(cls: Type['MetaTypeArg'], d: Dict[str, object]) -> MetaTypeArg:
+    def from_dict(cls, d: Dict[str, object]) -> 'Meta':
         """
         Construct a Meta from a dictionary.
         See example in Meta.to_dict() for the required structure.
@@ -123,29 +125,30 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
             Meta.to_dict: convert a Meta to a dictionary
         """
         name = cast(str, d["name"])
-        d.pop("class_name", None)
+        extracted = cast(bool, d["extracted"])
+        num_rows = cast(Optional[int], d["num_rows"])
+        children = cls.children_from_dict(d)
 
-        extracted = d.pop("extracted", False)
-        children = cast(Dict[str, Dict[str, object]], d.pop("children")) if "children" in d else None
-        if children is not None:
-            meta_children: List[Meta] = []
-            for child in children.values():
-                class_name = cast(str, child['class_name'])
-                meta_children.append(Meta.from_name_and_dict(class_name, child))
-
-            meta = cls(name=name, children=meta_children)
-        else:
-            meta = cls(name=name)
-
-        for attr, value in d.items():
-            setattr(meta, attr, value)
-
-        setattr(meta, '_extracted', extracted)
+        meta = cls(name=name, num_rows=num_rows, children=children)
+        meta._extracted = extracted
 
         return meta
 
     @classmethod
-    def from_name_and_dict(cls: Type[MetaType], class_name: str, d: Dict[str, object]) -> MetaType:
+    def children_from_dict(cls, d: Dict[str, Any]) -> Optional[Sequence[MetaType]]:
+        if d["children"] is None:
+            return None
+
+        children_dict = cast(Dict[str, Dict[str, object]], d["children"])
+        meta_children: List[MetaType] = []
+        for child in children_dict.values():
+            class_name = cast(str, child['class_name'])
+            meta_children.append(Meta.from_name_and_dict(class_name, child))  # type: ignore
+
+        return meta_children
+
+    @classmethod
+    def from_name_and_dict(cls: Type[MetaTypeArg], class_name: str, d: Dict[str, object]) -> MetaTypeArg:
         """
         Construct a Meta from a meta class name and a dictionary.
 
@@ -164,5 +167,6 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         return {sc.__name__: sc for sc in get_all_subclasses(cls).union({cls})}
 
     def __eq__(self, other) -> bool:
-        return {k: v for k, v in self.__dict__.items()
-                if v is not self} == {k: v for k, v in other.__dict__.items() if v is not other}
+        return {k: v for k, v in vars(self).items()
+                if v is not self and not k.startswith('__')} == {k: v for k, v in vars(other).items()
+                                                                 if v is not other and not k.startswith('__')}

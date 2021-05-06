@@ -113,7 +113,7 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
 
     @property
     def unit_meta(self) -> 'Scale[Any]':
-        return self._meta._unit_meta
+        return self._meta.unit_meta
 
     def plot(self, kde_grid_num=100, **kwargs) -> plt.Figure:
         if self.max is None or self.min is None:

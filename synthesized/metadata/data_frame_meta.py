@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Dict, List, MutableMapping, Optional, Sequence
+from typing import Dict, List, MutableMapping, Optional, Sequence, cast
 
 import pandas as pd
 
@@ -108,6 +108,33 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         })
 
         return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'DataFrameMeta':
+        """
+        Construct a Meta from a dictionary.
+        See example in Meta.to_dict() for the required structure.
+        See also:
+            DataFrameMeta.to_dict: convert a DataFrameMeta to a dictionary
+        """
+        name = cast(str, d["name"])
+        extracted = cast(bool, d["extracted"])
+        num_rows = cast(Optional[int], d["num_rows"])
+        num_columns = cast(Optional[int], d["num_columns"])
+        id_index = cast(Optional[str], d["id_index"])
+        time_index = cast(Optional[str], d["time_index"])
+        column_aliases = cast(Dict[str, str], d["column_aliases"])
+        columns = cast(Optional[List[str]], d["columns"])
+        annotations = cast(List[str], d["annotations"])
+        children = cls.children_from_dict(d)
+
+        df_meta = cls(
+            name=name, num_rows=num_rows, num_columns=num_columns, children=children, id_index=id_index,
+            time_index=time_index, column_aliases=column_aliases, columns=columns, annotations=annotations
+        )
+        df_meta._extracted = extracted
+
+        return df_meta
 
     def copy(self) -> 'DataFrameMeta':
         """Returns a shallow copy of the data frame meta."""

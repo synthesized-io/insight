@@ -17,11 +17,14 @@ class TimeDelta(Scale[np.timedelta64]):
     precision = np.timedelta64(1, 'ns')
 
     def __init__(
-            self, name: str, categories: Optional[Sequence[np.timedelta64]] = None,
-            nan_freq: Optional[float] = None, num_rows: Optional[int] = None,
-            min: Optional[np.timedelta64] = None, max: Optional[np.timedelta64] = None
+            self, name: str, children: Optional[Sequence[ValueMeta]] = None,
+            categories: Optional[Sequence[np.timedelta64]] = None, nan_freq: Optional[float] = None,
+            num_rows: Optional[int] = None, unit_meta: Optional['TimeDelta'] = None
     ):
-        super().__init__(name=name, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max)
+        super().__init__(
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
+            unit_meta=unit_meta
+        )
 
 
 class TimeDeltaDay(TimeDelta):
@@ -44,7 +47,7 @@ class DateTime(Affine[np.datetime64]):
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,
             categories: Optional[Sequence[np.datetime64]] = None, nan_freq: Optional[float] = None,
-            num_rows: Optional[int] = None, min: Optional[np.datetime64] = None, max: Optional[np.datetime64] = None,
+            num_rows: Optional[int] = None,
             unit_meta: Optional[TimeDelta] = None, date_format: Optional[str] = None
     ):
         children = [
@@ -53,7 +56,7 @@ class DateTime(Affine[np.datetime64]):
         unit_meta = TimeDelta('diff_' + name) if unit_meta is None else unit_meta
 
         super().__init__(
-            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows, min=min, max=max,
+            name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
             unit_meta=unit_meta
         )
         self.date_format = date_format
@@ -109,6 +112,27 @@ class DateTime(Affine[np.datetime64]):
         })
 
         return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, object]) -> 'DateTime':
+
+        name = cast(str, d["name"])
+        extracted = cast(bool, d["extracted"])
+        num_rows = cast(Optional[int], d["num_rows"])
+        nan_freq = cast(Optional[float], d["nan_freq"])
+        categories = cast(Optional[Sequence[np.datetime64]], d["categories"])
+        children: Optional[Sequence[ValueMeta]] = ValueMeta.children_from_dict(d)
+        d_unit = cast(Dict[str, object], d["unit_meta"]) if d["unit_meta"] is not None else None
+        date_format = cast(str, d["date_format"])
+        unit_meta = TimeDelta.from_name_and_dict(cast(str, d_unit["class_name"]), d_unit) if d_unit is not None else None
+
+        meta = cls(
+            name=name, children=children, num_rows=num_rows, nan_freq=nan_freq, categories=categories,
+            unit_meta=unit_meta, date_format=date_format
+        )
+        meta._extracted = extracted
+
+        return meta
 
 
 def get_date_format(sr: pd.Series) -> str:

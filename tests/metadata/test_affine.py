@@ -15,8 +15,8 @@ class TestAffine(_TestOrdinal):
         meta = Affine(name=name)
         return meta
 
-    def test_unit_meta(self, meta):
-        assert isinstance(meta.unit_meta, Scale)
+    def test_unit_meta(self, extracted_meta):
+        assert isinstance(extracted_meta.unit_meta, Scale)
 
     def test_subtraction(self, extracted_meta):
         if extracted_meta.__class__.__name__ not in ['Affine', 'Scale', 'Ring']:

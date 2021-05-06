@@ -1,3 +1,5 @@
+import pandas as pd
+
 from synthesized.common.values import CategoricalValue, ContinuousValue, DateValue, ValueExtractor
 from synthesized.metadata import DataFrameMeta
 from synthesized.metadata.value import DateTime, Integer
@@ -14,7 +16,8 @@ def extract_value_from_models(models):
 
 
 def test_hist_extraction():
-    meta = Integer(name="hist", categories=[0, 1, 2, 3], nan_freq=0.1)
+    df = pd.DataFrame({"hist": [0, 1, 2, 3, pd.NA]})
+    meta = Integer(name="hist").extract(df)
     model = Histogram(meta=meta)
     df_value = extract_value_from_models([model])
 
