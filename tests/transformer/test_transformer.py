@@ -3,6 +3,10 @@ import types
 import numpy as np
 import pandas as pd
 import pytest
+import string
+import random
+
+from faker import Faker
 
 from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
 from synthesized.metadata.factory import MetaExtractor
@@ -10,7 +14,9 @@ from synthesized.model.factory import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,
                                      DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,
-                                     SequentialTransformer, Transformer, TransformerFactory)
+                                     SequentialTransformer, Transformer, TransformerFactory, RoundingTransformer,
+                                     RandomTransformer, SwappingTransformer, PartialTransformer, NullTransformer,
+                                     MaskingTransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -202,3 +208,89 @@ def test_transformer_associations():
 
     assert df_meta['association_a_b'].categories_to_idx['a'] == transformers._transformers[0][0].category_to_idx
     assert df_meta['association_a_b'].categories_to_idx['b'] == transformers._transformers[0][1].category_to_idx
+
+
+def test_rounding_transformer():
+    col_name = 'age'
+    n_bins = 30
+    transformer = RoundingTransformer(name=col_name, n_bins=n_bins)
+    n = 5000
+    df = pd.DataFrame({col_name: np.random.randint(1, 97, size=(n,))})
+    transformer.fit(df)
+    assert transformer._fitted is True
+    df_t = transformer.transform(df.copy())
+    assert(df_t[col_name].nunique() == n_bins)
+
+
+def test_random_transformer():
+    col_name = 'id'
+    str_length = 7
+    transformer = RandomTransformer(name=col_name, str_length=str_length)
+    assert transformer.string_patterns[string.ascii_lowercase] is False
+    assert transformer.string_patterns[string.ascii_uppercase] is False
+    assert transformer.string_patterns[string.digits] is False
+    df = pd.DataFrame({col_name: ['49050810L', 'ff4sff4', 'jdjjdjDFj34', '123POFjd33', 'djB88ndjK93', '2234dr', 'DER44']})
+    transformer.fit(df)
+    assert transformer._fitted is True
+    assert transformer.string_patterns[string.ascii_lowercase] is True
+    assert transformer.string_patterns[string.ascii_uppercase] is True
+    assert transformer.string_patterns[string.digits] is True
+    df_t = transformer.transform(df.copy())
+    assert(df_t[col_name].apply(len).min() == str_length)
+    assert(df_t[col_name].apply(len).max() == str_length)
+    pd.testing.assert_series_equal(df[col_name], transformer.inverse_transform(df_t)[col_name])
+
+
+def test_swapping_transformer():
+    col_name = 'wday'
+    df = pd.DataFrame({col_name: np.random.choice(['mon', 'tues', 'wed', 'thur', 'fri', 'sat', 'sun'],
+                      size=100)})
+    uniform = True
+    transformer = SwappingTransformer(name=col_name, uniform=uniform)
+    transformer.fit(df)
+    df_t = transformer.transform(df.copy())
+    assert(set(df_t[col_name].unique()) == set(df[col_name].unique()))
+
+
+def test_partial_transformer():
+    col_name = 'account_num'
+    df = pd.DataFrame({col_name: ['49050810L', 'ff4sff4', 'jdjjdjDFj34', '123POFjd33', 'djB88ndjK93', '2234dr',
+                      'DER44', '2334 fgg4 223', 'djdjjf 83838jd83', 'djjdjd093k']})
+    masking_proportion = 0.8
+    transformer = PartialTransformer(name=col_name, masking_proportion=masking_proportion)
+    transformer.fit(df)
+    df_t = transformer.transform(df.copy())
+    masked_col = df[col_name].apply(lambda s: int(np.ceil(len(s) * masking_proportion)) * 'x'
+                                    + s[int(np.ceil(len(s) * masking_proportion)):])
+    assert((df_t[col_name] == masked_col).all() == True)
+
+
+def test_null_transfomer():
+    col_name = 'card_num'
+    df = pd.DataFrame({col_name: ['490 508 10L', 'ff4sff4', 'jdj DFj 34', '123POFjd33', '2334 fgg4 223', 'djdjjf 83838jd83', '123 453']})
+    transformer = NullTransformer(name=col_name)
+    transformer.fit(df)
+    df_t = transformer.transform(df.copy())
+    assert((df_t[col_name] == '').all() == True)
+
+
+def test_masking_transformer_factory():
+    df = pd.read_csv('data/credit_with_categoricals.csv')
+    df = df.head(100)
+    fkr = Faker()
+    num_rows = len(df)
+    df['Name'] = [fkr.name() for _ in range(num_rows)]
+    df['ID'] = [''.join([random.choice(string.hexdigits) for _ in range(16)]) for _ in range(num_rows)]
+    config = dict(age='rounding|3', MonthlyIncome='rounding',
+                  effort='partial_masking|0.25', ID='partial_masking',
+                  NumberOfOpenCreditLinesAndLoans='random|8', Name='random',
+                  SeriousDlqin2yrs='null')
+    mtf = MaskingTransformerFactory()
+    dfm_trans = mtf.create_transformers(config)
+    dfm_trans.fit(df)
+    masked_df = dfm_trans.transform(df)
+    assert((masked_df['SeriousDlqin2yrs'] == '').all() == True)
+    masked_effort_col = df['effort'].apply(lambda s: int(np.ceil(len(s) * 0.25)) * 'x'
+                                                      + s[int(np.ceil(len(s) * 0.25)):])
+    assert((masked_df['effort'] == masked_effort_col).all() == True)
+    assert(masked_df['age'].nunique() == 3)
