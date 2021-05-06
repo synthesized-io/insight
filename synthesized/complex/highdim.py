@@ -11,7 +11,7 @@ import tensorflow as tf
 from .binary_builder import ModelBinary
 from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
-from ..common.rules import Expression, GenericRule
+from ..common.rules import Association, Expression, GenericRule
 from ..common.synthesizer import Synthesizer
 from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
@@ -19,7 +19,7 @@ from ..config import EngineConfig, HighDimConfig
 from ..metadata import DataFrameMeta
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
-from ..model.models import AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, GenderModel, PersonModel
+from ..model.models import AddressModel, BankModel, FormattedStringModel, GenderModel, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -36,7 +36,7 @@ class HighDimSynthesizer(Synthesizer):
     def __init__(
             self, df_meta: DataFrameMeta, summarizer_dir: str = None,
             summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
-            type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None
+            type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None,
     ):
         """Initialize a new BasicSynthesizer instance.
 
@@ -62,6 +62,7 @@ class HighDimSynthesizer(Synthesizer):
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
+
         self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
 
         # VAE
@@ -122,9 +123,6 @@ class HighDimSynthesizer(Synthesizer):
             if isinstance(model, ContinuousModel):
                 continue
 
-            if isinstance(model, AssociatedHistogram):
-                continue
-
             elif isinstance(model, (BankModel, FormattedStringModel)):
                 models_to_pop.append(name)
 
@@ -170,7 +168,6 @@ class HighDimSynthesizer(Synthesizer):
 
         """
         assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
-
         if self.learning_manager:
             self.learning_manager.restart_learning_manager()
             self.learning_manager.set_check_frequency(self.batch_size)
@@ -234,7 +231,8 @@ class HighDimSynthesizer(Synthesizer):
 
     def synthesize_from_rules(
             self, num_rows: int, produce_nans: bool = False, progress_callback: Callable[[int], None] = None,
-            max_iter: int = 20, generic_rules: List[GenericRule] = None, expression_rules: List[Expression] = None
+            max_iter: int = 20, generic_rules: List[GenericRule] = None, association_rules: List[Association] = None,
+            expression_rules: List[Expression] = None
     ) -> pd.DataFrame:
         """ Generate a given number of data rows according to specified rules
 
@@ -244,6 +242,7 @@ class HighDimSynthesizer(Synthesizer):
             progress_callback: Progress bar callback.
             max_iter: maximum number of iterations to try to apply generic rules before raising an error.
             generic_rules: list of generic rules the output must conform to.
+            association_rules: list of association rules to constrain the output data.
             expression_rules: list of expressions rules to add to the output of the synthesizer.
 
         Returns:
@@ -253,13 +252,15 @@ class HighDimSynthesizer(Synthesizer):
             RuntimeError: if num_rows of data that agrees with the generic rules within max_iter iterations.
 
         """
+        association_rules = association_rules or []
         generic_rules = generic_rules or []
         expression_rules = expression_rules or []
 
         df = pd.DataFrame({})
         n_missing = num_rows
         for i in range(max_iter):
-            df_ = self.synthesize(n_missing, produce_nans=produce_nans, progress_callback=progress_callback)
+            df_ = self.synthesize(n_missing, association_rules=association_rules,
+                                  produce_nans=produce_nans, progress_callback=progress_callback)
             for generic_rule in generic_rules:
                 df_ = generic_rule.filter(df_)
             df = pd.concat((df, df_), ignore_index=True)
@@ -278,7 +279,8 @@ class HighDimSynthesizer(Synthesizer):
 
     def synthesize(
             self, num_rows: int, produce_nans: bool = False,
-            progress_callback: Callable[[int], None] = None
+            progress_callback: Callable[[int], None] = None,
+            association_rules: List[Association] = None,
     ) -> pd.DataFrame:
         """Generate the given number of new data rows.
 
@@ -286,6 +288,7 @@ class HighDimSynthesizer(Synthesizer):
             num_rows: The number of rows to generate.
             produce_nans: Whether to produce NaNs.
             progress_callback: Progress bar callback.
+            association_rules: list of association rules to apply
 
         Returns:
             The generated data.
@@ -297,6 +300,9 @@ class HighDimSynthesizer(Synthesizer):
         if num_rows <= 0:
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
+        if association_rules is not None:
+            Association.validate_association_rules(association_rules)
+
         columns = self.df_meta.columns
 
         assert columns is not None
@@ -305,7 +311,7 @@ class HighDimSynthesizer(Synthesizer):
 
         if self.df_value.learned_input_size() > 0:
             if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
-                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64))
+                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
                 assert synthesized is not None
                 synthesized = self.df_value.split_outputs(synthesized)
                 df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -316,7 +322,7 @@ class HighDimSynthesizer(Synthesizer):
                 dict_synthesized = None
                 if num_rows % self.synthesis_batch_size > 0:
                     synthesized = self.engine.synthesize(
-                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64)
+                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), association_rules=association_rules
                     )
                     assert synthesized is not None
                     dict_synthesized = self.df_value.split_outputs(synthesized)
@@ -325,7 +331,8 @@ class HighDimSynthesizer(Synthesizer):
                 n_batches = num_rows // self.synthesis_batch_size
 
                 for k in range(n_batches):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64))
+                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64),
+                                                   association_rules=association_rules)
                     other = self.df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other

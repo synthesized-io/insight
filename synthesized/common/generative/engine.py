@@ -1,4 +1,4 @@
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import tensorflow as tf
 
@@ -6,6 +6,7 @@ from .generative import Generative
 from ..encodings import VariationalEncoding
 from ..module import module_registry, tensorflow_name_scoped
 from ..optimizers import Optimizer
+from ..rules import Association
 from ..transformations import DenseTransformation
 from ..values import DataFrameValue
 from ...config import EngineConfig
@@ -238,7 +239,7 @@ class HighDimEngine(Generative):
 
     @tf.function
     @tensorflow_name_scoped
-    def synthesize(self, n: tf.Tensor) -> Dict[str, Sequence[tf.Tensor]]:
+    def synthesize(self, n: tf.Tensor, association_rules: List[Association] = None) -> Dict[str, Sequence[tf.Tensor]]:
         """Generate the given number of instances.
 
         Args:
@@ -249,7 +250,7 @@ class HighDimEngine(Generative):
 
         """
         y = self._synthesize(n=n)
-        synthesized = self.df_value.output_tensors(y=y)
+        synthesized = self.df_value.output_tensors(y=y, association_rules=association_rules)
 
         return synthesized
 

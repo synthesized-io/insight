@@ -189,7 +189,6 @@ class ModelBuilderConfig(AddressModelConfig, PersonModelConfig):
 
 
 # Transformer Config Classes ----------------------------------------
-
 @dataclass
 class QuantileTransformerConfig:
     n_quantiles: int = 1000

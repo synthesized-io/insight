@@ -2,61 +2,73 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from synthesized.common.values import AssociatedCategoricalValue, CategoricalValue
-from synthesized.common.values.associated_categorical import (tf_joint_prob_tensor, tf_masked_probs,
-                                                              unflatten_joint_sample)
+from synthesized.common.rules import Association
+from synthesized.common.values import CategoricalValue, ContinuousValue, DataFrameValue
+from synthesized.common.values.associated_categorical import (output_association_tensors, tf_joint_prob_tensor,
+                                                              tf_masked_probs, unflatten_joint_sample)
 
 
-class TestAssociatedCategoricalValue:
+class TestAssociation:
     batch_size = 4
-    child_values = {
-        "child_value_0": CategoricalValue("cv_0", num_categories=6),
-        "child_value_1": CategoricalValue("cv_1", num_categories=3),
-    }
 
     @pytest.fixture(scope="class")
-    def value(self):
-        return AssociatedCategoricalValue(values=self.child_values, binding_mask=np.ones((6, 3)))
+    def df_value(self):
+        return DataFrameValue("df_value", values={
+            "value_0": CategoricalValue("value_0", num_categories=6),
+            "value_1": CategoricalValue("value_1", num_categories=3),
+            "value_2": ContinuousValue("value_2"),
+            "value_2_nan": CategoricalValue("value_2_nan", num_categories=2),
+        })
 
     @pytest.fixture(scope="class")
-    def inputs(self):
-        return (
-            tf.random.uniform(shape=(self.batch_size,), maxval=6, dtype=tf.int64),
-            tf.random.uniform(shape=(self.batch_size,), maxval=3, dtype=tf.int64),
-        )
+    def association(self):
+        return Association(binding_mask=np.ones((6, 2)), associations=["value_0"], nan_associations=["value_2"])
 
     @pytest.fixture(scope="class")
-    def outputs(self, value):
-        return tf.concat((
-            tf.random.normal(shape=(self.batch_size, value["child_value_0"].learned_output_size())),
-            tf.random.normal(shape=(self.batch_size, value["child_value_1"].learned_output_size())),
-        ), axis=-1)
+    def ys_dict(self, df_value):
+        return {
+            value.name: tf.random.normal(shape=(self.batch_size, value.learned_output_size())) for value in df_value.values()
+        }
 
-    def test_unify_inputs(self, value, inputs):
-        assert value.unify_inputs(inputs).shape[0] == self.batch_size
+    def test_output_association(self, association, ys_dict):
+        output_tensors = output_association_tensors(association, ys_dict)
 
-    def test_output_tensors(self, value, outputs):
-        for tensor in value.output_tensors(outputs):
-            assert tensor.shape[0] == self.batch_size
+        assert "value_0" in output_tensors
+        assert "value_1" not in output_tensors
+        assert "value_2" not in output_tensors
+        assert "value_2_nan" in output_tensors
 
-    def test_loss(self, value, outputs, inputs):
-        loss = value.loss(outputs, inputs)
-        assert loss.shape == ()
+    def test_output_association_raises_value_error(self, ys_dict):
+        association_0 = Association(binding_mask=np.ones((2, 2)), associations=["value_0", "fake_name_1"])
+        association_1 = Association(binding_mask=np.ones((2, 2)), associations=["value_0"], nan_associations=["fake_name_1"])
 
-    def test_unflatten_sample(self, value):
-        flattened_sample = tf.constant(
-            [15, 10, 2, 0, 17], dtype=tf.int64
-        )
+        with pytest.raises(ValueError):
+            output_association_tensors(association_0, ys_dict)
 
-        expected_output_tensors = (
-            tf.constant([5, 3, 0, 0, 5], dtype=tf.int64),
-            tf.constant([0, 1, 2, 0, 2], dtype=tf.int64)
-        )
+        with pytest.raises(ValueError):
+            output_association_tensors(association_1, ys_dict)
 
-        output_tensors = unflatten_joint_sample(flattened_sample, list(value.values()))
+    def test_wrong_binding_mask_shape_raises_value_error(self, ys_dict):
+        association = Association(binding_mask=np.ones((1, 1)), associations=["value_0", "value_1"])
 
-        tf.assert_equal(output_tensors[0], expected_output_tensors[0])
-        tf.assert_equal(output_tensors[1], expected_output_tensors[1])
+        with pytest.raises(ValueError):
+            output_association_tensors(association, ys_dict)
+
+
+def test_unflatten_sample():
+    flattened_sample = tf.constant(
+        [15, 10, 2, 0, 17], dtype=tf.int64
+    )
+
+    expected_output_tensors = (
+        tf.constant([5, 3, 0, 0, 5], dtype=tf.int64),
+        tf.constant([0, 1, 2, 0, 2], dtype=tf.int64)
+    )
+
+    output_tensors = unflatten_joint_sample(flattened_sample, (6, 3))
+
+    tf.assert_equal(output_tensors[0], expected_output_tensors[0])
+    tf.assert_equal(output_tensors[1], expected_output_tensors[1])
 
 
 def test_joint_probs():

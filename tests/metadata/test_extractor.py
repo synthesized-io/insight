@@ -12,8 +12,8 @@ from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
 from synthesized.metadata import DataFrameMeta, Ordinal
 from synthesized.metadata.factory import MetaExtractor
-from synthesized.metadata.value import (Address, AssociatedCategorical, Bank, Bool, DateTime, Float, FormattedString,
-                                        Integer, IntegerBool, OrderedString, Person, String)
+from synthesized.metadata.value import (Address, Bank, Bool, DateTime, Float, FormattedString, Integer, IntegerBool,
+                                        OrderedString, Person, String)
 
 logger = logging.getLogger(__name__)
 
@@ -177,30 +177,3 @@ def test_annotations():
     assert sorted(list(df_meta['bank'].keys())) == ['b', 'c']
     assert sorted(list(df_meta['person'].keys())) == ['e', 'f']
     assert sorted(list(df_meta['g'].keys())) == []
-
-
-def test_associations():
-
-    df = pd.DataFrame({
-        'a': [0, 0, 1, 1],
-        'b': [0, 1, 0, 1],
-        'c': [0, 0, 0, 1]
-    })
-
-    df_meta = MetaExtractor.extract(df, associations=[['a', 'b', 'c']])
-
-    true_binding_mask = np.array([[[1, 0], [1, 0]], [[1, 0], [0, 1]]])
-    np.testing.assert_array_almost_equal(df_meta["association_a_b_c"].binding_mask, true_binding_mask)
-
-
-def test_load_data_frame_associations():
-    associations = [["NumberOfTimes90DaysLate", "NumberOfTime60-89DaysPastDueNotWorse"]]
-
-    df = pd.read_csv('data/unittest.csv')
-    df_meta = MetaExtractor.extract(df=df, associations=associations)
-    meta_dict = df_meta.to_dict()
-
-    df_meta2 = DataFrameMeta.from_dict(meta_dict)
-    meta = df_meta2["association_NumberOfTimes90DaysLate_NumberOfTime60-89DaysPastDueNotWorse"]
-    assert isinstance(meta, AssociatedCategorical)
-    assert meta.binding_mask is not None

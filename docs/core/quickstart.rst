@@ -58,24 +58,46 @@ business logic, or a custom scenario.
 
 .. code-block:: python
 
-    >>> df_synth = synth.synthesize_from_rules(num_rows=1000, generic_rules=..., expression_rules=...)
+    >>> df_synth = synth.synthesize_from_rules(num_rows=1000, association_rules=..., generic_rules=..., expression_rules=...)
 
 Associations
 ^^^^^^^^^^^^
 Associations enforce strict categorical relationships in the generated data. For example, given a dataset with fields
 `car_manufacturer` and `car_model`, there is a strict association between each model and manufacturer (i.e no model appears
-in more than one manufactuter). This relationship may not be learned perfectly by the synthesizer (after all, we can 
-only learn a probabilistic approximation), and in this case the strict constrain can be enforced by defining an 
-``AssociatedCategorical`` rule
+in more than one manufactuter). This relationship may not be learned perfectly by the synthesizer (after all, we can
+only learn a probabilistic approximation), and in this case the strict constrain can be enforced by defining an
+``Association`` rule
 
 .. code-block:: python
 
-    >>> rule = AssociatedCategoricalRule(..)
+    >>> rule = Association.detect_association(df, df_meta, associations=["car_manufacturer", "car_model"])
+
+In addition, sometimes empty values are correlated, e.g: if one column specifies the number of children in a family we
+would expect that the names of these children to be empty if they don't exist
+
+.. code-block:: python
+
+    >>> rule = Association.detect_association(df, df_meta, associations=["NumberOfChildren"], nan_associations=["Child1Name", "Child2Name", ...])
+
+The association class contains a class method ``detect_association`` that automatically detects these rules betweens the columns,
+if some category of a column never appears with another then it can force the Synthesizer to never output those values together.
+However, if a specific rule is required that isn't present in the data the Association can be intialised on its own.
+
+.. code-block:: python
+
+    >> rule = Association(binding_mask=binding_mask, associations=..., nan_association=...)
+
+Here the binding mask specifies the possible outputs of the Synthesizer, this isn't currently user-friendly to construct due to its lack of use-case.
+
+There are some constraints on what rules you can define, the Synthesizer only allows a column to appear in one association
+and a column cannot appear in both the ``association`` and ``nan_association`` argument.
+Some of these constraints may be possible to change in the future.
+
 
 Expressions
 ^^^^^^^^^^^
 When it is known apriori that a field in a dataset is related to others through a mathematical transformation, this can
-be enforced with an ``Expression`` rule. This takes a string expression that can be parsed by `pandas.eval <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.eval.html>`__. 
+be enforced with an ``Expression`` rule. This takes a string expression that can be parsed by `pandas.eval <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.eval.html>`__.
 
 .. code-block:: python
 
@@ -87,7 +109,7 @@ A ``GenericRule`` is a special type of rule that can be enforced by conditional 
 
 ValueRange
 **********
-``ValueRange`` can be used to constrain synthesized data to a user-defined range, either to improve the quality of the synthetic data 
+``ValueRange`` can be used to constrain synthesized data to a user-defined range, either to improve the quality of the synthetic data
 or to generate custom scenarios. The upper and lower bounds of the range can be numeric, e.g '0 < x < 10.
 
 .. code-block:: python
@@ -127,6 +149,3 @@ logic of `when age < 18 then income = 0` can be enforced with
     >>> rule = CaseWhenThen(when=ValueRange("age", high=18), then=ValueEquals("income", value=0))
 
 The ``when`` and ``then`` parameters are specified by a ``GenericRule``.
-
-
-

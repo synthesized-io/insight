@@ -12,8 +12,8 @@ from synthesized.metadata.factory import MetaExtractor
 from synthesized.metadata.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
 from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
-from synthesized.model.models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
-                                      KernelDensityEstimate, PersonModel, SequentialFormattedString)
+from synthesized.model.models import (AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate,
+                                      PersonModel, SequentialFormattedString)
 
 logger = logging.getLogger(__name__)
 
@@ -421,12 +421,3 @@ def test_factory_annotations():
     df_synthesized = pd.concat((columns), axis=1)
 
     assert df_synthesized.shape == df.shape
-
-
-@pytest.mark.slow
-def test_factory_association(simple_df):
-    df_meta = MetaExtractor.extract(simple_df, associations=[['string', 'bool']])
-    df_model = ModelFactory()(df_meta)
-
-    associated_model = df_model["association_string_bool"]
-    assert isinstance(associated_model, AssociatedHistogram)

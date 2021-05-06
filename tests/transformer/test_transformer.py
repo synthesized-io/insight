@@ -1,11 +1,10 @@
+import random
+import string
 import types
 
 import numpy as np
 import pandas as pd
 import pytest
-import string
-import random
-
 from faker import Faker
 
 from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
@@ -13,10 +12,10 @@ from synthesized.metadata.factory import MetaExtractor
 from synthesized.model.factory import ModelFactory
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,
-                                     DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,
-                                     SequentialTransformer, Transformer, TransformerFactory, RoundingTransformer,
-                                     RandomTransformer, SwappingTransformer, PartialTransformer, NullTransformer,
-                                     MaskingTransformerFactory)
+                                     DropColumnTransformer, DTypeTransformer, MaskingTransformerFactory, NanTransformer,
+                                     NullTransformer, PartialTransformer, QuantileTransformer, RandomTransformer,
+                                     RoundingTransformer, SequentialTransformer, SwappingTransformer, Transformer,
+                                     TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
@@ -131,7 +130,6 @@ def test_transformer_factory(df_credit_with_dates, transformers_credit_with_date
         (CategoricalTransformer('x'), pd.DataFrame({'x': ['A', 'B', 'C']})),
         (CategoricalTransformer('x'), pd.DataFrame({'x': [0, 1, np.nan]})),
         (CategoricalTransformer('x', categories=[0, 1, 2]), pd.DataFrame({'x': [0, 1, np.nan]})),
-        (CategoricalTransformer('x', category_to_idx={"0": 2, "1": 1, "2": 10}), pd.DataFrame({'x': [0, 1, np.nan]})),
         (NanTransformer('x'), pd.DataFrame({'x': [1, 2, np.nan]})),
         (BinningTransformer('x', bins=10), pd.DataFrame({'x': [1, 2, 3]})),
         (DropColumnTransformer('x'), pd.DataFrame({'x': [1, 2, 3]})),
@@ -144,13 +142,6 @@ def test_transformer(transformer, data):
         pd.testing.assert_frame_equal(data, transformer.inverse_transform(transformer.transform(data)))
     except NonInvertibleTransformError:
         pass
-
-
-def test_categorical_transformer_errors():
-    with pytest.raises(ValueError):
-        CategoricalTransformer(name="categorical", categories=["A", "B", "C"], category_to_idx={"A": 1, "B": 2, "C": 3})
-    with pytest.raises(ValueError):
-        CategoricalTransformer(name="categorical", category_to_idx={"A": 0, "B": 1, "C": 2})
 
 
 def test_date_transformer():
@@ -194,20 +185,6 @@ def test_complex_sequence_of_transformers():
     df = pd.DataFrame({'x1': np.random.normal(size=n), 'x21': np.random.normal(size=n), 'x22': np.random.normal(size=n), 'x3': np.random.normal(size=n)})
     bag_of_transformers.fit(df)
     bag_of_transformers.inverse_transform(bag_of_transformers.transform(df))
-
-
-def test_transformer_associations():
-    df = pd.DataFrame({
-        'a': [0, 1],
-        'b': [1, 0],
-    })
-
-    df_meta = MetaExtractor.extract(df, associations=[['a', 'b']])
-    df_models = ModelFactory()(df_meta)
-    transformers = TransformerFactory().create_transformers(df_models)
-
-    assert df_meta['association_a_b'].categories_to_idx['a'] == transformers._transformers[0][0].category_to_idx
-    assert df_meta['association_a_b'].categories_to_idx['b'] == transformers._transformers[0][1].category_to_idx
 
 
 def test_rounding_transformer():

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from .base import BagOfTransformers, Transformer
+from ..config import MetaTransformerConfig
 from ..metadata import DataFrameMeta
 from ..model import DataFrameModel
 
@@ -72,9 +73,9 @@ class DataFrameTransformer(BagOfTransformers):
                 df.loc[:, col_name] = df.loc[:, col_name].astype(col_dtype, errors='ignore')
 
     @classmethod
-    def from_meta(cls, meta: DataFrameModel) -> 'DataFrameTransformer':
+    def from_meta(cls, meta: DataFrameModel, config: MetaTransformerConfig = None) -> 'DataFrameTransformer':
         from .factory import TransformerFactory
-        obj: 'DataFrameTransformer' = TransformerFactory().create_transformers(meta)  # type: ignore
+        obj: 'DataFrameTransformer' = TransformerFactory(config=config).create_transformers(meta)  # type: ignore
         return obj
 
     @classmethod

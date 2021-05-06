@@ -4,11 +4,10 @@ import numpy as np
 
 from .base import ContinuousModel, DiscreteModel
 from .data_frame_model import DataFrameModel
-from .models import (AddressModel, AssociatedHistogram, BankModel, FormattedStringModel, Histogram,
-                     KernelDensityEstimate, PersonModel)
+from .models import AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate, PersonModel
 from ..config import ModelBuilderConfig
 from ..metadata import Affine, DataFrameMeta, Nominal
-from ..metadata.value import Address, AssociatedCategorical, Bank, FormattedString, Person
+from ..metadata.value import Address, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
 
@@ -73,10 +72,7 @@ class ModelBuilder:
         if isinstance(meta, Nominal):
             return Histogram(meta)
 
-        if isinstance(meta, AssociatedCategorical):
-            return AssociatedHistogram(meta)
-        else:
-            raise TypeError(f"Cannot create Model from {type(meta)}")
+        raise TypeError(f"Cannot create Model from {type(meta)}")
 
     def _from_annotation(self, meta):
         """

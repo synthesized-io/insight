@@ -4,8 +4,10 @@ from typing import Any, Dict, Iterator, List, Mapping, Sequence
 import numpy as np
 import tensorflow as tf
 
+from .associated_categorical import output_association_tensors
 from .value import Value
 from ..module import tensorflow_name_scoped
+from ..rules import Association
 
 
 class DataFrameValue(Value, Mapping[str, Value]):
@@ -67,22 +69,28 @@ class DataFrameValue(Value, Mapping[str, Value]):
 
     @tensorflow_name_scoped
     def output_tensors(self, y: tf.Tensor, identifier: tf.Tensor = None,
-                       sample: bool = True) -> Dict[str, Sequence[tf.Tensor]]:
-
+                       sample: bool = True, association_rules: Sequence[Association] = None) -> Dict[str, Sequence[tf.Tensor]]:
         # Split output tensors per value
         ys = tf.split(
             value=y, num_or_size_splits=[value.learned_output_size() for value in self.values()],
             axis=-1
         )
+        y_dict = {name: y for name, y in zip(self, ys)}
 
         # Output tensors per value
-        synthesized: Dict[str, Sequence[tf.Tensor]] = OrderedDict()
+        synthesized: Dict[str, Sequence[tf.Tensor]] = {}
+        association_rules = association_rules or []
+
+        for association_rule in association_rules:
+            synthesized.update(output_association_tensors(association_rule, y_dict))
 
         if identifier is not None and self.identifier_label is not None:
             synthesized[self.identifier_label] = (identifier,)
 
-        for (name, value), y in zip(self.items(), ys):
-            synthesized[name] = value.output_tensors(y=y, sample=sample)
+        for name, y in y_dict.items():
+            if name in synthesized:  # if this is true then we've generated the outputs as part of an association
+                continue
+            synthesized[name] = self[name].output_tensors(y=y, sample=sample)
 
         return synthesized
 

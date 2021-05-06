@@ -7,6 +7,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
+from synthesized.common.rules import Association, Expression, ValueIsIn
 from synthesized.common.values import DateValue
 from synthesized.metadata import DataFrameMeta
 from synthesized.metadata.factory import MetaExtractor
@@ -138,6 +139,68 @@ def test_sampling_nans():
     df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=True,
                                             progress_callback=progress_bar_testing)
     assert df_synthesized['sample'].isna().sum() > 0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("use_generic_rule", [False, True])
+@pytest.mark.parametrize("use_expression_rule", [False, True])
+@pytest.mark.parametrize("use_association_rule", [False, True])
+def test_synthesize_with_rules(use_generic_rule, use_expression_rule, use_association_rule):
+    size = 1000
+    nans_prop = 0.33
+
+    df_original = pd.DataFrame({
+        'x1': np.random.normal(loc=0, scale=1, size=size),
+        'x2': np.random.normal(loc=0, scale=1, size=size),
+        'y1': np.random.choice(['A', 'B'], size=size),
+        'y2': np.random.choice(['A', 'B'], size=size),
+        'sample': [''.join([random.choice(string.ascii_letters) for _ in range(10)]) for _ in range(size)]
+    })
+
+    df_original.loc[np.random.uniform(size=len(df_original)) < nans_prop, 'x1'] = np.nan
+
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+
+    generic_rules = [ValueIsIn("y1", ["A"])] if use_generic_rule else []
+
+    binding_mask = np.array([[1, 0], [0, 1]]) if df_meta["y2"].categories[0] == "A" else np.array([[0, 1], [1, 0]])
+    association_rules = [Association(binding_mask=binding_mask, associations=["y2"], nan_associations=["x1"])] if use_association_rule else []
+
+    expression_rules = [Expression("x3", "2 * x2")] if use_expression_rule else []
+
+    df_synthesized = synthesizer.synthesize_from_rules(num_rows=len(df_original), progress_callback=progress_bar_testing,
+                                                       generic_rules=generic_rules, association_rules=association_rules,
+                                                       expression_rules=expression_rules, produce_nans=True)
+
+    if use_expression_rule:
+        assert (df_synthesized["x3"] == 2 * df_synthesized["x2"]).all()
+    if use_generic_rule:
+        assert (df_synthesized["y1"] == "A").all()
+    if use_association_rule:
+        first_case = (df_synthesized["y2"] == "A") * (~df_synthesized["x1"].isna())
+        second_case = (df_synthesized["y2"] == "B") * (df_synthesized["x1"].isna())
+        assert (first_case + second_case).all()
+
+    assert len(df_synthesized) == len(df_original)
+
+
+@pytest.mark.slow
+def test_synthesize_bad_generic_rules_raises_error():
+    size = 1000
+
+    df_original = pd.DataFrame({
+        'y1': np.random.choice(['A', 'B'], size=size),
+    })
+
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+
+    generic_rules = [ValueIsIn("y1", ["C"])]
+    with pytest.raises(RuntimeError):
+        synthesizer.synthesize_from_rules(num_rows=len(df_original), generic_rules=generic_rules)
 
 
 @pytest.mark.slow

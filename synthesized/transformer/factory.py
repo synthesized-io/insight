@@ -11,7 +11,7 @@ from .data_frame import DataFrameTransformer
 from .exceptions import UnsupportedMetaError
 from ..config import MetaTransformerConfig
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
-from ..model.models import AssociatedHistogram, GenderModel, PostcodeModel
+from ..model.models import GenderModel, PostcodeModel
 
 
 class TransformerFactory:
@@ -20,12 +20,12 @@ class TransformerFactory:
 
     Uses a MetaTransformerConfig to map Transformers, or sequence of Transformers to Meta classes.
     """
-    def __init__(self, transformer_config: Optional[MetaTransformerConfig] = None):
+    def __init__(self, config: Optional[MetaTransformerConfig] = None):
 
-        if transformer_config is None:
+        if config is None:
             self.config = MetaTransformerConfig()
         else:
-            self.config = transformer_config
+            self.config = config
 
     def create_transformers(self, model: Model) -> Union[DataFrameTransformer, Transformer]:
         """
@@ -47,12 +47,8 @@ class TransformerFactory:
             return self._from_meta(model)
 
     def _from_meta(self, meta: Model) -> Transformer:
-
         if isinstance(meta, ContinuousModel):
             transformers = self._from_continuous(meta)
-
-        elif isinstance(meta, AssociatedHistogram):
-            transformers = self._from_association(meta)
 
         elif isinstance(meta, DiscreteModel):
             transformers = []
@@ -105,13 +101,5 @@ class TransformerFactory:
             transformers.append(DropConstantColumnTransformer.from_meta(model.meta))
         else:
             transformers.append(CategoricalTransformer.from_model(model))
-
-        return transformers
-
-    def _from_association(self, model: AssociatedHistogram) -> List[Transformer]:
-        transformers: List[Transformer] = []
-
-        for name, child_model in model.items():
-            transformers += self._from_discrete(child_model)
 
         return transformers
