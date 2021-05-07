@@ -13,7 +13,7 @@ from synthesized.metadata.value import Address, Bank, DateTime, FormattedString,
 from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
 from synthesized.model.models import (AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate,
-                                      PersonModel, SequentialFormattedString)
+                                      PersonModel, SequentialFormattedString, EnumerationModel)
 
 logger = logging.getLogger(__name__)
 
@@ -421,3 +421,29 @@ def test_factory_annotations():
     df_synthesized = pd.concat((columns), axis=1)
 
     assert df_synthesized.shape == df.shape
+
+
+def test_enumeration_model():
+    df_original = pd.DataFrame({
+        'idx1': np.arange(start=6, stop=506, step=1),
+        'idx2': np.arange(start=0, stop=1000, step=2),
+        'income': [1000] * 500,
+        'city': ['abc'] * 500
+    })
+
+    df_meta = MetaExtractor.extract(df_original)
+    df_model = ModelFactory()(df_meta)
+
+    assert isinstance(df_model['idx1'], EnumerationModel)
+    assert isinstance(df_model['idx2'], EnumerationModel)
+    assert isinstance(df_model['income'], EnumerationModel) is False
+    assert isinstance(df_model['city'], EnumerationModel) is False
+
+    for model in df_model.values():
+        model.fit(df_original)
+        if model.name == 'idx1':
+            assert (model.sample(100)['idx1']
+                    == np.arange(start=6, stop=106, step=1)).all()
+        elif model.name == 'idx2':
+            assert (model.sample(100)['idx2']
+                    == np.arange(start=0, stop=200, step=2)).all()

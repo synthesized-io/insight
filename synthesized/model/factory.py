@@ -1,12 +1,12 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import numpy as np
 
 from .base import ContinuousModel, DiscreteModel
 from .data_frame_model import DataFrameModel
-from .models import AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate, PersonModel
+from .models import AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate, PersonModel, EnumerationModel
 from ..config import ModelBuilderConfig
-from ..metadata import Affine, DataFrameMeta, Nominal
+from ..metadata import Affine, DataFrameMeta, Nominal, MetaNotExtractedError
 from ..metadata.value import Address, Bank, FormattedString, Person
 
 DisContModel = Union[DiscreteModel, ContinuousModel]
@@ -62,12 +62,22 @@ class ModelBuilder:
             Model if meta is a valid meta Meta
         """
         if isinstance(meta, Affine):
-            n_unique = len(meta.categories) if meta.categories else 0
-            if (meta.categories is None) or\
-               (meta.num_rows and (n_unique > max(self.config.min_num_unique,
-                                                  self.config.categorical_threshold_log_multiplier * np.log(meta.num_rows)
-                                                  ))):
-                return KernelDensityEstimate(meta)
+            # Enumeration column's unit meta will be extracted and will have only one category which is
+            # set equal to the step of enumeration.
+            try:
+                n_unit_meta_categories = len(meta.unit_meta.categories)
+            except MetaNotExtractedError:
+                n_unit_meta_categories = 0
+            if n_unit_meta_categories == 1 and cast(int, meta.unit_meta.categories[0]) not in (0, np.nan, np.inf):
+                return EnumerationModel(meta)
+            elif meta.num_rows is not None and meta.num_rows > 0:  # TODO: add num_rows getter
+                n_unique = len(meta.categories)
+                categorical_threshold = max(
+                    self.config.min_num_unique,
+                    self.config.categorical_threshold_log_multiplier * np.log(meta.num_rows)
+                )
+                if n_unique > categorical_threshold:
+                    return KernelDensityEstimate(meta)
 
         if isinstance(meta, Nominal):
             return Histogram(meta)

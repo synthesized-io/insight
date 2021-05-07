@@ -277,6 +277,13 @@ class Scale(Affine[SType], Generic[SType]):
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
         if self._unit_meta is None:
             self._unit_meta = self.from_dict(self.to_dict())
+
+            # self._unit_meta.categories is only populated here to identify an index column in model factory,
+            # Index column won't have any missing values or NaNs
+            if df[self.name].isna().sum() == 0:
+                col_data = df[self.name].astype(self.dtype)
+                self.unit_meta.categories = [c for c in np.array(col_data.diff().dropna().unique(), dtype=self.dtype)]
+
         super().extract(df)
 
         return self

@@ -19,7 +19,7 @@ from ..config import EngineConfig, HighDimConfig
 from ..metadata import DataFrameMeta
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
-from ..model.models import AddressModel, BankModel, FormattedStringModel, GenderModel, PersonModel
+from ..model.models import AddressModel, BankModel, FormattedStringModel, GenderModel, PersonModel, EnumerationModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -120,6 +120,9 @@ class HighDimSynthesizer(Synthesizer):
         models_to_pop: List[str] = []
         models_to_add: List[Model] = []
         for name, model in df_model.items():
+            if isinstance(model, EnumerationModel):
+                models_to_pop.append(name)
+
             if isinstance(model, ContinuousModel):
                 continue
 
