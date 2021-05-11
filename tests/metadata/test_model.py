@@ -12,8 +12,8 @@ from synthesized.metadata.factory import MetaExtractor
 from synthesized.metadata.value import Address, Bank, DateTime, FormattedString, Integer, Person, String
 from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
-from synthesized.model.models import (AddressModel, BankModel, FormattedStringModel, Histogram, KernelDensityEstimate,
-                                      PersonModel, SequentialFormattedString, EnumerationModel)
+from synthesized.model.models import (AddressModel, BankModel, EnumerationModel, FormattedStringModel, Histogram,
+                                      KernelDensityEstimate, PersonModel, SequentialFormattedString)
 
 logger = logging.getLogger(__name__)
 
@@ -427,6 +427,7 @@ def test_enumeration_model():
     df_original = pd.DataFrame({
         'idx1': np.arange(start=6, stop=506, step=1),
         'idx2': np.arange(start=0, stop=1000, step=2),
+        'idx3': np.datetime64('2010-01-01') + np.arange(0, 5000, 10).astype('m8[D]'),
         'income': [1000] * 500,
         'city': ['abc'] * 500
     })
@@ -436,6 +437,7 @@ def test_enumeration_model():
 
     assert isinstance(df_model['idx1'], EnumerationModel)
     assert isinstance(df_model['idx2'], EnumerationModel)
+    assert isinstance(df_model['idx3'], EnumerationModel)
     assert isinstance(df_model['income'], EnumerationModel) is False
     assert isinstance(df_model['city'], EnumerationModel) is False
 
@@ -447,3 +449,6 @@ def test_enumeration_model():
         elif model.name == 'idx2':
             assert (model.sample(100)['idx2']
                     == np.arange(start=0, stop=200, step=2)).all()
+        elif model.name == 'idx3':
+            assert (model.sample(100)['idx3']
+                    == np.datetime64('2010-01-01') + np.arange(0, 1000, 10).astype('m8[D]')).all()

@@ -203,9 +203,20 @@ class Affine(Ordinal[AType], Generic[AType]):
 
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         if self._unit_meta is None:
-            self._unit_meta = Scale(f'{self.name}_diff')
+            self._unit_meta = self._create_unit_meta()
+            # self._unit_meta.categories is only populated here to identify an index column in model factory,
+            # Index column won't have any missing values or NaNs
+            if df[self.name].isna().sum() == 0:
+                col_data = df[self.name].astype(self.dtype)
+                self.unit_meta.categories = [
+                    c for c in np.array(col_data.diff().dropna().unique(), dtype=self.unit_meta.dtype)
+                ]
+
         super().extract(df)
         return self
+
+    def _create_unit_meta(self) -> 'Scale[Any]':
+        return Scale(f"{self.name}'", unit_meta=Scale(f"{self.name}''"))
 
     @property
     def unit_meta(self: AffineType) -> 'Scale[Any]':
@@ -275,18 +286,12 @@ class Scale(Affine[SType], Generic[SType]):
         )
 
     def extract(self: ScaleType, df: pd.DataFrame) -> ScaleType:
-        if self._unit_meta is None:
-            self._unit_meta = self.from_dict(self.to_dict())
-
-            # self._unit_meta.categories is only populated here to identify an index column in model factory,
-            # Index column won't have any missing values or NaNs
-            if df[self.name].isna().sum() == 0:
-                col_data = df[self.name].astype(self.dtype)
-                self.unit_meta.categories = [c for c in np.array(col_data.diff().dropna().unique(), dtype=self.dtype)]
-
         super().extract(df)
 
         return self
+
+    def _create_unit_meta(self: ScaleType) -> ScaleType:
+        return type(self)(f"{self.name}'", unit_meta=type(self)(f"{self.name}''"))
 
     def __repr__(self) -> str:
         return f'<Scale[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'

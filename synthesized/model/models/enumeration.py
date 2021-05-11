@@ -1,11 +1,11 @@
-from typing import Dict, Generic, Optional, cast, Any
+from typing import Any, Dict, Generic, Optional, cast
 
 import numpy as np
 import pandas as pd
 
 from ..base import ContinuousModel
 from ..exceptions import ModelNotFittedError
-from ...metadata import Affine, AType, Scale
+from ...metadata import Affine, AType, MetaNotExtractedError, Scale
 
 
 class EnumerationModel(ContinuousModel[Affine[AType], AType], Generic[AType]):
@@ -33,11 +33,12 @@ class EnumerationModel(ContinuousModel[Affine[AType], AType], Generic[AType]):
         return self
 
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        if not self._fitted:
-            raise ModelNotFittedError
+        try:
+            min_idx = cast(int, self.min)
+            idx_diff = cast(int, self.diff)
+        except MetaNotExtractedError:
+            raise ModelNotFittedError(f'Model ({self.name}) not fitted')
 
-        min_idx = cast(int, self.min)
-        idx_diff = cast(int, self.diff)
         end_idx = min_idx + (n * idx_diff)
         enumerated_col = np.arange(start=min_idx, stop=end_idx, step=idx_diff)
         df = pd.DataFrame({self.name: enumerated_col})

@@ -7,7 +7,7 @@ import pandas as pd
 from .categorical import String
 from .continuous import Integer
 from ..base import Affine, Scale, ValueMeta
-from ..exceptions import UnknownDateFormatError
+from ..exceptions import MetaNotExtractedError, UnknownDateFormatError
 
 DateType = TypeVar('DateType', bound='DateTime')
 
@@ -53,7 +53,6 @@ class DateTime(Affine[np.datetime64]):
         children = [
             String(name + '_dow'), Integer(name + '_day'), Integer(name + '_month'), Integer(name + '_year')
         ] if children is None else children
-        unit_meta = TimeDelta('diff_' + name) if unit_meta is None else unit_meta
 
         super().__init__(
             name=name, children=children, categories=categories, nan_freq=nan_freq, num_rows=num_rows,
@@ -77,6 +76,9 @@ class DateTime(Affine[np.datetime64]):
         super().extract(sub_df)  # call super here so we can get max, min from datetime.
 
         return self
+
+    def _create_unit_meta(self) -> TimeDelta:
+        return TimeDelta(f"{self.name}'", unit_meta=TimeDelta(f"{self.name}''"))
 
     def convert_df_for_children(self, df: pd.DataFrame):
 
@@ -103,6 +105,8 @@ class DateTime(Affine[np.datetime64]):
 
     @property
     def unit_meta(self) -> TimeDelta:
+        if self._unit_meta is None:
+            raise MetaNotExtractedError(f'Meta {self.name} not extracted.')
         return cast(TimeDelta, self._unit_meta)
 
     def to_dict(self) -> Dict[str, object]:
