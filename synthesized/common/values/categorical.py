@@ -140,7 +140,6 @@ class CategoricalValue(Value):
                 weights = tf.sqrt(x=(1.0 / tf.maximum(x=frequency, y=1e-6)))
                 weights = tf.dtypes.cast(x=weights, dtype=tf.float32)
                 weights = tf.reshape(weights, shape=target.shape)
-                # weights = 1.0 / tf.maximum(x=frequency, y=1e-6)
                 weights = tf.boolean_mask(tensor=weights, mask=mask)
         else:
             weights = 1.0

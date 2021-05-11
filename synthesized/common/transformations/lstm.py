@@ -11,7 +11,6 @@ class LstmTransformation(Transformation):
     def __init__(self, name, input_size, output_size, return_state=False, return_sequences=True,
                  return_state_and_x=False):
 
-        # assert (return_state + return_sequences + return_state_and_x) == 1
         super().__init__(name=name, input_size=input_size, output_size=output_size)
 
         self.return_state = return_state

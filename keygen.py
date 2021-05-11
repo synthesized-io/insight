@@ -35,7 +35,7 @@ def generate_keypair(p, q):
         raise ValueError('Both numbers must be prime.')
     elif p == q:
         raise ValueError('p and q cannot be equal')
-    # n = pq
+
     n = p * q
 
     # Phi is the totient of n
@@ -83,7 +83,6 @@ def chunks(l, n):
 
 
 if __name__ == '__main__':
-    # pub, priv = generate_keypair(13, 19)
     pub = (133, 247)
     priv = (13, 247)
 

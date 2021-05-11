@@ -61,11 +61,9 @@ earth_movers_distance = EarthMoversDistance()
 
 # DataFrameMetrics
 # -----------------------------------------------------------------------------
-# predictive_modelling_score = PredictiveModellingScore()
 
 # TwoDataFrameMetrics
 # -----------------------------------------------------------------------------
-# predictive_modelling_comparison = PredictiveModellingComparison()
 
 # DataFrameMetricVectors
 # -----------------------------------------------------------------------------

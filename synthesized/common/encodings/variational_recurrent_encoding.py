@@ -74,7 +74,6 @@ class VariationalRecurrentEncoding(Encoding):
             y = tf.concat((y, y_forecast), axis=1)
 
         kl_loss = self.diagonal_normal_kl_divergence(mu_1=mean, stddev_1=stddev)
-        # kl_loss *= self.beta * self.increase_beta_multiplier(t_start=250, t_end=350)
         kl_loss *= self.beta
 
         self.add_loss(kl_loss, inputs=inputs)

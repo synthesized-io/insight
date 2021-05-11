@@ -179,8 +179,7 @@ class SeriesSynthesizer(Synthesizer):
                     else:
                         self.engine.learn(xs=feed_dict)
 
-                    # if callback(self, iteration, self.engine.losses) is True:
-                    #     return
+                    # TODO: Implement callback/learning manager for series
                 else:
                     self.engine.learn(xs=feed_dict)
 
@@ -196,8 +195,6 @@ class SeriesSynthesizer(Synthesizer):
 
                 if time.time() - t_start >= timeout:
                     break
-
-        # return [value_data[batch] for value_data in data.values()], synth
 
     def _print_learn_stats(self, fetched, iteration):
         print('ITERATION {iteration} :: Loss: total={loss:.4f} ({losses})'.format(

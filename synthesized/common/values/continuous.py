@@ -142,9 +142,6 @@ class ContinuousValue(Value):
         fourth_moment = tf.reduce_mean(input_tensor=tf.square(x=squared_difference), axis=0)
         skewness = third_moment / tf.pow(x=variance, y=1.5)
         kurtosis = fourth_moment / tf.square(x=variance)
-        # num_samples = tf.cast(x=tf.shape(input=samples)[0], dtype=tf.float32)
-        # jarque_bera = num_samples / 6.0 * (tf.square(x=skewness) + \
-        #     0.25 * tf.square(x=(kurtosis - 3.0)))
         jarque_bera = tf.square(x=skewness) + tf.square(x=(kurtosis - 3.0))
         jarque_bera_loss = tf.math.squared_difference(x=jarque_bera, y=0.0)
         loss = mean_loss + variance_loss + jarque_bera_loss

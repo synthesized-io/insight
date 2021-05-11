@@ -202,8 +202,6 @@ def synthesize_and_plot_time_series(
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
-    # len_eval_data = len(eval_data)
-
     def callback(synth, iteration, losses):
         if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
             if len(synth.loss_history) == 0:
@@ -219,21 +217,13 @@ def synthesize_and_plot_time_series(
 
     if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
         identifier_label = config['params']['identifier_label']
-    #     num_series = eval_data[identifier_label].nunique()
-    #     series_length = int(len_eval_data / num_series)
-    # else:
-    #     num_series = 1
-    #     series_length = len_eval_data
 
     df_meta = MetaExtractor.extract(df=data)
     series_config = SeriesConfig(**config['params'])
 
     synthesizer = SeriesSynthesizer(df_meta=df_meta, config=series_config)  # type: ignore
-    # synthesizer.learn(df_train=data, num_iterations=config['num_iterations'], callback=callback,
-    #                   callback_freq=100)
     training_time = time.time() - start
 
-    # synthesized = synthesizer.synthesize(num_series=num_series, series_length=series_length)
     synthesized = data.copy()
     identifiers = data[identifier_label].unique()
     id_map = {a: b
@@ -253,8 +243,6 @@ def synthesize_and_plot_time_series(
         display(Markdown("## Plot time-series data"))
         fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
         fig.tight_layout()
-        # original_auto_assoc = calculate_auto_association(dataset=data, col=col, max_order=max_lag)
-        # synthetic_auto_assoc = calculate_auto_association(dataset=synthesized, col=col, max_order=max_lag)
         t_orig = np.arange(0, data.shape[0])
         plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
         axes[0, 0].set_title("Original")
@@ -265,53 +253,10 @@ def synthesize_and_plot_time_series(
     testing = TimeSeriesUtilityTesting(synthesizer.df_meta, data, synthesized)
 
     if plot_losses:
-        # display(Markdown("## Show loss history")
         print("## Show loss history")
         df_losses = pd.DataFrame.from_records(synthesizer.loss_history)
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
-
-    # if plot_distances:
-    #     display(Markdown("## Show average distances"))
-    #     results = testing.show_standard_metrics()
-    #
-    #     print_line = ''
-    #     for k, v in results.items():
-    #         if evaluation:
-    #             assert name, 'If evaluation is given, evaluation_name must be given too.'
-    #             evaluation.record_metric(evaluation=name, key=k, value=v)
-    #         print_line += '\n\t{}={:.4f}'.format(k, v)
-    #     print(print_line)
-
-    # if show_distributions:
-    #     display(Markdown("## Show distributions"))
-    #     testing.show_distributions(remove_outliers=0.01)
-
-    # # First order metrics
-    # if show_distribution_distances:
-    #     display(Markdown("## Show distribution distances"))
-    #     testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
-    # if show_emd_distances:
-    #     display(Markdown("## Show EMD distances"))
-    #     testing.show_first_order_metric_distances(metrics.earth_movers_distance)
-    #
-    # # Second order metrics
-    # if show_correlation_distances:
-    #     display(Markdown("## Show correlation distances"))
-    #     testing.show_second_order_metric_distances(metrics.diff_kendell_tau_correlation, max_p_value=MAX_PVAL)
-    # if show_correlation_matrix:
-    #     display(Markdown("## Show correlation matrices"))
-    #     testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
-    # if show_cramers_v_distances:
-    #     display(Markdown("## Show Cramer's V distances"))
-    #     testing.show_second_order_metric_distances(metrics.diff_cramers_v)
-    # if show_cramers_v_matrix:
-    #     display(Markdown("## Show Cramer's V matrices"), Markdown("## Show Cramer's V matrices"))
-    #     testing.show_second_order_metric_matrices(metrics.cramers_v)
-    # if show_cat_rsquared:
-    #     display(Markdown("## Show categorical R^2"))
-    #     testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation,
-    #                                               continuous_inputs_only=True)
 
     # TIME SERIES
     if show_series:

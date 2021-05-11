@@ -13,11 +13,9 @@ from ...model import DataFrameModel, factory
 
 def _register(metric, cls):
     registry = cls.ALL
-    # print(f'Registering metric: {metric.name} in {cls.__name__} registry. ')
     if metric.name is None:
         raise ValueError("Metric 'name' not specified.")
-    # if metric.name in registry:
-    #     raise ValueError("Metric 'name' already exists.")
+
     registry[metric.name] = metric
 
 

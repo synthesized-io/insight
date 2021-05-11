@@ -26,10 +26,6 @@ class Transformation(tf.keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         return [None, self.output_size]
 
-    # @tensorflow_name_scoped
-    # def transform(self, x, *args):
-    #     raise NotImplementedError
-
     @property
     def output(self):
         return self._output
