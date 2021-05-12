@@ -50,6 +50,10 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         self.num_rows = len(df)
         return self
 
+    def update_meta(self, df: pd.DataFrame) -> 'DataFrameMeta':
+        super().update_meta(df)
+        return self
+
     def convert_df_for_children(self, df: pd.DataFrame):
         for ann in self.annotations:
             self[ann].revert_df_from_children(df)

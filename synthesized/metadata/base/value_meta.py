@@ -88,6 +88,26 @@ class Nominal(ValueMeta[NType, ValueMetaType], Generic[NType, ValueMetaType]):
 
         return self
 
+    def update_meta(self: NominalType, df: pd.DataFrame) -> NominalType:
+        """Update the categories and nan_freq if required be"""
+
+        cur_num_rows = self.num_rows
+        super().update_meta(df)
+        df = df.copy().replace([np.inf, -np.inf], np.nan)
+        categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
+
+        if not set(categories).issubset(self.categories):
+            self.categories = list(set([y for x in [categories, self.categories] for y in x]))
+
+        num_nans = df[self.name].isna().sum()
+        if cast(int, self.num_rows) > 0:
+            if self.nan_freq is not None:
+                self.nan_freq = (num_nans + self.nan_freq * cast(int, cur_num_rows)) / self.num_rows
+            else:
+                self.nan_freq = num_nans / self.num_rows
+
+        return self
+
     def to_dict(self) -> Dict[str, object]:
         d = super().to_dict()
         d.update({
@@ -142,6 +162,12 @@ class Ordinal(Nominal[OType, ValueMeta], Generic[OType]):
         super().extract(df)
         self.categories = self.sort(self.categories)
 
+        return self
+
+    def update_meta(self: OrdinalType, df: pd.DataFrame) -> OrdinalType:
+        df = df.copy().replace('', np.nan)
+        super().update_meta(df)
+        self.categories = self.sort(self.categories)
         return self
 
     @property
@@ -213,6 +239,27 @@ class Affine(Ordinal[AType], Generic[AType]):
                 ]
 
         super().extract(df)
+        return self
+
+    def update_meta(self: AffineType, df: pd.DataFrame) -> AffineType:
+        if self._unit_meta is None:
+            self._unit_meta = self._create_unit_meta()
+
+        if df[self.name].isna().sum() == 0:
+            col_data = df[self.name].astype(self.dtype)
+            new_unit_meta_cats = [
+                c for c in np.array(col_data.diff().dropna().unique(), dtype=self.unit_meta.dtype)
+            ]
+
+            try:
+                cur_unit_meta_cats = self.unit_meta.categories
+            except MetaNotExtractedError:
+                cur_unit_meta_cats = []
+            if not set(new_unit_meta_cats).issubset(cur_unit_meta_cats):
+                self.unit_meta.categories = list(set([y for x in [cur_unit_meta_cats,
+                                                 new_unit_meta_cats] for y in x]))
+
+        super().update_meta(df)
         return self
 
     def _create_unit_meta(self) -> 'Scale[Any]':
@@ -290,6 +337,10 @@ class Scale(Affine[SType], Generic[SType]):
 
         return self
 
+    def update_meta(self: ScaleType, df: pd.DataFrame) -> ScaleType:
+        super().update_meta(df)
+        return self
+
     def _create_unit_meta(self: ScaleType) -> ScaleType:
         return type(self)(f"{self.name}'", unit_meta=type(self)(f"{self.name}''"))
 
@@ -311,6 +362,10 @@ class Ring(Scale[RType], Generic[RType]):
 
     def extract(self: RingType, df: pd.DataFrame) -> RingType:
         super().extract(df)
+        return self
+
+    def update_meta(self: RingType, df: pd.DataFrame) -> RingType:
+        super().update_meta(df)
         return self
 
     def __repr__(self) -> str:

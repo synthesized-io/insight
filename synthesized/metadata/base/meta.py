@@ -60,6 +60,15 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         self._extracted = True
         return self
 
+    def update_meta(self, df: pd.DataFrame) -> 'Meta':
+        """update the children of this Meta."""
+        with self.unfold(df) as sub_df:
+            for child in self.children:
+                child.update_meta(sub_df)
+        self.num_rows = self.num_rows + len(df) if self.num_rows is not None else len(df)
+        self._extracted = True
+        return self
+
     def convert_df_for_children(self, df):
         """Expands the dataframe to contain the columns of the metas children."""
         pass

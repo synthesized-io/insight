@@ -25,6 +25,11 @@ class Integer(Scale[np.int64]):
         super().extract(sub_df)
         return self
 
+    def update_meta(self, df: pd.DataFrame) -> 'Integer':
+        sub_df = pd.to_numeric(df[self.name], errors='coerce').to_frame()
+        super().update_meta(sub_df)
+        return self
+
 
 class Float(Ring[np.float64]):
     dtype = 'f8'
@@ -43,4 +48,9 @@ class Float(Ring[np.float64]):
     def extract(self, df: pd.DataFrame) -> 'Float':
         sub_df = pd.to_numeric(df[self.name], errors='coerce').to_frame()
         super().extract(sub_df)
+        return self
+
+    def update_meta(self, df: pd.DataFrame) -> 'Float':
+        sub_df = pd.to_numeric(df[self.name], errors='coerce').to_frame()
+        super().update_meta(sub_df)
         return self

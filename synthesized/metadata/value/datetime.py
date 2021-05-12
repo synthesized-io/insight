@@ -77,6 +77,23 @@ class DateTime(Affine[np.datetime64]):
 
         return self
 
+    def update_meta(self: DateType, df: pd.DataFrame):
+        if self.date_format is None:
+            try:
+                self.date_format = get_date_format(df[self.name])
+            except UnknownDateFormatError:
+                self.date_format = None
+
+        sub_df = pd.DataFrame({
+            self.name: pd.to_datetime(df[self.name], format=self.date_format, errors='coerce'),
+        })
+
+        categories = list(sub_df[self.name].dropna().unique())
+        self.categories = list(set([y for x in [categories, self.categories] for y in x]))
+        super().update_meta(sub_df)
+
+        return self
+
     def _create_unit_meta(self) -> TimeDelta:
         return TimeDelta(f"{self.name}'", unit_meta=TimeDelta(f"{self.name}''"))
 
