@@ -1,4 +1,3 @@
-# type: ignore
 import datetime
 import time
 from collections import OrderedDict
@@ -15,11 +14,9 @@ import pandas as pd
 import simplejson
 from sklearn.model_selection import train_test_split
 
-from .plotting import plot_data, plot_multidimensional, plot_time_series
+from .plotting import plot_data, plot_multidimensional
 from .utility import MAX_PVAL, UtilityTesting
-from .utility_time_series import TimeSeriesUtilityTesting
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
-from ..complex.series import SeriesConfig, SeriesSynthesizer
 from ..insight import metrics
 from ..metadata.factory import MetaExtractor
 
@@ -157,116 +154,31 @@ def synthesize_and_plot(
     # First order metrics
     if show_distribution_distances:
         display(Markdown("## Show distribution distances"))
-        testing.show_first_order_metric_distances(metrics.kolmogorov_smirnov_distance)
+        testing.show_first_order_metric_distances(metrics.KolmogorovSmirnovDistance())
     if show_emd_distances:
         display(Markdown("## Show EMD distances"))
-        testing.show_first_order_metric_distances(metrics.earth_movers_distance)
+        testing.show_first_order_metric_distances(metrics.EarthMoversDistance())
 
     # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.kendell_tau_correlation, max_p_value=MAX_PVAL)
+        testing.show_second_order_metric_distances(metrics.KendellTauCorrelation(max_p_value=MAX_PVAL))
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
-        testing.show_second_order_metric_matrices(metrics.kendell_tau_correlation)
+        testing.show_second_order_metric_matrices(metrics.KendellTauCorrelation())
     if show_cramers_v_distances:
         display(Markdown("## Show Cramer's V distances"))
-        testing.show_second_order_metric_distances(metrics.cramers_v)
+        testing.show_second_order_metric_distances(metrics.CramersV())
     if show_cramers_v_matrix:
         display(Markdown("## Show Cramer's V matrices"))
-        testing.show_second_order_metric_matrices(metrics.cramers_v)
+        testing.show_second_order_metric_matrices(metrics.CramersV())
     if show_logistic_rsquared_distances:
         display(Markdown("## Show Logistic R^2 distances"))
-        testing.show_second_order_metric_distances(metrics.categorical_logistic_correlation,
-                                                   continuous_input_only=True, categorical_output_only=True)
+        testing.show_second_order_metric_distances(metrics.CategoricalLogisticR2())
     if show_logistic_rsquared_matrix:
         display(Markdown("## Show Logistic R^2 matrices"))
-        testing.show_second_order_metric_matrices(metrics.categorical_logistic_correlation,
-                                                  continuous_input_only=True, categorical_output_only=True)
+        testing.show_second_order_metric_matrices(metrics.CategoricalLogisticR2())
 
-    return testing
-
-
-# -- training functions
-def synthesize_and_plot_time_series(
-        data: pd.DataFrame, name: str, evaluation, config, eval_metrics: List[metrics.TwoDataFrameMetric],
-        test_data: Optional[pd.DataFrame] = None, col: str = "x", max_lag: int = 10, plot_basic: bool = True,
-        plot_losses: bool = False, plot_distances: bool = False, show_distributions: bool = False,
-        show_distribution_distances: bool = False, show_emd_distances: bool = False,
-        show_correlation_distances: bool = False,
-        show_correlation_matrix: bool = False, show_cramers_v_distances: bool = False,
-        show_cramers_v_matrix: bool = False, show_cat_rsquared: bool = False, show_acf_distances: bool = False,
-        show_pacf_distances: bool = False, show_transition_distances: bool = False, show_series: bool = False,
-        show_acf=False
-):
-    """
-    Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
-    """
-    def callback(synth, iteration, losses):
-        if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
-            if len(synth.loss_history) == 0:
-                synth.loss_history.append({n: l.numpy() for n, l in losses.items()})
-            else:
-                synth.loss_history.append({local_name: losses[local_name].numpy()
-                                           for local_name in synth.loss_history[0]})
-        return False
-
-    evaluation.record_config(evaluation=name, config=config)
-    start = time.time()
-    identifier_label = None
-
-    if 'identifier_label' in config['params'].keys() and config['params']['identifier_label'] is not None:
-        identifier_label = config['params']['identifier_label']
-
-    df_meta = MetaExtractor.extract(df=data)
-    series_config = SeriesConfig(**config['params'])
-
-    synthesizer = SeriesSynthesizer(df_meta=df_meta, config=series_config)  # type: ignore
-    training_time = time.time() - start
-
-    synthesized = data.copy()
-    identifiers = data[identifier_label].unique()
-    id_map = {a: b
-              for a, b in zip(identifiers, np.random.choice(identifiers, size=len(identifiers), replace=False))}
-    synthesized[identifier_label] = synthesized[identifier_label].map(id_map)
-    print('took', training_time, 's')
-
-    evaluation.record_metric(evaluation=name, key='training_time', value=training_time)
-
-    print("Metrics:")
-    for metric in eval_metrics:
-        value = metric(df_old=data, df_new=synthesized)
-        evaluation.record_metric(evaluation=name, key=metric.name, value=value)
-        print(f"{metric.name}: {value}")
-
-    if plot_basic:
-        display(Markdown("## Plot time-series data"))
-        fig, axes = plt.subplots(2, 2, figsize=(15, 5), sharey="row")
-        fig.tight_layout()
-        t_orig = np.arange(0, data.shape[0])
-        plot_time_series(x=data[col].to_numpy(), t=t_orig, ax=axes[0, 0])
-        axes[0, 0].set_title("Original")
-        t_synth = np.arange(0, synthesized.shape[0])
-        plot_time_series(x=synthesized[col].to_numpy(), t=t_synth, ax=axes[0, 1])
-        axes[0, 1].set_title("Synthetic")
-
-    testing = TimeSeriesUtilityTesting(synthesizer.df_meta, data, synthesized)
-
-    if plot_losses:
-        print("## Show loss history")
-        df_losses = pd.DataFrame.from_records(synthesizer.loss_history)
-        if len(df_losses) > 0:
-            df_losses.plot(figsize=(15, 7))
-
-    # TIME SERIES
-    if show_series:
-        # display(Markdown("## Show Series Sample")
-        print("## Show Series Sample")
-        testing.show_series()
-    if show_acf:
-        # display(Markdown("## Show Series ACF")
-        print("## Show Series ACF")
-        testing.show_auto_associations()
     return testing
 
 

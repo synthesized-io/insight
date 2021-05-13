@@ -555,8 +555,8 @@ class FairnessScorer:
         correlation_pairs = []
         for sensitive_attr in self.sensitive_attrs:
             for col, model in models.items():
-                corr = (cramers_v(df[col], df[sensitive_attr], dp=dp, models=models)
-                        or categorical_logistic_r2(df[col], df[sensitive_attr], dp=dp, models=models))
+                corr = (cramers_v(df[col], df[sensitive_attr], df_model=models)
+                        or categorical_logistic_r2(df[col], df[sensitive_attr], df_model=models))
                 if corr is not None and corr > threshold:
                     correlation_pairs.append((col, sensitive_attr, corr))
         for detected_attr, sensitive_attr, corr in correlation_pairs:

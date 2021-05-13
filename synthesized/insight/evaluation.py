@@ -3,13 +3,15 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from ..insight import metrics
-from ..metadata import DataFrameMeta
+from ..insight.metrics import (CategoricalLogisticR2, ColumnComparisonVector, CramersV, DiffMetricMatrix,
+                               EarthMoversDistance, KendellTauCorrelation, KolmogorovSmirnovDistance,
+                               TwoColumnMetricMatrix)
+from ..model import DataFrameModel
 
 MAX_PVAL = 0.05
 
 
-def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, df_meta: DataFrameMeta,
+def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, df_model: DataFrameModel,
                                  column_names: Optional[List[str]] = None) -> Dict[str, Union[pd.Series, pd.DataFrame]]:
     """Calculate 'stop_metric' dictionary given two datasets. Each item in the dictionary will include a key
     (from self.stop_metric_name, allowed options are 'ks_dist', 'corr' and 'emd'), and a value (list of
@@ -31,22 +33,28 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, 
     df_orig = df_orig.loc[:, column_names_df].copy()
     df_synth = df_synth.loc[:, column_names_df].copy()
 
+    ksd_v = ColumnComparisonVector(KolmogorovSmirnovDistance())
+    emd_v = ColumnComparisonVector(EarthMoversDistance())
+
     # Calculate 1st order metrics for categorical/continuous
-    ks_distances = metrics.kolmogorov_smirnov_distance_vector(df_orig, df_synth, dp=df_meta)
-    emd_distances = metrics.earth_movers_distance_vector(df_orig, df_synth, dp=df_meta)
+    ks_distances = ksd_v(df_orig, df_synth, df_model=df_model)
+    emd_distances = emd_v(df_orig, df_synth, df_model=df_model)
 
     # Calculate 2nd order metrics for categorical/continuous
+
+    kt_m = DiffMetricMatrix(TwoColumnMetricMatrix(KendellTauCorrelation(max_p_value=MAX_PVAL)))
+    cv_m = DiffMetricMatrix(TwoColumnMetricMatrix(CramersV()))
+    lc_m = DiffMetricMatrix(TwoColumnMetricMatrix(CategoricalLogisticR2()))
+
     corr_distances = np.abs(
-        metrics.diff_kendell_tau_correlation_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta)
+        kt_m(df_old=df_orig, df_new=df_synth, df_model=df_model)
     )
 
     logistic_corr_distances = np.abs(
-        metrics.diff_categorical_logistic_correlation_matrix(
-            df_old=df_orig, df_new=df_synth, dp=df_meta, continuous_input_only=True
-        )
+        lc_m(df_old=df_orig, df_new=df_synth, df_model=df_model)
     )
 
-    cramers_v_distances = np.abs(metrics.diff_cramers_v_matrix(df_old=df_orig, df_new=df_synth, dp=df_meta))
+    cramers_v_distances = np.abs(cv_m(df_old=df_orig, df_new=df_synth, df_model=df_model))
 
     stop_metrics = {
         'ks_distance': ks_distances,

@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from ..synthesizer import Synthesizer
 from ...insight.evaluation import calculate_evaluation_metrics
-from ...metadata import DataFrameMeta
+from ...model import DataFrameModel
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ class LearningManager:
 
     def stop_learning_check_data(
             self, iteration: int, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
-            df_meta: DataFrameMeta, column_names: Optional[List[str]] = None
+            df_model: DataFrameModel, column_names: Optional[List[str]] = None
     ) -> bool:
         """Given original an synthetic data, calculate the 'stop_metric' and compare it to previous iteration, evaluate
         the criteria and return accordingly.
@@ -221,7 +221,7 @@ class LearningManager:
 
         if self.custom_stop_metric is None:
             stop_metrics: Union[Dict[str, Union[pd.Series, pd.DataFrame]], float] = calculate_evaluation_metrics(
-                df_orig=df_orig, df_synth=df_synth, df_meta=df_meta, column_names=column_names
+                df_orig=df_orig, df_synth=df_synth, df_model=df_model, column_names=column_names
             )
         else:
             stop_metrics = self.custom_stop_metric(df_orig, df_synth)
@@ -249,8 +249,9 @@ class LearningManager:
             return False
 
         df_synth = synthesizer.synthesize(num_rows=sample_size, produce_nans=True)
+
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names, df_meta=synthesizer.df_meta)
+                                             column_names=column_names, df_model=synthesizer.df_model)
 
     def stop_learning_engine_loss(
             self, iteration: int, synthesizer: Synthesizer, df_valid: pd.DataFrame = None

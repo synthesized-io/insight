@@ -19,7 +19,7 @@ from ..common.synthesizer import Synthesizer
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
-from ..model import ContinuousModel, DiscreteModel
+from ..model import ContinuousModel, DataFrameModel, DiscreteModel
 from ..testing.plotting import plot_standard_metrics
 
 logger = logging.getLogger(__name__)
@@ -52,15 +52,22 @@ class UtilityTesting:
         self.df_synth = df_synth.copy()
 
         self.df_meta = synthesizer.df_meta
-        self.df_models = synthesizer.df_model
+        try:
+            models = [m for m in synthesizer.df_model_independent.values()]
+        except AttributeError:
+            models = []
+
+        models.extend([m for m in synthesizer.df_model.values()])
+        self.df_models = DataFrameModel(meta=synthesizer.df_meta, models=models)
+
         self.categorical: List[str] = []
         self.continuous: List[str] = []
 
-        for name, meta in self.df_models.items():
-            if meta.dtype != 'M8[ns]':
-                if isinstance(meta, ContinuousModel):
+        for name, model in self.df_models.items():
+            if model.meta.dtype != 'M8[ns]':
+                if isinstance(model, ContinuousModel):
                     self.continuous.append(name)
-                elif isinstance(meta, DiscreteModel):
+                elif isinstance(model, DiscreteModel):
                     self.categorical.append(name)
         self.plotable_values = self.categorical + self.continuous
 
@@ -128,13 +135,13 @@ class UtilityTesting:
 
         return synth_score
 
-    def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):
+    def show_first_order_metric_distances(self, metric: TwoColumnMetric):
         if metric.name is None:
             raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
+        result = metric_vector(self.df_test, self.df_synth, df_model=self.df_models)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -149,34 +156,33 @@ class UtilityTesting:
 
         return dist_max, dist_avg
 
-    def show_second_order_metric_matrices(self, metric: TwoColumnMetric, **kwargs) -> None:
+    def show_second_order_metric_matrices(self, metric: TwoColumnMetric) -> None:
         """Plot two correlations matrices: one for the original data and one for the synthetic one.
 
         Args:
             metric: the two column metric to show.
             figsize: width, height in inches.
         """
-        if metric.name is None:
-            raise ValueError("Metric has no name.")
-
         logger.debug(f"Showing matrices for second-order metric ({metric.name}).")
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, dp=self.df_meta, models=self.df_models, **kwargs)
+            matrix = metric_matrix(df, df_model=self.df_models)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
                     matrix.drop(c, axis=1, inplace=True)
                     matrix.drop(c, axis=0, inplace=True)
 
-            if [c for c in matrix.columns if matrix.loc[:, c].isna().all()] == \
+            if [c for c in matrix.columns if matrix.loc[:, c].isna().all()] != \
                     [c for c in matrix.columns if not matrix.loc[c, :].isna().all()]:
-                for c in matrix.columns:
-                    if matrix.loc[:, c].isna().all():
-                        matrix.drop(c, axis=1, inplace=True)
-                    elif matrix.loc[c, :].isna().all():
-                        matrix.drop(c, axis=0, inplace=True)
+                return matrix
+
+            for c in matrix.columns:
+                if matrix.loc[:, c].isna().all():
+                    matrix.drop(c, axis=1, inplace=True)
+                elif matrix.loc[c, :].isna().all():
+                    matrix.drop(c, axis=0, inplace=True)
 
             return matrix
 
@@ -187,7 +193,7 @@ class UtilityTesting:
 
         plot_second_order_metric_matrices(matrix_test, matrix_synth, metric.name, symmetric=is_symmetric)
 
-    def show_second_order_metric_distances(self, metric: TwoColumnMetric, **kwargs) -> Tuple[float, float]:
+    def show_second_order_metric_distances(self, metric: TwoColumnMetric) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -200,7 +206,7 @@ class UtilityTesting:
 
         metric_matrix = TwoColumnMetricMatrix(metric)
         diff_metric_matrix = DiffMetricMatrix(metric_matrix)
-        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs))
+        distances = np.abs(diff_metric_matrix(self.df_test, self.df_synth, df_model=self.df_models))
 
         result = []
         for i in range(len(distances.index)):
@@ -227,11 +233,11 @@ class UtilityTesting:
 
         return corr_dist_max, corr_dist_avg
 
-    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector], **kwargs):
+    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector]):
         if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
 
-        x = metric(self.df_orig, self.df_synth, dp=self.df_meta, models=self.df_models, **kwargs)
+        x = metric(self.df_orig, self.df_synth, df_model=self.df_models)
 
         if x is not None and len(x) > 0:
             x = x.values

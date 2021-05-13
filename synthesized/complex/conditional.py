@@ -1,7 +1,7 @@
 import gc
 import logging
 import re
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import datetime
 from itertools import product
@@ -472,12 +472,15 @@ class Endpoint(ABC):
         self.value = value
         self.value_str = value_str if value_str is not None else str(value)
 
+    @abstractmethod
     def to_str(self, is_left: bool) -> str:
         pass
 
+    @abstractmethod
     def as_left_in(self, value: Union[float, datetime]) -> bool:
         pass
 
+    @abstractmethod
     def as_right_in(self, value: Union[float, datetime]) -> bool:
         pass
 

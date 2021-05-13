@@ -145,7 +145,7 @@ class FeedForwardStateSpaceModel(StateSpaceModel):
         return loss
 
     def regularization_losses(self):
-        pass
+        return None
 
 
 class GaussianEncoder(Transformation):

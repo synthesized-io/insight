@@ -115,11 +115,15 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
     def unit_meta(self) -> 'Scale[Any]':
         return self._meta.unit_meta
 
-    def plot(self, kde_grid_num=100, **kwargs) -> plt.Figure:
+    def plot(self, ax=None, kde_grid_num=100, **kwargs) -> plt.Figure:
         if self.max is None or self.min is None:
             raise ValueError
 
-        fig = plt.Figure(figsize=(7, 4))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(7, 4))
+        else:
+            fig = ax.get_figure()
+
         sns.set_theme(**kwargs)
 
         domain = np.linspace(
@@ -134,11 +138,11 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
         })
 
         if self.kde_dtype == 'i8':
-            sns.barplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+            sns.barplot(data=plot_data, x=self.name, y='pdf', ax=ax)
         else:
-            sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=fig.gca())
+            sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=ax)
 
-        for tick in fig.gca().get_xticklabels():
+        for tick in ax.get_xticklabels():
             tick.set_rotation(90)
 
         return fig

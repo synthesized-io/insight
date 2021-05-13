@@ -45,6 +45,7 @@ class StateSpaceModel(tf.Module):
         self.built = False
 
     def build(self, input_shape):
+        """This module doesn't need to build any components."""
         pass
 
     def emission(self, z_t: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:

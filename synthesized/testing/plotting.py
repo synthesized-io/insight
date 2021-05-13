@@ -16,11 +16,15 @@ from sklearn.preprocessing import OneHotEncoder
 import synthesized
 
 from ..insight.evaluation import calculate_evaluation_metrics
-from ..insight.metrics import earth_movers_distance, kolmogorov_smirnov_distance
+from ..insight.metrics import EarthMoversDistance, KolmogorovSmirnovDistance
 from ..metadata import DataFrameMeta
 from ..metadata.factory import MetaExtractor
+from ..model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
+
+earth_movers_distance = EarthMoversDistance()
+kolmogorov_smirnov_distance = KolmogorovSmirnovDistance()
 
 MAX_SAMPLE_DATES = 2500
 NUM_UNIQUE_CATEGORICAL = 100
@@ -247,7 +251,7 @@ def plot_second_order_metric_matrix(matrix: pd.DataFrame, title: str = None,
 
 def plot_second_order_metric_matrices(
         matrix_test: pd.DataFrame, matrix_synth: pd.DataFrame,
-        metric_name: str, symmetric=True
+        metric_name: str = None, symmetric=True
 ):
     if len(matrix_test.columns) == 0:
         return
@@ -577,7 +581,7 @@ def plt_dist_orig_snyth(df_orig: pd.DataFrame, df_synth: pd.DataFrame, key: str,
     return float(dist or 0.0)
 
 
-def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: DataFrameMeta = None,
+def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, df_meta: DataFrameMeta = None,
                           ax: plt.Axes = None, sample_size: int = None) -> Dict[str, float]:
 
     if sample_size is not None:
@@ -586,10 +590,11 @@ def plot_standard_metrics(df_test: pd.DataFrame, df_synth: pd.DataFrame, dp: Dat
         if sample_size < len(df_synth):
             df_synth = df_synth.sample(sample_size)
 
-    if dp is None:
-        dp = MetaExtractor.extract(pd.concat((df_test, df_synth)))
+    if df_meta is None:
+        df_meta = MetaExtractor.extract(pd.concat((df_test, df_synth)))
 
-    standard_metrics = calculate_evaluation_metrics(df_test, df_synth, dp)
+    df_model = ModelFactory()(df_meta)
+    standard_metrics = calculate_evaluation_metrics(df_test, df_synth, df_model=df_model)
 
     current_result = dict()
     for name, val in standard_metrics.items():

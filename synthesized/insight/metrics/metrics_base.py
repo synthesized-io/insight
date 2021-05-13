@@ -1,112 +1,66 @@
 """This module contains metrics with different 'levels' of detail."""
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from itertools import combinations, permutations
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from ...metadata import DataFrameMeta
 from ...metadata.factory import MetaExtractor
 from ...model import DataFrameModel, factory
 
 
-def _register(metric, cls):
-    registry = cls.ALL
-    if metric.name is None:
-        raise ValueError("Metric 'name' not specified.")
-
-    registry[metric.name] = metric
-
-
-class _Metric:
-    ALL: Mapping[str, '_Metric'] = {}
+class _Metric(ABC):
     name: Optional[str] = None
     tags: List[str] = []
 
-    def __init__(self):
-        _register(self, _Metric)
-        super(_Metric, self).__init__()
-
-    def __call__(self, **kwargs) -> Union[int, float, None]:
-        pass
-
 
 class ColumnMetric(_Metric):
-    ALL: Dict[str, 'ColumnMetric'] = {}
 
-    def __init__(self):
-        _register(self, ColumnMetric)
-        DiffColumnMetricAdapter(self)
-        ColumnMetricVector(self)
+    def extract_models(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
+        """Method for extracting models from dataframe if not already extracted"""
+        if df_model is None:
+            df = pd.DataFrame(data={sr.name: sr})
+            df_meta = MetaExtractor.extract(df)
+            df_model = factory.ModelFactory()(df_meta)
 
-        super(ColumnMetric, self).__init__()
-
-    def extract_metas_models(self, sr: pd.Series,
-                             dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: DataFrameModel = None) -> Tuple[DataFrameMeta, DataFrameModel]:
-        """ method for extracting datametas and models from dataframe if not already extracted"""
-        if dp is None:
-            dp = pd.DataFrame(data={sr.name: sr})
-        dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = factory.ModelFactory()(dp) if models is None else models
-
-        return dp, models
+        return df_model
 
     @abstractmethod
-    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> Union[int, float, None]:
         pass
 
 
 class TwoColumnMetric(_Metric):
-    ALL: Dict[str, 'TwoColumnMetric'] = {}
 
-    def __init__(self):
-        _register(self, TwoColumnMetric)
+    def extract_models(self, sr_a: pd.Series, sr_b: pd.Series,
+                       df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
+        """Method for extracting models from dataframe if not already extracted"""
+        if df_model is None:
+            df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
+            df_meta = MetaExtractor.extract(df)
+            df_model = factory.ModelFactory()(df_meta)
 
-        TwoColumnMetricMatrix(self)
-
-        super(TwoColumnMetric, self).__init__()
-
-    def extract_metas_models(self, sr_a: pd.Series, sr_b: pd.Series,
-                             dp: Union[pd.DataFrame, DataFrameMeta, None] = None,
-                             models: DataFrameModel = None) -> Tuple[DataFrameMeta, DataFrameModel]:
-        """ method for extracting datametas and models from dataframe if not already extracted"""
-        if dp is None:
-            dp = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
-        dp = MetaExtractor.extract(df=dp) if isinstance(dp, pd.DataFrame) else dp
-        models = factory.ModelFactory()(dp) if models is None else models
-
-        return dp, models
+        return df_model
 
     @abstractmethod
-    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series,
+                 df_model: Optional[DataFrameModel] = None) -> Union[int, float, None]:
         pass
 
 
 class DataFrameMetric(_Metric):
-    ALL: Dict[str, 'DataFrameMetric'] = {}
-
-    def __init__(self):
-        _register(self, DataFrameMetric)
-
-        super(DataFrameMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame, df_model: Optional[DataFrameModel] = None) -> Union[int, float, None]:
         pass
 
 
 class TwoDataFrameMetric(_Metric):
-    ALL: Dict[str, 'TwoDataFrameMetric'] = {}
-
-    def __init__(self):
-        _register(self, TwoDataFrameMetric)
-
-        super(TwoDataFrameMetric, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
+                 df_model: Optional[DataFrameModel] = None) -> Union[int, float, None]:
         pass
 
 
@@ -119,9 +73,10 @@ class DiffColumnMetricAdapter(TwoColumnMetric):
         self.name = f'diff_{metric.name}'
         super().__init__()
 
-    def __call__(self, sr_a: pd.Series = None, sr_b: pd.Series = None, **kwargs) -> Union[int, float, None]:
-        value_old = self.metric(sr_a, **kwargs)
-        value_new = self.metric(sr_b, **kwargs)
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series,
+                 df_model: Optional[DataFrameModel] = None) -> Union[int, float, None]:
+        value_old = self.metric(sr_a, df_model=df_model)
+        value_new = self.metric(sr_b, df_model=df_model)
         if value_old is None or value_new is None:
             return None
         else:
@@ -130,53 +85,30 @@ class DiffColumnMetricAdapter(TwoColumnMetric):
 
 # Vectors that return a series instead of one value
 # ----------------------------------------------------
-class _Vector:
-    ALL: Mapping[str, '_Vector'] = {}
+class _Vector(ABC):
     name: Union[str, None] = None
     tags: List[str] = []
 
-    def __init__(self):
-        _register(self, _Vector)
-        super(_Vector, self).__init__()
-
-    @abstractmethod
-    def __call__(self, **kwargs) -> pd.Series:
-        pass
-
 
 class ColumnVector(_Vector):
-    ALL: Mapping[str, 'ColumnVector'] = {}
-
-    def __init__(self):
-        _register(self, ColumnVector)
-        super().__init__()
 
     @abstractmethod
-    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         pass
 
 
 class DataFrameVector(_Vector):
-    ALL: Mapping[str, 'DataFrameVector'] = {}
-
-    def __init__(self):
-        _register(self, DataFrameVector)
-        super().__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df: pd.DataFrame, df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         pass
 
 
 class TwoDataFrameVector(_Vector):
-    ALL: Mapping[str, 'TwoDataFrameVector'] = {}
-
-    def __init__(self):
-        _register(self, TwoDataFrameVector)
-        super(TwoDataFrameVector, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
+                 df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         pass
 
 
@@ -186,10 +118,10 @@ class ColumnMetricVector(DataFrameVector):
         self.name = f'{metric.name}_vector'
         super(ColumnMetricVector, self).__init__()
 
-    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df: pd.DataFrame, df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         if df is None:
             return None
-        return df.apply(func=self.metric, axis='index', raw=False, **kwargs)
+        return df.apply(func=self.metric, axis='index', raw=False, df_model=df_model)
 
 
 class ColumnComparisonVector(TwoDataFrameVector):
@@ -198,33 +130,33 @@ class ColumnComparisonVector(TwoDataFrameVector):
         self.name = f'{metric.name}_vector'
         super().__init__()
 
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.Series, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
+                 df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         if df_old is None or df_new is None:
             return None
         return pd.Series(
-            data=[self.metric(df_old[col], df_new[col], **kwargs) for col in df_old.columns], index=df_old.columns,
+            data=[self.metric(df_old[col], df_new[col], df_model=df_model) for col in df_old.columns],
+            index=df_old.columns,
             name=self.metric.name
         )
 
 
 class RollingColumnMetricVector(ColumnVector):
-    def __init__(self, metric: ColumnMetric):
+    def __init__(self, metric: ColumnMetric, window: int = 5):
         self.metric = metric
+        self.window = window
         self.name = f'rolling_{metric.name}_vector'
         super().__init__()
 
-    def __call__(self, sr: pd.Series = None, window: int = 5, **kwargs) -> Union[pd.Series, None]:
-        if sr is None:
-            return None
-
+    def __call__(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
         length = len(sr)
-        pad = (window - 1) // 2
-        offset = (window - 1) % 2
+        pad = (self.window - 1) // 2
+        offset = (self.window - 1) % 2
 
         sr2 = pd.Series(index=sr.index, dtype=float, name=sr.name)
         for n in range(pad, length - pad):
             sr_window = sr.iloc[n:n + 2 * pad + offset]
-            sr2.iloc[n] = self.metric(sr_window, **kwargs)
+            sr2.iloc[n] = self.metric(sr_window, df_model=df_model)
 
         return sr2
 
@@ -235,53 +167,33 @@ class ChainColumnVector(ColumnVector):
         self.name = '|'.join([m.name for m in self.metrics])
         super().__init__()
 
-    def __call__(self, sr: pd.Series = None, **kwargs) -> Union[pd.Series, None]:
-        if sr is None:
-            return None
+    def __call__(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> Union[pd.Series, None]:
 
         for metric in self.metrics:
-            sr = metric(sr, **kwargs)
+            sr = metric(sr, df_model=df_model)
 
         return sr
 
 
 # Metrics that return an array instead of one value
 # ----------------------------------------------------
-class _Matrix:
-    ALL: Mapping[str, '_Matrix'] = {}
+class _Matrix(ABC):
     name: Union[str, None] = None
     tags: List[str] = []
 
-    def __init__(self):
-        _register(self, _Matrix)
-        super(_Matrix, self).__init__()
-
-    @abstractmethod
-    def __call__(self, **kwargs) -> Union[pd.DataFrame, None]:
-        pass
-
 
 class DataFrameMatrix(_Matrix):
-    ALL: Dict[str, 'DataFrameMatrix'] = {}
-
-    def __init__(self):
-        _register(self, DataFrameMatrix)
-        super(DataFrameMatrix, self).__init__()
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
+    def __call__(self, df: pd.DataFrame, df_model: Optional[DataFrameModel] = None) -> Union[pd.DataFrame, None]:
         pass
 
 
 class TwoDataFrameMatrix(_Matrix):
-    ALL: Dict[str, 'DataFrameMatrix'] = {}
-
-    def __init__(self):
-        _register(self, TwoDataFrameMatrix)
-        super(TwoDataFrameMatrix, self).__init__()
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
+                 df_model: Optional[DataFrameModel] = None) -> Union[pd.DataFrame, None]:
         pass
 
 
@@ -291,19 +203,16 @@ class TwoColumnMetricMatrix(DataFrameMatrix):
         self.name = f'{metric.name}_matrix'
         super(TwoColumnMetricMatrix, self).__init__()
 
-    def __call__(self, df: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
-        if df is None:
-            return None
-
+    def __call__(self, df: pd.DataFrame, df_model: Optional[DataFrameModel] = None) -> Union[pd.DataFrame, None]:
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 
         if 'symmetric' in self.tags:
             for col_a, col_b in combinations(columns, 2):
-                matrix[col_a][col_b] = matrix[col_b][col_a] = self.metric(df[col_a], df[col_b], **kwargs)
+                matrix[col_a][col_b] = matrix[col_b][col_a] = self.metric(df[col_a], df[col_b], df_model=df_model)
         else:
             for col_a, col_b in permutations(columns, 2):
-                matrix[col_a][col_b] = self.metric(df[col_a], df[col_b], **kwargs)
+                matrix[col_a][col_b] = self.metric(df[col_a], df[col_b], df_model=df_model)
 
         return matrix.astype(np.float32)
 
@@ -314,12 +223,13 @@ class DiffMetricMatrix(TwoDataFrameMatrix):
         self.name = f'diff_{metric.name}'
         super().__init__()
 
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, **kwargs) -> Union[pd.DataFrame, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame,
+                 df_model: Optional[DataFrameModel] = None) -> Union[pd.DataFrame, None]:
         if df_old is None or df_new is None:
             return None
 
-        matrix_old = self.metric(df=df_old, **kwargs)
-        matrix_new = self.metric(df=df_new, **kwargs)
+        matrix_old = self.metric(df=df_old, df_model=df_model)
+        matrix_new = self.metric(df=df_new, df_model=df_model)
 
         if matrix_old is None or matrix_new is None:
             return None
@@ -329,53 +239,41 @@ class DiffMetricMatrix(TwoDataFrameMatrix):
 
 class ModellingMetric(_Metric):
 
-    def __init__(self):
-        _register(self, ModellingMetric)
-        super(ModellingMetric, self).__init__()
-
     @abstractmethod
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None) -> Union[float, None]:
         pass
 
 
 class ClassificationMetric(ModellingMetric):
-    ALL: Dict[str, 'ClassificationMetric'] = {}
     tags = ["modelling", "classification"]
     plot = False
 
-    def __init__(self):
-        _register(self, ClassificationMetric)
-        super(ClassificationMetric, self).__init__()
+    def __init__(self, multiclass: bool = False):
+        self.multiclass = multiclass
 
-    @abstractmethod
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        pass
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> float:
+        raise NotImplementedError
 
 
 class ClassificationPlotMetric(ModellingMetric):
-    ALL: Dict[str, 'ClassificationPlotMetric'] = {}
     tags = ["modelling", "classification", "plot"]
     plot = True
 
-    def __init__(self):
-        _register(self, ClassificationPlotMetric)
-        super(ClassificationPlotMetric, self).__init__()
+    def __init__(self, multiclass: bool = False):
+        self.multiclass = multiclass
 
-    @abstractmethod
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[Any]:
-        pass
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Any:
+        raise NotImplementedError
 
 
 class RegressionMetric(ModellingMetric):
-    ALL: Dict[str, 'RegressionMetric'] = {}
     tags = ["modelling", "regression"]
 
     def __init__(self):
-        _register(self, RegressionMetric)
-        super(RegressionMetric, self).__init__()
-
-    @abstractmethod
-    def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
+        # Contains nothing atm but matches other two Modelling metrics.
         pass
+
+    def __call__(self, y_true: np.ndarray, y_pred: np.ndarray = None) -> float:
+        raise NotImplementedError

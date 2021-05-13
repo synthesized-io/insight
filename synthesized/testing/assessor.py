@@ -96,13 +96,13 @@ class Assessor:
 
         plt.show()
 
-    def show_first_order_metric_distances(self, metric: TwoColumnMetric, **kwargs):
+    def show_first_order_metric_distances(self, metric: TwoColumnMetric):
         if metric.name is None:
             raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
         metric_vector = ColumnComparisonVector(metric)
 
-        result = metric_vector(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs)
+        result = metric_vector(self.df_orig, self.df_synth, df_model=self.df_models)
 
         if result is None or len(result.dropna()) == 0:
             return 0., 0.
@@ -117,7 +117,7 @@ class Assessor:
 
         return dist_max, dist_avg
 
-    def show_second_order_metric_matrices(self, metric: TwoColumnMetric, **kwargs) -> None:
+    def show_second_order_metric_matrices(self, metric: TwoColumnMetric) -> None:
         """Plot two correlations matrices: one for the original data and one for the synthetic one.
 
         Args:
@@ -131,7 +131,7 @@ class Assessor:
 
         def filtered_metric_matrix(df):
             metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, dp=self.df_meta, **kwargs)
+            matrix = metric_matrix(df, df_model=self.df_models)
 
             for c in matrix.columns:
                 if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
@@ -155,7 +155,7 @@ class Assessor:
 
         plot_second_order_metric_matrices(matrix_orig, matrix_synth, metric.name, symmetric=is_symmetric)
 
-    def show_second_order_metric_distances(self, metric: TwoColumnMetric, **kwargs) -> Tuple[float, float]:
+    def show_second_order_metric_distances(self, metric: TwoColumnMetric) -> Tuple[float, float]:
         """Plot a barplot with correlation diffs between original anf synthetic columns.
 
         Args:
@@ -169,7 +169,7 @@ class Assessor:
         metric_matrix = TwoColumnMetricMatrix(metric)
         diff_metric_matrix = DiffMetricMatrix(metric_matrix)
 
-        distances = np.abs(diff_metric_matrix(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs))
+        distances = np.abs(diff_metric_matrix(self.df_orig, self.df_synth, df_model=self.df_models))
 
         result = []
         for i in range(len(distances.index)):
@@ -196,11 +196,11 @@ class Assessor:
 
         return corr_dist_max, corr_dist_avg
 
-    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector], **kwargs):
+    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector]):
         if isinstance(metric, TwoColumnMetric):
             metric = ColumnComparisonVector(metric)
 
-        x = metric(self.df_orig, self.df_synth, dp=self.df_meta, **kwargs)
+        x = metric(self.df_orig, self.df_synth, df_model=self.df_models)
 
         if x is not None and len(x) > 0:
             x = x.values

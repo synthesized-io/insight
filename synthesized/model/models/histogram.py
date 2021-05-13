@@ -175,20 +175,22 @@ class Histogram(DiscreteModel[Nominal[NType, ValueMeta], NType], Generic[NType])
 
         return hist
 
-    def plot(self, **kwargs) -> plt.Figure:
+    def plot(self, ax=None, **kwargs) -> plt.Figure:
 
-        fig = plt.Figure(figsize=(7, 4))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(7, 4))
+        else:
+            fig = ax.get_figure()
+
         sns.set_theme(**kwargs)
 
         plot_data = pd.DataFrame({
             self.name: self.categories,
             'probability': [self.probability(c) for c in self.categories]
         })
-        sns.barplot(data=plot_data, x=self.name, y='probability', ax=fig.gca())
+        sns.barplot(data=plot_data, x=self.name, y='probability', ax=ax)
 
-        for tick in fig.gca().get_xticklabels():
+        for tick in ax.get_xticklabels():
             tick.set_rotation(90)
-
-        np.datetime64()
 
         return fig

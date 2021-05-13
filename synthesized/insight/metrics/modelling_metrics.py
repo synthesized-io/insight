@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Type, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,27 +23,28 @@ from ...model.factory import ModelFactory
 logger = logging.getLogger(__name__)
 
 MAX_ANALYSIS_SAMPLE_SIZE = 10_000
-REGRESSION_METRICS = RegressionMetric.ALL
-CLASSIFICATION_METRICS = ClassificationMetric.ALL
-CLASSIFICATION_PLOT_METRICS = ClassificationPlotMetric.ALL
 
 
 class PredictiveModellingScore(DataFrameMetric):
     name = "predictive_modelling_score"
     tags = ["modelling"]
 
-    def __call__(self, df: pd.DataFrame = None, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs) -> Union[int, float, None]:
-        if df is None:
-            return None
+    def __init__(
+        self, model: str = None, y_label: str = None, x_labels: List[str] = None, sample_size: Optional[int] = None
+    ):
+        self.model = model or 'Linear'
+        self.y_label = y_label
+        self.x_labels = x_labels
+        self.sample_size = sample_size
 
+    def __call__(self, df: pd.DataFrame, df_model: DataFrameModel = None) -> Union[int, float, None]:
         if len(df.columns) < 2:
             raise ValueError
-        model = model or 'Linear'
-        y_label = y_label or df.columns[-1]
-        x_labels = x_labels if x_labels is not None else [col for col in df.columns if col != y_label]
+        y_label = self.y_label or df.columns[-1]
+        x_labels = self.x_labels if self.x_labels is not None else [col for col in df.columns if col != y_label]
 
-        score, metric, task = predictive_modelling_score(df, y_label, x_labels, model, sample_size=sample_size)
+        score, metric, task = predictive_modelling_score(df, y_label, x_labels, self.model,
+                                                         sample_size=self.sample_size)
         return score
 
 
@@ -51,37 +52,46 @@ class PredictiveModellingComparison(TwoDataFrameMetric):
     name = "predictive_modelling_comparison"
     tags = ["modelling"]
 
-    def __call__(self, df_old: pd.DataFrame = None, df_new: pd.DataFrame = None, model: str = None, y_label: str = None,
-                 x_labels: List[str] = None, sample_size: Optional[int] = None, **kwargs) -> Union[None, float]:
-        if df_old is None or df_new is None:
-            return None
+    def __init__(
+        self, model: str = None, y_label: str = None, x_labels: List[str] = None, sample_size: Optional[int] = None
+    ):
+        self.model = model or 'Linear'
+        self.y_label = y_label
+        self.x_labels = x_labels
+        self.sample_size = sample_size
+
+    def __call__(
+            self, df_old: pd.DataFrame, df_new: pd.DataFrame, df_model: DataFrameModel = None
+    ) -> Union[None, float]:
 
         if len(df_old.columns) < 2:
             raise ValueError
-        model = model or 'Linear'
-        y_label = y_label or df_old.columns[-1]
-        x_labels = x_labels if x_labels is not None else [col for col in df_old.columns if col != y_label]
 
-        score, synth_score, metric, task = predictive_modelling_comparison(df_old, df_new, y_label, x_labels, model, sample_size=sample_size)
+        y_label = self.y_label or df_old.columns[-1]
+        x_labels = self.x_labels if self.x_labels is not None else [col for col in df_old.columns if col != y_label]
+
+        score, synth_score, metric, task = predictive_modelling_comparison(
+            df_old, df_new, y_label, x_labels, self.model, sample_size=self.sample_size
+        )
         return synth_score / score
 
 
 class Accuracy(ClassificationMetric):
     name = "accuracy"
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_true is not None and y_pred is not None
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+        assert y_pred is not None
         return accuracy_score(y_true, y_pred)
 
 
 class Precision(ClassificationMetric):
     name = "precision"
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_true is not None and y_pred is not None
-        if kwargs.get('multiclass', False) is False:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+        assert y_pred is not None
+        if self.multiclass is False:
             return precision_score(y_true, y_pred)
         else:
             return precision_score(y_true, y_pred, average='micro')
@@ -90,10 +100,10 @@ class Precision(ClassificationMetric):
 class Recall(ClassificationMetric):
     name = "recall"
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_true is not None and y_pred is not None
-        if kwargs.get('multiclass', False) is False:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+        assert y_pred is not None
+        if self.multiclass is False:
             return recall_score(y_true, y_pred)
         else:
             return recall_score(y_true, y_pred, average='micro')
@@ -102,10 +112,10 @@ class Recall(ClassificationMetric):
 class F1Score(ClassificationMetric):
     name = "f1_score"
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_true is not None and y_pred is not None
-        if kwargs.get('multiclass', False) is False:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+        assert y_pred is not None
+        if self.multiclass is False:
             return f1_score(y_true, y_pred)
         else:
             return f1_score(y_true, y_pred, average='micro')
@@ -115,9 +125,9 @@ class ROC_AUC(ClassificationMetric):
     name = "roc_auc"
 
     def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float]:
-        assert y_true is not None and y_pred_proba is not None
-        if kwargs.get('multiclass', False) is False:
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+        assert y_pred_proba is not None
+        if self.multiclass is False:
             return roc_auc_score(y_true, y_pred_proba)
         else:
             return roc_auc_score(y_true, y_pred_proba, multi_class='ovo')
@@ -126,14 +136,14 @@ class ROC_AUC(ClassificationMetric):
 class ROC_Curve(ClassificationPlotMetric):
     name = "roc_curve"
 
-    def __init__(self):
+    def __init__(self, multiclass: bool = False):
         self.plot = True
-        super(ROC_Curve, self).__init__()
+        super(ROC_Curve, self).__init__(multiclass=multiclass)
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
-        assert y_true is not None and y_pred_proba is not None
-        if kwargs.get('multiclass', False) is False:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float, None]:
+        assert y_pred_proba is not None
+        if self.multiclass is False:
             return roc_curve(y_true, y_pred_proba)
         else:
             logger.warning("ROC Curve plot not available for multi-class classification.")
@@ -143,14 +153,14 @@ class ROC_Curve(ClassificationPlotMetric):
 class PR_Curve(ClassificationPlotMetric):
     name = "pr_curve"
 
-    def __init__(self):
+    def __init__(self, multiclass: bool = False):
         self.plot = True
-        super(PR_Curve, self).__init__()
+        super(PR_Curve, self).__init__(multiclass=multiclass)
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[float, None]:
-        assert y_true is not None and y_pred_proba is not None
-        if kwargs.get('multiclass', False) is False:
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float, None]:
+        assert y_pred_proba is not None
+        if self.multiclass is False:
             return precision_recall_curve(y_true, y_pred_proba)
         else:
             logger.warning("PR Curve plot not available for multi-class classification.")
@@ -160,13 +170,13 @@ class PR_Curve(ClassificationPlotMetric):
 class ConfusionMatrix(ClassificationPlotMetric):
     name = "confusion_matrix"
 
-    def __init__(self):
+    def __init__(self, multiclass: bool = False):
         self.plot = True
-        super(ConfusionMatrix, self).__init__()
+        super(ConfusionMatrix, self).__init__(multiclass=multiclass)
 
-    def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None, **kwargs) -> Union[int, float, None]:
-        assert y_true is not None and y_pred is not None
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[int, float, None]:
+        assert y_pred is not None
         return confusion_matrix(y_true, y_pred)
 
 
@@ -201,6 +211,17 @@ class R2_Score(RegressionMetric):
     def __call__(self, y_true: np.ndarray = None, y_pred: np.ndarray = None, **kwargs) -> Union[float]:
         assert y_true is not None and y_pred is not None
         return r2_score(y_true, y_pred)
+
+
+REGRESSION_METRICS: Dict[str, Type[RegressionMetric]] = {
+    cast(str, m.name): m for m in [R2_Score, MeanSquaredError, MeanAbsoluteError]
+}
+CLASSIFICATION_METRICS: Dict[str, Type[ClassificationMetric]] = {
+    cast(str, m.name): m for m in [Accuracy, Precision, Recall, F1Score, ROC_AUC]
+}
+CLASSIFICATION_PLOT_METRICS: Dict[str, Type[ClassificationPlotMetric]] = {
+    cast(str, m.name): m for m in [ROC_Curve, PR_Curve, ConfusionMatrix]
+}
 
 
 def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
@@ -272,7 +293,7 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
         sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
 
     if preprocessor is None:
-        preprocessor = ModellingPreprocessor(target=y_label, dp=dp)
+        preprocessor = ModellingPreprocessor(target=y_label, df_model=models)
         if synth_data is not None:
             # fit data together as preprocessor needs to know all categorical variables
             preprocessor.fit(pd.concat((data, synth_data)))
@@ -367,9 +388,13 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
                       clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = 'roc_auc',
                       return_predicted: bool = False) -> Dict[str, Any]:
 
-    all_classification_metrics = dict(CLASSIFICATION_METRICS, **CLASSIFICATION_PLOT_METRICS)
+    all_classification_metrics: Dict[str, Union[Type[ClassificationMetric], Type[ClassificationPlotMetric]]] = dict(
+        CLASSIFICATION_METRICS, **CLASSIFICATION_PLOT_METRICS
+    )
     if isinstance(metrics, str):
-        metrics_dict = {metrics: all_classification_metrics[metrics]}
+        metrics_dict = {
+            metrics: all_classification_metrics[metrics]
+        }
     elif isinstance(metrics, list):
         metrics_dict = {metric_name: all_classification_metrics[metric_name] for metric_name in metrics}
     elif metrics is None:
@@ -427,8 +452,9 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
         # metric() and metric.__call__() are the same, but the second raises lint error
-        results[metric_name] = metric(y_true=y_test, y_pred=y_pred_test,
-                                      y_pred_proba=f_proba_test, multiclass=multiclass)
+        m_inst = metric(multiclass=multiclass)
+        results[metric_name] = m_inst(y_true=y_test, y_pred=y_pred_test,
+                                      y_pred_proba=f_proba_test)
 
     if return_predicted:
         results['predicted_values'] = y_pred_test
@@ -442,7 +468,7 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
                      return_predicted: bool = False) -> Dict[str, float]:
 
     if isinstance(metrics, str):
-        metrics_dict = {metrics: REGRESSION_METRICS[metrics]}
+        metrics_dict: Dict[str, Type[RegressionMetric]] = {metrics: REGRESSION_METRICS[metrics]}
     elif isinstance(metrics, list):
         if len(metrics) == 0:
             raise ValueError("Given empty array of metrics")
@@ -468,7 +494,7 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
 
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
-        results[metric_name] = metric(y_true=y_test, y_pred=f_test)
+        results[metric_name] = metric()(y_true=y_test, y_pred=f_test)
 
     if return_predicted:
         results['predicted_values'] = f_test
