@@ -204,6 +204,8 @@ class AddressModel(DiscreteModel[Address, str]):
                 return AddressRecord()
 
             postcode_sr = conditions[self.postcode_model.name].fillna('nan').apply(
+                lambda x: x.item() if isinstance(x, np.str_) else x
+            ).apply(
                 get_postcode_key,
                 postcode_regex=self.postcode_model.postcode_regex, postcode_level=self.postcode_level,
                 postcodes=self.postcode_model.categories)
