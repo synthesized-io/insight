@@ -3,6 +3,8 @@ from typing import Sequence
 
 import pandas as pd
 
+from ...metadata import DataFrameMeta
+
 
 class Unifier(ABC):
     """
@@ -13,12 +15,13 @@ class Unifier(ABC):
         ...
 
     @abstractmethod
-    def update(self, df: pd.DataFrame) -> None:
+    def update(self, df_meta: DataFrameMeta, df: pd.DataFrame) -> None:
         """
         Update adds a new dataframe to the Unifier object, this dataframe can then be used for Synthesis later on.
 
         Args:
-            df: Dataframe that is incorporated into the Unifier for later querying
+            df_meta: DataFrameMeta that describes the dataframe object.
+            df: Dataframe that is incorporated into the Unifier for later querying.
         """
         ...
 
