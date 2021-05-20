@@ -1,11 +1,11 @@
+from typing import Sequence, Tuple
+
 import pandas as pd
 import pytest
 
-from typing import Sequence, Tuple
-
+from synthesized.insight.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation,
+                                         KolmogorovSmirnovDistance)
 from synthesized.testing.unifier_assessor import UnifierAssessor
-from synthesized.insight.metrics import KendellTauCorrelation, CramersV, \
-    KolmogorovSmirnovDistance, EarthMoversDistance, CategoricalLogisticR2
 
 
 @pytest.fixture(scope='module')
@@ -21,7 +21,7 @@ def tuple_of_df_sequence_and_df() -> Tuple[pd.DataFrame, Sequence[pd.DataFrame]]
 
     dfs = [df1, df2, df3, df4]
     unified_df = df[['SeriousDlqin2yrs', 'RevolvingUtilizationOfUnsecuredLines', 'age', 'MonthlyIncome',
-                     'DebtRatio', 'NumberOfDependents', 'NumberOfOpenCreditLinesAndLoans']].sample(7000)
+                     'NumberOfDependents']].sample(7000)
     return dfs, unified_df
 
 
