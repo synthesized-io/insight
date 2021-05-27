@@ -17,7 +17,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
 
@@ -27,12 +27,41 @@ jobs:
 
       - run:
           name: Install dependencies
-          command: make venv
+          command: | 
+            make venv
+            source venv/bin/activate
+            pip install -r docs/requirements.txt
+
 
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+          
+  build-docs:
+    docker:
+      - image: circleci/python:3.6.11
+
+    working_directory: ~/repo
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            
+      - run:
+          name: Build docs
+          working_directory: docs/core/
+          command: | 
+            source ../../venv/bin/activate
+            make html
+            
+      - store_artifacts:
+          path: docs/core/_build/html
+          destination: html-docs
+    
 
   test:
     docker:
@@ -46,7 +75,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Run Tests
@@ -84,7 +113,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Linter
@@ -101,7 +130,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
       - jq/install:
           when: always
       - run:
@@ -310,7 +339,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Package
@@ -342,6 +371,9 @@ workflows:
     jobs:
       - build
       - lint:
+          requires:
+            - build
+      - build-docs:
           requires:
             - build
       - test:
