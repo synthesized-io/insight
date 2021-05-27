@@ -49,26 +49,14 @@ class HighDimSynthesizer(Synthesizer):
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
+        self.config = config
+        self.type_overrides = type_overrides
         self.batch_size = config.batch_size
         self.increase_batch_size_every = config.increase_batch_size_every
         self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
         self.synthesis_batch_size = config.synthesis_batch_size
-
-        self.df_meta: DataFrameMeta = df_meta
-        model_factory = ModelFactory(config=config.model_builder_config)
-        self.df_model = model_factory(df_meta, type_overrides=type_overrides)
-        self.df_model_independent = self.split_df_model(self.df_model)
-
-        self.df_value: DataFrameValue = ValueExtractor.extract(
-            df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
-        )
-
-        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
-
-        # VAE
-        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=config.engine_config)
-
         # Input argument placeholder for num_rows
+        self._init_engine(df_meta, type_overrides)
         self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
@@ -79,6 +67,22 @@ class HighDimSynthesizer(Synthesizer):
                 max_training_time=config.max_training_time, use_engine_loss=use_engine_loss,
                 custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
+
+    def _init_engine(
+            self, df_meta: DataFrameMeta,
+            type_overrides: Optional[List[Union[ContinuousModel, DiscreteModel]]] = None
+    ):
+        model_factory = ModelFactory(config=self.config.model_builder_config)
+        self.df_meta = df_meta
+        self.df_model = model_factory(df_meta, type_overrides=type_overrides)
+        self.df_model_independent = self.split_df_model(self.df_model)
+
+        self.df_value: DataFrameValue = ValueExtractor.extract(
+            df_meta=self.df_model, name='data_frame_value', config=self.config.value_factory_config
+        )
+
+        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
+        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=self.config.engine_config)
 
     def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
