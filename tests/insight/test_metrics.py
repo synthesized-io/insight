@@ -50,8 +50,8 @@ def test_standard_deviation():
 
 def test_spearmans_rho():
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
-    sr_b = pd.Series(np.random.normal(0, 1, 5), name='b')
-    sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
+    sr_b = pd.Series([1, 2, 3, 4, 5], name='b')
+    sr_c = pd.Series([3, 5, 1, 3, 2], name='c')
     sr_d = pd.Series(['a', 'b', 'c', 'd'], name='d')
 
     spearman_rho = SpearmanRhoCorrelation(max_p_value=0.05)
