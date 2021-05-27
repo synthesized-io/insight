@@ -8,7 +8,7 @@ PYTHON = $(VENV_NAME)/bin/python3
 all: lint unit-test
 
 build: $(SRC)
-	$(PYTHON) setup.py bdist_wheel
+	$(PYTHON) setup.py bdist_wheel --py-limited-api=cp36
 	./clean_dist.sh
 	touch build
 

@@ -1,17 +1,49 @@
-from codecs import open
-from os import path, listdir
 import pathlib
 import re
+import subprocess
+from codecs import open
+from os import listdir, path
+from typing import List, Union
 
-from setuptools import setup, find_packages
-from setuptools.extension import Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
+from setuptools import find_packages, setup
+from setuptools.extension import Extension
 
-__version__ = ''
-exec(open('synthesized/version.py').read())
 
-here = path.abspath(path.dirname(__file__))
+def subprocess_command(cmd: List[str]):
+    out: Union[str, bytes] = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+    if not isinstance(out, str):
+        out = out.decode('utf-8')
+    ver = out.strip()
+    return ver
+
+
+def get_version_from_git_describe():
+    """Determine a version according to git.
+
+    This calls `git describe`, if git is available.
+
+    Returns:
+        version from `git describe --tags --always --dirty` if git is
+        available; otherwise, None
+    """
+    ver = subprocess_command(["git", "describe", "--first-parent"])
+    match = re.match(r'v(\d)\.(\d)(-rc\d)?(-\d+)?(-g[0-9a-f]+)?', ver)
+    if match is None:
+        return None
+
+    major, minor, pre, n, git = match.groups()
+    if n is None:
+        version = f'{major}.{minor}{pre or ""}'
+    elif pre is None:
+        version = f'{major}.{int(minor)+1}-dev{n[1:]}'
+    else:
+        ver2 = subprocess_command(['git', 'describe', "--first-parent", "--match", f"v{major}.{int(minor)-1}"])
+        match = re.match(r'v(\d)\.(\d)(-\d+)(-g[0-9a-f]+)', ver2)
+        major, minor, n, git = match.groups()
+        version = f'{major}.{int(minor)+1}-dev{n[1:]}'
+    return version
 
 
 def get_git_revision(base_path):
@@ -24,8 +56,10 @@ def get_git_revision(base_path):
         return git_hash.readline().strip()[:7]
 
 
-git_revision = get_git_revision(here)
+here = path.abspath(path.dirname(__file__))
+__version__ = get_version_from_git_describe()
 
+git_revision = get_git_revision(here)
 if git_revision:
     __version__ += '+' + git_revision
 
@@ -52,7 +86,7 @@ def source_files(base_dir):
 
 
 ext_modules = [
-    Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
+    Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f], py_limited_api=True) for f in source_files('synthesized')
     if re.match(r"synthesized(/|\\{2})config\.py", f) is None  # windows uses '\\' instead of '/'
 ]
 
@@ -67,6 +101,7 @@ setup(
     license='Proprietary',
     packages=packages,
     install_requires=install_requires,
+    python_requires='>=3.6,<3.9',
     ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
     cmdclass={'build_ext': build_ext}
 )
