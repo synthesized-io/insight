@@ -27,7 +27,7 @@ jobs:
 
       - run:
           name: Install dependencies
-          command: | 
+          command: |
             make venv
             source venv/bin/activate
             pip install -r docs/requirements.txt
@@ -37,7 +37,7 @@ jobs:
           paths:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
-          
+
   build-docs:
     docker:
       - image: circleci/python:3.6.11
@@ -50,18 +50,18 @@ jobs:
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
-            
+
       - run:
           name: Build docs
           working_directory: docs/core/
-          command: | 
+          command: |
             source ../../venv/bin/activate
             make html
-            
+
       - store_artifacts:
           path: docs/core/_build/html
           destination: html-docs
-    
+
 
   test:
     docker:
@@ -352,7 +352,7 @@ jobs:
       - run:
           name: Generate requirements.txt
           command: |
-            make venv && pip list --format freeze > generated_requirements.txt
+            make venv && venv/bin/python3 -m pip list --format freeze > generated_requirements.txt
 
       - store_artifacts:
           path: generated_requirements.txt
@@ -367,6 +367,30 @@ jobs:
 
 workflows:
   version: 2
+  release-version:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /^v\d\.\d.*/
+            branches:
+              ignore: /.*/
+      - build-docs:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v\d\.\d.*/
+            branches:
+              ignore: /.*/
+      - publish:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v\d\.\d.*/
+            branches:
+              ignore: /.*/
   build-test-publish:
     jobs:
       - build
@@ -384,13 +408,10 @@ workflows:
             - lint
             - test
       - publish:
-          filters:  # using regex filters requires the entire branch to match
-            tags:
-              only:
-                - /v\d\.\d.*/
+          requires:
+            - post-results
+          filters:
             branches:
               only:  # only branches matching the below regex filters will run
                 - master
                 - /r\d\.\d.*/
-          requires:
-            - post-results

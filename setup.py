@@ -52,8 +52,11 @@ def get_git_revision(base_path):
         return ''
     with (git_dir / 'HEAD').open('r') as head:
         ref = head.readline().split(' ')[-1].strip()
-    with (git_dir / ref).open('r') as git_hash:
-        return git_hash.readline().strip()[:7]
+    try:
+        with (git_dir / ref).open('r') as git_hash:
+            return git_hash.readline().strip()[:7]
+    except FileNotFoundError:
+        return ref[:7]
 
 
 here = path.abspath(path.dirname(__file__))
