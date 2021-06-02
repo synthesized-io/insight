@@ -6,8 +6,11 @@ orbs:
   sonarcloud: sonarsource/sonarcloud@1.0.1
 jobs:
   build:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
 
@@ -17,9 +20,8 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
 
       - run:
           name: Install virtualenv
@@ -36,11 +38,14 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+          key: v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
   build-docs:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
     steps:
@@ -49,7 +54,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Build docs
@@ -64,8 +69,11 @@ jobs:
 
 
   test:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
     parallelism: 8
@@ -75,7 +83,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Run Tests
@@ -103,8 +111,11 @@ jobs:
           path: coverage-reports
 
   lint:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
     steps:
@@ -113,15 +124,18 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Linter
           command: make lint
 
   post-results:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
     steps:
@@ -130,12 +144,12 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
       - jq/install:
           when: always
       - run:
           command: |
-            prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items|.[]|select(.name=="test").job_number')
+            prev_job_num=$(curl https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}/job -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.items|.[]|select(.name=="test-v<< parameters.python-version >>").job_number')
             echo "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests"
             curl "https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${prev_job_num}/tests" -H "Circle-Token: ${CIRCLE_TOKEN}" | jq '.tests[]|.result' > ./test-results.txt
 
@@ -328,8 +342,11 @@ jobs:
           when: always
 
   publish:
+    parameters:
+      python-version:
+          type: string
     docker:
-      - image: circleci/python:3.6.11
+      - image: circleci/python:<< parameters.python-version >>
 
     working_directory: ~/repo
 
@@ -339,7 +356,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+            - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
           name: Package
@@ -370,22 +387,31 @@ workflows:
   release-version:
     jobs:
       - build:
+          name: build-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           filters:
             tags:
               only: /^v\d\.\d.*/
             branches:
               ignore: /.*/
       - build-docs:
+          python-version: 3.6.11
           requires:
-            - build
+            - build-v3.6.11
           filters:
             tags:
               only: /^v\d\.\d.*/
             branches:
               ignore: /.*/
       - publish:
+          name: publish-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           requires:
-            - build
+            - build-v<< matrix.python-version >>
           filters:
             tags:
               only: /^v\d\.\d.*/
@@ -393,23 +419,43 @@ workflows:
               ignore: /.*/
   build-test-publish:
     jobs:
-      - build
+      - build:
+          name: build-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
       - lint:
+          name: lint-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           requires:
-            - build
+            - build-v<< matrix.python-version >>
       - build-docs:
+          python-version: 3.6.11
           requires:
-            - build
+            - build-v3.6.11
       - test:
+          name: test-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           requires:
-            - build
+            - build-v<< matrix.python-version >>
       - post-results:
+          name: post-results-v<< matrix.python-version >>
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           requires:
-            - lint
-            - test
+            - lint-v<< matrix.python-version >>
+            - test-v<< matrix.python-version >>
       - publish:
+          matrix:
+            parameters:
+              python-version: ["3.6.11", "3.7.10", "3.8.10"]
           requires:
-            - post-results
+            - post-results-v<< matrix.python-version >>
           filters:
             branches:
               only:  # only branches matching the below regex filters will run

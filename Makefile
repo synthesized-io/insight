@@ -8,7 +8,7 @@ PYTHON = $(VENV_NAME)/bin/python3
 all: lint unit-test
 
 build: $(SRC)
-	$(PYTHON) setup.py bdist_wheel --py-limited-api=cp36
+	$(PYTHON) setup.py bdist_wheel
 	./clean_dist.sh
 	touch build
 
@@ -29,6 +29,7 @@ venv: $(VENV_ACTIVATE)
 
 $(VENV_ACTIVATE): requirements.txt requirements-dev.txt
 	test -d $(VENV_NAME) || virtualenv --python=python3 $(VENV_NAME)
-	$(PYTHON) -m pip install -U pip==20.3.1
-	$(PYTHON) -m pip install -r requirements-dev.txt
+	$(PYTHON) -m pip install --progress-bar off -U pip==20.3.1
+	$(PYTHON) -m pip install --progress-bar off -r requirements-dev.txt
+	$(PYTHON) -m pip install --progress-bar off -r requirements.txt
 	touch $(VENV_ACTIVATE)

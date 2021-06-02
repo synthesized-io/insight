@@ -3,5 +3,4 @@ pytest-cov
 Cython
 mypy
 flake8
-
--r requirements.txt
+numpy==1.18.4
