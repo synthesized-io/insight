@@ -70,9 +70,24 @@ if git_revision:
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-# get the dependencies and installs
-with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
-    install_requires = f.read().split('\n')
+# define the package dependencies
+install_requires = [
+    "dataclasses ~= 0.6;python_version<='3.6'",
+    "numpy >= 1.18.4, < 1.20.0;python_version<='3.6'",
+    "numpy ~= 1.18.4;python_version>'3.6'",
+    "tensorflow ~= 2.2.1",
+    "tensorflow_probability ~= 0.10.1",
+    "scipy ~= 1.5.4",
+    "scikit_learn ~= 0.23.2",
+    "pandas ~= 1.1.5",
+    "matplotlib ~= 3.3.3",
+    "seaborn ~= 0.11.0",
+    "pyemd ~= 0.5.1",
+    "faker ~= 5.0.1",
+    "simplejson ~= 3.17.2",
+    "pyyaml ~= 5.3.1",
+    "rstr ~= 2.2.6"
+]
 
 packages = find_packages(exclude=['tests*', 'web*'])
 

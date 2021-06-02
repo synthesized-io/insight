@@ -3,4 +3,7 @@ pytest-cov
 Cython
 mypy
 flake8
+hypothesis[pandas]
 numpy==1.18.4
+typing_extensions
+ipywidgets

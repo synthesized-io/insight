@@ -260,7 +260,7 @@ jobs:
               --arg time_str "$(date +%s)" \
               --arg lastUpdated "${iso_time}" \
               --arg pipelineNumber "${CIRCLE_PIPELINE_NUMBER}" \
-              --arg projectName "${CIRCLE_PROJECT_REPONAME}" \
+              --arg projectName "${CIRCLE_PROJECT_REPONAME} (py<< parameters.python-version >>)" \
               --arg state "${JIRA_BUILD_STATUS}" \
               --arg jobName "${CIRCLE_JOB}" \
               --arg buildNumber "${CIRCLE_BUILD_NUM}" \
@@ -272,7 +272,7 @@ jobs:
               --arg branchName "${CIRCLE_BRANCH}" \
               --arg workflowId "${CIRCLE_WORKFLOW_ID}" \
               --arg repoName "${CIRCLE_PROJECT_REPONAME}" \
-              --arg display "${CIRCLE_PROJECT_REPONAME}"  \
+              --arg display "${CIRCLE_PROJECT_REPONAME} (py<< parameters.python-version >>)"  \
               --arg description "${CIRCLE_PROJECT_REPONAME} #${CIRCLE_BUILD_NUM} ${CIRCLE_JOB}" \
               --arg totalTests "${TESTS_TOTAL}"  \
               --arg passedTests "${TESTS_SUCCESS}"  \

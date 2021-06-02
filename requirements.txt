@@ -9,10 +9,6 @@ seaborn==0.11.0
 pyemd==0.5.1
 faker==5.0.1
 simplejson==3.17.2
-treelib==1.6.1
-hypothesis[pandas]==5.43.3
-dataclasses==0.6
-typing_extensions==3.7.4.3
-ipywidgets==7.5.1
 pyyaml==5.3.1
 rstr==2.2.6
+dataclasses==0.6;python_version=='3.6'
