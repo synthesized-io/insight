@@ -89,6 +89,7 @@ class _MetaBuilder:
                 if self._contains_genuine_floats(x_numeric):
                     return self.float_builder(x_numeric)
                 else:
+                    x_numeric = x_numeric.astype(pd.Int64Dtype())
                     return self.int_builder(x_numeric)
 
             else:

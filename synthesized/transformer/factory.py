@@ -90,7 +90,7 @@ class TransformerFactory:
         return transformers
 
     def _from_discrete(self, model: DiscreteModel) -> List[Transformer]:
-        transformers: List[Transformer] = []
+        transformers: List[Transformer] = [DTypeTransformer.from_meta(model.meta)]
 
         if model.nan_freq:
             transformers.append(NanTransformer.from_meta(model.meta))

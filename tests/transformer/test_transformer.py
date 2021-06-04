@@ -1,6 +1,7 @@
 import random
 import string
 import types
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,7 @@ from synthesized.transformer import (BagOfTransformers, BinningTransformer, Cate
                                      RoundingTransformer, SequentialTransformer, SwappingTransformer, Transformer,
                                      TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
+from synthesized.insight.metrics import EarthMoversDistance
 
 
 class MockTranformer(Transformer):
@@ -38,7 +40,9 @@ def df_credit_with_dates():
 @pytest.fixture
 def transformers_credit_with_dates():
     return [
-        CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1]),
+        SequentialTransformer(name="SeriousDlqin2yrs", dtypes=None,
+                              transformers=[DTypeTransformer(name='SeriousDlqin2yrs', out_dtype='i8'),
+                                            CategoricalTransformer(name="SeriousDlqin2yrs", categories=[0, 1])]),
         SequentialTransformer(name="RevolvingUtilizationOfUnsecuredLines", dtypes=None, transformers=[
             DTypeTransformer(name="RevolvingUtilizationOfUnsecuredLines", out_dtype='f8'),
             QuantileTransformer(name="RevolvingUtilizationOfUnsecuredLines"),
@@ -47,8 +51,12 @@ def transformers_credit_with_dates():
             DTypeTransformer(name="age", out_dtype='i8'),
             QuantileTransformer(name="age"),
         ]),
-        CategoricalTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 96, 98]),
-        CategoricalTransformer(name="effort", categories=['(0.00649, 0.04]', '(0.00134, 0.00214]', '(-0.001, 0.000309]', '(0.00214, 0.00287]', '(0.04, 12.67]', '(12.67, 3296.64]', '(0.00367, 0.00468]', '(0.00468, 0.00649]', '(0.000309, 0.00134]', '(0.00287, 0.00367]']),
+        SequentialTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", dtypes=None,
+                              transformers=[DTypeTransformer(name='NumberOfTime30-59DaysPastDueNotWorse', out_dtype='i8'),
+                                            CategoricalTransformer(name="NumberOfTime30-59DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 96, 98])]),
+        SequentialTransformer(name="effort", dtypes=None,
+                              transformers=[DTypeTransformer(name='effort', out_dtype='U'),
+                                            CategoricalTransformer(name="effort", categories=['(0.00649, 0.04]', '(0.00134, 0.00214]', '(-0.001, 0.000309]', '(0.00214, 0.00287]', '(0.04, 12.67]', '(12.67, 3296.64]', '(0.00367, 0.00468]', '(0.00468, 0.00649]', '(0.000309, 0.00134]', '(0.00287, 0.00367]'])]),
         SequentialTransformer(name="MonthlyIncome", dtypes=None, transformers=[
             DTypeTransformer(name="MonthlyIncome", out_dtype='i8'),
             NanTransformer(name="MonthlyIncome"),
@@ -58,9 +66,15 @@ def transformers_credit_with_dates():
             DTypeTransformer(name="NumberOfOpenCreditLinesAndLoans", out_dtype='f8'),
             QuantileTransformer(name="NumberOfOpenCreditLinesAndLoans"),
         ]),
-        CategoricalTransformer(name="NumberOfTimes90DaysLate", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 96, 98]),
-        CategoricalTransformer(name="NumberRealEstateLoansOrLines", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17]),
-        CategoricalTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 96, 98]),
+        SequentialTransformer(name="NumberOfTimes90DaysLate", dtypes=None,
+                              transformers=[DTypeTransformer(name='NumberOfTimes90DaysLate', out_dtype='i8'),
+                                            CategoricalTransformer(name="NumberOfTimes90DaysLate", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 96, 98])]),
+        SequentialTransformer(name="NumberRealEstateLoansOrLines", dtypes=None,
+                              transformers=[DTypeTransformer(name='NumberRealEstateLoansOrLines', out_dtype='i8'),
+                                            CategoricalTransformer(name="NumberRealEstateLoansOrLines", categories=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17])]),
+        SequentialTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", dtypes=None,
+                              transformers=[DTypeTransformer(name='NumberOfTime60-89DaysPastDueNotWorse', out_dtype='i8'),
+                                            CategoricalTransformer(name="NumberOfTime60-89DaysPastDueNotWorse", categories=[0, 1, 2, 3, 4, 5, 6, 96, 98])]),
         SequentialTransformer(name="NumberOfDependents", dtypes=None, transformers=[
             DTypeTransformer(name="NumberOfDependents", out_dtype='i8'),
             NanTransformer(name="NumberOfDependents"),
@@ -271,3 +285,177 @@ def test_masking_transformer_factory():
                                                       + s[int(np.ceil(len(s) * 0.25)):])
     assert((masked_df['effort'] == masked_effort_col).all() == True)
     assert(masked_df['age'].nunique() == 3)
+
+def dtype_transformer_test(df: pd.DataFrame,
+                     df_synth: pd.DataFrame,
+                     col_name: str,
+                     in_type: str,
+                     out_type: str):
+    df[col_name] = df[col_name].astype(in_type)
+    df_synth[col_name] = df_synth[col_name].astype(out_type)
+
+    transformer = DTypeTransformer(name=col_name)
+    transformer.fit(df)
+    df_t = transformer.transform(df.copy())
+
+    assert(df[col_name].dtype == in_type)
+    assert(df_t[col_name].dtype == out_type)
+
+    df_dup = df.copy()
+    df_dup[col_name] = df_dup[col_name].astype(out_type)
+    df_dup_it = transformer.inverse_transform(df_dup.copy())
+
+    assert(df_dup[col_name].dtype == out_type)
+    assert(df_dup_it[col_name].dtype == in_type)
+
+    emd = EarthMoversDistance()
+    emd_dist = emd(df[col_name], df_dup_it[col_name])
+    assert(emd_dist == 0.0)
+
+    df_synth_it = transformer.inverse_transform(df_synth.copy())
+    assert(df_synth[col_name].dtype == out_type)
+    assert(df_synth_it[col_name].dtype == in_type)
+
+    emd_dist = emd(df[col_name], df_synth_it[col_name])
+    assert(cast(float, emd_dist) < 0.75)
+
+
+def test_int_categorical_dtype_transfomer():
+    col_name = 'nums_col'
+    df = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8]})
+    in_type = 'int64'
+    out_type = 'int64'
+    df_synth = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8, 12, 2]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_int_obj_categorical_dtype_transfomer():
+    col_name = 'nums_col'
+    df = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8]})
+    in_type = 'O'
+    out_type = 'int64'
+    df_synth = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8, 12, 2]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_int_obj_categorical_nan_dtype_transfomer():
+    col_name = 'nums_col'
+    df = pd.DataFrame({col_name: [8, np.nan, 8, 2, -90, 2, np.nan, np.nan, -90, 8, 8]})
+    in_type = 'O'
+    out_type = 'float64'
+    df_synth = pd.DataFrame({col_name: [8, np.nan, 8, 2, -90, 2, np.nan, np.nan, -90, 8, 8, 42, np.nan]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_float_categorical_dtype_transfomer():
+    col_name = 'floats_col'
+    df = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4]})
+    in_type = 'float64'
+    out_type = 'float64'
+    df_synth = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4, 12, 2.8]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_float_categorical_nan_dtype_transfomer():
+    col_name = 'floats_col'
+    df = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4]})
+    in_type = 'float64'
+    out_type = 'float64'
+    df_synth = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4, 12, 2.8]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_float_obj_categorical_dtype_transfomer():
+    col_name = 'floats_col'
+    df = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4]})
+    in_type = 'O'
+    out_type = 'float64'
+    df_synth = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4, 12, 2.8]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_float_obj_categorical_nan_dtype_transfomer():
+    col_name = 'floats_col'
+    df = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4]})
+    in_type = 'O'
+    out_type = 'float64'
+    df_synth = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4, 12, 2.8]})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_date_categorical_dtype_transfomer():
+    col_name = 'dates'
+    df = pd.DataFrame({col_name: ['12/3/2021 9:23', '30/1/2020 12:20', '12/3/2021 9:23']})
+    in_type = 'datetime64[ns]'
+    out_type = 'datetime64[ns]'
+    df_synth = pd.DataFrame({col_name: ['12/3/2021 9:23', '30/1/2020 12:20', '3/11/2019 11:50', '12/3/2021 9:23']})
+
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_date_categorical_nan_dtype_transfomer():
+    col_name = 'dates'
+    df = pd.DataFrame({col_name: ['12-3-2021 9:23', np.nan, '30-1-2020 12:20', '12-3-2021 9:23', np.nan]})
+    in_type = 'datetime64[ns]'
+    out_type = 'datetime64[ns]'
+    df_synth = pd.DataFrame({col_name: ['12-3-2021 9:23', np.nan, '30-1-2020 12:20', '12-3-2021 9:23', np.nan, '9-8-2012 00:00']})
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_date_obj_categorical_dtype_transfomer():
+    col_name = 'dates'
+    df = pd.DataFrame({col_name: ['2016-04-29T18:38:08Z', '2016-04-29T16:08:27Z', '2016-04-29T00:00:00Z', '2016-04-29T00:00:00Z']})
+    in_type = 'O'
+    out_type = 'datetime64[ns]'
+    df_synth = pd.DataFrame({col_name: ['2016-04-29T18:38:08Z', '2016-04-29T16:08:27Z', '2016-04-29T00:00:00Z', '2016-04-29T00:00:00Z', '2016-04-29T16:08:27Z']})
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
+
+def test_date_obj_categorical_nan_dtype_transfomer():
+    col_name = 'dates'
+    df = pd.DataFrame({col_name: ['2016-05-18', '2016-06-06', '2016-06-06', '2016-05-02', np.nan]})
+    in_type = 'O'
+    out_type = 'datetime64[ns]'
+    df_synth = pd.DataFrame({col_name: ['2016-05-18', np.nan, '2016-06-06', '2016-06-06', '2016-05-02', '2016-05-18', np.nan]})
+    dtype_transformer_test(
+    	df=df, df_synth=df_synth, col_name=col_name, 
+    	in_type=in_type, out_type=out_type
+    )
+
