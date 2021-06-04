@@ -19,7 +19,7 @@ from ..config import EngineConfig, HighDimConfig
 from ..metadata import DataFrameMeta
 from ..model import ContinuousModel, DataFrameModel, DiscreteModel, Model
 from ..model.factory import ModelFactory
-from ..model.models import AddressModel, BankModel, FormattedStringModel, GenderModel, PersonModel, EnumerationModel
+from ..model.models import AddressModel, BankModel, EnumerationModel, FormattedStringModel, GenderModel, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
 
@@ -316,7 +316,7 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
 
-        if self.df_value.learned_input_size() > 0:
+        if self.df_value.learned_output_size() > 0:
             if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
                 synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
                 assert synthesized is not None

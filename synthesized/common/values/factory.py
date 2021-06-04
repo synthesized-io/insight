@@ -63,7 +63,7 @@ class ValueFactory:
             )
         elif isinstance(vm, DiscreteModel):
             assert vm.categories is not None
-            if len(vm.categories) > 1:
+            if len(vm.categories) > 0:
                 return CategoricalValue(
                     vm.name, num_categories=len(vm.categories),
                     config=self.config.categorical_config,

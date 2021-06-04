@@ -217,8 +217,10 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        self._assert_fitted()
+        if len(self) == 0:
+            return df
 
+        self._assert_fitted()
         max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:
@@ -234,8 +236,10 @@ class BagOfTransformers(Transformer, Collection[Transformer]):
         return df
 
     def inverse_transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        self._assert_fitted()
+        if len(self) == 0:
+            return df
 
+        self._assert_fitted()
         max_workers = kwargs.pop("max_workers", None)
         if max_workers is None or max_workers > 1:
             try:

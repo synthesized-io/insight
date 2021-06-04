@@ -97,8 +97,6 @@ class TransformerFactory:
 
         if model.categories is not None and len(model.categories) == 0:
             transformers.append(DropConstantColumnTransformer(f'{model.name}', constant_value=np.nan))
-        elif model.categories is not None and len(model.categories) == 1:
-            transformers.append(DropConstantColumnTransformer.from_meta(model.meta))
         else:
             transformers.append(CategoricalTransformer.from_model(model))
 
