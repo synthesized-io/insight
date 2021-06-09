@@ -6,4 +6,7 @@ flake8
 hypothesis[pandas]
 numpy==1.18.4
 typing_extensions
+types-simplejson
+types-dataclasses; python_version < '3.7'
+types-PyYAML
 ipywidgets
