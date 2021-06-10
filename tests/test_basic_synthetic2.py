@@ -20,6 +20,20 @@ def test_synthesize_constant_column():
     _ = synthesizer.synthesize(num_rows=30, produce_nans=True)
 
 
+def test_synthesize_pd_categorical_column():
+    test = {}
+    for i in range(0, 100):
+        test[i] = {
+            "cat": str("test_" + str(i % 5))
+        }
+    testdf = pd.DataFrame.from_dict(test, orient="index")
+    testdf["cat"] = testdf["cat"].astype("category")
+    dfmeta = MetaExtractor.extract(df=testdf)
+    synthesizer = HighDimSynthesizer(df_meta=dfmeta)
+    synthesizer.learn(testdf, num_iterations=30)
+    _ = synthesizer.synthesize(num_rows=30, produce_nans=True)
+
+
 def test_synthesize_no_tf_values():
     test = {}
     for i in range(0, 100):

@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Dict, Sequence
 
 import numpy as np
@@ -23,7 +22,7 @@ class CategoricalTransformer(Transformer):
         super().__init__(name=name)
         self.categories = categories
         self.idx_to_category = {0: np.nan}
-        self.category_to_idx: Dict[str, int] = defaultdict(int)
+        self.category_to_idx: Dict[str, int] = NanDict()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name="{self.name}", categories={self.categories})'
@@ -44,8 +43,6 @@ class CategoricalTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        # convert NaN to str. Otherwise np.nan are used as dict keys, which can be dodgy
-        df.loc[:, self.name] = df.loc[:, self.name].fillna('nan')
         df.loc[:, self.name] = df.loc[:, self.name].apply(lambda x: self.category_to_idx[x])
         return df
 
@@ -60,3 +57,10 @@ class CategoricalTransformer(Transformer):
     @classmethod
     def from_model(cls, model: DiscreteModel) -> 'CategoricalTransformer':
         return cls(model.name, model.categories)
+
+
+class NanDict(dict):
+    """A dictionary that returns 0 when the key doesn't exist"""
+
+    def __missing__(self, key) -> int:
+        return 0
