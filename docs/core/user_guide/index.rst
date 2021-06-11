@@ -25,10 +25,9 @@ Further details can be found in the :ref:`api_reference`.
     :maxdepth: 2
     :caption: User Guides
 
+    multitable
     annotations
     rules
     conditions
     evaluation
-    configuration/index
-
 

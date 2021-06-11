@@ -1,0 +1,39 @@
+/** css/custom.css **/
+@import 'theme.css';
+
+@font-face {
+  font-family: 'Canela';
+  src:  url('Canela-Light.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Gilroy';
+  src:  url('Gilroy-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Source Code Pro';
+  src: url('SourceCodePro-Regular.ttf') format('truetype');
+}
+
+h1, h2, h3 {
+	font-family: Canela;
+    font-weight: 300
+}
+
+body {
+	font-family: Gilroy;
+}
+
+.sig-param, .sig-paren {
+	font-style: normal;
+	font-family: "Source Code Pro";
+}
+
+dl.py > dt {
+	font-family: "Source Code Pro"
+}
+
+pre, .pre {
+	font-family: "Source Code Pro"
+}

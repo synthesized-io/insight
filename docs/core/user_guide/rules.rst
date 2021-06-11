@@ -15,10 +15,33 @@ business logic, or a custom scenario.
 Associations
 ------------
 
-Associations enforce strict categorical relationships in the generated data. For example, given a dataset with fields
-`car_manufacturer` and `car_model`, there is a strict association between each model and manufacturer (i.e no model appears
-in more than one manufactuter). This relationship may not be learned perfectly by the synthesizer (after all, we can
-only learn a probabilistic approximation), and in this case the strict constrain can be enforced by defining an
+Often, datasets may contain two columns with an important well-defined relationship. For example:
+
+.. csv-table:: cars-original
+   :header: "Make", "Model", "Total"
+   :widths: 20, 20, 10
+
+   "Ford", "Fiesta", 372013
+   "BMW", "M3", 10342
+   "BMW", "X5", 39753
+   "Volkswagen", "Polo", 87421
+   "Ferrari", "California", 632
+
+In the above dataset, "Make" has a one-to-many association with "Model". In other words, certain categories in "Model"
+only appear with certain categories in "Make". The ``HighDimSynthesizer`` captures highly detailed dataset-wide information,
+but as it also attempts to generalize specific row-level information, a case such as "Polo" always appearing with
+"Volkswagen" isn't strictly followed.  A possible output of the synthesizer could be:
+
+.. csv-table:: cars-synthetic
+   :header: "Make", "Model", "Total"
+   :widths: 20, 20, 10
+
+   "BMW", "X6", 36382
+   "Ford", "Fiesta", 401877
+   "BMW", "Polo", 67862
+
+In this example, the ``HighDimSynthesizer`` has generated a row with a "BMW Polo", which is an unrealistic combination. If
+capturing strict column associations such as this is important, the synthesizer can be configured to do so by defining an
 ``Association`` rule
 
 .. ipython:: python
@@ -43,7 +66,7 @@ However, if a specific rule is required that isn't present in the data the Assoc
 
     rule = Association(binding_mask=binding_mask, associations=..., nan_association=...)
 
-Here the binding mask specifies the possible outputs of the Synthesizer, this isn't currently user-friendly to construct due to its lack of use-case.
+Here the ``binding mask`` specifies the possible outputs of the Synthesizer, this isn't currently user-friendly to construct due to its lack of use-case.
 
 There are some constraints on what rules you can define, the Synthesizer only allows a column to appear in one association
 and a column cannot appear in both the ``association`` and ``nan_association`` argument.
@@ -65,6 +88,13 @@ Generic
 -------
 
 A ``GenericRule`` is a special type of rule that can be enforced by conditional sampling of ``HighDimSynthesizer``
+
+.. warning::
+    As these rules are enforced by iterative conditional sampling, it may not be possible to fully generate the desired
+    number of rows if the rules cannot be fulfilled, or represent a very small proportion of the original data. In this
+    case, ``HighDimSynthesizer.synthesize_from_rules`` will throw a ``RuntimeError``. Increasing the ``max_iter``
+    parameter may avoid this issue.
+
 
 ValueRange
 ^^^^^^^^^^

@@ -10,8 +10,6 @@ correlations between fields.
     Synthesized assumes that there is no temporal or conditional dependencies the between rows; each row in the table is
     assumed to be independent and identically distributed.
 
-    In addition, maintaining referential links (e.g matching primary keys) across datasets is not currently possible. In
-    such a case, the joined dataset must be learned by Synthesized.
 
 .. ipython:: python
     :verbatim:
@@ -58,3 +56,12 @@ Synthesize an arbitrary amount of data:
     :verbatim:
 
     df_synth = synth.synthesize(num_rows=1000)
+
+
+Be default, Synthesized imputes any missing values. To generate ``NaN`` values,
+use ``produce_nans=True``.
+
+.. ipython:: python
+    :verbatim:
+
+    df_synth = synth.synthesize(num_rows=1000, produce_nans=True)
