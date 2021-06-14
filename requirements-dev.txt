@@ -1,6 +1,6 @@
 pytest
 pytest-cov
-Cython
+Cython==3.0a7
 mypy
 flake8
 hypothesis[pandas]

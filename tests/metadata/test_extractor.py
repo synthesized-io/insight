@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+import sys
 from typing import Sequence, Type
 
 import hypothesis.strategies as st
@@ -125,7 +126,10 @@ ambigious_formats = (
     {'%y/%m/%d %H:%M', '%d/%m/%y %H:%M', '%m/%d/%y %H:%M'},
 )
 
-numpy_date_range = {"min_value": date(1677, 9, 23), "max_value": date(2262, 4, 11)}
+if sys.platform == 'win32':
+    numpy_date_range = {"min_value": date(1900, 1, 1), "max_value": date(2262, 4, 11)}
+else:
+    numpy_date_range = {"min_value": date(1677, 9, 23), "max_value": date(2262, 4, 11)}
 
 
 @given(df=data_frames([column('date',

@@ -104,7 +104,7 @@ def source_files(base_dir):
 
 ext_modules = [
     Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
-    if re.match(r"synthesized(/|\\{2})config\.py", f) is None  # windows uses '\\' instead of '/'
+    if re.match(r"synthesized(/|\\)config\.py", f) is None  # windows uses '\\' instead of '/'
 ]
 
 setup(

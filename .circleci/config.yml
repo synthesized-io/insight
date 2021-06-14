@@ -4,7 +4,88 @@ version: 2.1
 orbs:
   jq: circleci/jq@2.2
   sonarcloud: sonarsource/sonarcloud@1.0.1
+  win: circleci/windows@2.2.0
 jobs:
+  build-windows:
+    executor:
+      name: win/default
+      shell: bash.exe
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v2-dependencies-windows-3.7-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+
+      - run:
+          name: 'Install Dependencies'
+          command: |
+            conda install pip
+            pip install -r requirements-dev.txt
+            pip install -r requirements.txt
+            pip install wheel
+
+      - save_cache:
+          paths:
+            - C:\\tools/miniconda3/lib/site-packages
+          key: v2-dependencies-windows-3.7-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+
+      - run:
+          name: 'Build wheel'
+          command: python setup.py bdist_wheel
+
+      - store_artifacts:
+          path: dist
+          destination: dist
+
+      - persist_to_workspace:
+          root: .
+          paths:
+                - dist
+
+  test-windows:
+    executor:
+      name: win/default
+      shell: bash.exe
+
+    parallelism: 8
+    steps:
+      - checkout
+
+      - attach_workspace:
+          at: .
+
+      - restore_cache:
+          keys:
+            - v2-dependencies-windows-3.7-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
+
+      - run:
+          name: 'Install Requirements'
+          command: |
+            conda install pip
+            pip install -r requirements-dev.txt
+            pip install -r requirements.txt
+
+      - run:
+          name: 'Install package'
+          command: pip install dist/*
+
+      - run:
+          name: 'Run tests'
+          command: |
+            pip uninstall -y pytest
+            pip install pytest
+            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts > pytest-files.txt
+            pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch $(cat pytest-files.txt)
+            python tests/junit-fix.py
+
+      - store_test_results:
+          path: test-results
+
+      - store_artifacts:
+          path: test-results
+
   build:
     parameters:
       python-version:
@@ -384,6 +465,12 @@ jobs:
 
 workflows:
   version: 2
+  build-test-windows:
+    jobs:
+      - build-windows
+      - test-windows:
+          requires:
+          - build-windows
   release-version:
     jobs:
       - build:
