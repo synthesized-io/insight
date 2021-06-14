@@ -56,3 +56,22 @@ def test_distance_metric(distance_metric, data, kwargs):
     assert np.abs(metric.distance) > 0
     assert metric.p_value <= 1
     assert metric.p_value >= 0
+
+
+def test_emd_distance():
+
+    def compare_and_log(x, y, bins, val):
+        emd = EarthMoversDistanceBinned(x, y, bins)
+        assert np.isclose(emd.distance, val, rtol=0.01)
+
+    compare_and_log(pd.Series([1, 2, 3]), pd.Series([1, 0, 3]), bins=[0, 1, 2, 3], val=0.333)
+
+    a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
+    b = pd.Series(np.random.normal(loc=14, scale=1.0, size=10000))
+
+    bins = np.histogram_bin_edges(np.concatenate((a, b), axis=0), bins=100)
+    x, _ = np.histogram(a, bins=bins)
+    y, _ = np.histogram(b, bins=bins)
+    compare_and_log(x, y, bins, 4.0)
+    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([1, 0, 8, 21, 1]), None, 0.20)
+    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)

@@ -7,8 +7,7 @@ from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import pyemd
-from scipy.stats import beta, binom_test, ks_2samp, norm
+from scipy.stats import beta, binom_test, ks_2samp, norm, wasserstein_distance
 
 
 @dataclass
@@ -460,23 +459,26 @@ class EarthMoversDistanceBinned(BinnedDistanceMetric):
         Returns:
             The earth mover's distance.
         """
-        if self.bins is None:
-            # if bins not given, histograms are assumed to be counts of nominal categories,
-            # and therefore distances betwen bins are meaningless. Set to all distances to
-            # unity to model this.
-            distance_metric = 1 - np.eye(len(self.x))
-        else:
-            # otherwise, use pair-wise euclidean distances between bin centers for scale data
-            bin_centers = 2 * (self.bins[:-1] + np.diff(self.bins) / 2., )
-            mgrid = np.meshgrid(*bin_centers)
-            distance_metric = np.abs(mgrid[0] - mgrid[1]).astype(np.float64)
+        if self.x.sum() == 0 and self.y.sum() == 0:
+            return 0.
+        elif self.x.sum() == 0 or self.y.sum() == 0:
+            return 1.
 
         # normalise counts for consistency with scipy.stats.wasserstein
         with np.errstate(divide='ignore', invalid='ignore'):
             x = np.nan_to_num(self.x / self.x.sum())
             y = np.nan_to_num(self.y / self.y.sum())
 
-        distance = pyemd.emd(x.astype(np.float64), y.astype(np.float64), distance_metric)
+        if self.bins is None:
+            # if bins not given, histograms are assumed to be counts of nominal categories,
+            # and therefore distances betwen bins are meaningless. Set to all distances to
+            # unity to model this.
+            distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
+        else:
+            # otherwise, use pair-wise euclidean distances between bin centers for scale data
+            bin_centers = self.bins[:-1] + np.diff(self.bins) / 2.
+            distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
+
         return distance
 
 
@@ -484,20 +486,6 @@ class EarthMoversDistance(DistanceMetric):
     """
     Earth movers distance (EMD), aka Wasserstein 1-distance, between samples from two distributions.
     """
-    def __init__(self, x: pd.Series, y: pd.Series, emd_kwargs=None):
-        """
-        Histograms do not have to be normalised, and distances between bins
-        are measured using a Euclidean metric.
-
-        Args:
-            x: A series representing histogram counts.
-            y: A series representing histogram counts.
-            kwargs: optional keyword arguments to pyemd.emd_samples.
-        """
-        super().__init__(x, y)
-        if emd_kwargs is None:
-            emd_kwargs = {}
-        self.emd_kwargs = emd_kwargs
 
     @property
     def distance(self) -> float:
@@ -507,7 +495,7 @@ class EarthMoversDistance(DistanceMetric):
         Returns:
             The earth mover's distance.
         """
-        return pyemd.emd_samples(self.x, self.y, **self.emd_kwargs)
+        return wasserstein_distance(self.x, self.y)
 
 
 class HellingerDistance(DistanceMetric):

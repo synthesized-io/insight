@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from pyemd import emd
 from scipy.stats import binom, ks_2samp
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
@@ -16,6 +15,7 @@ from .classification_bias import ClassificationBias
 from .fairness_transformer import FairnessTransformer
 from .sensitive_attributes import SensitiveNamesDetector, sensitive_attr_concat_name
 from ..metrics import CategoricalLogisticR2, CramersV
+from ..metrics.distance import EarthMoversDistanceBinned
 from ...metadata import DataFrameMeta
 from ...metadata.factory import MetaExtractor
 from ...metadata.value import DateTime, String
@@ -450,25 +450,19 @@ class FairnessScorer:
         df_count = self.get_rates(df, list(sensitive_attr))
 
         emd_dist = []
-        space = df_count.index.get_level_values(1).unique()
 
         for sensitive_value in df_count.index.get_level_values(0).unique():
-            p_counts = df_count['Count'][sensitive_value].to_dict()
+            p_counts = (
+                df_count['Count'][sensitive_value] - df_count['Count']['Total'] + df_count['Count']['Total']
+            ).fillna(0)
             # Remove counts in current subsample
-            q_counts = {k: v - p_counts.get(k, 0) for k, v in df_count['Count']['Total'].to_dict().items()}
-
-            p = np.array([float(p_counts[x]) if x in p_counts else 0.0 for x in space])
-            q = np.array([float(q_counts[x]) if x in q_counts else 0.0 for x in space])
-
-            p /= np.sum(p)
-            q /= np.sum(q)
-
-            distance_space = 1 - np.eye(len(space))
+            q_counts = (df_count['Count']['Total'] - p_counts).fillna(df_count['Count']['Total'])
+            distance = EarthMoversDistanceBinned(p_counts, q_counts).distance
 
             emd_dist.append({
                 df_count.index.names[0]: sensitive_value,
-                'Distance': emd(p, q, distance_space),
-                'Count': df_count['Count'][sensitive_value].sum()
+                'Distance': distance,
+                'Count': p_counts.sum()
             })
         return pd.DataFrame(emd_dist).set_index(df_count.index.names[0])
 

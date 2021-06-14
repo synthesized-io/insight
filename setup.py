@@ -72,9 +72,9 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 # define the package dependencies
 install_requires = [
-    "dataclasses ~= 0.6;python_version<='3.6'",
-    "numpy >= 1.18.4, < 1.20.0;python_version<='3.6'",
-    "numpy ~= 1.18.4;python_version>'3.6'",
+    "dataclasses ~= 0.6;python_version<'3.7'",
+    "numpy >= 1.18.4, < 1.20.0;python_version<'3.7'",
+    "numpy ~= 1.18.4;python_version>='3.7'",
     "tensorflow ~= 2.2.1",
     "tensorflow_probability ~= 0.10.1",
     "scipy ~= 1.5.4",
@@ -82,7 +82,6 @@ install_requires = [
     "pandas ~= 1.1.5",
     "matplotlib ~= 3.3.3",
     "seaborn ~= 0.11.0",
-    "pyemd ~= 0.5.1",
     "faker ~= 5.0.1",
     "simplejson ~= 3.17.2",
     "pyyaml ~= 5.3.1",
@@ -120,6 +119,8 @@ setup(
     packages=packages,
     install_requires=install_requires,
     python_requires='>=3.6,<3.9',
-    ext_modules=cythonize(ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}),
+    ext_modules=cythonize(
+        ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}
+    ),
     cmdclass={'build_ext': build_ext}
 )

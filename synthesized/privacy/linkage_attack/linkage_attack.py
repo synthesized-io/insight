@@ -3,7 +3,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from pyemd import emd_samples
+
+from synthesized.insight.metrics.distance import EarthMoversDistanceBinned
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,9 @@ class LinkageAttack:
         def different_distribution(g) -> bool:
             diff = False
             for col in self.sensitive_columns:
-                dist = emd_samples(g[col], df[col], range=(mins[col], maxes[col]))
+                hist_df, bins = np.histogram(df[col], bins='auto', range=(mins[col], maxes[col]))
+                hist_g, _ = np.histogram(g[col], bins=bins)
+                dist = EarthMoversDistanceBinned(hist_g, hist_df, bins).distance
                 norm = (maxes[col] - mins[col]) / 2
 
                 if norm > 0 and dist / norm > self.t_closeness:
@@ -156,8 +159,10 @@ class LinkageAttack:
 
                 r_a = [r for r in rows_attack[col] if pd.notna(r)]
                 r_o = [r for r in rows_orig[col] if pd.notna(r)]
-
-                dist = emd_samples(r_o, r_a, range=(mins[col], maxes[col]))
+                bins = np.histogram_bin_edges(r_a + r_o, bins='auto', range=(mins[col], maxes[col]))
+                hist_a, _ = np.histogram(r_a, bins=bins)
+                hist_o, _ = np.histogram(r_o, bins=bins)
+                dist = EarthMoversDistanceBinned(pd.Series(hist_o), pd.Series(hist_a), bins).distance
                 norm = (maxes[col] - mins[col]) / 2
 
                 if dist / norm > self.k_distance or pd.isna(t_orig.loc[key, col]) or pd.isna(t_attack.loc[key, col]):

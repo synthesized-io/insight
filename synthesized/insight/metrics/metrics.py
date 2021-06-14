@@ -4,7 +4,6 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
-from pyemd import emd
 from scipy.stats import kendalltau, ks_2samp, spearmanr
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OneHotEncoder
@@ -251,9 +250,8 @@ class EarthMoversDistance(TwoColumnMetric):
         p /= np.sum(p)
         q /= np.sum(q)
 
-        distances = 1 - np.eye(len(space))
-
-        return emd(p, q, distances)
+        distance = 0.5 * np.sum(np.abs(p.astype(np.float64) - q.astype(np.float64)))
+        return distance
 
 
 def logistic_regression_r2(

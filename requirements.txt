@@ -6,7 +6,6 @@ scikit_learn==0.23.2
 pandas==1.1.5
 matplotlib==3.3.3
 seaborn==0.11.0
-pyemd==0.5.1
 faker==5.0.1
 simplejson==3.17.2
 pyyaml==5.3.1
