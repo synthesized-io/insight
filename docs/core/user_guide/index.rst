@@ -29,5 +29,5 @@ Further details can be found in the :ref:`api_reference`.
     annotations
     rules
     conditions
+    imputation
     evaluation
-

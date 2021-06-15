@@ -63,3 +63,56 @@ def test_mixed_dtypes_nan_imputation():
     df = pd.concat([df_original, df_synthesized])
     print(df.shape)  # (10009, 11)
     data_imputer.impute_nans(df, progress_callback=progress_bar_testing)  # RecursionError: maximum recursion depth exceeded
+
+
+@pytest.mark.slow
+def test_mask_imputation():
+    n = 1000
+    df_original = pd.DataFrame({
+        'x': np.random.normal(loc=0, scale=1, size=n),
+        'y': np.random.choice(['a', 'b', 'c'], size=n),
+    })
+
+    mask = pd.DataFrame({
+        'x': np.random.choice([True, False], size=n, p=[0.6, 0.4]),
+        'y': np.random.choice([True, False], size=n, p=[0.2, 0.8]),
+    })
+
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+
+    data_imputer = DataImputer(synthesizer=synthesizer)
+
+    df_imputed = data_imputer.impute_mask(df_original, mask=mask)
+    assert (df_original == df_imputed)[~mask].sum().sum() == mask.count().sum() - mask.sum().sum()
+
+    df_original_copy = df_original.copy()
+    data_imputer.impute_mask(df_original_copy, mask=mask, progress_callback=progress_bar_testing, inplace=True)
+    assert (df_original == df_original_copy)[~mask].sum().sum() == mask.count().sum() - mask.sum().sum()
+
+    empty_mask = pd.DataFrame({'x': np.zeros(n), 'y': np.zeros(n)}, dtype=bool)
+    _ = data_imputer.impute_mask(df_original_copy, mask=empty_mask)
+
+    with pytest.raises(ValueError):
+        wrong_mask = pd.DataFrame({'x': np.random.choice([True, False], size=10, p=[0.6, 0.4])})
+        _ = data_imputer.impute_mask(df_original_copy, mask=wrong_mask)
+
+
+@pytest.mark.slow
+def test_outliers_imputation():
+    n = 1000
+    df_original = pd.DataFrame({
+        'x': np.where(
+            np.random.uniform(size=n) > 0.1,
+            np.random.normal(loc=0, scale=1, size=n),
+            np.random.normal(loc=0, scale=1000, size=n)
+        )
+    })
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.learn(num_iterations=10, df_train=df_original)
+
+    data_imputer = DataImputer(synthesizer=synthesizer)
+    df_out = data_imputer.impute_outliers(df_original)
+    data_imputer.impute_outliers(df_original, inplace=True, progress_callback=progress_bar_testing)

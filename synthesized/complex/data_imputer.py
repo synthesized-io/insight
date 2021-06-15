@@ -39,8 +39,22 @@ class DataImputer(Synthesizer):
             num_iterations=num_iterations, df_train=df_train, callback=callback, callback_freq=callback_freq
         )
 
-    def _impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, produce_nans: bool = False,
-                     inplace: bool = False, progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+    def impute_mask(self, df: pd.DataFrame, mask: pd.DataFrame, produce_nans: bool = False,
+                    inplace: bool = False, progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+        """Imputes values within a dataframe from a given mask using the underlying synthesizer.
+
+        Args:
+            df: A pandas DataFrame.
+            mask: A boolean pandas DataFrame, containg True for those values to be imputed.
+            produce_nans: Whether to produce nans when imputing values for given mask.
+            inplace: If true, modifies the given dataframe in place.
+
+        Returns:
+            The DataFrame with values imputed.
+        """
+        if df.size != mask.size:
+            raise ValueError(f"Given dataframe and mask must have same size, given df.size={df.size} "
+                             f"and mask.size={mask.size}")
 
         if not inplace:
             df = df.copy()
@@ -71,7 +85,15 @@ class DataImputer(Synthesizer):
 
     def impute_nans(self, df: pd.DataFrame, inplace: bool = False,
                     progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+        """Imputes NaN values within a dataframe using the underlying synthesizer.
 
+        Args:
+            df: A pandas DataFrame containing NaN values.
+            inplace: If true, modifies the given dataframe in place.
+
+        Returns:
+            The DataFrame with its NaN values imputed.
+        """
         if progress_callback is not None:
             progress_callback(0)
 
@@ -83,11 +105,21 @@ class DataImputer(Synthesizer):
             logger.warning("Given df doesn't contain NaNs. Returning it as it is.")
             return df
 
-        self._impute_mask(df, nans, inplace=True, produce_nans=False, progress_callback=progress_callback)
+        self.impute_mask(df, nans, inplace=True, produce_nans=False, progress_callback=progress_callback)
         return df
 
     def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05, inplace: bool = False,
                         progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
+        """Imputes values in a DataFrame that our outliers by a given threshold.
+
+        Args:
+            df: A pandas DataFrame containing NaN values.
+            outliers_percentile: The percentile threshold for classifying outliers.
+            inplace: If true, modifies the given dataframe in place.
+
+        Returns:
+            The DataFrame with its outliers imputed.
+        """
 
         if progress_callback is not None:
             progress_callback(0)
@@ -106,7 +138,7 @@ class DataImputer(Synthesizer):
                 column[column > end] = end
                 column[column < start] = start
 
-        self._impute_mask(df, outliers, inplace=True, progress_callback=progress_callback)
+        self.impute_mask(df, outliers, inplace=True, progress_callback=progress_callback)
         return df
 
     def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:

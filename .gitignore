@@ -8,6 +8,9 @@
 .idea
 *.iml
 
+# VS Code
+.vscode
+
 # Packages
 *.egg
 *.egg-info
