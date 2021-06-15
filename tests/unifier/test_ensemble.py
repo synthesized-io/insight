@@ -30,13 +30,18 @@ def test_resolve_overlap():
 def ensemble_unifier():
     df0 = pd.DataFrame({"A": np.arange(100), "overlap": np.random.choice([0, 1], size=100)})
     df1 = pd.DataFrame({"B": np.arange(100), "overlap": np.random.choice([0, 1], size=100)})
+    df2 = pd.DataFrame({"C": np.arange(100), "overlap": np.random.choice([0, 1], size=100)})
+    df3 = pd.DataFrame({"D": np.arange(100), "overlap": np.random.choice([0, 1], size=100)})
 
     df0_meta = MetaExtractor.extract(df0)
     df1_meta = MetaExtractor.extract(df1)
+    df2_meta = MetaExtractor.extract(df2)
+    df3_meta = MetaExtractor.extract(df3)
 
     unifier = EnsembleUnifier()
-    unifier.update(df0_meta, df0, num_iterations=10)
-    unifier.update(df1_meta, df1, num_iterations=10)
+    unifier.update(df0, df0_meta, num_iterations=10)
+    unifier.update(df1, df1_meta, num_iterations=10)
+    unifier.update([df2, df3], [df2_meta, df3_meta], num_iterations=10)
     return unifier
 
 

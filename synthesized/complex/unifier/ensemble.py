@@ -1,4 +1,4 @@
-from typing import List, Sequence
+from typing import List, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -21,23 +21,36 @@ class EnsembleUnifier(Unifier):
     def __init__(self, ensemble: Sequence[HighDimSynthesizer] = None):
         self.ensemble: List[HighDimSynthesizer] = list(ensemble) if ensemble is not None else []
 
-    def update(self, df_meta: DataFrameMeta, df: pd.DataFrame, num_iterations: int = None):
+    def update(self,
+               dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]] = None,
+               df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]] = None,
+               num_iterations: int = None) -> None:
         """
         Incorporates the DataFrame and DataFrameMeta object into the unifier for generation.
 
         Trains a single HighDimSynthesizer object for a new dataframe.
 
         Args:
-            df_meta: the extracted DataFrameMeta object for each new DataFrame.
-            df:  the DataFrame used to train the Unifier.
-            num_iterations:
-                the number of iterations used to train the HighDimSynthesizer, None will use the learning manager
-                to determine when to stop training.
+            dfs: Single Dataframe or List of Dataframes that are to be incorporated into the Unifier.
+                Either df or dfs should be provided
+            df_metas: Single DataFrame meta or a list of DataFrame meta provided
+            num_iterations: the number of iterations used to train the HighDimSynthesizer. Defaults to None, in
+                which case the learning manager is used to determine when to stop training.
         """
-        synthesizer = HighDimSynthesizer(df_meta)
-        synthesizer.learn(df, num_iterations=num_iterations)
+        if isinstance(dfs, pd.DataFrame):
+            dfs = [dfs]
 
-        self.ensemble.append(synthesizer)
+        if isinstance(df_metas, DataFrameMeta):
+            df_metas = [df_metas]
+
+        if dfs is not None and df_metas is not None:
+            if len(dfs) == len(df_metas):
+                for df, df_meta in zip(dfs, df_metas):
+                    synthesizer = HighDimSynthesizer(df_meta)
+                    synthesizer.learn(df, num_iterations=num_iterations)
+                    self.ensemble.append(synthesizer)
+            else:
+                raise ValueError("length of dfs and df_metas provided don't match")
 
     def query(self, columns: Sequence[str], num_rows: int, query_iterations: int = 20) -> pd.DataFrame:
         """

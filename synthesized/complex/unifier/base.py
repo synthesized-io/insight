@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Sequence, Type
+from typing import Dict, Sequence, Type, Union
 
 import pandas as pd
 
-from ...metadata import DataFrameMeta
+from synthesized.metadata import DataFrameMeta
 
 
 class Unifier(ABC):
@@ -16,13 +16,17 @@ class Unifier(ABC):
         cls.subclasses[cls.__name__] = cls
 
     @abstractmethod
-    def update(self, df_meta: DataFrameMeta, df: pd.DataFrame, num_iterations: int = None) -> None:
+    def update(self,
+               dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]] = None,
+               df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]] = None,
+               num_iterations: int = None) -> None:
         """
         Update adds a new dataframe to the Unifier object, this dataframe can then be used for Synthesis later on.
 
         Args:
-            df_meta: DataFrameMeta that describes the dataframe object.
-            df: Dataframe that is incorporated into the Unifier for later querying.
+            dfs: Single Dataframe or List of Dataframes that are to be incorporated into the Unifier.
+                Either df or dfs should be provided
+            df_metas: Single DataFrame meta or a list of DataFrame meta provided
             num_iterations: the number of iterations used to train the HighDimSynthesizer. Defaults to None, in
                 which case the learning manager is used to determine when to stop training.
         """

@@ -60,7 +60,7 @@ def evaluate_unifier(unifier_class: Type[Unifier], config_path: str,
         synthesizers: List[HighDimSynthesizer] = []
         for i, (df, df_meta) in enumerate(zip(df_splits, df_meta_splits)):
             print(f"Updating with DataFrame {i}")
-            unifier.update(df_meta, df, num_iterations=test_config["num_iterations"])
+            unifier.update(df, df_meta, num_iterations=test_config["num_iterations"])
             if test_config["compare_w_highdim"]:
                 synthesizer = HighDimSynthesizer(df_meta)
                 synthesizer.learn(df, num_iterations=test_config["num_iterations"])
