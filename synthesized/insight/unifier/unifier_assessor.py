@@ -36,7 +36,7 @@ class UnifierAssessor:
         for name, df in self.sub_dfs.items():
             df = df[df.columns.intersection(self.unified_df.columns)]
             result: pd.Series = metric_vector(df_old=df, df_new=self.unified_df)
-            results[name] = result.dropna()
+            results[name] = result.dropna().to_dict()
 
         return results
 
@@ -68,6 +68,6 @@ class UnifierAssessor:
         matrix_sub_dfs_list = {}
         matrix_unified_df = self.get_filtered_metric_matrix(self.unified_df, metric)
         for name, df in self.sub_dfs.items():
-            matrix_sub_dfs_list[name] = self.get_filtered_metric_matrix(df, metric)
+            matrix_sub_dfs_list[name] = self.get_filtered_metric_matrix(df, metric).to_dict()
 
-        return matrix_unified_df, matrix_sub_dfs_list
+        return matrix_unified_df.to_dict(), matrix_sub_dfs_list

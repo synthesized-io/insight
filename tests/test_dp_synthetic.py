@@ -23,7 +23,7 @@ def test_differential_privacy():
     config.noise_multiplier = 1.0
 
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
-    assert isinstance(synthesizer.engine.optimizer, DPOptimizer)
+    assert isinstance(synthesizer._engine.optimizer, DPOptimizer)
     assert synthesizer._differential_privacy
     assert synthesizer._privacy_config.delta == 1 / n
     assert synthesizer._privacy_config.epsilon == 1.0
@@ -35,9 +35,9 @@ def test_differential_privacy():
     config.epsilon = 0.0
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
     synthesizer.learn(num_iterations=10, df_train=df_original)
-    assert synthesizer.global_step.numpy() == 1
+    assert synthesizer._global_step.numpy() == 1
 
     config.differential_privacy = False
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
     assert synthesizer._differential_privacy is False
-    assert type(synthesizer.engine.optimizer) == Optimizer
+    assert type(synthesizer._engine.optimizer) == Optimizer

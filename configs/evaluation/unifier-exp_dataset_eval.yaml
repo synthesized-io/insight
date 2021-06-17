@@ -1,0 +1,54 @@
+small_credit_test:
+  data_path: credit.csv
+  num_rows: 3000
+  num_iterations: null
+  compare_w_highdim: True
+  splits:
+    - ['SeriousDlqin2yrs', 'RevolvingUtilizationOfUnsecuredLines']
+
+    - ['RevolvingUtilizationOfUnsecuredLines', 'NumberOfDependents']
+
+  query: ['SeriousDlqin2yrs','RevolvingUtilizationOfUnsecuredLines', 'NumberOfDependents']
+  target: 'SeriousDlqin2yrs'
+  predictors: ['RevolvingUtilizationOfUnsecuredLines', 'NumberOfDependents']
+
+large_credit_test:
+  data_path: credit.csv
+  num_rows: 5000
+  num_iterations: null
+  compare_w_highdim: True
+  splits:
+    - ['SeriousDlqin2yrs', 'RevolvingUtilizationOfUnsecuredLines', 'age',
+       'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome']
+
+    - ['NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
+       'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate',
+       'NumberRealEstateLoansOrLines', 'NumberOfTime60-89DaysPastDueNotWorse',
+       'NumberOfDependents']
+
+  query: ['SeriousDlqin2yrs', 'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
+          'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate']
+
+
+  target: 'SeriousDlqin2yrs'
+  predictors: ['NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
+               'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate']
+
+segmentation_analysis:
+  data_path: templates/segmentation_analysis.csv
+  num_rows: 10000
+  num_iterations: null
+  compare_w_highdim: False
+  splits:
+    - ["age","workclass","fnlwgt","education","education.num","marital.status","occupation","relationship"]
+
+    - ["education.num","marital.status","occupation","relationship","race","sex","capital.gain","capital.loss","hours.per.week"]
+
+    - ["capital.gain","capital.loss","hours.per.week","native.country","income"]
+
+  query: ["fnlwgt","education","education.num","marital.status",
+          "capital.loss","hours.per.week","native.country", income]
+
+  target: 'income'
+  predictors: ["fnlwgt","education","education.num","marital.status",
+          "capital.loss","hours.per.week","native.country"]

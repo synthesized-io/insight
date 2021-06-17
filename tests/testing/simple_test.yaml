@@ -2,10 +2,13 @@ simple_test:
   data_path: credit.csv
   num_rows: 100
   num_iterations: 10
-  compare_w_highdim: False
+  compare_w_highdim: True
   splits:
     - ['SeriousDlqin2yrs', 'RevolvingUtilizationOfUnsecuredLines']
 
     - ['RevolvingUtilizationOfUnsecuredLines', 'NumberOfDependents']
 
   query: ['SeriousDlqin2yrs','RevolvingUtilizationOfUnsecuredLines', 'NumberOfDependents']
+
+  target: 'SeriousDlqin2yrs'
+  predictors: ['RevolvingUtilizationOfUnsecuredLines']

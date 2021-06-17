@@ -1,14 +1,13 @@
-import argparse
 from typing import Any, Dict, List, Sequence, Type
 
 import pandas as pd
 import yaml
 
-from .unifier_assessor import UnifierAssessor
 from ..complex import HighDimSynthesizer
 from ..complex.unifier import Unifier
 from ..insight.metrics import (CramersV, EarthMoversDistance, KendallTauCorrelation, KolmogorovSmirnovDistance,
                                SpearmanRhoCorrelation, TwoColumnMetric)
+from ..insight.unifier import UnifierAssessor, UnifierModellingAssessor
 from ..metadata.factory import MetaExtractor
 
 
@@ -25,6 +24,17 @@ def compute_metrics(df_splits: Sequence[pd.DataFrame], df_unified: pd.DataFrame,
     for metric in second_order_metrics:
         name = metric.name if metric.name is not None else metric.__class__.__name__
         results[name] = assessor.get_second_order_metric_matrices(metric)
+
+    return results
+
+
+def compute_modelling_metrics(df_splits: Sequence[pd.DataFrame], df_unified: pd.DataFrame, target: str, predictors: Sequence[str]):
+    assessor = UnifierModellingAssessor(df_unified, sub_dfs=df_splits)
+    models = ['Linear', 'GradientBoosting', 'RandomForest', 'MLP', 'LinearSVM']
+    results = {}
+
+    for model in models:
+        results[model] = assessor.get_metric_score_for_unified_df(target=target, predictors=predictors, model=model)
 
     return results
 
@@ -76,15 +86,8 @@ def evaluate_unifier(unifier_class: Type[Unifier], config_path: str,
                                             first_order_metrics=first_order_metrics,
                                             second_order_metrics=second_order_metrics))
 
+        if "query" in test_config and "predictors" in test_config:
+            output[test].update(compute_modelling_metrics(df_splits, df_unified, target=test_config["target"],
+                                                          predictors=test_config["predictors"]))
+
     return output
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("unifier_name", type=str, help="class name for unifier")
-    parser.add_argument("config_path", type=str, help="path to yaml file specifying config of test")
-    args = parser.parse_args()
-
-    unifier_class = Unifier.subclasses[args.unifier_name]
-
-    print(evaluate_unifier(unifier_class, args.config_path))

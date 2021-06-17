@@ -62,7 +62,7 @@ def test_emd_distance():
 
     def compare_and_log(x, y, bins, val):
         emd = EarthMoversDistanceBinned(x, y, bins)
-        assert np.isclose(emd.distance, val, rtol=0.01)
+        assert np.isclose(emd.distance, val, rtol=0.1)
 
     compare_and_log(pd.Series([1, 2, 3]), pd.Series([1, 0, 3]), bins=[0, 1, 2, 3], val=0.333)
 

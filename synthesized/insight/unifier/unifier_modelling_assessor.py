@@ -1,12 +1,12 @@
-import pandas as pd
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-from typing import Sequence, Union, Dict, Optional, Any, Tuple
+import pandas as pd
 from sklearn.base import BaseEstimator
 
-from synthesized.metadata.factory import MetaExtractor
-from synthesized.model.factory import ModelFactory
-from synthesized.model import DiscreteModel
 from synthesized.insight.metrics.modelling_metrics import predictive_modelling_comparison
+from synthesized.metadata.factory import MetaExtractor
+from synthesized.model import DiscreteModel
+from synthesized.model.factory import ModelFactory
 
 
 class UnifierModellingAssessor:

@@ -127,6 +127,8 @@ class ROC_AUC(ClassificationMetric):
     def __call__(self, y_true: np.ndarray = None, y_pred: Optional[np.ndarray] = None,
                  y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
         assert y_pred_proba is not None
+        if len(np.unique(y_true)) < 2:
+            return 1.0
         if self.multiclass is False:
             return roc_auc_score(y_true, y_pred_proba)
         else:
@@ -417,7 +419,7 @@ def plot_metrics_from_df(df_train: pd.DataFrame, df_test: pd.DataFrame, target: 
     plot_metrics(x_train, y_train, x_test, y_test, clf=clf, metrics=metrics, axes=axes, name=name)
 
 
-def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray],
+def classifier_scores(x_train: np.ndarray, y_train: np.ndarray,
                       x_test: np.ndarray, y_test: np.ndarray,
                       clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = 'roc_auc',
                       return_predicted: bool = False) -> Dict[str, Any]:
@@ -450,8 +452,6 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     try:
         check_is_fitted(clf)
     except NotFittedError:
-        if x_train is None or y_train is None:
-            raise ValueError("'x_train' and 'y_train' must be given if the classifier has not been trained")
         clf.fit(x_train, y_train)
 
     # Two classes classification
@@ -468,18 +468,21 @@ def classifier_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarra
     else:
         multiclass = True
         oh = OneHotEncoder(sparse=False)
-        oh.fit(np.concatenate((y_train, y_test)).reshape(-1, 1))
-        y_test_oh = oh.transform(y_test.reshape(-1, 1))
+        oh.fit(np.concatenate((y_train, y_test)).reshape((-1, 1)))
+        y_test_oh = oh.transform(y_test.reshape((-1, 1)))
 
         if hasattr(clf, 'predict_proba'):
+            missing = [v for v in oh.categories_[0] if v not in clf.classes_]
             f_proba_test = clf.predict_proba(x_test)
-            y_pred_test = np.argmax(f_proba_test, axis=1)
+            missing_idx = sorted([list(oh.categories_[0]).index(v) for v in missing], reverse=True)
+            for idx in missing_idx:
+                f_proba_test = np.insert(f_proba_test, missing_idx, 0, 1)
+            y_pred_test = np.array(oh.categories_[0])[np.argmax(f_proba_test, axis=1)]
         else:
             y_pred_test = clf.predict(x_test)
             f_proba_test = oh.transform(y_pred_test.reshape(-1, 1))
 
         y_test_oh, f_proba_test = _remove_zero_column(y_test_oh, f_proba_test)
-
         # Normalise the prediction probabilities so that the probabilities across classes add to 1.
         f_proba_test = _normalise_prob(f_proba_test)
 
@@ -640,7 +643,8 @@ def _remove_zero_column(y1, y2):
     """
     if len(y1.shape) != 2 or len(y2.shape) != 2:
         return y1, y2
-    assert y1.shape[1] == y2.shape[1]
+    if y1.shape[1] != y2.shape[1]:
+        raise ValueError(f"Mismatch of array shapes, {y1.shape} not compatible with {y2.shape}.")
 
     delete_index = np.where((y1 == 0).all(axis=0))
 

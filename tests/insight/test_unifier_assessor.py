@@ -3,9 +3,9 @@ from typing import Sequence, Tuple
 import pandas as pd
 import pytest
 
-from synthesized.insight.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation,
+from synthesized.insight.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendallTauCorrelation,
                                          KolmogorovSmirnovDistance)
-from synthesized.testing.unifier_assessor import UnifierAssessor
+from synthesized.insight.unifier import UnifierAssessor
 
 
 @pytest.fixture(scope='module')
@@ -43,7 +43,7 @@ def test_second_order_metric_matrices(tuple_of_df_sequence_and_df):
     unified_assessor = UnifierAssessor(dfs, unified_df)
 
     kdt_matrix_unified_df, kdt_matrix_orig_dfs_list = unified_assessor\
-        .get_second_order_metric_matrices(KendellTauCorrelation())
+        .get_second_order_metric_matrices(KendallTauCorrelation())
     assert kdt_matrix_unified_df is not None
     assert len(kdt_matrix_orig_dfs_list) == len(dfs)
 
