@@ -36,7 +36,7 @@ class Sanitizer(Synthesizer):
         self.learned_columns: List[str] = []
         self.categorical_values: List[str] = []
         self.distances: Dict[str, Union[float, None]] = OrderedDict()
-        for v in self.synthesizer.get_values():
+        for v in self.synthesizer._get_values():
             if v.learned_output_size() > 0:
                 self.learned_columns.append(v.name)
 

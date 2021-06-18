@@ -187,7 +187,7 @@ class MetaFactory():
 
 
 class MetaExtractor(MetaFactory):
-    """Extract the DataFrameMeta for a data frame"""
+    """Extract the :class:`synthesized.DataFrameMeta` from a data frame"""
     def __init__(self, config: Optional[MetaFactoryConfig] = None):
         super().__init__(config=config.meta_factory_config if config is not None else None)
 
@@ -198,21 +198,35 @@ class MetaExtractor(MetaFactory):
             df: pd.DataFrame, config: Optional[MetaFactoryConfig] = None,
             annotations: Optional[List[ValueMeta]] = None,
     ) -> DataFrameMeta:
-        """
-        Instantiate and extract the DataFrameMeta that describes a data frame.
+        """Instantiate and extract the DataFrameMeta that describes a data frame.
 
         Args:
-            df: the data frame to instantiate and extract DataFrameMeta.
-            config: Optional; The configuration parameters to MetaFactory.
-            annotations: Optional; Annotations for the DataFrameMeta
-            associations: Optional; List of List of names of columns to associate
+            df (pd.DataFrame, optional): Dataset to instantiate and extract DataFrameMeta.
+            config (MetaFactoryConfig, optional): Custom configuration parameters to MetaFactory. Defaults to None.
+            annotations (Union[Person, Address, Bank, FormattedString], optional): Annotations for the dataframe.
+                Defaults to None.
 
         Returns:
-            A DataFrameMeta instance for which all child meta have been extracted.
+            The DataFrameMeta instance for the given data.
 
         Raises:
             UnsupportedDtypeError: The data type of a column in the data frame pandas is not supported.
             TypeError: An error occured during instantiation of a ValueMeta.
+
+        Examples:
+
+            Extract the DataFrameMeta from DataFrame:
+
+            >>> df = pd.read_csv(...)
+            >>> df_meta = MetaExtractor.extract(df)
+
+            Annotate a DataFrame with a Person annotation to generate fake genders, first name and last name PII
+            for each person:
+
+            >>> from synthesized.config import PersonLabels
+            >>> person_labels = PersonLabels(gender_label='gender', firstname_label='first_name', lastname_label='last_name')
+            >>> person = Person(name='person', labels='person_labels')
+            >>> df_meta = MetaExtractor.extract(df, annotations=[person_labels])
         """
         factory = MetaExtractor(config)
         df = df.infer_objects()

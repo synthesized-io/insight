@@ -30,6 +30,7 @@ class String(Nominal[str, 'String']):
 
 
 class FormattedString(String):
+    """Describe values in a dataset containing formatted strings."""
     dtype = 'U'
 
     def __init__(

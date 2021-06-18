@@ -30,8 +30,8 @@ def train_evaluate(parameterization):
     synthesizer = HighDimSynthesizer(df=data, **parameterization)
     synthesizer.learn(data, num_iterations=None)
     data_ = synthesizer.preprocess(data.sample(loss_sample_size))
-    feed_dict = synthesizer.get_data_feed_dict(data_)
-    losses = synthesizer.get_losses(data=feed_dict)
+    feed_dict = synthesizer._get_data_feed_dict(data_)
+    losses = synthesizer._get_losses(data=feed_dict)
     loss = losses['kl-loss'] + losses['reconstruction-loss']
     loss = loss.numpy().item()
     track.log(

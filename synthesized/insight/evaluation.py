@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..insight.metrics import (CategoricalLogisticR2, ColumnComparisonVector, CramersV, DiffMetricMatrix,
-                               EarthMoversDistance, KendellTauCorrelation, KolmogorovSmirnovDistance,
+                               EarthMoversDistance, KendallTauCorrelation, KolmogorovSmirnovDistance,
                                TwoColumnMetricMatrix)
 from ..model import DataFrameModel
 
@@ -42,7 +42,7 @@ def calculate_evaluation_metrics(df_orig: pd.DataFrame, df_synth: pd.DataFrame, 
 
     # Calculate 2nd order metrics for categorical/continuous
 
-    kt_m = DiffMetricMatrix(TwoColumnMetricMatrix(KendellTauCorrelation(max_p_value=MAX_PVAL)))
+    kt_m = DiffMetricMatrix(TwoColumnMetricMatrix(KendallTauCorrelation(max_p_value=MAX_PVAL)))
     cv_m = DiffMetricMatrix(TwoColumnMetricMatrix(CramersV()))
     lc_m = DiffMetricMatrix(TwoColumnMetricMatrix(CategoricalLogisticR2()))
 

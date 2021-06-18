@@ -8,15 +8,15 @@ from .base import Meta, ValueMeta
 
 class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
     """
-    Meta to describe an arbitrary data frame.
+    Describe the schema and data types of an arbitrary data frame.
 
     Each column is described by a derived ValueMeta object.
 
-    Attributes:
+    Args:
         id_index: NotImplemented
         time_index: NotImplemented
         column_aliases: dictionary mapping column names to an alias.
-        annotations: A list of the metas' names in the DF that have been annotated.
+        annotations: A list of the metas' names in the dataframe that have been annotated.
     """
     def __init__(
             self, name: str, children: Optional[Sequence[Meta]] = None, id_index: Optional[str] = None,

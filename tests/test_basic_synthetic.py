@@ -52,7 +52,7 @@ def test_date_variable_generation():
     synthesizer.learn(num_iterations=1000, df_train=df_original)
     df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
 
-    assert isinstance(synthesizer.df_value['z'], DateValue)
+    assert isinstance(synthesizer._df_value['z'], DateValue)
 
 
 @pytest.mark.slow
@@ -105,8 +105,8 @@ def test_sampling():
     synthesizer.learn(num_iterations=10, df_train=df_original)
     df_synthesized = synthesizer.synthesize(num_rows=len(df_original), progress_callback=progress_bar_testing)
 
-    assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
-    assert 'sample' in synthesizer.df_model_independent
+    assert all([c in synthesizer._df_model for c in ['x1', 'x2', 'y1', 'y2']])
+    assert 'sample' in synthesizer._df_model_independent
 
 
 @pytest.mark.slow
@@ -129,8 +129,8 @@ def test_sampling_nans():
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
-    assert all([c in synthesizer.df_model for c in ['x1', 'x2', 'y1', 'y2']])
-    assert 'sample' in synthesizer.df_model_independent
+    assert all([c in synthesizer._df_model for c in ['x1', 'x2', 'y1', 'y2']])
+    assert 'sample' in synthesizer._df_model_independent
 
     df_synthesized = synthesizer.synthesize(num_rows=len(df_original), produce_nans=False,
                                             progress_callback=progress_bar_testing)
@@ -236,8 +236,8 @@ def test_type_overrides():
     synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=type_overrides)
     synthesizer.learn(df_original, num_iterations=10)
 
-    assert isinstance(synthesizer.df_model['r1'], KernelDensityEstimate)
-    assert isinstance(synthesizer.df_model['r2'], Histogram)
+    assert isinstance(synthesizer._df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer._df_model['r2'], Histogram)
 
 
 @pytest.mark.slow
@@ -247,7 +247,7 @@ def test_encode():
     df_meta = MetaExtractor.extract(df=df_original)
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
-    _, df_synthesized = synthesizer.encode(df_original)
+    _, df_synthesized = synthesizer._encode(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
@@ -271,7 +271,7 @@ def test_encode_unlearned_meta():
 
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
-    _, df_synthesized = synthesizer.encode(df_original)
+    _, df_synthesized = synthesizer._encode(df_original)
     assert df_synthesized.shape == df_original.shape
 
 
@@ -282,5 +282,5 @@ def test_encode_deterministic():
     df_meta = MetaExtractor.extract(df=df_original)
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
-    df_synthesized = synthesizer.encode_deterministic(df_original)
+    df_synthesized = synthesizer._encode_deterministic(df_original)
     assert df_synthesized.shape == df_original.shape

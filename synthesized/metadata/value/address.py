@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class Address(String):
-    """
-    Address
-    """
+    """Describe values in a dataset containing address information."""
 
     def __init__(
             self, name, children: Optional[Sequence[String]] = None, categories: Optional[Sequence[str]] = None,

@@ -10,11 +10,12 @@ from .common.synthesizer import Synthesizer
 from .complex.conditional import ConditionalSampler
 from .complex.data_imputer import DataImputer
 from .complex.highdim import HighDimSynthesizer
+from .complex.multi_table import TwoTableSynthesizer
 from .metadata.data_frame_meta import DataFrameMeta
 from .metadata.factory import MetaExtractor
 from .version import __version__
 
 __all__ = [
     '__version__', 'HighDimSynthesizer', 'ConditionalSampler', 'DataImputer', 'Synthesizer', 'DataFrameMeta',
-    'MetaExtractor'
+    'MetaExtractor', 'TwoTableSynthesizer'
 ]

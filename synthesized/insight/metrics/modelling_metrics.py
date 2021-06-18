@@ -224,27 +224,33 @@ CLASSIFICATION_PLOT_METRICS: Dict[str, Type[ClassificationPlotMetric]] = {
 }
 
 
-def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optional[List[str]],
-                               model: Union[str, BaseEstimator], synth_data: pd.DataFrame = None,
-                               copy_model: bool = True, preprocessor: ModellingPreprocessor = None,
-                               dp: DataFrameMeta = None, models: DataFrameModel = None, sample_size: Optional[int] = None):
-
-    """Calculates an R2 or ROC AUC score for a dataset for a given model and labels.
+def predictive_modelling_score(
+    data: pd.DataFrame,
+    y_label: str,
+    x_labels: Optional[List[str]],
+    model: Union[str, BaseEstimator],
+    synth_data: pd.DataFrame = None,
+    copy_model: bool = True,
+    preprocessor: ModellingPreprocessor = None,
+    dp: DataFrameMeta = None,
+    models: DataFrameModel = None,
+    sample_size: Optional[int] = None
+):
+    """Calculates the R-squared or ROC AUC score of a given model trained on a given dataset.
 
     This function will fit a regressor or classifier depending on the datatype of the y_label. All necessary
-    preprocessing (standard scaling, one-hot encoding) is done in the function.
+    preprocessing (e.g standard scaling, one-hot encoding) is done in the function. The input data is automatically
+    split into a training and testing set in order to evaluate the model performance.
 
     Args:
-        data: The input dataset.
-        y_label: The name of the target variable column/response variable.
-        x_labels: A list of the input column names/explanatory variables. If none, all except y_label will be used.
-        model: One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP', 'LinearSVM', or 'Logistic'. Note that
-            'Logistic' only applies to categorical response variables.
-        synth_data: for training the model on some separate synthetic data but evaluating on the original, will take
-            training data from this dataframe but still evaluate on the original data
-        copy_model:
-        preprocessor:
-        dp:
+        data (pd.DataFrame): Input dataset.
+        y_label (str): Name of the target variable column/response variable to predict.
+        x_labels (List[str], optional): Input column names/explanatory variables. Defaults to None, in which case all
+            columns in the dataset except y_label will be used as predictors.
+        model (Union[str, sklearn.base.BaseEstimator]): One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP',
+            'LinearSVM', or 'Logistic'. Note that 'Logistic' only applies to categorical response variables.
+            Alternatively, a custom model class that inherits from sklearn.base.BaseEstimator can be specified.
+        synth_data (pd.DataFrame): Train the model on this synthetic data but evaluate it's performance on the original.
 
     Returns:
         The score, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
@@ -329,8 +335,36 @@ def predictive_modelling_score(data: pd.DataFrame, y_label: str, x_labels: Optio
     return score, metric, task
 
 
-def predictive_modelling_comparison(data: pd.DataFrame, synth_data: pd.DataFrame,
-                                    y_label: str, x_labels: List[str], model: str, sample_size: Optional[int] = None):
+def predictive_modelling_comparison(
+    data: pd.DataFrame,
+    synth_data: pd.DataFrame,
+    y_label: str,
+    x_labels: List[str],
+    model: str,
+    sample_size: Optional[int] = None
+):
+    """Compare the R-squared or ROC AUC score of a model trained on original data and synthetic data, and tested on
+    hold-out sample of original data.
+
+    This function will fit a regressor or classifier depending on the datatype of the y_label. All necessary
+    preprocessing (e.g standard scaling, one-hot encoding) is done in the function. The input data is automatically
+    split into a training and testing set in order to evaluate the model performance.
+
+    Args:
+        data (pd.DataFrame): Original data.
+        synth_data (pd.DataFrame): Synthetic data.
+        y_label (str): Name of the target variable column/response variable to predict.
+        x_labels (List[str], optional): Input column names/explanatory variables. Defaults to None, in which case all
+            columns in the dataset except y_label will be used as predictors.
+        model (Union[str, sklearn.base.BaseEstimator]): One of 'Linear', 'GradientBoosting', 'RandomForrest', 'MLP',
+            'LinearSVM', or 'Logistic'. Note that 'Logistic' only applies to categorical response variables.
+            Alternatively, a custom model class that inherits from sklearn.base.BaseEstimator can be specified.
+        sample_size (int, optional): Size of dataset to use for training data. Defaults to None, in which case the full
+            dataset is used to create the training and test sample.
+
+    Returns:
+        The score, synthetic score, metric ('r2' or 'roc_auc'), and the task ('regression', 'binary', or 'multinomial')
+    """
     score, metric, task = predictive_modelling_score(data, y_label, x_labels, model, sample_size=sample_size)
     synth_score, _, _ = predictive_modelling_score(data, y_label, x_labels, model, synth_data=synth_data, sample_size=sample_size)
 

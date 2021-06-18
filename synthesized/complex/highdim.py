@@ -1,6 +1,7 @@
 """This module implements the BasicSynthesizer class."""
 import logging
 import pickle
+from dataclasses import asdict
 from math import sqrt
 from typing import Any, BinaryIO, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -27,43 +28,77 @@ logger = logging.getLogger(__name__)
 
 
 class HighDimSynthesizer(Synthesizer):
-    """The main synthesizer implementation.
+    """Synthesizer that can learn to generate data from a single tabular dataset.
 
-    Synthesizer which can learn from data to produce basic tabular data with independent rows, that
-    is, no temporal or otherwise conditional relation between the rows.
+    The data must be in a tabular format (i.e a set of columns and rows), where each row is independent and there
+    is no temporal or conditional relation between them. The Synthesizer will learn the underlying distribution
+    of the original data, and is capable of generating new synthetic rows of data capture maintain the correlations
+    and associations across columns.
+
+    Args:
+        df_meta (DataFrameMeta): A :class:`~synthesized.metadata.DataFrameMeta` instance that has been extracted for the
+            desired dataset.
+        config (HighDimConfig, optional): The configuration to use for this Synthesizer. Defaults to None, in which
+            case the default options of :class:`~synthesized.config.HighDimConfig` are used.
+        type_overrides (List[Union[ContinuousModel, DiscreteModel]], Optional): Custom type specifciations for each
+            column that will override the defaults inferred from the data. These must be instantiated Model classes, e.g
+            :class:`~synthesized.model.models.Histogram` or :class:`~synthesized.model.models.KernelDensityEstimate`.
+            Defaults to None, in which case the types are automatically inferred.
+        summarizer_dir (str, optional): Path to a directory where TensorBoard summaries of the training logs
+            will be stored. Defaults to None.
+        summarizer_name (str, optional): A prefix for the subdirectory where trainining logs for this Synthesizer
+            are stored. If set, logs will be stored in ``summarizer_dir/summarizer_name_%Y%m%d-%H%M%S``, where
+            the timestamp is set at the time of instantiation. Defaults to None.
+
+    Examples:
+
+        Load dataset into a pandas DataFrame:
+
+        >>> df = pd.read_csv('dataset.csv')
+
+        Extract the DataFrameMeta:
+
+        >>> df_meta = MetaExtractor.extract(df)
+
+        Initialise a ``HighDimSynthesizer`` with the default configuration:
+
+        >>> synthesizer = HighDimSynthesizer(df_meta=df_meta)
+
+        Learn a model of the original data by training for 100 iterations:
+
+        >>> synthesizer.learn(df_train=df, num_iterations=100)
+
+        Generate 1000 rows of new data:
+
+        >>> df_synthetic = synthesizer.synthesize(num_rows=1000)
+
+        Set a column to be categorical instead of continuous:
+
+        >>> column_meta = df_meta['column_name']
+        >>> column_model = synthesized.model.models.Histogram(meta=column_meta)
+        >>> synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=[column_model])
     """
 
     def __init__(
-            self, df_meta: DataFrameMeta, summarizer_dir: str = None,
-            summarizer_name: str = None, config: HighDimConfig = HighDimConfig(),
-            type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None,
+            self, df_meta: DataFrameMeta, config: HighDimConfig = None,
+            type_overrides: List[Union[ContinuousModel, DiscreteModel]] = None, summarizer_dir: str = None,
+            summarizer_name: str = None,
     ):
-        """Initialize a new BasicSynthesizer instance.
-
-        Args:
-            df_meta: Data sample which summarizes all relevant characteristics,
-                so for instance all values a discrete-value column can take.
-            summarizer_dir: Directory for TensorBoard summaries, automatically creates unique subfolder.
-
-        """
         super(HighDimSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
-        self.config = config
+        config = config or HighDimConfig()
+        self.config = config or HighDimConfig()
         self.type_overrides = type_overrides
-        self.batch_size = config.batch_size
-        self.increase_batch_size_every = config.increase_batch_size_every
-        self.max_batch_size: int = config.max_batch_size if config.max_batch_size else config.batch_size
-        self.synthesis_batch_size = config.synthesis_batch_size
         # Input argument placeholder for num_rows
+
         self._init_engine(df_meta, type_overrides)
-        self.num_rows: Optional[tf.Tensor] = None
 
         # Learning Manager
-        self.learning_manager: Optional[LearningManager] = None
+        self._learning_manager: Optional[LearningManager] = None
         if config.learning_manager:
             use_engine_loss = False if config.custom_stop_metric else True
-            self.learning_manager = LearningManager(
+            self._learning_manager = LearningManager(
                 max_training_time=config.max_training_time, use_engine_loss=use_engine_loss,
                 custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
@@ -74,48 +109,40 @@ class HighDimSynthesizer(Synthesizer):
     ):
         model_factory = ModelFactory(config=self.config.model_builder_config)
         self.df_meta = df_meta
-        self.df_model = model_factory(df_meta, type_overrides=type_overrides)
-        self.df_model_independent = self.split_df_model(self.df_model)
+        self._df_model: DataFrameModel = model_factory(df_meta, type_overrides=type_overrides)
+        self._df_model_independent = self._split_df_model(self._df_model)
 
-        self.df_value: DataFrameValue = ValueExtractor.extract(
-            df_meta=self.df_model, name='data_frame_value', config=self.config.value_factory_config
+        self._df_value: DataFrameValue = ValueExtractor.extract(
+            df_meta=self._df_model, name='data_frame_value', config=self.config.value_factory_config
         )
 
-        self.df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self.df_model)
-        self.engine = HighDimEngine(name='vae', df_value=self.df_value, config=self.config.engine_config)
+        self._df_transformer: DataFrameTransformer = DataFrameTransformer.from_meta(self._df_model)
+        self._engine = HighDimEngine(name='vae', df_value=self._df_value, config=self.config.engine_config)
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+    def _get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         data: Dict[str, Sequence[tf.Tensor]] = {
             name: tuple([
                 tf.constant(df[column])
                 for column in value.columns()
             ])
-            for name, value in self.df_value.items()
+            for name, value in self._df_value.items()
         }
         return data
 
-    def get_losses(self, data: Dict[str, Sequence[tf.Tensor]] = None) -> Dict[str, tf.Tensor]:
+    def _get_losses(self, data: Dict[str, Sequence[tf.Tensor]] = None) -> Dict[str, tf.Tensor]:
         if data is not None:
-            self.engine.loss(data)
+            self._engine.loss(data)
 
         losses = {
-            'total-loss': self.engine.total_loss,
-            'kl-loss': self.engine.kl_loss,
-            'regularization-loss': self.engine.regularization_loss,
-            'reconstruction-loss': self.engine.reconstruction_loss
+            'total-loss': self._engine.total_loss,
+            'kl-loss': self._engine.kl_loss,
+            'regularization-loss': self._engine.regularization_loss,
+            'reconstruction-loss': self._engine.reconstruction_loss
         }
         return losses
 
-    def specification(self) -> dict:
-        spec = super().specification()
-        spec.update(
-            values=[value.specification() for value in self.value_factory.get_values()],
-            engine=self.engine.specification(), batch_size=self.batch_size
-        )
-        return spec
-
     @staticmethod
-    def split_df_model(df_model: DataFrameModel) -> DataFrameModel:
+    def _split_df_model(df_model: DataFrameModel) -> DataFrameModel:
         """Given a df_model, pop out those models that are not learned in the engine and
         return a df_model_independent containing these models.
         """
@@ -157,107 +184,114 @@ class HighDimSynthesizer(Synthesizer):
         return df_model_independent
 
     def learn(
-            self, df_train: pd.DataFrame, num_iterations: Optional[int],
+            self, df_train: pd.DataFrame, num_iterations: Optional[int] = None,
             callback: Callable[[Synthesizer, int, dict], bool] = None,
             callback_freq: int = 0
     ) -> None:
-        """Train the generative model for the given iterations.
+        """Learn the underlying distribution of the original data by training the synthesizer.
 
-        Repeated calls continue training the model, possibly on different data.
+        This method can be called multiple times to continue the training process.
 
         Args:
-            df_train: The training data.
-            num_iterations: The number of training iterations (not epochs).
-            callback: A callback function, e.g. for logging purposes. Takes the synthesizer
-                instance, the iteration number, and a dictionary of values (usually the losses) as
-                arguments. Aborts training if the return value is True.
-            callback_freq: Callback frequency.
-
+            df_train (pd.DataFrame): Training data that matches schema of the DataFrameMeta used by this synthesizer.
+            num_iterations (int, optional) The number of training iterations (not epochs). Defaults to None,
+                in which case the learning process is intelligently stopped as the synthesizer converges.
+            callback (Callable, optional) A callback function that can be used for logging purposes. This takes the
+                synthesizer instance, the iteration number, and a dictionary of the loss function values as
+                arguments. Aborts training if the return value is True. Defaults to None.
+            callback_freq (int, optional): The number of training iterations to perform before the callback is called.
+                Defaults to 0, in which case the callback is never called.
         """
-        assert num_iterations or self.learning_manager, "'num_iterations' must be set if learning_manager=False"
-        if self.learning_manager:
-            self.learning_manager.restart_learning_manager()
-            self.learning_manager.set_check_frequency(self.batch_size)
+        assert num_iterations or self._learning_manager, "num_iterations' must be set if learning_manager=False"
+        if self._learning_manager:
+            self._learning_manager.restart_learning_manager()
+            self._learning_manager.set_check_frequency(self.config.batch_size)
 
         if not self.df_meta._extracted:
             self.df_meta.extract(df_train)
 
-        self.df_model_independent.fit(df=df_train)
+        self._df_model_independent.fit(df=df_train)
 
-        if not self.df_transformer.is_fitted():
-            self.df_transformer.fit(df_train)
+        if not self._df_transformer.is_fitted():
+            self._df_transformer.fit(df_train)
 
-        df_train_pre = self.df_transformer.transform(df_train)
-        if self.df_value.learned_input_size() == 0 and len(self.df_model) == 0:
+        df_train_pre = self._df_transformer.transform(df_train)
+        if self._df_value.learned_input_size() == 0 and len(self._df_model) == 0:
             return
 
         num_data = len(df_train)
-        with self.writer.as_default():
-            with record_summaries_every_n_global_steps(callback_freq, self.global_step):
+        max_batch_size = self.config.max_batch_size if self.config.max_batch_size else self.config.batch_size
+
+        with self._writer.as_default():
+            with record_summaries_every_n_global_steps(callback_freq, self._global_step):
                 keep_learning = True
                 iteration = 0
                 while keep_learning:
                     # Increment iteration number, and check if we reached max num_iterations
-                    self.global_step.assign_add(1)
+                    self._global_step.assign_add(1)
                     iteration += 1
                     if num_iterations:
                         keep_learning = iteration <= num_iterations
                     if keep_learning is False:
                         break
 
-                    batch = tf.random.uniform(shape=(self.batch_size,), maxval=num_data, dtype=tf.int64)
-                    feed_dict = self.get_data_feed_dict(df_train_pre.iloc[batch])
+                    batch = tf.random.uniform(shape=(self.config.batch_size,), maxval=num_data, dtype=tf.int64)
+                    feed_dict = self._get_data_feed_dict(df_train_pre.iloc[batch])
 
-                    self.engine.learn(xs=feed_dict)
+                    self._engine.learn(xs=feed_dict)
 
                     if callback is not None and callback_freq > 0 and (
                         iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                     ):
-                        losses = self.get_losses()
+                        losses = self._get_losses()
                         if callback(self, iteration, losses) is True:
                             return
 
-                    if self.learning_manager:
-                        if self.learning_manager.stop_learning(
-                                iteration, synthesizer=self,
-                        ):
-                            break
+                    if self._learning_manager and self._learning_manager.stop_learning(iteration, synthesizer=self):
+                        break
 
                     # Increase batch size
-                    tf.summary.scalar(name='batch_size', data=self.batch_size)
-                    if self.increase_batch_size_every and iteration > 0 and self.batch_size < self.max_batch_size and \
-                            iteration % self.increase_batch_size_every == 0:
-                        self.batch_size *= 2
-                        if self.batch_size > self.max_batch_size:
-                            self.batch_size = self.max_batch_size
+                    tf.summary.scalar(name='batch_size', data=self.config.batch_size)
+                    if self.config.increase_batch_size_every and iteration > 0 and self.config.batch_size < max_batch_size \
+                            and iteration % self.config.increase_batch_size_every == 0:
+                        self.config.batch_size *= 2
+                        if self.config.batch_size > max_batch_size:
+                            self.config.batch_size = max_batch_size
 
-                        if self.batch_size == self.max_batch_size:
-                            logger.info('Maximum batch size of {} reached.'.format(self.max_batch_size))
-                        if self.learning_manager:
-                            self.learning_manager.set_check_frequency(self.batch_size)
+                        if self.config.batch_size == max_batch_size:
+                            logger.info('Maximum batch size of {} reached.'.format(max_batch_size))
+                        if self._learning_manager:
+                            self._learning_manager.set_check_frequency(self.config.batch_size)
 
     def synthesize_from_rules(
-            self, num_rows: int, produce_nans: bool = False, progress_callback: Callable[[int], None] = None,
-            max_iter: int = 20, generic_rules: List[GenericRule] = None, association_rules: List[Association] = None,
-            expression_rules: List[Expression] = None
+            self, num_rows: int, produce_nans: bool = False, generic_rules: List[GenericRule] = None,
+            association_rules: List[Association] = None, expression_rules: List[Expression] = None, max_iter: int = 20,
+            progress_callback: Callable[[int], None] = None
     ) -> pd.DataFrame:
-        """ Generate a given number of data rows according to specified rules
+        """Generate a given number of data rows according to specified rules.
+
+        Conditional sampling is used to generate a dataset that conforms to the the given generic_rules. As a result,
+        in some cases it may not be possible to generate num_rows of synthetic data if the original data contains a
+        small number of samples where the rule is valid. Increasing max_iter may help in this situation.
 
         Args:
-            num_rows: The number of rows to generate.
-            produce_nans: Whether to produce NaNs.
-            progress_callback: Progress bar callback.
-            max_iter: maximum number of iterations to try to apply generic rules before raising an error.
-            generic_rules: list of generic rules the output must conform to.
-            association_rules: list of association rules to constrain the output data.
-            expression_rules: list of expressions rules to add to the output of the synthesizer.
+            num_rows (int): The number of rows to generate.
+            produce_nans (bool, optional): Whether to produce NaNs. Defaults to False
+            generic_rules (List[GenericRule], optional): list of GenericRule rules the output must conform to.
+                Defaults to None.
+            association_rules (List[Association], optional): list of Association rules to constrain the output data.
+                Defaults to None.
+            expression_rules (List[Expression], optional): list of Expression rules to add to the output of the
+                synthesizer. Defaults to None.
+            max_iter (int, optional): maximum number of iterations to try to apply generic rules before raising an
+                error. Defaults to 20.
+            progress_callback (Callable, optional): Progress bar callback. Defaults to None.
 
         Returns:
             The generated data.
 
         Raises:
-            RuntimeError: if num_rows of data that agrees with the generic rules within max_iter iterations.
-
+            RuntimeError: if num_rows of data can't be generated within max_iter iterations.
         """
         association_rules = association_rules or []
         generic_rules = generic_rules or []
@@ -292,14 +326,13 @@ class HighDimSynthesizer(Synthesizer):
         """Generate the given number of new data rows.
 
         Args:
-            num_rows: The number of rows to generate.
-            produce_nans: Whether to produce NaNs.
-            progress_callback: Progress bar callback.
-            association_rules: list of association rules to apply
+            num_rows (int): Number of rows to generate.
+            produce_nans (bool, optional): Generate NaN values. Defaults to False.
+            progress_callback (Callable, optional): Progress bar callback. Defaults to None.
+            association_rules (List[Association], optional): Association rules to apply. Defaults to None.
 
         Returns:
             The generated data.
-
         """
         if progress_callback is not None:
             progress_callback(0)
@@ -308,7 +341,7 @@ class HighDimSynthesizer(Synthesizer):
             raise ValueError("Given 'num_rows' must be greater than zero, given '{}'.".format(num_rows))
 
         if association_rules is not None:
-            Association.validate_association_rules(association_rules)
+            Association._validate_association_rules(association_rules)
 
         columns = self.df_meta.columns
 
@@ -316,31 +349,31 @@ class HighDimSynthesizer(Synthesizer):
         if len(columns) == 0:
             return pd.DataFrame([[], ] * num_rows)
 
-        if self.df_value.learned_output_size() > 0:
-            if self.synthesis_batch_size is None or self.synthesis_batch_size > num_rows:
-                synthesized = self.engine.synthesize(tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
+        if self._df_value.learned_output_size() > 0:
+            if self.config.synthesis_batch_size is None or self.config.synthesis_batch_size > num_rows:
+                synthesized = self._engine.synthesize(tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
                 assert synthesized is not None
-                synthesized = self.df_value.split_outputs(synthesized)
+                synthesized = self._df_value.split_outputs(synthesized)
                 df_synthesized = pd.DataFrame.from_dict(synthesized)
                 if progress_callback is not None:
                     progress_callback(98)
 
             else:
                 dict_synthesized = None
-                if num_rows % self.synthesis_batch_size > 0:
-                    synthesized = self.engine.synthesize(
-                        tf.constant(num_rows % self.synthesis_batch_size, dtype=tf.int64), association_rules=association_rules
+                if num_rows % self.config.synthesis_batch_size > 0:
+                    synthesized = self._engine.synthesize(
+                        tf.constant(num_rows % self.config.synthesis_batch_size, dtype=tf.int64), association_rules=association_rules
                     )
                     assert synthesized is not None
-                    dict_synthesized = self.df_value.split_outputs(synthesized)
+                    dict_synthesized = self._df_value.split_outputs(synthesized)
                     dict_synthesized = {k: v.tolist() for k, v in dict_synthesized.items()}
 
-                n_batches = num_rows // self.synthesis_batch_size
+                n_batches = num_rows // self.config.synthesis_batch_size
 
                 for k in range(n_batches):
-                    other = self.engine.synthesize(tf.constant(self.synthesis_batch_size, dtype=tf.int64),
-                                                   association_rules=association_rules)
-                    other = self.df_value.split_outputs(other)
+                    other = self._engine.synthesize(tf.constant(self.config.synthesis_batch_size, dtype=tf.int64),
+                                                    association_rules=association_rules)
+                    other = self._df_value.split_outputs(other)
                     if dict_synthesized is None:
                         dict_synthesized = other
                         dict_synthesized = {key: val.tolist() for key, val in dict_synthesized.items()}
@@ -354,12 +387,12 @@ class HighDimSynthesizer(Synthesizer):
 
                 df_synthesized = pd.DataFrame.from_dict(dict_synthesized)
 
-            df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+            df_synthesized = self._df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
 
         else:
             df_synthesized = pd.DataFrame([[], ] * num_rows)
 
-        df_sampled = self.df_model_independent.sample(n=num_rows, produce_nans=produce_nans, conditions=df_synthesized)
+        df_sampled = self._df_model_independent.sample(n=num_rows, produce_nans=produce_nans, conditions=df_synthesized)
         df_independent = df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]]
 
         df_synthesized = pd.concat((df_synthesized, df_independent), axis=1)
@@ -370,7 +403,7 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_synthesized
 
-    def encode(
+    def _encode(
             self, df_encode: pd.DataFrame, produce_nans: bool = False
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
@@ -383,16 +416,16 @@ class HighDimSynthesizer(Synthesizer):
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data
         """
         df_encode = df_encode.copy()
-        df_encode = self.df_transformer.transform(df=df_encode)
+        df_encode = self._df_transformer.transform(df=df_encode)
 
-        data = self.get_data_feed_dict(df_encode)
-        encoded, decoded = self.engine.encode(xs=data)
+        data = self._get_data_feed_dict(df_encode)
+        encoded, decoded = self._engine.encode(xs=data)
 
-        decoded = self.df_value.split_outputs(decoded)
+        decoded = self._df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
-        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+        df_synthesized = self._df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
 
-        df_sampled = self.df_model_independent.sample(
+        df_sampled = self._df_model_independent.sample(
             n=len(df_synthesized), produce_nans=produce_nans, conditions=df_synthesized)
         df_independent = df_sampled[[c for c in df_sampled.columns if c not in df_synthesized.columns]]
         df_synthesized = pd.concat((df_synthesized, df_independent), axis=1)
@@ -404,7 +437,7 @@ class HighDimSynthesizer(Synthesizer):
 
         return df_encoded, df_synthesized
 
-    def encode_deterministic(
+    def _encode_deterministic(
             self, df_encode: pd.DataFrame, produce_nans: bool = False
     ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
@@ -417,17 +450,17 @@ class HighDimSynthesizer(Synthesizer):
             Pandas DataFrame of decoded space corresponding to input data
         """
         df_orig = df_encode
-        df_encode = self.df_transformer.transform(df=df_encode.copy().reset_index(drop=True))
-        data = self.get_data_feed_dict(df_encode)
-        decoded = self.engine.encode_deterministic(xs=data)
-        decoded = self.df_value.split_outputs(decoded)
+        df_encode = self._df_transformer.transform(df=df_encode.copy().reset_index(drop=True))
+        data = self._get_data_feed_dict(df_encode)
+        decoded = self._engine.encode_deterministic(xs=data)
+        decoded = self._df_value.split_outputs(decoded)
         df_synthesized = pd.DataFrame.from_dict(decoded)
-        df_synthesized = self.df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
+        df_synthesized = self._df_transformer.inverse_transform(df_synthesized, produce_nans=produce_nans)
 
         df_independent: pd.DataFrame = df_orig.reset_index(drop=True)[
             [c for c in df_orig.columns if c not in df_synthesized.columns]]
         if not produce_nans:
-            df_sampled = self.df_model_independent.sample(
+            df_sampled = self._df_model_independent.sample(
                 n=len(df_synthesized), produce_nans=False, conditions=df_synthesized)
             df_sampled = df_sampled[[c for c in df_independent.columns]]
             df_independent = df_independent.where(df_independent.notna(), other=df_sampled)
@@ -438,58 +471,50 @@ class HighDimSynthesizer(Synthesizer):
         df_synthesized.index = df_orig.index.copy()
         return df_synthesized
 
-    def get_variables(self) -> Dict[str, Any]:
-        variables = super().get_variables()
+    def _get_variables(self) -> Dict[str, Any]:
+        variables = super()._get_variables()
         variables.update(
+            config=asdict(self.config),
             df_meta=self.df_meta.to_dict(),
-            df_model=self.df_model.to_dict(),
-            df_model_independent=self.df_model_independent.to_dict(),
-            df_value=self.df_value.to_dict(),
-            df_transformer=self.df_transformer.to_dict(),
+            df_model=self._df_model.to_dict(),
+            df_model_independent=self._df_model_independent.to_dict(),
+            df_value=self._df_value.to_dict(),
+            df_transformer=self._df_transformer.to_dict(),
 
             # VAE
-            engine=self.engine.get_variables(),
-            latent_size=self.engine.latent_size,
-            network=self.engine.network,
-            capacity=self.engine.capacity,
-            num_layers=self.engine.num_layers,
-            residual_depths=self.engine.residual_depths,
-            batch_norm=self.engine.batch_norm,
-            activation=self.engine.activation,
-            optimizer=self.engine.optimizer_name,
-            learning_rate=self.engine.learning_rate,
-            decay_steps=self.engine.decay_steps,
-            decay_rate=self.engine.decay_rate,
-            initial_boost=self.engine.initial_boost,
-            clip_gradients=self.engine.clip_gradients,
-            beta=self.engine.beta,
-            weight_decay=self.engine.weight_decay,
-
-            # HighDim
-            batch_size=self.batch_size,
-            increase_batch_size_every=self.increase_batch_size_every,
-            max_batch_size=self.max_batch_size,
-            synthesis_batch_size=self.synthesis_batch_size,
+            engine=self._engine.get_variables(),
+            latent_size=self._engine.latent_size,
+            network=self._engine.network,
+            capacity=self._engine.capacity,
+            num_layers=self._engine.num_layers,
+            residual_depths=self._engine.residual_depths,
+            batch_norm=self._engine.batch_norm,
+            activation=self._engine.activation,
+            optimizer=self._engine.optimizer_name,
+            learning_rate=self._engine.learning_rate,
+            decay_steps=self._engine.decay_steps,
+            decay_rate=self._engine.decay_rate,
+            initial_boost=self._engine.initial_boost,
+            clip_gradients=self._engine.clip_gradients,
+            beta=self._engine.beta,
+            weight_decay=self._engine.weight_decay,
 
             # Learning Manager
-            learning_manager=self.learning_manager.get_variables() if self.learning_manager else None
+            learning_manager=self._learning_manager.get_variables() if self._learning_manager else None
         )
 
         return variables
 
-    def set_variables(self, variables: Dict[str, Any]):
-        super().set_variables(variables)
-
-        # Value Factory
-        self.value_factory.set_variables(variables['value_factory'])
+    def _set_variables(self, variables: Dict[str, Any]):
+        super()._set_variables(variables)
 
         # VAE
-        self.engine.set_variables(variables['engine'])
+        self._engine.set_variables(variables['engine'])
 
         # Batch Sizes
         self.batch_size = variables['batch_size']
         self.increase_batch_size_every = variables['increase_batch_size_every']
-        self.max_batch_size = variables['max_batch_size']
+        self._max_batch_size = variables['max_batch_size']
         self.synthesis_batch_size = variables['synthesis_batch_size']
 
         # Learning Manager
@@ -497,12 +522,26 @@ class HighDimSynthesizer(Synthesizer):
             self.learning_manager = LearningManager()
             self.learning_manager.set_variables(variables['learning_manager'])
 
-    def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
-        title = 'HighDimSynthesizer' if title is None else title
-        description = None if title is None else description
-        author = 'SDK-v{}'.format(__version__) if title is None else author
+    def export_model(self, fp: BinaryIO, title: str = 'HighDimSynthesizer', description: str = None, author: str = None):
+        """Save HighDimSynthesizer to file.
 
-        variables = self.get_variables()
+        Args:
+            fp (BinaryIO): File object able to write bytes-like objects.
+            title (str, optional): Identifier for this synthesizer. Defaults to 'HighDimSynthesizer'
+            description (str, optional): Metadata. Defaults to None.
+            author (str, optional): Author metadata. Defaults to None.
+
+        Examples:
+
+            Open binary file and save ``HighDimSynthesizer``:
+
+            >>> with open('synthesizer.bin', 'wb') as f:
+                    HighDimSynthesizer.export_model(f)
+        """
+        title = 'HighDimSynthesizer' if title is None else title
+        author = 'SDK-v{}'.format(__version__) if author is None else author
+
+        variables = self._get_variables()
 
         model_binary = ModelBinary(
             body=pickle.dumps(variables),
@@ -514,6 +553,18 @@ class HighDimSynthesizer(Synthesizer):
 
     @staticmethod
     def import_model(fp: BinaryIO):
+        """Load HighDimSynthesizer from file.
+
+        Args:
+            fp (BinaryIO): File object able to read bytes-like objects.
+
+        Examples:
+
+            Open binary file and load ``HighDimSynthesizer``:
+
+            >>> with open('synthesizer.bin', 'rb') as f:
+                    synthesizer = HighDimSynthesizer.import_model(f)
+        """
 
         model_binary = ModelBinary()
         model_binary.deserialize(fp)
@@ -523,25 +574,27 @@ class HighDimSynthesizer(Synthesizer):
             raise ValueError("The body of the given Binary Model is empty")
         variables = pickle.loads(model_binary.get_body())
 
-        return HighDimSynthesizer.from_dict(variables)
+        return HighDimSynthesizer._from_dict(variables)
 
     @staticmethod
-    def from_dict(variables: dict, summarizer_dir: str = None, summarizer_name: str = None):
+    def _from_dict(variables: dict, summarizer_dir: str = None, summarizer_name: str = None):
         synth = HighDimSynthesizer.__new__(HighDimSynthesizer)
         super(HighDimSynthesizer, synth).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
 
+        synth.config = HighDimConfig(**variables['config'])
+
         # Dataframes
         synth.df_meta = DataFrameMeta.from_dict(variables['df_meta'])
-        synth.df_model = DataFrameModel.from_dict(variables['df_model'])
-        synth.df_model_independent = DataFrameModel.from_dict(variables['df_model_independent'])
-        synth.df_value = DataFrameValue.from_dict(variables['df_value'])
-        synth.df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
+        synth._df_model = DataFrameModel.from_dict(variables['df_model'])
+        synth._df_model_independent = DataFrameModel.from_dict(variables['df_model_independent'])
+        synth._df_value = DataFrameValue.from_dict(variables['df_value'])
+        synth._df_transformer = DataFrameTransformer.from_dict(variables['df_transformer'])
 
         # VAE
-        synth.engine = HighDimEngine(
-            name='vae', df_value=synth.df_value, config=EngineConfig(
+        synth._engine = HighDimEngine(
+            name='vae', df_value=synth._df_value, config=EngineConfig(
                 latent_size=variables['latent_size'], network=variables['network'], capacity=variables['capacity'],
                 num_layers=variables['num_layers'], residual_depths=variables['residual_depths'],
                 batch_norm=variables['batch_norm'], activation=variables['activation'],
@@ -551,21 +604,12 @@ class HighDimSynthesizer(Synthesizer):
                 beta=variables['beta'], weight_decay=variables['weight_decay']
             )
         )
-        synth.engine.set_variables(variables['engine'])
-
-        # Batch Sizes
-        synth.batch_size = variables['batch_size']
-        synth.increase_batch_size_every = variables['increase_batch_size_every']
-        synth.max_batch_size = variables['max_batch_size']
-        synth.synthesis_batch_size = variables['synthesis_batch_size']
-
-        # Input argument placeholder for num_rows
-        synth.num_rows = None
+        synth._engine.set_variables(variables['engine'])
 
         # Learning Manager
-        synth.learning_manager = None
+        synth._learning_manager = None
         if 'learning_manager' in variables.keys():
-            synth.learning_manager = LearningManager()
-            synth.learning_manager.set_variables(variables['learning_manager'])
+            synth._learning_manager = LearningManager()
+            synth._learning_manager.set_variables(variables['learning_manager'])
 
         return synth

@@ -76,7 +76,7 @@ class HighDimSynthesizer(Synthesizer):
             num_rows=num_rows, progress_callback=progress_callback
         )
 
-    def encode(
+    def _encode(
             self, df_encode: pd.DataFrame,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Encodes dataset and returns the corresponding latent space and generated data.
@@ -87,9 +87,9 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             (Pandas DataFrame of latent space, Pandas DataFrame of decoded space) corresponding to input data.
         """
-        return self._synthesizer.encode(df_encode=df_encode)
+        return self._synthesizer._encode(df_encode=df_encode)
 
-    def encode_deterministic(
+    def _encode_deterministic(
             self, df_encode: pd.DataFrame,
     ) -> pd.DataFrame:
         """Deterministically encodes a dataset and returns it with imputed nans.
@@ -100,7 +100,7 @@ class HighDimSynthesizer(Synthesizer):
         Returns:
             Pandas DataFrame of decoded space corresponding to input data.
         """
-        return self._synthesizer.encode_deterministic(df_encode=df_encode)
+        return self._synthesizer._encode_deterministic(df_encode=df_encode)
 
     def export_model(self, fp: BinaryIO, title: str = None, description: str = None, author: str = None):
         """Exports the synthesizer as a binary in its trained state to the provided file.

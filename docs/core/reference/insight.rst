@@ -1,7 +1,6 @@
 Insight
 =======
 
-
 .. automodule:: synthesized.insight.metrics.metrics
    :members: KendellTauCorrelation, CramersV, CategoricalLogisticR2, KolmogorovSmirnovDistance, EarthMoversDistance
 

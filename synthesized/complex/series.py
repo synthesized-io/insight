@@ -13,6 +13,8 @@ from ..common.util import record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, Value, ValueExtractor
 from ..config import SeriesConfig
 from ..metadata.data_frame_meta import DataFrameMeta
+from ..model import DataFrameModel
+from ..model.factory import ModelFactory
 from ..transformer import DataFrameTransformer
 
 logger = logging.getLogger(__name__)
@@ -30,7 +32,9 @@ class SeriesSynthesizer(Synthesizer):
         super(SeriesSynthesizer, self).__init__(
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
+        model_factory = ModelFactory()
         self.df_meta = df_meta
+        self.df_model: DataFrameModel = model_factory(df_meta)
         self.df_value: DataFrameValue = ValueExtractor.extract(
             df_meta=self.df_model, name='data_frame_value', config=config.value_factory_config
         )
@@ -122,15 +126,6 @@ class SeriesSynthesizer(Synthesizer):
 
         return feed_dict
 
-    def specification(self) -> dict:
-        spec = super().specification()
-        spec.update(
-            values=[value.specification() for value in self.value_factory.get_values()],
-            conditions=[value.specification() for value in self.value_factory.get_conditions()],
-            engine=self.engine.specification(), batch_size=self.batch_size
-        )
-        return spec
-
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.df_transformer.transform(df)
         return df
@@ -151,7 +146,7 @@ class SeriesSynthesizer(Synthesizer):
         groups, num_data = self.get_groups_feed_dict(df_train)
         max_seq_len = min(min(num_data), self.max_seq_len)
 
-        with record_summaries_every_n_global_steps(callback_freq, self.global_step):
+        with record_summaries_every_n_global_steps(callback_freq, self._global_step):
             keep_learning = True
             iteration = 1
             while keep_learning:
@@ -171,10 +166,10 @@ class SeriesSynthesizer(Synthesizer):
                 if callback is not None and callback_freq > 0 and (
                     iteration == 1 or iteration == num_iterations or iteration % callback_freq == 0
                 ):
-                    if self.writer is not None and iteration == 1:
+                    if self._writer is not None and iteration == 1:
                         tf.summary.trace_on(graph=True, profiler=False)
                         self.engine.learn(xs=feed_dict)
-                        tf.summary.trace_export(name="Learn", step=self.global_step)
+                        tf.summary.trace_export(name="Learn", step=self._global_step)
                         tf.summary.trace_off()
                     else:
                         self.engine.learn(xs=feed_dict)
@@ -191,7 +186,7 @@ class SeriesSynthesizer(Synthesizer):
                 if num_iterations:
                     keep_learning = iteration < num_iterations
 
-                self.global_step.assign_add(1)
+                self._global_step.assign_add(1)
 
                 if time.time() - t_start >= timeout:
                     break

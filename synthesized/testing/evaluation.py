@@ -84,11 +84,11 @@ def synthesize_and_plot(
 
     def callback(synth, iteration, losses):
         if len(losses) > 0 and hasattr(list(losses.values())[0], 'numpy'):
-            if len(synth.loss_history) == 0:
-                synth.loss_history.append({n: l.numpy() for n, l in losses.items()})
+            if len(synth._loss_history) == 0:
+                synth._loss_history.append({n: l.numpy() for n, l in losses.items()})
             else:
-                synth.loss_history.append({local_name: losses[local_name].numpy()
-                                           for local_name in synth.loss_history[0]})
+                synth._loss_history.append({local_name: losses[local_name].numpy()
+                                           for local_name in synth._loss_history[0]})
         return False
 
     evaluation.record_config(evaluation=name, config=config)
@@ -130,7 +130,7 @@ def synthesize_and_plot(
 
     if plot_losses:
         display(Markdown("## Show loss history"))
-        df_losses = pd.DataFrame.from_records(synthesizer.loss_history)
+        df_losses = pd.DataFrame.from_records(synthesizer._loss_history)
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
             plt.show()
@@ -162,10 +162,10 @@ def synthesize_and_plot(
     # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.KendellTauCorrelation(max_p_value=MAX_PVAL))
+        testing.show_second_order_metric_distances(metrics.KendallTauCorrelation(max_p_value=MAX_PVAL))
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
-        testing.show_second_order_metric_matrices(metrics.KendellTauCorrelation())
+        testing.show_second_order_metric_matrices(metrics.KendallTauCorrelation())
     if show_cramers_v_distances:
         display(Markdown("## Show Cramer's V distances"))
         testing.show_second_order_metric_distances(metrics.CramersV())

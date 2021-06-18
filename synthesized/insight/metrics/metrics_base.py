@@ -17,7 +17,7 @@ class _Metric(ABC):
 
 class ColumnMetric(_Metric):
 
-    def extract_models(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
+    def _extract_models(self, sr: pd.Series, df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
         """Method for extracting models from dataframe if not already extracted"""
         if df_model is None:
             df = pd.DataFrame(data={sr.name: sr})
@@ -33,8 +33,8 @@ class ColumnMetric(_Metric):
 
 class TwoColumnMetric(_Metric):
 
-    def extract_models(self, sr_a: pd.Series, sr_b: pd.Series,
-                       df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
+    def _extract_models(self, sr_a: pd.Series, sr_b: pd.Series,
+                        df_model: Optional[DataFrameModel] = None) -> DataFrameModel:
         """Method for extracting models from dataframe if not already extracted"""
         if df_model is None:
             df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})

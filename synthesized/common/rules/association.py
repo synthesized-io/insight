@@ -9,13 +9,14 @@ from ...metadata import DataFrameMeta, Nominal
 
 
 class Association:
-    """ Define a relationship between two categorical variables that the synthesizer must obey, the index to value
-    mapping is determined from the order of the categories in the appropriate meta class
+    """Define a relationship between two categorical variables that the synthesizer must obey.
 
-    Attributes:
-        associations: list of column names to associate with
-        nan_associations: list of nan indicators to associate with
-        binding_mask: masking tensor to prevent certain outputs of the associated columns
+    The index to value mapping is determined from the order of the categories in the appropriate meta class
+
+    Args:
+        binding_mask (np.ndarray): boolean mask representing the allowed associations between categorical values.
+        associations (List[str]) : list of column names to associate.
+        nan_associations (List[str]): list of nan indicator columns to associate.
     """
 
     def __init__(self, binding_mask: np.ndarray,
@@ -37,14 +38,14 @@ class Association:
     def detect_association(cls, df: pd.DataFrame, df_meta: DataFrameMeta,
                            associations: List[str] = None, nan_associations: List[str] = None) -> 'Association':
         """
-        Constructor that automatically generates a binding mask for the association based on a dataframe,
+        Constructor that automatically generates a binding mask for the association based on a dataframe and
         masks all combinations of inputs that don't appear in the dataframe.
 
-        Arguments:
-            df: input DataFrame.
-            df_meta: extracted DataFrameMeta
-            associations: list of regular columns to check for associations
-            nan_associations: list of columns to check nan value associations
+        Args:
+            df (pd.DataFrame): input DataFrame.
+            df_meta (DataFrameMeta): extracted DataFrameMeta
+            associations (List[str]): list of regular columns to check for associations.
+            nan_associations (List[str]): list of columns to check nan value associations.
 
         Returns:
             association: new Association object with automatically generated binding mask.
@@ -62,7 +63,7 @@ class Association:
             assert isinstance(meta, Nominal)
             association_metas.append(meta)
 
-        categories_to_idx = create_categories_to_idx(association_metas)
+        categories_to_idx = _create_categories_to_idx(association_metas)
         for name, idx_mapping in categories_to_idx.items():
             df_associated[name] = df_associated[name].map(idx_mapping)
 
@@ -81,7 +82,7 @@ class Association:
                    nan_associations=nan_associations)
 
     @staticmethod
-    def validate_association_rules(association_rules: List['Association']):
+    def _validate_association_rules(association_rules: List['Association']):
         """
         Helper function that checks whether a list of association_rules are valid together.
 
@@ -99,7 +100,7 @@ class Association:
             raise AssociatedRuleOverlap(f"Column {repeated_elements[0]} occurs in more than one association which is currently not supported")
 
 
-def create_categories_to_idx(association_metas: List[Nominal]):
+def _create_categories_to_idx(association_metas: List[Nominal]):
     categories_to_idx = {}
     for meta in association_metas:
         category_to_idx = defaultdict(int)

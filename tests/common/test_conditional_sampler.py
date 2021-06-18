@@ -97,7 +97,7 @@ def test_alter_distributions():
 
     value_counts_y = df_synthesized['y'].value_counts(normalize=True)
     for k, marginal_k in marginals['y'].items():
-        assert np.isclose(marginal_k, value_counts_y[k], atol=0.06)
+        assert np.isclose(marginal_k, value_counts_y[k], atol=0.07)
 
     assert np.isclose(len(df_synthesized[df_synthesized['x'] < 0]) / num_rows, 0.8, atol=0.05)
     assert np.isclose(len(df_synthesized[df_synthesized['x'] >= 0]) / num_rows, 0.2, atol=0.05)

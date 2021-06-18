@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 class Mean(ColumnMetric):
     name = "mean"
 
-    def check_column_types(self, sr_a: pd.Series, df_model: DataFrameModel = None):
-        df_model = self.extract_models(sr_a, df_model)
+    def _check_column_types(self, sr_a: pd.Series, df_model: DataFrameModel = None):
+        df_model = self._extract_models(sr_a, df_model)
 
         if not isinstance(df_model[sr_a.name].meta, Affine):
             return False
         return True
 
     def __call__(self, sr: pd.Series, df_model: DataFrameModel = None) -> Union[float, None]:
-        if not self.check_column_types(sr, df_model=df_model):
+        if not self._check_column_types(sr, df_model=df_model):
             return None
 
         return affine_mean(sr)
@@ -42,15 +42,15 @@ class StandardDeviation(ColumnMetric):
         self.remove_outliers = remove_outliers
         super().__init__()
 
-    def check_column_types(self, sr_a: pd.Series, df_model: DataFrameModel = None):
-        df_model = self.extract_models(sr_a, df_model)
+    def _check_column_types(self, sr_a: pd.Series, df_model: DataFrameModel = None):
+        df_model = self._extract_models(sr_a, df_model)
 
         if not isinstance(df_model[sr_a.name].meta, Affine):
             return False
         return True
 
     def __call__(self, sr: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr, df_model=df_model):
+        if not self._check_column_types(sr, df_model=df_model):
             return None
 
         values = np.sort(sr.values)[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
@@ -59,8 +59,16 @@ class StandardDeviation(ColumnMetric):
         return stddev
 
 
-class KendellTauCorrelation(TwoColumnMetric):
-    name = "kendell_tau_correlation"
+class KendallTauCorrelation(TwoColumnMetric):
+    """Kendall's Tau correlation coefficient between ordinal variables.
+
+    The statistic ranges from -1 to 1, indicating the strength and direction of the relationship between the
+    two variables.
+
+    Args:
+        max_p_value (float, optional): Returns None if p-value from test is above this threshold.
+    """
+    name = "kendall_tau_correlation"
     symmetric = True
 
     def __init__(self, max_p_value: float = 1.0, calculate_categorical: bool = False):
@@ -68,8 +76,8 @@ class KendellTauCorrelation(TwoColumnMetric):
         self.calculate_categorical = calculate_categorical
         super().__init__()
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None):
-        df_model = self.extract_models(sr_a, sr_b, df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None):
+        df_model = self._extract_models(sr_a, sr_b, df_model)
         if not self.calculate_categorical and (not isinstance(df_model[sr_a.name], ContinuousModel)
                                                or not isinstance(df_model[sr_b.name], ContinuousModel)):
             return False
@@ -79,10 +87,19 @@ class KendellTauCorrelation(TwoColumnMetric):
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of an ordinal variable.
+            sr_b (pd.Series): values of another ordinal variable to assess association.
+
+        Returns:
+            The Kendall Tau coefficient between sr_a and sr_b.
+        """
         sr_a = pd.to_numeric(sr_a, errors='coerce')
         sr_b = pd.to_numeric(sr_b, errors='coerce')
 
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
         corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
@@ -100,15 +117,15 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
         self.max_p_value = max_p_value
         super().__init__()
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None):
-        df_model = self.extract_models(sr_a, sr_b, df_model=df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None):
+        df_model = self._extract_models(sr_a, sr_b, df_model=df_model)
 
         if not isinstance(df_model[sr_a.name].meta, Ordinal) or not isinstance(df_model[sr_b.name].meta, Ordinal):
             return False
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
         corr, p_value = spearmanr(sr_a.values, sr_b.values)
@@ -120,18 +137,32 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
 
 
 class CramersV(TwoColumnMetric):
+    """Cramér's V correlation coefficient between nominal variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    and 1 indicates maximal association (i.e one variable is completely determined by the other).
+    """
     name = "cramers_v"
     symmetric = True
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
-        df_model = self.extract_models(sr_a, sr_b, df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
+        df_model = self._extract_models(sr_a, sr_b, df_model)
 
         if not isinstance(df_model[sr_a.name], DiscreteModel) or not isinstance(df_model[sr_b.name], DiscreteModel):
             return False
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a nominal variable.
+            sr_b (pd.Series): values of another nominal variable to assess association.
+
+        Returns:
+            The Cramér's V coefficient between sr_a and sr_b.
+        """
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
@@ -163,10 +194,19 @@ class CramersV(TwoColumnMetric):
 
 
 class CategoricalLogisticR2(TwoColumnMetric):
+    """McFadden's psuedo R-squared coefficient between categorical and continuous variables.
+
+    The statistic is obtained from the ratio of the log-likelihoods of two logistic regression models that are trained
+    to predict the categorical variable. One model includes only an intercept term, and the second model includes
+    the intercept and the continuous predictor.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    and 1 indicates strong association.
+    """
     name = "categorical_logistic_correlation"
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
-        df_model = self.extract_models(sr_a, sr_b, df_model=df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
+        df_model = self._extract_models(sr_a, sr_b, df_model=df_model)
 
         x_model = df_model[sr_a.name]
         y_model = df_model[sr_b.name]
@@ -179,7 +219,16 @@ class CategoricalLogisticR2(TwoColumnMetric):
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a continuous variable.
+            sr_b (pd.Series): values of another ordinal variable to assess association.
+
+        Returns:
+            The pseudo r-squared statistic between sr_a and sr_b.
+        """
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
         df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
@@ -189,17 +238,31 @@ class CategoricalLogisticR2(TwoColumnMetric):
 
 
 class KolmogorovSmirnovDistance(TwoColumnMetric):
+    """Kolmogorov-Smirnov statistic between two continuous variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
     name = "kolmogorov_smirnov_distance"
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
-        df_model = self.extract_models(sr_a, sr_b, df_model=df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
+        df_model = self._extract_models(sr_a, sr_b, df_model=df_model)
 
         if not isinstance(df_model[sr_a.name], ContinuousModel) and not isinstance(df_model[sr_b.name], ContinuousModel):
             return False
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a continuous variable.
+            sr_b (pd.Series): values of another continuous variable to compare.
+
+        Returns:
+            The Kolmogorov-Smirnov distance between sr_a and sr_b.
+        """
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
@@ -211,17 +274,31 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
 
 
 class EarthMoversDistance(TwoColumnMetric):
+    """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
     name = "earth_movers_distance"
 
-    def check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
-        df_model = self.extract_models(sr_a, sr_b, df_model=df_model)
+    def _check_column_types(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> bool:
+        df_model = self._extract_models(sr_a, sr_b, df_model=df_model)
 
         if not isinstance(df_model[sr_a.name], DiscreteModel) and not isinstance(df_model[sr_b.name], DiscreteModel):
             return False
         return True
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series, df_model: DataFrameModel = None) -> Union[int, float, None]:
-        if not self.check_column_types(sr_a, sr_b, df_model=df_model):
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a nominal variable.
+            sr_b (pd.Series): values of another nominal variable to compare.
+
+        Returns:
+            The earth mover's distance between sr_a and sr_b.
+        """
+        if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
         old = sr_a.to_numpy()

@@ -48,5 +48,5 @@ def test_type_override(df_meta):
 
     synthesizer = HighDimSynthesizer(df_meta, type_overrides=overrides)
 
-    assert isinstance(synthesizer._synthesizer.df_model["a"], _ContinuousModel)
-    assert isinstance(synthesizer._synthesizer.df_model["b"], _DiscreteModel)
+    assert isinstance(synthesizer._synthesizer._df_model["a"], _ContinuousModel)
+    assert isinstance(synthesizer._synthesizer._df_model["b"], _DiscreteModel)

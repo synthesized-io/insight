@@ -14,22 +14,22 @@ def test_range():
     # 0 <= x <= 5
     r = ValueRange("x", low=0, high=5, low_inclusive=True, high_inclusive=True)
     assert r._to_str() == "0 <= x & 5 >= x"
-    assert r.is_valid(df).sum() == 6
+    assert r._is_valid(df).sum() == 6
 
     # 0 < x < 5
     r = ValueRange("x", low=0, high=5, low_inclusive=False, high_inclusive=False)
     assert r._to_str() == "0 < x & 5 > x"
-    assert r.is_valid(df).sum() == 4
+    assert r._is_valid(df).sum() == 4
 
     # x <= y
     r = ValueRange("x", high="y", high_inclusive=True)
     assert r._to_str() == "-inf < x & y >= x"
-    assert r.is_valid(df).sum() == 3
+    assert r._is_valid(df).sum() == 3
 
     # x >= y
     r = ValueRange("x", low="y", low_inclusive=True)
     assert r._to_str() == "y <= x & inf > x"
-    assert r.is_valid(df).sum() == 3
+    assert r._is_valid(df).sum() == 3
 
 
 def test_value_equals():
@@ -37,15 +37,15 @@ def test_value_equals():
 
     # x == 3
     r = ValueEquals("x", 3)
-    assert r.is_valid(df).sum() == 1
+    assert r._is_valid(df).sum() == 1
 
     # x == y
     r = ValueEquals("x", "y")
-    assert r.is_valid(df).sum() == 5
+    assert r._is_valid(df).sum() == 5
 
     # x == 'A'
     r = ValueEquals("x", "'A'")
-    assert r.is_valid(df).sum() == 1
+    assert r._is_valid(df).sum() == 1
 
 
 def test_value_is_in():
@@ -53,15 +53,15 @@ def test_value_is_in():
 
     # x in [3, 2]
     r = ValueIsIn("x", [3, 2])
-    assert r.is_valid(df).sum() == 2
+    assert r._is_valid(df).sum() == 2
 
     # y in ["B", "C"]
     r = ValueIsIn("y", ["B", "C"])
-    assert r.is_valid(df).sum() == 2
+    assert r._is_valid(df).sum() == 2
 
     # x in [1]
     r = ValueIsIn("x", [1])
-    assert r.is_valid(df).sum() == 0
+    assert r._is_valid(df).sum() == 0
 
 
 def test_case_when_then():
@@ -76,19 +76,19 @@ def test_case_when_then():
         ValueRange("x", 0, 5, low_inclusive=True, high_inclusive=True),
         ValueRange("y", 0, 5, low_inclusive=True, high_inclusive=True),
     )
-    assert r.is_valid(df).sum() == 6
+    assert r._is_valid(df).sum() == 6
 
     # when 0 <= x <= 5 then y > 10
     r = CaseWhenThen(ValueRange("x", 0, 5, low_inclusive=True, high_inclusive=True), ValueRange("y", low=10))
-    assert r.is_valid(df).sum() == 0
+    assert r._is_valid(df).sum() == 0
 
     # when x < 3 then y > x
     r = CaseWhenThen(ValueRange("x", high=3), ValueRange("y", low="x"))
-    assert r.is_valid(df).sum() == 6
+    assert r._is_valid(df).sum() == 6
 
     # when 0 <= x <= 5 then y > x
     r = CaseWhenThen(ValueRange("x", 0, 5, low_inclusive=True, high_inclusive=True), ValueRange("y", low="x"))
-    assert r.is_valid(df).sum() == 3
+    assert r._is_valid(df).sum() == 3
 
 
 def test_filter():

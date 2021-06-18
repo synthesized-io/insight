@@ -63,6 +63,7 @@ class AnnotationParams:
 
 @dataclass(frozen=True)
 class AddressLabels:
+    """Column labels for Address annotation."""
     postcode_label: Optional[str] = None
     county_label: Optional[str] = None
     city_label: Optional[str] = None
@@ -76,6 +77,7 @@ class AddressLabels:
 
 @dataclass(frozen=True)
 class PersonLabels:
+    """Column labels for Person annotation."""
     title_label: Optional[str] = None
     gender_label: Optional[str] = None
     name_label: Optional[str] = None
@@ -92,6 +94,7 @@ class PersonLabels:
 
 @dataclass(frozen=True)
 class BankLabels:
+    """Column labels for Bank annotation."""
     bic_label: Optional[str] = None
     sort_code_label: Optional[str] = None
     account_label: Optional[str] = None
@@ -356,11 +359,7 @@ class EngineConfig:
 
 @dataclass
 class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig, ModelBuilderConfig):
-    """
-    distribution: Distribution type: "normal".
-    batch_size: Batch size.
-    learning_manager: Whether to use LearningManager.
-    """
+    """Configuration for :class:`synthesized.HighDimSynthesizer`."""
     distribution: str = 'normal'
     batch_size: int = 64
     increase_batch_size_every: Optional[int] = 500

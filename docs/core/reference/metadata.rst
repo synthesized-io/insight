@@ -22,3 +22,4 @@ Metadata
 
 .. automodule:: synthesized.config
    :members: PersonLabels, AddressLabels, BankLabels
+

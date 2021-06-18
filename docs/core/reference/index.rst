@@ -10,3 +10,5 @@ API Reference
     metadata
     insight
     rules
+    metadata/index
+    config

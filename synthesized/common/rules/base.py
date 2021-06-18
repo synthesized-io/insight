@@ -4,11 +4,11 @@ import pandas as pd
 
 
 class GenericRule(ABC):
-    """Base class mixin for generic rules that are used for rule-based sampling
+    """Base class for generic rules that are used for rule-based sampling
     of HighDimSynthesizer.
 
-    Attributes:
-        name: the dataframe column name.
+    Args:
+        name (str): the dataframe column name that this rule applies to.
     """
 
     def __init__(self, name: str) -> None:
@@ -18,9 +18,16 @@ class GenericRule(ABC):
         return f"GenericRule(name={self.name})"
 
     @abstractmethod
-    def is_valid(self, df: pd.DataFrame) -> pd.Series:
+    def _is_valid(self, df: pd.DataFrame) -> pd.Series:
         ...
 
     def filter(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Remove rows in a dataframe that are not valid under the rule."""
-        return df.loc[self.is_valid(df)]
+        """Remove rows in a dataframe that are not valid under the rule.
+
+        Args:
+            df (pd.DataFrame): Data to filter.
+
+        Returns:
+            DataFrame with rows removed that are not valid under the rule.
+        """
+        return df.loc[self._is_valid(df)]

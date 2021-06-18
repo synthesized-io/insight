@@ -1,7 +1,6 @@
 """This module implements the Synthesizer base class."""
 import base64
 import os
-from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
@@ -47,15 +46,17 @@ if not _check_license():
     raise Exception('Failed to load license key')
 
 
-class Synthesizer(tf.Module):
+class Synthesizer:
     def __init__(self, name: str, summarizer_dir: str = None, summarizer_name: str = None):
-        super(Synthesizer, self).__init__(name=name)
+        self._name = name
+        self._summarizer_dir = summarizer_dir
+        self._summarizer_name = summarizer_name
 
-        self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
-        tf.summary.experimental.set_step(self.global_step)
+        self._global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
+        tf.summary.experimental.set_step(self._global_step)
 
         self.logdir = None
-        self.loss_history: List[dict] = list()
+        self._loss_history: List[dict] = list()
 
         # Set up logging.
         if summarizer_dir is not None:
@@ -65,31 +66,24 @@ class Synthesizer(tf.Module):
             else:
                 self.logdir = f"{summarizer_dir}/{stamp}"
 
-            self.writer: tf.summary.SummaryWriter = tf.summary.create_file_writer(self.logdir)
+            self._writer: tf.summary.SummaryWriter = tf.summary.create_file_writer(self.logdir)
         else:
-            self.writer = tf.summary.create_noop_writer()
+            self._writer = tf.summary.create_noop_writer()
 
-    @abstractmethod
-    def get_values(self) -> List[Value]:
+    def _get_values(self) -> List[Value]:
         raise NotImplementedError()
 
-    def get_all_values(self) -> List[Value]:
-        return self.get_values()
+    def _get_all_values(self) -> List[Value]:
+        return self._get_values()
 
-    def get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
+    def _get_data_feed_dict(self, df: pd.DataFrame) -> Dict[str, Sequence[tf.Tensor]]:
         raise NotImplementedError
 
-    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
+    def _get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         raise NotImplementedError
-
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        return df
-
-    def postprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        return df
 
     @staticmethod
-    def logging(synthesizer, iteration, fetched):
+    def _logging(synthesizer, iteration, fetched):
         print('\niteration: {}'.format(iteration))
         print(', '.join('{}={:1.2e}'.format(name, value) for name, value in fetched.items()))
         return False
@@ -133,14 +127,14 @@ class Synthesizer(tf.Module):
         """
         raise NotImplementedError
 
-    def get_variables(self) -> Dict[str, Any]:
+    def _get_variables(self) -> Dict[str, Any]:
         return dict(
-            name=self.name,
-            global_step=self.global_step.numpy()
+            name=self._name,
+            global_step=self._global_step.numpy()
         )
 
-    def set_variables(self, variables: Dict[str, Any]):
-        assert self.name == variables['name']
+    def _set_variables(self, variables: Dict[str, Any]):
+        assert self._name == variables['name']
 
-        self.global_step.assign(variables['global_step'])
-        tf.summary.experimental.set_step(self.global_step)
+        self._global_step.assign(variables['global_step'])
+        tf.summary.experimental.set_step(self._global_step)

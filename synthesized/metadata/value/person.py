@@ -9,7 +9,7 @@ from ...config import PersonLabels
 
 
 class Person(String):
-    """Person meta."""
+    """Describe values in a dataset containing personal information."""
 
     def __init__(
             self, name: str, children: Optional[Sequence[String]] = None,

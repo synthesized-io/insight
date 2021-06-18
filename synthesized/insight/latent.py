@@ -29,7 +29,7 @@ def get_latent_space(df: pd.DataFrame, num_iterations=5_000, **kwargs) -> pd.Dat
 
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
     synthesizer.learn(df_train=df, num_iterations=num_iterations)
-    df_latent, df_synthesized = synthesizer.encode(df_encode=df)
+    df_latent, df_synthesized = synthesizer._encode(df_encode=df)
 
     logger.setLevel(log_level)
 
@@ -51,7 +51,7 @@ def get_data_quality(synthesizer: HighDimSynthesizer, df_orig: Union[None, pd.Da
 
     """
     synthesizer.learn(df_train=df_new, num_iterations=None, **kwargs)
-    df_latent, df_synthesized = synthesizer.encode(df_encode=pd.concat((df_orig, df_new), axis=0))
+    df_latent, df_synthesized = synthesizer._encode(df_encode=pd.concat((df_orig, df_new), axis=0))
 
     return total_latent_space_usage(df_latent, usage_type='mean')
 
@@ -103,7 +103,7 @@ def density(x, m, v):
 def latent_kl_difference(synth: HighDimSynthesizer, df_latent_orig: pd.DataFrame, new_data: pd.DataFrame,
                          num_dims: int = 10):
     dims = latent_dimension_usage(df_latent_orig, 'mean')['dimension'][-num_dims:].to_list()[::-1]
-    df_latent, df_syn = synth.encode(new_data)
+    df_latent, df_syn = synth._encode(new_data)
 
     mean = df_latent.loc[:, [f'm_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
     stddev = df_latent.loc[:, [f's_{d}' for d in dims]].rename(columns=lambda x: int(x[2:]))
@@ -153,7 +153,7 @@ def dataset_quality_by_chunk_old(df: pd.DataFrame, n: int = 10, synth: Optional[
         synth.learn(df_train=chunk, num_iterations=None)
         df_cumulative = df_cumulative.append(chunk)
 
-        df_latent, df_synthesized = synth.encode(df_encode=df_cumulative)
+        df_latent, df_synthesized = synth._encode(df_encode=df_cumulative)
         ldu = latent_dimension_usage(df_latent, usage_type='mean')
 
         df_results = df_results.append(
@@ -195,7 +195,7 @@ def dataset_quality_by_chunk(df: pd.DataFrame, n: int = 10, synth: Optional[High
         progress_callback(50)
 
     size = len(df) // n
-    df_latent, df_synthesized = synth.encode(df_encode=df)
+    df_latent, df_synthesized = synth._encode(df_encode=df)
 
     df_cumulative = pd.DataFrame()
     df_results = pd.DataFrame(index=pd.Index(data=[], name='num_rows', dtype=int))

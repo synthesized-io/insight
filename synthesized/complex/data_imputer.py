@@ -1,5 +1,8 @@
 import logging
-from typing import Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from synthesized.complex import HighDimSynthesizer
 
 import numpy as np
 import pandas as pd
@@ -12,24 +15,23 @@ logger = logging.getLogger(__name__)
 
 
 class DataImputer(Synthesizer):
-    """Imputes synthesized values for nans."""
+    """Impute values (e.g missing values, outliers) in original data using a Synthesizer to generate realistic
+    data points.
 
-    def __init__(self, synthesizer: Synthesizer):
-        """Data Imputer constructor.
+    Args:
+        synthesizer (HighDimSynthesizer): Trained Synthesizer instance used to impute data.
+    """
 
-        Args:
-            synthesizer: Synthesizer used to impute data. If not given, will create a HighDim from df.
-
-        """
+    def __init__(self, synthesizer: 'HighDimSynthesizer'):
         super().__init__(name='conditional')
         self.synthesizer = synthesizer
-        self.global_step = synthesizer.global_step
+        self._global_step = synthesizer._global_step
         self.logdir = synthesizer.logdir
-        self.loss_history = synthesizer.loss_history
-        self.writer = synthesizer.writer
+        self._loss_history = synthesizer._loss_history
+        self._writer = synthesizer._writer
 
-    def get_values(self) -> List[Value]:
-        return self.synthesizer.get_values()
+    def _get_values(self) -> List[Value]:
+        return self.synthesizer._get_values()
 
     def learn(
         self, df_train: pd.DataFrame, num_iterations: Optional[int],
@@ -44,13 +46,15 @@ class DataImputer(Synthesizer):
         """Imputes values within a dataframe from a given mask using the underlying synthesizer.
 
         Args:
-            df: A pandas DataFrame.
-            mask: A boolean pandas DataFrame, containg True for those values to be imputed.
-            produce_nans: Whether to produce nans when imputing values for given mask.
-            inplace: If true, modifies the given dataframe in place.
+            df (pd.DataFrame): The data in which to impute values.
+            mask (pd.DataFrame): A boolean mask that contains True for those values to be imputed, and False for the
+                values to remain unchanged.
+            produce_nans (bool, optional): Whether to produce nans when imputing values for given mask.
+                Defaults to False.
+            inplace (bool, optional): If True, modifies the given dataframe in place. Defaults to False.
 
         Returns:
-            The DataFrame with values imputed.
+            The DataFrame with masked values imputed.
         """
         if df.size != mask.size:
             raise ValueError(f"Given dataframe and mask must have same size, given df.size={df.size} "
@@ -67,7 +71,7 @@ class DataImputer(Synthesizer):
                 progress_callback(100)
             return df
 
-        df_encoded = self.synthesizer.encode_deterministic(df[rows_to_impute], produce_nans=produce_nans)
+        df_encoded = self.synthesizer._encode_deterministic(df[rows_to_impute], produce_nans=produce_nans)
         if progress_callback is not None:
             # 60% of time is spent on encode_deterministic()
             progress_callback(60)
@@ -85,15 +89,16 @@ class DataImputer(Synthesizer):
 
     def impute_nans(self, df: pd.DataFrame, inplace: bool = False,
                     progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
-        """Imputes NaN values within a dataframe using the underlying synthesizer.
+        """Impute NaN values within a dataframe using the underlying synthesizer.
 
         Args:
-            df: A pandas DataFrame containing NaN values.
-            inplace: If true, modifies the given dataframe in place.
+            df (pd.DataFrame): The data in which to impute values.
+            inplace (bool, optional): If True, modifies the given dataframe in place. Defaults to False.
 
         Returns:
-            The DataFrame with its NaN values imputed.
+            The DataFrame with NaN values imputed.
         """
+
         if progress_callback is not None:
             progress_callback(0)
 
@@ -110,15 +115,16 @@ class DataImputer(Synthesizer):
 
     def impute_outliers(self, df: pd.DataFrame, outliers_percentile: float = 0.05, inplace: bool = False,
                         progress_callback: Callable[[int], None] = None) -> pd.DataFrame:
-        """Imputes values in a DataFrame that our outliers by a given threshold.
+        """Impute outlier values in a DataFrame that are determined by a percentile threshold.
 
         Args:
-            df: A pandas DataFrame containing NaN values.
-            outliers_percentile: The percentile threshold for classifying outliers.
-            inplace: If true, modifies the given dataframe in place.
+            df (pd.DataFrame): The data in which to impute values.
+            outliers_percentile (float, optional): The percentile threshold for classifying outliers. All values
+                outside of these percentiles are considered outliers and will be imputed. Defaults to 0.05.
+            inplace (bool, optional): If True, modifies the given dataframe in place. Defaults to False.
 
         Returns:
-            The DataFrame with its outliers imputed.
+            The DataFrame with outliers imputed.
         """
 
         if progress_callback is not None:
@@ -141,5 +147,5 @@ class DataImputer(Synthesizer):
         self.impute_mask(df, outliers, inplace=True, progress_callback=progress_callback)
         return df
 
-    def get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
-        return self.synthesizer.get_losses()
+    def _get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
+        return self.synthesizer._get_losses()

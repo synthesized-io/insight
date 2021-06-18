@@ -88,9 +88,9 @@ def test_synthesis_w_annotations(high_dim_config):
     synthesizer.learn(df_train=data, num_iterations=10)
     df_synthesized = synthesizer.synthesize(num_rows=len(data))
 
-    _ = synthesizer.encode(data)
-    _ = synthesizer.encode_deterministic(data)
-    _ = synthesizer.encode_deterministic(data, produce_nans=True)
+    _ = synthesizer._encode(data)
+    _ = synthesizer._encode_deterministic(data)
+    _ = synthesizer._encode_deterministic(data, produce_nans=True)
     assert df_synthesized.shape == data.shape
 
     f = BytesIO()

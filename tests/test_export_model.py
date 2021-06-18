@@ -111,8 +111,8 @@ def test_type_overrides():
     synthesizer = HighDimSynthesizer(df_meta=df_meta, type_overrides=type_overrides)
     synthesizer.learn(df_original, num_iterations=10)
 
-    assert isinstance(synthesizer.df_model['r1'], KernelDensityEstimate)
-    assert isinstance(synthesizer.df_model['r2'], Histogram)
+    assert isinstance(synthesizer._df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer._df_model['r2'], Histogram)
 
     temp_dir = tempfile.mkdtemp()
     temp_fname = temp_dir + 'synthesizer.txt'
@@ -124,7 +124,7 @@ def test_type_overrides():
         synthesizer2 = HighDimSynthesizer.import_model(f)
     shutil.rmtree(temp_dir)
 
-    assert isinstance(synthesizer2.df_value['r1'], ContinuousValue)
-    assert isinstance(synthesizer2.df_value['r2'], CategoricalValue)
-    assert isinstance(synthesizer2.df_model['r1'], KernelDensityEstimate)
-    assert isinstance(synthesizer2.df_model['r2'], Histogram)
+    assert isinstance(synthesizer2._df_value['r1'], ContinuousValue)
+    assert isinstance(synthesizer2._df_value['r2'], CategoricalValue)
+    assert isinstance(synthesizer2._df_model['r1'], KernelDensityEstimate)
+    assert isinstance(synthesizer2._df_model['r2'], Histogram)

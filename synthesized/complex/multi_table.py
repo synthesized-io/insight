@@ -117,7 +117,7 @@ class TwoTableSynthesizer(Synthesizer):
 
         df_2_synth = pd.concat(_df_2_synth, ignore_index=True)
 
-        pk_model = self._synthesizers[1].df_model_independent[self.keys[1]]
+        pk_model = self._synthesizers[1]._df_model_independent[self.keys[1]]
         df_2_synth[self.keys[1]] = pk_model.sample(len(df_2_synth))
 
         return df_1_synth, df_2_synth

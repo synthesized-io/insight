@@ -11,7 +11,7 @@ from ..common.values import Value
 
 
 # TODO: Migrate to TensorFlow2
-class ScenarioSynthesizer(Synthesizer):
+class ScenarioSynthesizer(Synthesizer, tf.Module):
     """The scenario synthesizer implementation.
 
     Synthesizer which can learn from a scenario description to produce basic tabular data with

@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .fairness_scorer import FairnessScorer
-from ...common import Synthesizer
-from ...complex import ConditionalSampler, DataImputer
+from ...complex import ConditionalSampler, DataImputer, HighDimSynthesizer
 from ...model import ContinuousModel
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class BiasMitigator:
     """Find distribution biases in data and generate the inverse data to mitigate these biases.
     """
 
-    def __init__(self, synthesizer: Synthesizer, fairness_scorer: FairnessScorer):
+    def __init__(self, synthesizer: HighDimSynthesizer, fairness_scorer: FairnessScorer):
         """Given a FairnessScorer, build a Bias Mitigator.
 
         Args:
@@ -31,7 +30,7 @@ class BiasMitigator:
         self.cond_sampler = ConditionalSampler(synthesizer, min_sampled_ratio=0, synthesis_batch_size=262_144)
 
     @classmethod
-    def from_dataframe(cls, synthesizer: Synthesizer, df: pd.DataFrame, target: str,
+    def from_dataframe(cls, synthesizer: HighDimSynthesizer, df: pd.DataFrame, target: str,
                        sensitive_attrs: List[str], n_bins: int = 5,
                        target_n_bins: Optional[int] = None) -> 'BiasMitigator':
         """Given a DataFrame, build a Bias Mitigator.
@@ -123,9 +122,9 @@ class BiasMitigator:
                                                 filter(lambda x: x != 'nan', df_pre[col].unique()))
                                             ) for col in self.fairness_scorer.sensitive_attrs_and_target}
 
-            df_cond = self.cond_sampler.synthesize_from_joined_counts(marginal_counts=marginal_counts,
-                                                                      marginal_keys=marginal_keys,
-                                                                      produce_nans=produce_nans)
+            df_cond = self.cond_sampler._synthesize_from_joined_counts(marginal_counts=marginal_counts,
+                                                                       marginal_keys=marginal_keys,
+                                                                       produce_nans=produce_nans)
             df = pd.concat((df, df_cond))
         return df
 
@@ -262,7 +261,7 @@ class BiasMitigator:
                                                 filter(lambda x: x != 'nan', df_pre[col].unique()))
                                             ) for col in self.fairness_scorer.sensitive_attrs_and_target}
 
-            df_synth = self.cond_sampler.synthesize_from_joined_counts(
+            df_synth = self.cond_sampler._synthesize_from_joined_counts(
                 marginal_counts=marginal_counts, marginal_keys=marginal_keys, produce_nans=produce_nans)
             df = df.append(df_synth)
 

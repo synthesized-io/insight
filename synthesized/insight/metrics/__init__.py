@@ -1,4 +1,4 @@
-from .metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation,
+from .metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendallTauCorrelation,
                       KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation)
 from .metrics_base import (ChainColumnVector, ClassificationMetric, ClassificationPlotMetric, ColumnComparisonVector,
                            ColumnMetric, ColumnMetricVector, ColumnVector, DataFrameMatrix, DataFrameMetric,
@@ -38,6 +38,6 @@ __all__ = [
     'DiffVector', 'FractionalDiffVector', 'ChainColumnVector', 'ColumnVector', 'TwoColumnMetricMatrix',
     'ModellingMetric', 'ClassificationMetric', 'RegressionMetric', 'ClassificationPlotMetric',
     'DiffColumnMetricAdapter', 'predictive_modelling_score', 'predictive_modelling_comparison',
-    'Mean', 'StandardDeviation', 'KendellTauCorrelation', 'SpearmanRhoCorrelation', 'CramersV',
+    'Mean', 'StandardDeviation', 'KendallTauCorrelation', 'SpearmanRhoCorrelation', 'CramersV',
     'KolmogorovSmirnovDistance', 'EarthMoversDistance', 'CategoricalLogisticR2'
 ]

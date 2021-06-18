@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import RidgeClassifier
 
-from synthesized.insight.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendellTauCorrelation,
+from synthesized.insight.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance, KendallTauCorrelation,
                                          KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation)
 from synthesized.insight.metrics.modelling_metrics import (Accuracy, F1Score, Precision, PredictiveModellingComparison,
                                                            PredictiveModellingScore, Recall, classifier_scores)
@@ -17,7 +17,7 @@ cramers_v = CramersV()
 emd = EarthMoversDistance()
 ksd = KolmogorovSmirnovDistance()
 categorical_logistic_correlation = CategoricalLogisticR2()
-kendell_tau_correlation = KendellTauCorrelation()
+kendell_tau_correlation = KendallTauCorrelation()
 
 
 def test_mean():
@@ -83,7 +83,7 @@ def test_kt_correlation():
     sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
     sr_d = pd.Series(['a', 'b', 'c', 'd'], name='d')
 
-    kt_corr = KendellTauCorrelation(max_p_value=0.05)
+    kt_corr = KendallTauCorrelation(max_p_value=0.05)
 
     assert kt_corr(sr_a, sr_a) is not None
     assert kt_corr(sr_b, sr_c) is None

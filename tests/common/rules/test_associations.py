@@ -46,4 +46,4 @@ def test_repeated_columns_raises_error_on_validate():
     association_2 = Association(binding_mask=np.array([]), associations=["a"])
 
     with pytest.raises(AssociatedRuleOverlap):
-        Association.validate_association_rules([association_1, association_2])
+        Association._validate_association_rules([association_1, association_2])

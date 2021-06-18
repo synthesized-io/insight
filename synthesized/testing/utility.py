@@ -15,7 +15,7 @@ import pandas as pd
 
 from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
                        plot_second_order_metric_distances, plot_second_order_metric_matrices, set_plotting_style)
-from ..common.synthesizer import Synthesizer
+from ..complex import HighDimSynthesizer
 from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
                                TwoDataFrameVector)
 from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
@@ -38,7 +38,7 @@ class DisplayType(Enum):
 class UtilityTesting:
     """A universal set of utilities that let you to compare quality of original vs synthetic data."""
 
-    def __init__(self, synthesizer: Synthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame):
+    def __init__(self, synthesizer: HighDimSynthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame):
         """Create an instance of UtilityTesting.
 
         Args:
@@ -53,11 +53,11 @@ class UtilityTesting:
 
         self.df_meta = synthesizer.df_meta
         try:
-            models = [m for m in synthesizer.df_model_independent.values()]
+            models = [m for m in synthesizer._df_model_independent.values()]
         except AttributeError:
             models = []
 
-        models.extend([m for m in synthesizer.df_model.values()])
+        models.extend([m for m in synthesizer._df_model.values()])
         self.df_models = DataFrameModel(meta=synthesizer.df_meta, models=models)
 
         self.categorical: List[str] = []

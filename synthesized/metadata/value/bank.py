@@ -8,9 +8,8 @@ from ...config import BankLabels
 
 
 class Bank(String):
-    """
-    Bank meta.
-    """
+    """Describe values in a dataset containing bank account information."""
+
     dtype = 'U'
 
     def __init__(

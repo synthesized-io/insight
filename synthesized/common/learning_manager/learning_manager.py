@@ -1,7 +1,10 @@
 import logging
 import tempfile
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, cast
+
+if TYPE_CHECKING:
+    from synthesized.complex import HighDimSynthesizer
 
 import numpy as np
 import pandas as pd
@@ -228,7 +231,7 @@ class LearningManager:
 
         return self.stop_learning_check_metric(iteration=iteration, stop_metric=stop_metrics)
 
-    def stop_learning_synthesizer(self, iteration: int, synthesizer: Synthesizer, df_train_orig: pd.DataFrame) -> bool:
+    def stop_learning_synthesizer(self, iteration: int, synthesizer: 'HighDimSynthesizer', df_train_orig: pd.DataFrame) -> bool:
         """Given a Synthesizer and the original data, get synthetic data, calculate the 'stop_metric', compare it to
         previous iteration, evaluate the criteria and return accordingly.
 
@@ -244,14 +247,14 @@ class LearningManager:
             return False
 
         sample_size = min(self.sample_size, len(df_train_orig)) if self.sample_size else len(df_train_orig)
-        column_names = [col for v in synthesizer.get_values() for col in v.learned_input_columns()]
+        column_names = [col for v in synthesizer._get_values() for col in v.learned_input_columns()]
         if len(column_names) == 0:
             return False
 
         df_synth = synthesizer.synthesize(num_rows=sample_size, produce_nans=True)
 
         return self.stop_learning_check_data(iteration, df_train_orig.sample(sample_size), df_synth,
-                                             column_names=column_names, df_model=synthesizer.df_model)
+                                             column_names=column_names, df_model=synthesizer._df_model)
 
     def stop_learning_engine_loss(
             self, iteration: int, synthesizer: Synthesizer, df_valid: pd.DataFrame = None
@@ -278,7 +281,7 @@ class LearningManager:
         # )
         # feed_dict = {name: tf.nn.embedding_lookup(params=x, ids=batch_valid)
         #              for name, x in data_dict.items()}
-        losses = synthesizer.get_losses()
+        losses = synthesizer._get_losses()
         losses = {k: [v.numpy()] for k, v in losses.items() if k in ['reconstruction-loss', 'kl-loss']}
         return self.stop_learning_check_metric(iteration, losses)
 
@@ -307,6 +310,7 @@ class LearningManager:
             return self.stop_learning_engine_loss(iteration, synthesizer=synthesizer, df_valid=df_valid)
         else:
             assert df_train_orig is not None
+            synthesizer = cast('HighDimSynthesizer', synthesizer)
             return self.stop_learning_synthesizer(iteration, synthesizer=synthesizer, df_train_orig=df_train_orig)
 
     def restart_learning_manager(self):
