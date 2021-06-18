@@ -37,7 +37,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'sphinx_panels',
-    'sphinx_tabs.tabs',
+    'sphinx_inline_tabs',
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting"
 ]
@@ -55,6 +55,7 @@ napoleon_use_param = True
 autosummary_generate = True
 autodoc_typehints = "signature"
 always_document_param_types = True
+#panels_add_bootstrap_css = False
 
 # -- Options for HTML output -------------------------------------------------
 

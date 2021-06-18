@@ -12,40 +12,32 @@ to ensure the compatibility of all dependencies.
 
 Before starting, ensure that ``pip``, ``setuptools`` and ``wheel`` are installed and up to date
 
-.. tabs::
+.. tab:: Unix
 
-    .. group-tab:: Linux
+    .. code-block:: console
 
-        .. code-block:: bash
+        python3 -m pip install --upgrade pip setuptools wheel
 
-            python3 -m pip install --upgrade pip setuptools wheel
+.. tab:: Windows
 
-    .. group-tab:: Windows
+    .. code-block:: console
 
-        .. code-block:: powershell
-
-            py -m pip install --upgrade pip setuptools wheel
-
+        py -m pip install --upgrade pip setuptools wheel
 
 Next, install the package using ``pip``:
 
-.. tabs::
+.. tab:: Unix
 
-    .. group-tab:: Linux
+    .. code-block:: console
 
-        .. code-block:: bash
-
-            python3 -m pip install synthesized-<version>-linux_x86_64.whl
+        python3 -m pip install synthesized-<version>-linux_x86_64.whl
 
 
-    .. group-tab:: Windows
+.. tab:: Windows
 
-        Note: `Visual Studio Build Tools <https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019>`__
-        must be pre-installed before completing this step.
+    .. code-block:: console
 
-        .. code-block:: powershell
-
-            py -m pip install synthesized-<version>-win_amd64.whl
+        py -m pip install synthesized-<version>-win_amd64.whl
 
 
 Setting the License Key
@@ -54,37 +46,33 @@ Setting the License Key
 To use the Synthesized SDK, a valid license key is required. This can be set
 as an environment variable, for example:
 
-.. tabs::
+.. tab:: Unix
 
-    .. group-tab:: Linux
+    .. code-block:: console
 
-        .. code-block:: bash
+        export SYNTHESIZED_KEY="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
 
-            export SYNTHESIZED_KEY="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+.. tab:: Windows
 
-    .. group-tab:: Windows
+    .. code-block:: console
 
-        .. code-block:: powershell
-
-            $Env:SYNTHESIZED_KEY="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+        $Env:SYNTHESIZED_KEY="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
 
 Alternatively, the key can be copied to a permanent hidden folder:
 
-.. tabs::
+.. tab:: Unix
 
-    .. group-tab:: Linux
+    .. code-block:: console
 
-        .. code-block:: bash
+        mkdir ~/.synthesized
+        echo YOUR_LICENSE_KEY > ~/.synthesized/key
 
-            mkdir ~/.synthesized
-            echo YOUR_LICENSE_KEY > ~/.synthesized/key
+.. tab:: Windows
 
-    .. group-tab:: Windows
+    .. code-block:: console
 
-        .. code-block:: powershell
-
-            mkdir ~/.synthesized
-            echo YOUR_LICENSE_KEY > ~/.synthesized/key
+        mkdir ~/.synthesized
+        echo YOUR_LICENSE_KEY > ~/.synthesized/key
 
 
 Testing the installation
@@ -92,19 +80,17 @@ Testing the installation
 
 To test the installation is correct, import the synthesized module in the python interpreter
 
-.. tabs::
+.. tab:: Unix
 
-    .. group-tab:: Linux
+    .. code-block:: console
 
-        .. code-block:: bash
+        python3 -c "import synthesized; print(synthesized.__version__)"
 
-            python3 -c "import synthesized; print(synthesized.__version__)"
+.. tab:: Windows
 
-    .. group-tab:: Windows
+    .. code-block:: console
 
-        .. code-block:: powershell
-
-            py -c "import synthesized; print(synthesized.__version__)"
+        py -c "import synthesized; print(synthesized.__version__)"
 
 
 Dependencies
@@ -120,7 +106,6 @@ Package                                                                   Minimu
 `scikit_learn <https://scikit-learn.org>`__                                     0.23.2
 `pandas <https://pandas.pydata.org/>`__                                         1.1.5
 `seaborn <https://seaborn.pydata.org/>`__                                       0.11.0
-`pyemd <https://pypi.org/project/pyemd/>`__                                     0.5.1
 `faker <https://faker.readthedocs.io/>`__                                       5.0.1
 `simplejson <https://simplejson.readthedocs.io/>`__                             3.17.2
 `pyyaml <https://pyyaml.org/>`__                                                5.3.1

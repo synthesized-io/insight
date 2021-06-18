@@ -2,5 +2,5 @@ sphinx==3.5.4
 pydata-sphinx-theme==0.6.3
 sphinx-panels==0.5.2
 sphinx-autodoc-typehints==1.12.0
-sphinx-tabs==3.0.0
+sphinx-inline-tabs==2021.3.28b7
 ipython>=7.2.0
