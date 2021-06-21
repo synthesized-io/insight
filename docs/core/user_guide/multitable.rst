@@ -1,8 +1,8 @@
 .. _multitable_guide:
 
-=====================
-Multi Table Synthesis
-=====================
+===================
+Two Table Synthesis
+===================
 
 Synthesized supports generating synthetic data from two tables that are related with a primary and foreign key
 constraint. With the ``TwoTableSynthesizer`` class, it is possible to:
@@ -28,9 +28,9 @@ first table. Currently, ``TwoTableSynthesizer`` only supports integer type prima
     from synthesized import MetaExtractor
     from synthesized.complex import TwoTableSynthesizer
 
-Load the two related tables. In this case, `customer_table' contains a primary key column named 'customer_id', and
-'transaction_table' contains a primary key column named 'transaction_id', together with the foreign key 'customer_id'.
-This references the 'customer_id' in 'customer_table'.
+Load the two related tables. In this case, ``customer_table`` contains a primary key column named ``customer_id``, and
+``transaction_table`` contains a primary key column named ``transaction_id``, together with the foreign key
+``customer_id``. This references the ``customer_id`` in ``customer_tab``.
 
 .. ipython:: python
     :verbatim:

@@ -28,7 +28,7 @@ Further details can be found in the :ref:`api_reference`.
     singletable
     multitable
     annotations
-    rules
     conditions
+    rules
     imputation
     evaluation
