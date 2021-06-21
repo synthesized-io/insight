@@ -91,8 +91,12 @@ class Histogram(DiscreteModel[Nominal[NType, ValueMeta], NType], Generic[NType])
         if len(self.categories) == 0:
             self.probabilities = {}
 
-        if isinstance(self.categories, pd.IntervalIndex):
-            cut = pd.cut(df[self.name], bins=self.categories)
+        if isinstance(self.categories, pd.IntervalIndex)\
+           or any(isinstance(x, pd.Interval) for x in self.categories):
+
+            bins = self.categories if isinstance(self.categories, pd.IntervalIndex)\
+                else pd.IntervalIndex(self.categories)
+            cut = pd.cut(df[self.name], bins=bins)
             value_counts = pd.value_counts(cut, normalize=True, dropna=True, sort=False)
         else:
             value_counts = pd.value_counts(df[self.name], normalize=True, dropna=True, sort=False)

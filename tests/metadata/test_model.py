@@ -14,7 +14,7 @@ from synthesized.model import DataFrameModel, Model
 from synthesized.model.factory import ModelBuilder, ModelFactory
 from synthesized.model.models import (AddressModel, BankModel, EnumerationModel, FormattedStringModel, Histogram,
                                       KernelDensityEstimate, PersonModel, SequentialFormattedString)
-
+from synthesized.model.exceptions import ModelNotFittedError
 logger = logging.getLogger(__name__)
 
 
@@ -111,8 +111,11 @@ def test_histogram_from_binned_affine(col, simple_df, simple_df_meta):
     logger.info("%s -> %s", simple_df_meta[col], hist)
     logger.info("Num Bins: %d", len(hist.categories))
     assert len(hist.categories) <= 20
+    with pytest.raises(ModelNotFittedError):
+        hist.probabilities
+    
     hist.fit(simple_df)
-    hist.plot()
+    assert(sum(hist.probabilities.values())==1)
 
 
 def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
