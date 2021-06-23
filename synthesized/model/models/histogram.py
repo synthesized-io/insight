@@ -101,6 +101,30 @@ class Histogram(DiscreteModel[Nominal[NType, ValueMeta], NType], Generic[NType])
 
         return self
 
+    def update_model(self: HistogramType, df: pd.DataFrame) -> HistogramType:
+        super().update_model(df)
+
+        if self._probabilities is None:
+            return self.fit(df)
+
+        if isinstance(self.categories, pd.IntervalIndex):
+            cut = pd.cut(df[self.name], bins=self.categories)
+            value_counts = pd.value_counts(cut, normalize=True, dropna=True, sort=False)
+        else:
+            value_counts = pd.value_counts(df[self.name], normalize=True, dropna=True, sort=False)
+
+        new_rows = len(df)
+
+        assert self.num_rows is not None
+        old_rows = self.num_rows - new_rows
+        self.probabilities = {
+            cat: (value_counts.get(cat, 0.0) * new_rows
+                  + self.probabilities.get(cat, 0.0) * old_rows) / self.num_rows
+            for cat in self.categories
+        }
+
+        return self
+
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         df = pd.DataFrame(
             {self.name: np.random.choice([*self.probabilities.keys()], size=n, p=[*self.probabilities.values()])})

@@ -18,7 +18,7 @@ class Bool(Ordinal[np.bool8]):
 
 class IntegerBool(Ring[np.int64]):
     dtype = 'i8'
-    precision = np.int64(1)
+    _precision = np.int64(1)
 
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,

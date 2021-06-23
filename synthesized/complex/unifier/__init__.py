@@ -1,5 +1,6 @@
 from .base import Unifier
-from .ensemble import EnsembleUnifier
 from .concat_unifier import ConcatUnifier
+from .ensemble import EnsembleUnifier
+from .shallow import ShallowOracle
 
-__all__ = ['EnsembleUnifier', 'Unifier', 'ConcatUnifier']
+__all__ = ['EnsembleUnifier', 'ShallowOracle', 'Unifier', 'ConcatUnifier']

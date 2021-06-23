@@ -7,7 +7,7 @@ import yaml
 from .unifier_assessor import UnifierAssessor
 from ..complex import HighDimSynthesizer
 from ..complex.unifier import Unifier
-from ..insight.metrics import (CramersV, EarthMoversDistance, KendellTauCorrelation, KolmogorovSmirnovDistance,
+from ..insight.metrics import (CramersV, EarthMoversDistance, KendallTauCorrelation, KolmogorovSmirnovDistance,
                                SpearmanRhoCorrelation, TwoColumnMetric)
 from ..metadata.factory import MetaExtractor
 
@@ -38,7 +38,7 @@ def evaluate_unifier(unifier_class: Type[Unifier], config_path: str,
     if first_order_metrics is None:
         first_order_metrics = (KolmogorovSmirnovDistance(), EarthMoversDistance())
     if second_order_metrics is None:
-        second_order_metrics = (CramersV(), KendellTauCorrelation(), SpearmanRhoCorrelation())
+        second_order_metrics = (CramersV(), KendallTauCorrelation(), SpearmanRhoCorrelation())
 
     output: Dict[Any, Any] = {}
 
@@ -60,7 +60,7 @@ def evaluate_unifier(unifier_class: Type[Unifier], config_path: str,
         synthesizers: List[HighDimSynthesizer] = []
         for i, (df, df_meta) in enumerate(zip(df_splits, df_meta_splits)):
             print(f"Updating with DataFrame {i}")
-            unifier.update(df, df_meta, num_iterations=test_config["num_iterations"])
+            unifier.update(dfs=df, df_metas=df_meta, num_iterations=test_config["num_iterations"])
             if test_config["compare_w_highdim"]:
                 synthesizer = HighDimSynthesizer(df_meta)
                 synthesizer.learn(df, num_iterations=test_config["num_iterations"])

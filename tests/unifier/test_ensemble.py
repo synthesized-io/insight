@@ -39,9 +39,11 @@ def ensemble_unifier():
     df3_meta = MetaExtractor.extract(df3)
 
     unifier = EnsembleUnifier()
-    unifier.update(df0, df0_meta, num_iterations=10)
-    unifier.update(df1, df1_meta, num_iterations=10)
-    unifier.update([df2, df3], [df2_meta, df3_meta], num_iterations=10)
+    unifier.update(dfs=df0, df_metas=df0_meta, num_iterations=10)
+    unifier.update(dfs=df1, df_metas=df1_meta, num_iterations=10)
+    unifier.update(dfs=df0, df_metas=df0_meta, num_iterations=10)
+    unifier.update(dfs=df1, df_metas=df1_meta, num_iterations=10)
+    unifier.update(dfs=[df2, df3], df_metas=[df2_meta, df3_meta], num_iterations=10)
     return unifier
 
 

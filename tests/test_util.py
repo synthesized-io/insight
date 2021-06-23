@@ -1,4 +1,6 @@
-from synthesized.util import get_all_subclasses
+import matplotlib.pyplot as plt
+
+from synthesized.util import axes_grid, get_all_subclasses
 
 
 def test_get_all_subclasses():
@@ -28,3 +30,11 @@ def test_get_all_subclasses():
 
     sc = get_all_subclasses(Foo)
     assert sc == {FooChild, FooChild2, FooChild3, FooChild4, Foo2, Foo2Child, Foo2Child2}
+
+
+def test_axes_grid():
+    fig, ax = plt.subplots()
+
+    axes = axes_grid(ax, rows=3, cols=3, col_titles=['a', 'b', 'c'], row_titles=['1', '2', '3'])
+    assert len(axes) == 3
+    assert len(axes[0]) == 3

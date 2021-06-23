@@ -8,7 +8,7 @@ from ..base import Ring, Scale, ValueMeta
 
 class Integer(Scale[np.int64]):
     dtype = 'i8'
-    precision = np.int64(1)
+    _precision = np.int64(1)
 
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,
@@ -33,7 +33,7 @@ class Integer(Scale[np.int64]):
 
 class Float(Ring[np.float64]):
     dtype = 'f8'
-    precision = np.float64(0.)
+    _precision = np.float64(0.)
 
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,

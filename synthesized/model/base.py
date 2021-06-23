@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar, cast
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -41,9 +42,27 @@ class Model(Generic[MetaType]):
 
         return self
 
+    def update_model(self, df: pd.DataFrame) -> 'Model':
+        """Extract the children of this Meta."""
+        self._meta.update_meta(df)
+
+        return self
+
     @abstractmethod
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         pass
+
+    def plot(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(7, 4))
+        else:
+            fig = ax.get_figure()
+
+        ax.text(
+            0.5, 0.5, self.__class__.__name__, horizontalalignment='center',
+            verticalalignment='center', transform=ax.transAxes
+        )
+        return fig
 
     def add_nans(self, sr: pd.Series, nan_freq: Optional[float]) -> pd.DataFrame:
         if nan_freq and nan_freq > 0:

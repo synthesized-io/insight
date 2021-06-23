@@ -132,7 +132,7 @@ def test_histogram_from_affine_precision_int(simple_df, simple_df_meta):
     assert hist.categories == int_meta.categories
 
     # Now we increase the precision to span multiple values.
-    int_meta.unit_meta.precision = np.int64(2)
+    int_meta.unit_meta.categories = [np.int64(2)]
     hist = Histogram(int_meta)
     logger.debug(hist)
     logger.debug(hist.categories)  # [[0, 2), [2, 4), [4, 6)]
@@ -157,12 +157,12 @@ def test_histogram_from_affine_precision_date(simple_df, simple_df_meta):
     assert hist.categories == date_meta.categories
 
     # Now we increase the precision, but it doesn't span multiple values yet. (smallest diff is 5 days)
-    date_meta.unit_meta.precision = np.timedelta64(3, 'D')
+    date_meta.unit_meta.categories = [np.timedelta64(3, 'D')]
     hist = Histogram(date_meta)
     assert hist.dtype == "M8[ns]"
 
     # Finally we increase the precision so that it spans multiple values
-    date_meta.unit_meta.precision = np.timedelta64(10, 'D')
+    date_meta.unit_meta.categories = [np.timedelta64(10, 'D')]
     hist = Histogram(date_meta)
     logger.debug(hist)
     logger.debug(hist.categories[:3])  # [[2023-07-07, 2023-07-17), [2023-07-17, 2023-07-27), [2023-07-27, 2023-08-06)]

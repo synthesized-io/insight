@@ -14,7 +14,7 @@ DateType = TypeVar('DateType', bound='DateTime')
 
 class TimeDelta(Scale[np.timedelta64]):
     dtype = 'm8[ns]'
-    precision = np.timedelta64(1, 'ns')
+    _precision = np.timedelta64(1, 'ns')
 
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,
@@ -29,7 +29,7 @@ class TimeDelta(Scale[np.timedelta64]):
 
 class TimeDeltaDay(TimeDelta):
     dtype = 'm8[D]'
-    precision = np.timedelta64(1, 'D')
+    _precision = np.timedelta64(1, 'D')
 
 
 class DateTime(Affine[np.datetime64]):
@@ -102,6 +102,9 @@ class DateTime(Affine[np.datetime64]):
         sr_dt = df[self.name]
 
         df[self.name + '_dow'] = sr_dt.dt.day_name()
+        df[self.name + '_second'] = sr_dt.dt.second
+        df[self.name + '_minute'] = sr_dt.dt.minute
+        df[self.name + '_hour'] = sr_dt.dt.hour
         df[self.name + '_day'] = sr_dt.dt.day
         df[self.name + '_month'] = sr_dt.dt.month
         df[self.name + '_year'] = sr_dt.dt.year
@@ -112,11 +115,17 @@ class DateTime(Affine[np.datetime64]):
         df.loc[:, self.name] = pd.to_datetime(pd.DataFrame({
             'year': df.loc[:, self.name + '_year'],
             'month': df.loc[:, self.name + '_month'],
-            'day': df.loc[:, self.name + '_day']}
-        ))
+            'day': df.loc[:, self.name + '_day'],
+            'hour': df.loc[:, self.name + '_hour'],
+            'minute': df.loc[:, self.name + '_minute'],
+            'second': df.loc[:, self.name + '_second'],
+        }))
 
         df.drop(
-            columns=[self.name + '_dow', self.name + '_day', self.name + '_month', self.name + '_year'],
+            columns=[
+                self.name + '_dow', self.name + '_day', self.name + '_month', self.name + '_year',
+                self.name + '_hour', self.name + '_minute', self.name + '_second'
+            ],
             inplace=True
         )
 

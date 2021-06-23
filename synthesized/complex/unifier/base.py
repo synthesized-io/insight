@@ -16,10 +16,12 @@ class Unifier(ABC):
         cls.subclasses[cls.__name__] = cls
 
     @abstractmethod
-    def update(self,
-               dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]] = None,
-               df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]] = None,
-               num_iterations: int = None) -> None:
+    def update(
+        self,
+        dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]],
+        df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]],
+        num_iterations: int = None
+    ) -> None:
         """
         Update adds a new dataframe to the Unifier object, this dataframe can then be used for Synthesis later on.
 

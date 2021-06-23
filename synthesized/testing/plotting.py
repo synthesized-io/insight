@@ -20,6 +20,7 @@ from ..insight.metrics import EarthMoversDistance, KolmogorovSmirnovDistance
 from ..metadata import DataFrameMeta
 from ..metadata.factory import MetaExtractor
 from ..model.factory import ModelFactory
+from ..util import axes_grid
 
 logger = logging.getLogger(__name__)
 
@@ -56,66 +57,6 @@ def set_plotting_style():
     mpl.rcParams['xtick.direction'] = 'out'
     mpl.rcParams['ytick.direction'] = 'out'
     mpl.rcParams['axes.prop_cycle'] = cycler('color', ['312874', 'FF4D5B', 'FFBDD1', '4EC7BD', '564E9C'] * 10)
-
-
-def axes_grid(
-        ax: Union[Axes, SubplotBase], rows: int, cols: int, col_titles: List[str] = None,
-        row_titles: List[str] = None, **kwargs
-) -> Union[List[Union[Axes, SubplotBase]], List[List[Union[Axes, SubplotBase]]]]:
-    """
-
-    Args:
-        ax: The axes to subdivide.
-        rows: number of rows.
-        cols: Number of columns.
-        col_titles: Title for each column.
-        row_titles: Title for each row.
-        **kwargs: wspace, hspace, height_ratios, width_ratios.
-
-    """
-    col_titles = col_titles or ['' for _ in range(cols)]
-    row_titles = row_titles or ['' for _ in range(rows)]
-    ax.set_axis_off()
-    sp_spec = ax.get_subplotspec()
-    sgs = sp_spec.subgridspec(rows, cols, **kwargs)
-    fig = ax.figure
-    col_axes: List[mpl.axes.Axes] = list()
-    for c in range(cols):
-        sharey = col_axes[0] if c > 0 else None
-        ax = fig.add_subplot(sgs[:, c], sharey=sharey)
-        ax.set_title(col_titles[c])
-        col_axes.append(ax)
-
-    if rows == 1:
-        col_axes[0].set_ylabel(row_titles[0])
-        return col_axes
-    else:
-        for col_ax in col_axes:
-            col_ax.set_axis_off()
-
-        axes = []
-        for r in range(rows):
-            if cols == 1:
-                if r == 0:
-                    axes.append(fig.add_subplot(sgs[r, 0]))
-                else:
-                    axes.append(fig.add_subplot(sgs[r, 0], sharex=axes[0]))
-                axes[r].set_ylabel(row_titles[r])
-            else:
-                row_axes = list()
-                if r == 0:
-                    row_axes.append(fig.add_subplot(sgs[r, 0]))
-                else:
-                    row_axes.append(fig.add_subplot(sgs[r, 0], sharex=axes[0][0]))
-                row_axes[0].set_ylabel(row_titles[r])
-                for c in range(1, cols):
-                    if r == 0:
-                        row_axes.append(fig.add_subplot(sgs[r, c], sharey=row_axes[0]))
-                    else:
-                        row_axes.append(fig.add_subplot(sgs[r, c], sharex=axes[0][c], sharey=row_axes[0]))
-                axes.append(row_axes)
-
-    return axes
 
 
 def plot_data(data: pd.DataFrame, ax: Axes):

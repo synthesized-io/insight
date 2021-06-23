@@ -10,23 +10,22 @@ from ...model import DataFrameModel, DiscreteModel
 
 
 class EnsembleUnifier(Unifier):
-    """
-    Data Oracle unifier that uses an ensemble of HighDimSynthesizers to unify columns across dataframes.
+    """Data Oracle unifier that uses an ensemble of HighDimSynthesizers to unify columns across dataframes.
 
     Attributes:
-        df_metas: A list of all the DataFrameMeta objects for the DataFrames that are added to the update method.
         ensemble: A list of the trained HighDimSynthesizer objects for each DataFrame, used in generation.
     """
 
     def __init__(self, ensemble: Sequence[HighDimSynthesizer] = None):
         self.ensemble: List[HighDimSynthesizer] = list(ensemble) if ensemble is not None else []
 
-    def update(self,
-               dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]] = None,
-               df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]] = None,
-               num_iterations: int = None) -> None:
-        """
-        Incorporates the DataFrame and DataFrameMeta object into the unifier for generation.
+    def update(
+        self,
+        dfs: Union[pd.DataFrame, Sequence[pd.DataFrame]],
+        df_metas: Union[DataFrameMeta, Sequence[DataFrameMeta]],
+        num_iterations: int = None
+    ) -> None:
+        """Incorporates the DataFrame and DataFrameMeta object into the unifier for generation.
 
         Trains a single HighDimSynthesizer object for a new dataframe.
 
@@ -37,20 +36,16 @@ class EnsembleUnifier(Unifier):
             num_iterations: the number of iterations used to train the HighDimSynthesizer. Defaults to None, in
                 which case the learning manager is used to determine when to stop training.
         """
-        if isinstance(dfs, pd.DataFrame):
-            dfs = [dfs]
+        list_dfs: Sequence[pd.DataFrame] = [dfs] if isinstance(dfs, pd.DataFrame) else dfs
+        list_df_metas = [df_metas] if isinstance(df_metas, DataFrameMeta) else df_metas
 
-        if isinstance(df_metas, DataFrameMeta):
-            df_metas = [df_metas]
-
-        if dfs is not None and df_metas is not None:
-            if len(dfs) == len(df_metas):
-                for df, df_meta in zip(dfs, df_metas):
-                    synthesizer = HighDimSynthesizer(df_meta)
-                    synthesizer.learn(df, num_iterations=num_iterations)
-                    self.ensemble.append(synthesizer)
-            else:
-                raise ValueError("length of dfs and df_metas provided don't match")
+        if len(list_dfs) == len(list_df_metas):
+            for df, df_meta in zip(list_dfs, list_df_metas):
+                synthesizer = HighDimSynthesizer(df_meta)
+                synthesizer.learn(df, num_iterations=num_iterations)
+                self.ensemble.append(synthesizer)
+        else:
+            raise ValueError("length of dfs and df_metas provided don't match")
 
     def query(self, columns: Sequence[str], num_rows: int, query_iterations: int = 20) -> pd.DataFrame:
         """
@@ -81,7 +76,11 @@ class EnsembleUnifier(Unifier):
             for synthesizer, df_ in zip(self.ensemble[1:], ensemble_dfs[1:]):
                 relevant_cols = set(columns).intersection(df_.columns)
                 df_ = df_[relevant_cols]
-                df = _resolve_overlap(df, df_, synthesizer.df_model)
+                df_model = DataFrameModel(
+                    synthesizer.df_meta,
+                    models=list(synthesizer._df_model.children) + list(synthesizer._df_model_independent.children)
+                )
+                df = _resolve_overlap(df, df_, df_model)
 
             unified_df = unified_df.append(df, ignore_index=True)
         return unified_df.iloc[:num_rows]

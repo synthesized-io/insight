@@ -29,9 +29,25 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
     def fit(self, df: pd.DataFrame):
         super().fit(df)
         c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
-
         self._kernel = gaussian_kde(
             (df[self.name].dropna().values.astype(self._meta.dtype) - c).astype(self.kde_dtype),
+            bw_method='silverman'
+        )
+        return self
+
+    def update_model(self, df: pd.DataFrame):
+        c_old = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
+        super().update_model(df)
+        if self._kernel is None:
+            return self.fit(df)
+
+        c = self.min if self.min is not None else np.array(0, dtype=self._meta.dtype)
+
+        self._kernel = gaussian_kde(  # Update the kde kernel with the new data. The weird type converting is so that
+            np.concatenate((          # datetime64 values can be handled.
+                (self._kernel.dataset.squeeze().astype(self._meta.unit_meta.dtype) + c_old - c).astype(self.kde_dtype),
+                (df[self.name].dropna().values.astype(self._meta.dtype) - c).astype(self.kde_dtype),
+            ), axis=0),
             bw_method='silverman'
         )
         return self
@@ -137,12 +153,9 @@ class KernelDensityEstimate(ContinuousModel[Affine[AType], AType], Generic[AType
             'pdf': self.probability(domain)
         })
 
-        if self.kde_dtype == 'i8':
-            sns.barplot(data=plot_data, x=self.name, y='pdf', ax=ax)
-        else:
-            sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=ax)
+        sns.lineplot(data=plot_data, x=self.name, y='pdf', ax=ax)
 
-        for tick in ax.get_xticklabels():
+        for tick_n, tick in enumerate(ax.get_xticklabels()):
             tick.set_rotation(90)
 
         return fig

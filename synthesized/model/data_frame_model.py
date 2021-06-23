@@ -1,5 +1,6 @@
 from typing import Dict, Iterator, MutableMapping, Optional, Sequence, cast
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 import synthesized.model
@@ -7,6 +8,7 @@ import synthesized.model
 from .base import Model
 from .exceptions import ModelNotFittedError
 from ..metadata import DataFrameMeta
+from ..util import axes_grid
 
 
 class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
@@ -34,6 +36,15 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
 
         return self
 
+    def update_model(self, df: pd.DataFrame) -> 'DataFrameModel':
+        self.meta.num_rows = (self.meta.num_rows or 0) + len(df)
+
+        with self._meta.unfold(df=df):
+            for model in self.children:
+                model.update_model(df=df)
+
+        return self
+
     def sample(self, n: int, produce_nans: bool = False, conditions: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         if not self._fitted:
             raise ModelNotFittedError
@@ -56,6 +67,26 @@ class DataFrameModel(Model[DataFrameMeta], MutableMapping[str, Model]):
     @children.setter
     def children(self, children: Sequence[Model]) -> None:
         self._children = {child.name: child for child in children}
+
+    def plot(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(6 * len(self.children), 8))
+        else:
+            fig = ax.get_figure()
+
+        if len(self.children) == 0:
+            return fig
+
+        axes = axes_grid(
+            ax, rows=1, cols=len(self.children), col_titles=list(self.keys()),
+            wspace=0.5, sharey=False
+        )
+        for n, child in enumerate(self.children):
+            child.plot(axes[n])
+
+        plt.tight_layout()
+
+        return fig
 
     def __getitem__(self, k: str) -> Model:
         return self._children[k]

@@ -77,15 +77,19 @@ class Nominal(ValueMeta[NType, ValueMetaType], Generic[NType, ValueMetaType]):
 
     def extract(self: NominalType, df: pd.DataFrame) -> NominalType:
         """Extract the categories and their relative frequencies from a data frame, if not already set."""
-        super().extract(df)
-        # Consider inf/-inf as nan
         df = df.copy().replace([np.inf, -np.inf], np.nan)
         if self._categories is None:
             self.categories = [c for c in np.array(df[self.name].dropna().unique(), dtype=self.dtype)]
+            try:  # at least attempt to order the categories so that strings are order for histograms
+                self.categories = sorted(self.categories)
+            except TypeError:
+                pass
 
         if self.nan_freq is None:
             self.nan_freq = df[self.name].isna().sum() / len(df) if len(df) > 0 else 0
 
+        super().extract(df)
+        # Consider inf/-inf as nan
         return self
 
     def update_meta(self: NominalType, df: pd.DataFrame) -> NominalType:
@@ -98,6 +102,10 @@ class Nominal(ValueMeta[NType, ValueMetaType], Generic[NType, ValueMetaType]):
 
         if not set(categories).issubset(self.categories):
             self.categories = list(set([y for x in [categories, self.categories] for y in x]))
+            try:  # at least attempt to order the categories so that strings are ordered for histograms
+                self.categories = sorted(self.categories)
+            except TypeError:
+                pass
 
         num_nans = df[self.name].isna().sum()
         if cast(int, self.num_rows) > 0:
@@ -230,13 +238,10 @@ class Affine(Ordinal[AType], Generic[AType]):
     def extract(self: AffineType, df: pd.DataFrame) -> AffineType:
         if self._unit_meta is None:
             self._unit_meta = self._create_unit_meta()
-            # self._unit_meta.categories is only populated here to identify an index column in model factory,
-            # Index column won't have any missing values or NaNs
-            if df[self.name].isna().sum() == 0:
-                col_data = df[self.name].astype(self.dtype)
-                self.unit_meta.categories = [
-                    c for c in np.array(col_data.diff().dropna().unique(), dtype=self.unit_meta.dtype)
-                ]
+            col_data = df[self.name].dropna().astype(self.dtype)
+            self.unit_meta.categories = [
+                c for c in np.array(col_data.sort_values().diff().dropna().sort_values().unique(), dtype=self.unit_meta.dtype)
+            ]
 
         super().extract(df)
         return self
@@ -245,19 +250,17 @@ class Affine(Ordinal[AType], Generic[AType]):
         if self._unit_meta is None:
             self._unit_meta = self._create_unit_meta()
 
-        if df[self.name].isna().sum() == 0:
-            col_data = df[self.name].astype(self.dtype)
-            new_unit_meta_cats = [
-                c for c in np.array(col_data.diff().dropna().unique(), dtype=self.unit_meta.dtype)
-            ]
+        col_data = df[self.name].dropna().astype(self.dtype)
+        new_unit_meta_cats = [
+            c for c in np.array(col_data.sort_values().diff().dropna().sort_values().unique(), dtype=self.unit_meta.dtype)
+        ]
 
-            try:
-                cur_unit_meta_cats = self.unit_meta.categories
-            except MetaNotExtractedError:
-                cur_unit_meta_cats = []
-            if not set(new_unit_meta_cats).issubset(cur_unit_meta_cats):
-                self.unit_meta.categories = list(set([y for x in [cur_unit_meta_cats,
-                                                 new_unit_meta_cats] for y in x]))
+        try:
+            cur_unit_meta_cats = self.unit_meta.categories
+        except MetaNotExtractedError:
+            cur_unit_meta_cats = []
+        if not set(new_unit_meta_cats).issubset(cur_unit_meta_cats):
+            self.unit_meta.categories = list(set([y for x in [cur_unit_meta_cats, new_unit_meta_cats] for y in x]))
 
         super().update_meta(df)
         return self
@@ -320,7 +323,7 @@ class Scale(Affine[SType], Generic[SType]):
 
     Attributes:
     """
-    precision: SType
+    _precision: Optional[SType]
 
     def __init__(
             self, name: str, children: Optional[Sequence[ValueMeta]] = None,
@@ -346,6 +349,19 @@ class Scale(Affine[SType], Generic[SType]):
 
     def __repr__(self) -> str:
         return f'<Scale[{self.dtype}]: {self.__class__.__name__}(name={self.name})>'
+
+    @property
+    def precision(self) -> SType:
+        if self._categories is not None:
+            positive = [a for a in self._categories if a > np.array(0, dtype=self.dtype)]
+            if len(positive) > 0:
+                return positive[0]
+        else:
+            return self._precision
+
+    @precision.setter
+    def precision(self, x: SType):
+        self._precision = x
 
 
 class Ring(Scale[RType], Generic[RType]):

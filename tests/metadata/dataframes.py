@@ -109,6 +109,9 @@ class DateData(MetaTestData):
     def expanded_dataframe(self, dataframe, name):
         return pd.DataFrame({
             f'{name}_dow': pd.Series(['Saturday', 'Sunday', 'Sunday', 'Monday'], name=name, dtype='str'),
+            f'{name}_second': pd.Series([0, 0, 0, 0], name=name, dtype='int64'),
+            f'{name}_minute': pd.Series([0, 0, 0, 0], name=name, dtype='int64'),
+            f'{name}_hour': pd.Series([0, 0, 0, 0], name=name, dtype='int64'),
             f'{name}_day': pd.Series([16, 23, 1, 22], name=name, dtype='int64'),
             f'{name}_month': pd.Series([1, 5, 3, 2], name=name, dtype='int64'),
             f'{name}_year': pd.Series([2021, 2021, 2020, 2021], name=name, dtype='int64')
@@ -257,7 +260,7 @@ class BankData(MetaTestData):
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return ["HBUK01066212345678", "BCUK32343212345678"]
+        return ["BCUK32343212345678", "HBUK01066212345678"]
 
 
 rob = "Robert|Bell"
@@ -285,7 +288,7 @@ class PersonData(MetaTestData):
 
     @pytest.fixture(scope='class')
     def categories(self) -> list:
-        return [rob, alice_s, alice_b]
+        return [alice_b, alice_s, rob]
 
 
 class DataFrameData(MetaTestData):
