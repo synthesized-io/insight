@@ -34,15 +34,15 @@ Currently, synthesized can handle person, address, bank and generic formatted st
 
 Person
 ------
-Generating synthetic PII for individuals in a dataset can be achieved by defining a Person annotation.
+Generating synthetic PII for individuals in a dataset can be achieved by defining a :class:`~synthesized.metadata.value.Person` annotation.
 
 .. ipython:: python
 
    from synthesized.metadata.value import Person
    from synthesized.config import PersonLabels
 
-The columns of a dataset that relate to the attributes of a person are specifed using ``PersonLabels``. This is used
-to define the Person values that synthesized can then generate.
+The columns of a dataset that relate to the attributes of a person are specifed using :class:`~synthesized.config.PersonLabels`. This is used
+to define the :class:`~synthesized.metadata.value.Person` values that synthesized can then generate.
 
 .. ipython:: python
 
@@ -81,7 +81,7 @@ to define the Person values that synthesized can then generate.
 Address
 -------
 
-Similarly, an ``Address`` annotation allows Synthesized to generate fake address details. Currently, only
+Similarly, an :class:`~synthesized.metadata.value.Address` annotation allows Synthesized to generate fake address details. Currently, only
 UK addresses can be generated.
 
 .. ipython:: python
@@ -89,7 +89,7 @@ UK addresses can be generated.
     from synthesized.metadata.value import Address
     from synthesized.config import AddressLabels
 
-The columns of a dataset that relate to the attributes of an address are specifed using ``AddressLabels``.
+The columns of a dataset that relate to the attributes of an address are specifed using :class:`~synthesized.config.AddressLabels`.
 
 .. ipython:: python
 
@@ -114,7 +114,7 @@ The columns of a dataset that relate to the attributes of an address are specife
 Bank
 ----
 
-Defining a ``Bank`` annotation allows Synthesized to generate fake bank account numbers and sort codes. Currently,
+Defining a :class:`~synthesized.metadata.value.Bank` annotation allows Synthesized to generate fake bank account numbers and sort codes. Currently,
 Synthesized can only generate 8-digit account numbers and 6-digit sort codes.
 
 .. ipython:: python
@@ -122,7 +122,7 @@ Synthesized can only generate 8-digit account numbers and 6-digit sort codes.
     from synthesized.metadata.value import Bank
     from synthesized.config import BankLabels
 
-The columns of a dataset that relate to the bank account attributes are specifed using ``BankLabels``.
+The columns of a dataset that relate to the bank account attributes are specifed using :class:`~synthesized.config.BankLabels`.
 
 .. ipython:: python
 
@@ -140,14 +140,14 @@ The columns of a dataset that relate to the bank account attributes are specifed
 FormattedString
 ----------------
 
-A ``FormattedString`` annotation can be used to generate synthetic data that conforms to a given regular expression,
+A :class:`~synthesized.metadata.value.FormattedString` annotation can be used to generate synthetic data that conforms to a given regular expression,
 e.g social security numbers, or customer account numbers that have a specific format.
 
 .. ipython:: python
 
     from synthesized.metadata.value.categorical import FormattedString
 
-The ``FormattedString`` is defined by passing the respective column name, and a regex pattern
+The :class:`~synthesized.metadata.value.FormattedString` is defined by passing the respective column name, and a regex pattern
 
 .. ipython:: python
 

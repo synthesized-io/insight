@@ -1,41 +1,49 @@
+=========
 Synthesis
 =========
 
-.. currentmodule:: synthesized
+.. rubric:: Synthesizers
 
-..
-   .. autoclass:: HighDimSynthesizer
-      :members: learn, synthesize, synthesize_from_rules
+``Synthesizer`` objects are the core component of Synthesized. They provide implementations of the models that can
+learn from data to produce highly accurate and representative synthetic data.
 
-
-   .. autoclass:: ConditionalSampler
-      :members:
-      :undoc-members:
-
-
-   .. autoclass:: DataImputer
-      :members:
-      :undoc-members:
-
-   .. autosummary::
-      :toctree: _autosummary
-      :template: class.rst
-
-      HighDimSynthesizer
-
-.. rubric:: Synthesis
+.. currentmodule:: synthesized.complex
 
 .. autosummary::
-   :toctree: _autosummary
+    :template: class.rst
+    :toctree: _api/
 
-   HighDimSynthesizer
+    HighDimSynthesizer
+    TwoTableSynthesizer
 
+.. rubric:: Data Reshaping & Augmentation
 
-.. rubric:: HighDimSynthesizer Members
+In addition to generating synthetic data that looks and behaves exactly like the original, Synthesized provides
+tools that enable data reshaping and generation of arbitrary scenarios.
 
 .. autosummary::
-   :toctree: _autosummary
+    :template: class.rst
+    :toctree: _api/
 
-   HighDimSynthesizer.learn
-   HighDimSynthesizer.synthesize
-   HighDimSynthesizer.synthesize_from_rules
+    ConditionalSampler
+    DataImputer
+
+
+.. rubric:: Rules
+
+Business logic and constraints can be specified using rule classes, and used within
+:meth:`HighDimSynthesizer.synthesize_from_rules`.
+
+.. currentmodule:: synthesized.common.rules
+
+.. autosummary::
+   :template: class.rst
+   :toctree: _api/
+
+   Association
+   Expression
+   GenericRule
+   ValueIsIn
+   ValueEquals
+   ValueRange
+   CaseWhenThen

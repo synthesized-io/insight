@@ -27,10 +27,10 @@ Marginal distributions in the original and synthesized dataset (of both continuo
 compared using univariate statistical distance metrics. For each attribute in the data, these provide a comparison of
 the marginal probability distributions of the original and synthetic data. The following metrics are available:
 
-- ``synthesized.insight.metrics.EarthMoversDistance``: calculates the
+- :class:`~synthesized.insight.metrics.EarthMoversDistance`: calculates the
   `Earth Mover's distance <https://en.wikipedia.org/wiki/Earth_mover%27s_distance>`_ (also known as the 1-Wasserstein
   distance) between two categorical attributes.
-- ``synthesized.insight.metrics.KolmogorovSmirnovDistance``: calculates the `Kolmogorov-Smirnov statistic
+- :class:`~synthesized.insight.metrics.KolmogorovSmirnovDistance`: calculates the `Kolmogorov-Smirnov statistic
   <https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test>`_ between two continuous attributes.
 
 Both of these distances vary between 0.0 and 1.0, where a value of 0.0 occurs when the original and synthetic data have
@@ -54,13 +54,13 @@ Beyond univariate measures that look at single attributes in isolation, correlat
 column can also be measured and compared between the synthetic and original datasets. Several metrics are used
 depending on whether the attributes to compare are categorical or continuous:
 
-- ``synthesized.insight.metrics.KendellTauCorrelation``: calculates the `Kendell-Tau coefficient
+- :class:`~synthesized.insight.metrics.KendallTauCorrelation`: calculates the `Kendell-Tau coefficient
   <https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient>`_. This measures the correlation
   between two ordinal continuous attributes. (Note: this assumes the two variables have a monotonic relationship.)
-- ``synthesized.insight.metrics.CramersV``: calculates the `Cramer's V
+- :class:`~synthesized.insight.metrics.CramersV`: calculates the `Cramer's V
   <https://en.wikipedia.org/wiki/Cram%C3%A9r%27s_V>`_ value. This measures the stength of the
   association between two categorical attributes.
-- ``synthesized.insight.metrics.CategoricalLogisticR2``: calculates `McFadden's R squared
+- :class:`~synthesized.insight.metrics.CategoricalLogisticR2`: calculates `McFadden's R squared
   <https://thestatsgeek.com/2014/02/08/r-squared-in-logistic-regression/>`_. This measures the association between
   a categorical and continuous attribute.
 
@@ -94,7 +94,7 @@ data sets using the ``synthesized.testing.UtilityTesting`` class.
     from synthesized.testing import UtilityTesting
     from synthesized.insight.metrics import KolmogorovSmirnovDistance, CramersV
 
-``UtilityTesting`` requires a pre-trained ``HighDimSynthesizer``, together with dataframes of the original data,
+``UtilityTesting`` requires a pre-trained :class:`~synthesized.complex.HighDimSynthesizer`, together with dataframes of the original data,
 synthetic data, and a hold-out test set of original data.
 
 .. ipython:: python
@@ -112,7 +112,7 @@ and the original data to peform an abitrary classification or regression task. T
 hold-out test set of original data can be compared to determine whether the utility of the synthetic data has been
 maintained.
 
-Synthesized can automatically train models and compare their performance on the original and synthetic data using the ``synthesized.insight.metrics.predictive_modelling_score``
+Synthesized can automatically train models and compare their performance on the original and synthetic data using the :func:`~synthesized.insight.metrics.predictive_modelling_score`
 function. This requires the original data, the synthetic data, a target variable to predict, a list of predictor columns, and a model type. The ``model`` parameter
 can be either one of:
 

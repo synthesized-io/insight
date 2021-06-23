@@ -63,41 +63,80 @@ class AnnotationParams:
 
 @dataclass(frozen=True)
 class AddressLabels:
-    """Column labels for Address annotation."""
+    """Column labels for the Address annotation.
+
+    See also:
+
+        :class:`~synthesized.metadata.value.Address` : Annotate a dataset with address information.
+    """
     postcode_label: Optional[str] = None
+    """Name of column with postcodes."""
     county_label: Optional[str] = None
+    """Name of column with counties."""
     city_label: Optional[str] = None
+    """Name of column with city names."""
     district_label: Optional[str] = None
+    """Name of column with district names."""
     street_label: Optional[str] = None
+    """Name of column with street names."""
     house_number_label: Optional[str] = None
+    """Name of column with house numbers."""
     flat_label: Optional[str] = None
+    """Name of column with flat numbers."""
     house_name_label: Optional[str] = None
+    """Name of column with house names."""
     full_address_label: Optional[str] = None
+    """Name of column with full addresses."""
 
 
 @dataclass(frozen=True)
 class PersonLabels:
-    """Column labels for Person annotation."""
+    """Column labels for the Person annotation.
+
+    See also:
+
+        :class:`~synthesized.metadata.value.Person` : Annotate a dataset with address information.
+    """
     title_label: Optional[str] = None
+    """Name of column with title (e.g Mr, Mrs)."""
     gender_label: Optional[str] = None
+    """Name of column with genders (e.g Male, Female)."""
     name_label: Optional[str] = None
+    """Name of column with full names."""
     fullname_label: Optional[str] = None
+    """Name of column with full names."""
     firstname_label: Optional[str] = None
+    """Name of column with first names."""
     lastname_label: Optional[str] = None
+    """Name of column with last names."""
     email_label: Optional[str] = None
+    """Name of column with email addresses."""
     username_label: Optional[str] = None
+    """Name of column with usernames names."""
     password_label: Optional[str] = None
+    """Name of column with passwords"""
     mobile_number_label: Optional[str] = None
+    """Name of column with mobile telephone numbers."""
     home_number_label: Optional[str] = None
+    """Name of column with house telephone numbers."""
     work_number_label: Optional[str] = None
+    """Name of column with work telephone numbers."""
 
 
 @dataclass(frozen=True)
 class BankLabels:
-    """Column labels for Bank annotation."""
+    """Column labels for the Bank annotation.
+
+    See also:
+
+        :class:`~synthesized.metadata.value.Bank` : Annotate a dataset with bank information.
+    """
     bic_label: Optional[str] = None
+    """Name of column with work telephone numbers."""
     sort_code_label: Optional[str] = None
+    """Name of column with sort codes in format XX-XX-XX."""
     account_label: Optional[str] = None
+    """Name of column with bank account number."""
 
 
 @dataclass
@@ -136,11 +175,17 @@ class GenderModelConfig:
 @dataclass
 class PersonModelConfig(GenderModelConfig):
     person_locale: str = 'en'
+    """Locale for name synthesis."""
     dict_cache_size: int = 10000
+    """Size of cache for name generation."""
     mobile_number_format: str = '07xxxxxxxx'
+    """Format of mobile telephone number."""
     home_number_format: str = '02xxxxxxxx'
+    """Format of home telephone number."""
     work_number_format: str = '07xxxxxxxx'
+    """Format of work telephone number."""
     pwd_length: Tuple[int, int] = (8, 12)  # (min, max)
+    """Length of password."""
 
     def __post_init__(self):
         try:
@@ -158,7 +203,7 @@ class PersonModelConfig(GenderModelConfig):
 @dataclass
 class PostcodeModelConfig:
     postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
-
+    """Regular expression for postcode synthesis."""
     @property
     def postcode_model_config(self):
         return PostcodeModelConfig(**{f.name: getattr(self, f.name) for f in fields(PostcodeModelConfig)})
@@ -167,9 +212,13 @@ class PostcodeModelConfig:
 @dataclass
 class AddressModelConfig(PostcodeModelConfig):
     address_locale: str = 'en_GB'
+    """Locale for address synthesis."""
     postcode_level: int = 0
+    """Level of the postcode to learn."""
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
+    """Path to file with pre-generated addresses."""
     learn_postcodes: bool = False
+    """Whether to learn postcodes from original data, or synthesis new examples."""
 
     def __post_init__(self):
         if self.address_locale != 'en_GB':
@@ -366,6 +415,7 @@ class HighDimConfig(EngineConfig, ValueFactoryConfig, LearningManagerConfig, Mod
     max_batch_size: Optional[int] = 1024
     synthesis_batch_size: Optional[int] = 16384
     learning_manager: bool = True
+    """Control learning with the LearningManager."""
 
 
 @dataclass

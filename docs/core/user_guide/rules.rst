@@ -4,8 +4,9 @@
 Rules
 =====
 
-``synthesized.common.rules`` allows the user to constrain the synthetic dataset, ensuring it confirms to pre-defined
-business logic, or a custom scenario.
+The classes in ``synthesized.common.rules`` allow the user to constrain the synthetic dataset, ensuring it confirms to pre-defined
+business logic, or a custom scenario. They can be used with the :meth:`~synthesized.complex.HighDimSynthesizer.synthesize_from_rules`
+method of :class:`~synthesized.complex.HighDimSynthesizer` to generate the synthetic data:
 
 .. ipython:: python
     :verbatim:
@@ -28,7 +29,7 @@ Often, datasets may contain two columns with an important well-defined relations
    "Ferrari", "California", 632
 
 In the above dataset, "Make" has a one-to-many association with "Model". In other words, certain categories in "Model"
-only appear with certain categories in "Make". The ``HighDimSynthesizer`` captures highly detailed dataset-wide information,
+only appear with certain categories in "Make". The :class:`~synthesized.complex.HighDimSynthesizer` captures highly detailed dataset-wide information,
 but as it also attempts to generalize specific row-level information, a case such as "Polo" always appearing with
 "Volkswagen" isn't strictly followed.  A possible output of the synthesizer could be:
 
@@ -40,9 +41,9 @@ but as it also attempts to generalize specific row-level information, a case suc
    "Ford", "Fiesta", 401877
    "BMW", "Polo", 67862
 
-In this example, the ``HighDimSynthesizer`` has generated a row with a "BMW Polo", which is an unrealistic combination. If
+In this example, the :class:`~synthesized.complex.HighDimSynthesizer` has generated a row with a "BMW Polo", which is an unrealistic combination. If
 capturing strict column associations such as this is important, the synthesizer can be configured to do so by defining an
-``Association`` rule
+:class:`~synthesized.common.rules.Association` rule
 
 .. ipython:: python
     :verbatim:
@@ -57,7 +58,7 @@ would expect that the names of these children to be empty if they don't exist
 
     rule = Association.detect_association(df, df_meta, associations=["NumberOfChildren"], nan_associations=["Child1Name", "Child2Name", ...])
 
-The association class contains a class method ``detect_association`` that automatically detects these rules betweens the columns,
+The association class contains a class method :meth:`~synthesized.common.rules.Association.detect_association` that automatically detects these rules betweens the columns,
 if some category of a column never appears with another then it can force the Synthesizer to never output those values together.
 However, if a specific rule is required that isn't present in the data the Association can be intialised on its own.
 
@@ -77,7 +78,7 @@ Expressions
 -----------
 
 When it is known apriori that a field in a dataset is related to others through a mathematical transformation, this can
-be enforced with an ``Expression`` rule. This takes a string expression that can be parsed by `pandas.eval <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.eval.html>`__.
+be enforced with an :class:`~synthesized.common.rules.Expression` rule. This takes a string expression that can be parsed by `pandas.eval <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.eval.html>`__.
 
 .. ipython:: python
     :verbatim:
@@ -87,19 +88,19 @@ be enforced with an ``Expression`` rule. This takes a string expression that can
 Generic
 -------
 
-A ``GenericRule`` is a special type of rule that can be enforced by conditional sampling of ``HighDimSynthesizer``
+A :class:`~synthesized.common.rules.GenericRule` is a special type of rule that can be enforced by conditional sampling of :class:`~synthesized.complex.HighDimSynthesizer`
 
 .. warning::
     As these rules are enforced by iterative conditional sampling, it may not be possible to fully generate the desired
     number of rows if the rules cannot be fulfilled, or represent a very small proportion of the original data. In this
-    case, ``HighDimSynthesizer.synthesize_from_rules`` will throw a ``RuntimeError``. Increasing the ``max_iter``
+    case, :meth:`~synthesized.complex.HighDimSynthesizer.synthesize_from_rules` will throw a ``RuntimeError``. Increasing the ``max_iter``
     parameter may avoid this issue.
 
 
 ValueRange
 ^^^^^^^^^^
 
-``ValueRange`` can be used to constrain synthesized data to a user-defined range, either to improve the quality of the synthetic data
+:class:`~synthesized.common.rules.ValueRange` can be used to constrain synthesized data to a user-defined range, either to improve the quality of the synthetic data
 or to generate custom scenarios. The upper and lower bounds of the range can be numeric, e.g '0 < x < 10.
 
 .. ipython:: python
@@ -118,7 +119,7 @@ or they can also be defined by another field of the dataset, e.g x < y
 ValueEquals
 ^^^^^^^^^^^
 
-``ValueEquals`` enforces the field of a dataset to be strictly equal to a specified value, either numeric or categorical.
+:class:`~synthesized.common.rules.ValueEquals` enforces the field of a dataset to be strictly equal to a specified value, either numeric or categorical.
 
 .. ipython:: python
     :verbatim:
@@ -128,7 +129,7 @@ ValueEquals
 ValueIsIn
 ^^^^^^^^^
 
-``ValueIsIn`` is similar to ``ValueEquals``, but specifies a list of allowed values.
+:class:`~synthesized.common.rules.ValueIsIn` is similar to :class:`~synthesized.common.rules.ValueEquals`, but specifies a list of allowed values.
 
 .. ipython:: python
     :verbatim:
@@ -138,7 +139,7 @@ ValueIsIn
 CaseWhenThen
 ^^^^^^^^^^^^
 
-``CaseWhenThen`` can be used to impose a conditional structure between fields of a dataset. For example, the business
+:class:`~synthesized.common.rules.CaseWhenThen` can be used to impose a conditional structure between fields of a dataset. For example, the business
 logic of `when age < 18 then income = 0` can be enforced with
 
 .. ipython:: python
@@ -146,4 +147,4 @@ logic of `when age < 18 then income = 0` can be enforced with
 
     rule = CaseWhenThen(when=ValueRange("age", high=18), then=ValueEquals("income", value=0))
 
-The ``when`` and ``then`` parameters are specified by a ``GenericRule``.
+The ``when`` and ``then`` parameters are specified by a :class:`~synthesized.common.rules.GenericRule`.

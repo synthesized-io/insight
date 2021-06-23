@@ -19,7 +19,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     relations between data. Instances of Meta act as root nodes in the tree,
     and each branch can lead to another Meta or a leaf node, see ValueMeta.
 
-    Attributes:
+    Args:
         name: a descriptive name.
         children (Sequence[MetaType]): the children owned by this meta. This is immutable
             and must be defined during initialization.
@@ -101,14 +101,20 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     def to_dict(self) -> Dict[str, object]:
         """
         Convert the Meta to a dictionary.
+
         The tree structure is converted to the following form:
-        {
-            attr: value,
-            children: {
-                name: {**value_meta_attr.__dict__}
+
+        .. code-block:: python
+
+            {
+                attr: value,
+                children: {
+                    name: {**value_meta_attr.__dict__}
+                }
             }
-        }
+
         See also:
+
             Meta.from_dict: construct a Meta from a dictionary
         """
         d = {
@@ -129,8 +135,11 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
     def from_dict(cls, d: Dict[str, object]) -> 'Meta':
         """
         Construct a Meta from a dictionary.
+
         See example in Meta.to_dict() for the required structure.
+
         See also:
+
             Meta.to_dict: convert a Meta to a dictionary
         """
         name = cast(str, d["name"])
@@ -162,6 +171,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         Construct a Meta from a meta class name and a dictionary.
 
         See also:
+
             Meta.from_dict: construct a Meta from a dictionary
         """
 

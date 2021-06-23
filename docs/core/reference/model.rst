@@ -5,7 +5,7 @@ Model
 .. currentmodule:: synthesized
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: _api/
 
    model.base.DiscreteModel
    model.base.ContinuousModel

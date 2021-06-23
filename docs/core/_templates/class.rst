@@ -13,8 +13,8 @@
 
    .. autosummary::
       :toctree: {{ objname }}
-   {% for item in methods %}
-      {%- if item not in inherited_members %}
+   {% for item in all_methods %}
+      {%- if item not in inherited_members and not item.startswith('_') or item in ['__init__', '__call__'] %}
          ~{{ name }}.{{ item }}
       {%- endif %}
    {%- endfor %}

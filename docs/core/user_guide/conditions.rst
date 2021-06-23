@@ -31,8 +31,9 @@ Conditional Sampling
 
     from synthesized import ConditionalSampler
 
-Conditional sampling is achieved using the ``ConditionalSampler`` class. This requires a ``HighDimSynthesizer`` instance
-that has already been learned on the desired dataset.
+Conditional sampling is achieved using the :class:`~synthesized.complex.ConditionalSampler` class.
+This requires a :class:`~synthesized.complex.HighDimSynthesizer` instance that has already been learned on the desired
+dataset.
 
 .. ipython:: python
     :verbatim:
@@ -78,7 +79,8 @@ To specify conditions for continuous fields, the categories must be given as bin
         explicit_marginals={'age': age_marginal}
     )
 
-Furthermore, the user can conditionally sample the new dataset on multiple marginal distributions, for example:
+With the marginal distributions defined, they can be passed to the ``explicit_marginals`` parameter of
+:func:`~synthesized.complex.ConditionalSampler.synthesize` to generate the desired data.
 
 .. ipython:: python
     :verbatim:
@@ -94,7 +96,7 @@ Furthermore, the user can conditionally sample the new dataset on multiple margi
 .. warning::
     It's important to correctly define the ``explicit_marginals`` argument, otherwise the ``ConditionalSampler`` will
     raise a ``ValueError``. This dictionary must contain a dictionary ``Dict[column_name, marginal]``, where marginal
-    has the format ``Dict[str, str]``, and the keys are a string containing the category/interval name, and the 
+    has the format ``Dict[str, str]``, and the keys are a string containing the category/interval name, and the
     values contain the probability of that category/interval.
 
     Additionally, all values in a ``marginal`` must add up to 1.

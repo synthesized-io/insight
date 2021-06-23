@@ -4,7 +4,7 @@
 Data Imputation
 ===============
 
-Given a dataset, and a ``HighDimSynthesizer`` trained on that dataset, ``synthesized.DataImputer``
+Given a dataset, and a :class:`~synthesized.complex.HighDimSynthesizer` trained on that dataset, :class:`~synthesized.complex.DataImputer`
 is able to generate data for certain values. This is specially usefull when the dataset contains missing values or
 outliers, although it can be used to impute any value.
 
@@ -20,8 +20,8 @@ For example, given a dataset with the following structure:
    47, *NaN*, ``True``
    72, 3600, ``False``
 
-A ``DataImputer`` object can get the information such as marginal and joint probability distributions provided by
-the ``HighDimSynthesizer`` and fill missing values with realistic new samples:
+A :class:`~synthesized.complex.DataImputer` object can get the information such as marginal and joint probability distributions provided by
+the :class:`~synthesized.complex.HighDimSynthesizer` and fill missing values with realistic new samples:
 
 .. csv-table:: credit-imputed.csv
    :header: "Age", "MonthlyIncome", "Delinquent"
@@ -34,7 +34,7 @@ the ``HighDimSynthesizer`` and fill missing values with realistic new samples:
    72, 3600, ``False``
 
 .. important::
-   The output dataframe will still contain original data for non-missing values, the ``DataImputer`` will only generate
+   The output dataframe will still contain original data for non-missing values, the :class:`~synthesized.complex.DataImputer` will only generate
    *Synthesized* data for missing values.
 
 Imputing Missing Values
@@ -44,7 +44,7 @@ Imputing Missing Values
 
     from synthesized import DataImputer
 
-Data Imputation is achieved using the ``DataImputer`` class. This requires a ``HighDimSynthesizer`` instance
+Data Imputation is achieved using the :class:`~synthesized.complex.DataImputer` class. This requires a :class:`~synthesized.complex.DataImputer` instance
 that has already been learned on the desired dataset.
 
 
@@ -53,7 +53,7 @@ that has already been learned on the desired dataset.
 
     data_imputer = DataImputer(synthesizer) # synthesizer is an HighDimSynthesizer instance
 
-Once the ``DataImputer`` has been initialized, the user can impute missing values to a given ``df: pd.DataFrame``
+Once the :class:`~synthesized.complex.DataImputer` has been initialized, the user can impute missing values to a given ``df: pd.DataFrame``
 with the following command:
 
 .. ipython:: python
@@ -61,7 +61,7 @@ with the following command:
 
     df_nans_imputed = data_imputer.impute_nans(df, inplace=False)
 
-The ``DataImputer`` will find all ``NaN``s in ``df``, fill them with new values, and return new data frame
+The :class:`~synthesized.complex.DataImputer` will find all ``NaN``s in ``df``, fill them with new values, and return new data frame
 ``df_nans_imputed`` without missing values.
 
 .. note::
@@ -75,7 +75,7 @@ Imputing Outliers
 ^^^^^^^^^^^^^^^^^
 
 Outliers in data can heavily decrease model performance if not treaded carefuly, as many loss functions (e.g. MSE) are
-highly impacted by heavy tailed distributions. For these situations, the ``DataImputer`` can reduce the number of
+highly impacted by heavy tailed distributions. For these situations, the :class:`~synthesized.complex.DataImputer` can reduce the number of
 outliers by automatically detecting and imputing them with the following command:
 
 .. ipython:: python
@@ -84,18 +84,18 @@ outliers by automatically detecting and imputing them with the following command
     df_outliers_imputed = data_imputer.impute_outliers(df, outliers_percentile=0.05, inplace=False)
 
 The output dataframe ``df_outliers_imputed`` will have the top 2.5% and bottom 2.5% values for each continuous column
-filled by the corresponding values as learned from the ``HighDimSynthesizer``.
+filled by the corresponding values as learned from the :class:`~synthesized.complex.HighDimSynthesizer`.
 
 .. note::
-    For each column, the ``DataImputer`` will use a percentile-based approach to detect outliers. If some other
-    approach is needed, it is recommended to create a boolean mask and use ``impute_mask()`` as described below.
+    For each column, the :class:`~synthesized.complex.DataImputer` will use a percentile-based approach to detect outliers. If some other
+    approach is needed, it is recommended to create a boolean mask and use :func:`~synthesized.complex.DataImputer.impute_mask` as described below.
 
 Imputing a Mask
 ^^^^^^^^^^^^^^^
 
 If the user needs to replace any other value (e.g. wrong values, anomalies...), he can do so by providing
 a boolean mask dataframe, with the same size and columns as the original dataframe, where all ``True`` values will be
-computed from the ``HighDimSynthesizer`` and ``False`` values will be returned as they are.
+computed from the :class:`~synthesized.complex.HighDimSynthesizer` and ``False`` values will be returned as they are.
 
 .. ipython:: python
     :verbatim:

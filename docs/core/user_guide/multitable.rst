@@ -5,7 +5,7 @@ Two Table Synthesis
 ===================
 
 Synthesized supports generating synthetic data from two tables that are related with a primary and foreign key
-constraint. With the ``TwoTableSynthesizer`` class, it is possible to:
+constraint. With the :class:`~synthesized.complex.TwoTableSynthesizer` class, it is possible to:
 
 1. Keep the referential integrity between two tables, i.e the primary and foreign keys can be joined.
 2. Maintain the distribution of foreign key counts in the case of a one-to-many relationship.
@@ -18,9 +18,9 @@ each customer.
     ``TwoTableSynthesizer`` will maintain the correlations between fields *within* each table, but not *across* the two
     tables.
 
-``TwoTableSynthesizer`` requires two tables that have a single column which acts as a unique identifier for that row,
+:class:`~synthesized.complex.TwoTableSynthesizer` requires two tables that have a single column which acts as a unique identifier for that row,
 i.e a primary key. In addition, the second table must have a single foreign key that references the primary key of the
-first table. Currently, ``TwoTableSynthesizer`` only supports integer type primary and foreign keys.
+first table. Currently, :class:`~synthesized.complex.TwoTableSynthesizer` only supports integer type primary and foreign keys.
 
 .. ipython:: python
 
@@ -38,14 +38,14 @@ Load the two related tables. In this case, ``customer_table`` contains a primary
     df_customer = pd.read_csv('customer_table.csv')
     df_transactions = pd.read_csv('transaction_table.csv')
 
-Extract the DataFrameMeta for each table:
+Extract the :class:`~synthesized.DataFrameMeta` for each table:
 
 .. ipython:: python
     :verbatim:
 
     df_metas = (MetaExtractor.extract(df_cust), MetaExtractor.extract(df_tran))
 
-Initialise the ``TwoTableSynthesizer``. The column names of the primary keys of each table must be specified using the
+Initialise the :class:`~synthesized.complex.TwoTableSynthesizer`. The column names of the primary keys of each table must be specified using the
 ``keys`` parameter. If the foreign key column name does not match the primary key name, this can be specified with the
 ``relation`` parameter, e.g by passing a dictionary of the mapping `{'primary_key_name': 'foreign_key_name'}`
 

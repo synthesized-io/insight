@@ -2,24 +2,38 @@
 Metadata
 ========
 
-.. autoclass:: synthesized.MetaExtractor
-   :members:
+Metadata provides a description of the underyling schema and data types within a dataset.
 
-.. autoclass:: synthesized.metadata.DataFrameMeta
-   :members: from_dict, to_dict, update_meta
+.. currentmodule:: synthesized
 
-.. autoclass:: synthesized.metadata.value.Person
-   :members: from_dict, to_dict, update_meta
+.. rubric:: Schema & Data Type Inference
 
-.. autoclass:: synthesized.metadata.value.Address
-   :members: from_dict, to_dict, update_meta
+.. autosummary::
+    :toctree: _api/
+    :template: class.rst
 
-.. autoclass:: synthesized.metadata.value.Bank
-   :members: from_dict, to_dict, update_meta
+    MetaExtractor
+    DataFrameMeta
 
-.. automodule:: synthesized.metadata.value.FormattedString
-   :members: from_dict, to_dict, update_meta
+.. rubric:: Annotations
 
-.. automodule:: synthesized.config
-   :members: PersonLabels, AddressLabels, BankLabels
+.. currentmodule:: synthesized.metadata.value
 
+.. autosummary::
+    :toctree: _api/
+    :template: class.rst
+
+    Person
+    Address
+    Bank
+    FormattedString
+
+.. currentmodule:: synthesized.config
+
+.. autosummary::
+    :toctree: _api/
+    :template: config.rst
+
+    PersonLabels
+    AddressLabels
+    BankLabels

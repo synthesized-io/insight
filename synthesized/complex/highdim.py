@@ -36,7 +36,7 @@ class HighDimSynthesizer(Synthesizer):
     and associations across columns.
 
     Args:
-        df_meta (DataFrameMeta): A :class:`~synthesized.metadata.DataFrameMeta` instance that has been extracted for the
+        df_meta (DataFrameMeta): A :class:`~synthesized.DataFrameMeta` instance that has been extracted for the
             desired dataset.
         config (HighDimConfig, optional): The configuration to use for this Synthesizer. Defaults to None, in which
             case the default options of :class:`~synthesized.config.HighDimConfig` are used.
