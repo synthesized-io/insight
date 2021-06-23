@@ -362,7 +362,32 @@ class LearningManagerConfig:
 
 
 @dataclass
-class EngineConfig:
+class DifferentialPrivacyConfig:
+    """
+    epsilon: epsilon value from differential privacy definition.
+    delta: delta value from differential privacy definition. Should be significantly smaller than 1/data_size. If None,
+    then delta is assumed to be 1/(10*data_size).
+    num_microbatches: number of microbatches on which average gradient is calculated for clipping. Must evenly divide
+    the batch size. When num_microbatches == batch_size the optimal utility can be achieved, however this results
+    in a decrease in performance due to the number of extra calculations required.
+    noise_multiplier: Amount of noise sampled and added to gradients during training. More noise results in higher
+    privacy but lower utility
+    l2_norm_clip: Maximum L2 norm of each microbatch gradient.
+
+    See https://github.com/tensorflow/privacy for further details."""
+    epsilon: float = 1.0
+    delta: Optional[float] = None
+    noise_multiplier: float = 1.0
+    num_microbatches: int = 1
+    l2_norm_clip: float = 1.0
+
+    @property
+    def privacy_config(self):
+        return DifferentialPrivacyConfig(**{f.name: getattr(self, f.name) for f in fields(DifferentialPrivacyConfig)})
+
+
+@dataclass
+class EngineConfig(DifferentialPrivacyConfig):
     """
     latent_size: Latent size.
     network: Network type: "mlp" or "resnet".
@@ -379,6 +404,7 @@ class EngineConfig:
     clip_gradients: Gradient norm clipping.
     beta: beta.
     weight_decay: Weight decay.
+    differential_privacy: Whether to enable differential privacy during training.
     """
     latent_size: int = 32
     # Network
@@ -398,6 +424,8 @@ class EngineConfig:
     # Losses
     beta: float = 1.0
     weight_decay: float = 1e-3
+    # Differential privacy
+    differential_privacy: bool = False
 
     @property
     def engine_config(self):

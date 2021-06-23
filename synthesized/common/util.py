@@ -1,10 +1,12 @@
 import io
 import logging
 import re
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.python.eager import context
+from tensorflow_privacy import compute_rdp, get_privacy_spent
 
 logger = logging.getLogger(__name__)
 
@@ -78,3 +80,26 @@ def get_regularizer(regularizer, weight):
 
 def make_tf_compatible(string):
     return re.sub(RE_END, '_', re.sub(RE_START, '.', str(string)))
+
+
+def get_privacy_budget(noise_multiplier: float, steps: int, batch_size: int, data_size: int, delta: Optional[float] = None) -> float:
+    """Calculate privacy budget using Renyi differential privacy
+    See https://github.com/tensorflow/privacy for further details.
+
+    Args:
+        noise_multiplier: The ratio of the standard deviation of the Gaussian noise
+            to the l2-sensitivity of the function to which it is added.
+        steps: The number of steps.
+        batch_size: Number of samples in a batch.
+        data_size: Number of samples in full dataset.
+        delta: delta parameter in epsilon-delta differential privacy. If None, set to 1/(10*data_size).
+
+    Returns:
+        float: The calculated epsilon parameter.
+    """
+
+    delta = delta or 1 / (10 * data_size)
+    sampling_probability = batch_size / data_size
+    orders = [1 + x / 10. for x in range(1, 100)] + list(range(12, 512))
+    rdp = compute_rdp(q=sampling_probability, noise_multiplier=noise_multiplier, steps=steps, orders=orders)
+    return get_privacy_spent(orders, rdp, target_delta=delta)[0]

@@ -1,7 +1,7 @@
-from .optimizer import Optimizer
+from .optimizer import DPOptimizer, Optimizer
 from ..module import register
 
 register(name='optimizer', module=Optimizer)
 
 
-__all__ = ['Optimizer']
+__all__ = ['Optimizer', 'DPOptimizer']

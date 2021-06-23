@@ -33,7 +33,7 @@ class LstmTransformation(Transformation):
         self.lstm.build(input_shape=(None, None, self.input_size))
 
     @tensorflow_name_scoped
-    def call(self, inputs, ground_truth=None, state=None):
+    def call(self, inputs, ground_truth=None, state=None, **kwargs):
 
         expand_squeeze = True if inputs.shape.ndims == 2 else False
 

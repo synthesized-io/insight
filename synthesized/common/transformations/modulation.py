@@ -31,7 +31,7 @@ class ModulationTransformation(Transformation):
         self.built = True
 
     @tensorflow_name_scoped
-    def call(self, inputs, condition):
+    def call(self, inputs, condition, **kwargs):
         offset = self.offset(inputs=condition)
         scale = self.scale(inputs=condition)
         inputs = inputs * scale + offset

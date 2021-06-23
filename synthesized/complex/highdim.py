@@ -14,7 +14,7 @@ from ..common.generative import HighDimEngine
 from ..common.learning_manager import LearningManager
 from ..common.rules import Association, Expression, GenericRule
 from ..common.synthesizer import Synthesizer
-from ..common.util import record_summaries_every_n_global_steps
+from ..common.util import get_privacy_budget, record_summaries_every_n_global_steps
 from ..common.values import DataFrameValue, ValueExtractor
 from ..config import EngineConfig, HighDimConfig
 from ..metadata import DataFrameMeta
@@ -88,9 +88,14 @@ class HighDimSynthesizer(Synthesizer):
             name='synthesizer', summarizer_dir=summarizer_dir, summarizer_name=summarizer_name
         )
         config = config or HighDimConfig()
-        self.config = config or HighDimConfig()
+        self.config = config
         self.type_overrides = type_overrides
-        # Input argument placeholder for num_rows
+        if config.engine_config.differential_privacy:
+            self._differential_privacy = True
+            self._privacy_config = config.privacy_config
+            config.increase_batch_size_every = None  # privacy accounting requires a constant batch size, so keep fixed.
+        else:
+            self._differential_privacy = False
 
         self._init_engine(df_meta, type_overrides)
 
@@ -205,7 +210,8 @@ class HighDimSynthesizer(Synthesizer):
             callback_freq (int, optional): The number of training iterations to perform before the callback is called.
                 Defaults to 0, in which case the callback is never called.
         """
-        assert num_iterations or self._learning_manager, "num_iterations' must be set if learning_manager=False"
+        assert num_iterations or self._learning_manager, "'num_iterations' must be set if learning_manager=False"
+        self._engine.build()
         if self._learning_manager:
             self._learning_manager.restart_learning_manager()
             self._learning_manager.set_check_frequency(self.config.batch_size)
@@ -252,6 +258,14 @@ class HighDimSynthesizer(Synthesizer):
 
                     if self._learning_manager and self._learning_manager.stop_learning(iteration, synthesizer=self):
                         break
+
+                    if self._differential_privacy:
+                        eps = get_privacy_budget(
+                            self._privacy_config.noise_multiplier, iteration, self.config.batch_size,
+                            num_data, self._privacy_config.delta
+                        )
+                        if eps > self._privacy_config.epsilon:
+                            break
 
                     # Increase batch size
                     tf.summary.scalar(name='batch_size', data=self.config.batch_size)
@@ -354,7 +368,8 @@ class HighDimSynthesizer(Synthesizer):
 
         if self._df_value.learned_output_size() > 0:
             if self.config.synthesis_batch_size is None or self.config.synthesis_batch_size > num_rows:
-                synthesized = self._engine.synthesize(tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
+                synthesized = self._engine.synthesize(
+                    tf.constant(num_rows, dtype=tf.int64), association_rules=association_rules)
                 assert synthesized is not None
                 synthesized = self._df_value.split_outputs(synthesized)
                 df_synthesized = pd.DataFrame.from_dict(synthesized)
@@ -365,7 +380,8 @@ class HighDimSynthesizer(Synthesizer):
                 dict_synthesized = None
                 if num_rows % self.config.synthesis_batch_size > 0:
                     synthesized = self._engine.synthesize(
-                        tf.constant(num_rows % self.config.synthesis_batch_size, dtype=tf.int64), association_rules=association_rules
+                        tf.constant(num_rows % self.config.synthesis_batch_size, dtype=tf.int64),
+                        association_rules=association_rules
                     )
                     assert synthesized is not None
                     dict_synthesized = self._df_value.split_outputs(synthesized)
@@ -513,12 +529,6 @@ class HighDimSynthesizer(Synthesizer):
 
         # VAE
         self._engine.set_variables(variables['engine'])
-
-        # Batch Sizes
-        self.batch_size = variables['batch_size']
-        self.increase_batch_size_every = variables['increase_batch_size_every']
-        self._max_batch_size = variables['max_batch_size']
-        self.synthesis_batch_size = variables['synthesis_batch_size']
 
         # Learning Manager
         if 'learning_manager' in variables.keys():

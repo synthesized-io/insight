@@ -1,3 +1,4 @@
+import functools
 from typing import Any, Dict, List, Sequence, Tuple
 
 import tensorflow as tf
@@ -5,7 +6,7 @@ import tensorflow as tf
 from .generative import Generative
 from ..encodings import VariationalEncoding
 from ..module import module_registry, tensorflow_name_scoped
-from ..optimizers import Optimizer
+from ..optimizers import DPOptimizer, Optimizer
 from ..rules import Association
 from ..transformations import DenseTransformation
 from ..values import DataFrameValue
@@ -23,7 +24,7 @@ class HighDimEngine(Generative):
     """
     def __init__(self, name: str, df_value: DataFrameValue, config: EngineConfig = EngineConfig()):
         super(HighDimEngine, self).__init__(name=name, df_value=df_value)
-
+        self.built = False
         self.latent_size = config.latent_size
         self.network = config.network
         self.capacity = config.capacity
@@ -71,11 +72,18 @@ class HighDimEngine(Generative):
             input_size=self.decoder.size(), output_size=self.df_value.learned_output_size(), batch_norm=False, activation='none'
         )
 
-        self.optimizer = Optimizer(
-            name='optimizer', optimizer=self.optimizer_name,
-            learning_rate=self.learning_rate, decay_steps=self.decay_steps, decay_rate=self.decay_rate,
-            clip_gradients=self.clip_gradients, initial_boost=self.initial_boost
-        )
+        if config.differential_privacy:
+            self.optimizer = DPOptimizer(
+                name='optimizer', optimizer=self.optimizer_name,
+                learning_rate=self.learning_rate, decay_steps=self.decay_steps, decay_rate=self.decay_rate,
+                initial_boost=self.initial_boost, privacy_config=config.privacy_config
+            )
+        else:
+            self.optimizer = Optimizer(
+                name='optimizer', optimizer=self.optimizer_name,
+                learning_rate=self.learning_rate, decay_steps=self.decay_steps, decay_rate=self.decay_rate,
+                clip_gradients=self.clip_gradients, initial_boost=self.initial_boost
+            )
 
     def specification(self) -> dict:
         spec = super().specification()
@@ -132,22 +140,30 @@ class HighDimEngine(Generative):
         """Training step for the generative model.
 
         Args:
-            xs: Input tensor per column.
+            xs: Dictionary of input tensor for each column name.
 
-        Returns:
-            Dictionary of loss tensors, and optimization operation.
+        Raises:
+            ValueError: When called before self.build().
 
         """
+        total_loss = functools.partial(self.loss, xs)
+        self.optimizer.optimize(loss=total_loss, trainable_vars=self.trainable_variables)
 
-        with tf.GradientTape() as gg:
-            total_loss = self.loss(xs)
+    def build(self) -> None:
+        """Builds the layers of the engine, creating all of the tensorflow variables.
 
-        with tf.name_scope("optimization"):
-            gradients = gg.gradient(total_loss, self.trainable_variables)
-            grads_and_vars = list(zip(gradients, self.trainable_variables))
-            self.optimizer.optimize(grads_and_vars)
+        This must be called before `engine.learn` so that the optimizer is passed all
+        off the models trainable weights on the first learn call. Otherwise, the optimizer attempts
+        to create tensorflow variables on a non-first call which isn't possible for @tf.functions.
 
-        return
+        """
+        if not self.built:
+            self.linear_input.build((None, self.df_value.learned_input_size()))
+            self.encoder.build((None, self.linear_input.size()))
+            self.encoding.build((None, self.encoder.size()))
+            self.decoder.build((None, self.decoder.size()))
+            self.linear_output.build((None, self.linear_output.size()))
+            self.built = True
 
     @tf.function
     @tensorflow_name_scoped
@@ -291,7 +307,8 @@ class HighDimEngine(Generative):
             encoding=self.encoding.get_variables(),
             decoder=self.decoder.get_variables(),
             linear_output=self.linear_output.get_variables(),
-            optimizer=self.optimizer.get_variables()
+            optimizer=self.optimizer.get_variables(),
+            built=self.built
         )
         return variables
 
@@ -302,7 +319,7 @@ class HighDimEngine(Generative):
 
         self.beta = variables['beta']
         self.weight_decay = variables['weight_decay']
-
+        self.built = variables['built']
         self.linear_input.set_variables(variables['linear_input'])
         self.encoder.set_variables(variables['encoder'])
         self.encoding.set_variables(variables['encoding'])
