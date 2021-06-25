@@ -36,17 +36,16 @@ class DisplayType(Enum):
 
 
 class UtilityTesting:
-    """A universal set of utilities that let you to compare quality of original vs synthetic data."""
+    """A universal set of utilities that let you to compare quality of original vs synthetic data.
 
-    def __init__(self, synthesizer: HighDimSynthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame):
-        """Create an instance of UtilityTesting.
-
-        Args:
+    Args:
             synthesizer: A synthesizer instance.
             df_orig: A DataFrame with original data that was used for training
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
-        """
+    """
+
+    def __init__(self, synthesizer: HighDimSynthesizer, df_orig: pd.DataFrame, df_test: pd.DataFrame, df_synth: pd.DataFrame):
         self.df_orig = df_orig.copy()
         self.df_test = df_test.copy()
         self.df_synth = df_synth.copy()
@@ -136,6 +135,11 @@ class UtilityTesting:
         return synth_score
 
     def show_first_order_metric_distances(self, metric: TwoColumnMetric):
+        """Plot the similarity distance for each column: evaluated on the same column from the orginal data and the synthetic data
+
+        Args:
+            metric: the two column metric to show.
+        """
         if metric.name is None:
             raise ValueError("Metric has no name.")
         logger.debug(f"Showing distances for first-order metric ({metric.name}).")
@@ -161,7 +165,6 @@ class UtilityTesting:
 
         Args:
             metric: the two column metric to show.
-            figsize: width, height in inches.
         """
         logger.debug(f"Showing matrices for second-order metric ({metric.name}).")
 
@@ -194,7 +197,7 @@ class UtilityTesting:
         plot_second_order_metric_matrices(matrix_test, matrix_synth, metric.name, symmetric=is_symmetric)
 
     def show_second_order_metric_distances(self, metric: TwoColumnMetric) -> Tuple[float, float]:
-        """Plot a barplot with correlation diffs between original anf synthetic columns.
+        """Plot a barplot with correlation diffs between original and synthetic columns.
 
         Args:
             metric: A two column comparison metric

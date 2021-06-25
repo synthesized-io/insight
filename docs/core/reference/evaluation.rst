@@ -2,8 +2,8 @@
 Evaluation
 ==========
 
-``synthesized.insight.metrics`` contains a variety of methods that can be used to assess the quality and utility
-of the generated synthetic data.
+Synthesized contains a variety of methods that can be used to assess the quality and utility
+of the generated synthetic data emperically and visually.
 
 .. currentmodule:: synthesized.insight.metrics
 
@@ -25,6 +25,7 @@ of the generated synthetic data.
    CramersV
    KendallTauCorrelation
    CategoricalLogisticR2
+   SpearmanRhoCorrelation
 
 .. rubric:: Modelling Metrics
 
@@ -32,3 +33,14 @@ of the generated synthetic data.
    :toctree: _api/
 
    predictive_modelling_score
+   predictive_modelling_comparison
+
+.. currentmodule:: synthesized.testing
+
+.. rubric:: Plotting & Analysis
+
+.. autosummary::
+   :toctree: _api/
+   :template: class.rst
+
+   UtilityTesting

@@ -63,6 +63,9 @@ depending on whether the attributes to compare are categorical or continuous:
 - :class:`~synthesized.insight.metrics.CategoricalLogisticR2`: calculates `McFadden's R squared
   <https://thestatsgeek.com/2014/02/08/r-squared-in-logistic-regression/>`_. This measures the association between
   a categorical and continuous attribute.
+- :class:`~synthesized.insight.metrics.SpearmanRhoCorrelation`: calculates `Spearman's rank correlation coefficient
+  <https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient>`_. This measures the association between
+  two ordinal continuous attributes.  (Note: this assumes the two variables have a monotonic relationship.)
 
 Each of these metrics can be calculated on the original and synthetic data, and then compared to determine their
 statistical similarity.
@@ -86,23 +89,53 @@ statistical similarity.
     metric. If the data is of the incorrect type they will return ``None``.
 
 Alternatively, the evaluation metrics can be automatically calculated and visualised for the synthetic and original
-data sets using the ``synthesized.testing.UtilityTesting`` class.
+data sets using the :class:`synthesized.testing.UtilityTesting` class. 
 
-.. ipython:: python
-    :verbatim:
-
-    from synthesized.testing import UtilityTesting
-    from synthesized.insight.metrics import KolmogorovSmirnovDistance, CramersV
-
-``UtilityTesting`` requires a pre-trained :class:`~synthesized.complex.HighDimSynthesizer`, together with dataframes of the original data,
+:class:`synthesized.testing.UtilityTesting` requires a pre-trained :class:`~synthesized.complex.HighDimSynthesizer`, together with dataframes of the original data,
 synthetic data, and a hold-out test set of original data.
 
+:class:`synthesized.testing.UtilityTesting` can be used to display distributions of the data as demonstrated below:
+
 .. ipython:: python
     :verbatim:
 
-    utility_test = UtilityTesting(synthesizer, df_original, df_original_test, df_synthetic)
-    utility_test.show_first_order_metric_distances(KolmogorovSmirnovDistance())
-    utility_test.show_second_order_metric_distances(CramersV())
+    import synthesized
+    from synthesized.complex import HighDimSynthesizer
+    from synthesized.metadata.factory import MetaExtractor
+    from synthesized.testing import UtilityTesting
+    from synthesized.insight.metrics import KolmogorovSmirnovDistance, KendellTauCorrelation
+    
+    df = synthesized.util.get_example_data()
+    df_meta = MetaExtractor.extract(df)
+    synthesizer = HighDimSynthesizer(df_meta)
+    synthesizer.learn(num_iterations=500, df_train=df)
+    df_synth = synthesizer.synthesize(200)
+    testing = UtilityTesting(synthesizer, df, df, df_synth)
+    testing.show_distributions()
+
+.. image:: ../_static/dist.jpg
+   :scale: 60 %
+
+
+:class:`synthesized.testing.UtilityTesting` also provides methods to plot univariate and interaction metrics as seen below:
+
+.. ipython:: python
+    :verbatim:
+
+    testing.show_first_order_metric_distances(KolmogorovSmirnovDistance())
+
+.. image:: ../_static/km_dist.jpg
+   :scale: 80 %
+
+.. ipython:: python
+    :verbatim:
+
+    testing.show_second_order_metric_distances(KendellTauCorrelation())
+
+.. image:: ../_static/kt_dist.jpg
+   :scale: 80 %
+
+
 
 Predictive Utility
 ~~~~~~~~~~~~~~~~~~
@@ -112,9 +145,10 @@ and the original data to peform an abitrary classification or regression task. T
 hold-out test set of original data can be compared to determine whether the utility of the synthetic data has been
 maintained.
 
-Synthesized can automatically train models and compare their performance on the original and synthetic data using the :func:`~synthesized.insight.metrics.predictive_modelling_score`
-function. This requires the original data, the synthetic data, a target variable to predict, a list of predictor columns, and a model type. The ``model`` parameter
-can be either one of:
+predictive_modelling_score
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Synthesized provides an API ``synthesized.insight.metrics.predictive_modelling_score`` which calculates appropriate modelling metrics
+for the given dataset using the specified model. The ``model`` parameter can be either one of the following:
 
 - ``"Linear"``: linear regression model
 - ``"Logistic"``: logistic regression model
@@ -123,11 +157,10 @@ can be either one of:
 - ``"MLP"``: multi-layer percepton (feed-foward neural network)
 - ``"LinearSVM"``: support vector machine
 
-or alternatively a custom model class that inherits from the ``BaseEstimator`` together with the
-``sklearn.base.ClassifierMixin`` or ``sklearn.base.RegressorMixin`` mixins.
+or alternatively a custom model class that inherits from the ``BaseEstimator`` together with the ``sklearn.base.ClassifierMixin`` or ``sklearn.base.RegressorMixin`` mixins.
 
 The function will automatically determine whether the prediction task is a classification or regression problem, and
-will return either the ROC-AUC or R-squared metric, respectively.
+will return either the ROC-AUC or R-squared metric, respectively. All necessary preprocessing (standard scaling, one-hot encoding) is done under the hood.
 
 .. ipython:: python
     :verbatim:
@@ -138,4 +171,17 @@ will return either the ROC-AUC or R-squared metric, respectively.
     predictors = ["column_a", "column_b", "column_c"]
 
     score, metric, task = predictive_modelling_score(df_original, y_label=target, x_labels=predictors, model="GradientBoosting")
-    synth_score, _, _ = predictive_modelling_score(df_original, y_label=target, x_labels=predictors, model="GradientBoosting", synth_data=df_synth)
+
+predictive_modelling_comparison
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Synthesized can automatically train models and compare their performance on the original and synthetic data using the API ``synthesized.insight.metrics.predictive_modelling_comparison``
+function. It requires the original data, the synthetic data, a target variable to predict, a list of predictor columns, and a model type.
+
+.. ipython:: python
+    :verbatim:
+
+    from synthesized.insight.metrics import predictive_modelling_comparison
+
+    target = "column_to_predict"
+    predictors = ["column_a", "column_b", "column_c"]
+    score, synth_score, metric, task = predictive_modelling_comparison(df_original, df_synth, y_label=target, x_labels=predictors, model="GradientBoosting")

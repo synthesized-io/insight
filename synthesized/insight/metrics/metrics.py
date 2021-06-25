@@ -111,6 +111,13 @@ class KendallTauCorrelation(TwoColumnMetric):
 
 
 class SpearmanRhoCorrelation(TwoColumnMetric):
+    """Spearman's rank correlation coefficient between ordinal variables.
+
+    The statistic ranges from -1 to 1, measures the strength and direction of monotonic relationship between two ranked (ordinal) variables.
+
+    Args:
+        max_p_value (float, optional): Returns None if p-value from test is above this threshold.
+    """
     name = "spearman_rho_correlation"
 
     def __init__(self, max_p_value: float = 1.0):
