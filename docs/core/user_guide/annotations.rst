@@ -77,6 +77,56 @@ to define the :class:`~synthesized.metadata.value.Person` values that synthesize
    synthesizer = HighDimSynthesizer(df_meta=df_meta)
    synthesizer.learn(...)
    df_synthesized = synthesizer.synthesize(num_rows=...)
+ 
+PersonModel
+^^^^^^^^^^^
+``PersonModel`` encapsulates the attributes of a person. When paired with a :class:`~synthesized.metadata.value.Person` Meta, 
+they are able to understand and learn about the attributes that define a person and then generate data from their learned understanding. It captures gender using `Gender` model internally. 
+It can be used to create the following attributes:
+
+- ``gender`` `(orig.)`
+- ``title`` `(orig.)`
+- ``first_name``
+- ``last_name``
+- ``email``
+- ``username``
+- ``password``
+- ``home/work/mobile_number``
+
+Attributes marked with `'orig.'` have values that correspond to the original dataset. The rest are intelligently
+generated based on the hidden model for the hidden attribute, `_gender` = {"F", "M", "NB", "A"}.
+
+There are 3 special configuration cases for this model that should be considered:
+    1. The attribute ``gender`` is present: In this case, the hidden model for `_gender` is based directly on the ``gender`` attribute. All values in the ``gender`` attribute should correspond to "F", "M", "U" or <NA>. In other words, there should be no ambiguous values in the collection "A".
+    2. No ``gender`` present but ``title`` is present: The hidden model for `_gender` can be based on the available titles. As this is not a direct correspondence, not all values will correspond to a single collection. In other words, there MAY be some ambiguous values in the collection "A".
+    3. Neither ``gender`` nor ``title`` is present: The hidden model for gender cannot be fitted to the data and so the `_gender` attribute is assumed to be evenly distributed amongst the genders specified in the config.
+
+.. note::
+    ``PersonModel`` can be provided `PersonModelConfig` during initialization. 'person_locale' is a member variable
+    of the `PersonModelConfig` class which can be set to specify the locality of the people.
+    
+    | E.g. person_locale = 'ru_RU' will refer to people belonging to Russia
+    | This can be quite useful to synthesize details of people belonging to a particular locality.
+
+.. ipython:: python
+
+    import pandas as pd
+    from synthesized.metadata.factory import MetaExtractor
+    from synthesized.config import PersonModelConfig, PersonLabels
+    from synthesized.metadata.value import Person
+    from synthesized.model.models import PersonModel
+
+    meta = Person('person', labels=PersonLabels(title_label='title', gender_label='gender', name_label='name',
+                                   firstname_label='firstname', lastname_label='lastname'))
+    person_model_config = PersonModelConfig()
+    person_model_config.person_locale='zh_CN'
+    model = PersonModel(meta=meta, config=person_model_config)
+    df = pd.DataFrame({'gender': np.random.choice(['m', 'f', 'u'], size=100), 'title': np.random.choice(['mr', 'mr.', 'mx', 'miss', 'Mrs'], size=100)})
+    df[[c for c in model.params.values() if c not in df.columns]] = 'test'
+
+    model.meta.revert_df_from_children(df)
+    model.fit(df)
+    model.sample(3)
 
 Address
 -------
@@ -110,6 +160,78 @@ The columns of a dataset that relate to the attributes of an address are specife
 
     df_meta = MetaExtractor.extract(df=data, annotations=[address])
 
+AddressModel
+^^^^^^^^^^^^
+``AddressModel`` models addresses. It uses :class:`~synthesized.metadata.value.Address` meta, which represents 
+columns with different address labels such as city, house_number, postcode, full_address, etc., to captures all the information 
+needed to recreate similar synthetic data.
+
+`AddressModelConfig` can also be provided as a part of the initialization. `AddressModelConfig` contains information
+such as if an address file is provided or if the postcodes need to be learned for address synthesis.
+
+.. note::
+    ``AddressModel`` uses ``PostcodeModel`` to learn and synthesize the addresses. If the address file is provided then the 
+    addresses corresponding to the learned postcodes are sampled from that. In case the address file is not provided
+    then the `Faker <https://faker.readthedocs.io/en/master/>`_ is used to generate addresses.
+
+.. tip::
+   ``AddressModel`` class has a member variable 'postcode_level' which provides the flexibility to use partial or the full
+   postcode for fitting and sampling.
+
+    | E.g. for postcode "EC2A 2DP":
+    | postcode_level=0 will signify "EC"
+    | postcode_level=1 will signify "EC2A"
+    | postcode_level=2 will signify "EC2A 2DP"
+
+Without address file
+####################
+.. ipython:: python
+
+    from synthesized.metadata.value import Address
+    from synthesized.config import AddressLabels, AddressModelConfig
+    from synthesized.model.models import AddressModel 
+
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=False)
+    df = pd.DataFrame({
+        'postcode': ["" for _ in range(10)],
+        'street': ["" for _ in range(10)],
+        'full_address': ["" for _ in range(10)],
+        'city': ["" for _ in range(10)]
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                   labels=AddressLabels(postcode_label='postcode', city_label='city',
+                                        street_label='street', full_address_label='full_address'))]
+    meta = MetaExtractor.extract(df, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+    model.meta.revert_df_from_children(df)
+    model.fit(df)
+    model.sample(n=3)
+
+With address file
+#################
+.. ipython:: python
+
+    from faker import Faker
+
+    address_file_path = 'data/addresses.jsonl.gz'
+    config = AddressModelConfig(addresses_file=address_file_path, learn_postcodes=True)
+    fkr = Faker('en_GB')
+    df = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(10)],
+        'street': [fkr.street_name() for _ in range(10)],
+        'full_address': [fkr.address() for _ in range(10)],
+        'city': [fkr.city() for _ in range(10)]
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                   labels=AddressLabels(postcode_label='postcode', city_label='city',
+                                        street_label='street', full_address_label='full_address'))]
+    meta = MetaExtractor.extract(df, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+    model.meta.revert_df_from_children(df)
+    model.fit(df)
+    model.sample(n=3)
 
 Bank
 ----
@@ -160,3 +282,21 @@ The :class:`~synthesized.metadata.value.FormattedString` is defined by passing t
     :verbatim:
 
     df_meta = MetaExtractor.extract(df=data, annotations=[social_security])
+
+FormattedStringModel
+^^^^^^^^^^^^^^^^^^^^
+``FormattedStringModel`` models a column with a specific regex pattern using :class:`~synthesized.metadata.value.FormattedString` annotation.
+
+.. ipython:: python
+
+    import pandas as pd
+    from synthesized.metadata.factory import MetaExtractor
+    from synthesized.metadata.value import FormattedString
+    from synthesized.model.models import FormattedStringModel
+
+    df = pd.DataFrame({'fstr_col': ['SJ-3921', 'LE-0826', 'PQ-0871']})
+    df_meta = MetaExtractor.extract(df=df, annotations=[FormattedString(name='fstr_col',
+                                                                        pattern='[A-Z]{2}-[0-9]{4}')])
+    formatted_str_model = FormattedStringModel(df_meta['fstr_col'])
+    formatted_str_model.fit(df)
+    formatted_str_model.sample(3)

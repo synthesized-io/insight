@@ -31,14 +31,14 @@ We load the dataset in, compute the ``DataFrameMeta`` and instantiate the ``High
     df.head()
 
 .. csv-table::
-    :header: ,SeriousDlqin2yrs,RevolvingUtilizationOfUnsecuredLines,age,NumberOfTime30-59DaysPastDueNotWorse,DebtRatio
-    :widths: 10, 10, 10, 10, 10, 10
+    :header: ,EvenIdx,SeriousDlqin2yrs,RevolvingUtilizationOfUnsecuredLines,age,NumberOfTime30-59DaysPastDueNotWorse,DebtRatio
+    :widths: 5, 10, 10, 10, 10, 10, 10
 
-    1,1,0.7661266090000001,45,2,0.8029821290000001
-    2,0,0.957151019,40,0,0.121876201
-    3,0,0.65818014,38,1,0.085113375
-    4,0,0.233809776,30,\-,0.036049682
-    5,0,0.9072394,49,1,0.024925695
+    1,0,1,0.7661266090000001,45,2,0.8029821290000001
+    2,2,0,0.957151019,40,0,0.121876201
+    3,4,0,0.65818014,38,1,0.085113375
+    4,6,0,0.233809776,30,\-,0.036049682
+    5,8,0,0.9072394,49,1,0.024925695
 
 .. ipython:: python
     :verbatim:
@@ -49,9 +49,11 @@ We load the dataset in, compute the ``DataFrameMeta`` and instantiate the ``High
 This builds a blank generative model of the data ready for the learning process.
 
 .. note::
-    At this stage both :ref:`annotations<annotation_guide>` and type overrides can be passed to the ``MetaExtractor`` and
-    ``HighDimSynthesizer`` respectively. They will alter how the Synthesizer treats certain columns to improve synthesis
-    to cater to different use cases.
+    Column 'EvenIdx' is modelled as ``EnumerationModel`` `(synthesized.model.models.EnumerationModel)`. ``EnumerationModel`` models a column whose values can be enumerated with a constant interval.
+
+At this stage both :ref:`annotations<annotation_guide>` and type overrides can be passed to the ``MetaExtractor`` and
+``HighDimSynthesizer`` respectively. They will alter how the Synthesizer treats certain columns to improve synthesis
+to cater to different use cases.
 
 
 Training
