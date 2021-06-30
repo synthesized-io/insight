@@ -14,6 +14,10 @@ jobs:
     steps:
       - checkout
 
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+
       - restore_cache:
           keys:
             - v2-dependencies-windows-3.7-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
@@ -42,7 +46,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-                - dist
+            - dist
 
   test-windows:
     executor:
@@ -52,6 +56,10 @@ jobs:
     parallelism: 8
     steps:
       - checkout
+
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
 
       - attach_workspace:
           at: .
@@ -102,7 +110,6 @@ jobs:
       - restore_cache:
           keys:
             - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
-            # fallback to using the latest cache if no exact match is found
 
       - run:
           name: Install virtualenv
@@ -138,6 +145,10 @@ jobs:
             - v2-dependencies-<< parameters.python-version >>-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}-{{ checksum "docs/requirements.txt" }}
 
       - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+
+      - run:
           name: Build docs
           working_directory: docs/core/
           command: |
@@ -160,6 +171,10 @@ jobs:
     parallelism: 8
     steps:
       - checkout
+
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -202,6 +217,10 @@ jobs:
     steps:
       - checkout
 
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+
       # Download and cache dependencies
       - restore_cache:
           keys:
@@ -221,6 +240,10 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -425,7 +448,7 @@ jobs:
   publish:
     parameters:
       python-version:
-          type: string
+        type: string
     docker:
       - image: circleci/python:<< parameters.python-version >>
 
@@ -433,6 +456,10 @@ jobs:
 
     steps:
       - checkout
+
+      - run:
+          name: Decode and set Synthesized key
+          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -470,7 +497,7 @@ workflows:
       - build-windows
       - test-windows:
           requires:
-          - build-windows
+            - build-windows
   release-version:
     jobs:
       - build:
