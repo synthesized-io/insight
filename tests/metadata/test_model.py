@@ -262,6 +262,7 @@ def test_address_different_labels():
     expected_columns = ['postcode', 'full_address', 'street', 'house_number', 'flat',
                         'house_name']
 
+    model.fit(None)
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
 
     meta = Address('address', categories=[], nan_freq=0.3,
@@ -270,8 +271,178 @@ def test_address_different_labels():
                                         street_label=None, house_number_label=None, flat_label=None,
                                         house_name_label=None))
     model = AddressModel(meta=meta)
+    model.fit(None)
     expected_columns = ['postcode', 'full_address', 'county', 'city', 'district']
     assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns[:-3])
+
+
+def check_address_model_sample_output(model, expected_columns):
+    assert_model_output(model, expected_columns=expected_columns, nan_columns=expected_columns)
+    n_cond = 100
+    conditions = pd.DataFrame({'address_postcode': np.random.choice(['N', 'IV', 'CA', 'NW'], size=n_cond)})
+    df = model.sample(n=None, conditions=conditions)
+    assert len(df) == n_cond
+    assert sorted(df.columns) == sorted(expected_columns)
+
+
+def test_no_address_file_learned():
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=True)
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(1000)],
+        'street': [fkr.street_name() for _ in range(1000)],
+        'county': [fkr.county() for _ in range(1000)],
+        'city': [fkr.city() for _ in range(1000)],
+        'x': np.random.normal(size=1000)
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                   labels=AddressLabels(county_label='county', postcode_label='postcode',
+                                        city_label='city', street_label='street'))]
+
+    expected_columns = ['postcode', 'street', 'county', 'city']
+
+    meta = MetaExtractor.extract(df_orig, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+    assert(model.learn_postcodes is True)
+
+    model.meta.revert_df_from_children(df_orig)
+    model.fit(df_orig)
+    check_address_model_sample_output(model=model, expected_columns=expected_columns)
+
+
+def test_no_address_file_learned_full_address():
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=True)
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(1000)],
+        'street': [fkr.street_name() for _ in range(1000)],
+        'county': [fkr.county() for _ in range(1000)],
+        'city': [fkr.city() for _ in range(1000)],
+        'full_address': [fkr.address() for _ in range(1000)],
+        'x': np.random.normal(size=1000)
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                   labels=AddressLabels(county_label='county', postcode_label='postcode',
+                                        city_label='city', street_label='street',
+                                        full_address_label='full_address'))]
+
+    expected_columns = ['postcode', 'street', 'county', 'full_address', 'city']
+
+    meta = MetaExtractor.extract(df_orig, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+    assert(model.learn_postcodes is True)
+
+    model.meta.revert_df_from_children(df_orig)
+    model.fit(df_orig)
+    check_address_model_sample_output(model=model, expected_columns=expected_columns)
+
+
+def test_no_address_file_not_learned():
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=True)
+    meta = Address('address', categories=[], nan_freq=0.3,
+                   labels=AddressLabels(postcode_label='postcode',
+                                        city_label='city',
+                                        street_label='street',
+                                        county_label='county')
+                   )
+
+    model = AddressModel(meta, config=config)
+    assert(model.learn_postcodes is False)
+    assert(bool(model.postcodes) is False)
+
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'postcode': [fkr.postcode() for _ in range(1000)],
+        'street': [fkr.street_name() for _ in range(1000)],
+        'county': [fkr.county() for _ in range(1000)],
+        'city': [fkr.city() for _ in range(1000)],
+        'x': np.random.normal(size=1000)
+    })
+
+    expected_columns = ['postcode', 'street', 'county', 'city']
+    model.meta.revert_df_from_children(df_orig)
+    model.fit(df_orig)
+    check_address_model_sample_output(model=model, expected_columns=expected_columns)
+
+
+def test_no_address_file_no_postcode_learned_full_address():
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=True)
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'full_address': [fkr.address() for _ in range(1000)],
+        'x': np.random.normal(size=1000)
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                   labels=AddressLabels(full_address_label='full_address'))]
+
+    expected_columns = ['full_address']
+
+    meta = MetaExtractor.extract(df_orig, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+
+    assert(model.learn_postcodes is True)
+    assert(bool(model.postcodes) is True)
+
+    model.meta.revert_df_from_children(df_orig)
+    model.fit(df_orig)
+    check_address_model_sample_output(model=model, expected_columns=expected_columns)
+
+
+def test_no_address_file_no_postcode_learned():
+    config = AddressModelConfig(addresses_file=None, learn_postcodes=True)
+    fkr = Faker('en_GB')
+    df_orig = pd.DataFrame({
+        'x': np.random.normal(size=1000),
+        'street': [fkr.street_name() for _ in range(1000)],
+        'city': [fkr.city() for _ in range(1000)]
+    })
+
+    annotations = [Address(name='Address', nan_freq=0.3,
+                           labels=AddressLabels(city_label='city',
+                                                street_label='street'))]
+    expected_columns = ['city', 'street']
+
+    meta = MetaExtractor.extract(df_orig, annotations=annotations)
+    model = AddressModel(meta['Address'], config=config)
+
+    assert(model.learn_postcodes is False)
+    assert(bool(model.postcodes) is False)
+
+    model.meta.revert_df_from_children(df_orig)
+    model.fit(df_orig)
+    check_address_model_sample_output(model=model, expected_columns=expected_columns)
+
+
+def test_address_model_postcode_levels():
+    df = pd.read_csv('data/annotations_nd.csv').head(5)
+    addresses = list(df['Full Address'])
+    meta = Address('address', labels=AddressLabels(full_address_label='Full Address'))
+    meta.revert_df_from_children(df)
+    meta.extract(df)
+
+    address_config = AddressModelConfig(addresses_file=None, learn_postcodes=True, postcode_level=0)
+    expected_postcodes = set(['IV', 'PO', 'CA', 'CO'])
+    model = AddressModel(meta=meta, config=address_config)
+    model.fit(df)
+    assert(set(model.postcodes.keys()) == expected_postcodes)
+
+    address_config.postcode_level = 1
+    expected_postcodes = set(['IV31', 'PO13', 'IV17', 'CA26', 'CO13'])
+    model = AddressModel(meta=meta, config=address_config)
+    model.fit(df)
+    assert(set(model.postcodes.keys()) == expected_postcodes)
+
+    address_config.postcode_level = 2
+    expected_postcodes = set(['IV316AP', 'PO139NS', 'IV170YB', 'CA263XG', 'CO139HJ'])
+    model = AddressModel(meta=meta, config=address_config)
+    model.fit(df)
+    assert(set(model.postcodes.keys()) == expected_postcodes)
+
+    random_address = np.random.choice(list(model.sample(10)['Full Address']))
+    assert random_address in addresses
 
 
 def test_bank_number():

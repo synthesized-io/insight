@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from dataclasses import asdict
-from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence, cast
+from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence, Union, cast
 
 import faker
 import numpy as np
@@ -16,7 +16,7 @@ from ..base import DiscreteModel
 from ...config import AddressLabels, AddressModelConfig, AddressRecord, PostcodeModelConfig
 from ...metadata import MetaNotExtractedError
 from ...metadata.value import Address, String
-from ...util import get_postcode_key, get_postcode_key_from_df
+from ...util import get_postcode_key, get_postcode_key_from_address, get_postcode_key_from_df
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ class PostcodeModel(Histogram[str]):
         self.postcode_label = postcode_label
         self.full_address_label = full_address_label
         self.postcode_regex: Pattern[str] = re.compile(config.postcode_regex)
+        self.postcode_level = config.postcode_level
 
     def fit(self, df: pd.DataFrame) -> 'PostcodeModel':
         try:
@@ -39,7 +40,8 @@ class PostcodeModel(Histogram[str]):
         postcode_sr = get_postcode_key_from_df(
             df, postcode_regex=self.postcode_regex,
             postcode_label=self.postcode_label, full_address_label=self.full_address_label,
-            postcodes=categories)
+            postcodes=categories, postcode_level=self.postcode_level)
+
         super().fit(postcode_sr.to_frame(self.name))
 
         return self
@@ -81,39 +83,40 @@ class AddressModel(DiscreteModel[Address, str]):
 
         self.locale = config.address_locale
         self.provider = self._get_provider(self.locale)
-        self.postcode_level = config.postcode_level
+        self.postcodes: Dict[str, List[AddressRecord]] = {}
 
-        if self.postcode_level < 0 or self.postcode_level > 2:
+        if self.postcode_model.postcode_level < 0:
             raise NotImplementedError
         self.learn_postcodes = config.learn_postcodes
 
         if self.labels.postcode_label is None and self.labels.full_address_label is None:
             self.learn_postcodes = False
 
-        addresses_file = config.addresses_file
+        self.addresses_file = config.addresses_file
+
         # Check if given 'addresses_file' exist, otherwise set to None.
-
-        if addresses_file is not None:
-            if not os.path.exists(os.path.expanduser(addresses_file)):
-                logger.warning(f"Given address file '{addresses_file}' does not exist, using fake addresses")
-                addresses_file = None
+        if self.addresses_file is not None:
+            if not os.path.exists(os.path.expanduser(self.addresses_file)):
+                logger.warning(f"Given address file '{self.addresses_file}' does not exist, using fake addresses")
+                self.addresses_file = None
             else:
-                addresses_file = os.path.expanduser(addresses_file)
+                self.addresses_file = os.path.expanduser(self.addresses_file)
 
-        if addresses_file is None:
-            self.fake: bool = True
-            self.postcodes: Dict[str, List[AddressRecord]] = {}
-            # Manually 'fit' the postcode model so that it is not needed to call .fit().
-            postcodes = self.provider.POSTAL_ZONES
-
-        else:
-            self.fake = False
-            logger.info("Loading address dictionary from '{}'".format(addresses_file))
-            self.postcodes = self._load_postcodes_dict(addresses_file)
+        # If address file is not present, or if the postcodes need to be learned
+        # from the extracted postcodes then populate self.postcodes dictionary
+        if self.addresses_file is not None or self.learn_postcodes is True:
+            self.postcodes = self._load_postcodes_dict()
             postcodes = list(self.postcodes.keys())
 
+        # If self.postcodes dictionary is empty then use Faker to generate addresses
+        # self.postcodes will be empty if no address file is given or the postcodes
+        # are not extracted
+        if self.addresses_file is None and bool(self.postcodes) is False:
+            # Manually 'fit' the postcode model so that it is not needed to call .fit().
+            postcodes = self.provider.POSTAL_ZONES
+            self.learn_postcodes = False
+
         self.postcode_model.meta.categories = postcodes
-        self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
 
         if self.nan_freq:
             self._meta._extracted = self.postcode_model._meta._extracted = True
@@ -152,17 +155,11 @@ class AddressModel(DiscreteModel[Address, str]):
         if self.nan_freq is None:
             self._meta.nan_freq = df[next(s for s in self.params.values() if s)].isna().sum()
 
-        if self.fake:
-            postcodes = self.provider.POSTAL_ZONES
-            self.postcode_model.meta.categories = postcodes
-            self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
-
-            return self
-
+        postcodes = self.postcode_model.meta.categories
+        self.postcode_model.probabilities = {c: 1 / len(postcodes) for c in postcodes}
         if self.learn_postcodes:
             with self._meta.unfold(df):
                 self.postcode_model.fit(df)
-
         return self
 
     def sample(self, n: Optional[int], produce_nans: bool = False,
@@ -188,7 +185,7 @@ class AddressModel(DiscreteModel[Address, str]):
 
         columns = self.params.values()
 
-        if self.fake:
+        if self.addresses_file is None and self.learn_postcodes is False:
             n = len(conditions)
             address_records = self._generate_fake_address_records(n)
             df = pd.DataFrame(address_records).rename(columns=self.address_record_key_to_label)[columns]
@@ -207,7 +204,7 @@ class AddressModel(DiscreteModel[Address, str]):
                 lambda x: x.item() if isinstance(x, np.str_) else x
             ).apply(
                 get_postcode_key,
-                postcode_regex=self.postcode_model.postcode_regex, postcode_level=self.postcode_level,
+                postcode_regex=self.postcode_model.postcode_regex, postcode_level=self.postcode_model.postcode_level,
                 postcodes=self.postcode_model.categories)
             address_records = list(np.vectorize(sample_address)(postcode_sr))
 
@@ -216,12 +213,58 @@ class AddressModel(DiscreteModel[Address, str]):
 
         return df
 
-    def _load_postcodes_dict(self, addresses_file) -> Dict[str, np.ndarray]:  # Dict[str, List[AddressRecord]]
+    def _populate_dict_from_address_lists(self,
+                                          d: Dict[str, List[AddressRecord]],
+                                          address_mapping_list: List[dict]):
+        for address_map in address_mapping_list:
+            address_record = _create_record_from_address_map(address_map=address_map,
+                                                             labels=self.labels,
+                                                             config=self.config)
+            if address_record is not None:
+                postcode = cast(str, address_record.postcode)
+                if postcode not in d.keys():
+                    d[postcode] = [address_record]
+                else:
+                    d[postcode].append(address_record)
+
+    def _create_postcodes_dict_from_address_meta(self) -> Dict[str, List[AddressRecord]]:
+        d: Dict[str, List[AddressRecord]] = dict()
+        try:
+            address_meta_categories: Optional[Sequence[str]] = self.meta.categories
+        except MetaNotExtractedError:
+            address_meta_categories = None
+
+        if address_meta_categories is not None:
+            # If the address_file is not provided, then extract addresses from the AddressMeta
+            logger.info("Populating address dictionary from the AddressMeta")
+
+            # A list of mappings of address labels to values
+            address_mapping_list: List[dict] = []
+
+            address_meta_children_labels = [child.name for child in self.meta.children]
+
+            # If the address meta contains neither postcode nor full_address, then the
+            # postcodes dictionary can't be populated
+            if self.labels.postcode_label not in address_meta_children_labels and\
+               self.labels.full_address_label not in address_meta_children_labels:
+                return d
+
+            for address_meta_cat in address_meta_categories:
+                address_parts = address_meta_cat.split('|')
+                address_map = {label: value for label, value in zip(address_meta_children_labels, address_parts)}
+                address_mapping_list.append(address_map)
+
+            self._populate_dict_from_address_lists(address_mapping_list=address_mapping_list, d=d)
+
+        return d
+
+    def _load_postcodes_dict(self) -> Dict[str, np.ndarray]:  # Dict[str, List[AddressRecord]]
 
         d: Dict[str, List[AddressRecord]] = dict()
 
-        if os.path.exists(addresses_file):
-            with gzip.open(addresses_file, 'r') as f:
+        if self.addresses_file is not None and os.path.exists(self.addresses_file):
+            logger.info("Populating address dictionary from '{}'".format(self.addresses_file))
+            with gzip.open(self.addresses_file, 'r') as f:
                 for line in f:
                     js = simplejson.loads(line)
                     addresses = _create_address_records_with_labels(js, self.labels)
@@ -232,25 +275,27 @@ class AddressModel(DiscreteModel[Address, str]):
 
                     postcode_key = get_postcode_key(
                         js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
-                        postcode_level=self.postcode_level, postcodes=postcodes
+                        postcode_level=self.postcode_model.postcode_level, postcodes=postcodes
                     )
 
                     if postcode_key not in d.keys():
                         d[get_postcode_key(
                             js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
-                            postcode_level=self.postcode_level, postcodes=postcodes
+                            postcode_level=self.postcode_model.postcode_level, postcodes=postcodes
                         )] = addresses
                     else:
                         d[get_postcode_key(
                             js['postcode'], postcode_regex=self.postcode_model.postcode_regex,
-                            postcode_level=self.postcode_level, postcodes=postcodes
+                            postcode_level=self.postcode_model.postcode_level, postcodes=postcodes
                         )].extend(addresses)
+        else:
+            d = self._create_postcodes_dict_from_address_meta()
 
         # convert list to ndarray for better performance
         d_out: Dict[str, np.ndarray] = dict()
 
-        for key, postcode in d.items():
-            d_out[key] = np.array(postcode)
+        for postcode, address_records in d.items():
+            d_out[postcode] = np.array(address_records)
 
         return d_out
 
@@ -306,24 +351,7 @@ class AddressModel(DiscreteModel[Address, str]):
         return model
 
 
-def _create_address_records(js: Dict[str, Any]) -> List[AddressRecord]:
-    addresses = []
-
-    for js_i in js['addresses']:
-        addresses.append(AddressRecord(
-            postcode=js['postcode'], county=js_i['county'], city=js_i['town_or_city'],
-            district=js_i['district'], street=js_i['thoroughfare'], house_number=js_i['building_number'],
-            flat=js_i['building_name'] if js_i['building_name'] else js_i['sub_building_name'],
-            house_name=js_i['building_name']
-        ))
-
-    return addresses
-
-
 def _create_address_records_with_labels(js: Dict[str, Any], labels: AddressLabels) -> List[AddressRecord]:
-    if labels.full_address_label is not None:
-        return _create_address_records(js=js)
-
     addresses = []
     postcode = js['postcode'] if labels.postcode_label else None
 
@@ -343,4 +371,31 @@ def _create_record(postcode: str, js_i: Dict[str, Any], labels: AddressLabels) -
         house_number=js_i['building_number'] if labels.house_number_label else None,
         flat=(js_i['building_name'] or js_i['sub_building_name']) if labels.flat_label else None,
         house_name=js_i['building_name'] if labels.house_name_label else None,
+    )
+
+
+def _create_record_from_address_map(address_map: Dict[str, Any],
+                                    labels: AddressLabels,
+                                    config: AddressModelConfig = AddressModelConfig()) -> Union[AddressRecord, None]:
+    postcode = address_map.get(cast(str, labels.postcode_label))
+    if postcode is None:
+        full_address = cast(str, address_map.get(cast(str, labels.full_address_label)))
+        postcode_regex = re.compile(config.postcode_regex)
+        postcode = get_postcode_key_from_address(address=full_address,
+                                                 postcode_regex=postcode_regex,
+                                                 postcode_level=config.postcode_level)
+
+    if postcode == 'nan':
+        return None
+
+    return AddressRecord(
+        postcode=postcode,
+        county=address_map.get(cast(str, labels.county_label)),
+        city=address_map.get(cast(str, labels.city_label)),
+        district=address_map.get(cast(str, labels.district_label)),
+        street=address_map.get(cast(str, labels.street_label)),
+        house_number=address_map.get(cast(str, labels.house_number_label)),
+        flat=address_map.get(cast(str, labels.flat_label)),
+        house_name=address_map.get(cast(str, labels.house_name_label)),
+        full_address=address_map.get(cast(str, labels.full_address_label))
     )

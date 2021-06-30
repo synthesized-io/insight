@@ -9,6 +9,7 @@ import pandas as pd
 
 @dataclass(repr=True)
 class AddressRecord:
+    full_address: Optional[str] = field(default=None, init=True, repr=False)
     postcode: Optional[str] = None
     county: Optional[str] = None
     city: Optional[str] = None
@@ -17,14 +18,14 @@ class AddressRecord:
     house_number: Optional[str] = None
     flat: Optional[str] = None
     house_name: Optional[str] = None
-    full_address: str = field(init=False, repr=False)
 
     def __post_init__(self):
         for f in fields(self):
             if f.name != 'full_address':
                 field_val = getattr(self, f.name)
                 setattr(self, f.name, field_val.replace("'", "") if field_val is not None else None)
-        self.full_address = self.compute_full_address()
+        if self.full_address is None:
+            self.full_address = self.compute_full_address()
 
     def compute_full_address(self) -> str:
         address_str = ""
@@ -202,8 +203,11 @@ class PersonModelConfig(GenderModelConfig):
 
 @dataclass
 class PostcodeModelConfig:
-    postcode_regex: str = r'[A-Za-z]{1,2}[0-9]+[A-Za-z]? *[0-9]+[A-Za-z]{2}'
+    postcode_regex: str = r'([A-Za-z]{1,2})([0-9]+[A-Za-z]?)( *[0-9]+[A-Za-z]{2})'
     """Regular expression for postcode synthesis."""
+    postcode_level: int = 0
+    """Level of the postcode to learn."""
+
     @property
     def postcode_model_config(self):
         return PostcodeModelConfig(**{f.name: getattr(self, f.name) for f in fields(PostcodeModelConfig)})
@@ -213,8 +217,6 @@ class PostcodeModelConfig:
 class AddressModelConfig(PostcodeModelConfig):
     address_locale: str = 'en_GB'
     """Locale for address synthesis."""
-    postcode_level: int = 0
-    """Level of the postcode to learn."""
     addresses_file: Optional[str] = '~/.synthesized/addresses.jsonl.gz'
     """Path to file with pre-generated addresses."""
     learn_postcodes: bool = False

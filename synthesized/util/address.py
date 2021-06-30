@@ -26,23 +26,34 @@ def get_postcode_key_from_address(address: str, postcode_regex: Pattern[str], po
     return 'nan'
 
 
-def get_postcode_key(postcode: str, postcode_regex: Pattern[str], postcode_level: int = 0,
-                     postcodes: Optional[Sequence[str]] = None):
+def get_postcode_key(
+        postcode: str, postcode_regex: Pattern[str], postcode_level: int = 0,
+        postcodes: Optional[Sequence[str]] = None
+):
+    """Returns the component of a postcode given the level and regex unless postcode in postcodes list.
 
+    The postcode_level corresponds to 1 less than the number of regex groups
+    included in the postcode.
+
+    Examples:
+        >>> postcode = "EC2A 2DP"
+        >>> regex = re.compile("([A-Za-z]{1,2})([0-9]+[A-Za-z]?)( *[0-9]+[A-Za-z]{2})")
+        >>> get_postcode_key(postcode, regex, postcode_level=0)
+        "EC"
+        >>> get_postcode_key(postcode, regex, postcode_level=1)
+        "EC2A"
+        >>> get_postcode_key(postcode, regex, postcode_level=2)
+        "EC2A 2DP"
+
+    """
     if postcodes and postcode in postcodes:
         return postcode
 
     if postcode == 'nan':
         return 'nan'
 
-    if not postcode_regex.match(postcode):
+    match = postcode_regex.match(postcode)
+    if match is None:
         return 'nan'
-    if postcode_level == 0:  # 1-2 letters
-        index = 2 - postcode[1].isdigit()
-    elif postcode_level == 1:
-        index = postcode.index(' ')
-    elif postcode_level == 2:
-        index = postcode.index(' ') + 2
-    else:
-        raise ValueError(postcode_level)
-    return postcode[:index]
+
+    return ''.join(match.groups()[:postcode_level + 1])
