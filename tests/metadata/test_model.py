@@ -452,3 +452,8 @@ def test_enumeration_model():
         elif model.name == 'idx3':
             assert (model.sample(100)['idx3']
                     == np.datetime64('2010-01-01') + np.arange(0, 1000, 10).astype('m8[D]')).all()
+
+
+def test_repr():
+    meta = Integer('test')
+    assert repr(KernelDensityEstimate(meta)) == f"KernelDensityEstimate(meta={repr(meta)})"

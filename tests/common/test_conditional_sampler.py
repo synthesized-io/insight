@@ -149,3 +149,13 @@ def test_alter_distributions_nans():
     value_counts_y = df_synthesized_wo_nans['y'].value_counts(normalize=True)
     for k, marginal_k in marginals['y'].items():
         assert np.isclose(marginal_k, value_counts_y[k], atol=0.05)
+
+
+def test_repr():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+
+    conditional_sampler = ConditionalSampler(synthesizer=synthesizer)
+    assert repr(conditional_sampler) == f"ConditionalSampler(synthesizer={repr(synthesizer)})"

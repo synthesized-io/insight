@@ -284,3 +284,12 @@ def test_encode_deterministic():
     synthesizer.learn(num_iterations=10, df_train=df_original)
     df_synthesized = synthesizer._encode_deterministic(df_original)
     assert df_synthesized.shape == df_original.shape
+
+
+def test_repr():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.type_overrides = ['test']
+    assert repr(synthesizer) == f"HighDimSynthesizer(df_meta={repr(df_meta)}, type_overrides=['test'])"

@@ -43,6 +43,9 @@ class DataFrameMeta(Meta[Meta], MutableMapping[str, Meta]):
         self.num_rows = num_rows
         self.annotations = annotations_list
 
+    def __repr__(self):
+        return f"DataFrameMeta(name='{self.name}', num_columns={self.num_columns}, num_rows={self.num_rows}, annotations={self.annotations})"
+
     def extract(self, df: pd.DataFrame) -> 'DataFrameMeta':
         super().extract(df)
         self.columns = df.columns

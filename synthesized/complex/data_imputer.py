@@ -30,6 +30,9 @@ class DataImputer(Synthesizer):
         self._loss_history = synthesizer._loss_history
         self._writer = synthesizer._writer
 
+    def __repr__(self):
+        return f"DataImputer(synthesizer={self.synthesizer})"
+
     def _get_values(self) -> List[Value]:
         return self.synthesizer._get_values()
 

@@ -78,6 +78,9 @@ class ConditionalSampler(Synthesizer):
             elif isinstance(v, (ContinuousValue)):
                 self._continuous_columns.append(v.name)
 
+    def __repr__(self):
+        return f"ConditionalSampler(synthesizer={self.synthesizer})"
+
     def learn(self, df_train: pd.DataFrame, num_iterations: Optional[int],
               callback: Optional[Callable[[object, int, dict], bool]] = None, callback_freq: int = 0) -> None:
         self.synthesizer.learn(

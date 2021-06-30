@@ -103,6 +103,9 @@ class HighDimSynthesizer(Synthesizer):
                 custom_stop_metric=config.custom_stop_metric, sample_size=1024
             )
 
+    def __repr__(self):
+        return f"HighDimSynthesizer(df_meta={self.df_meta}, type_overrides={self.type_overrides})"
+
     def _init_engine(
             self, df_meta: DataFrameMeta,
             type_overrides: Optional[List[Union[ContinuousModel, DiscreteModel]]] = None

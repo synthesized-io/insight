@@ -116,3 +116,13 @@ def test_outliers_imputation():
     data_imputer = DataImputer(synthesizer=synthesizer)
     df_out = data_imputer.impute_outliers(df_original)
     data_imputer.impute_outliers(df_original, inplace=True, progress_callback=progress_bar_testing)
+
+
+def test_repr():
+    n = 1000
+    df_original = pd.DataFrame({'x': np.random.normal(size=n), 'y': np.random.choice(['a', 'b', 'c'], size=n)})
+    df_meta = MetaExtractor.extract(df=df_original)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+
+    data_imputer = DataImputer(synthesizer=synthesizer)
+    assert repr(data_imputer) == f"DataImputer(synthesizer={repr(synthesizer)})"

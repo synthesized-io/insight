@@ -69,6 +69,9 @@ class TwoTableSynthesizer(Synthesizer):
 
         self._synthesizers = [HighDimSynthesizer(df_meta) for df_meta in df_metas]
 
+    def __repr__(self):
+        return f"TwoTableSynthesizer(df_metas={self.df_metas}, keys={self.keys}, relation={self.relation})"
+
     def learn(
             self, df_train: Tuple[pd.DataFrame, pd.DataFrame], num_iterations: Optional[int] = None,
             callback: Callable[[Synthesizer, int, dict], bool] = None,

@@ -14,6 +14,12 @@ class _Metric(ABC):
     name: Optional[str] = None
     tags: List[str] = []
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
+    def __str__(self):
+        return f"{self.name}"
+
 
 class ColumnMetric(_Metric):
 

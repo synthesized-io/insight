@@ -44,3 +44,14 @@ def test_two_table_synth():
 
     df_a, df_b = ttsyn.synthesize(num_rows=950)
     assert len(df_a.merge(df_b, on='customer_id', how='left')) >= len(df_cust)
+
+
+def test_repr():
+    df_cust = pd.read_csv('data/two-table-customer.csv')
+    df_tran = pd.read_csv('data/two-table-transaction.csv')
+
+    dfs = (df_cust, df_tran)
+    df_metas = (MetaExtractor.extract(df_cust), MetaExtractor.extract(df_tran))
+
+    ttsyn = TwoTableSynthesizer(df_metas=df_metas, keys=('customer_id', 'transaction_id'))
+    assert repr(ttsyn) == f"TwoTableSynthesizer(df_metas={repr(df_metas)}, keys=('customer_id', 'transaction_id'), relation={{'customer_id': 'customer_id'}})"

@@ -18,6 +18,9 @@ class Model(Generic[MetaType]):
         self._meta = meta
         self._fitted = False
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(meta={self.meta})"
+
     @property
     def meta(self) -> MetaType:
         return self._meta

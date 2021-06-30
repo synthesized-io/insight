@@ -287,3 +287,13 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue_y_pred():
                   x_test=np.array(x_test), y_test=np.array(y_test), clf = clf)
 
     assert(np.isclose(metrics_dict['roc_auc'],1.0,rtol=0.05) == True)
+
+
+def test_repr():
+    metric = KolmogorovSmirnovDistance()
+    assert repr(metric) == 'KolmogorovSmirnovDistance()'
+
+def test_str():
+    metric = KolmogorovSmirnovDistance()
+    metric.name = 'kolmogorov_smirnov_distance'
+    assert str(metric) == 'kolmogorov_smirnov_distance'

@@ -64,3 +64,9 @@ class TestDataFrameAnnotation(_TestMeta, AnnotatedDataFrameData):
         assert dataframe.equals(df)
         yield meta
         meta.__init__(name=meta.name, children=meta.children, annotations=meta.annotations)
+
+
+def test_repr():
+    meta = DataFrameMeta(name='test', num_columns=10, num_rows=10)
+    meta.annotations = ['test']
+    assert repr(meta) == "DataFrameMeta(name='test', num_columns=10, num_rows=10, annotations=['test'])"
