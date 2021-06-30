@@ -1,4 +1,5 @@
 import os
+import sys
 import warnings
 
 if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
@@ -6,7 +7,7 @@ if os.environ.get('SYNTHESIZED_TP_WARNINGS', 'false').lower() != 'true':
     for module in ['numpy', 'pandas', 'sklearn', 'tensorflow']:
         warnings.filterwarnings('ignore', module=module, append=True)
 
-from .check_license import _check_license
+import synthesized.licence as _licence
 from .common.synthesizer import Synthesizer
 from .complex.conditional import ConditionalSampler
 from .complex.data_imputer import DataImputer
@@ -16,9 +17,10 @@ from .metadata.data_frame_meta import DataFrameMeta
 from .metadata.factory import MetaExtractor
 from .version import __version__
 
-if not _check_license():
-    raise Exception('Failed to load license key')
-
+try:
+    _licence.verify(verbose=True)
+except _licence.LicenceError as e:
+    sys.exit(e)
 
 __all__ = [
     '__version__', 'HighDimSynthesizer', 'ConditionalSampler', 'DataImputer', 'Synthesizer', 'DataFrameMeta',

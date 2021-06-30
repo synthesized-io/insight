@@ -73,10 +73,10 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 # define the package dependencies
 install_requires = [
     "dataclasses ~= 0.6;python_version<'3.7'",
-    "numpy >= 1.18.4, < 1.20.0;python_version<'3.7'",
-    "numpy ~= 1.18.4;python_version>='3.7'",
-    "tensorflow ~= 2.2.1",
-    "tensorflow_probability ~= 0.10.1",
+    "numpy >= 1.18.4, < 1.20.0",
+    "tensorflow ~= 2.4.1",
+    "tensorflow_probability ~= 0.12.2",
+    "tensorflow_privacy ~= 0.5.2",
     "scipy ~= 1.5.4",
     "scikit_learn ~= 0.23.2",
     "pandas ~= 1.1.5",
@@ -85,7 +85,8 @@ install_requires = [
     "faker ~= 5.0.1",
     "simplejson ~= 3.17.2",
     "pyyaml ~= 5.3.1",
-    "rstr ~= 2.2.6"
+    "rstr ~= 2.2.6",
+    "rsa ~= 4.7.2"
 ]
 
 packages = find_packages(exclude=['tests*', 'web*'])

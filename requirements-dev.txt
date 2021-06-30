@@ -9,4 +9,5 @@ types-setuptools
 types-simplejson
 types-dataclasses; python_version < '3.7'
 types-PyYAML
+types-pkg-resources
 ipywidgets

@@ -23,6 +23,7 @@ from ..model.factory import ModelFactory
 from ..model.models import AddressModel, BankModel, EnumerationModel, FormattedStringModel, GenderModel, PersonModel
 from ..transformer import DataFrameTransformer
 from ..version import __version__
+from ..licence import LicenceError, OptionalFeature, verify
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,12 @@ class HighDimSynthesizer(Synthesizer):
         self.config = config
         self.type_overrides = type_overrides
         if config.engine_config.differential_privacy:
-            self._differential_privacy = True
-            self._privacy_config = config.privacy_config
-            config.increase_batch_size_every = None  # privacy accounting requires a constant batch size, so keep fixed.
+            if verify(OptionalFeature.DIFFERENTIAL_PRIVACY):
+                self._differential_privacy = True
+                self._privacy_config = config.privacy_config
+                config.increase_batch_size_every = None  # privacy accounting requires a constant batch size, so keep fixed.
+            else:
+                raise LicenceError('Please upgrade your licence to use differential privacy features.')
         else:
             self._differential_privacy = False
 

@@ -13,13 +13,13 @@ build: $(SRC)
 	touch build
 
 test:  venv
-	$(PYTHON) -m pytest -v --cov=synthesized  --cov-report=term-missing --junitxml=test-results/junit.xml
+	$(PYTHON) -m pytest -v --cov=synthesized  --cov=keygen --cov-report=term-missing --junitxml=test-results/junit.xml
 
 fast-test: venv
-	$(PYTHON) -m pytest -v -m "not slow" --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v -m "not slow" --cov=synthesized  --cov=keygen --cov-report=term-missing
 
 slow-test:  venv
-	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov-report=term-missing
+	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov=keygen --cov-report=term-missing
 
 lint: venv
 	$(PYTHON) -m mypy --ignore-missing-import synthesized

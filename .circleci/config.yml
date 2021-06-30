@@ -16,7 +16,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       - restore_cache:
           keys:
@@ -59,7 +59,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       - attach_workspace:
           at: .
@@ -85,7 +85,7 @@ jobs:
             pip uninstall -y pytest
             pip install pytest
             circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts > pytest-files.txt
-            pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch $(cat pytest-files.txt)
+            pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov=keygen --cov-report=xml:coverage-reports/cobertura.xml --cov-branch $(cat pytest-files.txt)
             python tests/junit-fix.py
 
       - store_test_results:
@@ -146,7 +146,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       - run:
           name: Build docs
@@ -174,7 +174,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -185,7 +185,7 @@ jobs:
           name: Run Tests
           shell: /bin/bash
           command: |
-            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+            circleci tests glob "tests/**/test_*.py" | circleci tests split --split-by=timings --timings-type=filename --show-counts | xargs venv/bin/python3 -m pytest -v --junitxml=test-results/junit.xml  --cov=synthesized --cov=keygen --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
             if [ $? -eq 1 ]
             then
               echo 'Some tests failed'
@@ -219,7 +219,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -243,7 +243,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
@@ -459,7 +459,7 @@ jobs:
 
       - run:
           name: Decode and set Synthesized key
-          command: echo 'export SYNTHESIZED_KEY="$(echo ${SYNTHESIZED_KEY_RSA} | base64 -d)"' >> $BASH_ENV
+          command: echo 'export SYNTHESIZED_KEY=$SYNTHESIZED_KEY_RSA_FEATUREFLAGS' >> $BASH_ENV
 
       # Download and cache dependencies
       - restore_cache:
