@@ -74,19 +74,19 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 install_requires = [
     "dataclasses ~= 0.6;python_version<'3.7'",
     "numpy >= 1.18.4, < 1.20.0",
-    "tensorflow ~= 2.4.1",
-    "tensorflow_probability ~= 0.12.2",
-    "tensorflow_privacy ~= 0.5.2",
-    "scipy ~= 1.5.4",
-    "scikit_learn ~= 0.23.2",
-    "pandas ~= 1.1.5",
-    "matplotlib ~= 3.3.3",
-    "seaborn ~= 0.11.0",
-    "faker ~= 5.0.1",
-    "simplejson ~= 3.17.2",
-    "pyyaml ~= 5.3.1",
-    "rstr ~= 2.2.6",
-    "rsa ~= 4.7.2"
+    "tensorflow ~= 2.4",
+    "tensorflow_probability ~= 0.12",
+    "tensorflow_privacy ~= 0.5",
+    "scipy ~= 1.5",
+    "scikit_learn ~= 0.23",
+    "pandas ~= 1.1",
+    "matplotlib ~= 3.3",
+    "seaborn ~= 0.11",
+    "faker ~= 5.0",
+    "simplejson ~= 3.17",
+    "pyyaml ~= 5.3",
+    "rstr ~= 2.2",
+    "rsa ~= 4.7"
 ]
 
 packages = find_packages(exclude=['tests*', 'web*'])
