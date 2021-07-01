@@ -378,10 +378,19 @@ class DifferentialPrivacyConfig:
 
     See https://github.com/tensorflow/privacy for further details."""
     epsilon: float = 1.0
+    """Abort model training when this value of epsilon is reached."""
     delta: Optional[float] = None
+    """The delta in (epsilon, delta)-differential privacy. By default, set to 1/(10*len(data))."""
     noise_multiplier: float = 1.0
+    """Ratio that determines amount of noise added to each sample during training"""
     num_microbatches: int = 1
+    """Number of microbatches on which average gradient is calculated for clipping. Must evenly divide
+    the batch size.
+
+    When num_microbatches == batch_size the optimal utility can be achieved, however this results
+    in a decrease in performance due to the number of extra calculations required."""
     l2_norm_clip: float = 1.0
+    """Maximum L2 norm of each microbatch gradient."""
 
     @property
     def privacy_config(self):
@@ -428,6 +437,7 @@ class EngineConfig(DifferentialPrivacyConfig):
     weight_decay: float = 1e-3
     # Differential privacy
     differential_privacy: bool = False
+    """Enable differential privacy."""
 
     @property
     def engine_config(self):

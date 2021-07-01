@@ -30,6 +30,7 @@ def test_differential_privacy():
     assert synthesizer._privacy_config.noise_multiplier == 1.0
 
     synthesizer.learn(num_iterations=10, df_train=df_original)
+    assert synthesizer.epsilon is not None
 
     # can only do one training step if epsilon is zero.
     config.epsilon = 0.0
@@ -41,3 +42,4 @@ def test_differential_privacy():
     synthesizer = HighDimSynthesizer(df_meta=df_meta, config=config)
     assert synthesizer._differential_privacy is False
     assert type(synthesizer._engine.optimizer) == Optimizer
+    assert synthesizer.epsilon is None

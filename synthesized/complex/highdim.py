@@ -95,6 +95,7 @@ class HighDimSynthesizer(Synthesizer):
             if verify(OptionalFeature.DIFFERENTIAL_PRIVACY):
                 self._differential_privacy = True
                 self._privacy_config = config.privacy_config
+                self._epsilon: Optional[float] = None
                 config.increase_batch_size_every = None  # privacy accounting requires a constant batch size, so keep fixed.
             else:
                 raise LicenceError('Please upgrade your licence to use differential privacy features.')
@@ -114,6 +115,14 @@ class HighDimSynthesizer(Synthesizer):
 
     def __repr__(self):
         return f"HighDimSynthesizer(df_meta={self.df_meta}, type_overrides={self.type_overrides})"
+
+    @property
+    def epsilon(self) -> Optional[float]:
+        """Value of epsilon obtained by this Synthesizer if differential privacy is enabled."""
+        if self._differential_privacy:
+            return self._epsilon
+        else:
+            return None
 
     def _init_engine(
             self, df_meta: DataFrameMeta,
@@ -264,11 +273,11 @@ class HighDimSynthesizer(Synthesizer):
                         break
 
                     if self._differential_privacy:
-                        eps = get_privacy_budget(
+                        self._epsilon = get_privacy_budget(
                             self._privacy_config.noise_multiplier, iteration, self.config.batch_size,
                             num_data, self._privacy_config.delta
                         )
-                        if eps > self._privacy_config.epsilon:
+                        if self.epsilon > self._privacy_config.epsilon:
                             break
 
                     # Increase batch size
