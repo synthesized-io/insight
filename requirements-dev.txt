@@ -1,7 +1,7 @@
 pytest
 pytest-cov
 Cython==3.0a7
-mypy
+mypy==0.812
 flake8
 hypothesis[pandas]
 typing_extensions
