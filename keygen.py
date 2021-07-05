@@ -16,28 +16,29 @@ Examples:
     $ python keygen.py --days 10 --features "*"
 
 """
-import base64
 import argparse
+import base64
 import datetime
-import sys
+import json
 import pathlib
-from typing import List, Optional, Union
+import sys
 from importlib.abc import Loader
-from importlib.util import spec_from_file_location, module_from_spec
+from importlib.util import module_from_spec, spec_from_file_location
+from typing import List, Optional, Union
 
 import rsa
 
 
-def get_feature_ids(features: Optional[Union[str, List[str]]]) -> Union[List[str], str]:
+def get_feature_ids(features: Optional[Union[str, List[str]]]) -> Union[List[str]]:
     if features is None:
-        return ''
+        return []
     if len(features) == 1 and features[0] == "*":
-        return "*"
+        return ["*"]
     else:
         ids = []
         for feature in features:
             try:
-                ids.append(str(licence.OptionalFeature[feature.upper()].value))
+                ids.append(licence.OptionalFeature[feature.upper()].value)
             except KeyError:
                 raise ValueError(
                     f"Feature '{feature}' not recognised. Optional features must be valid members defined in synthesized.licence.OptionalFeature. "
@@ -45,7 +46,7 @@ def get_feature_ids(features: Optional[Union[str, List[str]]]) -> Union[List[str
         return ids
 
 
-def generate_key(expiry: str, features: Optional[Union[str, List[str]]] = None) -> str:
+def generate_key(expiry: str, features: Optional[Union[str, List[str]]] = None, **kwargs) -> str:
     """Generate synthesized licence key.
 
     Expiry date and optional feature information is signed using a private SHA-256 key. The key
@@ -54,14 +55,14 @@ def generate_key(expiry: str, features: Optional[Union[str, List[str]]] = None) 
     Args:
         expiry: licence key invalid after this date. Required format is yyyy-mm-dd.
         features: values of synthesized.licence.OptionalFeature enumeration.
+        **kwargs: extra keyword arguments to enter into the json data
     """
     with open("keys/privkey", "rb") as in_f:
         privkey = rsa.PrivateKey.load_pkcs1(in_f.read())
-
-    key_data = f"{expiry}\n{' '.join(get_feature_ids(features))}"
+    key_data = json.dumps({"expiry": expiry, "feature_ids": get_feature_ids(features), **kwargs})
 
     signed_data = rsa.sign(key_data.encode("utf-8"), privkey, "SHA-256")
-    licence_key = key_data + "\n" + base64.b64encode(signed_data).decode("ascii")
+    licence_key = base64.b64encode(signed_data).decode("ascii") + key_data
     return base64.b64encode(licence_key.encode()).decode()
 
 
@@ -82,6 +83,19 @@ def import_module_from_path(path: str):
 licence = import_module_from_path("synthesized/licence.py")
 
 
+class keyvalue(argparse.Action):
+    """
+    Action class which allows kwargs to be passed as command line arguments
+    """
+    def __call__(self, parser, namespace,
+                 values, option_string=None):
+        setattr(namespace, self.dest, dict())
+
+        for value in values:
+            key, value = value.split('=')
+            getattr(namespace, self.dest)[key] = value
+
+
 def parse_args(args):
     parser = argparse.ArgumentParser("Generate licence key")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -93,6 +107,13 @@ def parse_args(args):
         nargs="+",
         type=str,
         help='names of optional features to activate, which must be members of synthesized.licence.OptionalFeatures. Defaults to "*", meaning all features are enabled.',
+    )
+    # kwargs arguments
+    parser.add_argument(
+        "--extras",
+        default={},
+        nargs="*",
+        action=keyvalue,
     )
 
     return parser.parse_args(args)
@@ -108,7 +129,7 @@ def main(args):
     if datetime.datetime.strptime(expiry, "%Y-%m-%d") < datetime.datetime.now():
         raise ValueError("Oops! Looks like the date entered is in the past!")
 
-    print(generate_key(expiry, args.features))
+    print(generate_key(expiry, args.features, **args.extras))
 
 
 if __name__ == "__main__":

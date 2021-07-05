@@ -1,11 +1,14 @@
+import base64
+import datetime
 import enum
+import json
+import os
 import pathlib
+import warnings
+from typing import Dict, List, Union
+
 import pkg_resources
 import rsa
-import os
-import datetime
-import base64
-from typing import Union
 
 KEY_VAR = "SYNTHESIZED_KEY"
 KEY_FILEPATH = os.path.expanduser("~/.synthesized/key")
@@ -13,17 +16,24 @@ _PUBLIC_KEY = ".pubkey"
 
 _KEY: str = ""
 """licence key"""
-_EXPIRY: str = ""
-"""expiry date"""
-_FEATURES: str = ""
-"""feature ids that are activated. See OptionalFeature."""
 _SIGNATURE: str = ""
 """signed data"""
+_LICENCE_DATA: str = ""
+_LICENCE_INFO: Dict = {}
+"""licence information"""
+
+EXPIRY_DATE: str = ""
+FEATURES: List[str] = []
+"""public globals for checking at runtime"""
 
 PathLike = Union[str, pathlib.Path]
 
 
 class LicenceError(Exception):
+    pass
+
+
+class LicenceWarning(Warning):
     pass
 
 
@@ -39,7 +49,7 @@ class OptionalFeature(enum.Enum):
     DIFFERENTIAL_PRIVACY = 2
 
 
-def verify(feature: OptionalFeature = None, verbose: bool = False) -> bool:
+def verify(feature: OptionalFeature = None) -> bool:
     """Verify validity of the synthesized licence.
 
     Checks expiry date and whether optional features are valid with given licence.
@@ -50,20 +60,15 @@ def verify(feature: OptionalFeature = None, verbose: bool = False) -> bool:
     Returns
         True if licence is within expiry date and optional features are active, False otherwise.
     """
-    if not _EXPIRY:
+    if not _LICENCE_INFO:
         _read_licence()
-        if verbose:
-            print("Copyright (C) Synthesized Ltd. - All Rights Reserved.")
-            print(f"Licence: {_KEY}")
-            print(f"Expires: {_EXPIRY}")
 
-    data = f"""{_EXPIRY}\n{_FEATURES}"""
-    _verify_signature(data, _SIGNATURE, _read_public_key(_PUBLIC_KEY))
+    _verify_signature(_LICENCE_DATA, _SIGNATURE, _read_public_key(_PUBLIC_KEY))
 
-    date_is_valid = _verify_date(_EXPIRY)
+    date_is_valid = _verify_date(_LICENCE_INFO["expiry"])
 
     if feature is not None:
-        feature_is_valid = _verify_features(_FEATURES, feature)
+        feature_is_valid = _verify_features(_LICENCE_INFO["feature_ids"], feature)
     else:
         feature_is_valid = True
 
@@ -83,7 +88,8 @@ def _read_licence_from_env(var: str) -> str:
 
 
 def _read_licence() -> None:
-    global _KEY, _EXPIRY, _FEATURES, _SIGNATURE
+    global _KEY, _SIGNATURE, _LICENCE_DATA, _LICENCE_INFO
+    global EXPIRY_DATE, FEATURES  # public globals for checking at runtime
 
     try:
         licence = _read_licence_from_env(KEY_VAR)
@@ -99,7 +105,14 @@ def _read_licence() -> None:
     try:
         _KEY = licence.strip('\n')
         licence = base64.b64decode(licence).decode('utf-8')
-        _EXPIRY, _FEATURES, _SIGNATURE = licence.splitlines()
+        _SIGNATURE = licence[:88]  # first 88 bytes contain signed data
+        _LICENCE_DATA = licence[88:]
+        _LICENCE_INFO = json.loads(_LICENCE_DATA)
+        EXPIRY_DATE = _LICENCE_INFO["expiry"]
+        if _LICENCE_INFO["feature_ids"] == ["*"]:
+            FEATURES = [feature.name for feature in OptionalFeature]
+        else:
+            FEATURES = [feature.name for feature in OptionalFeature if feature.value in _LICENCE_INFO["feature_ids"]]
     except ValueError:
         raise LicenceError("Unable to read licence. Please contact team@synthesized.io.")
 
@@ -117,18 +130,22 @@ def _verify_signature(data: str, signature: str, public_key: rsa.PublicKey) -> b
         raise LicenceError("Unable to verify licence. Please contact team@synthesized.io.")
 
 
-def _verify_features(feature_ids: str, feature: OptionalFeature) -> bool:
-    features = feature_ids.split(" ")
-    if len(features) == 1 and features[0] == "*":
+def _verify_features(feature_ids: List[Union[int, str]], feature: OptionalFeature) -> bool:
+    if len(feature_ids) == 1 and feature_ids[0] == "*":
         return True
-    elif str(feature.value) in features:
+    elif feature.value in feature_ids:
         return True
     else:
         return False
 
 
 def _verify_date(expiry) -> bool:
-    if datetime.datetime.now() > datetime.datetime.strptime(expiry, "%Y-%m-%d"):
+    expiry_date = datetime.datetime.strptime(expiry, "%Y-%m-%d")
+    if datetime.datetime.now() > expiry_date:
         raise LicenceError("Licence expired. Please renew to continue using synthesized.")
-    else:
-        return True
+    elif (expiry_date - datetime.datetime.now()).days < 7:
+        warning_str = "Synthesized SDK licence expires in less than 7 days, "
+        "please renew your licence to continue using the SDK"
+        # warnings.warn prints the source line, so we separate out the string to avoid weird warning messages
+        warnings.warn(warning_str, LicenceWarning)
+    return True

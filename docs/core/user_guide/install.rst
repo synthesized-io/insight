@@ -92,6 +92,20 @@ To test the installation is correct, import the synthesized module in the python
 
         py -c "import synthesized; print(synthesized.__version__)"
 
+To check the expiry and feature list of the licence key, check the synthesized.licence module for the variables
+`EXPIRY_DATE` and `FEATURES`.
+
+.. tab:: Unix
+
+    .. code-block:: console
+
+       python3 -c "import synthesized; print(f'Expiry: {synthesized.licence.EXPIRY_DATE}'); print(f'FEATURES: {synthesized.licence.FEATURES}')"
+
+.. tab:: Windows
+
+    .. code-block:: console
+
+       py -c "import synthesized; print(f'Expiry: {synthesized.licence.EXPIRY_DATE}'); print(f'FEATURES: {synthesized.licence.FEATURES}')"
 
 Dependencies
 ------------

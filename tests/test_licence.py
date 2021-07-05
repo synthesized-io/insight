@@ -1,12 +1,12 @@
-import pytest
-import base64
 import datetime
-import pathlib
+import json
 import os
+import pathlib
 import sys
-sys.path.append(pathlib.Path(__file__).parent.parent.as_posix())
 
-import rsa
+import pytest
+
+sys.path.append(pathlib.Path(__file__).parent.parent.as_posix())
 
 import synthesized.licence
 from keygen import generate_key
@@ -50,8 +50,8 @@ def test_read_licence_from_env(valid_licence):
 
     date = datetime.datetime.today() + datetime.timedelta(days=1)
 
-    assert synthesized.licence._EXPIRY == date.strftime('%Y-%m-%d')
-    assert synthesized.licence._FEATURES == "1 2"
+    assert synthesized.licence._LICENCE_INFO["expiry"] == date.strftime('%Y-%m-%d')
+    assert synthesized.licence._LICENCE_INFO["feature_ids"] == [1, 2]
 
     del os.environ[synthesized.licence.KEY_VAR]
     with pytest.raises(synthesized.licence.LicenceError):
@@ -74,8 +74,8 @@ def test_read_licence_from_file(valid_licence, tmpdir):
 
     date = datetime.datetime.today() + datetime.timedelta(days=1)
 
-    assert synthesized.licence._EXPIRY == date.strftime('%Y-%m-%d')
-    assert synthesized.licence._FEATURES == "1 2"
+    assert synthesized.licence._LICENCE_INFO["expiry"] == date.strftime('%Y-%m-%d')
+    assert synthesized.licence._LICENCE_INFO["feature_ids"] == [1, 2]
 
 
 def test_verify_expired(expired_licence):
@@ -96,11 +96,11 @@ def test_verify_date(valid_licence, expired_licence):
     synthesized.licence.KEY_FILEPATH = ''
     os.environ[synthesized.licence.KEY_VAR] = valid_licence
     synthesized.licence._read_licence()
-    assert synthesized.licence._verify_date(synthesized.licence._EXPIRY) is True
+    assert synthesized.licence._verify_date(synthesized.licence._LICENCE_INFO["expiry"]) is True
     with pytest.raises(synthesized.licence.LicenceError):
         os.environ[synthesized.licence.KEY_VAR] = expired_licence
         synthesized.licence._read_licence()
-        synthesized.licence._verify_date(synthesized.licence._EXPIRY)
+        synthesized.licence._verify_date(synthesized.licence._LICENCE_INFO["expiry"])
 
 
 def test_verify_features(valid_licence_all_features, valid_licence_one_feature, valid_licence_no_features):
@@ -127,11 +127,11 @@ def test_verify_signature(valid_licence):
     os.environ[synthesized.licence.KEY_VAR] = valid_licence
     synthesized.licence._read_licence()
 
-    data = f"{synthesized.licence._EXPIRY}\n{synthesized.licence._FEATURES}"
+    data = synthesized.licence._LICENCE_DATA
     signature = synthesized.licence._SIGNATURE
     public_key = synthesized.licence._read_public_key()
 
     assert synthesized.licence._verify_signature(data, signature, public_key) is True
     with pytest.raises(synthesized.licence.LicenceError):
-        data = f"2100-01-01\n{synthesized.licence._FEATURES}"
-        synthesized.licence._verify_signature(data, signature, public_key)
+        data = {"expiry": "2100-01-01", "feature_ids": synthesized.licence._LICENCE_INFO["feature_ids"]}
+        synthesized.licence._verify_signature(json.dumps(data), signature, public_key)
