@@ -1,9 +1,9 @@
-.. _evaluation_guide:
+.. _quality_guide:
 
 
-==========
-Evaluation
-==========
+=======
+Quality
+=======
 
 Synthesized includes several methods to assess the quality and utility of generated data. These can be used to answer
 two related questions:
@@ -89,7 +89,7 @@ statistical similarity.
     metric. If the data is of the incorrect type they will return ``None``.
 
 Alternatively, the evaluation metrics can be automatically calculated and visualised for the synthetic and original
-data sets using the :class:`synthesized.testing.UtilityTesting` class. 
+data sets using the :class:`synthesized.testing.UtilityTesting` class.
 
 :class:`synthesized.testing.UtilityTesting` requires a pre-trained :class:`~synthesized.complex.HighDimSynthesizer`, together with dataframes of the original data,
 synthetic data, and a hold-out test set of original data.
@@ -104,7 +104,7 @@ synthetic data, and a hold-out test set of original data.
     from synthesized.metadata.factory import MetaExtractor
     from synthesized.testing import UtilityTesting
     from synthesized.insight.metrics import KolmogorovSmirnovDistance, KendellTauCorrelation
-    
+
     df = synthesized.util.get_example_data()
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta)
@@ -113,7 +113,7 @@ synthetic data, and a hold-out test set of original data.
     testing = UtilityTesting(synthesizer, df, df, df_synth)
     testing.show_distributions()
 
-.. image:: ../_static/dist.jpg
+.. image:: ../../_static/dist.jpg
    :scale: 60 %
 
 
@@ -124,7 +124,7 @@ synthetic data, and a hold-out test set of original data.
 
     testing.show_first_order_metric_distances(KolmogorovSmirnovDistance())
 
-.. image:: ../_static/km_dist.jpg
+.. image:: ../../_static/km_dist.jpg
    :scale: 80 %
 
 .. ipython:: python
@@ -132,7 +132,7 @@ synthetic data, and a hold-out test set of original data.
 
     testing.show_second_order_metric_distances(KendellTauCorrelation())
 
-.. image:: ../_static/kt_dist.jpg
+.. image:: ../../_static/kt_dist.jpg
    :scale: 80 %
 
 
