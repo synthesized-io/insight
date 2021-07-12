@@ -118,7 +118,7 @@ setup(
     author_email='team@synthesized.io',
     license='Proprietary',
     packages=packages,
-    package_data={"synthesized": [".pubkey"]},
+    package_data={"synthesized": [".pubkey", "fonts/inter-v3-latin-regular.ttf"]},
     install_requires=install_requires,
     python_requires='>=3.6,<3.9',
     ext_modules=cythonize(

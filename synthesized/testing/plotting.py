@@ -7,13 +7,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pkg_resources
 import seaborn as sns
 from matplotlib import cm, cycler
 from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from sklearn.preprocessing import OneHotEncoder
-
-import synthesized
 
 from ..insight.evaluation import calculate_evaluation_metrics
 from ..insight.metrics import EarthMoversDistance, KolmogorovSmirnovDistance
@@ -42,10 +41,9 @@ idx = pd.IndexSlice
 def set_plotting_style():
     plt.style.use('seaborn')
     mpl.font_manager.fontManager.addfont(
-        Path(synthesized.__path__[0]).parent.joinpath('fonts/inter/inter-v3-latin-regular.ttf').as_posix()
+        Path(pkg_resources.resource_filename("synthesized", "fonts/inter-v3-latin-regular.ttf")).as_posix()
     )
-    mpl.rc('font', family='Inter-Regular'
-                          '')
+    mpl.rc('font', family='Inter-Regular')
     mpl.rcParams['axes.spines.right'] = False
     mpl.rcParams['axes.spines.top'] = False
     mpl.rcParams['text.color'] = '333333'
