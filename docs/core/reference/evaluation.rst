@@ -31,6 +31,7 @@ of the generated synthetic data emperically and visually.
 
 .. autosummary::
    :toctree: _api/
+   :template: class.rst
 
    predictive_modelling_score
    predictive_modelling_comparison
@@ -43,4 +44,4 @@ of the generated synthetic data emperically and visually.
    :toctree: _api/
    :template: class.rst
 
-   UtilityTesting
+   Assessor
