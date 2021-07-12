@@ -50,7 +50,7 @@ class OptionalFeature(enum.Enum):
 
 
 def verify(feature: OptionalFeature = None) -> bool:
-    """Verify validity of the synthesized licence.
+    """Verify validity of the Synthesized licence.
 
     Checks expiry date and whether optional features are valid with given licence.
 

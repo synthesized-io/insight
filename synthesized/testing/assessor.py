@@ -1,39 +1,30 @@
 import logging
-import math
-from enum import Enum
-from typing import Tuple, Union
+from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+from sklearn.base import ClassifierMixin
 
-from .plotting import (categorical_distribution_plot, continuous_distribution_plot, plot_first_order_metric_distances,
-                       plot_second_order_metric_distances, plot_second_order_metric_matrices, plot_standard_metrics,
-                       set_plotting_style)
-from ..insight.metrics import (ColumnComparisonVector, DiffMetricMatrix, TwoColumnMetric, TwoColumnMetricMatrix,
-                               TwoDataFrameVector)
+from synthesized.insight.metrics.metrics import (CategoricalLogisticR2, CramersV, EarthMoversDistance,
+                                                 KendallTauCorrelation, KolmogorovSmirnovDistance,
+                                                 SpearmanRhoCorrelation)
+
+from .plotting import (plot_classification_metrics, plot_classification_metrics_test, plot_standard_metrics,
+                       set_plotting_style, show_distributions, show_first_order_metric_distances,
+                       show_second_order_metric_distances, show_second_order_metric_matrices)
+from ..insight.metrics import TwoColumnMetric
+from ..insight.metrics.modelling_metrics import predictive_modelling_comparison
 from ..metadata import DataFrameMeta
-from ..model import ContinuousModel, DiscreteModel
 from ..model.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
-MAX_PVAL = 0.05
-
-
-class DisplayType(Enum):
-    """Used to display columns differently based on their type."""
-
-    CATEGORICAL = 1
-    CATEGORICAL_SIMILARITY = 2
-    CONTINUOUS = 3
-
 
 class Assessor:
-    """A universal set of utilities that let you to compare quality of original vs synthetic data."""
+    """A universal set of utilities that let you to assess the quality of synthetic against original data."""
 
-    def __init__(self, df_meta: DataFrameMeta, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
-        """Create an instance of UtilityTesting.
+    def __init__(self, df_meta: DataFrameMeta):
+        """Create an instance of Assessor.
 
         Args:
             synthesizer: A synthesizer instance.
@@ -41,169 +32,269 @@ class Assessor:
             df_test: A DataFrame with hold-out original data
             df_synth: A DataFrame with synthetic data
         """
-        self.df_orig = df_orig
-        self.df_synth = df_synth
-
         self.df_meta = df_meta
-        self.df_models = ModelFactory()(df_meta)
+        self.df_model = ModelFactory()(df_meta)
 
         # Set the style of plots
         set_plotting_style()
 
-    def show_standard_metrics(self, ax=None):
-        current_result = plot_standard_metrics(self.df_test, self.df_synth, self.df_meta, ax=ax)
-        plt.show()
+    def show_standard_metrics(self, df_test: pd.DataFrame, df_synth: pd.DataFrame, ax: plt.Axes = None):
+        """Plot average and maximum distances for standard metrics.
 
+        Standard metrics are:
+            * Kolmogorov–Smirnov distance.
+            * Earth Mover's distance.
+            * Kendall's Tau correlation distance.
+            * Cramer's V correlation distance.
+            * Logistic R^2 score distance.
+
+        Args:
+            df_test: Original test dataset.
+            df_synth: Synthesized dataset.
+            ax: Axes to plot data on.
+        """
+        current_result = plot_standard_metrics(df_test, df_synth, self.df_meta, ax=ax)
         return current_result
 
-    def show_distributions(self, remove_outliers: float = 0.0, figsize: Tuple[float, float] = None,
+    def show_distributions(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                           remove_outliers: float = 0.01, figsize: Tuple[float, float] = None,
                            cols: int = 2, sample_size: int = 10_000) -> None:
-        """Plot comparison plots of all variables in the original and synthetic datasets.
+        """Plot comparison plots of marginal distributions of all columns in the original and synthetic datasets.
 
         Args:
-            remove_outliers: Percent of outliers to remove.
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            remove_outliers: Percent of outliers to remove for better visualization purposes.
             figsize: width, height in inches.
             cols: Number of columns in the plot grid.
-            sample_size: Maximum sample size tot show distributions.
+            sample_size: Maximum sample size to show distributions.
         """
-        rows = math.ceil(len(self.df_models) / cols)
-        if not figsize:
-            figsize = (6 * cols + 2, 5 * rows + 2)
+        show_distributions(df_orig, df_synth, self.df_model, remove_outliers=remove_outliers, figsize=figsize,
+                           cols=cols, sample_size=sample_size)
 
-        fig = plt.figure(figsize=figsize)
-        gs = fig.add_gridspec(nrows=rows, ncols=cols, left=.05, bottom=.05, right=.95, top=.95, wspace=.2, hspace=.3)
-        n = 0
+    def show_first_order_metric_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                          metric: TwoColumnMetric) -> Tuple[float, float]:
+        """Plot and compare distribution distances for each column between the original and synthesized sets.
 
-        for col, model in self.df_models.items():
-            if isinstance(model, DiscreteModel):
-                ax = fig.add_subplot(gs[n // cols, n % cols])
-                ax.set_title(col)
-                categorical_distribution_plot(self.df_orig[col], self.df_synth[col], sample_size, ax=ax)
-                ax.get_legend().remove()
-                ax.set_xlabel("")
-                n += 1
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            metric: the distribution distance metric to show.
 
-            elif isinstance(model, ContinuousModel):
-                ax = fig.add_subplot(gs[n // cols, n % cols])
-                ax.set_title(col)
-                continuous_distribution_plot(self.df_orig[col], self.df_synth[col], remove_outliers, sample_size, ax)
-                ax.get_legend().remove()
-                ax.set_xlabel("")
-                n += 1
+        Returns the maximum and average distances.
+        """
 
-        handles, labels = ax.get_legend_handles_labels()
-        fig.legend(handles, labels, loc='upper left', prop={'size': 14})
+        dist_max, dist_avg = show_first_order_metric_distances(df_orig=df_orig, df_synth=df_synth,
+                                                               df_model=self.df_model, metric=metric)
 
-        plt.show()
-
-    def show_first_order_metric_distances(self, metric: TwoColumnMetric):
-        if metric.name is None:
-            raise ValueError("Metric has no name.")
-        logger.debug(f"Showing distances for first-order metric ({metric.name}).")
-        metric_vector = ColumnComparisonVector(metric)
-
-        result = metric_vector(self.df_orig, self.df_synth, df_model=self.df_models)
-
-        if result is None or len(result.dropna()) == 0:
-            return 0., 0.
-
-        dist_max = float(np.nanmax(result))
-        dist_avg = float(np.nanmean(result))
-
-        print(f"Max {metric.name}:", dist_max)
-        print(f"Average {metric.name} distance:", dist_avg)
-
-        plot_first_order_metric_distances(result, metric_name=metric.name)
-
+        print(f"Maximum {metric.name} dist:\t{dist_max:.2f}")
+        print(f"Average {metric.name} dist:\t{dist_avg:.2f}")
         return dist_max, dist_avg
 
-    def show_second_order_metric_matrices(self, metric: TwoColumnMetric) -> None:
-        """Plot two correlations matrices: one for the original data and one for the synthetic one.
+    def show_ks_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
+        """Plot and compare Kolmogorov-Smirnov distances for each column between the original and synthesized sets.
 
         Args:
-            metric: the two column metric to show.
-            figsize: width, height in inches.
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+
+        Returns the maximum and average distances.
         """
-        if metric.name is None:
-            raise ValueError("Metric has no name.")
+        return self.show_first_order_metric_distances(df_orig, df_synth, KolmogorovSmirnovDistance())
 
-        logger.debug(f"Showing matrices for second-order metric ({metric.name}).")
-
-        def filtered_metric_matrix(df):
-            metric_matrix = TwoColumnMetricMatrix(metric)
-            matrix = metric_matrix(df, df_model=self.df_models)
-
-            for c in matrix.columns:
-                if matrix.loc[:, c].isna().all() and matrix.loc[c, :].isna().all():
-                    matrix.drop(c, axis=1, inplace=True)
-                    matrix.drop(c, axis=0, inplace=True)
-
-            if [c for c in matrix.columns if matrix.loc[:, c].isna().all()] == \
-                    [c for c in matrix.columns if not matrix.loc[c, :].isna().all()]:
-                for c in matrix.columns:
-                    if matrix.loc[:, c].isna().all():
-                        matrix.drop(c, axis=1, inplace=True)
-                    elif matrix.loc[c, :].isna().all():
-                        matrix.drop(c, axis=0, inplace=True)
-
-            return matrix
-
-        matrix_orig = filtered_metric_matrix(self.df_orig)
-        matrix_synth = filtered_metric_matrix(self.df_synth)
-
-        is_symmetric = True if 'symmetric' in metric.tags else False
-
-        plot_second_order_metric_matrices(matrix_orig, matrix_synth, metric.name, symmetric=is_symmetric)
-
-    def show_second_order_metric_distances(self, metric: TwoColumnMetric) -> Tuple[float, float]:
-        """Plot a barplot with correlation diffs between original anf synthetic columns.
+    def show_emd_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
+        """Plot and compare Earth Mover's distances for each column between the original and synthesized sets.
 
         Args:
-            metric: A two column comparison metric
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+
+        Returns the maximum and average distances.
         """
-        if metric.name is None:
-            raise ValueError("Metric has no name.")
+        return self.show_first_order_metric_distances(df_orig, df_synth, EarthMoversDistance())
 
-        logger.debug(f"Showing distances for second-order metric ({metric.name}).")
+    def show_second_order_metric_matrices(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, metric: TwoColumnMetric):
+        """Plot two correlations matrices, one for the original data and one for the synthetic one.
 
-        metric_matrix = TwoColumnMetricMatrix(metric)
-        diff_metric_matrix = DiffMetricMatrix(metric_matrix)
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            metric: the correlation metric to show.
+        """
+        show_second_order_metric_matrices(df_orig, df_synth, df_model=self.df_model, metric=metric)
 
-        distances = np.abs(diff_metric_matrix(self.df_orig, self.df_synth, df_model=self.df_models))
+    def show_kendall_tau_matrices(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, max_p_value: float = 1.0):
+        """Plot Kendall's Tau correlation matrices for both the original and synthesized sets.
 
-        result = []
-        for i in range(len(distances.index)):
-            for j in range(len(distances.columns)):
-                if i < j:
-                    row_name = distances.index[i]
-                    col_name = distances.iloc[:, j].name
-                    if pd.notna(distances.iloc[i, j]):
-                        result.append({'column': '{} / {}'.format(row_name, col_name),
-                                       'distance': distances.iloc[i, j]})
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            max_p_value: If the p-value is higher than this for any pair of columns, will show an empty cell.
+        """
+        self.show_second_order_metric_matrices(
+            df_orig=df_orig, df_synth=df_synth, metric=KendallTauCorrelation(max_p_value=max_p_value)
+        )
 
-        if not result:
-            return 0., 0.
+    def show_spearman_rho_matrices(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, max_p_value: float = 1.0):
+        """Plot Spearman's Rho correlation matrices for both the original and synthesized sets.
 
-        df = pd.DataFrame.from_records(result)
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            max_p_value: If the p-value is higher than this for any pair of columns, will show an empty cell.
+        """
+        self.show_second_order_metric_matrices(
+            df_orig=df_orig, df_synth=df_synth, metric=SpearmanRhoCorrelation(max_p_value=max_p_value)
+        )
 
-        corr_dist_max = float(np.nanmax(df['distance']))
-        corr_dist_avg = float(np.nanmean(df['distance']))
+    def show_cramers_v_matrices(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
+        """Plot Cramer's V matrices for both the original and synthesized sets.
 
-        print(f"Max {metric.name}:", corr_dist_max)
-        print(f"Average {metric.name}:", corr_dist_avg)
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+        """
+        self.show_second_order_metric_matrices(df_orig=df_orig, df_synth=df_synth, metric=CramersV())
 
-        plot_second_order_metric_distances(df, metric.name)
+    def show_categorical_logistic_r2_matrices(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
+        """Plot R^2 score matrices for both the original and synthesized sets.
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+        """
+        self.show_second_order_metric_matrices(df_orig=df_orig, df_synth=df_synth, metric=CategoricalLogisticR2())
+
+    def show_second_order_metric_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                                           metric: TwoColumnMetric) -> Tuple[float, float]:
+        """Plot and compare the given correlation metric distances between the original and synthesized sets.
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            metric: Correlation metric to show distances on.
+
+        Returns the maximum and average correlation distances.
+        """
+        corr_dist_max, corr_dist_avg = show_second_order_metric_distances(df_orig, df_synth,
+                                                                          df_model=self.df_model, metric=metric)
+
+        print(f"Maximum {metric.name} dist:\t{corr_dist_max:.2f}")
+        print(f"Average {metric.name} dist:\t{corr_dist_avg:.2f}")
 
         return corr_dist_max, corr_dist_avg
 
-    def metric_mean_max(self, metric: Union[TwoColumnMetric, TwoDataFrameVector]):
-        if isinstance(metric, TwoColumnMetric):
-            metric = ColumnComparisonVector(metric)
+    def show_kendall_tau_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, max_p_value: float = 1.0):
+        """Plot and compare Kendall's Tau correlation distances between the original and synthesized sets.
 
-        x = metric(self.df_orig, self.df_synth, df_model=self.df_models)
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
 
-        if x is not None and len(x) > 0:
-            x = x.values
-            return float(np.nanmean(x)), float(np.nanmax(x))
-        else:
-            return 0., 0.
+        Returns the maximum and average correlation distances.
+        """
+        return self.show_second_order_metric_distances(
+            df_orig=df_orig, df_synth=df_synth, metric=KendallTauCorrelation(max_p_value=max_p_value)
+        )
+
+    def show_spearman_rho_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, max_p_value: float = 1.0):
+        """Plot and compare Spearman's Rho correlation distances between the original and synthesized sets.
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+
+        Returns the maximum and average correlation distances.
+        """
+        return self.show_second_order_metric_distances(
+            df_orig=df_orig, df_synth=df_synth, metric=SpearmanRhoCorrelation(max_p_value=max_p_value)
+        )
+
+    def show_cramers_v_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
+        """Plot and compare Cramer's V correlation distances between the original and synthesized sets.
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+
+        Returns the maximum and average correlation distances.
+        """
+        return self.show_second_order_metric_distances(df_orig=df_orig, df_synth=df_synth, metric=CramersV())
+
+    def show_categorical_logistic_r2_distances(self, df_orig: pd.DataFrame,
+                                               df_synth: pd.DataFrame) -> Tuple[float, float]:
+        """Plot and compare R^2 score distances between the original and synthesized sets.
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+
+        Returns the maximum and average correlation distances.
+        """
+        return self.show_second_order_metric_distances(df_orig=df_orig, df_synth=df_synth, metric=CategoricalLogisticR2())
+
+    def plot_classification_metrics(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame, target: str,
+                                    df_test: pd.DataFrame, clf: ClassifierMixin,
+                                    names: Optional[Tuple[str, str]] = None):
+        """Plot ROC curve, PR curve and Confusion Matrix for the given classifier trained on two dataframes
+        (``df_orig`` and ``df_synth``), and evaluated on the same dataset (``df_test``).
+
+        Args:
+            df_orig: Original dataset, or first training set.
+            df_synth: Synthesized dataset, or second training set.
+            target: Response variable.
+            df_test: Test dataset.
+            clf: The classifier to be used.
+            names: Names used in plots to identify ``df_orig`` and ``df_synth``, ('Train Set 1', 'Train Set 2') by default.
+        """
+
+        plot_classification_metrics(df_model=self.df_model, target=target, df_train1=df_orig, df_train2=df_synth,
+                                    df_test=df_test, clf=clf, names=names)
+
+    def plot_classification_metrics_test(self, df_train: pd.DataFrame, df_test1: pd.DataFrame, df_test2: pd.DataFrame,
+                                         target: str, clf: ClassifierMixin, names: Optional[Tuple[str, str]] = None):
+        """Plot ROC curve, PR curve and Confusion Matrix for the given classifier trained on the same dataframe
+        (``df_train``), and evaluated on two datasets (``df_test1`` and ``df_test2``).
+
+        Args:
+            df_train: Training set.
+            df_test1: First test dataset.
+            df_test2: Second test dataset.
+            target: Response variable.
+            clf: The classifier to be used.
+            names: Names used in plots to identify ``df_test1`` and ``df_test2``, ('Test Set 1', 'Test Set 2') by default.
+        """
+
+        plot_classification_metrics_test(df_model=self.df_model, target=target, df_train=df_train, df_test1=df_test1,
+                                         df_test2=df_test2, clf=clf, names=names)
+
+    def utility(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame,
+                target: str, model: str = 'GradientBoosting') -> float:
+        """Compute utility, a score of estimator trained on synthetic data.
+
+        The score to be computed will depend on the type of target distribution, ROC AUC for categorical and R2 for
+        continuous. Estimator can be one of the following:
+        * 'Linear'
+        * 'Logistic'
+        * 'LinearSVM'
+        * 'GradientBoosting'
+        * 'RandomForest'
+        * 'MLP'
+
+        Args:
+            df_orig: Original dataset.
+            df_synth: Synthesized dataset.
+            target: Response variable.
+            model: The estimator to use (converted to classifier or regressor).
+
+        Returns: Utility score.
+        """
+        x_labels = list(filter(lambda v: v != target, df_orig.columns))
+        orig_score, synth_score, metric, _ = predictive_modelling_comparison(
+            df_orig, df_synth, model=model, y_label=target, x_labels=x_labels
+        )
+
+        print(metric, " (orig):", orig_score)
+        print(metric, " (synth):", synth_score)
+
+        return synth_score

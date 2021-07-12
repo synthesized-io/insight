@@ -78,7 +78,6 @@ class TimeSeriesUtilityTesting:
             plot_categorical_time_series(self.df_orig, self.df_synth, col=col, identifiers=self.identifiers, ax=ax)
 
         plt.suptitle('Time-Series', fontweight='bold', fontsize=24)
-        plt.show()
 
     def show_continuous_column_vector(self, metric_vector: ColumnVector, col: str, id_: str, **kwargs):
         xs_orig = self.df_orig.xs(id_)
@@ -111,7 +110,6 @@ class TimeSeriesUtilityTesting:
 
         plt.suptitle(f'{metric_vector.name} (Orig Avg: {sr_orig_avg:.3f} Synth Avg: {sr_synth_avg:.3f})',
                      fontweight='bold', fontsize=24)
-        plt.show()
 
     def show_auto_associations(self, max_order=30):
         rows = len(self.continuous)
@@ -129,7 +127,6 @@ class TimeSeriesUtilityTesting:
             plot_cross_correlations(self.df_orig, self.df_synth, col, identifiers=self.identifiers,
                                     max_order=max_order, ax=ax)
         plt.suptitle('Cross-correlations', fontweight='bold', fontsize=24)
-        plt.show()
 
 
 # -- Measures of association for different pairs of data types

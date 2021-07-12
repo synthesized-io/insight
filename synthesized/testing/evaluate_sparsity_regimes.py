@@ -154,6 +154,5 @@ def synthesize_and_plot_results(data: pd.DataFrame, mechanism: str = 'MCAR', n_i
     plt.title(mechanism)
     plt.xlabel('Non-Missing Ratio')
     plt.ylabel('Distance')
-    plt.show()
 
     return max_ks_vec, mean_ks_vec, max_corr_vec, mean_corr_vec

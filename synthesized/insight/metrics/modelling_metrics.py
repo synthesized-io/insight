@@ -1,10 +1,8 @@
 import logging
 from typing import Any, Dict, List, Optional, Type, Union, cast
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score, mean_absolute_error, mean_squared_error,
@@ -15,7 +13,7 @@ from sklearn.utils.validation import check_is_fitted
 from .metrics_base import (ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric,
                            TwoDataFrameMetric)
 from ..modelling import ModellingPreprocessor, check_model_type, preprocess_split_data
-from ...metadata import DataFrameMeta, Nominal
+from ...metadata import DataFrameMeta
 from ...metadata.factory import MetaExtractor
 from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
@@ -43,8 +41,8 @@ class PredictiveModellingScore(DataFrameMetric):
         y_label = self.y_label or df.columns[-1]
         x_labels = self.x_labels if self.x_labels is not None else [col for col in df.columns if col != y_label]
 
-        score, metric, task = predictive_modelling_score(df, y_label, x_labels, self.model,
-                                                         sample_size=self.sample_size)
+        score, metric, task = predictive_modelling_score(data=df, y_label=y_label, x_labels=x_labels, model=self.model,
+                                                         df_model=df_model, sample_size=self.sample_size)
         return score
 
 
@@ -231,11 +229,11 @@ def predictive_modelling_score(
     y_label: str,
     x_labels: Optional[List[str]],
     model: Union[str, BaseEstimator],
-    synth_data: pd.DataFrame = None,
+    synth_data: Optional[pd.DataFrame] = None,
     copy_model: bool = True,
-    preprocessor: ModellingPreprocessor = None,
-    dp: DataFrameMeta = None,
-    models: DataFrameModel = None,
+    preprocessor: Optional[ModellingPreprocessor] = None,
+    df_meta: Optional[DataFrameMeta] = None,
+    df_model: Optional[DataFrameModel] = None,
     sample_size: Optional[int] = None
 ):
     """Calculates the R-squared or ROC AUC score of a given model trained on a given dataset.
@@ -275,22 +273,23 @@ def predictive_modelling_score(
             raise ValueError('Response variable not in DataFrame.')
         data = data[available_columns]
 
-    if dp is None:
-        dp = MetaExtractor.extract(df=data)
-    if models is None:
-        models = ModelFactory()(dp)
+    if df_model is None:
+        if df_meta is None:
+            df_meta = MetaExtractor.extract(df=data)
+        df_model = ModelFactory()(df_meta)
 
-    x_labels = list(filter(lambda v: v in cast(DataFrameMeta, dp), x_labels))
+    assert isinstance(df_model, DataFrameModel)
+    x_labels = list(filter(lambda v: v in df_model, x_labels))  # type: ignore
 
-    if y_label not in dp:
+    if y_label not in df_model:
         raise ValueError('Response variable type not handled.')
     elif len(x_labels) == 0:
         raise ValueError('No explanatory variables with acceptable type.')
 
     # Check predictor
-    if isinstance(models[y_label], DiscreteModel):
+    if isinstance(df_model[y_label], DiscreteModel):
         estimator = check_model_type(model, copy_model, 'clf')
-    elif isinstance(models[y_label], ContinuousModel):
+    elif isinstance(df_model[y_label], ContinuousModel):
         estimator = check_model_type(model, copy_model, 'rgr')
     else:
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
@@ -301,7 +300,7 @@ def predictive_modelling_score(
         sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(data))
 
     if preprocessor is None:
-        preprocessor = ModellingPreprocessor(target=y_label, df_model=models)
+        preprocessor = ModellingPreprocessor(target=y_label, df_model=df_model)
         if synth_data is not None:
             # fit data together as preprocessor needs to know all categorical variables
             preprocessor.fit(pd.concat((data, synth_data)))
@@ -319,16 +318,16 @@ def predictive_modelling_score(
     x_test = df_test_pre[x_labels_pre].to_numpy()
     y_test = df_test_pre[y_label].to_numpy()
 
-    if isinstance(models[y_label], ContinuousModel):
+    if isinstance(df_model[y_label], ContinuousModel):
         metric = 'r2_score'
         task = 'regression'
         scores = regressor_scores(x_train, y_train, x_test, y_test, rgr=estimator, metrics=metric)
         score = scores[metric]
 
-    elif isinstance(models[y_label], DiscreteModel):
-        y_val = cast(Nominal, dp[y_label])
-        assert y_val.categories is not None and len(y_val.categories)
-        num_classes = len(y_val.categories)
+    elif isinstance(df_model[y_label], DiscreteModel):
+        y_meta = df_model[y_label].meta
+        assert y_meta.categories is not None and len(y_meta.categories)
+        num_classes = len(y_meta.categories)
         metric = 'roc_auc' if num_classes == 2 else 'macro roc_auc'
         task = 'binary ' if num_classes == 2 else f'multinomial [{num_classes}]'
         scores = classifier_scores(x_train, y_train, x_test, y_test, clf=estimator, metrics='roc_auc')
@@ -405,18 +404,6 @@ def regressor_scores_from_df(df_train: Optional[pd.DataFrame], df_test: pd.DataF
 
     return regressor_scores(x_train, y_train, x_test, y_test, rgr=rgr, metrics=metrics,
                             return_predicted=return_predicted)
-
-
-def plot_metrics_from_df(df_train: pd.DataFrame, df_test: pd.DataFrame, target: str, clf: ClassifierMixin,
-                         metrics: Optional[Union[str, List[str]]] = None,
-                         axes: Optional[Union[plt.Axes, List[plt.Axes]]] = None, name: str = None):
-    x_labels = list(filter(lambda v: v != target, df_train.columns))
-    x_train = df_train[x_labels].to_numpy()
-    y_train = df_train[target].to_numpy()
-    x_test = df_test[x_labels].to_numpy()
-    y_test = df_test[target].to_numpy()
-
-    plot_metrics(x_train, y_train, x_test, y_test, clf=clf, metrics=metrics, axes=axes, name=name)
 
 
 def classifier_scores(x_train: np.ndarray, y_train: np.ndarray,
@@ -537,98 +524,6 @@ def regressor_scores(x_train: Optional[np.ndarray], y_train: Optional[np.ndarray
         results['predicted_values'] = f_test
 
     return results
-
-
-def plot_metrics(x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray,
-                 clf: ClassifierMixin, metrics: Optional[Union[str, List[str]]] = None,
-                 axes: Optional[Union[plt.Axes, List[plt.Axes]]] = None, name: str = None):
-
-    if isinstance(metrics, str):
-        metrics = [metrics]
-
-    if metrics is None:
-        metrics = list(CLASSIFICATION_PLOT_METRICS.keys())
-    else:
-        missing_metrics = list(filter(lambda m: m not in CLASSIFICATION_PLOT_METRICS, metrics))
-        if len(missing_metrics) > 0:
-            raise ValueError("Can't compute following metrics: '{}'".format("', '".join(missing_metrics)))
-
-    if isinstance(axes, plt.Axes):
-        axes = [axes]
-    elif axes is None:
-        fig, axes = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 5))
-        axes = [axes] if len(metrics) == 1 else axes
-
-    if len(metrics) != len(axes):
-        raise ValueError("Metrics and Axes lengths must be equal")
-    axes_dict = {metric: ax for metric, ax in zip(metrics, axes)}
-
-    metrics_to_compute = metrics.copy()
-    if 'roc_curve' in metrics:
-        metrics_to_compute.extend(['roc_auc'])
-    if 'pr_curve' in metrics:
-        metrics_to_compute.extend(['f1_score'])
-    scores = classifier_scores(x_train, y_train, x_test, y_test, clf, metrics_to_compute)
-
-    if 'roc_curve' in metrics:
-        metric = 'roc_curve'
-        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
-
-        roc = scores['roc_curve']
-        tpr, fpr, _ = roc
-        label = f"{name} - " if name is not None else ""
-        label += f"AUC={scores['roc_auc']:.3f}"
-        ax.plot(tpr, fpr, label=label)
-        ax.legend(loc='lower right')
-        ax.set_title("ROC Curve")
-        ax.set_xlabel("TPR")
-        ax.set_ylabel("FPR")
-
-    if 'pr_curve' in metrics:
-        metric = 'pr_curve'
-        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
-
-        pr = scores['pr_curve']
-        prec, rec, _ = pr
-        label = f"{name} - " if name is not None else ""
-        label += f"F1={scores['f1_score']:.3f}"
-        ax.plot(rec, prec, label=label)
-        ax.legend(loc='lower right')
-        ax.set_title("PR Curve")
-        ax.set_xlabel("Recall")
-        ax.set_ylabel("Precision")
-
-    if 'confusion_matrix' in metrics:
-        metric = 'confusion_matrix'
-        ax = axes_dict[metric] if metric in axes_dict else plt.axes()
-
-        cm = scores['confusion_matrix']
-        cm_norm = cm / np.sum(cm)
-
-        cm_annot = _get_cm_annot(cm, cm_norm)
-        sns.heatmap(cm_norm, annot=cm_annot, fmt='', vmin=0, vmax=1, annot_kws={"size": 14}, cbar=False, ax=ax)
-
-        if name:
-            ax.set_title(f"Confusion Matrix - {name}")
-        else:
-            ax.set_title("Confusion Matrix")
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("Real")
-
-
-def _get_cm_annot(cm: np.array, cm_norm: np.array = None) -> List[List[str]]:
-    """Compute confusion matrix annotations."""
-    if cm_norm is None:
-        cm_norm = cm / np.sum(cm)
-
-    cm_annot = []
-    for i in range(len(cm)):
-        row = []
-        for j in range(len(cm[i])):
-            row.append(f"{cm[i, j]}\n({cm_norm[i, j] * 100:.2f}%)")
-        cm_annot.append(row)
-
-    return cm_annot
 
 
 def _remove_zero_column(y1, y2):

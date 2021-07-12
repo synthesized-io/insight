@@ -11,14 +11,17 @@ except ImportError:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import simplejson
+from matplotlib.axes import Axes
 from sklearn.model_selection import train_test_split
 
-from .plotting import plot_data, plot_multidimensional
-from .utility import MAX_PVAL, UtilityTesting
+from .assessor import Assessor
 from ..complex.highdim import HighDimConfig, HighDimSynthesizer
 from ..insight import metrics
 from ..metadata.factory import MetaExtractor
+
+MAX_PVAL = 0.05
 
 
 class Evaluation:
@@ -74,7 +77,7 @@ def synthesize_and_plot(
         show_correlation_matrix: bool = False, show_cramers_v_distances: bool = False,
         show_cramers_v_matrix: bool = False, show_logistic_rsquared_distances: bool = False,
         show_logistic_rsquared_matrix: bool = False
-):
+) -> Assessor:
     """
     Synthesize and plot data from a Synthesizer trained on the dataframe `data`.
     """
@@ -119,25 +122,22 @@ def synthesize_and_plot(
             ax2.set_title('synth')
             plot_data(data, ax=ax1)
             plot_data(synthesized, ax=ax2)
-            plt.show()
         else:
             display(Markdown("## Plot data"))
             fig, ax = plt.subplots(figsize=(15, 5))
             plot_multidimensional(original=data, synthetic=synthesized, ax=ax)
-            plt.show()
 
-    testing = UtilityTesting(synthesizer, data, eval_data, synthesized)
+    assessor = Assessor(df_meta)
 
     if plot_losses:
         display(Markdown("## Show loss history"))
         df_losses = pd.DataFrame.from_records(synthesizer._loss_history)
         if len(df_losses) > 0:
             df_losses.plot(figsize=(15, 7))
-            plt.show()
 
     if plot_distances:
         display(Markdown("## Show average distances"))
-        results = testing.show_standard_metrics()
+        results = assessor.show_standard_metrics(eval_data, synthesized)
 
         print_line = ''
         for k, v in results.items():
@@ -149,37 +149,37 @@ def synthesize_and_plot(
 
     if show_distributions:
         display(Markdown("## Show distributions"))
-        testing.show_distributions(remove_outliers=0.01)
+        assessor.show_distributions(eval_data, synthesized, remove_outliers=0.01)
 
     # First order metrics
     if show_distribution_distances:
         display(Markdown("## Show distribution distances"))
-        testing.show_first_order_metric_distances(metrics.KolmogorovSmirnovDistance())
+        assessor.show_ks_distances(eval_data, synthesized)
     if show_emd_distances:
         display(Markdown("## Show EMD distances"))
-        testing.show_first_order_metric_distances(metrics.EarthMoversDistance())
+        assessor.show_emd_distances(eval_data, synthesized)
 
     # Second order metrics
     if show_correlation_distances:
         display(Markdown("## Show correlation distances"))
-        testing.show_second_order_metric_distances(metrics.KendallTauCorrelation(max_p_value=MAX_PVAL))
+        assessor.show_kendall_tau_distances(eval_data, synthesized, max_p_value=MAX_PVAL)
     if show_correlation_matrix:
         display(Markdown("## Show correlation matrices"))
-        testing.show_second_order_metric_matrices(metrics.KendallTauCorrelation())
+        assessor.show_kendall_tau_matrices(eval_data, synthesized, max_p_value=MAX_PVAL)
     if show_cramers_v_distances:
         display(Markdown("## Show Cramer's V distances"))
-        testing.show_second_order_metric_distances(metrics.CramersV())
+        assessor.show_cramers_v_distances(eval_data, synthesized)
     if show_cramers_v_matrix:
         display(Markdown("## Show Cramer's V matrices"))
-        testing.show_second_order_metric_matrices(metrics.CramersV())
+        assessor.show_cramers_v_matrices(eval_data, synthesized)
     if show_logistic_rsquared_distances:
         display(Markdown("## Show Logistic R^2 distances"))
-        testing.show_second_order_metric_distances(metrics.CategoricalLogisticR2())
+        assessor.show_categorical_logistic_r2_distances(eval_data, synthesized)
     if show_logistic_rsquared_matrix:
         display(Markdown("## Show Logistic R^2 matrices"))
-        testing.show_second_order_metric_matrices(metrics.CategoricalLogisticR2())
+        assessor.show_categorical_logistic_r2_matrices(eval_data, synthesized)
 
-    return testing
+    return assessor
 
 
 def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
@@ -188,10 +188,9 @@ def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
     print("data length {}".format(len(data)))
     train, test = train_test_split(data, test_size=0.5)
     df_meta = MetaExtractor.extract(data)
-    synthesizer = HighDimSynthesizer(df_meta=df_meta)
-    testing = UtilityTesting(synthesizer, test, train, test)
+    assessor = Assessor(df_meta)
 
-    results = testing.show_standard_metrics(ax=ax)
+    results = assessor.show_standard_metrics(train, test, ax=ax)
 
     print_line = ''
     for k, v in results.items():
@@ -199,7 +198,7 @@ def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
     print(print_line)
 
     try:
-        utility = testing.utility(target=evaluation.configs[evaluation_name]['target'])
+        utility = assessor.utility(train, test, target=evaluation.configs[evaluation_name]['target'])
     except Exception as e:
         utility = 1.0
         print(e)
@@ -212,3 +211,45 @@ def baseline_evaluation_and_plot(data, evaluation_name, evaluation, ax=None):
             evaluation.record_metric(evaluation=evaluation_name, key=k, value=v)
         evaluation.record_metric(evaluation=evaluation_name, key='utility', value=utility)
         evaluation.record_metric(evaluation=evaluation_name, key='training_time', value=0.)
+
+
+def plot_data(data: pd.DataFrame, ax: Axes):
+    """Plot one- or two-dimensional dataframe `data` on `matplotlib` axis `ax` according to column types. """
+    if data.shape[1] == 1:
+        if data['x'].dtype.kind == 'O':
+            return sns.countplot(data["x"], ax=ax)
+        else:
+            return sns.distplot(data["x"], ax=ax)
+    elif data.shape[1] == 2:
+        if data['x'].dtype.kind in {'O', 'i'} and data['y'].dtype.kind == 'f':
+            sns.violinplot(x="x", y="y", data=data, ax=ax)
+        elif data['x'].dtype.kind == 'f' and data['y'].dtype.kind == 'f':
+            return ax.hist2d(data['x'], data['y'], bins=100)
+        elif data['x'].dtype.kind == 'O' and data['y'].dtype.kind == 'O':
+            crosstab = pd.crosstab(data['x'], columns=[data['y']]).apply(lambda r: r / r.sum(), axis=1)
+            sns.heatmap(crosstab, vmin=0.0, vmax=1.0, ax=ax)
+        else:
+            return sns.distplot(data, ax=ax, color=["b", "g"])
+    else:
+        return sns.distplot(data, ax=ax)
+
+
+def plot_multidimensional(original: pd.DataFrame, synthetic: pd.DataFrame, ax: Axes = None):
+    """
+    Plot Kolmogorov-Smirnov distance between the columns in the dataframes
+    `original` and `synthetic` on `matplotlib` axis `ax`.
+    """
+    dtype_dict = {"O": "Categorical", "i": "Categorical", "f": "Continuous"}
+    default_palette = sns.color_palette()
+    color_dict = {"Categorical": default_palette[0], "Continuous": default_palette[1]}
+    assert (original.columns == synthetic.columns).all(), "Original and synthetic data must have the same columns."
+    columns = original.columns.values.tolist()
+    error_msg = "Original and synthetic data must have the same data types."
+    assert (original.dtypes.values == synthetic.dtypes.values).all(), error_msg
+    dtypes = [dtype_dict[dtype.kind] for dtype in original.dtypes.values]
+    kolmogorov_smirnov_distance = metrics.KolmogorovSmirnovDistance()
+    distances = [kolmogorov_smirnov_distance(original[col], synthetic[col]) for col in original.columns]
+    plot = sns.barplot(x=columns, y=distances, hue=dtypes, ax=ax, palette=color_dict, dodge=False)
+    plot.set_xticklabels(plot.get_xticklabels(), rotation=30)
+    plot.set_title("KS distance by column")
+    return plot

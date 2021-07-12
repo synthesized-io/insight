@@ -12,6 +12,7 @@ from .metrics_base import ColumnMetric, TwoColumnMetric
 from ..modelling import ModellingPreprocessor
 from ...metadata import Affine, Ordinal
 from ...metadata.factory import MetaExtractor
+from ...metadata.value import DateTime
 from ...model import ContinuousModel, DataFrameModel, DiscreteModel
 from ...model.factory import ModelFactory
 
@@ -135,7 +136,16 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
         if not self._check_column_types(sr_a, sr_b, df_model=df_model):
             return None
 
-        corr, p_value = spearmanr(sr_a.values, sr_b.values)
+        x = sr_a.values
+        y = sr_b.values
+
+        df_model = self._extract_models(sr_a, sr_b, df_model=df_model)
+        if isinstance(df_model[sr_a.name].meta, DateTime):
+            x = pd.to_numeric(pd.to_datetime(x, errors='coerce'), errors='coerce')
+        if isinstance(df_model[sr_b.name].meta, DateTime):
+            y = pd.to_numeric(pd.to_datetime(y, errors='coerce'), errors='coerce')
+
+        corr, p_value = spearmanr(x, y, nan_policy='omit')
 
         if p_value <= self.max_p_value:
             return corr
