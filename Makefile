@@ -8,7 +8,8 @@ PYTHON = $(VENV_NAME)/bin/python3
 all: lint unit-test
 
 build: $(SRC)
-	$(PYTHON) setup.py bdist_wheel
+	pip install --upgrade build
+	$(PYTHON) -m build --wheel
 	./clean_dist.sh
 	touch build
 
@@ -22,8 +23,8 @@ slow-test:  venv
 	$(PYTHON) -m pytest -v -m "slow" --cov=synthesized  --cov=keygen --cov-report=term-missing
 
 lint: venv
-	$(PYTHON) -m mypy --ignore-missing-import synthesized
-	$(PYTHON) -m flake8 --max-line-length=120 synthesized
+	$(PYTHON) -m mypy synthesized
+	$(PYTHON) -m flake8 synthesized
 
 venv: $(VENV_ACTIVATE)
 

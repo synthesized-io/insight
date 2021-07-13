@@ -1,14 +1,21 @@
 import pathlib
 import re
 import subprocess
-from codecs import open
-from os import listdir, path
+import os
 from typing import List, Union
 
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
-from setuptools import find_packages, setup
+from setuptools import setup
 from setuptools.extension import Extension
+
+if os.environ.get('CYTHONIZE', "True") == "True":
+    print("Compiling source with Cython.")
+    USE_CYTHON = True
+    from Cython.Build import cythonize
+    from Cython.Distutils.build_ext import new_build_ext
+else:
+    USE_CYTHON = False
+
+setup_kwargs = {}
 
 
 def subprocess_command(cmd: List[str]):
@@ -59,70 +66,37 @@ def get_git_revision(base_path):
         return ref[:7]
 
 
-here = path.abspath(path.dirname(__file__))
-__version__ = get_version_from_git_describe()
-
-git_revision = get_git_revision(here)
-if git_revision:
-    __version__ += '+' + git_revision
-
-# Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
-
-# define the package dependencies
-install_requires = [
-    "dataclasses ~= 0.6;python_version<'3.7'",
-    "numpy >= 1.18.4, < 1.20.0",
-    "tensorflow ~= 2.4",
-    "tensorflow_probability ~= 0.12",
-    "tensorflow_privacy ~= 0.5",
-    "scipy ~= 1.5",
-    "scikit_learn ~= 0.23",
-    "pandas ~= 1.1",
-    "matplotlib ~= 3.3",
-    "seaborn ~= 0.11",
-    "faker ~= 5.0",
-    "simplejson ~= 3.17",
-    "pyyaml ~= 5.3",
-    "rstr ~= 2.2",
-    "rsa ~= 4.7"
-]
-
-packages = find_packages(exclude=['tests*', 'web*'])
-
-
 def source_files(base_dir):
     result = []
-    for f in listdir(base_dir):
-        p = path.join(base_dir, f)
-        if path.isdir(p):
+    for f in os.listdir(base_dir):
+        p = os.path.join(base_dir, f)
+        if os.path.isdir(p):
             result.extend(source_files(p))
         elif p.endswith('.py') and not p.endswith('__init__.py'):
             result.append(p)
     return result
 
 
-ext_modules = [
-    Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
-    if re.match(r"synthesized(/|\\)config\.py", f) is None  # windows uses '\\' instead of '/'
-]
+here = os.path.abspath(os.path.dirname(__file__))
+__version__ = get_version_from_git_describe()
 
-setup(
-    name='synthesized',
-    version=__version__,
-    description='synthesized.io',
-    long_description=long_description,
-    url='https://github.com/synthesized-io/synthesized',
-    author='Synthesized Ltd.',
-    author_email='team@synthesized.io',
-    license='Proprietary',
-    packages=packages,
-    package_data={"synthesized": [".pubkey", "fonts/inter-v3-latin-regular.ttf"]},
-    install_requires=install_requires,
-    python_requires='>=3.6,<3.9',
-    ext_modules=cythonize(
-        ext_modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}
-    ),
-    cmdclass={'build_ext': build_ext}
-)
+git_revision = get_git_revision(here)
+if git_revision:
+    __version__ += '+' + git_revision
+
+
+if USE_CYTHON:
+    modules = [
+        Extension(f.replace('/', '.').replace('\\', '.')[:-3], [f]) for f in source_files('synthesized')
+        if re.match(r"synthesized(/|\\)config\.py", f) is None  # windows uses '\\' instead of '/'
+    ]
+    ext_modules = cythonize(
+        modules, build_dir="build", language_level=3, compiler_directives={'always_allow_keywords': True}
+    )
+    setup_kwargs['ext_modules'] = ext_modules
+    setup_kwargs['cmdclass'] = {'build_ext': new_build_ext}
+
+
+setup(version=__version__,
+      **setup_kwargs
+      )
