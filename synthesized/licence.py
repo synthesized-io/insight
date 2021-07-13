@@ -63,6 +63,7 @@ def verify(feature: OptionalFeature = None) -> bool:
     if not _LICENCE_INFO:
         _read_licence()
 
+    _verify_colab()
     _verify_signature(_LICENCE_DATA, _SIGNATURE, _read_public_key(_PUBLIC_KEY))
 
     date_is_valid = _verify_date(_LICENCE_INFO["expiry"])
@@ -128,6 +129,17 @@ def _verify_signature(data: str, signature: str, public_key: rsa.PublicKey) -> b
         return True
     except rsa.VerificationError:
         raise LicenceError("Unable to verify licence. Please contact team@synthesized.io.")
+
+
+def _verify_colab() -> None:
+    if _LICENCE_INFO.get('colab', False) is True:
+        try:
+            import IPython
+            ipython_cls = IPython.get_ipython().__class__
+            if ipython_cls != 'google.colab._shell.Shell':
+                raise LicenceError("Invalid licence.")
+        except ImportError:
+            raise LicenceError("Invalid licence.")
 
 
 def _verify_features(feature_ids: List[Union[int, str]], feature: OptionalFeature) -> bool:

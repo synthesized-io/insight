@@ -86,6 +86,15 @@ def test_verify_expired(expired_licence):
         synthesized.licence.verify()
 
 
+def test_verify_colab():
+
+    colab_licence = "QjJsMkdFekw3aHZkSFoxK1pDenRmeXZtZ29yaTFaaGxqRStkKy9SdHZRa1hSSkdLVThoLzk5S0UyWUlJRnBnQk9qUHRrejVkOHZMcVYvbjIyOHZlY3c9PXsiZXhwaXJ5IjogIjIwMjQtMDQtMDgiLCAiZmVhdHVyZV9pZHMiOiBbIioiXSwgImNvbGFiIjogdHJ1ZSwgImVtYWlsIjogInJvYkBzeW50aGVzaXplZC5pbyJ9"
+    os.environ[synthesized.licence.KEY_VAR] = colab_licence
+    with pytest.raises(synthesized.licence.LicenceError):
+        synthesized.licence._read_licence()
+        synthesized.licence.verify()
+
+
 def test_verify_valid(valid_licence):
     os.environ[synthesized.licence.KEY_VAR] = valid_licence
     synthesized.licence._read_licence()
