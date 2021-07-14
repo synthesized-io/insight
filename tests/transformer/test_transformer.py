@@ -9,16 +9,16 @@ import pytest
 from faker import Faker
 
 from synthesized.config import DateTransformerConfig, QuantileTransformerConfig
+from synthesized.insight.metrics import EarthMoversDistance
 from synthesized.metadata.factory import MetaExtractor
 from synthesized.model.factory import ModelFactory
+from synthesized.privacy.masking import (NullTransformer, PartialTransformer, RandomTransformer,
+                                         RoundingTransformer, SwappingTransformer, MaskingTransformerFactory)
 from synthesized.transformer import (BagOfTransformers, BinningTransformer, CategoricalTransformer,
                                      DataFrameTransformer, DateToNumericTransformer, DateTransformer,
-                                     DropColumnTransformer, DTypeTransformer, MaskingTransformerFactory, NanTransformer,
-                                     NullTransformer, PartialTransformer, QuantileTransformer, RandomTransformer,
-                                     RoundingTransformer, SequentialTransformer, SwappingTransformer, Transformer,
-                                     TransformerFactory)
+                                     DropColumnTransformer, DTypeTransformer, NanTransformer, QuantileTransformer,
+                                     SequentialTransformer, Transformer, TransformerFactory)
 from synthesized.transformer.exceptions import NonInvertibleTransformError
-from synthesized.insight.metrics import EarthMoversDistance
 
 
 class MockTranformer(Transformer):
@@ -328,7 +328,7 @@ def test_int_categorical_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8, 12, 2]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -341,7 +341,7 @@ def test_int_obj_categorical_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8, 8, 2, -90, 2, -100, -90, 8, 8, 12, 2]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -354,7 +354,7 @@ def test_int_obj_categorical_nan_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8, np.nan, 8, 2, -90, 2, np.nan, np.nan, -90, 8, 8, 42, np.nan]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -367,7 +367,7 @@ def test_float_categorical_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4, 12, 2.8]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -380,7 +380,7 @@ def test_float_categorical_nan_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4, 12, 2.8]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -393,7 +393,7 @@ def test_float_obj_categorical_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8.4, 8.4, 2, -90.2, 2, -90.2, 8.4, 8.4, 12, 2.8]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -406,7 +406,7 @@ def test_float_obj_categorical_nan_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: [8.4, np.nan, 8.4, 2, -90.2, 2, np.nan, np.nan, -90.2, 8.4, 8.4, 12, 2.8]})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -419,7 +419,7 @@ def test_date_categorical_dtype_transfomer():
     df_synth = pd.DataFrame({col_name: ['12/3/2021 9:23', '30/1/2020 12:20', '3/11/2019 11:50', '12/3/2021 9:23']})
 
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -431,7 +431,7 @@ def test_date_categorical_nan_dtype_transfomer():
     out_type = 'datetime64[ns]'
     df_synth = pd.DataFrame({col_name: ['12-3-2021 9:23', np.nan, '30-1-2020 12:20', '12-3-2021 9:23', np.nan, '9-8-2012 00:00']})
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -443,7 +443,7 @@ def test_date_obj_categorical_dtype_transfomer():
     out_type = 'datetime64[ns]'
     df_synth = pd.DataFrame({col_name: ['2016-04-29T18:38:08Z', '2016-04-29T16:08:27Z', '2016-04-29T00:00:00Z', '2016-04-29T00:00:00Z', '2016-04-29T16:08:27Z']})
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
 
@@ -455,7 +455,6 @@ def test_date_obj_categorical_nan_dtype_transfomer():
     out_type = 'datetime64[ns]'
     df_synth = pd.DataFrame({col_name: ['2016-05-18', np.nan, '2016-06-06', '2016-06-06', '2016-05-02', '2016-05-18', np.nan]})
     dtype_transformer_test(
-    	df=df, df_synth=df_synth, col_name=col_name, 
+    	df=df, df_synth=df_synth, col_name=col_name,
     	in_type=in_type, out_type=out_type
     )
-

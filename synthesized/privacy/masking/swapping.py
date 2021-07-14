@@ -1,11 +1,11 @@
 from typing import Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from ..base import Transformer
-from ...metadata import Nominal
-from ..exceptions import NonInvertibleTransformError
+from synthesized.metadata import Nominal
+from synthesized.transformer.base import Transformer
+from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
 class SwappingTransformer(Transformer):
@@ -27,6 +27,14 @@ class SwappingTransformer(Transformer):
         self.categories: Optional[pd.Series] = None
 
     def fit(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fits the given dataframe to the transformer
+
+        Args:
+            df: Dataset to fit
+
+        Returns:
+            self
+        """
         self.categories = df.loc[:, self.name].value_counts(normalize=True, sort=True, dropna=False)
         if self.uniform:
             p = 1 / len(self.categories)
@@ -35,6 +43,14 @@ class SwappingTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Transforms the given dataframe using fitted transformer
+
+        Args:
+            df: Dataset to transform
+
+        Returns:
+            Transformed dataset
+        """
         assert self.categories is not None
         df.loc[:, self.name] = np.random.choice(
             a=self.categories.index, size=len(df), p=self.categories.values
