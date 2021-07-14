@@ -8,7 +8,7 @@ PYTHON = $(VENV_NAME)/bin/python3
 all: lint unit-test
 
 build: $(SRC)
-	pip install --upgrade build
+	$(PYTHON) -m pip install --upgrade build
 	$(PYTHON) -m build --wheel
 	./clean_dist.sh
 	touch build
