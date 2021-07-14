@@ -3,6 +3,7 @@ from datetime import date
 import sys
 from typing import Sequence, Type
 
+import hypothesis.errors
 import hypothesis.strategies as st
 import numpy as np
 import pandas as pd
@@ -131,7 +132,7 @@ if sys.platform == 'win32':
 else:
     numpy_date_range = {"min_value": date(1677, 9, 23), "max_value": date(2262, 4, 11)}
 
-
+@pytest.mark.xfail(raises=hypothesis.errors.Flaky)
 @given(df=data_frames([column('date',
                       elements=st.dates(**numpy_date_range), fill=st.nothing())],
                       index=range_indexes(min_size=10)),

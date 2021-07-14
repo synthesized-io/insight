@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from ..base import Transformer
-from ...metadata import ValueMeta
-from ..exceptions import NonInvertibleTransformError
+from synthesized.metadata import ValueMeta
+from synthesized.transformer.base import Transformer
+from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
 class RoundingTransformer(Transformer):
@@ -26,6 +26,14 @@ class RoundingTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def fit(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fits the given dataframe to the transformer
+
+        Args:
+            df: Dataset to fit
+
+        Returns:
+            self
+        """
         col_name = self.name
         column = pd.to_numeric(df[col_name], errors='coerce')
         if pd.to_numeric(df[col_name], errors='coerce').isna().all():
@@ -36,6 +44,14 @@ class RoundingTransformer(Transformer):
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Transforms the given dataframe using fitted transformer
+
+        Args:
+            df: Dataset to transform
+
+        Returns:
+            Transformed dataset
+        """
         col_name = self.name
         df.loc[:, col_name] = pd.to_numeric(df.loc[:, col_name], errors='coerce')
         df.loc[:, col_name] = pd.cut(df.loc[:, col_name], bins=self.bins, include_lowest=True,
