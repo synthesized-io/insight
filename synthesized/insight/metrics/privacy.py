@@ -57,7 +57,7 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
 
         return 1 - (matches / num_rows)
 
-    def _privacy_score_numerical(self, true: pd.Series, pred: pd.Series, lp: int = 2) -> float:
+    def _privacy_score_numerical(self, true: pd.Series, pred: pd.Series, lp: float = 0.5) -> float:
         """Computes privacy score by measuring the distance between each set of true and pred values of
         the sensitive column using CDF
 
