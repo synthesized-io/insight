@@ -139,6 +139,12 @@ class TwoTableSynthesizer(Synthesizer):
 
         return df_1, df_2
 
+    # alias method for learn
+    fit = learn
+
+    # alias method for synthesize
+    sample = synthesize
+
 
 def _get_foreign_key_count(df: pd.DataFrame, key: str) -> pd.DataFrame:
     fk_count = df.value_counts(key)

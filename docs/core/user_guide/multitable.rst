@@ -61,6 +61,16 @@ Train the Synthesizer:
 
     synthesizer.learn(df_train=dfs)
 
+.. note::
+    ``fit(...)`` method is an alias of ``learn(...)`` method.
+
+Hence, the training can also be done as follows:
+
+.. ipython:: python
+    :verbatim:
+    
+    synthesizer.fit(df_train=dfs)
+
 Generate 1,000 rows of new data. This will return two tables: the first contains the 1,000 synthetic customers, and
 the second contains the synthetic transacations for each customer. Note: the size of the second table cannot be fixed,
 as the number of generated rows is sampled from the learned distribution.
@@ -69,6 +79,16 @@ as the number of generated rows is sampled from the learned distribution.
     :verbatim:
 
     df_customer_synthetic, df_transaction_synthetic = synthesizer.synthesize(num_rows=1000)
+
+.. note::
+    ``sample(...)`` method is an alias of ``synthesize(...)`` method.
+
+Hence, the data synthesis can also be done as follows:
+
+.. ipython:: python
+    :verbatim:
+    
+    df_customer_synthetic, df_transaction_synthetic = synthesizer.sample(num_rows=1000)
 
 Verify that the referential integrity is maintained by joining the two tables:
 

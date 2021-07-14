@@ -301,5 +301,5 @@ def test_highdim_fit_generate():
     df_meta = MetaExtractor.extract(df)
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.fit(num_iterations=10, df_train=df)
-    df_synth = synthesizer.generate(50)
+    df_synth = synthesizer.sample(50)
     assert len(df_synth) == 50
