@@ -639,3 +639,9 @@ class HighDimSynthesizer(Synthesizer):
             synth._learning_manager.set_variables(variables['learning_manager'])
 
         return synth
+
+    # alias method for learn
+    fit = learn
+
+    # alias method for synthesize
+    generate = synthesize

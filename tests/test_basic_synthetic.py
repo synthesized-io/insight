@@ -293,3 +293,13 @@ def test_repr():
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.type_overrides = ['test']
     assert repr(synthesizer) == f"HighDimSynthesizer(df_meta={repr(df_meta)}, type_overrides=['test'])"
+
+
+@pytest.mark.slow
+def test_highdim_fit_generate():
+    df = pd.read_csv('data/credit.csv').head(200)
+    df_meta = MetaExtractor.extract(df)
+    synthesizer = HighDimSynthesizer(df_meta=df_meta)
+    synthesizer.fit(num_iterations=10, df_train=df)
+    df_synth = synthesizer.generate(50)
+    assert len(df_synth) == 50
