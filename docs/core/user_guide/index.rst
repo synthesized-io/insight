@@ -32,4 +32,5 @@ Further details can be found in the :ref:`api_reference`.
     rules
     imputation
     differential_privacy
+    privacy_masks
     evaluation/index

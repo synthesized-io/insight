@@ -1,7 +1,8 @@
 import pandas as pd
-from ..base import Transformer
-from ..exceptions import NonInvertibleTransformError
-from ...metadata import ValueMeta
+
+from synthesized.metadata import ValueMeta
+from synthesized.transformer.base import Transformer
+from synthesized.transformer.exceptions import NonInvertibleTransformError
 
 
 class NullTransformer(Transformer):
@@ -22,9 +23,25 @@ class NullTransformer(Transformer):
         return f'{self.__class__.__name__}(name="{self.name}")'
 
     def fit(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fits the given dataframe to the transformer
+
+        Args:
+            df: Dataset to fit
+
+        Returns:
+            self
+        """
         return super().fit(df)
 
     def transform(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Transforms the given dataframe using fitted transformer
+
+        Args:
+            df: Dataset to transform
+
+        Returns:
+            Transformed dataset
+        """
         df.loc[:, self.name] = ''
         return df
 

@@ -13,3 +13,4 @@ Here you will find a reference of all the public Synthesized classes and functio
     metadata
     config
     privacy
+    masking
