@@ -644,4 +644,4 @@ class HighDimSynthesizer(Synthesizer):
     fit = learn
 
     # alias method for synthesize
-    generate = synthesize
+    sample = synthesize

@@ -66,6 +66,16 @@ Now the data can be learnt
 
     synthesizer.learn(df, num_iterations=None)
 
+.. note::
+    ``fit(...)`` method is an alias of ``learn(...)`` method.
+
+Hence, the training can also be done as follows:
+
+.. ipython:: python
+    :verbatim:
+    
+    synthesizer.fit(df, num_iterations=None)
+
 Depending on the size of the dataset this process could take a few minutes to complete, here the ``HighDimSynthesizer``
 will learn patterns present in the data so that it can generate them later. When we set `num_iterations=None` this let's
 the HighDimSynthesizer model choose when to end training.
@@ -96,6 +106,16 @@ Finally, the Synthesizer can be used to generate data
     :verbatim:
 
     df_synth = synthesizer.synthesize(num_rows=1000)
+
+.. note::
+    ``sample(...)`` method is an alias of ``synthesize(...)`` method.
+
+Hence, the data synthesis can also be done as follows:
+
+.. ipython:: python
+    :verbatim:
+    
+    df_synth = synthesizer.sample(num_rows=1000)
     df_synth.head()
 
 .. csv-table::
