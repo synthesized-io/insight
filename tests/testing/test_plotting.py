@@ -4,9 +4,9 @@ import pandas as pd
 import pytest
 from sklearn.model_selection import train_test_split
 
-from synthesized.testing.plotting import plot_cross_tables
-from synthesized.testing.plotting.series import (plot_categorical_time_series, plot_continuous_time_series, plot_series,
-                                                 plot_time_series)
+from synthesized.privacy import LinkageAttack
+from synthesized.testing.plotting import plot_cross_tables, plot_linkage_attack
+from synthesized.testing.plotting.series import plot_continuous_time_series, plot_series, plot_time_series
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def simple_df():
     np.random.seed(6235901)
     n = 1000
     df = pd.DataFrame({
-        'string': np.random.choice(['A','B','C','D','E'], size=n),
+        'string': np.random.choice(['A', 'B', 'C', 'D', 'E'], size=n),
         'bool': np.random.choice([False, True], size=n).astype('?'),
         'date': pd.to_datetime(18_000 + np.random.normal(500, 50, size=n).astype(int), unit='D'),
         'int': np.random.choice([0, 1, 2, 3, 4, 5], size=n),
@@ -23,12 +23,14 @@ def simple_df():
         'int_bool': np.random.choice([0, 1], size=n),
         'date_sparse': pd.to_datetime(18_000 + 5 * np.random.normal(500, 50, size=n).astype(int), unit='D')
     })
+
     return df
 
 
 @pytest.fixture
 def series_df():
     n = 500
+
     return pd.DataFrame({
         't': range(n),
         'x': np.random.randn(n),
@@ -45,10 +47,23 @@ def test_plot_cross_tables(simple_df):
 
 def test_series_plotting(series_df):
 
-    plot_series(series_df['x'], plt.subplots(1,1)[1])
+    plot_series(series_df['x'], plt.subplots(1, 1)[1])
 
     plot_time_series(series_df['x'], series_df['t'], plt.subplots(1, 1)[1])
     plot_time_series(series_df['y'], series_df['t'], plt.subplots(1, 1)[1])
     plot_time_series(series_df['z'], series_df['t'], plt.subplots(1, 1)[1])
 
     plot_continuous_time_series(series_df[:300], series_df[300:], 'x')
+
+
+def test_plot_linkage_attack():
+    df = pd.read_csv('data/credit.csv')
+    la = LinkageAttack(df, 0.0, 1.0, max_n_vulnerable=25)
+    la.sensitive = la.key_columns = ['age', 'NumberOfDependents']
+    la.sensitive_columns = ['MonthlyIncome']
+    df_la = la.get_attacks(df, n_bins=20)
+
+    plot_linkage_attack(df_la["MonthlyIncome"], ax=None, marker_size=1.0)
+    fig, ax = plt.subplots(1, 1)
+
+    plot_linkage_attack(df_la["MonthlyIncome"], ax=ax, marker_size=1.0)

@@ -1,6 +1,6 @@
 import logging
-from datetime import date
 import sys
+from datetime import date
 from typing import Sequence, Type
 
 import hypothesis.errors
@@ -12,7 +12,7 @@ from hypothesis import assume, given, settings
 from hypothesis.extra.pandas import column, columns, data_frames, range_indexes
 
 from synthesized.config import AddressLabels, BankLabels, PersonLabels
-from synthesized.metadata import DataFrameMeta, Ordinal
+from synthesized.metadata import Ordinal
 from synthesized.metadata.factory import MetaExtractor
 from synthesized.metadata.value import (Address, Bank, Bool, DateTime, Float, FormattedString, Integer, IntegerBool,
                                         OrderedString, Person, String)
@@ -30,6 +30,7 @@ def test_data_frame(df, n_col):
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('str', elements=st.text(), fill=st.nothing())],
                       index=range_indexes(min_size=10)))
 def test_str(df):
@@ -38,6 +39,7 @@ def test_str(df):
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('o_str', elements=st.floats(), fill=st.nothing())],
                       index=range_indexes(min_size=10)))
 def test_ordered_str(df):
@@ -67,6 +69,7 @@ def is_integer_bool_sr(sr: pd.Series):
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('float', elements=st.floats(allow_infinity=False), fill=st.nothing())],
                       index=range_indexes(min_size=10)),
        sort_list=st.lists(elements=st.floats(allow_nan=False)))
@@ -80,6 +83,7 @@ INT64_RANGE = 9223372036854775807
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('int',
                       elements=st.integers(min_value=-INT64_RANGE, max_value=INT64_RANGE),
                       fill=st.nothing())],
@@ -92,6 +96,7 @@ def test_ints(df, sort_list):
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('bool_int', elements=st.integers(min_value=0, max_value=1), fill=st.nothing())],
                       index=range_indexes(min_size=10)),
        sort_list=st.lists(elements=st.integers(min_value=0, max_value=1)))
@@ -101,6 +106,7 @@ def test_bool_ints(df, sort_list):
 
 
 @pytest.mark.slow
+@settings(deadline=None)
 @given(df=data_frames([column('bool', elements=st.booleans(), fill=st.nothing())],
                       index=range_indexes(min_size=10)),
        sort_list=st.lists(elements=st.booleans()))
@@ -132,6 +138,8 @@ if sys.platform == 'win32':
 else:
     numpy_date_range = {"min_value": date(1677, 9, 23), "max_value": date(2262, 4, 11)}
 
+
+@settings(deadline=None)
 @pytest.mark.xfail(raises=hypothesis.errors.Flaky)
 @given(df=data_frames([column('date',
                       elements=st.dates(**numpy_date_range), fill=st.nothing())],
