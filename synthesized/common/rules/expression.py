@@ -1,4 +1,8 @@
+from typing import List
+
 import pandas as pd
+
+from .node import Column, GenericRule
 
 
 class Expression:
@@ -9,12 +13,21 @@ class Expression:
         expr (str): a string expression that can be evaluated by numexpr.
     """
 
-    def __init__(self, name: str, expr: str) -> None:
-        self.name = name
+    def __init__(self, column: Column, expr: str) -> None:
+        self.column = column
         self.expr = expr
 
     def __repr__(self):
-        return f"Expression(name={self.name}, expr={self.expr})"
+        return f"Expression(column={self.column}, expr={self.expr})"
+
+    def get_children(self) -> List[GenericRule]:
+        return [self.column]
+
+    def to_pd_str(self, df_name: str) -> str:
+        return f"{df_name}.eval('{self.column.column_name} = {self.expr}')"
+
+    def to_sql_str(self) -> str:
+        raise NotImplementedError
 
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply the expression to the dataframe.
@@ -25,4 +38,4 @@ class Expression:
         Returns:
             DataFrame with expression applied.
         """
-        return df.eval(f"{self.name} = {self.expr}")
+        return df.eval(f"{self.column.column_name} = {self.expr}")

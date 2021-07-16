@@ -7,7 +7,7 @@ import pytest
 from scipy.stats import ks_2samp
 
 from synthesized import HighDimSynthesizer
-from synthesized.common.rules import Association, Expression, ValueIsIn
+from synthesized.common.rules import Association, Column, Expression, IsIn, Value
 from synthesized.common.values import DateValue
 from synthesized.metadata import DataFrameMeta
 from synthesized.metadata.factory import MetaExtractor
@@ -165,12 +165,12 @@ def test_synthesize_with_rules(use_generic_rule, use_expression_rule, use_associ
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
-    generic_rules = [ValueIsIn("y1", ["A"])] if use_generic_rule else []
+    generic_rules = [IsIn(Column("y1"), [Value("A")])] if use_generic_rule else []
 
     binding_mask = np.array([[1, 0], [0, 1]]) if df_meta["y2"].categories[0] == "A" else np.array([[0, 1], [1, 0]])
     association_rules = [Association(binding_mask=binding_mask, associations=["y2"], nan_associations=["x1"])] if use_association_rule else []
 
-    expression_rules = [Expression("x3", "2 * x2")] if use_expression_rule else []
+    expression_rules = [Expression(Column("x3"), "2 * x2")] if use_expression_rule else []
 
     df_synthesized = synthesizer.synthesize_from_rules(num_rows=len(df_original), progress_callback=progress_bar_testing,
                                                        generic_rules=generic_rules, association_rules=association_rules,
@@ -200,7 +200,7 @@ def test_synthesize_bad_generic_rules_raises_error():
     synthesizer = HighDimSynthesizer(df_meta=df_meta)
     synthesizer.learn(num_iterations=10, df_train=df_original)
 
-    generic_rules = [ValueIsIn("y1", ["C"])]
+    generic_rules = [IsIn(Column("y1"), [Value("C")])]
     with pytest.raises(RuntimeError):
         synthesizer.synthesize_from_rules(num_rows=len(df_original), generic_rules=generic_rules)
 

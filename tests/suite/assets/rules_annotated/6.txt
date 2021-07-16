@@ -1,0 +1,5 @@
+CASE
+    WHEN LEN(A.A) = 1 THEN 1
+    WHEN B.B = 2 THEN COALESCE(C.C, D.D, 'NULL')
+    ELSE 3
+END

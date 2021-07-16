@@ -1,0 +1,1 @@
+case  [KR].[STATUS] when 'ACT' then 'ACTIVE' when 'AVR' then 'APPLICATION' when 'ND' then 'CANCELED_APPLICATION'  when 'END' then 'ENDED' else 'UNKNOWN' end
