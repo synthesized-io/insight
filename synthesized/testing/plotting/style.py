@@ -1,4 +1,5 @@
 import logging
+import warnings
 from pathlib import Path
 
 import matplotlib as mpl
@@ -16,14 +17,14 @@ COLOR_SYNTH = '#312874'
 # -- Plotting functions
 def set_plotting_style():
     plt.style.use('seaborn')
-
+    font_file = "fonts/inter-v3-latin-regular.ttf"
     try:
         mpl.font_manager.fontManager.addfont(
-            Path(pkg_resources.resource_filename("synthesized", "fonts/inter-v3-latin-regular.ttf")).as_posix()
+            Path(pkg_resources.resource_filename("synthesized", font_file)).as_posix()
         )
         mpl.rc('font', family='Inter-Regular')
     except FileNotFoundError:
-        pass
+        warnings.warn(f"Unable to load '{font_file}'")
 
     mpl.rcParams['axes.spines.right'] = False
     mpl.rcParams['axes.spines.top'] = False
