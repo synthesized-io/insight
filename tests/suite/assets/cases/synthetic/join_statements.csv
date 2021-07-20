@@ -1,0 +1,8 @@
+TARGET,SQL_JOIN_STATEMENT
+FunctionalMapping1,"FROM table0 t0
+JOIN table1 t1 ON t1.fk10 = t0.pk0
+JOIN table2 t2 ON t2.fk21 = t1.pk1"
+FunctionalMapping2,"FROM table0 t0
+JOIN table1 t1 ON t1.fk10 = t0.pk0"
+FunctionalMapping3,"FROM table1 t1
+JOIN table2 t2 ON t2.fk21 = t1.pk1"

@@ -87,8 +87,8 @@ class Assessor:
         dist_max, dist_avg = show_first_order_metric_distances(df_orig=df_orig, df_synth=df_synth,
                                                                df_model=self.df_model, metric=metric)
 
-        print(f"Maximum {metric.name} dist:\t{dist_max:.2f}")
-        print(f"Average {metric.name} dist:\t{dist_avg:.2f}")
+        logger.info(f"Maximum {metric.name} dist:\t{dist_max:.2f}")
+        logger.info(f"Average {metric.name} dist:\t{dist_avg:.2f}")
         return dist_max, dist_avg
 
     def show_ks_distances(self, df_orig: pd.DataFrame, df_synth: pd.DataFrame):
@@ -179,8 +179,8 @@ class Assessor:
         corr_dist_max, corr_dist_avg = show_second_order_metric_distances(df_orig, df_synth,
                                                                           df_model=self.df_model, metric=metric)
 
-        print(f"Maximum {metric.name} dist:\t{corr_dist_max:.2f}")
-        print(f"Average {metric.name} dist:\t{corr_dist_avg:.2f}")
+        logger.info(f"Maximum {metric.name} dist:\t{corr_dist_max:.2f}")
+        logger.info(f"Average {metric.name} dist:\t{corr_dist_avg:.2f}")
 
         return corr_dist_max, corr_dist_avg
 
@@ -294,7 +294,7 @@ class Assessor:
             df_orig, df_synth, model=model, y_label=target, x_labels=x_labels
         )
 
-        print(metric, " (orig):", orig_score)
-        print(metric, " (synth):", synth_score)
+        logger.info(f"{metric} (orig): {orig_score:.2f}")
+        logger.info(f"{metric} (synth): {synth_score:.2f}")
 
         return synth_score

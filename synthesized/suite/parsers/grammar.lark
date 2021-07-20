@@ -1,0 +1,109 @@
+//https://ronsavage.github.io/SQL/sql-92.bnf.html#query%20specification
+query_specification: "SELECT"i select_list table_expression -> get_query
+
+select_list: all_columns | (query_expr ",")* query_expr
+query_expr: expr -> get_query_expr
+
+table_expression: join_expr optional_stmts
+
+optional_stmts: ("WHERE"i where_expr)? ("GROUP"i "BY"i groupby_expr)?
+// TODO: ORDER BY (doesn't matter the order wrt groupby)
+
+where_expr: predicate -> get_where_expr
+groupby_expr: expr -> get_groupby_expr
+
+all_columns: OPERATOR_PROD
+
+// RULES
+expr: value -> value_to_expr
+    | case_expr | operator_expr | casted_expr | neg_expr
+
+case_expr: case_expr_heterogenous | case_expr_homogeneous
+
+case_expr_heterogenous: "CASE"i (case_item_expr_heterogeneous)+ "ELSE"i expr "END"i
+case_expr_homogeneous: "CASE"i expr (case_item_expr_homogeneous)+ "ELSE"i expr "END"i
+case_item_expr_heterogeneous: "WHEN"i predicate "THEN"i expr
+case_item_expr_homogeneous: "WHEN"i expr "THEN"i expr
+
+operator_expr: expr operator expr -> operation_expr
+    | case_expr operator case_expr -> expr_case_add
+operator: OPERATOR_PLUS | OPERATOR_MINUS | OPERATOR_PROD | OPERATOR_DIV
+
+neg_expr: expr OPERATOR_NEG
+
+casted_expr: expr "AS"i TYPENAME | "CAST"i "(" expr ")"
+
+predicate: atom_predicate -> predicate_complex_atom
+    | "(" predicate ")" -> bypass_parenthesis
+    | predicate "AND"i predicate -> predicate_complex_and
+    | predicate "OR"i predicate -> predicate_complex_or
+// TODO: AND has more precenence than OR
+
+
+atom_predicate: "(" atom_predicate ")" -> bypass_parenthesis
+    | expr COMPARATOR value -> pred_atom_compare_value
+    | expr COMPARATOR_IN "(" value ("," value)* ")" -> pred_atom_in_list
+    | expr "NOT"i COMPARATOR_IN "(" value ("," value)* ")" -> pred_atom_not_in_list
+    | expr COMPARATOR_IS NULL -> pred_atom_is_null
+    | expr COMPARATOR_IS "NOT"i NULL -> pred_atom_is_not_null
+    | expr "LIKE"i value -> pred_atom_like_value
+
+value: number
+    | negative_number
+    | string
+    | NULL -> value_null
+    | variable
+    | casted_value
+casted_value: value "AS"i TYPENAME | "CAST"i "(" value ")"
+
+number: DEC_NUMBER | FLOAT_NUMBER
+negative_number: OPERATOR_MINUS DEC_NUMBER | OPERATOR_MINUS FLOAT_NUMBER
+string: STRING | LONG_STRING
+variable: varnamew | function
+function: "DATEDIFF"i + "(" + VARNAME + "," + expr + "," + expr + ")" -> func_datediff
+    | func_name "(" arguments ")"
+func_name:  VARNAME
+arguments: (expr)* ("," (expr))*
+
+varnamew:  VARNAME
+    | tab_name "." col_name -> strip_lookup_varnamew
+    | "'" varnamew "'" -> str_varnamew
+
+tab_name: VARNAME | "[" VARNAME "]"
+col_name: VARNAME | "[" VARNAME "]"
+
+
+// JOIN STATEMENT
+join_expr: "FROM"i table_with_alias (join_item_expr)*
+
+join_item_expr: join_type? "JOIN"i table_with_alias "ON"i join_rule
+join_type: varname
+join_rule: predicate
+
+table_with_alias: table_with_schema "AS"i? (varname)?
+table_with_schema: ("["? varname "]"? ".")? "["? varname "]"?
+column_lookup: varname "." varname
+
+varname: VARNAME
+
+
+%import python (COMMENT, STRING, LONG_STRING)
+%import python (DEC_NUMBER, FLOAT_NUMBER)
+
+COMPARATOR: ">="|"<="|"<>"|"!="|"<"|">"|"="
+COMPARATOR_IN: "IN"i
+COMPARATOR_IS: "IS"i
+OPERATOR_PLUS: "+"
+OPERATOR_MINUS: "-"
+OPERATOR_PROD: "*"
+OPERATOR_DIV: "/"
+OPERATOR_NEG: "* -1"
+VARNAME: /[a-zA-Z_]+[a-zA-Z_0-9]*/
+TYPENAME: /\w*\(\d+\)/
+NULL: "NULL"i
+
+%import common.WS
+%import common.WS_INLINE
+
+%ignore WS
+%ignore COMMENT

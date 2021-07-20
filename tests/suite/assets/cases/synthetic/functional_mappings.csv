@@ -1,0 +1,16 @@
+TARGET,SQLSTATEMENT
+FunctionalMapping1,CASE WHEN t0.x1 = t1.x1 then t0.y1 else t0.y2 END
+FunctionalMapping1,Case when t1.y2 = 'zzz' then t1.y2 when t1.y1 = 'xxx' then t1.y1 else t1.y1 END
+FunctionalMapping1,"Case
+     when t0.x1 < t1.x1 and t2.y1 = 'a' then 'A'
+     when t0.x1 > t1.x1 and t1.x1 > t2.x1 then 'B'
+     when t2.x1 < t0.x1 then 'C'
+     else 'D'
+END"
+FunctionalMapping2,Case when UPPER(t1.y2) = 'A' then 1 else 0 END
+FunctionalMapping2,Case when len(t1.y1) = 5 and len(t1.y2) = 10 then '#' else 'AB' END
+FunctionalMapping3,Case when t1.x1 >= 10 then 1 else 0 END
+FunctionalMapping3,Case when t1.x1 <= -10 then 1 else 0 END
+FunctionalMapping3,Case when t1.x1 + t1.x2 > 10 then 1 else 0 END
+FunctionalMapping3,Case when t1.x1 * t1.x2 > 10 then 1 else 0 END
+FunctionalMapping3,Case when t1.x1 / t1.x2 > 0 then 1 else 0 END

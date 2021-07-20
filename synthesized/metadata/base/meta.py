@@ -86,7 +86,7 @@ class Meta(Mapping[str, MetaType], Generic[MetaType]):
         for col in columns:  # set the original column order
             sr = df[col]
             df.drop(col, axis=1, inplace=True)
-            df[col] = sr
+            df.loc[:, col] = sr
 
     def __getitem__(self, k: str) -> MetaType:
         return self._children[k]

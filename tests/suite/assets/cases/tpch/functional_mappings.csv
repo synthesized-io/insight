@@ -1,0 +1,44 @@
+TARGET,SQLSTATEMENT
+Supplier Location,"case when right(s.s_phone, 2) in ('36', '21', '77') then s_phone else NULL END"
+Supplier Location,"case when r.r_name = 'AFRICA' and c.c_mktsegment = 'BUILDING' THEN concat(r.r_name, c.c_mktsegment)  ELSE 'N?A' end"
+Supplier Location,"case when c.c_acctbal > 750 then TRUE else FALSE end "
+Supplier Location,"case when c.c_acctbal > 2000 then TRUE else FALSE end "
+Supplier Location,"case when n.n_name = 'FAKE_COUNTRY' then 'FAKE' else n.n_name end"
+Supplier Location,"case when left(n.n_name, 1) = 'A' and left(s.s_address, 1) =  'A' then 'A' else concat(left(n.n_name, 1), left(s.s_address, 1)) end"
+Order Priority,"
+     case
+        when o.o_totalprice > 1000000 and o.o_orderpriority in ('1-URGENT') then 1
+        when o.o_totalprice > 100000 and o.o_orderpriority in ('1-URGENT', '2-HIGH') then 2
+        when o.o_totalprice <= 100000 and o.o_orderpriority in ('1-URGENT', '2-HIGH') then 3
+        when o.o_orderpriority = '3-MEDIUM' then 4
+        when o.o_totalprice > 50000 and o.o_orderpriority in ('4-NOT SPECIFIED', '5-LOW') then 5
+        when o.o_totalprice <= 50000 and o.o_orderpriority in ('4-NOT SPECIFIED', '5-LOW') then 6
+        when o.o_totalprice <= 5000 and o.o_orderpriority in ('5-LOW') then 7
+        else 8
+    end"
+Marketing Campaigns,"case
+        when l.l_discount > 0.05 then 'Campaign - 5%'
+        when l.l_quantity > 40 and l.l_discount > 0.10 then 'Campaign - Buy 10'
+        when l.l_quantity > 100 and l.l_discount > 0.10 then 'Campaign - Buy Big'
+        when l.l_shipmode in ('REG AIR', 'AIR') and o.o_orderpriority in ('1-URGENT', '2-HIGH') then 'Campaign - Urgent Delivery'
+        when c.c_mktsegment = 'AUTOMOBILE' and c.c_acctbal > 50000 and o.o_orderpriority = '1-URGENT' and l.l_discount > 0.3 THEN 'Campaign - Super Delivery&Discount (AUTOMOBILE)'
+        when c.c_mktsegment = 'FURNITURE' and c.c_acctbal > 50000 and o.o_orderpriority = '1-URGENT' and l.l_discount > 0.3 THEN 'Campaign - Super Delivery&Discount (FURNITURE)'
+        when o.o_orderpriority = '0-SUPER PRIORITY' THEN 'Campaign - SUPER PRIORITY'
+        else 'No Campaign'
+    end"
+Marketing Campaigns,"case
+        when l.l_quantity > 20 and l.l_extendedprice < 100000 then l.l_discount
+        when l.l_quantity > 40 and l.l_extendedprice < 200000 then l.l_discount + 0.1
+        else 0.0
+    end"
+Marketing Campaigns,"case
+        when c.c_mktsegment = 'AUTOMOBILE' and l.l_shipinstruct = 'TAKE BACK RETURN' then 'AUTO - Returns'
+        when c.c_mktsegment = 'NEW MAIL' and l.l_shipinstruct = 'NONE' then 'New Mail - No Returns'
+        when c.c_mktsegment in ('NEW MAIL', 'USER', 'CUSTOM') and l.l_shipinstruct = 'SHIP' then CONCAT(c.c_mktsegment, l.l_shipinstruct)
+        else 'N?A'
+    end"
+Supplier Ratings,"case when p.p_container = 'JUMBO PACK' and p.p_brand = 'Apple' then 'APPLE PACK' else 'N?A' end"
+Supplier Ratings,"case
+        when ps.ps_availqty > 10000 then '5 stars'
+        when ps.ps_availqty < 10000 and ps.ps_availqty > 5000 then 'Responsive'
+        else 'Non-Responsive' end"

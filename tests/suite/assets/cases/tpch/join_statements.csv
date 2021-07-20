@@ -1,0 +1,11 @@
+TARGET,SQL_JOIN_STATEMENT
+Supplier Location,"from region r
+join nation n on r.r_regionkey = n.n_regionkey
+join supplier s on n.n_nationkey = s.s_nationkey
+join customer c on n.n_nationkey = c.c_nationkey"
+Order Priority,"from orders o"
+Marketing Campaigns,"from lineitem l
+join orders o on o.o_orderkey = l.l_orderkey
+join customer c on c.c_custkey = o.o_custkey"
+Supplier Ratings,"from part p
+join partsupp ps on p.p_partkey = ps.ps_partkey"
