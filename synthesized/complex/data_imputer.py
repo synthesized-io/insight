@@ -152,3 +152,6 @@ class DataImputer(Synthesizer):
 
     def _get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         return self.synthesizer._get_losses()
+
+    # alias method for learn
+    fit = learn

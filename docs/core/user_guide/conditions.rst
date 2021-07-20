@@ -64,6 +64,19 @@ And then generate the new dataset with the previously initialized ``ConditionalS
     )
 
 .. note::
+    ``sample(...)`` method is an alias of ``synthesize(...)`` method.
+
+Hence, the new dataset can also be generated using the following command:
+
+.. ipython:: python
+    :verbatim:
+
+    sampler.sample(
+        num_rows=100,
+        explicit_marginals={'transaction_flag': fraud_marginal}
+    )
+
+.. note::
     It is also possible to generate only ``fraud`` transactions. The marginal specification would then
     be ``fraud_marginal = {"fraud": 1.0, "not-fraud": 0.0}``.
 
@@ -80,7 +93,7 @@ To specify conditions for continuous fields, the categories must be given as bin
     )
 
 With the marginal distributions defined, they can be passed to the ``explicit_marginals`` parameter of
-:func:`~synthesized.complex.ConditionalSampler.synthesize` to generate the desired data.
+:func:`~synthesized.complex.ConditionalSampler.synthesize` (or :func:`~synthesized.complex.ConditionalSampler.sample`) to generate the desired data.
 
 .. ipython:: python
     :verbatim:

@@ -516,6 +516,12 @@ class ConditionalSampler(Synthesizer):
     def _get_losses(self, data: Dict[str, tf.Tensor] = None) -> tf.Tensor:
         return self.synthesizer._get_losses()
 
+    # alias method for learn
+    fit = learn
+
+    # alias method for synthesize
+    sample = synthesize
+
 
 class Endpoint(ABC):
     def __init__(self, value: Union[float, datetime], value_str: Optional[str] = None):
