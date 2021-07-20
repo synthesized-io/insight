@@ -56,8 +56,8 @@ def test_categorical_continuous_sampling():
                  'x': {'[-100.0, -90.0)': 0.8, '[90.0, 100.0)': 0.2},
                  'z': {'(01/01/1200, 01/01/1300]': 0.8, '(01/01/2050, 01/01/2150]': 0.2}}
 
-    df_synthesized = conditional_sampler.synthesize(num_rows=num_rows, explicit_marginals=marginals,
-                                                    progress_callback=progress_bar_testing)
+    df_synthesized = conditional_sampler.sample(num_rows=num_rows, explicit_marginals=marginals,
+                                                progress_callback=progress_bar_testing)
     assert len(df_synthesized) == 0
 
 
