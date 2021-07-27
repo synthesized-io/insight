@@ -1,0 +1,35 @@
+---
+name: Build-Lint-Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=synthesized-io
+            -Dsonar.projectKey=synthesized-io_synthesized-insight
+            -Dsonar.projectName=synthesized-insight
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.sources=src/synthesized-insight/
+            -Dsonar.tests=tests/
+            -Dsonar.pullrequest.provider=github
+            -Dsonar.pullrequest.github.repository=synthesized-io/synthesized-insight
+            -Dsonar.pullrequest.github.endpoint=https://api.github.com
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
