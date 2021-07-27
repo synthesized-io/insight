@@ -81,7 +81,7 @@ class ColumnCheck(Check):
 
         return col.astype(out_dtype, errors="ignore")
 
-    def continuous(self, sr: pd.Series):
+    def continuous(self, sr: pd.Series) -> bool:
         """Checks if the given series is continuous"""
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
@@ -91,7 +91,7 @@ class ColumnCheck(Check):
             return True
         return False
 
-    def categorical(self, sr: pd.Series):
+    def categorical(self, sr: pd.Series) -> bool:
         """Checks if the given series is categorical"""
         if isinstance(sr.dtype, pd.CategoricalDtype):
             return True
@@ -100,20 +100,20 @@ class ColumnCheck(Check):
             return True
         return False
 
-    def ordinal(self, sr: pd.Series):
+    def ordinal(self, sr: pd.Series) -> bool:
         """Checks if the given series is ordinal"""
         if isinstance(sr.dtype, pd.CategoricalDtype) and sr.cat.ordered:
             return True
         return False
 
-    def date(self, sr: pd.Series):
+    def date(self, sr: pd.Series) -> bool:
         """Checks if the given series contains dates"""
         sr = self.infer_dtype(sr)
         if sr.dtype.kind == 'M':
             return True
         return False
 
-    def same_domain(self, sr_a: pd.Series, sr_b: pd.Series):
+    def same_domain(self, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         """Checks if the given columns have the same domain of values"""
         sr_a = self.infer_dtype(sr_a)
         sr_b = self.infer_dtype(sr_b)
@@ -121,7 +121,7 @@ class ColumnCheck(Check):
             and ((self.continuous(sr_a) is True
                   and (max(sr_a) == max(sr_b) or min(sr_a) == min(sr_b)))
                  or (self.categorical(sr_a) is True
-                     and (set(sr_a.unique()) == set(sr_b.unique())))):
+                     and (set(sr_a.dropna().unique()) == set(sr_b.dropna().unique())))):
             return True
 
         return False
