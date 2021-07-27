@@ -16,6 +16,34 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Set up Python
+        id: setup-py
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: Cache .env
+        uses: actions/cache@v2
+        with:
+          path: .env
+          key: ${{ runner.os }}-env-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('**/setup.cfg') }}
+          restore-keys: |
+            ${{ runner.os }}-env-{{ steps.setup-py.outputs.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          python -m venv .env
+          source .env/bin/activate
+          pip install -U pip
+          pip install flake8 mypy
+
+      - name: Lint
+        run: |
+          source .env/bin/activate
+          python -m flake8 src
+          python -m mypy src
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:
