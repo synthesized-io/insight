@@ -53,7 +53,7 @@ jobs:
             -Dsonar.projectKey=synthesized-io_synthesized-insight
             -Dsonar.projectName=synthesized-insight
             -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.sources=src/synthesized-insight/
+            -Dsonar.sources=src/synthesized_insight/
             -Dsonar.tests=tests/
             -Dsonar.pullrequest.provider=github
             -Dsonar.pullrequest.github.repository=synthesized-io/synthesized-insight
