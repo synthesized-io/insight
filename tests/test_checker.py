@@ -76,3 +76,7 @@ def test_same_domain_columns(df):
 
     string_col_copy = string_col_copy.append(pd.Series(['P']))
     assert check.same_domain(df['string_col'], string_col_copy) == False
+
+    date_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['date_col'])))
+    assert check.same_domain(df['date_col'], date_col_copy) == False
+

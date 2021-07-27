@@ -118,7 +118,10 @@ class ColumnCheck(Check):
 
     def same_domain(self, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         """Checks if the given columns have the same domain of values"""
+        sr_a = self.infer_dtype(sr_a)
+        sr_b = self.infer_dtype(sr_b)
         if self.categorical(sr_a) is True and self.categorical(sr_a) is True\
+           and sr_a.dtype.kind != 'M' and sr_a.dtype.kind != 'M'\
            and set(sr_a.dropna().unique()) == set(sr_b.dropna().unique()):
             return True
 
