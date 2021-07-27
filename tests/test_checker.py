@@ -68,14 +68,6 @@ def test_column_check(df):
 def test_same_domain_columns(df):
     check = ColumnCheck()
 
-    int_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['int_col'])).astype(str))
-    assert check.same_domain(df['int_col'], int_col_copy) == True
-
-    max_val = max(df['int_col'])
-    min_val = min(df['int_col'])
-    int_col_copy = int_col_copy.append(pd.Series([max_val + 1, min_val - 1]))
-    assert check.same_domain(df['int_col'], int_col_copy) == False
-
     string_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['string_col'])))
     assert check.same_domain(df['string_col'], string_col_copy) == True
 

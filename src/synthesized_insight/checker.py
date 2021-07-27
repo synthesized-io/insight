@@ -5,6 +5,9 @@ from abc import ABC, abstractmethod
 
 
 class Check(ABC):
+    """Abstract class for checking column types.
+    Implement this class for the customized logic for different types of checks.
+    """
     @abstractmethod
     def continuous(self, sr: pd.Series):
         pass
@@ -115,13 +118,8 @@ class ColumnCheck(Check):
 
     def same_domain(self, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         """Checks if the given columns have the same domain of values"""
-        sr_a = self.infer_dtype(sr_a)
-        sr_b = self.infer_dtype(sr_b)
-        if (sr_a.dtype == sr_b.dtype)\
-            and ((self.continuous(sr_a) is True
-                  and (max(sr_a) == max(sr_b) or min(sr_a) == min(sr_b)))
-                 or (self.categorical(sr_a) is True
-                     and (set(sr_a.dropna().unique()) == set(sr_b.dropna().unique())))):
+        if self.categorical(sr_a) is True and self.categorical(sr_a) is True\
+           and set(sr_a.dropna().unique()) == set(sr_b.dropna().unique()):
             return True
 
         return False
