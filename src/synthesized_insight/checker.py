@@ -5,27 +5,34 @@ from abc import ABC, abstractmethod
 
 
 class Check(ABC):
-    """Abstract class for checking column types.
-    Implement this class for the customized logic for different types of checks.
+    """Abstract class for checking column types
+    Implement this class for the customized logic for different types of checks
     """
     @abstractmethod
     def continuous(self, sr: pd.Series):
+        """Checks if the given series is continuous"""
         pass
 
     @abstractmethod
     def categorical(self, sr: pd.Series):
+        """Checks if the given series is categorical"""
         pass
 
     @abstractmethod
     def ordinal(self, sr: pd.Series):
+        """Checks if the given series is ordinal
+        A series whose values can be ordered is ordinal
+        """
         pass
 
     @abstractmethod
-    def date(self, sr: pd.Series):
+    def affine(self, sr: pd.Series):
+        """Checks if the given series is affine"""
         pass
 
     @abstractmethod
     def same_domain(self, sr_a: pd.Series, sr_b: pd.Series):
+        """Checks if the given columns have the same domain of values"""
         pass
 
 
@@ -85,7 +92,9 @@ class ColumnCheck(Check):
         return col.astype(out_dtype, errors="ignore")
 
     def continuous(self, sr: pd.Series) -> bool:
-        """Checks if the given series is continuous"""
+        """Checks if the given series is continuous
+        All arithmetic operations can be done on continuous columns
+        """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
         if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
@@ -104,17 +113,29 @@ class ColumnCheck(Check):
         return False
 
     def ordinal(self, sr: pd.Series) -> bool:
-        """Checks if the given series is ordinal"""
-        if (isinstance(sr.dtype, pd.CategoricalDtype) and sr.cat.ordered):
+        """Checks if the given series is ordinal
+        A series whose values can be ordered is ordinal
+        Columns which are categorical in nature, but contain numbers/dates/bool
+        are ordinal too. E.g. [2, 1, 1, 2, 7, 2, 1, 7]
+        """
+        if (isinstance(sr.dtype, pd.CategoricalDtype)
+            and sr.cat.ordered is True)\
+           or pd.api.types.is_bool_dtype(sr) is True:
             return True
-        elif self.continuous(sr) is True:
+
+        sr_inferred = self.infer_dtype(sr)
+        if sr_inferred.dtype in ("float64", "int64")\
+           or sr_inferred.dtype.kind in ("M", "m"):
             return True
         return False
 
-    def date(self, sr: pd.Series) -> bool:
-        """Checks if the given series contains dates"""
-        sr = self.infer_dtype(sr)
-        if sr.dtype.kind == 'M':
+    def affine(self, sr: pd.Series) -> bool:
+        """Checks if the given series is affine
+        Continuous columns along with the columns of type DateTime
+        and the Timedelta are affine
+        """
+        if self.continuous(sr) is True\
+           or self.infer_dtype(sr).dtype.kind in ("M", "m"):
             return True
         return False
 
@@ -122,8 +143,8 @@ class ColumnCheck(Check):
         """Checks if the given columns have the same domain of values"""
         sr_a = self.infer_dtype(sr_a)
         sr_b = self.infer_dtype(sr_b)
-        if self.categorical(sr_a) is True and self.categorical(sr_a) is True\
-           and sr_a.dtype.kind != 'M' and sr_a.dtype.kind != 'M'\
+        if self.categorical(sr_a) is True and self.categorical(sr_b) is True\
+           and sr_a.dtype.kind != 'M' and sr_b.dtype.kind != 'M'\
            and set(sr_a.dropna().unique()) == set(sr_b.dropna().unique()):
             return True
 
