@@ -1,59 +1,23 @@
-from abc import ABC, abstractclassmethod, abstractmethod
 from typing import Union
 
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, ks_2samp, spearmanr
 
-from checker import ColumnCheck
-
-
-class OneColumnMetric(ABC):
-
-    def __init__(self, checker: ColumnCheck = None):
-        if checker is None:
-            self.checker = ColumnCheck()
-        else:
-            self.checker = checker
-
-    @abstractclassmethod
-    def check_column_types(cls, checker: ColumnCheck, sr: pd.Series) -> bool:
-        ...
-
-    @abstractmethod
-    def __call__(self, sr: pd.Series):
-        if not self.check_column_types(self.checker, sr):
-            return None
-
-
-class TwoColumnMetric(ABC):
-    def __init__(self, checker: ColumnCheck = None):
-        if checker is None:
-            self.checker = ColumnCheck()
-        else:
-            self.checker = checker
-
-    @abstractclassmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        ...
-
-    @abstractmethod
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
-        if not self.check_column_types(self.checker, sr_a, sr_b):
-            return None
+from .base import OneColumnMetric, TwoColumnMetric
+from .checker import ColumnCheck
 
 
 class Mean(OneColumnMetric):
     name = "mean"
 
     @classmethod
-    def _check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        if not checker.continuous(sr) or not checker.ordinal(sr):
+    def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
+        if checker.continuous(sr):
             return False
         return True
 
-    def __call__(self, sr: pd.Series) -> Union[float, None]:
-        super().__call__(sr)
+    def _compute_metric(self, sr: pd.Series):
         return affine_mean(sr)
 
 
@@ -66,17 +30,15 @@ class StandardDeviation(OneColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        if not checker.continuous(sr) or not checker.ordinal(sr):
+        if not checker.ordinal(sr):
             return False
         return True
 
-    def __call__(self, sr: pd.Series) -> Union[int, float, None]:
-        super().__call__(sr)
+    def _compute_metric(self, sr: pd.Series):
         values = np.sort(sr.values)
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
 
-        stddev = affine_stddev(pd.Series(values, name=sr.name))
-        return stddev
+        return affine_stddev(pd.Series(values, name=sr.name))
 
 
 class KendallTauCorrelation(TwoColumnMetric):
@@ -104,17 +66,7 @@ class KendallTauCorrelation(TwoColumnMetric):
             return False
         return True
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
-        """Calculate the metric.
-
-        Args:
-            sr_a (pd.Series): values of an ordinal variable.
-            sr_b (pd.Series): values of another ordinal variable to assess association.
-
-        Returns:
-            The Kendall Tau coefficient between sr_a and sr_b.
-        """
-        super().__call__(sr_a, sr_b)
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
 
         if p_value <= self.max_p_value:
@@ -139,11 +91,10 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
         self.max_p_value = max_p_value
 
     @classmethod
-    def _check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return True
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
-        super().__call__(sr_a, sr_b)
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         x = sr_a.values
         y = sr_b.values
 
@@ -175,18 +126,7 @@ class CramersV(TwoColumnMetric):
             return False
         return True
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float]:
-        """Calculate the metric.
-
-        Args:
-            sr_a (pd.Series): values of a nominal variable.
-            sr_b (pd.Series): values of another nominal variable to assess association.
-
-        Returns:
-            The Cramér's V coefficient between sr_a and sr_b.
-        """
-        super().__call__(sr_a, sr_b)
-
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
         table = np.asarray(table_orig, dtype=np.float64)
 
@@ -229,7 +169,7 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
             return False
         return True
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
 
         Args:
@@ -239,7 +179,6 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
         Returns:
             The Kolmogorov-Smirnov distance between sr_a and sr_b.
         """
-        super().__call__(sr_a, sr_b)
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
@@ -263,7 +202,7 @@ class EarthMoversDistance(TwoColumnMetric):
             return False
         return True
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
 
         Args:
