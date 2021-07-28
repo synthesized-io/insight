@@ -53,7 +53,7 @@ def test_column_check(df):
     categorical_cols = set(['string_col', 'bool_col', 'int_bool_col', 'ordered_cat_col', 'date_col'])
     continuous_cols = set(['int_col', 'float_col'])
     date_cols = set(['date_col'])
-    ordinal_cols = set(['ordered_cat_col'])
+    ordinal_cols = set(['ordered_cat_col', 'float_col', 'int_col'])
 
     verify_columns_types(df.copy(), categorical_cols, continuous_cols, date_cols, ordinal_cols)
 
@@ -80,3 +80,7 @@ def test_same_domain_columns(df):
     date_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['date_col'])))
     assert check.same_domain(df['date_col'], date_col_copy) == False
 
+
+def test_check_ordinal():
+    sr = pd.Series([1, 2, 3, 4, 5])
+    assert ColumnCheck().ordinal(sr) == True

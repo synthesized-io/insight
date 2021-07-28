@@ -88,8 +88,8 @@ class ColumnCheck(Check):
         """Checks if the given series is continuous"""
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) > max(self.min_num_unique,
-                                  self.ctl_mult * np.log(len(sr)))\
+        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+                                   self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True
         return False
@@ -105,7 +105,9 @@ class ColumnCheck(Check):
 
     def ordinal(self, sr: pd.Series) -> bool:
         """Checks if the given series is ordinal"""
-        if isinstance(sr.dtype, pd.CategoricalDtype) and sr.cat.ordered:
+        if (isinstance(sr.dtype, pd.CategoricalDtype) and sr.cat.ordered):
+            return True
+        elif self.continuous(sr):
             return True
         return False
 
