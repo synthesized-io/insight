@@ -107,7 +107,7 @@ class ColumnCheck(Check):
         """Checks if the given series is ordinal"""
         if (isinstance(sr.dtype, pd.CategoricalDtype) and sr.cat.ordered):
             return True
-        elif self.continuous(sr):
+        elif self.continuous(sr) is True:
             return True
         return False
 
