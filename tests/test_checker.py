@@ -99,5 +99,3 @@ def test_check_ordinal():
 
     sr = pd.Series(pd.Categorical(np.random.choice(["t2", "t1", "t0"], size=100), categories=["t0", "t1", "t2"], ordered=True))
     assert check.ordinal(sr) == True
-
-
