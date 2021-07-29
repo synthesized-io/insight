@@ -97,7 +97,7 @@ class ColumnCheck(Check):
         """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+        if len(sr.unique()) >= max(self.min_num_unique,
                                    self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True
@@ -105,7 +105,7 @@ class ColumnCheck(Check):
 
     def categorical(self, sr: pd.Series) -> bool:
         """Checks if the given series is categorical"""
-        if isinstance(sr.dtype, pd.CategoricalDtype):
+        if pd.api.types.is_categorical_dtype(sr) is True:
             return True
 
         if not self.continuous(sr):
@@ -118,7 +118,7 @@ class ColumnCheck(Check):
         Columns which are categorical in nature, but contain numbers/dates/bool
         are ordinal too. E.g. [2, 1, 1, 2, 7, 2, 1, 7]
         """
-        if (isinstance(sr.dtype, pd.CategoricalDtype)
+        if (pd.api.types.is_categorical_dtype(sr) is True
             and sr.cat.ordered is True)\
            or pd.api.types.is_bool_dtype(sr) is True:
             return True
