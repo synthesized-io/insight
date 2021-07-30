@@ -36,13 +36,18 @@ jobs:
           python -m venv .env
           source .env/bin/activate
           pip install -U pip
-          pip install flake8 mypy
+          pip install .[test,dev]
 
       - name: Lint
         run: |
           source .env/bin/activate
           python -m flake8 src
           python -m mypy src
+
+      - name: Run unit tests
+        run: |
+          source .env/bin/activate
+          pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -55,6 +60,8 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.sources=src/synthesized_insight/
             -Dsonar.tests=tests/
+            -Dsonar.python.xunit.reportPath=test-results/*.xml
+            -Dsonar.python.coverage.reportPaths=coverage/*.xml
             -Dsonar.pullrequest.provider=github
             -Dsonar.pullrequest.github.repository=synthesized-io/synthesized-insight
             -Dsonar.pullrequest.github.endpoint=https://api.github.com
