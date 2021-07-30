@@ -71,6 +71,7 @@ def test_ks_distance():
 
 
 def test_kt_correlation():
+    np.random.seed(42)
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
     sr_b = pd.Series(np.random.normal(0, 1, 5), name='b')
     sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
@@ -103,7 +104,6 @@ def test_kt_correlation_string_numbers():
 
     sr_b = pd.to_numeric(sr_b, errors='coerce')
     kt2 = kendell_tau_correlation(sr_a=sr_a, sr_b=sr_b)
-
     assert abs(kt1 - kt2) < 0.01
 
 

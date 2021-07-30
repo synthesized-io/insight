@@ -13,7 +13,8 @@ class Mean(OneColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        if checker.continuous(sr):
+        print(checker.affine(sr))
+        if not checker.affine(sr):
             return False
         return True
 
@@ -30,7 +31,7 @@ class StandardDeviation(OneColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        if not checker.ordinal(sr):
+        if not checker.affine(sr):
             return False
         return True
 
@@ -72,6 +73,9 @@ class KendallTauCorrelation(TwoColumnMetric):
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        sr_a = pd.to_numeric(sr_a, errors='coerce')
+        sr_b = pd.to_numeric(sr_b, errors='coerce')
+
         corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
 
         if p_value <= self.max_p_value:
@@ -105,9 +109,9 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
         x = sr_a.values
         y = sr_b.values
 
-        if self.checker.date(sr_a):
+        if self.checker.infer_dtype(sr_a).dtype.kind == 'M':
             x = pd.to_numeric(pd.to_datetime(x, errors='coerce'), errors='coerce')
-        if self.checker.date(sr_b):
+        if self.checker.infer_dtype(sr_b).dtype.kind == 'M':
             y = pd.to_numeric(pd.to_datetime(y, errors='coerce'), errors='coerce')
 
         corr, p_value = spearmanr(x, y, nan_policy='omit')
@@ -129,7 +133,7 @@ class CramersV(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        if checker.categorical(sr_a) or not checker.categorical(sr_b):
+        if not checker.categorical(sr_a) or not checker.categorical(sr_b):
             return False
         return True
 
@@ -219,8 +223,6 @@ class EarthMoversDistance(TwoColumnMetric):
         Returns:
             The earth mover's distance between sr_a and sr_b.
         """
-        super().__call__(sr_a, sr_b)
-
         old = sr_a.to_numpy().astype(str)
         new = sr_b.to_numpy().astype(str)
 

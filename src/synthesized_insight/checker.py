@@ -52,6 +52,15 @@ class ColumnCheck(Check):
         self.min_num_unique = min_num_unique
         self.ctl_mult = ctl_mult
 
+    def _num_nans_and_empty_rows(self, sr: pd.Series):
+        """Return the total number of rows which contains NaN or
+        empty values"""
+        n_rows = sr.isna().sum()
+        if pd.api.types.is_string_dtype(sr):
+            n_rows += (sr.str.len() == 0).sum()
+
+        return n_rows
+
     def infer_dtype(self, sr: pd.Series) -> pd.Series:
         """Infers the type of the data and converts the data to it.
         Args:
@@ -65,12 +74,12 @@ class ColumnCheck(Check):
         col = sr.copy()
 
         in_dtype = str(col.dtype)
-        n_nans = col.isna().sum()
+        n_nans_empty = self._num_nans_and_empty_rows(col)
 
         # Try to convert it to numeric
         if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
             col_num = pd.to_numeric(col, errors="coerce")
-            if col_num.isna().sum() == n_nans:
+            if self._num_nans_and_empty_rows(col_num) == n_nans_empty:
                 col = col_num
 
         # Try to convert it to date
@@ -79,7 +88,7 @@ class ColumnCheck(Check):
                 col_date = pd.to_datetime(col, errors="coerce")
             except TypeError:
                 col_date = pd.to_datetime(col.astype(str), errors="coerce")
-            if col_date.isna().sum() == n_nans:
+            if self._num_nans_and_empty_rows(col_date) == n_nans_empty:
                 col = col_date
 
         out_dtype = str(col.dtype)
@@ -97,8 +106,8 @@ class ColumnCheck(Check):
         """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) > max(self.min_num_unique,
-                                  self.ctl_mult * np.log(len(sr)))\
+        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+                                   self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True
         return False

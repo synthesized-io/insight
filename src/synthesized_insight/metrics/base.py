@@ -1,3 +1,4 @@
+from typing import Optional, List
 from abc import ABC, abstractclassmethod, abstractmethod
 
 import pandas as pd
@@ -5,7 +6,18 @@ import pandas as pd
 from src.synthesized_insight import ColumnCheck
 
 
-class OneColumnMetric(ABC):
+class _Metric(ABC):
+    name: Optional[str] = None
+    tags: List[str] = []
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class OneColumnMetric(_Metric):
 
     def __init__(self, checker: ColumnCheck = None):
         if checker is None:
@@ -27,7 +39,7 @@ class OneColumnMetric(ABC):
         return self._compute_metric(sr)
 
 
-class TwoColumnMetric(ABC):
+class TwoColumnMetric(_Metric):
     def __init__(self, checker: ColumnCheck = None):
         if checker is None:
             self.checker = ColumnCheck()
