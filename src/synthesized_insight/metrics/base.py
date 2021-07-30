@@ -2,7 +2,7 @@ from abc import ABC, abstractclassmethod, abstractmethod
 
 import pandas as pd
 
-from .checker import ColumnCheck
+from src.synthesized_insight import ColumnCheck
 
 
 class OneColumnMetric(ABC):

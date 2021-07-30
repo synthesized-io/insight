@@ -1,11 +1,11 @@
-from typing import Union
+from typing import Union, List
 
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, ks_2samp, spearmanr
 
 from .base import OneColumnMetric, TwoColumnMetric
-from .checker import ColumnCheck
+from src.synthesized_insight import ColumnCheck
 
 
 class Mean(OneColumnMetric):
@@ -60,10 +60,15 @@ class KendallTauCorrelation(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        if not checker.ordinal(sr_a) or not checker.categorical(sr_a):
+        # Given columns should be both categorical or both ordinal
+        if (checker.ordinal(sr_a) and not checker.ordinal(sr_b))\
+                or (not checker.ordinal(sr_a) and checker.ordinal(sr_b)):
             return False
-        if not checker.ordinal(sr_b) or not checker.categorical(sr_b):
+
+        elif (checker.categorical(sr_a) and not checker.categorical(sr_b))\
+                or (not checker.categorical(sr_a) and checker.categorical(sr_b)):
             return False
+
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
@@ -92,6 +97,8 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        if not checker.ordinal(sr_a) or not checker.ordinal(sr_b):
+            return False
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
