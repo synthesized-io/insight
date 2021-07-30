@@ -19,17 +19,9 @@ jobs:
 
       - name: Set up Python
         id: setup-py
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v2.2.2
         with:
           python-version: 3.6
-
-      - name: Cache .env
-        uses: actions/cache@v2
-        with:
-          path: .env
-          key: ${{ runner.os }}-env-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('**/setup.cfg') }}
-          restore-keys: |
-            ${{ runner.os }}-env-{{ steps.setup-py.outputs.python-version }}-
 
       - name: Install dependencies
         run: |
