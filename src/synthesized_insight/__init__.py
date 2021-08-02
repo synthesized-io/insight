@@ -1,3 +1,3 @@
-from .checker import ColumnCheck
+from .check import ColumnCheck
 
 __all__ = ['ColumnCheck']
