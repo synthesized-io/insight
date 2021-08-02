@@ -63,10 +63,8 @@ class ModellingPreprocessor:
             n_rows = len(df)
             nan_freq = df[cont_col].isna().sum() / n_rows if n_rows > 0 else 0
             if nan_freq is not None and nan_freq > 0:
-                self.column_encoders[cont_col] = Pipeline([
-                                                ('imputer', SimpleImputer()),
-                                                ('scaler', StandardScaler())
-                                                ])
+                self.column_encoders[cont_col] = Pipeline([('imputer', SimpleImputer()),
+                                                           ('scaler', StandardScaler())])
             else:
                 self.column_encoders[cont_col] = StandardScaler()
 
@@ -89,8 +87,7 @@ class ModellingPreprocessor:
             column = column.fillna('nan').astype(str)
             encoder = self.column_encoders[cat_col]
             if self.target and cat_col == self.target:
-                x_i = encoder.transform(column.values.reshape(-1, 1))\
-                                                     .reshape(-1, 1)
+                x_i = encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)
                 c_name_i = [cat_col]
             else:
                 x_i = encoder.transform(column.values.reshape(-1, 1))

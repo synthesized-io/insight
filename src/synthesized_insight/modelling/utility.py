@@ -74,14 +74,12 @@ def sample_split_data(df: pd.DataFrame,
     return df_train, df_test
 
 
-def preprocess_split_data(
-                df: pd.DataFrame,
-                response_variable: str,
-                explanatory_variables: Optional[List[str]] = None,
-                test_size: float = 0.2,
-                sample_size: Optional[int] = None,
-                preprocessor: ModellingPreprocessor = None
-                ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def preprocess_split_data(df: pd.DataFrame,
+                          response_variable: str,
+                          explanatory_variables: Optional[List[str]] = None,
+                          test_size: float = 0.2,
+                          sample_size: Optional[int] = None,
+                          preprocessor: ModellingPreprocessor = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     df_train, df_test = sample_split_data(df,
                                           response_variable,
                                           explanatory_variables,

@@ -321,8 +321,7 @@ def predictive_modelling_score(
     if x_labels is None:
         x_labels = list(filter(lambda c: c != y_label, df.columns))
     else:
-        available_columns = list(set(df.columns).intersection(
-                                                set(x_labels + [y_label])))
+        available_columns = list(set(df.columns).intersection(set(x_labels + [y_label])))
         if not len([pred for pred in x_labels if pred in available_columns]):
             raise ValueError('Response/Predictor variables not in DataFrame.')
         df = df[available_columns]
@@ -350,13 +349,11 @@ def predictive_modelling_score(
         # to know all categorical variables
         preprocessor.fit(pd.concat((df, df_synth)))
 
-    df_train_pre, df_test_pre = preprocess_split_data(
-                                                df,
-                                                response_variable=y_label,
-                                                explanatory_variables=x_labels,
-                                                sample_size=sample_size,
-                                                preprocessor=preprocessor
-                                                )
+    df_train_pre, df_test_pre = preprocess_split_data(df,
+                                                      response_variable=y_label,
+                                                      explanatory_variables=x_labels,
+                                                      sample_size=sample_size,
+                                                      preprocessor=preprocessor)
     if df_synth is not None:
         df_synth = df_synth[available_columns]
         df_train_pre, _ = preprocess_split_data(df_synth,
@@ -415,36 +412,30 @@ class PredictiveModellingScore(DataFrameMetric):
         else:
             [col for col in df.columns if col != y_label]
 
-        score, metric, task = predictive_modelling_score(
-                                                df=df,
-                                                y_label=y_label,
-                                                x_labels=x_labels,
-                                                model=self.model,
-                                                df_synth=df_synth,
-                                                sample_size=self.sample_size
-                                                )
+        score, metric, task = predictive_modelling_score(df=df,
+                                                         y_label=y_label,
+                                                         x_labels=x_labels,
+                                                         model=self.model,
+                                                         df_synth=df_synth,
+                                                         sample_size=self.sample_size)
 
         if df_synth is not None:
-            synth_score, _, _ = predictive_modelling_score(
-                                                df=df,
-                                                y_label=y_label,
-                                                x_labels=x_labels,
-                                                model=self.model,
-                                                df_synth=df_synth,
-                                                sample_size=self.sample_size
-                                                )
+            synth_score, _, _ = predictive_modelling_score(df=df,
+                                                           y_label=y_label,
+                                                           x_labels=x_labels,
+                                                           model=self.model,
+                                                           df_synth=df_synth,
+                                                           sample_size=self.sample_size)
         else:
             synth_score = None
         return score, synth_score, metric, task
 
 
-def classifier_scores_from_df(
-                        df_train: Optional[pd.DataFrame],
-                        df_test: pd.DataFrame,
-                        target: str, clf: ClassifierMixin,
-                        metrics: Optional[Union[str, List[str]]] = 'roc_auc',
-                        return_predicted: bool = False
-                        ) -> Dict[str, Any]:
+def classifier_scores_from_df(df_train: Optional[pd.DataFrame],
+                              df_test: pd.DataFrame,
+                              target: str, clf: ClassifierMixin,
+                              metrics: Optional[Union[str, List[str]]] = 'roc_auc',
+                              return_predicted: bool = False) -> Dict[str, Any]:
     x_labels = list(filter(lambda v: v != target, df_test.columns))
 
     if df_train is not None:
@@ -583,7 +574,7 @@ def regressor_scores(x_train: Optional[np.ndarray],
 
     if isinstance(metrics, str):
         metrics_dict: Dict[str, Type[RegressionMetric]]\
-                    = {metrics: REGRESSION_METRICS[metrics]}
+            = {metrics: REGRESSION_METRICS[metrics]}
     elif isinstance(metrics, list):
         if len(metrics) == 0:
             raise ValueError("Given empty array of metrics")
