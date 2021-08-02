@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, Sequence
 from abc import ABC, abstractclassmethod, abstractmethod
 
 import pandas as pd
@@ -8,7 +8,7 @@ from src.synthesized_insight import ColumnCheck
 
 class _Metric(ABC):
     name: Optional[str] = None
-    tags: List[str] = []
+    tags: Sequence[str] = []
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
