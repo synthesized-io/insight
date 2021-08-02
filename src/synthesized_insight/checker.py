@@ -74,7 +74,8 @@ class ColumnCheck(Check):
         col = sr.copy()
 
         in_dtype = str(col.dtype)
-        n_nans_empty = self._num_nans_and_empty_rows(col)
+        n_nans = col.isna().sum()
+        n_empty_str = (sr.str.len() == 0).sum() if pd.api.types.is_string_dtype(sr) else 0
 
         # Try to convert it to numeric
         if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
