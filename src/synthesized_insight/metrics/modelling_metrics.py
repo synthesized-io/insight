@@ -117,7 +117,8 @@ class Recall(ClassificationMetric):
 
     def __call__(self,
                  y_true: np.ndarray,
-                 y_pred: Optional[np.ndarray] = None) -> Union[float]:
+                 y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
         assert y_pred is not None
         if self.multiclass is False:
             return recall_score(y_true, y_pred)
@@ -130,7 +131,8 @@ class F1Score(ClassificationMetric):
 
     def __call__(self,
                  y_true: np.ndarray,
-                 y_pred: Optional[np.ndarray] = None) -> Union[float]:
+                 y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
         assert y_pred is not None
         if self.multiclass is False:
             return f1_score(y_true, y_pred)
@@ -401,8 +403,7 @@ class PredictiveModellingScore(DataFrameMetric):
 
     def __call__(self,
                  df: pd.DataFrame,
-                 df_synth: Optional[pd.DataFrame] = None
-                 ) -> Union[int, float, None]:
+                 df_synth: Optional[pd.DataFrame] = None):
         if len(df.columns) < 2:
             raise ValueError
 
