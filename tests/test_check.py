@@ -6,6 +6,7 @@ import copy
 
 from src.synthesized_insight import ColumnCheck
 
+
 @pytest.fixture(scope='module')
 def df():
     df = pd.DataFrame({
