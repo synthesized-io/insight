@@ -19,14 +19,14 @@ class _Metric(ABC):
 
 class OneColumnMetric(_Metric):
 
-    def __init__(self, checker: ColumnCheck = None):
-        if checker is None:
-            self.checker = ColumnCheck()
+    def __init__(self, check: ColumnCheck = None):
+        if check is None:
+            self.check = ColumnCheck()
         else:
-            self.checker = checker
+            self.check = check
 
     @abstractclassmethod
-    def check_column_types(cls, checker: ColumnCheck, sr: pd.Series) -> bool:
+    def check_column_types(cls, check: ColumnCheck, sr: pd.Series) -> bool:
         ...
 
     @abstractmethod
@@ -34,20 +34,20 @@ class OneColumnMetric(_Metric):
         ...
 
     def __call__(self, sr: pd.Series):
-        if not self.check_column_types(self.checker, sr):
+        if not self.check_column_types(self.check, sr):
             return None
         return self._compute_metric(sr)
 
 
 class TwoColumnMetric(_Metric):
-    def __init__(self, checker: ColumnCheck = None):
-        if checker is None:
-            self.checker = ColumnCheck()
+    def __init__(self, check: ColumnCheck = None):
+        if check is None:
+            self.check = ColumnCheck()
         else:
-            self.checker = checker
+            self.check = check
 
     @abstractclassmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         ...
 
     @abstractmethod
@@ -55,6 +55,6 @@ class TwoColumnMetric(_Metric):
         ...
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
-        if not self.check_column_types(self.checker, sr_a, sr_b):
+        if not self.check_column_types(self.check, sr_a, sr_b):
             return None
         return self._compute_metric(sr_a, sr_b)

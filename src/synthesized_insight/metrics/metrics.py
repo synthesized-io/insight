@@ -10,9 +10,9 @@ class Mean(OneColumnMetric):
     name = "mean"
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        print(checker.affine(sr))
-        if not checker.affine(sr):
+    def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
+        print(check.affine(sr))
+        if not check.affine(sr):
             return False
         return True
 
@@ -23,13 +23,13 @@ class Mean(OneColumnMetric):
 class StandardDeviation(OneColumnMetric):
     name = "standard_deviation"
 
-    def __init__(self, checker: ColumnCheck = None, remove_outliers: float = 0.0):
-        super().__init__(checker)
+    def __init__(self, check: ColumnCheck = None, remove_outliers: float = 0.0):
+        super().__init__(check)
         self.remove_outliers = remove_outliers
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr: pd.Series):
-        if not checker.affine(sr):
+    def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
+        if not check.affine(sr):
             return False
         return True
 
@@ -52,20 +52,18 @@ class KendallTauCorrelation(TwoColumnMetric):
     name = "kendall_tau_correlation"
     symmetric = True
 
-    def __init__(self, checker: ColumnCheck = None, max_p_value: float = 1.0, calculate_categorical: bool = False):
-        super().__init__(checker)
+    def __init__(self, check: ColumnCheck = None, max_p_value: float = 1.0, calculate_categorical: bool = False):
+        super().__init__(check)
         self.max_p_value = max_p_value
         self.calculate_categorical = calculate_categorical
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         # Given columns should be both categorical or both ordinal
-        if (checker.ordinal(sr_a) and not checker.ordinal(sr_b))\
-                or (not checker.ordinal(sr_a) and checker.ordinal(sr_b)):
-            return False
-
-        elif (checker.categorical(sr_a) and not checker.categorical(sr_b))\
-                or (not checker.categorical(sr_a) and checker.categorical(sr_b)):
+        if (check.ordinal(sr_a) and not check.ordinal(sr_b))\
+            or (not check.ordinal(sr_a) and check.ordinal(sr_b))\
+            or (check.categorical(sr_a) and not check.categorical(sr_b))\
+                or (not check.categorical(sr_a) and check.categorical(sr_b)):
             return False
 
         return True
@@ -93,13 +91,13 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
     """
     name = "spearman_rho_correlation"
 
-    def __init__(self, checker: ColumnCheck = None, max_p_value: float = 1.0):
-        super().__init__(checker)
+    def __init__(self, check: ColumnCheck = None, max_p_value: float = 1.0):
+        super().__init__(check)
         self.max_p_value = max_p_value
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        if not checker.ordinal(sr_a) or not checker.ordinal(sr_b):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        if not check.ordinal(sr_a) or not check.ordinal(sr_b):
             return False
         return True
 
@@ -107,9 +105,9 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
         x = sr_a.values
         y = sr_b.values
 
-        if self.checker.infer_dtype(sr_a).dtype.kind == 'M':
+        if self.check.infer_dtype(sr_a).dtype.kind == 'M':
             x = pd.to_numeric(pd.to_datetime(x, errors='coerce'), errors='coerce')
-        if self.checker.infer_dtype(sr_b).dtype.kind == 'M':
+        if self.check.infer_dtype(sr_b).dtype.kind == 'M':
             y = pd.to_numeric(pd.to_datetime(y, errors='coerce'), errors='coerce')
 
         corr, p_value = spearmanr(x, y, nan_policy='omit')
@@ -130,8 +128,8 @@ class CramersV(TwoColumnMetric):
     symmetric = True
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        if not checker.categorical(sr_a) or not checker.categorical(sr_b):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        if not check.categorical(sr_a) or not check.categorical(sr_b):
             return False
         return True
 
@@ -173,8 +171,8 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
     name = "kolmogorov_smirnov_distance"
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-        if not checker.continuous(sr_a) or not checker.continuous(sr_b):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        if not check.continuous(sr_a) or not check.continuous(sr_b):
             return False
         return True
 
@@ -206,8 +204,8 @@ class EarthMoversDistance(TwoColumnMetric):
     name = "earth_movers_distance"
 
     @classmethod
-    def check_column_types(cls, checker: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-        if not checker.categorical(sr_a) or not checker.categorical(sr_b):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        if not check.categorical(sr_a) or not check.categorical(sr_b):
             return False
         return True
 
