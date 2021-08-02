@@ -52,15 +52,6 @@ class ColumnCheck(Check):
         self.min_num_unique = min_num_unique
         self.ctl_mult = ctl_mult
 
-    def _num_nans_and_empty_rows(self, sr: pd.Series):
-        """Return the total number of rows which contains NaN or
-        empty values"""
-        n_rows = sr.isna().sum()
-        if pd.api.types.is_string_dtype(sr):
-            n_rows += (sr.str.len() == 0).sum()
-
-        return n_rows
-
     def infer_dtype(self, sr: pd.Series) -> pd.Series:
         """Infers the type of the data and converts the data to it.
         Args:
