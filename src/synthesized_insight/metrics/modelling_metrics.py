@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Optional, Type, Union, cast
 import numpy as np
 import pandas as pd
 
-from abc import ABC, abstractmethod
-
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
@@ -16,7 +14,8 @@ from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.utils.validation import check_is_fitted
 
 from src.synthesized_insight import ColumnCheck
-
+from .base import (ClassificationMetric, ClassificationPlotMetric,
+                   RegressionMetric, DataFrameMetric)
 from src.synthesized_insight.modelling import (ModellingPreprocessor,
                                                check_model_type,
                                                preprocess_split_data)
@@ -24,71 +23,6 @@ from src.synthesized_insight.modelling import (ModellingPreprocessor,
 logger = logging.getLogger(__name__)
 
 MAX_ANALYSIS_SAMPLE_SIZE = 10000
-
-
-# to move to metrics_base.py start-------------------------------------------------------
-class _Metric(ABC):
-    name: Optional[str] = None
-    tags: List[str] = []
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}()"
-
-    def __str__(self):
-        return f"{self.name}"
-
-
-class ModellingMetric(_Metric):
-
-    @abstractmethod
-    def __call__(self,
-                 y_true: np.ndarray,
-                 y_pred: Optional[np.ndarray] = None) -> Union[float, None]:
-        pass
-
-
-class ClassificationMetric(ModellingMetric):
-    tags = ["modelling", "classification"]
-    plot = False
-
-    def __init__(self, multiclass: bool = False):
-        self.multiclass = multiclass
-
-    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> float:
-        raise NotImplementedError
-
-
-class ClassificationPlotMetric(ModellingMetric):
-    tags = ["modelling", "classification", "plot"]
-    plot = True
-
-    def __init__(self, multiclass: bool = False):
-        self.multiclass = multiclass
-
-    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> Any:
-        raise NotImplementedError
-
-
-class RegressionMetric(ModellingMetric):
-    tags = ["modelling", "regression"]
-
-    def __init__(self):
-        # Contains nothing atm but matches other two Modelling metrics.
-        pass
-
-    def __call__(self, y_true: np.ndarray, y_pred: np.ndarray = None) -> float:
-        raise NotImplementedError
-
-
-class DataFrameMetric(_Metric):
-
-    @abstractmethod
-    def __call__(self, df: pd.DataFrame) -> Union[int, float, None]:
-        pass
-
-# to move to metrics_base.py end-----------------------------------------------
 
 
 class Accuracy(ClassificationMetric):
@@ -140,7 +74,7 @@ class F1Score(ClassificationMetric):
             return f1_score(y_true, y_pred, average='micro')
 
 
-class ROC_AUC(ClassificationMetric):
+class ROCAUC(ClassificationMetric):
     name = "roc_auc"
 
     def __call__(self,
@@ -156,12 +90,12 @@ class ROC_AUC(ClassificationMetric):
             return roc_auc_score(y_true, y_pred_proba, multi_class='ovo')
 
 
-class ROC_Curve(ClassificationPlotMetric):
+class ROCCurve(ClassificationPlotMetric):
     name = "roc_curve"
 
     def __init__(self, multiclass: bool = False):
         self.plot = True
-        super(ROC_Curve, self).__init__(multiclass=multiclass)
+        super(ROCCurve, self).__init__(multiclass=multiclass)
 
     def __call__(self,
                  y_true: np.ndarray,
@@ -177,12 +111,12 @@ class ROC_Curve(ClassificationPlotMetric):
             return None
 
 
-class PR_Curve(ClassificationPlotMetric):
+class PRCurve(ClassificationPlotMetric):
     name = "pr_curve"
 
     def __init__(self, multiclass: bool = False):
         self.plot = True
-        super(PR_Curve, self).__init__(multiclass=multiclass)
+        super(PRCurve, self).__init__(multiclass=multiclass)
 
     def __call__(self,
                  y_true: np.ndarray,
@@ -242,11 +176,11 @@ class MeanSquaredError(RegressionMetric):
         return mean_squared_error(y_true, y_pred)
 
 
-class R2_Score(RegressionMetric):
+class R2Score(RegressionMetric):
     name = "r2_score"
 
     def __init__(self):
-        super(R2_Score, self).__init__()
+        super(R2Score, self).__init__()
 
     def __call__(self,
                  y_true: np.ndarray = None,
@@ -257,18 +191,80 @@ class R2_Score(RegressionMetric):
 
 
 REGRESSION_METRICS: Dict[str, Type[RegressionMetric]] = {
-    cast(str, m.name): m for m in [R2_Score, MeanSquaredError,
+    cast(str, m.name): m for m in [R2Score, MeanSquaredError,
                                    MeanAbsoluteError]
 }
 CLASSIFICATION_METRICS: Dict[str, Type[ClassificationMetric]] = {
     cast(str, m.name): m for m in [Accuracy, Precision, Recall,
-                                   F1Score, ROC_AUC]
+                                   F1Score, ROCAUC]
 }
 CLASSIFICATION_PLOT_METRICS: Dict[str, Type[ClassificationPlotMetric]] = {
-    cast(str, m.name): m for m in [ROC_Curve, PR_Curve, ConfusionMatrix]
+    cast(str, m.name): m for m in [ROCCurve, PRCurve, ConfusionMatrix]
 }
 
 MAX_ANALYSIS_SAMPLE_SIZE = 10000
+
+
+def _preprocess_and_split(df: pd.DataFrame,
+                          y_label: str,
+                          x_labels: List[str],
+                          df_synth: Optional[pd.DataFrame] = None,
+                          sample_size: Optional[int] = None):
+
+    # If sample_size is not passed as the parameter of the function,
+    # then set it to the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
+    if sample_size is None:
+        sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(df))
+
+    preprocessor = ModellingPreprocessor(target=y_label)
+
+    if df_synth is not None:
+        # Fit original and synthetic data together as preprocessor needs
+        # to know all categorical variables
+        preprocessor.fit(pd.concat((df, df_synth)))
+
+    df_train_pre, df_test_pre = preprocess_split_data(df,
+                                                      response_variable=y_label,
+                                                      explanatory_variables=x_labels,
+                                                      sample_size=sample_size,
+                                                      preprocessor=preprocessor)
+    if df_synth is not None:
+        df_train_pre, _ = preprocess_split_data(df_synth,
+                                                response_variable=y_label,
+                                                explanatory_variables=x_labels,
+                                                sample_size=sample_size,
+                                                preprocessor=preprocessor)
+
+    x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
+    x_train = df_train_pre[x_labels_pre].to_numpy()
+    y_train = df_train_pre[y_label].to_numpy()
+    x_test = df_test_pre[x_labels_pre].to_numpy()
+    y_test = df_test_pre[y_label].to_numpy()
+    print(x_train, y_train, x_test, y_test)
+    return x_train, y_train, x_test, y_test
+
+
+def _get_modelling_score(is_regression_task: bool,
+                         x_train: np.ndarray,
+                         y_train: np.array,
+                         x_test: np.ndarray,
+                         y_test: np.array,
+                         estimator: Union[str, ClassifierMixin, RegressorMixin],
+                         n_classes: Optional[int] = None):
+    if is_regression_task:
+        metric = 'r2_score'
+        task = 'regression'
+        scores = regressor_scores(x_train, y_train, x_test, y_test,
+                                  rgr=estimator, metrics=metric)
+        score = scores[metric]
+    else:
+        metric = 'roc_auc' if n_classes == 2 else 'macro roc_auc'
+        task = 'binary ' if n_classes == 2 else f'multinomial [{n_classes}]'
+        scores = classifier_scores(x_train, y_train, x_test, y_test,
+                                   clf=estimator, metrics='roc_auc')
+        score = scores['roc_auc']
+
+    return score, metric, task
 
 
 def predictive_modelling_score(
@@ -309,9 +305,7 @@ def predictive_modelling_score(
 
     score, metric, task = None, None, None
 
-    # Remove rows with response variable as NaN before splitting,
-    # because stratified train_test_split will fail if response contains NaNs.
-    # Also, NaN response value doesn't help with supervised learning
+    # Remove rows with response variable as NaNs
     df = df[df[y_label].notna()].reset_index(drop=True)
 
     if df_synth is not None:
@@ -327,63 +321,35 @@ def predictive_modelling_score(
         if not len([pred for pred in x_labels if pred in available_columns]):
             raise ValueError('Response/Predictor variables not in DataFrame.')
         df = df[available_columns]
+        if df_synth is not None:
+            df_synth = df_synth[available_columns]
 
     # Check target type
     check = ColumnCheck()
     is_regression_task = True
+    n_classes = None
     if check.categorical(df[y_label]) is True:
         estimator = check_model_type(model, copy_model, 'clf')
         is_regression_task = False
+        n_classes = len(df[y_label].dropna().unique())
     elif check.continuous(df[y_label]) is True:
         estimator = check_model_type(model, copy_model, 'rgr')
     else:
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
 
-    # If sample_size is not passed as the parameter of the function,
-    # then set it to the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
-    if sample_size is None:
-        sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(df))
+    x_train, y_train, x_test, y_test = _preprocess_and_split(df=df,
+                                                             y_label=y_label,
+                                                             x_labels=x_labels,
+                                                             df_synth=df_synth,
+                                                             sample_size=sample_size)
 
-    preprocessor = ModellingPreprocessor(target=y_label)
-
-    if df_synth is not None:
-        # Fit original and synthetic data together as preprocessor needs
-        # to know all categorical variables
-        preprocessor.fit(pd.concat((df, df_synth)))
-
-    df_train_pre, df_test_pre = preprocess_split_data(df,
-                                                      response_variable=y_label,
-                                                      explanatory_variables=x_labels,
-                                                      sample_size=sample_size,
-                                                      preprocessor=preprocessor)
-    if df_synth is not None:
-        df_synth = df_synth[available_columns]
-        df_train_pre, _ = preprocess_split_data(df_synth,
-                                                response_variable=y_label,
-                                                explanatory_variables=x_labels,
-                                                sample_size=sample_size,
-                                                preprocessor=preprocessor)
-
-    x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
-    x_train = df_train_pre[x_labels_pre].to_numpy()
-    y_train = df_train_pre[y_label].to_numpy()
-    x_test = df_test_pre[x_labels_pre].to_numpy()
-    y_test = df_test_pre[y_label].to_numpy()
-
-    if is_regression_task:
-        metric = 'r2_score'
-        task = 'regression'
-        scores = regressor_scores(x_train, y_train, x_test, y_test,
-                                  rgr=estimator, metrics=metric)
-        score = scores[metric]
-    else:
-        categories = df[y_label].dropna().unique()
-        n_classes = len(categories)
-        metric = 'roc_auc' if n_classes == 2 else 'macro roc_auc'
-        task = 'binary ' if n_classes == 2 else f'multinomial [{n_classes}]'
-        scores = classifier_scores(x_train, y_train, x_test, y_test,
-                                   clf=estimator, metrics='roc_auc')
-        score = scores['roc_auc']
+    score, metric, task = _get_modelling_score(is_regression_task=is_regression_task,
+                                               x_train=x_train,
+                                               y_train=y_train,
+                                               x_test=x_test,
+                                               y_test=y_test,
+                                               estimator=estimator,
+                                               n_classes=n_classes)
 
     return score, metric, task
 
