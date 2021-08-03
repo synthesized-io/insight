@@ -66,11 +66,12 @@ class ColumnCheck(Check):
 
         in_dtype = str(col.dtype)
         n_nans = col.isna().sum()
+        n_empty_str = (col.str.len() == 0).sum() if pd.api.types.is_string_dtype(col) else 0
 
         # Try to convert it to numeric
         if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
             col_num = pd.to_numeric(col, errors="coerce")
-            if col_num.isna().sum() == n_nans:
+            if col_num.isna().sum() == n_nans + n_empty_str:
                 col = col_num
 
         # Try to convert it to date
@@ -79,7 +80,7 @@ class ColumnCheck(Check):
                 col_date = pd.to_datetime(col, errors="coerce")
             except TypeError:
                 col_date = pd.to_datetime(col.astype(str), errors="coerce")
-            if col_date.isna().sum() == n_nans:
+            if col_date.isna().sum() == n_nans + n_empty_str:
                 col = col_date
 
         out_dtype = str(col.dtype)
@@ -97,8 +98,8 @@ class ColumnCheck(Check):
         """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) > max(self.min_num_unique,
-                                  self.ctl_mult * np.log(len(sr)))\
+        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+                                   self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True
         return False
