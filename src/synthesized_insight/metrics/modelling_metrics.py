@@ -240,7 +240,6 @@ def _preprocess_and_split(df: pd.DataFrame,
     y_train = df_train_pre[y_label].to_numpy()
     x_test = df_test_pre[x_labels_pre].to_numpy()
     y_test = df_test_pre[y_label].to_numpy()
-    print(x_train, y_train, x_test, y_test)
     return x_train, y_train, x_test, y_test
 
 

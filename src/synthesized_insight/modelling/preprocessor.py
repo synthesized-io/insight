@@ -33,6 +33,9 @@ class ModellingPreprocessor:
             logger.info("Preprocessor has already been fitted.")
             return
 
+        for col in df.columns:
+            df[col] = self.check.infer_dtype(df[col])
+
         for cat_col in self._categorical(df):
             logger.debug(f"Preprocessing value '{cat_col}'...")
             column = df[cat_col]
