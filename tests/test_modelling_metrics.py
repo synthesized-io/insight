@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import RidgeClassifier, Ridge
 
-from src.synthesized_insight.metrics import PredictiveModellingScore, Accuracy
+from src.synthesized_insight.metrics import (PredictiveModellingScore, Accuracy,
+                                             ROCAUC, ConfusionMatrix, F1Score,
+                                             MeanAbsoluteError, MeanSquaredError, PRCurve,
+                                             Precision, R2Score, Recall, ROCCurve)
 from src.synthesized_insight.metrics.modelling_metrics import (classifier_scores,
                                                                predictive_modelling_score,
                                                                classifier_scores_from_df,
@@ -243,3 +246,38 @@ def test_prediction_scores_from_df():
                                             rgr=Ridge())
 
     assert 'r2_score' in metrics_dict
+
+
+def test_modelling_metrics():
+    # regression
+    target = [1, 2, 3, 4, 4, 6, 9, 1]
+    r2_score = R2Score()
+    assert r2_score(target, target) == 1
+
+    mse = MeanSquaredError()
+    assert mse(target, target) == 0
+
+    mae = MeanAbsoluteError()
+    assert mae(target, target) == 0
+
+    # binary classification
+    target = [1, 0, 1, 1, 1, 0, 0, 1]
+    precision = Precision()
+    assert precision(target, target) == 1
+
+    recall = Recall()
+    assert recall(target, target) == 1
+
+    f1score = F1Score()
+    assert f1score(target, target) == 1
+
+    # multiclass classification
+    target = ['a', 'c', 'a', 'b', 'b', 'b', 'c', 'a']
+    precision = Precision(multiclass=True)
+    assert precision(target, target) == 1
+
+    recall = Recall(multiclass=True)
+    assert recall(target, target) == 1
+
+    f1score = F1Score(multiclass=True)
+    assert f1score(target, target) == 1
