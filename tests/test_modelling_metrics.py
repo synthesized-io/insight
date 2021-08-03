@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import RidgeClassifier, Ridge
 
-from src.synthesized_insight.metrics import PredictiveModellingScore
+from src.synthesized_insight.metrics import PredictiveModellingScore, Accuracy
 from src.synthesized_insight.metrics.modelling_metrics import (classifier_scores,
-                                                               predictive_modelling_score)
+                                                               predictive_modelling_score,
+                                                               classifier_scores_from_df,
+                                                               regressor_scores_from_df)
+# from synthesized_insight.metrics import metrics
 
 
 np.random.seed(42)
@@ -74,7 +77,7 @@ def test_classifier_scores_multiclass_classnotpresent_ypred():
         'x1': ['100', '200', '200'],
         'x2': [4, 2, 5],
         'x3': [16, 6, 15],
-        'y':  [1, 2, 3]
+        'y': [1, 2, 3]
     })
 
     x_train = train[['x1', 'x2', 'x3']]
@@ -102,14 +105,14 @@ def test_classifier_scores_multiclass_classnotpresent_both():
         'x1': ['100', '100', '100', '200', '200', '300', '500'],
         'x2': [1, 2, 3, 1, 4, 5, 11],
         'x3': [4, 8, 12, 3, 12, 9, 4],
-        'y':  [1, 1, 1, 2, 2, 3, 4]
+        'y': [1, 1, 1, 2, 2, 3, 4]
     })
 
     test = pd.DataFrame({
         'x1': ['100', '200', '200'],
         'x2': [4, 2, 5],
         'x3': [16, 6, 15],
-        'y':  [2, 3, 1]
+        'y': [2, 3, 1]
     })
 
     x_train = train[['x1', 'x2', 'x3']]
@@ -137,14 +140,14 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue():
         'x1': [100, 100, 100, 200, 200, 300, 500],
         'x2': [1, 2, 3, 1, 4, 5, 11],
         'x3': [4, 8, 12, 3, 12, 9, 22],
-        'y':  [1, 1, 1, 2, 2, 3, 4]
+        'y': [1, 1, 1, 2, 2, 3, 4]
     })
 
     test = pd.DataFrame({
         'x1': [200, 300, 200, 500],
         'x2': [4, 7, 5, 10],
         'x3': [16, 11, 15, 20],
-        'y':  [1, 2, 2, 4]
+        'y': [1, 2, 2, 4]
     })
 
     x_train = train[['x1', 'x2', 'x3']]
@@ -173,14 +176,14 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue_y_pred():
         'x1': ['100', '100', '100', '200', '200', '300'],
         'x2': [1, 2, 3, 1, 4, 5],
         'x3': [4, 8, 12, 3, 12, 9],
-        'y':  [1, 1, 1, 2, 2, 3]
+        'y': [1, 1, 1, 2, 2, 3]
     })
 
     test = pd.DataFrame({
         'x1': ['100', '200', '200'],
         'x2': [4, 2, 5],
         'x3': [16, 6, 13],
-        'y':  [1, 2, 4]
+        'y': [1, 2, 4]
     })
 
     x_train = train[['x1', 'x2', 'x3']]
@@ -200,3 +203,41 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue_y_pred():
                                      y_test=np.array(y_test), clf=clf)
 
     assert np.isclose(metrics_dict['roc_auc'], 1.0, rtol=0.05) == True
+
+
+def test_accuracy():
+    y_true = [0, 1, 1, 1, 0, 1]
+    y_pred = [0, 1, 0, 0, 1, 1]
+    acc = Accuracy()
+    assert acc(y_true, y_true) == 1
+    assert acc(y_true, y_pred) == 0.5
+
+
+def test_prediction_scores_from_df():
+    train = pd.DataFrame({
+        'c1': [100, 100, 100, 200, 200, 300, 500],
+        'c2': [1, 2, 3, 1, 4, 5, 11],
+        'c3': [4, 8, 12, 3, 12, 9, 22],
+        'c4': [0, 1, 1, 0, 1, 0, 0]
+    })
+
+    test = pd.DataFrame({
+        'c1': [200, 300, 200, 500],
+        'c2': [4, 7, 5, 10],
+        'c3': [16, 11, 15, 20],
+        'c4': [1, 0, 1, 0]
+    })
+
+    metrics_dict = classifier_scores_from_df(df_train=train,
+                                             df_test=test,
+                                             target='c4',
+                                             clf=RidgeClassifier())
+
+    assert 'roc_auc' in metrics_dict
+
+    metrics_dict = regressor_scores_from_df(df_train=train,
+                                            df_test=test,
+                                            target='c2',
+                                            rgr=Ridge())
+
+    assert 'r2_score' in metrics_dict
