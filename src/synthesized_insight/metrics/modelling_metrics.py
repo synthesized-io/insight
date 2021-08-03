@@ -258,7 +258,7 @@ def _get_modelling_score(is_regression_task: bool,
         score = scores[metric]
     else:
         metric = 'roc_auc' if n_classes == 2 else 'macro roc_auc'
-        task = 'binary ' if n_classes == 2 else f'multinomial [{n_classes}]'
+        task = 'binary' if n_classes == 2 else f'multinomial [{n_classes}]'
         scores = classifier_scores(x_train, y_train, x_test, y_test,
                                    clf=estimator, metrics='roc_auc')
         score = scores['roc_auc']
@@ -376,7 +376,7 @@ class PredictiveModellingScore(DataFrameMetric):
         if self.x_labels is not None:
             x_labels = self.x_labels
         else:
-            [col for col in df.columns if col != y_label]
+            x_labels = [col for col in df.columns if col != y_label]
 
         score, metric, task = predictive_modelling_score(df=df,
                                                          y_label=y_label,

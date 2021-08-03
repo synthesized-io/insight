@@ -7,7 +7,6 @@ from src.synthesized_insight.metrics.modelling_metrics import (classifier_scores
                                                                predictive_modelling_score,
                                                                classifier_scores_from_df,
                                                                regressor_scores_from_df)
-# from synthesized_insight.metrics import metrics
 
 
 np.random.seed(42)
@@ -40,10 +39,12 @@ def test_predictive_modelling_score_clf():
 
     target = 'y'
     x_labels = list(filter(lambda c: c != target, data.columns))
-    predictive_modelling_score(data,
-                               model='Logistic',
-                               y_label=target,
-                               x_labels=x_labels)
+    score, metric, task = predictive_modelling_score(data,
+                                                     model='Logistic',
+                                                     y_label=target,
+                                                     x_labels=x_labels)
+    assert metric == 'roc_auc'
+    assert task == 'binary'
 
 
 def test_predictive_modelling_score_rgr():
@@ -53,15 +54,16 @@ def test_predictive_modelling_score_rgr():
         'x2': np.where(np.random.uniform(size=n) < 0.8,
                        np.random.randn(n), np.nan),
         'x3': np.random.choice(['a', 'b', 'c', 'd'], size=n),
-        'y': np.random.choice([0, 1], size=n)
+        'y': np.random.randn(n)
     })
 
     target = 'y'
-    x_labels = list(filter(lambda c: c != target, data.columns))
-    predictive_modelling_score(data,
-                               model='Linear',
-                               y_label=target,
-                               x_labels=x_labels)
+    score, metric, task = predictive_modelling_score(data,
+                                                     model='Linear',
+                                                     y_label=target,
+                                                     x_labels=None)
+    assert metric == 'r2_score'
+    assert task == 'regression'
 
 
 # y_true has class 3, but y_pred doesn't
