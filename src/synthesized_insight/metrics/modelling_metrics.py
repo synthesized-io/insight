@@ -435,6 +435,53 @@ def regressor_scores_from_df(df_train: Optional[pd.DataFrame],
                             return_predicted)
 
 
+def _predict_classification_task(x_test: np.ndarray,
+                                 y_test: np.array,
+                                 y_train: np.array,
+                                 clf: ClassifierMixin):
+    multiclass: bool = False
+
+    # Two classes classification
+    if len(np.unique(y_train)) == 2:
+        multiclass = False
+        if hasattr(clf, 'predict_proba'):
+            f_proba_test = clf.predict_proba(x_test)
+            y_pred_test = np.argmax(f_proba_test, axis=1)
+            f_proba_test = f_proba_test.T[1]
+        else:
+            y_pred_test = f_proba_test = clf.predict(x_test)
+
+    # Multi-class classification
+    else:
+        multiclass = True
+        oh = OneHotEncoder(sparse=False)
+        oh.fit(np.concatenate((y_train, y_test)).reshape((-1, 1)))
+        y_test_oh = oh.transform(y_test.reshape((-1, 1)))
+
+        if hasattr(clf, 'predict_proba'):
+            missing = [v for v in oh.categories_[0] if v not in clf.classes_]
+            f_proba_test = clf.predict_proba(x_test)
+            missing_idx = sorted([list(oh.categories_[0]).index(v)
+                                 for v in missing], reverse=True)
+
+            for idx in missing_idx:
+                f_proba_test = np.insert(f_proba_test, idx, 0, 1)
+
+            y_pred_test = np.array(oh.categories_[0])[np.argmax(f_proba_test,
+                                                                axis=1)]
+        else:
+            y_pred_test = clf.predict(x_test)
+            f_proba_test = oh.transform(y_pred_test.reshape(-1, 1))
+
+        y_test_oh, f_proba_test = _remove_zero_column(y_test_oh, f_proba_test)
+
+        # Normalise the prediction probabilities so that the probabilities
+        # across classes add to 1.
+        f_proba_test = _normalise_prob(f_proba_test)
+
+    return multiclass, y_pred_test, f_proba_test
+
+
 def classifier_scores(x_train: np.ndarray,
                       y_train: np.ndarray,
                       x_test: np.ndarray,
@@ -478,44 +525,10 @@ def classifier_scores(x_train: np.ndarray,
     except NotFittedError:
         clf.fit(x_train, y_train)
 
-    # Two classes classification
-    if len(np.unique(y_train)) == 2:
-        multiclass = False
-        if hasattr(clf, 'predict_proba'):
-            f_proba_test = clf.predict_proba(x_test)
-            y_pred_test = np.argmax(f_proba_test, axis=1)
-            f_proba_test = f_proba_test.T[1]
-        else:
-            y_pred_test = f_proba_test = clf.predict(x_test)
-
-    # Multi-class classification
-    else:
-        multiclass = True
-        oh = OneHotEncoder(sparse=False)
-        oh.fit(np.concatenate((y_train, y_test)).reshape((-1, 1)))
-        y_test_oh = oh.transform(y_test.reshape((-1, 1)))
-
-        if hasattr(clf, 'predict_proba'):
-            missing = [v for v in oh.categories_[0] if v not in clf.classes_]
-            f_proba_test = clf.predict_proba(x_test)
-            missing_idx = sorted([list(oh.categories_[0]).index(v)
-                                 for v in missing], reverse=True)
-
-            for idx in missing_idx:
-                f_proba_test = np.insert(f_proba_test, idx, 0, 1)
-
-            y_pred_test = np.array(oh.categories_[0])[np.argmax(f_proba_test,
-                                                                axis=1)]
-        else:
-            y_pred_test = clf.predict(x_test)
-            f_proba_test = oh.transform(y_pred_test.reshape(-1, 1))
-
-        y_test_oh, f_proba_test = _remove_zero_column(y_test_oh, f_proba_test)
-
-        # Normalise the prediction probabilities so that the probabilities
-        # across classes add to 1.
-        f_proba_test = _normalise_prob(f_proba_test)
-
+    multiclass, y_pred_test, f_proba_test = _predict_classification_task(x_test=x_test,
+                                                                         y_test=y_test,
+                                                                         y_train=y_train,
+                                                                         clf=clf)
     results: Dict[str, Any] = dict()
     for metric_name, metric in metrics_dict.items():
         # metric() and metric.__call__() are the same,

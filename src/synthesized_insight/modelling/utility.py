@@ -98,46 +98,58 @@ def preprocess_split_data(df: pd.DataFrame,
     return df_train_pre, df_test_pre
 
 
+def _get_regression_model(model: Union[str, RegressorMixin],
+                          copy_model: bool) -> RegressorMixin:
+    estimator = None
+    if isinstance(model, str):
+        if model in REGRESSORS:
+            estimator = REGRESSORS[model]()
+        else:
+            raise KeyError(f"Selected model '{model}'\
+                                 not available for REGRESSION.")
+    elif isinstance(model, BaseEstimator):
+        if not isinstance(model, RegressorMixin):
+            raise KeyError("Given model is not available for REGRESSION.")
+
+        if copy_model:
+            estimator = clone(model)
+        else:
+            estimator = model
+    else:
+        raise ValueError("Given model type is not compatible")
+
+    return estimator
+
+
+def _get_classification_model(model: Union[str, ClassifierMixin],
+                              copy_model: bool) -> ClassifierMixin:
+    estimator = None
+    if isinstance(model, str):
+        if model in CLASSIFIERS:
+            estimator = CLASSIFIERS[model]()
+        else:
+            raise KeyError(f"Selected model '{model}'\
+                                 not available for CLASSIFICATION.")
+    elif isinstance(model, BaseEstimator):
+        if not isinstance(model, ClassifierMixin):
+            raise KeyError("Given model is not available for CLASSIFICATION.")
+
+        if copy_model:
+            estimator = clone(model)
+        else:
+            estimator = model
+    else:
+        raise ValueError("Given model type is not compatible")
+    return estimator
+
+
 def check_model_type(model: Union[str, ClassifierMixin, RegressorMixin],
                      copy_model: bool,
                      task: str) -> Union[ClassifierMixin, RegressorMixin]:
     if task == 'clf':
-        if isinstance(model, str):
-            if model in CLASSIFIERS:
-                estimator = CLASSIFIERS[model]()
-            else:
-                raise KeyError(f"Selected model '{model}'\
-                                 not available for CLASSIFICATION.")
-        elif isinstance(model, BaseEstimator):
-            if not isinstance(model, ClassifierMixin):
-                raise KeyError("Given model is not\
-                                available for CLASSIFICATION.")
-
-            if copy_model:
-                estimator = clone(model)
-            else:
-                estimator = model
-        else:
-            raise ValueError("Given model type is not compatible")
-
+        estimator = _get_classification_model(model=model, copy_model=copy_model)
     elif task == 'rgr':
-        if isinstance(model, str):
-            if model in REGRESSORS:
-                estimator = REGRESSORS[model]()
-            else:
-                raise KeyError(f"Selected model '{model}'\
-                                 not available for REGRESSION.")
-        elif isinstance(model, BaseEstimator):
-            if not isinstance(model, RegressorMixin):
-                raise KeyError("Given model is not available for REGRESSION.")
-
-            if copy_model:
-                estimator = clone(model)
-            else:
-                estimator = model
-        else:
-            raise ValueError("Given model type is not compatible")
-
+        estimator = _get_regression_model(model=model, copy_model=copy_model)
     else:
         raise ValueError(f"Given task '{task}' not recognized")
 
