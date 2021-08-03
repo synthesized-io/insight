@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import RidgeClassifier, Ridge
+from sklearn.linear_model import RidgeClassifier, Ridge, LogisticRegression
 
 from src.synthesized_insight.metrics import (PredictiveModellingScore, Accuracy,
                                              ROCAUC, ConfusionMatrix, F1Score,
@@ -271,6 +271,39 @@ def test_modelling_metrics():
     f1score = F1Score()
     assert f1score(target, target) == 1
 
+    train = pd.DataFrame({
+        'x1': ['100', '100', '100', '200', '200', '300', '500'],
+        'x2': [1, 2, 3, 1, 4, 5, 11],
+        'x3': [4, 8, 12, 3, 12, 9, 4],
+        'y': [0, 1, 1, 1, 0, 0, 0]
+    })
+
+    test = pd.DataFrame({
+        'x1': ['100', '200', '200'],
+        'x2': [4, 2, 5],
+        'x3': [16, 6, 15],
+        'y': [1, 0, 1]
+    })
+
+    x_train = train[['x1', 'x2', 'x3']]
+    y_train = train['y']
+    x_test = test[['x1', 'x2', 'x3']]
+    y_test = test['y']
+
+    clf = LogisticRegression()
+    clf.fit(x_train, y_train)
+    y_pred = clf.predict(x_test)
+    y_pred_proba = clf.predict_proba(x_test)
+
+    roc_curve = ROCCurve()
+    assert roc_curve(y_test, y_pred_proba=y_pred_proba[:, 1].reshape(-1, 1)) is not None
+
+    pr_curve = PRCurve()
+    assert pr_curve(y_test, y_pred_proba=y_pred_proba[:, 1].reshape(-1, 1)) is not None
+
+    cf_matrix = ConfusionMatrix(True)
+    assert cf_matrix(y_test, y_pred, y_pred_proba) is not None
+
     # multiclass classification
     target = ['a', 'c', 'a', 'b', 'b', 'b', 'c', 'a']
     precision = Precision(multiclass=True)
@@ -281,3 +314,36 @@ def test_modelling_metrics():
 
     f1score = F1Score(multiclass=True)
     assert f1score(target, target) == 1
+
+    train = pd.DataFrame({
+        'x1': ['100', '100', '100', '200', '200', '300', '500'],
+        'x2': [1, 2, 3, 1, 4, 5, 11],
+        'x3': [4, 8, 12, 3, 12, 9, 4],
+        'y': [1, 1, 1, 2, 2, 3, 1]
+    })
+
+    test = pd.DataFrame({
+        'x1': ['100', '200', '200'],
+        'x2': [4, 2, 5],
+        'x3': [16, 6, 15],
+        'y': [2, 3, 1]
+    })
+
+    x_train = train[['x1', 'x2', 'x3']]
+    y_train = train['y']
+    x_test = test[['x1', 'x2', 'x3']]
+    y_test = test['y']
+
+    clf = LogisticRegression()
+    clf.fit(x_train, y_train)
+    y_pred = clf.predict(x_test)
+    y_pred_proba = clf.predict_proba(x_test)
+
+    roc_curve = ROCCurve(True)
+    assert roc_curve(y_test, y_pred, y_pred_proba) is None
+
+    pr_curve = PRCurve(True)
+    assert pr_curve(y_test, y_pred, y_pred_proba) is None
+
+    cf_matrix = ConfusionMatrix(True)
+    assert cf_matrix(y_test, y_pred, y_pred_proba) is not None
