@@ -11,4 +11,3 @@ __all__ = ['TwoColumnMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorr
            'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError',
            'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve',
            'PredictiveModellingScore']
-

@@ -502,7 +502,7 @@ def classifier_scores(x_train: np.ndarray,
                                  for v in missing], reverse=True)
 
             for idx in missing_idx:
-                f_proba_test = np.insert(f_proba_test, missing_idx, 0, 1)
+                f_proba_test = np.insert(f_proba_test, idx, 0, 1)
 
             y_pred_test = np.array(oh.categories_[0])[np.argmax(f_proba_test,
                                                                 axis=1)]
