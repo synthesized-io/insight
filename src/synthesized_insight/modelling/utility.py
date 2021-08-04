@@ -39,7 +39,7 @@ RANDOM_SEED = 42
 def sample_split_data(df: pd.DataFrame,
                       response_variable: str,
                       explanatory_variables: Optional[List[str]] = None,
-                      test_size: float = 0.2,
+                      test_size: Optional[float] = 0.2,
                       sample_size: Optional[int] = None
                       ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 

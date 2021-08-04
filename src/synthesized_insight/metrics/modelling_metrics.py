@@ -202,16 +202,15 @@ CLASSIFICATION_PLOT_METRICS: Dict[str, Type[ClassificationPlotMetric]] = {
     cast(str, m.name): m for m in [ROCCurve, PRCurve, ConfusionMatrix]
 }
 
-MAX_ANALYSIS_SAMPLE_SIZE = 10000
+MAX_ANALYSIS_SAMPLE_SIZE = 100000000
 
 
-def _preprocess_and_split(df: pd.DataFrame,
-                          y_label: str,
-                          x_labels: List[str],
-                          df_synth: Optional[pd.DataFrame] = None,
-                          sample_size: Optional[int] = None):
-    """Split the df in train and test, and preprocess them with the preprocessor fit
-       on the trained data.
+def split_and_preprocess(df: pd.DataFrame,
+                         y_label: str,
+                         x_labels: List[str],
+                         df_synth: Optional[pd.DataFrame] = None,
+                         sample_size: Optional[int] = None):
+    """Split and preprocess the given dfs
        If synthetic data is provided, then training data should come from synthetic df
        and test from original df"""
     # If sample_size is not passed as the parameter of the function,
@@ -219,28 +218,21 @@ def _preprocess_and_split(df: pd.DataFrame,
     if sample_size is None:
         sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(df))
 
-    df_train, df_test = sample_split_data(df,
-                                          response_variable=y_label,
-                                          explanatory_variables=x_labels,
-                                          sample_size=sample_size)
-
     preprocessor = ModellingPreprocessor(target=y_label)
     if df_synth is not None:
         # Fit original and synthetic data together as preprocessor needs
         # to know all categorical variables
         preprocessor.fit(pd.concat((df, df_synth)))
-        df_synth_train, _ = sample_split_data(df_synth,
+        df_train_pre = preprocessor.transform(df_synth)  # Use all of the synthetic data as the train data
+        df_test_pre = preprocessor.transform(df)  # Use all of the original data as the test data
+    else:
+        preprocessor.fit(df)
+        df_train, df_test = sample_split_data(df,
                                               response_variable=y_label,
                                               explanatory_variables=x_labels,
                                               sample_size=sample_size)
-    else:
-        preprocessor.fit(df)
-
-    df_train_pre = preprocessor.transform(df_train)
-    df_test_pre = preprocessor.transform(df_test)
-
-    if df_synth is not None:
-        df_train_pre = preprocessor.transform(df_synth_train)
+        df_train_pre = preprocessor.transform(df_train)
+        df_test_pre = preprocessor.transform(df_test)
 
     x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
     x_train = df_train_pre[x_labels_pre].to_numpy()
@@ -250,13 +242,13 @@ def _preprocess_and_split(df: pd.DataFrame,
     return x_train, y_train, x_test, y_test
 
 
-def _get_modelling_score(is_regression_task: bool,
-                         x_train: np.ndarray,
-                         y_train: np.array,
-                         x_test: np.ndarray,
-                         y_test: np.array,
-                         estimator: Union[str, ClassifierMixin, RegressorMixin],
-                         n_classes: Optional[int] = None):
+def get_modelling_score(is_regression_task: bool,
+                        x_train: np.ndarray,
+                        y_train: np.array,
+                        x_test: np.ndarray,
+                        y_test: np.array,
+                        estimator: Union[str, ClassifierMixin, RegressorMixin],
+                        n_classes: Optional[int] = None):
     """Depending on the task (classification or regression), the score is evaluated."""
     if is_regression_task:
         metric = 'r2_score'
@@ -344,19 +336,19 @@ def predictive_modelling_score(
     else:
         raise ValueError(f"Can't understand y_label '{y_label}' type.")
 
-    x_train, y_train, x_test, y_test = _preprocess_and_split(df=df,
-                                                             y_label=y_label,
-                                                             x_labels=x_labels,
-                                                             df_synth=df_synth,
-                                                             sample_size=sample_size)
+    x_train, y_train, x_test, y_test = split_and_preprocess(df=df,
+                                                            y_label=y_label,
+                                                            x_labels=x_labels,
+                                                            df_synth=df_synth,
+                                                            sample_size=sample_size)
 
-    score, metric, task = _get_modelling_score(is_regression_task=is_regression_task,
-                                               x_train=x_train,
-                                               y_train=y_train,
-                                               x_test=x_test,
-                                               y_test=y_test,
-                                               estimator=estimator,
-                                               n_classes=n_classes)
+    score, metric, task = get_modelling_score(is_regression_task=is_regression_task,
+                                              x_train=x_train,
+                                              y_train=y_train,
+                                              x_test=x_test,
+                                              y_test=y_test,
+                                              estimator=estimator,
+                                              n_classes=n_classes)
 
     return score, metric, task
 
