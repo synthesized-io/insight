@@ -18,7 +18,7 @@ from .base import (ClassificationMetric, ClassificationPlotMetric,
                    RegressionMetric, DataFrameMetric)
 from src.synthesized_insight.modelling import (ModellingPreprocessor,
                                                check_model_type,
-                                               preprocess_split_data)
+                                               sample_split_data)
 
 logger = logging.getLogger(__name__)
 
@@ -210,30 +210,37 @@ def _preprocess_and_split(df: pd.DataFrame,
                           x_labels: List[str],
                           df_synth: Optional[pd.DataFrame] = None,
                           sample_size: Optional[int] = None):
-
+    """Split the df in train and test, and preprocess them with the preprocessor fit
+       on the trained data.
+       If synthetic data is provided, then training data should come from synthetic df
+       and test from original df"""
     # If sample_size is not passed as the parameter of the function,
     # then set it to the minimum of MAX_ANALYSIS_SAMPLE_SIZE and data size
     if sample_size is None:
         sample_size = min(MAX_ANALYSIS_SAMPLE_SIZE, len(df))
 
-    preprocessor = ModellingPreprocessor(target=y_label)
+    df_train, df_test = sample_split_data(df,
+                                          response_variable=y_label,
+                                          explanatory_variables=x_labels,
+                                          sample_size=sample_size)
 
+    preprocessor = ModellingPreprocessor(target=y_label)
     if df_synth is not None:
         # Fit original and synthetic data together as preprocessor needs
         # to know all categorical variables
         preprocessor.fit(pd.concat((df, df_synth)))
+        df_synth_train, _ = sample_split_data(df_synth,
+                                              response_variable=y_label,
+                                              explanatory_variables=x_labels,
+                                              sample_size=sample_size)
+    else:
+        preprocessor.fit(df)
 
-    df_train_pre, df_test_pre = preprocess_split_data(df,
-                                                      response_variable=y_label,
-                                                      explanatory_variables=x_labels,
-                                                      sample_size=sample_size,
-                                                      preprocessor=preprocessor)
+    df_train_pre = preprocessor.transform(df_train)
+    df_test_pre = preprocessor.transform(df_test)
+
     if df_synth is not None:
-        df_train_pre, _ = preprocess_split_data(df_synth,
-                                                response_variable=y_label,
-                                                explanatory_variables=x_labels,
-                                                sample_size=sample_size,
-                                                preprocessor=preprocessor)
+        df_train_pre = preprocessor.transform(df_synth_train)
 
     x_labels_pre = list(filter(lambda v: v != y_label, df_train_pre.columns))
     x_train = df_train_pre[x_labels_pre].to_numpy()
@@ -250,6 +257,7 @@ def _get_modelling_score(is_regression_task: bool,
                          y_test: np.array,
                          estimator: Union[str, ClassifierMixin, RegressorMixin],
                          n_classes: Optional[int] = None):
+    """Depending on the task (classification or regression), the score is evaluated."""
     if is_regression_task:
         metric = 'r2_score'
         task = 'regression'

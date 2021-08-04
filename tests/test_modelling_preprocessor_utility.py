@@ -3,13 +3,10 @@ import pandas as pd
 import pytest
 import unittest
 from sklearn.svm import LinearSVC
-from sklearn.ensemble import (GradientBoostingClassifier, GradientBoostingRegressor,
-                              RandomForestClassifier,
-                              RandomForestRegressor)
+from sklearn.ensemble import (GradientBoostingRegressor, RandomForestClassifier)
 
 from src.synthesized_insight.modelling import ModellingPreprocessor
 from src.synthesized_insight.modelling.utility import (sample_split_data,
-                                                       preprocess_split_data,
                                                        check_model_type)
 
 
@@ -26,18 +23,6 @@ def test_sample_split_data(df):
     train_unique_targets = df_train[response_variable].unique()
     test_unique_targets = df_test[response_variable].unique()
     assert all([test_target in train_unique_targets for test_target in test_unique_targets])
-
-
-def test_preprocess_split_data(df):
-    response_variable = 'SeriousDlqin2yrs'
-    df_train_pre, df_test_pre = preprocess_split_data(df, response_variable)
-
-    df_train, df_test = sample_split_data(df, response_variable)
-    preprocessor = ModellingPreprocessor(target=response_variable)
-    preprocessor.fit(df)
-
-    assert df_train_pre.equals(preprocessor.transform(df_train))
-    assert df_test_pre.equals(preprocessor.transform(df_test))
 
 
 def test_modelling_preprocessor(df):

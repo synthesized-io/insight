@@ -12,10 +12,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import LinearSVC, LinearSVR
 
-from .preprocessor import ModellingPreprocessor
-
 logger = logging.getLogger(__name__)
 
+"""A dictionary of sklearn classifiers with fit/predict methods."""
 CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
     'Linear': RidgeClassifier,
     'Logistic': LogisticRegression,
@@ -24,8 +23,8 @@ CLASSIFIERS: Dict[str, Type[ClassifierMixin]] = {
     'MLP': MLPClassifier,
     'LinearSVM': LinearSVC
 }
-"""A dictionary of sklearn classifiers with fit/predict methods."""
 
+"""A dictionary of sklearn regressors with fit/predict methods."""
 REGRESSORS: Dict[str, Type[RegressorMixin]] = {
     'Linear': Ridge,
     'GradientBoosting': GradientBoostingRegressor,
@@ -33,7 +32,6 @@ REGRESSORS: Dict[str, Type[RegressorMixin]] = {
     'MLP': MLPRegressor,
     'LinearSVM': LinearSVR
 }
-"""A dictionary of sklearn regressors with fit/predict methods."""
 
 RANDOM_SEED = 42
 
@@ -72,30 +70,6 @@ def sample_split_data(df: pd.DataFrame,
         df_test = df_test[target_in_train]
 
     return df_train, df_test
-
-
-def preprocess_split_data(df: pd.DataFrame,
-                          response_variable: str,
-                          explanatory_variables: Optional[List[str]] = None,
-                          test_size: float = 0.2,
-                          sample_size: Optional[int] = None,
-                          preprocessor: ModellingPreprocessor = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    df_train, df_test = sample_split_data(df,
-                                          response_variable,
-                                          explanatory_variables,
-                                          test_size=test_size,
-                                          sample_size=sample_size)
-
-    if preprocessor is None:
-        preprocessor = ModellingPreprocessor(target=response_variable)
-        preprocessor.fit(df)
-    elif preprocessor is not None and not preprocessor.is_fitted:
-        preprocessor.fit(df)
-
-    df_train_pre = preprocessor.transform(df_train)
-    df_test_pre = preprocessor.transform(df_test)
-
-    return df_train_pre, df_test_pre
 
 
 def _get_regression_model(model: Union[str, RegressorMixin],
@@ -146,6 +120,8 @@ def _get_classification_model(model: Union[str, ClassifierMixin],
 def check_model_type(model: Union[str, ClassifierMixin, RegressorMixin],
                      copy_model: bool,
                      task: str) -> Union[ClassifierMixin, RegressorMixin]:
+    """Given a model (string or type) and task (classification or regreesion),
+     return the estimator corresponding to that model"""
     if task == 'clf':
         estimator = _get_classification_model(model=model, copy_model=copy_model)
     elif task == 'rgr':
