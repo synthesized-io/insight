@@ -341,7 +341,7 @@ def predictive_modelling_score(
                                                             x_labels=x_labels,
                                                             df_synth=df_synth,
                                                             sample_size=sample_size)
-
+    estimator.fit(x_train, y_train)
     score, metric, task = get_modelling_score(is_regression_task=is_regression_task,
                                               x_train=x_train,
                                               y_train=y_train,
