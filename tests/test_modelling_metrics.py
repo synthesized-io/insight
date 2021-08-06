@@ -16,16 +16,16 @@ np.random.seed(42)
 
 
 def test_predictive_modelling():
-    pms = PredictiveModellingScore(model='Linear', y_label='y', x_labels=['x'])
-
     x = np.random.normal(0, 1, 100)
     y = 2 * x + np.random.normal(0, 0.1, 100)
     y2 = 2.2 * x + np.random.normal(0, 0.1, 100)
     df_old = pd.DataFrame({'x': x, 'y': y})
     df_new = pd.DataFrame({'x': x, 'y': y2})
 
-    assert pms(df_old) is not None
-    assert pms(df_old, df_new) is not None
+    pms = PredictiveModellingScore(model='Linear', y_label='y', x_labels=['x'], df_test=df_new)
+    score, synth_score, _, _ = pms(df_old)
+    assert score is not None
+    assert synth_score is not None
 
 
 def test_predictive_modelling_score_clf():

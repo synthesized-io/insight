@@ -360,40 +360,43 @@ class PredictiveModellingScore(DataFrameMetric):
                  model: str = None,
                  y_label: str = None,
                  x_labels: List[str] = None,
-                 sample_size: Optional[int] = None):
+                 sample_size: Optional[int] = None,
+                 df_test: Optional[pd.DataFrame] = None):
         self.model = model or 'Linear'
         self.y_label = y_label
         self.x_labels = x_labels
         self.sample_size = sample_size
+        self.df_test = df_test
 
     def __call__(self,
-                 df: pd.DataFrame,
-                 df_synth: Optional[pd.DataFrame] = None):
+                 df: pd.DataFrame):
         if len(df.columns) < 2:
             raise ValueError
 
+        synth_score = None
         y_label = self.y_label or df.columns[-1]
         if self.x_labels is not None:
             x_labels = self.x_labels
         else:
             x_labels = [col for col in df.columns if col != y_label]
 
+        # Train and evaluate of the train and the test part respectively of the original df
         score, metric, task = predictive_modelling_score(df=df,
                                                          y_label=y_label,
                                                          x_labels=x_labels,
                                                          model=self.model,
-                                                         df_synth=df_synth,
                                                          sample_size=self.sample_size)
 
-        if df_synth is not None:
+        # If synthetic df is provided then get the synth_score by training on the
+        # synthetic data and evaluating on the original data
+        if self.df_test is not None:
             synth_score, _, _ = predictive_modelling_score(df=df,
                                                            y_label=y_label,
                                                            x_labels=x_labels,
                                                            model=self.model,
-                                                           df_synth=df_synth,
+                                                           df_synth=self.df_test,
                                                            sample_size=self.sample_size)
-        else:
-            synth_score = None
+
         return score, synth_score, metric, task
 
 
