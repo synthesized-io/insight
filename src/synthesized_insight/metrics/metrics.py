@@ -11,7 +11,7 @@ from scipy.spatial.distance import jensenshannon
 
 from .base import OneColumnMetric, TwoColumnMetric
 from src.synthesized_insight import ColumnCheck
-from src.synthesized_insight.metrics.utils import zipped_hist, infer_distr_type
+from .utils import zipped_hist, infer_distr_type
 
 
 class Mean(OneColumnMetric):
