@@ -19,7 +19,6 @@ class Mean(OneColumnMetric):
 
     @classmethod
     def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
-        print(check.affine(sr))
         if not check.affine(sr):
             return False
         return True

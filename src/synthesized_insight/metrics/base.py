@@ -1,6 +1,7 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Any
 from abc import ABC, abstractclassmethod, abstractmethod
 
+import numpy as np
 import pandas as pd
 
 from src.synthesized_insight import ColumnCheck
@@ -58,3 +59,54 @@ class TwoColumnMetric(_Metric):
         if not self.check_column_types(self.check, sr_a, sr_b):
             return None
         return self._compute_metric(sr_a, sr_b)
+
+
+class ModellingMetric(_Metric):
+
+    @abstractmethod
+    def __call__(self,
+                 y_true: np.ndarray,
+                 y_pred: Optional[np.ndarray] = None) -> Union[float, None]:
+        pass
+
+
+class ClassificationMetric(ModellingMetric):
+    tags = ["modelling", "classification"]
+    plot = False
+
+    def __init__(self, multiclass: bool = False):
+        self.multiclass = multiclass
+
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> float:
+        raise NotImplementedError
+
+
+class ClassificationPlotMetric(ModellingMetric):
+    tags = ["modelling", "classification", "plot"]
+    plot = True
+
+    def __init__(self, multiclass: bool = False):
+        self.multiclass = multiclass
+
+    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
+                 y_pred_proba: Optional[np.ndarray] = None) -> Any:
+        raise NotImplementedError
+
+
+class RegressionMetric(ModellingMetric):
+    tags = ["modelling", "regression"]
+
+    def __init__(self):
+        # Contains nothing atm but matches other two Modelling metrics.
+        pass
+
+    def __call__(self, y_true: np.ndarray, y_pred: np.ndarray = None) -> float:
+        raise NotImplementedError
+
+
+class DataFrameMetric(_Metric):
+
+    @abstractmethod
+    def __call__(self, df: pd.DataFrame) -> Union[int, float, None]:
+        pass

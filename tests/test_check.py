@@ -47,8 +47,6 @@ def verify_columns_types(df, categorical_cols, continuous_cols, affine_cols, ord
     for col in df.columns:
         if check.ordinal(df[col]):
             pred_ordinal_cols.add(col)
-    print(pred_ordinal_cols)
-    print(ordinal_cols)
     assert pred_ordinal_cols == ordinal_cols
 
 
