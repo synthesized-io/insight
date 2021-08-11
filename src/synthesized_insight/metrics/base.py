@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 from abc import ABC, abstractclassmethod, abstractmethod
 
 import pandas as pd

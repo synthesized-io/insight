@@ -227,10 +227,10 @@ def test_norm(group1, group2, group3):
     assert norm(group1, group3) > Norm()(group1, group2)
 
 
-def test_hellinger(group1, group2, group3):
-    assert hellinger_distance(pd.Series([1, 0]), pd.Series([1, 0])) == 0
-    assert hellinger_distance(pd.Series([1]), pd.Series([0])) == 1
+# def test_hellinger(group1, group2, group3):
+#     assert hellinger_distance(pd.Series([1, 0]), pd.Series([1, 0])) == 0
+#     assert hellinger_distance(pd.Series([1]), pd.Series([0])) == 1
 
-    assert hellinger_distance(group1, group1) == 0
-    assert hellinger_distance(group1, group3) > hellinger_distance(group1, group2)
+#     assert hellinger_distance(group1, group1) == 0
+#     assert hellinger_distance(group1, group3) > hellinger_distance(group1, group2)
 

@@ -62,6 +62,8 @@ class ColumnCheck(Check):
                 The column converted to its inferred type.
         """
 
+        if not isinstance(sr, pd.Series):
+            sr = pd.Series(sr)  # convert to series for standardized computation
         col = sr.copy()
 
         in_dtype = str(col.dtype)
