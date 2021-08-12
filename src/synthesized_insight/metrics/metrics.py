@@ -1,17 +1,23 @@
+"""
+Collection of Metrics that measure the distance, or similarity, between two datasets.
+"""
 import warnings
-from typing import Union
+from typing import Optional, Sequence, Union
 
-import dcor as dcor
 import numpy as np
 import pandas as pd
+import dcor as dcor
+from scipy.stats import ks_2samp, wasserstein_distance, entropy, kruskal, kendalltau, spearmanr
+from scipy.spatial.distance import jensenshannon
 from sklearn import linear_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from scipy.stats import kendalltau, ks_2samp, spearmanr, entropy, kruskal
-from scipy.spatial.distance import jensenshannon
 
 from .base import OneColumnMetric, TwoColumnMetric
 from src.synthesized_insight import ColumnCheck
-from .utils import zipped_hist, infer_distr_type
+from .utils import (infer_distr_type, zipped_hist, MetricStatisticsResult, ConfidenceInterval,
+                    binominal_proportion_interval, bootstrap_interval, binominal_proportion_p_value,
+                    bootstrap_statistic, bootstrap_binned_statistic, bootstrap_pvalue, permutation_test,
+                    affine_mean, affine_stddev)
 
 
 class Mean(OneColumnMetric):
@@ -47,7 +53,535 @@ class StandardDeviation(OneColumnMetric):
         return affine_stddev(pd.Series(values, name=sr.name))
 
 
-class KendallTauCorrelation(TwoColumnMetric):
+class MetricStatistics(TwoColumnMetric):
+    """
+    Base class for computing metrics statistics that compare samples from two distributions.
+    """
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 bootstrap_mode: bool = False):
+        super().__init__(check)
+        self.compute_p_val: bool = compute_p_val
+        self.compute_interval: bool = compute_interval
+        self.confidence_level: bool = confidence_level
+        self.bootstrap_mode: bool = bootstrap_mode
+
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
+        """
+        Calculate the distance or correlation between two distributions.
+
+        The MetricStatistics class will be called again and again for the same set of columns
+        for computing confidence interval, p-val; we don't want to do perform column check
+        corresponding to the metrics on the same set of columns again and again.
+
+
+        Args:
+            p_value: If True, a p value is calculated. By default this uses a permutation test unless the derived class
+            overrides the DistanceMetric.p_value method,
+            interval: If True, a 95% confidence interval is calculated using the bootstrap method.
+
+        Returns:
+            The calculated result.
+
+        Raises:
+            TypeError: interval is True but DistanceMetric.bootstrappable is False.
+        """
+        if not self.bootstrap_mode and not self.check_column_types(self.check, sr_a, sr_b):
+            return None
+
+        return self._compute_metric(sr_a, sr_b)
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        x_dtype = str(check.infer_dtype(sr_a).dtype)
+        y_dtype = str(check.infer_dtype(sr_b).dtype)
+
+        return x_dtype == y_dtype
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        pass
+
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float) -> float:
+        """
+        Return a p-value for this metric using a permutation test. The null hypothesis
+        is that both data samples are from the same distribution.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        return permutation_test(sr_a, sr_b, lambda x, y: self._metrics_call(x, y))
+
+    def _compute_interval(self,
+                          sr_a: pd.Series,
+                          sr_b: pd.Series,
+                          metric_value: float) -> ConfidenceInterval:
+        """
+        Return a frequentist confidence interval for this metric obtained, via bootstrap resampling.
+
+        Args:
+            cl: The confidence level of the interval, i.e the fraction of intervals
+                   that will contain the true distance estimate.
+
+        Returns:
+            The confidence interval.
+        """
+        samples = bootstrap_statistic((sr_a, sr_b), self._metrics_call)
+        return bootstrap_interval(metric_value, samples, self.confidence_level)
+
+    def _metrics_call(self, x, y) -> float:
+        cls = type(self)
+        obj = cls(compute_p_val=False, compute_interval=False, bootstrap_mode=True)
+        return obj(pd.Series(x).reset_index(drop=True), pd.Series(y).reset_index(drop=True)).metric_value
+
+
+class BinnedMetricStatistics(MetricStatistics):
+    """
+    Base class for computing metrics statistics that compare counts from two binned distributions
+    that have identical binning.
+    """
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 bootstrap_mode: bool = False,
+                 bins: Optional[Sequence[Union[float, int]]] = None):
+        """
+        Args:
+            bins: Optional; If given, this must be an iterable of bin edges for x and y,
+                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                that the data represent counts of nominal categories, with no meaningful
+                distance between bins.
+        """
+        super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode)
+        self.bins = bins
+
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float) -> float:
+        """
+        Return a two-sided p-value for this metric using a bootstrapped distribution
+        of the null hypothesis.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        ts_distribution = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
+        return bootstrap_pvalue(metric_value, ts_distribution)
+
+    def _compute_interval(self,
+                          sr_a: pd.Series,
+                          sr_b: pd.Series,
+                          metric_value: float) -> ConfidenceInterval:
+        """
+        Compute the frequentist confidence interval for this metric obtained via bootstrap resampling.
+
+        Returns:
+            The confidence interval.
+        """
+        samples = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
+        return bootstrap_interval(metric_value, samples, self.confidence_level)
+
+
+class BinomialDistance(MetricStatistics):
+    """Binomial distance between two binary variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    and 1 indicates maximal association (i.e one variable is completely determined by the other).
+    """
+    name = "binomial_distance"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        return infer_distr_type(pd.concat((sr_a, sr_b))).is_binary()
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a numerical variable.
+            sr_b (pd.Series): values of numerical variable.
+
+        Returns:
+            The Binomial distance between sr_a and sr_b.
+        """
+        metric_value = sr_a.mean() - sr_b.mean()
+        result = MetricStatisticsResult(metric_value)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr_a, sr_b, metric_value)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, metric_value)
+        return result
+
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float) -> float:
+        """
+        Calculate a p-value for the null hypothesis that the
+        probability of success is p_y.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        p_obs = sr_a.mean()
+        p_null = sr_b.mean()
+        n = len(sr_a)
+        return binominal_proportion_p_value(p_obs, p_null, n)
+
+    def _compute_interval(self,
+                          sr_a: pd.Series,
+                          sr_b: pd.Series,
+                          metric_value: float,
+                          method: str = 'clopper-pearson') -> ConfidenceInterval:
+        """
+        Calculate a confidence interval for this distance metric.
+
+        Args:
+            cl: Optional; The confidence level of the interval, i.e the fraction of intervals
+                that will contain the true distance estimate.
+
+        Returns:
+            The confidence interval.
+        """
+        p = sr_a.mean()
+        n = len(sr_a)
+        interval = binominal_proportion_interval(p, n, self.confidence_level, method)
+        interval.value = interval.value[0] - sr_b.mean(), interval.value[1] - sr_b.mean()
+        return interval
+
+
+class KolmogorovSmirnovDistance(MetricStatistics):
+    """Kolmogorov-Smirnov statistic between two continuous variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "kolmogorov_smirnov_distance"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        if not check.continuous(sr_a) or not check.continuous(sr_b):
+            return False
+        return True
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a continuous variable.
+            sr_b (pd.Series): values of another continuous variable to compare.
+
+        Returns:
+            The Kolmogorov-Smirnov distance between sr_a and sr_b.
+        """
+        column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
+        column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
+        if len(column_old_clean) == 0 or len(column_new_clean) == 0:
+            return MetricStatisticsResult(np.nan, None, None)
+
+        distance, p_value = ks_2samp(column_old_clean, column_new_clean)
+        result = MetricStatisticsResult(metric_value=distance, p_value=p_value)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, distance)
+        return result
+
+
+class KruskalWallis(MetricStatistics):
+    """Kruskal Wallis distance between two numerical variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    and 1 indicates maximal association (i.e one variable is completely determined by the other).
+    """
+    name = "kruskal_wallis"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        if not check.continuous(sr_a) or not check.continuous(sr_b):
+            return False
+        return True
+
+    def _compute_interval(self,
+                          sr_a: pd.Series,
+                          sr_b: pd.Series,
+                          metric_value: float):
+        raise NotImplementedError
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a numerical variable.
+            sr_b (pd.Series): values of numerical variable.
+
+        Returns:
+            The Kruskal Wallis distance between sr_a and sr_b.
+        """
+        distance, p_value = kruskal(sr_a, sr_b)
+        result = MetricStatisticsResult(metric_value=distance, p_value=p_value)
+        return result
+
+
+class EarthMoversDistance(MetricStatistics):
+    """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "earth_movers_distance"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        if not check.categorical(sr_a) or not check.categorical(sr_b):
+            return False
+        return True
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a nominal variable.
+            sr_b (pd.Series): values of another nominal variable to compare.
+
+        Returns:
+            The earth mover's distance between sr_a and sr_b.
+        """
+        old = sr_a.to_numpy().astype(str)
+        new = sr_b.to_numpy().astype(str)
+
+        space = set(old).union(set(new))
+        if len(space) > 1e4:
+            return MetricStatisticsResult(np.nan, None, None)
+
+        old_unique, counts = np.unique(old, return_counts=True)
+        old_counts = dict(zip(old_unique, counts))
+
+        new_unique, counts = np.unique(new, return_counts=True)
+        new_counts = dict(zip(new_unique, counts))
+
+        p = np.array([float(old_counts[x]) if x in old_counts else 0.0 for x in space])
+        q = np.array([float(new_counts[x]) if x in new_counts else 0.0 for x in space])
+
+        p /= np.sum(p)
+        q /= np.sum(q)
+
+        distance = 0.5 * np.sum(np.abs(p.astype(np.float64) - q.astype(np.float64)))
+
+        result = MetricStatisticsResult(metric_value=distance)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr_a, sr_b, distance)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, distance)
+        return result
+
+
+class EarthMoversDistanceBinned(BinnedMetricStatistics):
+    """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+
+    The histograms can represent counts of nominal categories or counts on
+    an ordinal range. If the latter, they must have equal binning.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "earth_movers_distance_binned"
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a nominal variable.
+            sr_b (pd.Series): values of another nominal variable to compare.
+
+        Returns:
+            The earth mover's binned distance between sr_a and sr_b.
+        """
+        if sr_a.sum() == 0 and sr_b.sum() == 0:
+            return MetricStatisticsResult(0., None, None)
+        elif sr_a.sum() == 0 or sr_b.sum() == 0:
+            return MetricStatisticsResult(1., None, None)
+
+        # normalise counts for consistency with scipy.stats.wasserstein
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = np.nan_to_num(sr_a / sr_a.sum())
+            y = np.nan_to_num(sr_b / sr_b.sum())
+
+        if self.bins is None:
+            # if bins not given, histograms are assumed to be counts of nominal categories,
+            # and therefore distances betwen bins are meaningless. Set to all distances to
+            # unity to model this.
+            distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
+        else:
+            # otherwise, use pair-wise euclidean distances between bin centers for scale data
+            bin_centers = self.bins[:-1] + np.diff(self.bins) / 2.
+            distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
+
+        result = MetricStatisticsResult(metric_value=distance)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr_a, sr_b, distance)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, distance)
+        return result
+
+
+class HellingerDistance(BinnedMetricStatistics):
+    """Hellinger distance between samples from two distributions.
+
+    Samples are binned during the computation to approximate the pdfs P(x) and P(y).
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "hellinger_distance"
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        bin_edges = [bin[0] for bin in self.bins] if self.bins else None
+        (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
+        distance = np.linalg.norm(np.sqrt(x) - np.sqrt(y)) / np.sqrt(2)
+
+        result = MetricStatisticsResult(metric_value=distance)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(x, y, distance)
+        if self.compute_interval:
+            result.interval = self._compute_interval(x, y, distance)
+        return result
+
+
+class KullbackLeiblerDivergence(BinnedMetricStatistics):
+    """Kullback–Leibler Divergence or Relative Entropy between two probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "kullback_leibler_divergence"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        x_dtype = str(check.infer_dtype(sr_a).dtype)
+        y_dtype = str(check.infer_dtype(sr_b).dtype)
+
+        return x_dtype == y_dtype
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            The kullback-leibler divergence between sr_a and sr_b.
+        """
+        bin_edges = [bin[0] for bin in self.bins] if self.bins else None
+        (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
+        divergence = entropy(np.array(x), np.array(y))
+
+        result = MetricStatisticsResult(metric_value=divergence)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(x, y, divergence)
+        if self.compute_interval:
+            result.interval = self._compute_interval(x, y, divergence)
+        return result
+
+
+class JensenShannonDivergence(BinnedMetricStatistics):
+    """Jensen-Shannon Divergence between two probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "jensen_shannon_divergence"
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        x_dtype = str(check.infer_dtype(sr_a).dtype)
+        y_dtype = str(check.infer_dtype(sr_b).dtype)
+
+        return x_dtype == y_dtype
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            The jensen-shannon divergence between sr_a and sr_b.
+        """
+        bin_edges = [bin[0] for bin in self.bins] if self.bins else None
+        (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
+        divergence = jensenshannon(x, y)
+
+        result = MetricStatisticsResult(metric_value=divergence)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(x, y, divergence)
+        if self.compute_interval:
+            result.interval = self._compute_interval(x, y, divergence)
+        return result
+
+
+class Norm(BinnedMetricStatistics):
+    """Norm between two probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+
+    Args:
+        ord (Union[str, int], optional):
+                The order of the norm. Possible values include positive numbers, 'fro', 'nuc'.
+                See numpy.linalg.norm for more details. Defaults to 2.
+    """
+    name = "norm"
+
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 bootstrap_mode: bool = False,
+                 bins: Optional[Sequence[Union[float, int]]] = None,
+                 ord: Union[str, int] = 2):
+        super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode, bins)
+        self.ord = ord
+
+    @classmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        x_dtype = str(check.infer_dtype(sr_a).dtype)
+        y_dtype = str(check.infer_dtype(sr_b).dtype)
+
+        return x_dtype == y_dtype
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            The lp-norm between sr_a and sr_b.
+        """
+        bin_edges = [bin[0] for bin in self.bins] if self.bins else None
+        (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
+        norm_val = np.linalg.norm(x - y, ord=self.ord)
+
+        result = MetricStatisticsResult(metric_value=norm_val)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(x, y, norm_val)
+        if self.compute_interval:
+            result.interval = self._compute_interval(x, y, norm_val)
+        return result
+
+
+class KendallTauCorrelation(MetricStatistics):
     """Kendall's Tau correlation coefficient between ordinal variables.
 
     The statistic ranges from -1 to 1, indicating the strength and direction of the relationship
@@ -59,35 +593,38 @@ class KendallTauCorrelation(TwoColumnMetric):
     name = "kendall_tau_correlation"
     symmetric = True
 
-    def __init__(self, check: ColumnCheck = None, max_p_value: float = 1.0, calculate_categorical: bool = False):
-        super().__init__(check)
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 bootstrap_mode: bool = False,
+                 max_p_value: float = 1.0
+                 ):
+        super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode)
         self.max_p_value = max_p_value
-        self.calculate_categorical = calculate_categorical
 
     @classmethod
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         # Given columns should be both categorical or both ordinal
-        if (check.ordinal(sr_a) and not check.ordinal(sr_b))\
-            or (not check.ordinal(sr_a) and check.ordinal(sr_b))\
-            or (check.categorical(sr_a) and not check.categorical(sr_b))\
-                or (not check.categorical(sr_a) and check.categorical(sr_b)):
-            return False
+        if ((check.ordinal(sr_a) and check.ordinal(sr_b))
+           or (check.categorical(sr_a) and check.categorical(sr_b))):
+            return True
+        return False
 
-        return True
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         sr_a = pd.to_numeric(sr_a, errors='coerce')
         sr_b = pd.to_numeric(sr_b, errors='coerce')
 
         corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
+        result = MetricStatisticsResult(metric_value=corr if p_value <= self.max_p_value else None,
+                                        p_value=p_value)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, corr)
+        return result
 
-        if p_value <= self.max_p_value:
-            return corr
-        else:
-            return None
 
-
-class SpearmanRhoCorrelation(TwoColumnMetric):
+class SpearmanRhoCorrelation(MetricStatistics):
     """Spearman's rank correlation coefficient between ordinal variables.
 
     The statistic ranges from -1 to 1, measures the strength and direction of monotonic
@@ -98,8 +635,14 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
     """
     name = "spearman_rho_correlation"
 
-    def __init__(self, check: ColumnCheck = None, max_p_value: float = 1.0):
-        super().__init__(check)
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 bootstrap_mode: bool = False,
+                 max_p_value: float = 1.0):
+        super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode)
         self.max_p_value = max_p_value
 
     @classmethod
@@ -108,7 +651,7 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         x = sr_a.values
         y = sr_b.values
 
@@ -118,14 +661,14 @@ class SpearmanRhoCorrelation(TwoColumnMetric):
             y = pd.to_numeric(pd.to_datetime(y, errors='coerce'), errors='coerce')
 
         corr, p_value = spearmanr(x, y, nan_policy='omit')
+        result = MetricStatisticsResult(metric_value=corr if p_value <= self.max_p_value else None,
+                                        p_value=p_value)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, corr)
+        return result
 
-        if p_value <= self.max_p_value:
-            return corr
-        else:
-            return None
 
-
-class CramersV(TwoColumnMetric):
+class CramersV(MetricStatistics):
     """Cramér's V correlation coefficient between nominal variables.
 
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
@@ -140,7 +683,7 @@ class CramersV(TwoColumnMetric):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
         table = np.asarray(table_orig, dtype=np.float64)
 
@@ -166,11 +709,16 @@ class CramersV(TwoColumnMetric):
         n = np.sum(real)
         v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
 
-        return v
+        result = MetricStatisticsResult(metric_value=v)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr_a, sr_b, v)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, v)
+        return result
 
 
-class R2Mcfadden(TwoColumnMetric):
-    """R2 Mcfadden correlation coefficient between catgorical and numerical variables.
+class R2Mcfadden(MetricStatistics):
+    """R2 Mcfadden correlation coefficient between categorical and numerical variables.
 
     It trains two multinomial logistic regression models on the data, one using the numerical
     series as the feature and the other only using the intercept term as the input.
@@ -189,7 +737,13 @@ class R2Mcfadden(TwoColumnMetric):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float):
+        raise NotImplementedError
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         """Calculate the metric.
 
         Args:
@@ -222,10 +776,13 @@ class R2Mcfadden(TwoColumnMetric):
 
         pseudo_r2 = 1 - ll_feature / ll_intercept
 
-        return pseudo_r2
+        result = MetricStatisticsResult(metric_value=pseudo_r2)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, pseudo_r2)
+        return result
 
 
-class DistanceNNCorrelation(TwoColumnMetric):
+class DistanceNNCorrelation(MetricStatistics):
     """Distance nn correlation coefficient between two numerical variables.
 
     It uses non-linear correlation distance to obtain a correlation coefficient for
@@ -242,7 +799,7 @@ class DistanceNNCorrelation(TwoColumnMetric):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         """Calculate the metric.
 
         Args:
@@ -259,10 +816,17 @@ class DistanceNNCorrelation(TwoColumnMetric):
         elif sr_a.size > sr_b.size:
             sr_b = sr_b.append(pd.Series(sr_b.mean()).repeat(sr_a.size - sr_b.size), ignore_index=True)
 
-        return dcor.distance_correlation(sr_a, sr_b)
+        dcorr = dcor.distance_correlation(sr_a, sr_b)
+
+        result = MetricStatisticsResult(metric_value=dcorr)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr_a, sr_b, dcorr)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, dcorr)
+        return result
 
 
-class DistanceCNCorrelation(TwoColumnMetric):
+class DistanceCNCorrelation(MetricStatistics):
     """Distance cn correlation coefficient between categorical and numerical variables.
 
     It uses non-linear correlation distance to obtain a correlation coefficient for
@@ -279,7 +843,13 @@ class DistanceCNCorrelation(TwoColumnMetric):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float):
+        raise NotImplementedError
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
         """Calculate the metric.
 
         Args:
@@ -290,10 +860,9 @@ class DistanceCNCorrelation(TwoColumnMetric):
             The distance cn correlation coefficient between sr_a and sr_b.
         """
         warnings.filterwarnings(action="ignore", category=UserWarning)
-
-        sr_a = sr_a.astype("category").cat.codes
-        groups = sr_b.groupby(sr_a)
-        arrays = [groups.get_group(category) for category in sr_a.unique()]
+        sr_a_codes = sr_a.astype("category").cat.codes
+        groupsObj = sr_b.groupby(sr_a_codes)
+        arrays = [groupsObj.get_group(cat) for cat in sr_a_codes.unique() if cat in groupsObj.groups.keys()]
 
         total = 0.0
         n = len(arrays)
@@ -310,280 +879,10 @@ class DistanceCNCorrelation(TwoColumnMetric):
                     sr_j = sr_j.append(sr_j.sample(sr_i.size - sr_j.size, replace=True), ignore_index=True)
                 total += dcor.distance_correlation(sr_i, sr_j)
 
-        total /= n * (n - 1) / 2
-
-        if total is None:
-            return 0.0
-
-        return total
-
-
-# class BinomialDistance(TwoColumnMetric):
-#     """Binomial distance between two binary variables.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-#     and 1 indicates maximal association (i.e one variable is completely determined by the other).
-#     """
-#     name = "binomial_distance"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-#         return infer_distr_type(pd.concat((sr_a, sr_b))).is_binary()
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a numerical variable.
-#             sr_b (pd.Series): values of numerical variable.
-
-#         Returns:
-#             The Binomial distance between sr_a and sr_b.
-#         """
-#         return sr_a.mean() - sr_b.mean()
-
-
-# class KolmogorovSmirnovDistance(TwoColumnMetric):
-#     """Kolmogorov-Smirnov statistic between two continuous variables.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-#     """
-#     name = "kolmogorov_smirnov_distance"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         if not check.continuous(sr_a) or not check.continuous(sr_b):
-#             return False
-#         return True
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a continuous variable.
-#             sr_b (pd.Series): values of another continuous variable to compare.
-
-#         Returns:
-#             The Kolmogorov-Smirnov distance between sr_a and sr_b.
-#         """
-#         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
-#         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
-#         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
-#             return np.nan
-
-#         ks_distance, p_value = ks_2samp(column_old_clean, column_new_clean)
-#         return ks_distance
-
-
-# class EarthMoversDistance(TwoColumnMetric):
-#     """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-#     """
-#     name = "earth_movers_distance"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         if not check.categorical(sr_a) or not check.categorical(sr_b):
-#             return False
-#         return True
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a nominal variable.
-#             sr_b (pd.Series): values of another nominal variable to compare.
-
-#         Returns:
-#             The earth mover's distance between sr_a and sr_b.
-#         """
-#         old = sr_a.to_numpy().astype(str)
-#         new = sr_b.to_numpy().astype(str)
-
-#         space = set(old).union(set(new))
-#         if len(space) > 1e4:
-#             return np.nan
-
-#         old_unique, counts = np.unique(old, return_counts=True)
-#         old_counts = dict(zip(old_unique, counts))
-
-#         new_unique, counts = np.unique(new, return_counts=True)
-#         new_counts = dict(zip(new_unique, counts))
-
-#         p = np.array([float(old_counts[x]) if x in old_counts else 0.0 for x in space])
-#         q = np.array([float(new_counts[x]) if x in new_counts else 0.0 for x in space])
-
-#         p /= np.sum(p)
-#         q /= np.sum(q)
-
-#         distance = 0.5 * np.sum(np.abs(p.astype(np.float64) - q.astype(np.float64)))
-#         return distance
-
-
-# class KruskalWallis(TwoColumnMetric):
-#     """Kruskal Wallis distance between two numerical variables.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-#     and 1 indicates maximal association (i.e one variable is completely determined by the other).
-#     """
-#     name = "kruskal_wallis"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-#         if not check.continuous(sr_a) or not check.continuous(sr_b):
-#             return False
-#         return True
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a numerical variable.
-#             sr_b (pd.Series): values of numerical variable.
-
-#         Returns:
-#             The Kruskal Wallis distance between sr_a and sr_b.
-#         """
-#         return kruskal(sr_a, sr_b)[0]
-
-
-# class KullbackLeiblerDivergence(TwoColumnMetric):
-#     """Kullback–Leibler Divergence or Relative Entropy between two probability distributions.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-#     """
-#     name = "kullback_leibler_divergence"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         x_dtype = str(check.infer_dtype(sr_a).dtype)
-#         y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-#         return x_dtype == y_dtype
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a variable.
-#             sr_b (pd.Series): values of another variable to compare.
-
-#         Returns:
-#             The kullback-leibler divergence between sr_a and sr_b.
-#         """
-#         (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
-#         return entropy(np.array(p), np.array(q))
-
-
-# class JensenShannonDivergence(TwoColumnMetric):
-#     """Jensen-Shannon Divergence between two probability distributions.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-#     """
-#     name = "jensen_shannon_divergence"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         x_dtype = str(check.infer_dtype(sr_a).dtype)
-#         y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-#         return x_dtype == y_dtype
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a variable.
-#             sr_b (pd.Series): values of another variable to compare.
-
-#         Returns:
-#             The jensen-shannon divergence between sr_a and sr_b.
-#         """
-#         (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
-#         return jensenshannon(p, q)
-
-
-# class HellingerDistance(TwoColumnMetric):
-#     """Hellinger Distance between two probability distributions.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-#     """
-#     name = "hellinger_distance"
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         x_dtype = str(check.infer_dtype(sr_a).dtype)
-#         y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-#         return x_dtype == y_dtype
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a variable.
-#             sr_b (pd.Series): values of another variable to compare.
-
-#         Returns:
-#             The hellinger distance between sr_a and sr_b.
-#         """
-#         (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
-#         return np.linalg.norm(np.sqrt(p) - np.sqrt(q)) / np.sqrt(2)
-
-
-# class Norm(TwoColumnMetric):
-#     """Norm between two probability distributions.
-
-#     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-#     and a value of 1 indicates they follow completely different distributions.
-
-#     Args:
-#         ord (Union[str, int], optional):
-#                 The order of the norm. Possible values include positive numbers, 'fro', 'nuc'.
-#                 See numpy.linalg.norm for more details. Defaults to 2.
-#     """
-#     name = "norm"
-
-#     def __init__(self, check: ColumnCheck = None, ord: Union[str, int] = 2):
-#         super().__init__(check)
-#         self.ord = ord
-
-#     @classmethod
-#     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-#         x_dtype = str(check.infer_dtype(sr_a).dtype)
-#         y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-#         return x_dtype == y_dtype
-
-#     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-#         """Calculate the metric.
-
-#         Args:
-#             sr_a (pd.Series): values of a variable.
-#             sr_b (pd.Series): values of another variable to compare.
-
-#         Returns:
-#             The lp-norm between sr_a and sr_b.
-#         """
-#         (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
-#         return np.linalg.norm(p - q, ord=self.ord)
-
-
-def affine_mean(sr: pd.Series):
-    """function for calculating means of affine values"""
-    mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
-    return mean + np.array(0, dtype=sr.dtype)
-
-
-def affine_stddev(sr: pd.Series):
-    """function for calculating standard deviations of affine values"""
-    d = sr - affine_mean(sr)
-    u = d / np.array(1, dtype=d.dtype)
-    s = np.sqrt(np.sum(u**2))
-    return s * np.array(1, dtype=d.dtype)
+        if n > 1:
+            total /= n * (n - 1) / 2
+
+        result = MetricStatisticsResult(metric_value=total)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr_a, sr_b, total)
+        return result
