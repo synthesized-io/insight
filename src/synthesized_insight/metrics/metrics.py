@@ -2,7 +2,7 @@
 Collection of Metrics that measure the distance, or similarity, between two datasets.
 """
 import warnings
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Any
 
 import numpy as np
 import pandas as pd
@@ -66,7 +66,7 @@ class MetricStatistics(TwoColumnMetric):
         super().__init__(check)
         self.compute_p_val: bool = compute_p_val
         self.compute_interval: bool = compute_interval
-        self.confidence_level: bool = confidence_level
+        self.confidence_level: float = confidence_level
         self.bootstrap_mode: bool = bootstrap_mode
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
@@ -151,7 +151,7 @@ class BinnedMetricStatistics(MetricStatistics):
                  compute_interval: bool = True,
                  confidence_level: float = 0.95,
                  bootstrap_mode: bool = False,
-                 bins: Optional[Sequence[Union[float, int]]] = None):
+                 bins: Optional[Sequence[Any]] = None):
         """
         Args:
             bins: Optional; If given, this must be an iterable of bin edges for x and y,

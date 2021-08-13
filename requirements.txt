@@ -3,6 +3,5 @@ pandas
 sklearn
 pytest
 dcor
-# dataclasses
 types-dataclasses; python_version < '3.7'
 dataclasses==0.6;python_version=='3.6'
