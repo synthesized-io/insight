@@ -4,6 +4,7 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
+import math
 from scipy.stats import beta, binom_test, norm
 
 from src.synthesized_insight.check import ColumnCheck
@@ -160,6 +161,14 @@ def affine_stddev(sr: pd.Series):
     return s * np.array(1, dtype=d.dtype)
 
 
+def standard_error(sr: pd.Series):
+    n = len(sr)
+    if n == 0:
+        raise ValueError('Series is empty')
+    stdv = affine_stddev(sr)
+    return stdv / math.sqrt(n)
+
+
 def bootstrap_interval(obs: float, bootstrap_samples: pd.Series, cl: float = 0.95):
     """
     Calculate the basic bootstrap confidence interval for a statistic
@@ -208,7 +217,7 @@ def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str =
     return p
 
 
-def bootstrap_statistic(data: Tuple[pd.Series, pd.Series], statistic: Callable[[pd.Series, pd.Series], float],
+def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]], statistic: Callable[[pd.Series, pd.Series], float],
                         n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the samples of a statistic estimate using the bootstrap method.

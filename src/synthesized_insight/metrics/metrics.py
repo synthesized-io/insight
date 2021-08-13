@@ -7,6 +7,8 @@ from typing import Optional, Sequence, Union, Any
 import numpy as np
 import pandas as pd
 import dcor as dcor
+import math
+import scipy.stats as st
 from scipy.stats import ks_2samp, wasserstein_distance, entropy, kruskal, kendalltau, spearmanr
 from scipy.spatial.distance import jensenshannon
 from sklearn import linear_model
@@ -17,11 +19,21 @@ from src.synthesized_insight import ColumnCheck
 from .utils import (infer_distr_type, zipped_hist, MetricStatisticsResult, ConfidenceInterval,
                     binominal_proportion_interval, bootstrap_interval, binominal_proportion_p_value,
                     bootstrap_statistic, bootstrap_binned_statistic, bootstrap_pvalue, permutation_test,
-                    affine_mean, affine_stddev)
+                    affine_mean, affine_stddev, standard_error)
 
 
 class Mean(OneColumnMetric):
     name = "mean"
+
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95):
+        super().__init__(check)
+        self.compute_p_val: bool = compute_p_val
+        self.compute_interval: bool = compute_interval
+        self.confidence_level: float = confidence_level
 
     @classmethod
     def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
@@ -29,16 +41,69 @@ class Mean(OneColumnMetric):
             return False
         return True
 
+    def _compute_p_value(self, sr: pd.Series, metric_value: float):
+        """
+        Return a two-sided p-value for this metric using a bootstrapped distribution
+        of the null hypothesis.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        ts_distribution = bootstrap_statistic((sr,), self._mean_call, n_samples=1000)
+        return bootstrap_pvalue(metric_value, ts_distribution)
+
+    def _compute_interval(self, sr: pd.Series, metric_value: float) -> ConfidenceInterval:
+        """
+        Return a confidence interval for this metric.
+
+        Args:
+            sr: Sample value
+            metric_value: Value of the metric computed on the sample
+
+        Returns:
+            The confidence interval.
+        """
+        st_error = standard_error(sr)
+        z_score = st.norm.ppf(self.confidence_level)
+        return ConfidenceInterval((metric_value - z_score * st_error,
+                                   metric_value + z_score * st_error), self.confidence_level)
+
     def _compute_metric(self, sr: pd.Series):
+        """
+        Compute the metric, p-value and the confidence interval
+
+        Args:
+            sr: Sample values
+
+        Returns:
+            MetricStatisticsResult object contain metric value, p-value and the confidence interval
+        """
+        mean = self._mean_call(sr)
+        result = MetricStatisticsResult(metric_value=mean)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr, mean)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr, mean)
+        return result
+
+    def _mean_call(self, sr) -> float:
         return affine_mean(sr)
 
 
 class StandardDeviation(OneColumnMetric):
     name = "standard_deviation"
 
-    def __init__(self, check: ColumnCheck = None, remove_outliers: float = 0.0):
+    def __init__(self,
+                 check: ColumnCheck = None,
+                 compute_p_val: bool = True,
+                 compute_interval: bool = True,
+                 confidence_level: float = 0.95,
+                 remove_outliers: float = 0.0):
         super().__init__(check)
-        self.remove_outliers = remove_outliers
+        self.compute_p_val: bool = compute_p_val
+        self.compute_interval: bool = compute_interval
+        self.confidence_level: float = confidence_level
+        self.remove_outliers: float = remove_outliers
 
     @classmethod
     def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
@@ -46,7 +111,55 @@ class StandardDeviation(OneColumnMetric):
             return False
         return True
 
+    def _compute_p_value(self, sr: pd.Series, metric_value: float):
+        """
+        Return a two-sided p-value for this metric using a bootstrapped distribution
+        of the null hypothesis.
+
+        Returns:
+            The p-value under the null hypothesis.
+        """
+        ts_distribution = bootstrap_statistic((sr,), self._stdv_call, n_samples=1000)
+        return bootstrap_pvalue(metric_value, ts_distribution)
+
+    def _compute_interval(self, sr: pd.Series, metric_value: float) -> ConfidenceInterval:
+        """
+        Return a frequentist confidence interval for this metric obtained, via bootstrap resampling.
+
+        Args:
+            sr: Sample values
+            metric_value: Value of the metric computed on the sample
+
+        Returns:
+            The confidence interval.
+        """
+        n = len(sr)
+        st_error = standard_error(sr)
+        alpha = 1 - self.confidence_level
+        left_critical_val = st.chi2.ppf(alpha / 2, n - 1)
+        right_critical_val = st.chi2.ppf(1 - (alpha / 2), n - 1)
+        return ConfidenceInterval((st_error * math.sqrt((n - 1) / left_critical_val),
+                                   st_error * math.sqrt((n - 1) / right_critical_val)), self.confidence_level)
+
     def _compute_metric(self, sr: pd.Series):
+        """
+        Compute the metric, p-value and the confidence interval
+
+        Args:
+            sr: Sample values
+
+        Returns:
+            MetricStatisticsResult object containing metric value, p-value and the confidence interval
+        """
+        stdv = self._stdv_call(sr)
+        result = MetricStatisticsResult(metric_value=stdv)
+        if self.compute_p_val:
+            result.p_value = self._compute_p_value(sr, stdv)
+        if self.compute_interval:
+            result.interval = self._compute_interval(sr, stdv)
+        return result
+
+    def _stdv_call(self, sr: pd.Series):
         values = np.sort(sr.values)
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
 
@@ -56,6 +169,14 @@ class StandardDeviation(OneColumnMetric):
 class MetricStatistics(TwoColumnMetric):
     """
     Base class for computing metrics statistics that compare samples from two distributions.
+
+    Args:
+        check: ColumnCheck object
+        compute_p_val: If p-value should be computed while computing the metric
+        compute_interval: If confidence interval should be computed while computing the metric
+        confidence_level: Confidence level for computing confidence interval
+        bootstrap_mode: If the metric computation is in the bootstrap mode,
+                        i,e. in the process of computing confidence interval or p-value
     """
     def __init__(self,
                  check: ColumnCheck = None,
@@ -77,17 +198,8 @@ class MetricStatistics(TwoColumnMetric):
         for computing confidence interval, p-val; we don't want to do perform column check
         corresponding to the metrics on the same set of columns again and again.
 
-
-        Args:
-            p_value: If True, a p value is calculated. By default this uses a permutation test unless the derived class
-            overrides the DistanceMetric.p_value method,
-            interval: If True, a 95% confidence interval is calculated using the bootstrap method.
-
         Returns:
-            The calculated result.
-
-        Raises:
-            TypeError: interval is True but DistanceMetric.bootstrappable is False.
+            MetricStatisticsResult object contain metric value, p-value and the confidence interval
         """
         if not self.bootstrap_mode and not self.check_column_types(self.check, sr_a, sr_b):
             return None
@@ -109,29 +221,15 @@ class MetricStatistics(TwoColumnMetric):
                          sr_a: pd.Series,
                          sr_b: pd.Series,
                          metric_value: float) -> float:
-        """
-        Return a p-value for this metric using a permutation test. The null hypothesis
-        is that both data samples are from the same distribution.
-
-        Returns:
-            The p-value under the null hypothesis.
-        """
+        """Return a p-value for this metric using a permutation test. The null hypothesis
+        is that both data samples are from the same distribution."""
         return permutation_test(sr_a, sr_b, lambda x, y: self._metrics_call(x, y))
 
     def _compute_interval(self,
                           sr_a: pd.Series,
                           sr_b: pd.Series,
                           metric_value: float) -> ConfidenceInterval:
-        """
-        Return a frequentist confidence interval for this metric obtained, via bootstrap resampling.
-
-        Args:
-            cl: The confidence level of the interval, i.e the fraction of intervals
-                   that will contain the true distance estimate.
-
-        Returns:
-            The confidence interval.
-        """
+        """Return a frequentist confidence interval for this metric obtained, via bootstrap resampling"""
         samples = bootstrap_statistic((sr_a, sr_b), self._metrics_call)
         return bootstrap_interval(metric_value, samples, self.confidence_level)
 
@@ -145,6 +243,12 @@ class BinnedMetricStatistics(MetricStatistics):
     """
     Base class for computing metrics statistics that compare counts from two binned distributions
     that have identical binning.
+
+    Args:
+        bins: Optional; If given, this must be an iterable of bin edges for x and y,
+                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                that the data represent counts of nominal categories, with no meaningful
+                distance between bins.
     """
     def __init__(self,
                  check: ColumnCheck = None,
@@ -153,13 +257,6 @@ class BinnedMetricStatistics(MetricStatistics):
                  confidence_level: float = 0.95,
                  bootstrap_mode: bool = False,
                  bins: Optional[Sequence[Any]] = None):
-        """
-        Args:
-            bins: Optional; If given, this must be an iterable of bin edges for x and y,
-                i.e the output of np.histogram_bin_edges. If None, then it is assumed
-                that the data represent counts of nominal categories, with no meaningful
-                distance between bins.
-        """
         super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode)
         self.bins = bins
 
@@ -167,13 +264,8 @@ class BinnedMetricStatistics(MetricStatistics):
                          sr_a: pd.Series,
                          sr_b: pd.Series,
                          metric_value: float) -> float:
-        """
-        Return a two-sided p-value for this metric using a bootstrapped distribution
-        of the null hypothesis.
-
-        Returns:
-            The p-value under the null hypothesis.
-        """
+        """Return a two-sided p-value for this metric using a bootstrapped distribution
+        of the null hypothesis."""
         ts_distribution = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
         return bootstrap_pvalue(metric_value, ts_distribution)
 
@@ -181,20 +273,15 @@ class BinnedMetricStatistics(MetricStatistics):
                           sr_a: pd.Series,
                           sr_b: pd.Series,
                           metric_value: float) -> ConfidenceInterval:
-        """
-        Compute the frequentist confidence interval for this metric obtained via bootstrap resampling.
-
-        Returns:
-            The confidence interval.
-        """
+        """Compute the frequentist confidence interval for this metric obtained via bootstrap resampling"""
         samples = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
         return bootstrap_interval(metric_value, samples, self.confidence_level)
 
 
 class BinomialDistance(MetricStatistics):
-    """Binomial distance between two binary variables.
+    """Binomial distance statistics between two binary variables.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The metric value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "binomial_distance"
@@ -211,7 +298,8 @@ class BinomialDistance(MetricStatistics):
             sr_b (pd.Series): values of numerical variable.
 
         Returns:
-            The Binomial distance between sr_a and sr_b.
+            MetricStatisticsResult object containing the binomial distance between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         metric_value = sr_a.mean() - sr_b.mean()
         result = MetricStatisticsResult(metric_value)
@@ -225,13 +313,7 @@ class BinomialDistance(MetricStatistics):
                          sr_a: pd.Series,
                          sr_b: pd.Series,
                          metric_value: float) -> float:
-        """
-        Calculate a p-value for the null hypothesis that the
-        probability of success is p_y.
-
-        Returns:
-            The p-value under the null hypothesis.
-        """
+        """Calculate a p-value for the null hypothesis that the probability of success is p_y"""
         p_obs = sr_a.mean()
         p_null = sr_b.mean()
         n = len(sr_a)
@@ -246,8 +328,10 @@ class BinomialDistance(MetricStatistics):
         Calculate a confidence interval for this distance metric.
 
         Args:
-            cl: Optional; The confidence level of the interval, i.e the fraction of intervals
-                that will contain the true distance estimate.
+            sr_a: value of a binary variable
+            sr_b: value of a binary variable
+            metric_value: Metric value used to compute confidence interval
+            method: Optional; default is 'clopper-pearson'
 
         Returns:
             The confidence interval.
@@ -262,7 +346,7 @@ class BinomialDistance(MetricStatistics):
 class KolmogorovSmirnovDistance(MetricStatistics):
     """Kolmogorov-Smirnov statistic between two continuous variables.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "kolmogorov_smirnov_distance"
@@ -281,7 +365,8 @@ class KolmogorovSmirnovDistance(MetricStatistics):
             sr_b (pd.Series): values of another continuous variable to compare.
 
         Returns:
-            The Kolmogorov-Smirnov distance between sr_a and sr_b.
+            MetricStatisticsResult object containing the Kolmogorov-Smirnov distance between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
@@ -296,9 +381,9 @@ class KolmogorovSmirnovDistance(MetricStatistics):
 
 
 class KruskalWallis(MetricStatistics):
-    """Kruskal Wallis distance between two numerical variables.
+    """Kruskal Wallis distance statistics between two numerical variables.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The metric value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "kruskal_wallis"
@@ -323,7 +408,8 @@ class KruskalWallis(MetricStatistics):
             sr_b (pd.Series): values of numerical variable.
 
         Returns:
-            The Kruskal Wallis distance between sr_a and sr_b.
+            MetricStatisticsResult object containing the Kruskal-Wallis distance between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         distance, p_value = kruskal(sr_a, sr_b)
         result = MetricStatisticsResult(metric_value=distance, p_value=p_value)
@@ -331,9 +417,9 @@ class KruskalWallis(MetricStatistics):
 
 
 class EarthMoversDistance(MetricStatistics):
-    """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+    """Earth mover's distance (aka 1-Wasserstein distance) statistics between two nominal variables.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "earth_movers_distance"
@@ -352,7 +438,8 @@ class EarthMoversDistance(MetricStatistics):
             sr_b (pd.Series): values of another nominal variable to compare.
 
         Returns:
-            The earth mover's distance between sr_a and sr_b.
+            MetricStatisticsResult object containing the earth mover's distance between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         old = sr_a.to_numpy().astype(str)
         new = sr_b.to_numpy().astype(str)
@@ -384,12 +471,12 @@ class EarthMoversDistance(MetricStatistics):
 
 
 class EarthMoversDistanceBinned(BinnedMetricStatistics):
-    """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+    """Earth mover's distance (aka 1-Wasserstein distance) statistics between two nominal variables.
 
     The histograms can represent counts of nominal categories or counts on
     an ordinal range. If the latter, they must have equal binning.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "earth_movers_distance_binned"
@@ -402,7 +489,8 @@ class EarthMoversDistanceBinned(BinnedMetricStatistics):
             sr_b (pd.Series): values of another nominal variable to compare.
 
         Returns:
-            The earth mover's binned distance between sr_a and sr_b.
+            MetricStatisticsResult object containing the earth mover's binned distance between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         if sr_a.sum() == 0 and sr_b.sum() == 0:
             return MetricStatisticsResult(0., None, None)
@@ -433,16 +521,26 @@ class EarthMoversDistanceBinned(BinnedMetricStatistics):
 
 
 class HellingerDistance(BinnedMetricStatistics):
-    """Hellinger distance between samples from two distributions.
+    """Hellinger distance statistics between samples from two distributions.
 
     Samples are binned during the computation to approximate the pdfs P(x) and P(y).
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "hellinger_distance"
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a nominal variable.
+            sr_b (pd.Series): values of another nominal variable to compare.
+
+        Returns:
+            MetricStatisticsResult object containing the hellinger distance between sr_a and sr_b,
+            p-value and the confidence interval.
+        """
         bin_edges = [bin[0] for bin in self.bins] if self.bins else None
         (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
         distance = np.linalg.norm(np.sqrt(x) - np.sqrt(y)) / np.sqrt(2)
@@ -456,9 +554,9 @@ class HellingerDistance(BinnedMetricStatistics):
 
 
 class KullbackLeiblerDivergence(BinnedMetricStatistics):
-    """Kullback–Leibler Divergence or Relative Entropy between two probability distributions.
+    """Kullback–Leibler Divergence or Relative Entropy statistics between two probability distributions.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "kullback_leibler_divergence"
@@ -478,7 +576,8 @@ class KullbackLeiblerDivergence(BinnedMetricStatistics):
             sr_b (pd.Series): values of another variable to compare.
 
         Returns:
-            The kullback-leibler divergence between sr_a and sr_b.
+            MetricStatisticsResult object containing the kullback-leibler divergence between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         bin_edges = [bin[0] for bin in self.bins] if self.bins else None
         (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
@@ -493,9 +592,9 @@ class KullbackLeiblerDivergence(BinnedMetricStatistics):
 
 
 class JensenShannonDivergence(BinnedMetricStatistics):
-    """Jensen-Shannon Divergence between two probability distributions.
+    """Jensen-Shannon Divergence statistics between two probability distributions.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
     name = "jensen_shannon_divergence"
@@ -515,7 +614,8 @@ class JensenShannonDivergence(BinnedMetricStatistics):
             sr_b (pd.Series): values of another variable to compare.
 
         Returns:
-            The jensen-shannon divergence between sr_a and sr_b.
+            MetricStatisticsResult object containing the jensen-shannon divergence between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         bin_edges = [bin[0] for bin in self.bins] if self.bins else None
         (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
@@ -530,9 +630,9 @@ class JensenShannonDivergence(BinnedMetricStatistics):
 
 
 class Norm(BinnedMetricStatistics):
-    """Norm between two probability distributions.
+    """Norm statistics between two probability distributions.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    The metric value ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
 
     Args:
@@ -568,7 +668,8 @@ class Norm(BinnedMetricStatistics):
             sr_b (pd.Series): values of another variable to compare.
 
         Returns:
-            The lp-norm between sr_a and sr_b.
+            MetricStatisticsResult object containing the lp-norm between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         bin_edges = [bin[0] for bin in self.bins] if self.bins else None
         (x, y), _ = zipped_hist((sr_a, sr_b), bin_edges=bin_edges, ret_bins=True)
@@ -583,9 +684,9 @@ class Norm(BinnedMetricStatistics):
 
 
 class KendallTauCorrelation(MetricStatistics):
-    """Kendall's Tau correlation coefficient between ordinal variables.
+    """Kendall's Tau correlation coefficient statistics between ordinal variables.
 
-    The statistic ranges from -1 to 1, indicating the strength and direction of the relationship
+    The cofficient value ranges from -1 to 1, indicating the strength and direction of the relationship
     between the two variables.
 
     Args:
@@ -614,6 +715,16 @@ class KendallTauCorrelation(MetricStatistics):
         return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            MetricStatisticsResult object containing the coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
+        """
         sr_a = pd.to_numeric(sr_a, errors='coerce')
         sr_b = pd.to_numeric(sr_b, errors='coerce')
 
@@ -626,9 +737,9 @@ class KendallTauCorrelation(MetricStatistics):
 
 
 class SpearmanRhoCorrelation(MetricStatistics):
-    """Spearman's rank correlation coefficient between ordinal variables.
+    """Spearman's rank correlation coefficient statistics between ordinal variables.
 
-    The statistic ranges from -1 to 1, measures the strength and direction of monotonic
+    The cofficient value ranges from -1 to 1, measures the strength and direction of monotonic
     relationship between two ranked (ordinal) variables.
 
     Args:
@@ -653,6 +764,16 @@ class SpearmanRhoCorrelation(MetricStatistics):
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            MetricStatisticsResult object containing the spearman coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
+        """
         x = sr_a.values
         y = sr_b.values
 
@@ -670,9 +791,9 @@ class SpearmanRhoCorrelation(MetricStatistics):
 
 
 class CramersV(MetricStatistics):
-    """Cramér's V correlation coefficient between nominal variables.
+    """Cramér's V correlation coefficient statistics between nominal variables.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The metric value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "cramers_v"
@@ -685,6 +806,16 @@ class CramersV(MetricStatistics):
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+
+        Returns:
+            MetricStatisticsResult object containing the CramersV coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
+        """
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
         table = np.asarray(table_orig, dtype=np.float64)
 
@@ -719,7 +850,7 @@ class CramersV(MetricStatistics):
 
 
 class R2Mcfadden(MetricStatistics):
-    """R2 Mcfadden correlation coefficient between categorical and numerical variables.
+    """R2 Mcfadden correlation coefficient statistics between categorical and numerical variables.
 
     It trains two multinomial logistic regression models on the data, one using the numerical
     series as the feature and the other only using the intercept term as the input.
@@ -727,7 +858,7 @@ class R2Mcfadden(MetricStatistics):
     and the model likelihoods based on them, which are used to compute the pseudo-R2 McFadden score,
     which is used as a correlation coefficient.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The coefficient value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "r2_mcfadden"
@@ -752,7 +883,8 @@ class R2Mcfadden(MetricStatistics):
             sr_b (pd.Series): values of numerical variable.
 
         Returns:
-            The R2 Mcfadden correlation coefficient between sr_a and sr_b.
+            MetricStatisticsResult object containing the R2 Mcfadden correlation coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         x = sr_b.to_numpy().reshape(-1, 1)
         x = StandardScaler().fit_transform(x)
@@ -784,12 +916,12 @@ class R2Mcfadden(MetricStatistics):
 
 
 class DistanceNNCorrelation(MetricStatistics):
-    """Distance nn correlation coefficient between two numerical variables.
+    """Distance nn correlation coefficient statistics between two numerical variables.
 
     It uses non-linear correlation distance to obtain a correlation coefficient for
     numerical-numerical column pairs.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The coefficient ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "distance_nn_correlation"
@@ -808,7 +940,8 @@ class DistanceNNCorrelation(MetricStatistics):
             sr_b (pd.Series): values of numerical variable.
 
         Returns:
-            The distance nn correlation coefficient between sr_a and sr_b.
+            MetricStatisticsResult object containing the distance nn correlation coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         warnings.filterwarnings(action="ignore", category=UserWarning)
 
@@ -828,12 +961,12 @@ class DistanceNNCorrelation(MetricStatistics):
 
 
 class DistanceCNCorrelation(MetricStatistics):
-    """Distance cn correlation coefficient between categorical and numerical variables.
+    """Distance cn correlation coefficient statistics between categorical and numerical variables.
 
     It uses non-linear correlation distance to obtain a correlation coefficient for
     categorical-numerical column pairs.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
+    The coefficient value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "distance_cn_correlation"
@@ -858,7 +991,8 @@ class DistanceCNCorrelation(MetricStatistics):
             sr_b (pd.Series): values of numerical variable.
 
         Returns:
-            The distance cn correlation coefficient between sr_a and sr_b.
+            MetricStatisticsResult object containing the distance cn correlation coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
         """
         warnings.filterwarnings(action="ignore", category=UserWarning)
         sr_a_codes = sr_a.astype("category").cat.codes

@@ -105,11 +105,12 @@ def test_binomial_distance_metric():
 
 def test_mean():
     sr_a = pd.Series([1, 2, 3, 4, 5], name='a')
-    val_a = mean(sr=sr_a)
+    val_a = mean(sr=sr_a).metric_value
     assert val_a == 3
 
     sr_b = pd.Series(np.datetime64('2020-01-01') + np.arange(0, 3, step=1).astype('m8[D]'), name='b')
-    val_b = mean(sr=sr_b)
+    mean_cls = Mean(compute_p_val=False, compute_interval=False)
+    val_b = mean_cls(sr=sr_b).metric_value
     assert val_b == np.datetime64('2020-01-02')
 
     sr_c = pd.Series(['a', 'b', 'c', 'd'], name='c')
@@ -119,11 +120,12 @@ def test_mean():
 
 def test_standard_deviation():
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
-    val_a = std_dev(sr=sr_a)
+    val_a = std_dev(sr=sr_a).metric_value
     assert val_a is not None
 
     sr_b = pd.Series(np.datetime64('2020-01-01') + np.arange(0, 20, step=1).astype('m8[D]'), name='b')
-    val_b = std_dev(sr=sr_b)
+    stdv = StandardDeviation(compute_p_val=False, compute_interval=False)
+    val_b = stdv(sr=sr_b).metric_value
     assert val_b is not None
 
     sr_c = pd.Series(['a', 'b', 'c', 'd'], name='c')
@@ -298,4 +300,3 @@ def test_binomial():
     assert BinomialDistance()(pd.Series([1, 1]), pd.Series([0, 0])).p_value == 0
     assert BinomialDistance()(pd.Series([1, 0]), pd.Series([1, 0])).p_value == 1
     assert BinomialDistance()(pd.Series([1, 0, 1, 1]), pd.Series([1, 0, 1, 0])).p_value == 0.625
-
