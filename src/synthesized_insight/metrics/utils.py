@@ -217,7 +217,8 @@ def bootstrap_pvalue(t_obs: float, t_distribution: pd.Series, alternative: str =
     return p
 
 
-def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]], statistic: Callable[[pd.Series, pd.Series], float],
+def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]],
+                        statistic: Union[Callable[[pd.Series, pd.Series], float], Callable[[pd.Series], float]],
                         n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
     """
     Compute the samples of a statistic estimate using the bootstrap method.
