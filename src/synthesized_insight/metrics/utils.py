@@ -366,4 +366,3 @@ def permutation_test(x: pd.Series, y: pd.Series, t: Callable[[pd.Series, pd.Seri
         p = np.sum(t_null < t_obs) / n_perm
 
     return p
-
