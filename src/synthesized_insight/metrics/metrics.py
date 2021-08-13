@@ -102,6 +102,7 @@ class MetricStatistics(TwoColumnMetric):
         return x_dtype == y_dtype
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
+        """The child class will implement this method"""
         pass
 
     def _compute_p_value(self,
@@ -861,8 +862,8 @@ class DistanceCNCorrelation(MetricStatistics):
         """
         warnings.filterwarnings(action="ignore", category=UserWarning)
         sr_a_codes = sr_a.astype("category").cat.codes
-        groupsObj = sr_b.groupby(sr_a_codes)
-        arrays = [groupsObj.get_group(cat) for cat in sr_a_codes.unique() if cat in groupsObj.groups.keys()]
+        groups_obj = sr_b.groupby(sr_a_codes)
+        arrays = [groups_obj.get_group(cat) for cat in sr_a_codes.unique() if cat in groups_obj.groups.keys()]
 
         total = 0.0
         n = len(arrays)
