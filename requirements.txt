@@ -3,3 +3,4 @@ pandas
 sklearn
 pytest
 dcor
+dataclasses==0.6;python_version=='3.6'
