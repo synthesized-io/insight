@@ -1,13 +1,11 @@
-import pandas as pd
 
+import pandas as pd
 import pytest
-import unittest
-from sklearn.svm import LinearSVC
-from sklearn.ensemble import (GradientBoostingRegressor, RandomForestClassifier)
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 
 from src.synthesized_insight.modelling import ModellingPreprocessor
-from src.synthesized_insight.modelling.utility import (sample_split_data,
-                                                       check_model_type)
+from src.synthesized_insight.modelling.utility import (check_model_type,
+                                                       sample_split_data)
 
 
 @pytest.fixture(scope='module')

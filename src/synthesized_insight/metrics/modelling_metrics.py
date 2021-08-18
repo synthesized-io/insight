@@ -3,22 +3,22 @@ from typing import Any, Dict, List, Optional, Type, Union, cast
 
 import numpy as np
 import pandas as pd
-
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
                              mean_absolute_error, mean_squared_error,
-                             precision_recall_curve, precision_score,
-                             r2_score, recall_score, roc_auc_score, roc_curve)
+                             precision_recall_curve, precision_score, r2_score,
+                             recall_score, roc_auc_score, roc_curve)
 from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.utils.validation import check_is_fitted
 
 from src.synthesized_insight import ColumnCheck
-from .base import (ClassificationMetric, ClassificationPlotMetric,
-                   RegressionMetric, DataFrameMetric)
 from src.synthesized_insight.modelling import (ModellingPreprocessor,
                                                check_model_type,
                                                sample_split_data)
+
+from .base import (ClassificationMetric, ClassificationPlotMetric,
+                   DataFrameMetric, RegressionMetric)
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import RidgeClassifier
 
-from src.synthesized_insight.metrics import (CramersV, EarthMoversDistance, KendallTauCorrelation,
-                                             KolmogorovSmirnovDistance, Mean, SpearmanRhoCorrelation, StandardDeviation)
+from src.synthesized_insight.metrics import (CramersV, EarthMoversDistance,
+                                             KendallTauCorrelation,
+                                             KolmogorovSmirnovDistance, Mean,
+                                             SpearmanRhoCorrelation,
+                                             StandardDeviation)
 
 mean = Mean()
 std_dev = StandardDeviation()
