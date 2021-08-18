@@ -1,4 +1,6 @@
+flake8
+mypy
 numpy
 pandas
-sklearn
 pytest
+sklearn

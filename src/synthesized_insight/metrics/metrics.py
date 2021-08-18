@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, ks_2samp, spearmanr
 
-from .base import OneColumnMetric, TwoColumnMetric
 from src.synthesized_insight import ColumnCheck
+
+from .base import OneColumnMetric, TwoColumnMetric
 
 
 class Mean(OneColumnMetric):
