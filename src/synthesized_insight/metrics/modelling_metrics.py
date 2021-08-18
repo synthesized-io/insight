@@ -16,8 +16,8 @@ from sklearn.utils.validation import check_is_fitted
 from .base import (ClassificationMetric, ClassificationPlotMetric,
                    RegressionMetric, DataFrameMetric)
 from ..modelling import (ModellingPreprocessor,
-                                               check_model_type,
-                                               sample_split_data)
+                         check_model_type,
+                         sample_split_data)
 from ..check import ColumnCheck
 
 logger = logging.getLogger(__name__)
