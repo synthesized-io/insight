@@ -7,7 +7,7 @@ import pandas as pd
 import math
 from scipy.stats import beta, binom_test, norm
 
-from src.synthesized_insight.check import ColumnCheck
+from ..check import ColumnCheck
 
 
 class DistrType(Enum):

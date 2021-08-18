@@ -15,11 +15,11 @@ from sklearn import linear_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
 from .base import OneColumnMetric, TwoColumnMetric
-from src.synthesized_insight import ColumnCheck
 from .utils import (infer_distr_type, zipped_hist, MetricStatisticsResult, ConfidenceInterval,
                     binominal_proportion_interval, bootstrap_interval, binominal_proportion_p_value,
                     bootstrap_statistic, bootstrap_binned_statistic, bootstrap_pvalue, permutation_test,
                     affine_mean, affine_stddev, standard_error)
+from ..check import ColumnCheck
 
 
 class Mean(OneColumnMetric):

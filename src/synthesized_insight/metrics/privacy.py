@@ -5,11 +5,11 @@ import pandas as pd
 from scipy.stats import norm
 from sklearn.base import BaseEstimator
 
-from src.synthesized_insight.metrics.base import TwoDataFrameMetric
-from src.synthesized_insight.metrics.privacy_cap_scorer import DistanceCAPScorer, GeneralizedCAPScorer
-from src.synthesized_insight.modelling import check_model_type
-from src.synthesized_insight.metrics.modelling_metrics import split_and_preprocess
-from src.synthesized_insight.check import ColumnCheck
+from .base import TwoDataFrameMetric
+from .privacy_cap_scorer import DistanceCAPScorer, GeneralizedCAPScorer
+from .modelling_metrics import split_and_preprocess
+from ..modelling import check_model_type
+from ..check import ColumnCheck
 
 
 class AttributeInferenceAttackML(TwoDataFrameMetric):

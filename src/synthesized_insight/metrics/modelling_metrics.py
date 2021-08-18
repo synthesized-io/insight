@@ -13,12 +13,12 @@ from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
 from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.utils.validation import check_is_fitted
 
-from src.synthesized_insight import ColumnCheck
 from .base import (ClassificationMetric, ClassificationPlotMetric,
                    RegressionMetric, DataFrameMetric)
-from src.synthesized_insight.modelling import (ModellingPreprocessor,
+from ..modelling import (ModellingPreprocessor,
                                                check_model_type,
                                                sample_split_data)
+from ..check import ColumnCheck
 
 logger = logging.getLogger(__name__)
 
