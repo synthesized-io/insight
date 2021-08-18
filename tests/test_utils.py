@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from src.synthesized_insight.metrics.utils import (bootstrap_statistic, permutation_test)
+from src.synthesized_insight.metrics.utils import (bootstrap_statistic,
+                                                   permutation_test)
 
 
 def test_bootstrap():
@@ -15,4 +16,3 @@ def test_permutation():
     def distance(h_x, h_y):
         return abs(h_x.mean() - h_y.mean())
     assert permutation_test(pd.Series([1]), pd.Series([0]), distance).min() == 1
-
