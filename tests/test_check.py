@@ -1,8 +1,8 @@
-import pandas as pd
-import numpy as np
-
-import pytest
 import copy
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from src.synthesized_insight.check import ColumnCheck
 
@@ -70,31 +70,31 @@ def test_same_domain_columns(df):
     check = ColumnCheck()
 
     string_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['string_col'])))
-    assert check.same_domain(df['string_col'], string_col_copy) == True
+    assert check.same_domain(df['string_col'], string_col_copy) is True
 
     string_col_copy = string_col_copy.append(pd.Series([None]))
-    assert check.same_domain(df['string_col'], string_col_copy) == True
+    assert check.same_domain(df['string_col'], string_col_copy) is True
 
     string_col_copy = string_col_copy.append(pd.Series(['P']))
-    assert check.same_domain(df['string_col'], string_col_copy) == False
+    assert check.same_domain(df['string_col'], string_col_copy) is False
 
     date_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['date_col'])))
-    assert check.same_domain(df['date_col'], date_col_copy) == False
+    assert check.same_domain(df['date_col'], date_col_copy) is False
 
-    assert check.same_domain(df['date_col'], df['string_col']) == False
+    assert check.same_domain(df['date_col'], df['string_col']) is False
 
 
 def test_check_ordinal():
     check = ColumnCheck()
 
     sr = pd.Series([1, 2, 3, 4, 5])
-    assert check.ordinal(sr) == True
+    assert check.ordinal(sr) is True
 
     sr = pd.Series([3 for _ in range(100)] + [4 for _ in range(100)])
-    assert check.ordinal(sr) == True
+    assert check.ordinal(sr) is True
 
     sr = pd.Series([3 for _ in range(100)])
-    assert check.ordinal(sr) == True
+    assert check.ordinal(sr) is True
 
     sr = pd.Series(pd.Categorical(np.random.choice(["t2", "t1", "t0"], size=100), categories=["t0", "t1", "t2"], ordered=True))
-    assert check.ordinal(sr) == True
+    assert check.ordinal(sr) is True

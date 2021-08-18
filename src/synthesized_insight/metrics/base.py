@@ -1,5 +1,5 @@
-from typing import Optional, Sequence, Union, Any
 from abc import ABC, abstractclassmethod, abstractmethod
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd

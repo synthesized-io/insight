@@ -1,5 +1,8 @@
+flake8
+mypy
 numpy
 pandas
+pytest
 sklearn
 pytest
 dcor

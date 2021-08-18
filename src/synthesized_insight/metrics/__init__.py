@@ -1,9 +1,11 @@
-from .metrics import (MetricStatistics, EarthMoversDistance, HellingerDistance, JensenShannonDivergence,
-                      KolmogorovSmirnovDistance, Norm, KruskalWallis, EarthMoversDistanceBinned,
-                      KullbackLeiblerDivergence, BinomialDistance, CramersV, KendallTauCorrelation,
-                      SpearmanRhoCorrelation, R2Mcfadden, DistanceNNCorrelation, DistanceCNCorrelation,
-                      Mean, StandardDeviation)
 from .base import TwoColumnMetric, TwoDataFrameMetric
+from .metrics import (BinomialDistance, CramersV, DistanceCNCorrelation,
+                      DistanceNNCorrelation, EarthMoversDistance,
+                      EarthMoversDistanceBinned, HellingerDistance,
+                      JensenShannonDivergence, KendallTauCorrelation,
+                      KolmogorovSmirnovDistance, KruskalWallis,
+                      KullbackLeiblerDivergence, Mean, MetricStatistics, Norm,
+                      R2Mcfadden, SpearmanRhoCorrelation, StandardDeviation)
 
 __all__ = ['TwoColumnMetric', 'TwoDataFrameMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelation',
            'KolmogorovSmirnovDistance', 'Mean', 'SpearmanRhoCorrelation', 'StandardDeviation',

@@ -1,7 +1,7 @@
-import pandas as pd
-import numpy as np
-
 from abc import ABC, abstractmethod
+
+import numpy as np
+import pandas as pd
 
 
 class Check(ABC):

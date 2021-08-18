@@ -1,25 +1,28 @@
 """
 Collection of Metrics that measure the distance, or similarity, between two datasets.
 """
+import math
 import warnings
-from typing import Optional, Sequence, Union, Any
+from typing import Any, Optional, Sequence, Union
 
+import dcor as dcor
 import numpy as np
 import pandas as pd
-import dcor as dcor
-import math
 import scipy.stats as st
-from scipy.stats import ks_2samp, wasserstein_distance, entropy, kruskal, kendalltau, spearmanr
 from scipy.spatial.distance import jensenshannon
+from scipy.stats import (entropy, kendalltau, kruskal, ks_2samp, spearmanr,
+                         wasserstein_distance)
 from sklearn import linear_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from .base import OneColumnMetric, TwoColumnMetric
-from .utils import (infer_distr_type, zipped_hist, MetricStatisticsResult, ConfidenceInterval,
-                    binominal_proportion_interval, bootstrap_interval, binominal_proportion_p_value,
-                    bootstrap_statistic, bootstrap_binned_statistic, bootstrap_pvalue, permutation_test,
-                    affine_mean, affine_stddev, standard_error)
 from ..check import ColumnCheck
+from .base import OneColumnMetric, TwoColumnMetric
+from .utils import (ConfidenceInterval, MetricStatisticsResult, affine_mean,
+                    affine_stddev, binominal_proportion_interval,
+                    binominal_proportion_p_value, bootstrap_binned_statistic,
+                    bootstrap_interval, bootstrap_pvalue, bootstrap_statistic,
+                    infer_distr_type, permutation_test, standard_error,
+                    zipped_hist)
 
 
 class Mean(OneColumnMetric):

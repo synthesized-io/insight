@@ -1,16 +1,12 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import RidgeClassifier, Ridge, LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge, RidgeClassifier
 
-from src.synthesized_insight.metrics.modelling_metrics import (Accuracy, ConfusionMatrix, F1Score,
-                                                               MeanAbsoluteError, MeanSquaredError, PRCurve,
-                                                               Precision, R2Score, Recall, ROCCurve,
-                                                               PredictiveModellingScore,
-                                                               classifier_scores,
-                                                               predictive_modelling_score,
-                                                               classifier_scores_from_df,
-                                                               regressor_scores_from_df)
-
+from src.synthesized_insight.metrics.modelling_metrics import (
+    Accuracy, ConfusionMatrix, F1Score, MeanAbsoluteError, MeanSquaredError,
+    PRCurve, Precision, PredictiveModellingScore, R2Score, Recall, ROCCurve,
+    classifier_scores, classifier_scores_from_df, predictive_modelling_score,
+    regressor_scores_from_df)
 
 np.random.seed(42)
 
@@ -93,15 +89,15 @@ def test_classifier_scores_multiclass_classnotpresent_ypred():
     clf = RidgeClassifier()
     clf.fit(x_train, y_train)
     y_pred = clf.predict(x_test)
-    assert (y_pred==np.array([1,2,2])).all() == True
-    assert (np.array(y_test)==np.array([1,2,3])).all() == True
+    assert (y_pred == np.array([1, 2, 2])).all()
+    assert (np.array(y_test) == np.array([1, 2, 3])).all()
 
     metrics_dict = classifier_scores(x_train=np.array(x_train),
                                      y_train=np.array(y_train),
                                      x_test=np.array(x_test),
                                      y_test=np.array(y_test), clf=clf)
 
-    assert np.isclose(metrics_dict['roc_auc'],0.75,rtol=0.05) == True
+    assert np.isclose(metrics_dict['roc_auc'], 0.75, rtol=0.05)
 
 
 # y_true and y_pred both don't have class 4
@@ -128,15 +124,15 @@ def test_classifier_scores_multiclass_classnotpresent_both():
     clf = RidgeClassifier()
     clf.fit(x_train, y_train)
     y_pred = clf.predict(x_test)
-    assert (y_pred==np.array([1,2,3])).all() == True
-    assert (np.array(y_test)==np.array([2,3,1])).all() == True
+    assert (y_pred == np.array([1, 2, 3])).all()
+    assert (np.array(y_test) == np.array([2, 3, 1])).all()
 
     metrics_dict = classifier_scores(x_train=np.array(x_train),
                                      y_train=np.array(y_train),
                                      x_test=np.array(x_test),
-                                     y_test=np.array(y_test), clf= clf)
+                                     y_test=np.array(y_test), clf=clf)
 
-    assert np.isclose(metrics_dict['roc_auc'],0.25,rtol=0.05) == True
+    assert np.isclose(metrics_dict['roc_auc'], 0.25, rtol=0.05)
 
 
 # y_true doesn't have the class 3 but y_pred does
@@ -163,15 +159,15 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue():
     clf = RidgeClassifier()
     clf.fit(x_train, y_train)
     y_pred = clf.predict(x_test)
-    assert (y_pred==np.array([2,3,1,4])).all() == True
-    assert (np.array(y_test)==np.array([1,2,2,4])).all() == True
+    assert (y_pred == np.array([2, 3, 1, 4])).all()
+    assert (np.array(y_test) == np.array([1, 2, 2, 4])).all()
 
     metrics_dict = classifier_scores(x_train=np.array(x_train),
                                      y_train=np.array(y_train),
                                      x_test=np.array(x_test),
                                      y_test=np.array(y_test), clf=clf)
 
-    assert np.isclose(metrics_dict['roc_auc'], 0.541, rtol=0.05) == True
+    assert np.isclose(metrics_dict['roc_auc'], 0.541, rtol=0.05)
 
 
 # y_true has class 4 but y_pred don't
@@ -199,15 +195,15 @@ def test_classifier_scores_multiclass_classnotpresent_ytrue_y_pred():
     clf = RidgeClassifier()
     clf.fit(x_train, y_train)
     y_pred = clf.predict(x_test)
-    assert (y_pred==np.array([1,2,3])).all() == True
-    assert (np.array(y_test)==np.array([1,2,4])).all() == True
+    assert (y_pred == np.array([1, 2, 3])).all()
+    assert (np.array(y_test) == np.array([1, 2, 4])).all()
 
     metrics_dict = classifier_scores(x_train=np.array(x_train),
                                      y_train=np.array(y_train),
                                      x_test=np.array(x_test),
                                      y_test=np.array(y_test), clf=clf)
 
-    assert np.isclose(metrics_dict['roc_auc'], 1.0, rtol=0.05) == True
+    assert np.isclose(metrics_dict['roc_auc'], 1.0, rtol=0.05)
 
 
 def test_accuracy():
