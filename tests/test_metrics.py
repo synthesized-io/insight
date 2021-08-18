@@ -3,13 +3,13 @@ import pandas as pd
 
 import pytest
 
-from ..src.synthesized_insight.metrics import (CramersV, EarthMoversDistance, HellingerDistance, JensenShannonDivergence,
-                                               KendallTauCorrelation, KolmogorovSmirnovDistance, Mean, Norm,
-                                               SpearmanRhoCorrelation, StandardDeviation, R2Mcfadden, KruskalWallis,
-                                               DistanceNNCorrelation, DistanceCNCorrelation, KullbackLeiblerDivergence,
-                                               BinomialDistance, MetricStatistics)
+from src.synthesized_insight.metrics import (CramersV, EarthMoversDistance, HellingerDistance, JensenShannonDivergence,
+                                             KendallTauCorrelation, KolmogorovSmirnovDistance, Mean, Norm,
+                                             SpearmanRhoCorrelation, StandardDeviation, R2Mcfadden, KruskalWallis,
+                                             DistanceNNCorrelation, DistanceCNCorrelation, KullbackLeiblerDivergence,
+                                             BinomialDistance, MetricStatistics)
 
-from ..src.synthesized_insight.metrics.utils import MetricStatisticsResult
+from src.synthesized_insight.metrics.utils import MetricStatisticsResult
 
 mean = Mean()
 std_dev = StandardDeviation()

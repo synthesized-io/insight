@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ..src.synthesized_insight.metrics.utils import (bootstrap_statistic, permutation_test)
+from src.synthesized_insight.metrics.utils import (bootstrap_statistic, permutation_test)
 
 
 def test_bootstrap():

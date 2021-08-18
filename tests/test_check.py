@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import copy
 
-from ..src.synthesized_insight.check import ColumnCheck
+from src.synthesized_insight.check import ColumnCheck
 
 
 @pytest.fixture(scope='module')

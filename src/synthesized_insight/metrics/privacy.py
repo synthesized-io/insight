@@ -129,6 +129,8 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
         if self.predictors is not None:
             orig_df = orig_df[self.predictors + [self.sensitive_col]]
             synth_df = synth_df[self.predictors + [self.sensitive_col]]
+        else:
+            self.predictors = [col for col in orig_df.columns if col != self.sensitive_col]
 
         estimator = None
 
