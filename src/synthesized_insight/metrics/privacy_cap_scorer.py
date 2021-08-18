@@ -8,10 +8,6 @@ import pandas as pd
 
 class CAPScorer(ABC):
     """Calculates the privacy score using CAP (Correct Attribution Probability) model
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Fits the model by mapping the predictors keys to the sensitive values using the synthetic data.
     These mappings are stored in predictors_to_sensitive_val_map dictionary.
     Then, evaluates the privacy of the original dataset using specific implementation of score(..) method
@@ -23,25 +19,15 @@ class CAPScorer(ABC):
 
     def fit(self, predictors_data: pd.DataFrame, sensitive_data: pd.Series):
         """Fit the privacy scorer on the synthetic data.
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         Go through each row of the predictors_data and map the tuple of the predictor values to
         corresponding sensitive column value. Tuple of the predictor values is the key for the dictionary.
         If multiple rows contain same predictor tuple, then add their corresponding sensitive atribute value
         to the list of sensitive values corresponding to the key.
-<<<<<<< HEAD
-        Args:
-            predictors_data: Values of the predictor columns
-            sensitive_data: Values of the sensitive column
-=======
 
         Args:
             predictors_data: Values of the predictor columns
             sensitive_data: Values of the sensitive column
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         Returns:
             self
         """
@@ -59,17 +45,11 @@ class CAPScorer(ABC):
     @abstractmethod
     def score(self, predictors_data: pd.DataFrame, true_senstive_vals: pd.Series) -> float:
         """Score the privacy of the sensitive column of the original df using synthetic data
-<<<<<<< HEAD
-        Args:
-            predictors_data: Values of predictor columns in original df
-            true_senstive_vals: Values of the sensitive column in original df
-=======
 
         Args:
             predictors_data: Values of predictor columns in original df
             true_senstive_vals: Values of the sensitive column in original df
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         Returns:
             Privacy score between 0 and 1, 0 means no privacy and 1 means absolute privacy
         """
@@ -78,17 +58,11 @@ class CAPScorer(ABC):
 
 def get_frequency(samples, element) -> float:
     """Find the frequency of the given element in given samples
-<<<<<<< HEAD
-    Args:
-        samples: List of elements
-        element: Element whose frequency needs to be determined
-=======
 
     Args:
         samples: List of elements
         element: Element whose frequency needs to be determined
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Returns:
         Frequency of the element
     """
@@ -97,15 +71,10 @@ def get_frequency(samples, element) -> float:
 
 def get_most_frequent_element(elements):
     """Find the element with the highest frequency
-<<<<<<< HEAD
-    Args:
-        elements: List of element
-=======
 
     Args:
         elements: List of element
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Returns:
         The element with highest frequency
     """
@@ -127,25 +96,15 @@ def get_most_frequent_element(elements):
 
 def get_hamming_dist(tuple1: Tuple[Any], tuple2: Tuple[Any]) -> int:
     """Find the hamming distance between two tuples.
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     The hamming distance is the number of respective elements in the tuples that are not equal.
     E.g. tuple1 = (1, 23, 'a'), tuple2 = (1, 1, 'a')
     Hamming distance for the above example is 1,
     since the 2nd element of the two tuples don't match.
-<<<<<<< HEAD
-    Args:
-        tuple1: First tuple
-        tuple2: Second tuple
-=======
 
     Args:
         tuple1: First tuple
         tuple2: Second tuple
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Returns:
         Number of respective elements that don't match
     """
@@ -161,17 +120,11 @@ def get_hamming_dist(tuple1: Tuple[Any], tuple2: Tuple[Any]) -> int:
 
 def get_closest_neighbours(samples, target) -> List[Any]:
     """Find elements in a given list that are closest to the given target using hamming distance.
-<<<<<<< HEAD
-    Arguments:
-        samples: The list from which to select neighbours to the given target.
-        target: The target element
-=======
 
     Arguments:
         samples: The list from which to select neighbours to the given target.
         target: The target element
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Returns:
         Elements in samples that are closest to the target.
     """
@@ -191,10 +144,6 @@ def get_closest_neighbours(samples, target) -> List[Any]:
 class GeneralizedCAPScorer(CAPScorer):
     """Calculates the privacy score using CAP (Correct Attribution Probability) model using
     exact match of the original df key in the synthetic table
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Fits the model by mapping the predictors keys to the sensitive values using the synthetic data.
     Then, evaluates the privacy of the original dataset by trying to find the sensitive attribute of the
     original data in the dictionary corresponding to the original df predictor key.
@@ -205,20 +154,10 @@ class GeneralizedCAPScorer(CAPScorer):
 
     def score(self, orig_predictors: pd.DataFrame, orig_sensitive: pd.Series) -> float:
         """Gives the privacy score based on evaluation of the original data using synthetic data
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         For each row of predictors_data, calculate as follows:
         find the list of sensitive values corresponding to predictor key in the fitted
         predictors_to_sensitive_val_map dictionary, and then find the frequency of true sensitive
         value in this list. Add this frequency to the score.
-<<<<<<< HEAD
-        Average out the score to get the final privacy score.
-        Args:
-            orig_predictors: Values of predictor columns in original df
-            orig_sensitive: Values of the sensitive column in original df
-=======
 
         Average out the score to get the final privacy score.
 
@@ -226,7 +165,6 @@ class GeneralizedCAPScorer(CAPScorer):
             orig_predictors: Values of predictor columns in original df
             orig_sensitive: Values of the sensitive column in original df
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         Returns:
             Privacy score between 0 and 1, 0 means no privacy and 1 means absolute privacy
         """
@@ -249,10 +187,6 @@ class GeneralizedCAPScorer(CAPScorer):
 class DistanceCAPScorer(CAPScorer):
     """Calculates the privacy score using CAP (Correct Attribution Probability) distance model
     which uses neighbouring keys of the original df key to evaluate privacy
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
     Fits the model by mapping the predictors keys to the sensitive values using the synthetic data.
     Then, evaluates the privacy of the original dataset by trying to find the sensitive attribute of the
     original data in the dictionary corresponding to the neighbouring keys of the original df predictor key.
@@ -262,21 +196,11 @@ class DistanceCAPScorer(CAPScorer):
 
     def score(self, orig_predictors: pd.DataFrame, orig_sensitive: pd.Series) -> float:
         """Gives the privacy score based on evaluation of the original data using synthetic data
-<<<<<<< HEAD
-=======
-
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         For each row of predictors_data, calculate as follows:
         find the closest neighbouring keys of original df predictor key from predictors_to_sensitive_val_map,
         get the list of sensitive values corresponding to these neighbouring keys from
         predictors_to_sensitive_val_map dictionary, and then find the frequency of true sensitive
         value in this list. Add this frequency to the score.
-<<<<<<< HEAD
-        Average it out to get the final privacy score.
-        Args:
-            orig_predictors: Values of predictor columns in original df
-            orig_sensitive: Values of the sensitive column in original df
-=======
 
         Average it out to get the final privacy score.
 
@@ -284,7 +208,6 @@ class DistanceCAPScorer(CAPScorer):
             orig_predictors: Values of predictor columns in original df
             orig_sensitive: Values of the sensitive column in original df
 
->>>>>>> e8862ccd9b4c98ab34b851ed0e67a790608f71b7
         Returns:
             Privacy score between 0 and 1, 0 means no privacy and 1 means absolute privacy
         """
