@@ -14,9 +14,12 @@ from src.synthesized_insight.check import ColumnCheck
 
 class AttributeInferenceAttackML(TwoDataFrameMetric):
     """Computes the privacy score between two dataframes using ML model
+
     The privacy score is calculated by fitting a ML model on the synthetic dataset. The fitted
     model is then used to calculate the privacy score of the sensitive column in the original dataset.
+
     Score lies in the range of 0 to 1, 0 means negligible privacy and 1 means absolute privacy.
+
     Args:
         model: Str or Base estimator
         sensitive_col: Sensitive column to be predicted
@@ -35,9 +38,11 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
 
     def _privacy_score_categorical(self, true: pd.Series, pred: pd.Series) -> float:
         """Computes privacy score as the ratio of total true and pred values that do not match
+
         Args:
             true: True values of the sensitive attribute
             pred: Predicted values of the sensitive attribute
+
         Returns:
             The privacy score between 0 and 1
             0 means negligible privacy and 1 means absolute privacy.
@@ -53,12 +58,15 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
     def _privacy_score_numerical(self, true: pd.Series, pred: pd.Series, lp: float = 0.5) -> float:
         """Computes privacy score by measuring the distance between each set of true and pred values of
         the sensitive column using CDF
+
         Firstly, the norm is fit on the true data. Then, the distance for each pair of true and pred record
         is the difference in the percentile of these values according to cdf raised by pth power. The distance is
         averaged over all the records to give a final score.
+
         Args:
             true: True values of the sensitive column in the original dataset
             pred: Predicted values of the sensitive column of the original dataset
+
         Returns:
             Privacy score between 0 and 1
         """
@@ -100,9 +108,11 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
 
     def __call__(self, orig_df: pd.DataFrame, synth_df: pd.DataFrame) -> float:
         """Computes the privacy score of the sensitive column of the original dataset based on the synthetic data
+
         Fits the ML model on the synthetic data. The trained model is used to predict the sensitive column
         of the original data. Finally, numerical or categorical privacy scorer is called depending on
         whether the sensitive column is a numerical or a categorical column.
+
         Args:
             orig_df: The original dataset
             synth_df: The synthetic dataset
@@ -173,8 +183,10 @@ class AttributeInferenceAttackCAP(TwoDataFrameMetric):
 
     def __call__(self, orig_df: pd.DataFrame, synth_df: pd.DataFrame) -> float:
         """Computes the privacy score of the sensitive column of the original dataset based on the synthetic data
+
         Fits the model on the synthetic data by mapping predictor key to sensitive attribute values of the synthetic dataset.
         Once fitted, the score method calculates the privacy of the sensitive attribute of the original dataset
+
         Args:
             orig_df: The original dataset
             synth_df: The synthetic dataset

@@ -3,9 +3,9 @@ from .metrics import (MetricStatistics, EarthMoversDistance, HellingerDistance, 
                       KullbackLeiblerDivergence, BinomialDistance, CramersV, KendallTauCorrelation,
                       SpearmanRhoCorrelation, R2Mcfadden, DistanceNNCorrelation, DistanceCNCorrelation,
                       Mean, StandardDeviation)
-from .base import TwoColumnMetric
+from .base import TwoColumnMetric, TwoDataFrameMetric
 
-__all__ = ['TwoColumnMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelation',
+__all__ = ['TwoColumnMetric', 'TwoDataFrameMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelation',
            'KolmogorovSmirnovDistance', 'Mean', 'SpearmanRhoCorrelation', 'StandardDeviation',
            'R2Mcfadden', 'KruskalWallis', 'DistanceNNCorrelation', 'DistanceCNCorrelation',
            'KullbackLeiblerDivergence', 'HellingerDistance', 'JensenShannonDivergence', 'Norm',
