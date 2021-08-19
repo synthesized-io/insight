@@ -244,9 +244,9 @@ def split_and_preprocess(df: pd.DataFrame,
 
 def get_modelling_score(is_regression_task: bool,
                         x_train: np.ndarray,
-                        y_train: np.array,
+                        y_train: np.ndarray,
                         x_test: np.ndarray,
-                        y_test: np.array,
+                        y_test: np.ndarray,
                         estimator: Union[str, ClassifierMixin, RegressorMixin],
                         n_classes: Optional[int] = None):
     """Depending on the task (classification or regression), the score is evaluated."""
@@ -440,8 +440,8 @@ def regressor_scores_from_df(df_train: Optional[pd.DataFrame],
 
 
 def _predict_classification_task(x_test: np.ndarray,
-                                 y_test: np.array,
-                                 y_train: np.array,
+                                 y_test: np.ndarray,
+                                 y_train: np.ndarray,
                                  clf: ClassifierMixin):
     multiclass: bool = False
 
