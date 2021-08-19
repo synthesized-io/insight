@@ -119,8 +119,7 @@ class ModellingPreprocessor:
         if len(xx) == 0 or len(c_names) == 0:
             return pd.DataFrame()
 
-        xx = np.hstack(xx)
-        return pd.DataFrame(xx, columns=c_names)
+        return pd.DataFrame(np.hstack(xx), columns=c_names)
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         self.fit(df)
