@@ -1,10 +1,10 @@
-from typing import Tuple, Optional, Union, Callable
+import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import math
 from scipy.stats import beta, binom_test, norm
 
 from ..check import ColumnCheck
