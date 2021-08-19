@@ -8,7 +8,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from src.synthesized_insight import ColumnCheck
+from ..check import ColumnCheck
 
 logger = logging.getLogger(__name__)
 

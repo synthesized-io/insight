@@ -2,15 +2,10 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression, Ridge, RidgeClassifier
 
-from src.synthesized_insight.metrics import (Accuracy, ConfusionMatrix,
-                                             F1Score, MeanAbsoluteError,
-                                             MeanSquaredError, PRCurve,
-                                             Precision,
-                                             PredictiveModellingScore, R2Score,
-                                             Recall, ROCCurve)
-from src.synthesized_insight.metrics.modelling_metrics import (
-    classifier_scores, classifier_scores_from_df, predictive_modelling_score,
-    regressor_scores_from_df)
+from src.synthesized_insight.metrics import (Accuracy, ConfusionMatrix, F1Score, MeanAbsoluteError, MeanSquaredError,
+                                             PRCurve, Precision, PredictiveModellingScore, R2Score, Recall, ROCCurve)
+from src.synthesized_insight.metrics.modelling_metrics import (classifier_scores, classifier_scores_from_df,
+                                                               predictive_modelling_score, regressor_scores_from_df)
 
 np.random.seed(42)
 

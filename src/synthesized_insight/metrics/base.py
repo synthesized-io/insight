@@ -4,7 +4,7 @@ from typing import Any, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 
-from src.synthesized_insight import ColumnCheck
+from ..check import ColumnCheck
 
 
 class _Metric(ABC):

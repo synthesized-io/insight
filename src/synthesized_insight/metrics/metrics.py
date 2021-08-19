@@ -2,8 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, ks_2samp, spearmanr
 
-from src.synthesized_insight import ColumnCheck
-
+from ..check import ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
 
 
