@@ -87,16 +87,16 @@ def data2():
 
 
 def test_distance(data1, data2):
-    assert Distance()(data1, data2).metric_value > 0
+    assert Distance()(pd.Series(data1), pd.Series(data2)).metric_value > 0
 
 
 def test_pvalue(data1, data2):
-    assert Distance()(data1, data2).p_value >= 0
-    assert Distance()(data1, data2).p_value <= 1
+    assert Distance()(pd.Series(data1), pd.Series(data2)).p_value >= 0
+    assert Distance()(pd.Series(data1), pd.Series(data2)).p_value <= 1
 
 
 def test_interval(data1, data2):
-    assert len(Distance()(data1, data2).interval.value) == 2
+    assert len(Distance()(pd.Series(data1), pd.Series(data2)).interval.value) == 2
     assert Distance(confidence_level=0.95).confidence_level == 0.95
 
 
@@ -325,6 +325,6 @@ def test_emd_distance_binned():
     bins = np.histogram_bin_edges(np.concatenate((a, b), axis=0), bins=100)
     x, _ = np.histogram(a, bins=bins)
     y, _ = np.histogram(b, bins=bins)
-    compare_and_log(x, y, bins, 4.0)
+    compare_and_log(pd.Series(x), pd.Series(y), bins, 4.0)
     compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([1, 0, 8, 21, 1]), None, 0.20)
     compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)
