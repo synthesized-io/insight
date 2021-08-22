@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -75,3 +76,4 @@ jobs:
         with:
           name: coverage
           path: coverage-reports/cobertura-${{ matrix.index }}.xml
+...
