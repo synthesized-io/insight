@@ -23,6 +23,8 @@ repos:
     hooks:
       - id: mypy
         files: src
+        args: [--install-types, --non-interactive]
+        # Note that using the --install-types is problematic if running in parallel as mutating the pre-commit environment at runtime breaks cache.
   - repo: https://github.com/pycqa/isort
     rev: 5.9.3
     hooks:

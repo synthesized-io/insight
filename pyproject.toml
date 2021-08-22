@@ -2,15 +2,14 @@
 requires = [
     "setuptools>=42",
     "wheel",
-    "Cython==3.0a7"
+    "setuptools_scm[toml]>=6.0"
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+write_to = "src/synthesized_insight/version.py"
+
 [tool.pytest.ini_options]
-addopts = "--strict-markers"
-markers = [
-    "slow"
-]
 junit_suite_name = "unit"
 junit_logging = "all"
 junit_log_passing_tests = true

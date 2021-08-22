@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+    - uses: pre-commit/action@v2.0.0
+
+  test:
+    needs: pre-commit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    name: Unit tests
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.GITHUB_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        id: setup-py
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Cache test venv
+        uses: actions/cache@v2
+        with:
+          path: .pip-cache
+          key: ${{ runner.os }}-pip-tenv-${{ hashFiles('./setup.*') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-tenv-{{ steps.setup-py.outputs.python-version }}
+
+      - name: Create test-venv
+        run: |
+          python3 -m venv .tenv
+          source .tenv/bin/activate
+          pip install -U pip
+
+      - name: Install synthesized-insight
+        run: |
+          source .tenv/bin/activate
+          pip install .[test] --cache-dir .pip-cache
+
+      - name: Run unit tests
+        run: |
+          source .tenv/bin/activate
+          pytest -v --junitxml=test-results/junit.xml  --cov=synthesized-insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+        env:
+          SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
+
+      # - name: Modify source in Coverage
+      #   if: ${{ always() }}
+      #   run: sed -ie 's#/home/runner/work/synthesized/synthesized#/github/workspace#g' coverage-reports/cobertura-${{ matrix.index }}.xml
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: test-results/junit-${{ matrix.index }}.xml
+
+      - name: Upload coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage
+          path: coverage-reports/cobertura-${{ matrix.index }}.xml
