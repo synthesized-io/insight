@@ -3,6 +3,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -56,24 +57,15 @@ jobs:
         run: |
           source .tenv/bin/activate
           pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+          sed -ie 's#/home/runner/work/insight/insight#/github/workspace#g' coverage-reports/cobertura.xml
         env:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
-      # - name: Modify source in Coverage
-      #   if: ${{ always() }}
-      #   run: sed -ie 's#/home/runner/work/synthesized/synthesized#/github/workspace#g' coverage-reports/cobertura-${{ matrix.index }}.xml
-
-      - name: Upload test results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v2
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
         with:
-          name: test-results
-          path: test-results/junit.xml
-
-      - name: Upload coverage
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: coverage
-          path: coverage-reports/cobertura.xml
+          projectBaseDir: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 ...
