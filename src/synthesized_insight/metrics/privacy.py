@@ -5,13 +5,11 @@ import pandas as pd
 from scipy.stats import norm
 from sklearn.base import BaseEstimator
 
-from src.synthesized_insight.check import ColumnCheck
-from src.synthesized_insight.metrics.base import TwoDataFrameMetric
-from src.synthesized_insight.metrics.modelling_metrics import \
-    split_and_preprocess
-from src.synthesized_insight.metrics.privacy_cap_scorer import (
-    DistanceCAPScorer, GeneralizedCAPScorer)
-from src.synthesized_insight.modelling import check_model_type
+from ..check import ColumnCheck
+from ..modelling import check_model_type
+from .base import TwoDataFrameMetric
+from .modelling_metrics import split_and_preprocess
+from .privacy_cap_scorer import DistanceCAPScorer, GeneralizedCAPScorer
 
 
 class AttributeInferenceAttackML(TwoDataFrameMetric):
@@ -135,6 +133,8 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
         if self.predictors is not None:
             orig_df = orig_df[self.predictors + [self.sensitive_col]]
             synth_df = synth_df[self.predictors + [self.sensitive_col]]
+        else:
+            self.predictors = synth_df.columns.intersection(orig_df.columns).tolist()
 
         estimator = None
 
