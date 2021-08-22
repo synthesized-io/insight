@@ -55,7 +55,7 @@ jobs:
       - name: Run unit tests
         run: |
           source .tenv/bin/activate
-          pytest -v --junitxml=test-results/junit.xml  --cov=synthesized-insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+          pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
         env:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
@@ -68,12 +68,12 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: test-results
-          path: test-results/junit-${{ matrix.index }}.xml
+          path: test-results/junit.xml
 
       - name: Upload coverage
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
         with:
           name: coverage
-          path: coverage-reports/cobertura-${{ matrix.index }}.xml
+          path: coverage-reports/cobertura.xml
 ...
