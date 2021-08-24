@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: mypy
         name: Install project dependencies
-        entry: pip install -i https://pypi.org/simple -e . 
+        entry: pip install -i https://pypi.org/simple -e .
         args: []
         pass_filenames: false
       - id: mypy
