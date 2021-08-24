@@ -14,12 +14,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
+      id: setup-py
     - uses: actions/cache@v2
       with:
         path: ~/.cache/pre-commit
-        key: pre-commit-${{ runner.os }}-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: pre-commit-${{ runner.os }}-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
         restore-keys: |
-          pre-commit-${{ runner.os }}-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          pre-commit-${{ runner.os }}-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
     - uses: pre-commit/action@v2.0.0
 
   test:
@@ -43,9 +44,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .pip-cache
-          key: ${{ runner.os }}-pip-tenv-${{ hashFiles('./setup.*') }}
+          key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./setup.*') }}
           restore-keys: |
-            ${{ runner.os }}-pip-tenv-{{ steps.setup-py.outputs.python-version }}
+            ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}
 
       - name: Create test-venv
         run: |
