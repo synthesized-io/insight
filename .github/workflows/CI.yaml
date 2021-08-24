@@ -14,6 +14,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: |
+          pre-commit-${{ runner.os }}-{{ steps.setup-py.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
     - uses: pre-commit/action@v2.0.0
 
   test:
