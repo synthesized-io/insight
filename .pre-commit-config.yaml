@@ -20,12 +20,8 @@ repos:
     rev: v0.910
     hooks:
       - id: mypy
-        name: Install project dependencies
-        entry: pip install -i https://pypi.org/simple -e .
-        args: []
-        pass_filenames: false
-      - id: mypy
         files: src
+        additional_dependencies: [pandas, pandas-stubs, numpy]
         args: [--install-types, --non-interactive]
         # Note that using the --install-types is problematic if running in
         # parallel as mutating the pre-commit env at runtime breaks cache.
