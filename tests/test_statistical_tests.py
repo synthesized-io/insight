@@ -5,13 +5,15 @@ import pytest
 from src.synthesized_insight.check import ColumnCheck
 from src.synthesized_insight.metrics import (
     BinomialDistanceTest,
+    EarthMoversDistance,
+    HellingerDistance,
     KendallTauCorrelationTest,
     KolmogorovSmirnovDistanceTest,
     KruskalWallisTest,
     SpearmanRhoCorrelationTest,
 )
 from src.synthesized_insight.metrics.base import TwoColumnMetric
-from src.synthesized_insight.metrics.statistical_tests import BootstrapTest
+from src.synthesized_insight.metrics.statistical_tests import BootstrapTest, PermutationTest
 
 
 @pytest.fixture(scope='module')
@@ -130,3 +132,37 @@ def test_spearmans_rho():
     assert spearman_rho_test(sr_a, sr_a)[0] is not None
     assert spearman_rho_test(sr_b, sr_c)[0] is None
     assert spearman_rho_test(sr_c, sr_d)[0] is None
+
+
+@pytest.mark.parametrize(
+    'metric, data', [
+        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a']))),
+        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
+    ])
+def test_bootstrap(metric, data):
+
+    bootstrap = BootstrapTest(metric_cls_obj=metric)
+    metric_val, p_value = bootstrap(data[0], data[0])
+    assert metric_val == 0
+    assert p_value == 1
+
+    _, p_value = bootstrap(data[0], data[1])
+    assert p_value <= 1
+    assert p_value >= 0
+
+
+@pytest.mark.parametrize(
+    'metric, data', [
+        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a']))),
+        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
+    ])
+def test_permutation(metric, data):
+
+    perm_test = PermutationTest(metric_cls_obj=metric)
+    metric_val, p_value = perm_test(data[0], data[0])
+    assert metric_val == 0
+    assert p_value == 1
+
+    _, p_value = perm_test(data[0], data[1])
+    assert p_value <= 1
+    assert p_value >= 0

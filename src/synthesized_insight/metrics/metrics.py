@@ -193,11 +193,18 @@ class DistanceCNCorrelation(TwoColumnMetric):
         Returns:
             The distance cn correlation coefficient between sr_a and sr_b.
         """
+        """Calculate the metric.
+        Args:
+            sr_a (pd.Series): values of a categorical variable.
+            sr_b (pd.Series): values of numerical variable.
+        Returns:
+            MetricStatisticsResult object containing the distance cn correlation coefficient between sr_a and sr_b,
+            p-value and the confidence interval.
+        """
         warnings.filterwarnings(action="ignore", category=UserWarning)
-
-        sr_a = sr_a.astype("category").cat.codes
-        groups = sr_b.groupby(sr_a)
-        arrays = [groups.get_group(category) for category in sr_a.unique()]
+        sr_a_codes = sr_a.astype("category").cat.codes
+        groups_obj = sr_b.groupby(sr_a_codes)
+        arrays = [groups_obj.get_group(cat) for cat in sr_a_codes.unique() if cat in groups_obj.groups.keys()]
 
         total = 0.0
         n = len(arrays)
@@ -214,10 +221,8 @@ class DistanceCNCorrelation(TwoColumnMetric):
                     sr_j = sr_j.append(sr_j.sample(sr_i.size - sr_j.size, replace=True), ignore_index=True)
                 total += dcor.distance_correlation(sr_i, sr_j)
 
-        total /= n * (n - 1) / 2
-
-        if total is None:
-            return 0.0
+        if n > 1:
+            total /= n * (n - 1) / 2
 
         return total
 

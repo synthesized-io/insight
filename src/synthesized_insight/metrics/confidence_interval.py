@@ -23,9 +23,9 @@ class BootstrapConfidenceInterval:
         self.confidence_level = confidence_level
         self.binned = binned
 
-    def bootstrap_interval(self,
-                           obs: float,
-                           bootstrap_samples: pd.Series):
+    def _bootstrap_interval(self,
+                            obs: float,
+                            bootstrap_samples: pd.Series):
         """
         Calculate the basic bootstrap confidence interval for a statistic
         from a bootstrapped distribution.
@@ -50,9 +50,9 @@ class BootstrapConfidenceInterval:
             samples = bootstrap_statistic((sr_a, sr_b), lambda x, y: self.metric_cls_obj(x, y))
         else:
             samples = bootstrap_binned_statistic((sr_a, sr_b), lambda x, y: self.metric_cls_obj(x, y))
-        return self.bootstrap_interval(metric_value, samples)
+        return self._bootstrap_interval(metric_value, samples)
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> ConfidenceInterval:
         if self.metric_cls_obj is None:
             raise ValueError("Can't perform permutation test without metric class info")
 
@@ -67,10 +67,10 @@ class BinomialInterval:
         self.metric_cls_obj = metric_cls_obj
         self.confidence_level = confidence_level
 
-    def binominal_proportion_interval(self,
-                                      success_prop: float,
-                                      num_samples: int,
-                                      method: str = 'clopper-pearson') -> ConfidenceInterval:
+    def _binominal_proportion_interval(self,
+                                       success_prop: float,
+                                       num_samples: int,
+                                       method: str = 'clopper-pearson') -> ConfidenceInterval:
         """
         Calculate an approximate confidence interval for a binomial proportion of a sample.
         Should only be used for binomial distribution
@@ -124,7 +124,7 @@ class BinomialInterval:
         """
         p = sr_a.mean()
         n = len(sr_a)
-        interval = self.binominal_proportion_interval(p, n, method)
+        interval = self._binominal_proportion_interval(p, n, method)
         cinterval = ConfidenceInterval((interval.limits[0] - sr_b.mean(), interval.limits[1] - sr_b.mean()), interval.level)
         return cinterval
 

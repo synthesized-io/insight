@@ -20,11 +20,11 @@ class BinomialDistanceTest(TwoColumnMetricTest):
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return infer_distr_type(pd.concat((sr_a, sr_b))).is_binary()
 
-    def binominal_proportion_p_value(self,
-                                     p_obs: float,
-                                     p_null: float,
-                                     n: int,
-                                     alternative: str = 'two-sided'):
+    def _binominal_proportion_p_value(self,
+                                      p_obs: float,
+                                      p_null: float,
+                                      n: int,
+                                      alternative: str = 'two-sided'):
         """
         Calculate an exact p-value for an observed binomial proportion of a sample.
         Args:
@@ -49,7 +49,7 @@ class BinomialDistanceTest(TwoColumnMetricTest):
         p_obs = sr_a.mean()
         p_null = sr_b.mean()
         n = len(sr_a)
-        return self.binominal_proportion_p_value(p_obs, p_null, n, alternative)
+        return self._binominal_proportion_p_value(p_obs, p_null, n, alternative)
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         return sr_a.mean() - sr_b.mean()
@@ -200,10 +200,10 @@ class BootstrapTest(TwoColumnMetricTest):
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
-    def bootstrap_pvalue(self,
-                         t_obs: float,
-                         t_distribution: pd.Series,
-                         alternative: str = 'two-sided'):
+    def _bootstrap_pvalue(self,
+                          t_obs: float,
+                          t_distribution: pd.Series,
+                          alternative: str = 'two-sided'):
         """
         Calculate a p-value using a bootstrapped test statistic distribution
 
@@ -248,7 +248,7 @@ class BootstrapTest(TwoColumnMetricTest):
             ts_distribution = bootstrap_binned_statistic((sr_a, sr_b),
                                                          lambda x, y: self._compute_metric(x, y),
                                                          n_samples=1000)
-        self.p_value = self.bootstrap_pvalue(metric_value, ts_distribution, alternative)
+        self.p_value = self._bootstrap_pvalue(metric_value, ts_distribution, alternative)
         return self.p_value
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
@@ -269,11 +269,11 @@ class PermutationTest(TwoColumnMetricTest):
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
-    def permutation_test(self,
-                         x: pd.Series,
-                         y: pd.Series,
-                         t: Callable[[pd.Series, pd.Series], float],
-                         alternative: str = 'two-sided'):
+    def _permutation_test(self,
+                          x: pd.Series,
+                          y: pd.Series,
+                          t: Callable[[pd.Series, pd.Series], float],
+                          alternative: str = 'two-sided'):
         """
         Perform a two sample permutation test.
         Determines the probability of observing t(x, y) or greater under the null hypothesis that x
@@ -302,7 +302,7 @@ class PermutationTest(TwoColumnMetricTest):
             perm = np.random.permutation(pooled_data)
             x_sample = perm[:len(x)]
             y_sample = perm[len(x):]
-            t_null[i] = t(x_sample, y_sample)
+            t_null[i] = t(pd.Series(x_sample), pd.Series(y_sample))
 
         if alternative == 'two-sided':
             p = np.sum(np.abs(t_null) >= np.abs(t_obs)) / self.n_perms
@@ -325,10 +325,10 @@ class PermutationTest(TwoColumnMetricTest):
 
         # # need to add this because of mypy bug/issue (#2608) which doesn't recognize that self.metric_cls_obj has already been checked against None
         # callable: Callable[[pd.Series, pd.Series], float] = self.metric_cls_obj
-        self.p_value = self.permutation_test(sr_a,
-                                             sr_b,
-                                             lambda x, y: self._compute_metric(x, y),
-                                             alternative)
+        self.p_value = self._permutation_test(sr_a,
+                                              sr_b,
+                                              lambda x, y: self._compute_metric(x, y),
+                                              alternative)
         return self.p_value
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
