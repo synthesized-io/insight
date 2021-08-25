@@ -196,6 +196,7 @@ class BootstrapTest(TwoColumnMetricTest):
         super().__init__(check, metric_cls_obj)
         self.binned = binned
 
+    @classmethod
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
@@ -264,6 +265,7 @@ class PermutationTest(TwoColumnMetricTest):
         super().__init__(check, metric_cls_obj)
         self.n_perms = n_perms
 
+    @classmethod
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
