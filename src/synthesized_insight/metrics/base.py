@@ -1,5 +1,5 @@
 from abc import ABC, abstractclassmethod, abstractmethod
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -59,6 +59,42 @@ class TwoColumnMetric(_Metric):
         if not self.check_column_types(self.check, sr_a, sr_b):
             return None
         return self._compute_metric(sr_a, sr_b)
+
+
+class TwoColumnMetricTest(_Metric):
+    def __init__(self, check: ColumnCheck = None, metric_cls_obj: Union[TwoColumnMetric, None] = None):
+        if check is None:
+            self.check = ColumnCheck()
+        else:
+            self.check = check
+        self.metric_cls_obj = metric_cls_obj
+        self.p_value: Union[int, float, None] = None
+
+    @abstractclassmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        ...
+
+    @abstractmethod
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
+        ...
+
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float,
+                         alternative: str = 'two-sided') -> Union[int, float, None]:
+        return self.p_value
+
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        if not self.check_column_types(self.check, sr_a, sr_b):
+            return None, None
+
+        metric_value = self._compute_metric(sr_a, sr_b)
+        if metric_value is None:
+            return None, None
+
+        p_value = self._compute_p_value(sr_a, sr_b, metric_value)
+        return metric_value, p_value
 
 
 class ModellingMetric(_Metric):
