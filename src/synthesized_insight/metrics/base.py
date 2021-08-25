@@ -1,13 +1,10 @@
 from abc import ABC, abstractclassmethod, abstractmethod
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from ..check import ColumnCheck
-from .utils import (ConfidenceInterval, MetricStatisticsResult,
-                    bootstrap_binned_statistic, bootstrap_interval,
-                    bootstrap_pvalue, bootstrap_statistic, permutation_test)
 
 
 class _Metric(ABC):
@@ -62,6 +59,42 @@ class TwoColumnMetric(_Metric):
         if not self.check_column_types(self.check, sr_a, sr_b):
             return None
         return self._compute_metric(sr_a, sr_b)
+
+
+class TwoColumnMetricTest(_Metric):
+    def __init__(self, check: ColumnCheck = None, metric_cls_obj: Union[TwoColumnMetric, None] = None):
+        if check is None:
+            self.check = ColumnCheck()
+        else:
+            self.check = check
+        self.metric_cls_obj = metric_cls_obj
+        self.p_value: Union[int, float, None] = None
+
+    @abstractclassmethod
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+        ...
+
+    @abstractmethod
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
+        ...
+
+    def _compute_p_value(self,
+                         sr_a: pd.Series,
+                         sr_b: pd.Series,
+                         metric_value: float,
+                         alternative: str = 'two-sided') -> Union[int, float, None]:
+        return self.p_value
+
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        if not self.check_column_types(self.check, sr_a, sr_b):
+            return None, None
+
+        metric_value = self._compute_metric(sr_a, sr_b)
+        if metric_value is None:
+            return None, None
+
+        p_value = self._compute_p_value(sr_a, sr_b, metric_value)
+        return metric_value, p_value
 
 
 class ModellingMetric(_Metric):
@@ -120,115 +153,3 @@ class TwoDataFrameMetric(_Metric):
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:
         pass
-
-
-class MetricStatistics(TwoColumnMetric):
-    """
-    Base class for computing metrics statistics that compare samples from two distributions.
-
-    Args:
-        check: ColumnCheck object
-        compute_p_val: If p-value should be computed while computing the metric
-        compute_interval: If confidence interval should be computed while computing the metric
-        confidence_level: Confidence level for computing confidence interval
-        bootstrap_mode: If the metric computation is in the bootstrap mode,
-                        i,e. in the process of computing confidence interval or p-value
-    """
-    def __init__(self,
-                 check: ColumnCheck = None,
-                 compute_p_val: bool = True,
-                 compute_interval: bool = True,
-                 confidence_level: float = 0.95,
-                 bootstrap_mode: bool = False):
-        super().__init__(check)
-        self.compute_p_val: bool = compute_p_val
-        self.compute_interval: bool = compute_interval
-        self.confidence_level: float = confidence_level
-        self.bootstrap_mode: bool = bootstrap_mode
-
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
-        """
-        Calculate the distance or correlation between two distributions.
-
-        The MetricStatistics class will be called again and again for the same set of columns
-        for computing confidence interval, p-val; we don't want to do perform column check
-        corresponding to the metrics on the same set of columns again and again.
-
-        Returns:
-            MetricStatisticsResult object contain metric value, p-value and the confidence interval
-        """
-        if not self.bootstrap_mode and not self.check_column_types(self.check, sr_a, sr_b):
-            return None
-
-        return self._compute_metric(sr_a, sr_b)
-
-    @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-        return x_dtype == y_dtype
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> MetricStatisticsResult:
-        """The child class will implement this method"""
-        pass
-
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: float) -> float:
-        """Return a p-value for this metric using a permutation test. The null hypothesis
-        is that both data samples are from the same distribution."""
-        return permutation_test(sr_a, sr_b, lambda x, y: self._metrics_call(x, y))
-
-    def _compute_interval(self,
-                          sr_a: pd.Series,
-                          sr_b: pd.Series,
-                          metric_value: float) -> ConfidenceInterval:
-        """Return a frequentist confidence interval for this metric obtained, via bootstrap resampling"""
-        samples = bootstrap_statistic((sr_a, sr_b), self._metrics_call)
-        return bootstrap_interval(metric_value, samples, self.confidence_level)
-
-    def _metrics_call(self, x, y) -> float:
-        cls = type(self)
-        obj = cls(compute_p_val=False, compute_interval=False, bootstrap_mode=True)
-        return obj(pd.Series(x).reset_index(drop=True), pd.Series(y).reset_index(drop=True)).metric_value
-
-
-class BinnedMetricStatistics(MetricStatistics):
-    """
-    Base class for computing metrics statistics that compare counts from two binned distributions
-    that have identical binning.
-
-    Args:
-        bins: Optional; If given, this must be an iterable of bin edges for x and y,
-                i.e the output of np.histogram_bin_edges. If None, then it is assumed
-                that the data represent counts of nominal categories, with no meaningful
-                distance between bins.
-    """
-    def __init__(self,
-                 check: ColumnCheck = None,
-                 compute_p_val: bool = True,
-                 compute_interval: bool = True,
-                 confidence_level: float = 0.95,
-                 bootstrap_mode: bool = False,
-                 bins: Optional[Sequence[Any]] = None):
-        super().__init__(check, compute_p_val, compute_interval, confidence_level, bootstrap_mode)
-        self.bins = bins
-
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: float) -> float:
-        """Return a two-sided p-value for this metric using a bootstrapped distribution
-        of the null hypothesis."""
-        ts_distribution = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
-        return bootstrap_pvalue(metric_value, ts_distribution)
-
-    def _compute_interval(self,
-                          sr_a: pd.Series,
-                          sr_b: pd.Series,
-                          metric_value: float) -> ConfidenceInterval:
-        """Compute the frequentist confidence interval for this metric obtained via bootstrap resampling"""
-        samples = bootstrap_binned_statistic((sr_a, sr_b), self._metrics_call, n_samples=1000)
-        return bootstrap_interval(metric_value, samples, self.confidence_level)

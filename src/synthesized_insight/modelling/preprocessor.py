@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Sequence, Union, cast
+from typing import Dict, List, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -20,18 +20,12 @@ class ModellingPreprocessor:
         self.columns_mapping: Dict[str, List[str]] = dict()
         self.is_fitted: bool = False
         self.check = ColumnCheck()
-        self.continuous_cols: Union[None, Sequence[str]] = None
-        self.categorical_cols: Union[None, Sequence[str]] = None
 
     def _continuous(self, df) -> Sequence[str]:
-        if self.continuous_cols is None:
-            self.continuous_cols = [col for col in df.columns if self.check.continuous(df[col])]
-        return self.continuous_cols
+        return [col for col in df.columns if self.check.continuous(df[col])]
 
     def _categorical(self, df) -> Sequence[str]:
-        if self.categorical_cols is None:
-            self.categorical_cols = [col for col in df.columns if self.check.categorical(df[col])]
-        return self.categorical_cols
+        return [col for col in df.columns if self.check.categorical(df[col])]
 
     def fit(self, df: pd.DataFrame):
         if self.is_fitted:

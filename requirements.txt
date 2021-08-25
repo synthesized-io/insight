@@ -1,4 +1,3 @@
-dataclasses==0.6;python_version=='3.6'
 dcor
 flake8
 mypy
@@ -6,4 +5,3 @@ numpy
 pandas
 pytest
 sklearn
-types-dataclasses; python_version < '3.7'

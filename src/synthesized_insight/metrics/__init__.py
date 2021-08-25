@@ -1,16 +1,22 @@
-from .base import (BinnedMetricStatistics, MetricStatistics, TwoColumnMetric,
-                   TwoDataFrameMetric)
-from .correlation import (CramersV, DistanceCNCorrelation,
-                          DistanceNNCorrelation, KendallTauCorrelation,
-                          R2Mcfadden, SpearmanRhoCorrelation)
-from .distance import (BinomialDistance, EarthMoversDistance,
-                       EarthMoversDistanceBinned, HellingerDistance,
-                       JensenShannonDivergence, KolmogorovSmirnovDistance,
-                       KruskalWallis, KullbackLeiblerDivergence, Mean, Norm,
-                       StandardDeviation)
+from .base import TwoColumnMetric, TwoDataFrameMetric
+from .metrics import (CramersV, DistanceCNCorrelation, DistanceNNCorrelation,
+                      EarthMoversDistance, EarthMoversDistanceBinned,
+                      HellingerDistance, JensenShannonDivergence,
+                      KullbackLeiblerDivergence, Mean, Norm, R2Mcfadden,
+                      StandardDeviation)
+from .modelling_metrics import (ROCAUC, Accuracy, ConfusionMatrix, F1Score,
+                                MeanAbsoluteError, MeanSquaredError, PRCurve,
+                                Precision, PredictiveModellingScore, R2Score,
+                                Recall, ROCCurve)
+from .statistical_tests import (BinomialDistanceTest,
+                                KendallTauCorrelationTest,
+                                KolmogorovSmirnovDistanceTest,
+                                KruskalWallisTest, SpearmanRhoCorrelationTest)
 
-__all__ = ['TwoColumnMetric', 'TwoDataFrameMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelation',
-           'KolmogorovSmirnovDistance', 'Mean', 'SpearmanRhoCorrelation', 'StandardDeviation',
-           'R2Mcfadden', 'KruskalWallis', 'DistanceNNCorrelation', 'DistanceCNCorrelation',
-           'KullbackLeiblerDivergence', 'HellingerDistance', 'JensenShannonDivergence', 'Norm',
-           'BinomialDistance', 'MetricStatistics', 'BinnedMetricStatistics', 'EarthMoversDistanceBinned']
+__all__ = ['TwoColumnMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelationTest',
+           'KolmogorovSmirnovDistanceTest', 'Mean', 'SpearmanRhoCorrelationTest', 'StandardDeviation',
+           'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError', 'KruskalWallisTest',
+           'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve', 'Norm',
+           'PredictiveModellingScore', 'TwoDataFrameMetric', 'DistanceCNCorrelation',
+           'DistanceNNCorrelation', 'EarthMoversDistanceBinned', 'JensenShannonDivergence',
+           'KullbackLeiblerDivergence', 'HellingerDistance', 'BinomialDistanceTest', 'R2Mcfadden']

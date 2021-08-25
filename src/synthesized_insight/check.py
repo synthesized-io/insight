@@ -61,6 +61,7 @@ class ColumnCheck(Check):
             pd.Series:
                 The column converted to its inferred type.
         """
+
         col = sr.copy()
 
         in_dtype = str(col.dtype)

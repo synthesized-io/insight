@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.synthesized_insight.check import ColumnCheck
+from src.synthesized_insight import ColumnCheck
 
 
 @pytest.fixture(scope='module')
