@@ -35,7 +35,7 @@ norm_ord1 = Norm(ord=1)
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv("datasets/compas.csv")
+    df = pd.read_csv("datasets/mini_compas.csv")
     return df
 
 
