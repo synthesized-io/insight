@@ -18,7 +18,7 @@ from src.synthesized_insight.metrics.statistical_tests import BootstrapTest, Per
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv("datasets/mini_compas.csv")
+    df = pd.read_csv("tests/datasets/mini_compas.csv")
     return df
 
 

@@ -1,10 +1,10 @@
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from scipy.stats import beta, norm
 
-from .base import TwoColumnMetric
+from .base import OneColumnMetric, TwoColumnMetric
 from .utils import bootstrap_binned_statistic, bootstrap_statistic
 
 
@@ -13,9 +13,9 @@ class ConfidenceInterval(NamedTuple):
     level: float
 
 
-def compute_bootstrap_interval(sr_a: pd.Series,
-                               sr_b: pd.Series,
-                               metric_cls_obj: TwoColumnMetric,
+def compute_bootstrap_interval(metric_cls_obj: Union[OneColumnMetric, TwoColumnMetric],
+                               sr_a: pd.Series,
+                               sr_b: pd.Series = None,
                                confidence_level: float = 0.95,
                                binned: bool = False) -> ConfidenceInterval:
     """Return a frequentist confidence interval for this metric obtained, via bootstrap resampling
@@ -23,7 +23,7 @@ def compute_bootstrap_interval(sr_a: pd.Series,
     Args:
         sr_a: Value of one column
         sr_b: Value of another column
-        metric_cls_obj: Instamntiated object of a metric class
+        metric_cls_obj: Instantiated object of a metric class
         confidence_level: Level on which confidence interval is computed
         binned: True in case of binning
 
@@ -31,14 +31,17 @@ def compute_bootstrap_interval(sr_a: pd.Series,
         The confidence interval.
     """
 
-    if metric_cls_obj is None:
-        raise ValueError("Metric object needed to be valid")
-
-    metric_value = metric_cls_obj(sr_a, sr_b)
-    if not binned:
-        samples = bootstrap_statistic((sr_a, sr_b), lambda x, y: metric_cls_obj(x, y))
+    if isinstance(metric_cls_obj, OneColumnMetric):
+        metric_value = metric_cls_obj(sr_a)
+        one_col_metric: OneColumnMetric = metric_cls_obj  # Need explicit casting because of mypy bug/issue (#2608)
+        samples = bootstrap_statistic((sr_a), lambda x: one_col_metric(x))
     else:
-        samples = bootstrap_binned_statistic((sr_a, sr_b), lambda x, y: metric_cls_obj(x, y))
+        metric_value = metric_cls_obj(sr_a, sr_b)
+        two_col_metric: TwoColumnMetric = metric_cls_obj  # Need explicit casting because of mypy bug/issue (#2608)
+        if not binned:
+            samples = bootstrap_statistic((sr_a, sr_b), lambda x, y: two_col_metric(x, y))
+        else:
+            samples = bootstrap_binned_statistic((sr_a, sr_b), lambda x, y: two_col_metric(x, y))
 
     percentiles = 100 * (1 - confidence_level) / 2, 100 * (1 - (1 - confidence_level) / 2)
     d1, d2 = np.percentile(samples, percentiles)

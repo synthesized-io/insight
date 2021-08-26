@@ -35,7 +35,7 @@ norm_ord1 = Norm(ord=1)
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv("datasets/mini_compas.csv")
+    df = pd.read_csv("tests/datasets/mini_compas.csv")
     return df
 
 
@@ -77,8 +77,7 @@ def test_mean():
     assert val_a == 3
 
     sr_b = pd.Series(np.datetime64('2020-01-01') + np.arange(0, 3, step=1).astype('m8[D]'), name='b')
-    mean_cls = Mean()
-    val_b = mean_cls(sr=sr_b)
+    val_b = mean(sr=sr_b)
     assert val_b == np.datetime64('2020-01-02')
 
     sr_c = pd.Series(['a', 'b', 'c', 'd'], name='c')
@@ -92,8 +91,7 @@ def test_standard_deviation():
     assert val_a is not None
 
     sr_b = pd.Series(np.datetime64('2020-01-01') + np.arange(0, 20, step=1).astype('m8[D]'), name='b')
-    stdv = StandardDeviation()
-    val_b = stdv(sr=sr_b)
+    val_b = std_dev(sr=sr_b)
     assert val_b is not None
 
     sr_c = pd.Series(['a', 'b', 'c', 'd'], name='c')

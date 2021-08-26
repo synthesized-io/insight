@@ -21,30 +21,17 @@ class BinomialDistanceTest(TwoColumnMetricTest):
     def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         return check.binary(pd.concat((sr_a, sr_b)))
 
-    def _binominal_proportion_p_value(self,
-                                      p_obs: float,
-                                      p_null: float,
-                                      n: int) -> float:
-        """
-        Calculate an exact p-value for an observed binomial proportion of a sample.
-        Args:
-            p_obs: Observed proportion of successes.
-            p_null: Expected proportion of sucesses under null hypothesis.
-            n: Sample size
-        Returns:
-            The p-value under the null hypothesis.
-        """
-        k = np.ceil(p_obs * n)
-        self.p_value = binom_test(k, n, p_null, self.alternative)
-        return self.p_value
-
     def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Calculate binomial metric and exact p-value for an observed binomial proportion of a sample."""
+
         metric_value = sr_a.mean() - sr_b.mean()
 
         p_obs = sr_a.mean()
         p_null = sr_b.mean()
         n = len(sr_a)
-        p_value = self._binominal_proportion_p_value(p_obs, p_null, n)
+
+        k = np.ceil(p_obs * n)
+        p_value = binom_test(k, n, p_null, self.alternative)
         return metric_value, p_value
 
 
@@ -197,9 +184,6 @@ class BootstrapTest(TwoColumnMetricTest):
                  check: ColumnCheck = None,
                  alternative: str = 'two-sided',
                  binned: bool = False):
-        if metric_cls_obj is None:
-            raise ValueError("Metric class object must be valid")
-
         super().__init__(check, alternative)
         self.metric_cls_obj = metric_cls_obj
         self.binned = binned
@@ -270,9 +254,6 @@ class PermutationTest(TwoColumnMetricTest):
                  check: ColumnCheck = None,
                  alternative: str = 'two-sided',
                  n_perms: int = 100):
-        if metric_cls_obj is None:
-            raise ValueError("Metric class object must be valid")
-
         super().__init__(check, alternative)
         self.metric_cls_obj = metric_cls_obj
         self.n_perms = n_perms

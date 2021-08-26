@@ -11,11 +11,11 @@ from src.synthesized_insight.metrics.confidence_interval import compute_binomial
         (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
     ])
 def test_bootstrap_interval(metric, data):
-    conf_interval = compute_bootstrap_interval(data[0], data[0], metric)
+    conf_interval = compute_bootstrap_interval(metric, data[0], data[0])
     assert conf_interval.level == 0.95
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
-    conf_interval = compute_bootstrap_interval(data[0], data[1], metric)
+    conf_interval = compute_bootstrap_interval(metric, data[0], data[1])
     assert conf_interval.level == 0.95
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
