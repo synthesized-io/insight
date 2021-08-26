@@ -49,6 +49,7 @@ class StandardDeviation(OneColumnMetric):
 
 class CramersV(TwoColumnMetric):
     """Cramér's V correlation coefficient between nominal variables.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
@@ -67,26 +68,33 @@ class CramersV(TwoColumnMetric):
 
         if table.min() == 0:
             table[table == 0] = 0.5
+
         n = table.sum()
         row = table.sum(1) / n
         col = table.sum(0) / n
+
         row = pd.Series(data=row, index=table_orig.index)
         col = pd.Series(data=col, index=table_orig.columns)
+
         itab = np.outer(row, col)
         probs = pd.DataFrame(
             data=itab, index=table_orig.index, columns=table_orig.columns
         )
+
         fit = table.sum() * probs
         expected = fit.to_numpy()
+
         real = table
         r, c = real.shape
         n = np.sum(real)
         v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
+
         return v
 
 
 class R2Mcfadden(TwoColumnMetric):
     """R2 Mcfadden correlation coefficient between catgorical and numerical variables.
+
     It trains two multinomial logistic regression models on the data, one using the numerical
     series as the feature and the other only using the intercept term as the input.
     The categorical column is used for the target labels. It then calculates the null
@@ -139,6 +147,7 @@ class R2Mcfadden(TwoColumnMetric):
 
 class DistanceNNCorrelation(TwoColumnMetric):
     """Distance nn correlation coefficient between two numerical variables.
+
     It uses non-linear correlation distance to obtain a correlation coefficient for
     numerical-numerical column pairs.
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
@@ -172,6 +181,7 @@ class DistanceNNCorrelation(TwoColumnMetric):
 
 class DistanceCNCorrelation(TwoColumnMetric):
     """Distance cn correlation coefficient between categorical and numerical variables.
+
     It uses non-linear correlation distance to obtain a correlation coefficient for
     categorical-numerical column pairs.
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
@@ -229,6 +239,7 @@ class DistanceCNCorrelation(TwoColumnMetric):
 
 class EarthMoversDistance(TwoColumnMetric):
     """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
@@ -250,16 +261,20 @@ class EarthMoversDistance(TwoColumnMetric):
         """
         old = sr_a.to_numpy().astype(str)
         new = sr_b.to_numpy().astype(str)
+
         space = set(old).union(set(new))
         if len(space) > 1e4:
             return np.nan
 
         old_unique, counts = np.unique(old, return_counts=True)
         old_counts = dict(zip(old_unique, counts))
+
         new_unique, counts = np.unique(new, return_counts=True)
         new_counts = dict(zip(new_unique, counts))
+
         p = np.array([float(old_counts[x]) if x in old_counts else 0.0 for x in space])
         q = np.array([float(new_counts[x]) if x in new_counts else 0.0 for x in space])
+
         p /= np.sum(p)
         q /= np.sum(q)
         distance = 0.5 * np.sum(np.abs(p.astype(np.float64) - q.astype(np.float64)))
@@ -268,6 +283,7 @@ class EarthMoversDistance(TwoColumnMetric):
 
 class KullbackLeiblerDivergence(TwoColumnMetric):
     """Kullback–Leibler Divergence or Relative Entropy between two probability distributions.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
@@ -294,6 +310,7 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
 
 class JensenShannonDivergence(TwoColumnMetric):
     """Jensen-Shannon Divergence between two probability distributions.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
@@ -320,6 +337,7 @@ class JensenShannonDivergence(TwoColumnMetric):
 
 class HellingerDistance(TwoColumnMetric):
     """Hellinger Distance between two probability distributions.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
@@ -346,8 +364,10 @@ class HellingerDistance(TwoColumnMetric):
 
 class Norm(TwoColumnMetric):
     """Norm between two probability distributions.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
+
     Args:
         ord (Union[str, int], optional):
                 The order of the norm. Possible values include positive numbers, 'fro', 'nuc'.
