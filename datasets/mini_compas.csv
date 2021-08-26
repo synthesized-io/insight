@@ -1,0 +1,291 @@
+PersonID,AssessmentID,CaseID,Agency,LastName,FirstName,MiddleName,Sex,Ethnicity,DateOfBirth,ScaleSet,AssessmentReason,Language,LegalStatus,CustodyStatus,MaritalStatus,ScreeningDate,RecSupervisionLevelText,RawScore,DecileScore,ScoreText,AssessmentType
+50844,57167,51950,PRETRIAL,Fisher,Kevin,,Male,Caucasian,1992-12-05,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.06,2,Low,New
+50848,57174,51956,PRETRIAL,KENDALL,KEVIN,,Male,Caucasian,1984-09-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-01,Low,-1.5,1,Low,New
+50855,57181,51963,PRETRIAL,DAYES,DANIEL,,Male,African-American,1994-08-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,High,0.18,8,High,New
+50850,57176,51958,PRETRIAL,Debe,Mikerlie,George,Female,African-American,1994-10-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-01,Medium,-0.53,6,Medium,New
+50839,57162,51945,PRETRIAL,McLaurin,Stephanie,Nicole,Female,African-American,1985-06-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.55,2,Low,New
+50852,57179,51961,PRETRIAL,Holland,Terrance,,Male,Hispanic,1984-01-11,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Medium with Override Consideration,0.71,10,High,New
+50840,57163,51946,PRETRIAL,Colon,Susana,,Female,Caucasian,1966-10-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.74,1,Low,New
+50853,57178,51960,PRETRIAL,Brown,Devaughn,,Male,African-American,1993-07-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Medium with Override Consideration,0.38,9,High,New
+50847,57170,51953,PRETRIAL,Walters,Patwayne,B,Male,Other,1972-10-24,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-01,Low,-1.21,2,Low,New
+50842,57165,51948,PRETRIAL,Mulligan,William,Joseph,Male,Caucasian,1986-10-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.31,2,Low,New
+50843,57166,51949,PRETRIAL,Davis,Michael,Lavon,Male,African-American,1993-11-08,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Medium with Override Consideration,0.06,7,Medium,New
+50854,57180,51962,PRETRIAL,MARTINEZ,MARTIN,OLVERA,Male,Caucasian,1980-01-06,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.66,1,Low,New
+50849,57175,51957,PRETRIAL,Coleman,Kortney,Brooke,Female,Caucasian,1978-08-22,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-01,Low,-1.67,1,Low,New
+50841,57164,51947,PRETRIAL,Battle,Regina,,Female,African-American,1988-06-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Low,-1.0,4,Low,New
+50851,57177,51959,PRETRIAL,NAIRN,DOREAN,,Female,African-American,1979-11-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-01,Medium,-0.57,6,Medium,New
+50856,57182,51964,PRETRIAL,AIME,EVIENCE,B,Male,African-American,1970-12-06,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-02,Low,-2.11,1,Low,New
+50862,57190,51972,PRETRIAL,Reijonen,Mckenzie,,Male,Caucasian,1991-07-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.29,2,Low,New
+50873,57203,51984,PRETRIAL,sells,louis,,Male,Caucasian,1985-05-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-0.36,5,Medium,New
+50868,57198,51979,Probation,Jorfe,Nadia,,Male,Caucasian,1984-10-12,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,Low,-0.75,3,Low,New
+44757,57211,51992,PRETRIAL,Jacques,Herns,,Male,African-American,1975-12-02,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,Low,-1.54,1,Low,New
+50880,57213,51993,PRETRIAL,Weeks,Demetrius,,Male,African-American,1973-11-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-02,Medium,-0.02,7,Medium,New
+46600,57214,47026,PRETRIAL,Virgile,Wacaltos,,Male,Other,1988-04-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,High,0.79,10,High,Copy
+50858,57185,51967,PRETRIAL,Maddox,Elizabeth,,Female,Caucasian,1981-02-20,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-0.9,4,Low,New
+50864,57192,51974,PRETRIAL,Canuet,Jules,,Male,Caucasian,1989-10-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.18,2,Low,New
+50865,57193,51975,PRETRIAL,CHERENFANT,NATACHA,,Female,African-American,1980-03-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.79,1,Low,New
+50871,57200,51981,PRETRIAL,Brownlee,Ricky,,Male,African-American,1975-11-03,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,High,0.31,9,High,New
+50875,57206,51987,Probation,renz,daniel,,Male,Caucasian,1978-12-20,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,Medium,0.0,7,Medium,New
+29205,57184,51966,Probation,Banner,Akeine,,Male,African-American,1988-11-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium with Override Consideration,0.48,9,High,New
+31285,57205,51986,PRETRIAL,deutsch,zackery,,Male,Caucasian,1992-12-28,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,High,0.49,9,High,New
+50872,57201,51982,Probation,cross,tracy,,Male,African-American,1994-08-06,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,Medium with Override Consideration,0.57,9,High,New
+50860,57187,51969,PRETRIAL,STEWART,MELVIN,LENARD,Male,African-American,1989-02-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium with Override Consideration,0.41,9,High,New
+50861,57189,51971,PRETRIAL,LOWERY,REBECCA,GAIL,Female,Caucasian,1960-04-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium with Override Consideration,-0.11,8,High,New
+50879,57210,51991,PRETRIAL,BUSH,FREDDIE,,Male,African-American,1967-07-31,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-02,Low,-1.56,1,Low,New
+50866,57194,51976,PRETRIAL,SCHWAB,GARY,,Male,Caucasian,1955-10-01,Risk and Prescreen,Intake,English,Pretrial,Residential Program,Married,2013-01-02,Low,-2.61,1,Low,New
+46280,57212,46670,PRETRIAL,MORALES,VICTOR,,Male,Hispanic,1984-10-22,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium,-0.26,6,Medium,Copy
+50876,57207,51988,PRETRIAL,ALBINO,VANESSA,,Female,Caucasian,1974-07-20,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.9,1,Low,New
+50859,57186,51968,PRETRIAL,Lee,Victor,Bernard,Male,African-American,1987-12-13,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.01,2,Low,New
+50863,57191,51973,PRETRIAL,McCord,Charles,Robert,Male,African-American,1991-04-14,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium,-0.17,6,Medium,New
+50869,57199,51980,Probation,RUFF,FRED,E,Male,Caucasian,1943-08-28,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-02,Low,-1.0,3,Low,New
+42067,57197,51978,PRETRIAL,Casselman,Craig,Daniel,Male,Caucasian,1977-05-26,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-02,Low,-0.47,5,Medium,New
+50857,57183,51965,PRETRIAL,Doe,Jenay,,Female,African-American,1987-10-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium with Override Consideration,0.14,9,High,New
+43080,57188,51970,PRETRIAL,DAVIS,TAQUAWN,,Male,African-American,1984-01-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Medium,-0.06,7,Medium,New
+50870,57202,51983,DRRD,Wiggins,Michael,,Male,African-American,1989-07-31,All Scales,Intake,English,Conditional Release,Probation,Single,2013-01-02,High,0.5,9,High,New
+50874,57204,51985,PRETRIAL,talavera,veronica,,Female,African-American,1967-10-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-02,Low,-1.92,1,Low,New
+50886,57223,52002,PRETRIAL,Wallace,Leon,Rohan,Male,Other,1983-04-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-1.41,1,Low,New
+50907,57253,52026,PRETRIAL,Estey,Frederick,,Male,Caucasian,1977-05-12,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-03,Low,-0.93,3,Low,New
+50887,57225,52004,PRETRIAL,Alleyne,Theona,,Female,African-American,1979-01-12,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium,-0.53,6,Medium,New
+50892,57232,52011,PRETRIAL,Yunis,Omar,Nassim,Male,Caucasian,1992-08-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,High,0.37,9,High,New
+18293,57246,35116,PRETRIAL,HOLIDAY,NORRIS,ERROL,Male,African-American,1986-10-14,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium,-0.25,6,Medium,Copy
+50913,57260,52032,PRETRIAL,Augustin,James,,Male,African-American,1985-07-23,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-03,Medium,-0.29,6,Medium,New
+50882,57218,51997,PRETRIAL,Mobley,Milton,Brian,Male,African-American,1987-08-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,High,0.32,9,High,New
+50899,57244,52018,Probation,wiegley,christian,,Male,Caucasian,1968-07-12,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Low,-1.44,1,Low,New
+50905,57251,52024,Probation,Delva,Ernso,,Male,African-American,1982-01-23,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Low,-0.94,3,Low,New
+50890,57230,52009,PRETRIAL,Brown,Paul,Christophe,Male,African-American,1971-06-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.36,2,Low,New
+50902,57248,52021,PRETRIAL,Leon,Gina,,Female,Hispanic,1978-03-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-03,Low,-1.69,1,Low,New
+50903,57249,52022,PRETRIAL,Pericles,Evens,,Male,African-American,1966-10-13,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-1.87,1,Low,New
+50889,57228,52007,PRETRIAL,Galvis,Eimar,,Male,Hispanic,1987-03-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-0.47,5,Medium,New
+50911,57257,52030,Probation,HESLOP,CLAUDINE,,Female,African-American,1982-09-04,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Low,-0.8,5,Medium,New
+50884,57220,51999,PRETRIAL,Buchanan,Jermaine,,Male,African-American,1973-11-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-1.63,1,Low,New
+50909,57254,52027,PRETRIAL,Bedell,Frederick,,Male,Caucasian,1959-11-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-2.33,1,Low,New
+50896,57241,52015,Probation,lutz,douglas,,Male,Caucasian,1947-08-07,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-03,Low,-1.57,1,Low,New
+50881,57215,51994,PRETRIAL,Wiggins,Willie,,Male,African-American,1962-05-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.31,2,Low,New
+50893,57233,52012,PRETRIAL,warman,cristina,,Female,Caucasian,1992-01-19,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-03,Low,-1.13,3,Low,New
+19327,57217,51996,PRETRIAL,Gonzalez,Paul,,Male,Hispanic,1970-01-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-0.95,3,Low,New
+38240,57224,52003,PRETRIAL,Williams,Kenata,,Male,African-American,1988-07-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium,-0.06,7,Medium,New
+50891,57231,52010,PRETRIAL,Rich,Christopher,,Male,African-American,1990-09-03,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-0.43,5,Medium,New
+50900,57245,52019,PRETRIAL,Phelan,Michael,,Male,Caucasian,1965-05-08,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-03,Low,-2.37,1,Low,New
+50895,57238,52014,Probation,Rinchere,Joshua,,Male,African-American,1991-11-21,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium,-0.2,6,Medium,New
+48511,57240,49208,PRETRIAL,Rossi,Jonathon,,Male,Caucasian,1982-01-01,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-03,Low,-1.18,2,Low,Copy
+50888,57226,52005,PRETRIAL,Pena,Nolasco,,Male,African-American,1991-06-22,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.09,2,Low,New
+50901,57247,52020,Probation,CLERMONT,MARICA,,Female,African-American,1985-10-05,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Low,-0.65,5,Medium,New
+50885,57222,52001,PRETRIAL,Phillips,Adrian,,Male,Other,1987-03-12,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.43,1,Low,New
+50910,57256,52029,Probation,fussell,lafayette,,Male,African-American,1963-10-03,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Medium with Override Consideration,0.17,8,High,New
+50898,57243,52017,Probation,Riley,Sade,shenelle,Female,African-American,1987-12-17,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-03,Low,-0.84,4,Low,New
+9825,57221,52000,PRETRIAL,MURRAY,JAMAAL,RADHAD,Male,African-American,1984-06-04,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,High,0.95,10,High,New
+32426,57255,52028,PRETRIAL,ahearn,robert,,Male,Caucasian,1979-09-04,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Medium,-0.01,7,Medium,New
+29747,57227,52006,PRETRIAL,RICHLAND,WENDY,,Female,Caucasian,1955-12-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.2,3,Low,New
+38682,57234,38137,PRETRIAL,CULBERTSON,DARYL,,Male,Caucasian,1986-08-02,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-03,Medium with Override Consideration,0.35,9,High,Copy
+50897,57242,52016,PRETRIAL,Fisher,Jomar,Oneil,Male,African-American,1990-06-12,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-03,Low,-0.81,3,Low,New
+19348,57229,52008,PRETRIAL,Ford,Ernest,,Male,African-American,1982-05-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium with Override Consideration,0.08,7,Medium,New
+52124,58751,53382,Probation,cesconeto,altamiro,,Male,Other,1981-05-15,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Low,-1.39,1,Low,New
+50883,57219,51998,PRETRIAL,Brown,Tyrone,,Male,African-American,1985-01-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-0.51,5,Medium,New
+50912,57258,52031,Probation,Dale,Tiffany,,Female,Caucasian,1984-09-21,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-03,Medium,-0.36,7,Medium,New
+50894,57237,52013,Probation,lake,fermin,,Male,African-American,1994-01-28,All Scales,Intake,English,Post Sentence,Probation,Single,2013-01-03,Medium,-0.11,6,Medium,New
+16609,57216,51995,PRETRIAL,Chin,Bobby,David,Male,Asian,1987-04-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Medium with Override Consideration,0.09,8,High,New
+50904,57250,52023,PRETRIAL,Rouse,Franklin,,Male,African-American,1959-09-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-03,Low,-1.42,1,Low,New
+50924,57284,52054,PRETRIAL,Rodriguez,Williams,,Male,Hispanic,1987-06-14,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Low,-1.14,2,Low,New
+50917,57271,52043,PRETRIAL,Ifill,Oba,Sheba,Male,African-American,1982-06-05,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.08,7,Medium,New
+50936,57305,52072,Probation,morgan,stephen,,Male,Caucasian,1968-10-09,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-0.49,5,Medium,New
+25699,57276,24869,PRETRIAL,MEDLOCK,LARRY,,Male,African-American,1988-08-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.3,8,High,Copy
+50921,57279,52049,PRETRIAL,Jean,Benjamin,Montreuil,Male,African-American,1985-12-30,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Low,-0.45,5,Medium,New
+49011,57297,52064,Probation,gosnell,mark,,Male,Caucasian,1964-12-16,All Scales,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-1.14,2,Low,New
+50914,57263,52035,PRETRIAL,Neal,Tony,W,Male,African-American,1967-07-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.31,9,High,New
+40929,44410,40579,PRETRIAL,Velazquez,Jayson,,Male,Caucasian,1983-11-27,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-04,Low,-0.41,5,Medium,New
+50933,57300,52067,PRETRIAL,Lear,Ryan,,Male,Caucasian,1975-04-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.34,9,High,New
+50920,57277,52048,PRETRIAL,Brown,Justin,A,Male,Other,1994-06-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.64,4,Low,New
+50923,57282,52052,PRETRIAL,Daphnis,Rovens,,Male,African-American,1990-07-05,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Low,-0.67,4,Low,New
+10568,57273,52045,PRETRIAL,Louis,Lorenzo,Braziel,Male,African-American,1989-01-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.04,7,Medium,New
+50935,57303,52070,Probation,Ramos,John,,Male,Hispanic,1982-12-15,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-1.0,3,Low,New
+22457,57298,52065,PRETRIAL,Thomas,Derrick,,Male,African-American,1981-11-16,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-1.27,2,Low,New
+50930,57294,52062,Probation,Moreno,Maria,,Female,Hispanic,1980-12-24,Risk and Prescreen,Intake,Spanish,Other,Probation,Married,2013-01-04,Low,-1.04,3,Low,New
+50238,57287,51226,Probation,Jenkins,Allan,,Male,African-American,1991-01-04,All Scales,Intake,English,Conditional Release,Probation,Single,2013-01-04,Low,-0.55,4,Low,New
+6924,57289,6515,Probation,Moss,Jimmie,L,Male,African-American,1944-05-13,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-04,Medium,0.06,7,Medium,Copy
+48501,57261,52033,PRETRIAL,Mccormick,Terry,,Male,Caucasian,1960-04-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-04,Medium,-0.09,7,Medium,New
+3060,57266,52038,PRETRIAL,BURNETTE,EPRHIRAM,,Male,African-American,1959-05-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-04,Low,-1.0,3,Low,New
+18644,57268,52040,PRETRIAL,WATSON,CHRISTOPHER,,Male,African-American,1986-07-27,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,High,0.68,10,High,New
+50842,57296,51948,PRETRIAL,Mulligan,William,Joseph,Male,Caucasian,1986-10-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.27,6,Medium,Copy
+48820,57283,52053,PRETRIAL,Jacsaint,Jermai,,Male,African-American,1991-12-14,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.18,8,High,New
+50934,57301,52068,Probation,Escalante,Jose,,Male,Hispanic,1964-07-02,Risk and Prescreen,Intake,English,Other,Probation,Separated,2013-01-04,Low,-1.83,1,Low,New
+40027,57262,52034,PRETRIAL,Bennett,Marvin,,Male,Caucasian,1962-07-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-04,Low,-0.7,4,Low,New
+43496,57280,52050,PRETRIAL,Jean,Kevin,,Male,African-American,1992-11-11,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.24,8,High,New
+30818,57275,52047,PRETRIAL,MCREED,JONATHAN,,Male,African-American,1992-05-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium with Override Consideration,0.38,9,High,New
+40907,57288,52057,PRETRIAL,Singletary,Ronald,,Male,African-American,1968-03-24,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-1.12,2,Low,New
+34505,57291,52059,PRETRIAL,Judge,Samuel,,Male,African-American,1986-09-06,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Medium,-0.16,6,Medium,New
+50929,57293,52061,PRETRIAL,RINCON,LENIN,,Male,Caucasian,1993-03-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.29,6,Medium,New
+50916,57270,52042,PRETRIAL,Meli,Paul,,Male,Caucasian,1954-07-06,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-04,Low,-2.79,1,Low,New
+50918,57272,52044,PRETRIAL,Montgomery,Tevin,,Male,African-American,1991-01-20,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-04,High,0.33,9,High,New
+19206,57306,52073,PRETRIAL,Murphy,Janard,,Male,African-American,1992-09-16,All Scales,Intake,English,Post Sentence,Residential Program,Single,2013-01-04,High,0.76,10,High,New
+48829,57264,52036,DRRD,Pino,Angel,Rafael,Male,Hispanic,1990-03-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.36,5,Medium,New
+34054,57278,33188,PRETRIAL,Harris,David,Chandler,Male,Caucasian,1991-04-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Low,-0.37,5,Medium,Copy
+50925,57285,52055,PRETRIAL,James,Keon,,Male,African-American,1984-11-10,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-04,Medium,-0.31,6,Medium,New
+6225,57265,52037,PRETRIAL,McReed,Derion,Pernell,Male,African-American,1990-07-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.21,6,Medium,New
+50915,57269,52041,PRETRIAL,joy,Derek,,Male,African-American,1967-11-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-04,Low,-0.99,3,Low,New
+50926,57286,52056,Probation,GADSON,PATRICK,B,Male,African-American,1985-10-10,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-0.61,4,Low,New
+50927,57290,52058,Probation,garcia,jeffrey,,Male,Hispanic,1990-01-06,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-0.91,3,Low,New
+50937,57307,52074,Probation,Williams,Andrew,Michael,Male,African-American,1987-07-30,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-04,Low,-1.03,2,Low,New
+6431,57267,52039,PRETRIAL,HOWARD,BARON,,Male,African-American,1986-05-24,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.06,7,Medium,New
+50919,57274,52046,PRETRIAL,Adderley,Dernard,Edward,Male,African-American,1988-05-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Low,-0.35,5,Medium,New
+50922,57281,52051,PRETRIAL,Foley,Ronnie,,Male,Caucasian,1977-09-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-04,Medium,-0.29,6,Medium,New
+50931,57295,52063,Probation,MARTINS,ANA,P,Female,Hispanic,1988-10-02,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-1.12,3,Low,New
+28061,57304,52071,PRETRIAL,MARTINO,STACEY,ANN,Female,Caucasian,1964-07-02,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-04,Low,-0.7,5,Medium,New
+50948,57320,52085,PRETRIAL,Roberson,Lakemia,,Female,African-American,1983-06-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium,-0.15,7,Medium,New
+41515,57311,41222,PRETRIAL,perry,anthony,,Male,African-American,1984-08-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-05,Medium with Override Consideration,0.72,10,High,Copy
+50945,57316,52082,PRETRIAL,Breedlove,Pierre,Qwauvez,Male,African-American,1992-03-06,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium,-0.08,7,Medium,New
+50943,57314,52080,PRETRIAL,Atkinstall,Sean,,Male,Other,1985-06-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium with Override Consideration,0.19,8,High,New
+50939,57309,52076,PRETRIAL,Moncrieffe,Shieem,,Male,African-American,1993-06-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Low,-0.77,3,Low,New
+50940,57310,52077,PRETRIAL,Childress,Lonnie,,Male,African-American,1979-10-31,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Low,-0.37,5,Medium,New
+50946,57317,52083,PRETRIAL,Williams,Jonathan,,Male,African-American,1981-02-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium with Override Consideration,0.16,8,High,New
+50938,57308,52075,PRETRIAL,Hernandez,Brenda,,Female,Caucasian,1994-02-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium,-0.69,5,Medium,New
+50947,57319,52084,PRETRIAL,Brown,Shantoya,,Male,African-American,1989-08-14,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium,-0.49,5,Medium,New
+50941,57312,52078,PRETRIAL,Vegarivera,Miguel,,Male,Caucasian,1971-02-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-05,Low,-2.22,1,Low,New
+50944,57315,52081,PRETRIAL,Burgess,Marketta,,Female,African-American,1980-04-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-05,Medium with Override Consideration,0.6,10,High,New
+50949,57321,52086,PRETRIAL,lux,steven,,Male,Caucasian,1953-06-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-05,Low,-2.77,1,Low,New
+50942,57313,52079,PRETRIAL,Gerald,Pancia,E,Female,Other,1956-02-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-05,Low,-2.45,1,Low,New
+8812,57318,48865,PRETRIAL,CARTER,DONALD,,Male,African-American,1989-09-27,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-05,High,0.82,10,High,Copy
+50962,57339,52101,PRETRIAL,Rivera,Elio,,Male,Caucasian,1988-05-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-0.41,5,Medium,New
+50953,57326,52091,PRETRIAL,WALDEN,TOMMY,LEE,Male,African-American,1960-10-04,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-0.71,4,Low,New
+50955,57328,52093,PRETRIAL,burdin,Bruce,allen,Male,Caucasian,1970-10-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-1.84,1,Low,New
+15195,57334,47385,PRETRIAL,JOHNSON,CLINTON,E,Male,Caucasian,1991-01-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,High,0.61,9,High,Copy
+50959,57336,52098,PRETRIAL,PUELLO,ALFONSO,,Male,Hispanic,1933-03-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,Low,-2.82,1,Low,New
+50956,57329,52094,PRETRIAL,SEWELL,KENNETH,,Male,African-American,1987-12-21,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,High,0.64,10,High,New
+50958,57333,52097,PRETRIAL,GOUDREAU,AUTA,,Female,African-American,1966-06-22,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-1.68,1,Low,New
+50951,57324,52089,PRETRIAL,Austin,Robert,,Male,African-American,1984-05-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Medium,-0.2,6,Medium,New
+8550,57331,52096,PRETRIAL,Jackson,Leon,,Male,African-American,1961-01-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-0.32,5,Medium,New
+50961,57338,52100,PRETRIAL,Pena- Gonzalez,Reinaldo,Enrique,Male,Caucasian,1985-04-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-1.55,1,Low,New
+37680,57322,52087,PRETRIAL,GUERRIER,JEAN,,Male,African-American,1970-03-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,Low,-1.39,1,Low,New
+50957,57330,52095,PRETRIAL,JONES III,JOHN,W,Male,African-American,1992-06-27,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-0.74,4,Low,New
+15195,52046,47385,PRETRIAL,JOHNSON,CLINTON,E,Male,Caucasian,1991-01-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,High,0.52,9,High,New
+11820,57335,11337,PRETRIAL,cypress,jason,,Male,Caucasian,1972-01-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Separated,2013-01-06,Low,-0.58,4,Low,Copy
+50954,57327,52092,PRETRIAL,Coppin,Roylon,,Male,Other,1975-06-21,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,Low,-2.13,1,Low,New
+50960,57337,52099,PRETRIAL,Burke,Shelani,,Female,African-American,1985-09-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,Low,-1.45,2,Low,New
+50950,57323,52088,PRETRIAL,Power,Andres,,Male,Hispanic,1955-01-13,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-06,Low,-2.74,1,Low,New
+50952,57325,52090,PRETRIAL,ROBERTS,SUSAN,,Female,African-American,1977-09-04,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-1.52,2,Low,New
+8888,57332,8421,PRETRIAL,WALKER,DAVE,,Male,African-American,1988-01-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-06,Low,-0.49,5,Medium,Copy
+50967,57346,52108,PRETRIAL,MCKENZIE,RICHARD,S,Male,African-American,1985-11-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-0.36,5,Medium,New
+50973,57353,52113,Probation,maimone,christina,,Female,Hispanic,1981-03-21,Risk and Prescreen,Intake,English,Post Sentence,Probation,Married,2013-01-07,Low,-1.09,3,Low,New
+50980,57360,52120,Probation,Ferrebee,Dawn,,Female,Caucasian,1961-07-10,Risk and Prescreen,Intake,English,Other,Probation,Divorced,2013-01-07,Low,-1.77,1,Low,New
+50987,57367,52127,Probation,SOLLINGER,ANTHONY,JAMES,Male,Caucasian,1969-02-02,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-07,Low,-0.71,4,Low,New
+50993,57374,52134,PRETRIAL,REINOSO AMAYA,JUAN,CARLOS,Male,Hispanic,1993-02-21,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-0.96,3,Low,New
+50963,57341,52103,PRETRIAL,EDWARDS,KERON,ORLANDO,Male,Other,1979-05-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Separated,2013-01-07,Low,-1.48,1,Low,New
+50978,57358,52118,PRETRIAL,MATTHEWS,TACCULAR,,Male,African-American,1988-08-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium,-0.29,6,Medium,New
+50981,57362,52122,PRETRIAL,Strickland,Anthony,Tyrone,Male,African-American,1975-12-12,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,High,0.85,10,High,New
+42925,57372,52132,PRETRIAL,Baska,Eliguisz,,Male,Caucasian,1968-05-30,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-07,Low,-1.68,1,Low,New
+50984,57364,52124,PRETRIAL,GREENE,BAILEY,,Female,Caucasian,1996-04-22,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-07,Medium with Override Consideration,-0.44,6,Medium,New
+25604,57369,52129,PRETRIAL,INMAN,THOMAS,,Male,Caucasian,1976-05-27,Risk and Prescreen,Intake,English,Post Sentence,Probation,Married,2013-01-07,Medium,-0.18,6,Medium,New
+50972,57351,52112,Probation,ZOLNOWSKI,THOMAS,M,Male,Caucasian,1982-01-07,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-07,Low,-1.03,2,Low,New
+50969,57348,52110,PRETRIAL,Alcime,McKenzie,,Male,African-American,1988-08-23,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-1.38,2,Low,New
+50977,57356,52116,Probation,cobbs,nathaniel,,Male,African-American,1978-04-27,Risk and Prescreen,Intake,English,Post Sentence,Probation,Married,2013-01-07,Medium,0.07,7,Medium,New
+49128,57343,52105,PRETRIAL,Whitehead,Devon,,Male,African-American,1973-10-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium,0.01,7,Medium,New
+19434,57340,52102,PRETRIAL,STRATTON,BRET,TRAVIS,Male,Caucasian,1981-12-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium with Override Consideration,0.25,8,High,New
+50979,57359,52119,Probation,YUKNUS,MARGARET,ASHLEY,Female,Caucasian,1986-05-24,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-07,Low,-0.99,4,Low,New
+50982,57361,52121,PRETRIAL,Sisto,Joseph,,Male,Caucasian,1981-03-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-07,Low,-0.76,3,Low,New
+50986,57366,52126,PRETRIAL,grant,john,hayward,Male,African-American,1966-03-04,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,High,0.3,8,High,New
+50988,57368,52128,Probation,Carty,Anne,Marie,Female,African-American,1989-09-10,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-07,Medium,-0.54,6,Medium,New
+50966,57345,52107,PRETRIAL,CARR,KEVIN,,Male,Caucasian,1976-05-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-0.48,5,Medium,New
+50974,57354,52114,PRETRIAL,Augistin,Aslet,Kevin,Male,African-American,1991-09-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-07,Low,-0.54,4,Low,New
+51023,57422,52177,Probation,Guillen,patricio,,Male,Hispanic,1977-06-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Separated,2013-01-07,Low,-1.42,1,Low,New
+50990,57371,52131,Probation,Gilez Lopez,alfredo,,Male,Hispanic,1986-01-12,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-07,Low,-0.75,3,Low,New
+41888,57350,41631,Probation,Gollette,Tishanna,,Female,African-American,1977-11-06,All Scales,Intake,English,Post Sentence,Probation,Single,2013-01-07,Low,-0.53,5,Medium,New
+50975,57355,52115,PRETRIAL,Placil,Kennol,,Male,African-American,1986-10-24,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium,-0.24,6,Medium,New
+50976,57357,52117,PRETRIAL,YOUN,BRANDON,,Male,African-American,1986-03-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-0.65,4,Low,New
+50989,57370,52130,PRETRIAL,lovato,gabriel,,Male,Hispanic,1979-10-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-07,Low,-0.6,4,Low,New
+50983,57363,52123,PRETRIAL,Masses,Johnny,,Female,African-American,1985-09-20,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium with Override Consideration,0.79,10,High,New
+50964,57342,52104,PRETRIAL,LEONARD,VERONICA,,Female,Caucasian,1991-09-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium,-0.53,6,Medium,New
+50970,57349,52111,PRETRIAL,Kinchen,Syrefia,,Female,Other,1976-10-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Low,-1.94,1,Low,New
+50965,57344,52106,PRETRIAL,Gordon,Percival,,Male,African-American,1969-09-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium with Override Consideration,0.52,9,High,New
+50968,57347,52109,PRETRIAL,NAAR,SEAN,LORENZO,Male,African-American,1987-01-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-07,Medium,-0.28,6,Medium,New
+50985,57365,52125,Probation,Queen,Mark,Spencer,Male,Caucasian,1961-11-15,Risk and Prescreen,Intake,English,Other,Probation,Married,2013-01-07,Low,-1.01,2,Low,New
+50992,57373,52133,Probation,QUISPE,WALTER,,Male,Hispanic,1993-04-05,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-07,Low,-0.51,5,Medium,New
+50240,57352,51228,PRETRIAL,Graham,Melanie,P,Female,Caucasian,1974-04-29,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-07,Low,-1.5,2,Low,Copy
+44870,57386,45012,PRETRIAL,Patterson,Aaron,,Male,Caucasian,1965-09-13,All Scales,Intake,English,Other,Probation,Divorced,2013-01-08,Low,-2.21,1,Low,Copy
+5754,57378,52138,PRETRIAL,BARRETT,SHIVAUGHN,,Male,African-American,1990-09-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,High,0.51,9,High,New
+20741,57399,52156,Probation,Kerr,Donovan,,Male,African-American,1965-02-10,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Medium,-0.15,6,Medium,New
+51012,57391,52148,PRETRIAL,Eriz,David,Edward,Male,Caucasian,1983-09-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-08,Low,-1.18,2,Low,New
+50994,57375,52135,PRETRIAL,Still,Gregory,,Male,Caucasian,1947-08-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Widowed,2013-01-08,Low,-2.7,1,Low,New
+51001,57384,52143,PRETRIAL,Willamson,Shawntee,,Female,African-American,1990-09-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-1.02,4,Low,New
+45298,57405,52161,Probation,GRANDE,DELANO,SANTO,Male,Other,1990-01-14,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Low,-0.37,5,Medium,New
+38484,57401,52157,PRETRIAL,Martinez,Miguel,A,Male,Caucasian,1960-09-08,Risk and Prescreen,Intake,English,Other,Probation,Separated,2013-01-08,Low,-2.43,1,Low,New
+50998,57380,52140,PRETRIAL,Hernandez,Jesus,,Male,Hispanic,1993-05-24,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-0.91,3,Low,New
+50999,57382,52141,PRETRIAL,Cabrermacias,Victor,,Male,Hispanic,1954-01-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-1.98,1,Low,New
+51017,57396,52153,PRETRIAL,irvin,onterriun,,Male,African-American,1993-11-25,All Scales,Intake,English,Post Sentence,Probation,Single,2013-01-08,Medium with Override Consideration,-0.6,3,Low,New
+51020,57403,52159,Probation,Coelho,Cristina,,Female,Hispanic,1981-07-31,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Low,-1.0,4,Low,New
+51002,57387,52145,Probation,Segura,Xavier,,Male,Hispanic,1994-11-06,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-08,High,0.67,10,High,New
+51010,57389,52146,DRRD,Adams,Demetrius,Eugene,Male,African-American,1977-12-23,All Scales,Intake,English,Probation Violator,Probation,Single,2013-01-08,Medium with Override Consideration,1.24,10,High,New
+50996,57377,52137,PRETRIAL,Kirlew,Orlando,,Male,Other,1990-09-07,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-0.42,5,Medium,New
+51011,57390,52147,Probation,Bell,Chamora,,Female,African-American,1981-08-31,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-08,Low,-1.65,2,Low,New
+51019,57398,52155,Probation,Scheurich,Diego,,Male,Caucasian,1991-03-21,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-08,Low,-0.94,3,Low,New
+29315,57385,52144,PRETRIAL,Smith,Terry,Daniel,Male,Caucasian,1992-08-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Medium,-0.1,7,Medium,New
+51013,57392,52149,Probation,Darby,Gregory,Bruce,Male,Caucasian,1950-05-27,Risk and Prescreen,Intake,English,Other,Probation,Married,2013-01-08,Low,-2.25,1,Low,New
+51022,57406,52162,Probation,Vasquez Gonzalez,Denis,,Male,Hispanic,1979-12-19,Risk and Prescreen,Intake,Spanish,Other,Probation,Married,2013-01-08,Low,-1.14,2,Low,New
+51014,57393,52150,Probation,Curley,Adam,,Male,Caucasian,1984-06-26,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Low,-1.15,2,Low,New
+46539,57400,46961,Probation,HARRIGAN,JEAN,,Male,African-American,1970-06-10,All Scales,Intake,English,Conditional Release,Probation,Married,2013-01-08,Low,-1.77,1,Low,New
+50997,57379,52139,PRETRIAL,Demeritte,Raphale,,Male,African-American,1994-10-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,High,0.19,8,High,New
+51018,57397,52154,Probation,Amedee,Yves,,Male,African-American,1982-05-19,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Low,-0.48,5,Medium,New
+50995,57376,52136,PRETRIAL,Bergeron,Paul,,Male,Caucasian,1977-08-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-1.79,1,Low,New
+51000,57383,52142,PRETRIAL,JEAN-BAPTIST,BRIAN,,Male,African-American,1994-05-05,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Medium with Override Consideration,-0.4,5,Medium,New
+8675,57381,8209,PRETRIAL,CHAMBLIS,Calvin,,Male,African-American,1958-05-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-08,Low,-1.36,2,Low,Copy
+51016,57395,52152,PRETRIAL,Francis,William,,Male,Caucasian,1989-10-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-08,Low,-0.83,3,Low,New
+9938,57402,52158,PRETRIAL,Richards,Andre,,Female,African-American,1988-09-20,Risk and Prescreen,Intake,English,Post Sentence,Probation,Separated,2013-01-08,Medium with Override Consideration,-0.09,8,High,New
+34810,57404,52160,PRETRIAL,veach,annamarie,,Female,Caucasian,1970-10-19,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-08,Medium,-0.41,6,Medium,New
+51036,57423,52178,Probation,Battle,Rochelle,,Female,African-American,1987-02-09,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-09,Medium,-0.5,6,Medium,New
+51042,57432,52184,PRETRIAL,Taylor,Ebony,,Female,African-American,1987-01-12,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-09,High,0.44,10,High,New
+51053,57446,52196,PRETRIAL,Lewis,Michael,,Male,African-American,1966-09-11,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.28,2,Low,New
+51052,57444,52195,Probation,lena,lorena,,Female,Caucasian,1963-04-28,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-09,Low,-2.07,1,Low,New
+50928,57430,52060,PRETRIAL,Dorsett,Adrian,,Male,African-American,1993-11-29,All Scales,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-09,Medium with Override Consideration,-0.31,6,Medium,Copy
+51024,57409,52165,PRETRIAL,Compton,Kavin,,Male,Caucasian,1966-01-12,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.31,2,Low,New
+51032,57418,52173,PRETRIAL,Lowery,Shameka,,Female,African-American,1984-09-23,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.62,2,Low,New
+51047,57439,52190,Probation,HOANG,KELLY,,Female,Asian,1972-09-20,Risk and Prescreen,Intake,English,Post Sentence,Probation,Married,2013-01-09,Low,-1.53,2,Low,New
+50928,57427,52060,PRETRIAL,Dorsett,Adrian,,Male,African-American,1993-11-29,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-09,Medium with Override Consideration,-0.31,6,Medium,Copy
+45938,57434,46280,PRETRIAL,Green,Curtis,Lindell,Male,African-American,1989-11-28,All Scales,Intake,English,Pretrial,Probation,Single,2013-01-09,Medium,-0.68,4,Low,Copy
+51035,57421,52176,PRETRIAL,Edwards,Timothy,,Male,African-American,1977-06-26,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.16,2,Low,New
+51050,57442,52193,PRETRIAL,IBANEZ,JULIO,,Male,Hispanic,1980-10-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.19,2,Low,New
+51026,57413,52168,PRETRIAL,Rogers,Terell,Lenard,Male,African-American,1986-08-13,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Medium with Override Consideration,0.31,9,High,New
+51028,57414,52169,PRETRIAL,Simonds,Louis,,Male,Other,1989-09-09,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-0.64,4,Low,New
+51040,57429,52182,Probation,Quintana,Fancisco,,Male,Hispanic,1976-03-16,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-09,Medium,-0.1,7,Medium,New
+51025,57408,52164,PRETRIAL,Dozil,Etienne,,Male,African-American,1993-12-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Medium,-0.03,7,Medium,New
+51033,57419,52174,PRETRIAL,Rollins,Derriviann,,Male,African-American,1972-03-15,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Divorced,2013-01-09,Low,-0.34,5,Medium,New
+51037,57424,52179,Probation,Walls,Sergio,,Male,African-American,1983-05-29,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-09,Medium with Override Consideration,0.65,10,High,New
+51046,57437,52188,DRRD,Silva,Jose,,Male,Hispanic,1985-01-28,All Scales,Intake,English,Post Sentence,Probation,Single,2013-01-09,Low,-0.28,5,Medium,New
+39656,57411,39197,PRETRIAL,Lake,Horace,,Male,African-American,1961-06-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.54,1,Low,Copy
+51030,57416,52171,PRETRIAL,AMENTA,EMANUEL,,Male,Hispanic,1977-04-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-09,Medium,-0.12,7,Medium,New
+8591,57438,52189,Probation,Rodriguez,Felix,,Male,Hispanic,1961-08-29,Risk and Prescreen,Intake,English,Post Sentence,Probation,Separated,2013-01-09,Low,-1.54,1,Low,New
+51048,57440,52191,Probation,ALBURY,RICHARD,,Male,Caucasian,1971-12-19,Risk and Prescreen,Intake,English,Post Sentence,Probation,Divorced,2013-01-09,Low,-0.69,4,Low,New
+42676,57410,52166,PRETRIAL,TAVERAS,MANUEL,EUGENIO,Male,African-American,1990-01-05,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Medium,0.01,7,Medium,New
+51031,57417,52172,PRETRIAL,CAMPBELL,KATTEAL,JONSHAUN,Male,African-American,1991-01-29,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Medium with Override Consideration,0.1,8,High,New
+51041,57431,52183,Probation,rojas,hildiana,,Female,Hispanic,1991-01-03,Risk and Prescreen,Intake,Spanish,Post Sentence,Probation,Single,2013-01-09,Medium,-0.43,6,Medium,New
+7301,57445,48130,PRETRIAL,GORE,JOHNNY,,Male,African-American,1988-10-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-09,High,1.29,10,High,Copy
+51038,57426,52180,PRETRIAL,Higgs,Anthony,,Male,African-American,1982-02-24,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-09,Low,-0.56,4,Low,New
+51051,57443,52194,Probation,Robinson,Rudolph,,Male,African-American,1956-12-08,Risk and Prescreen,Intake,English,Other,Probation,Separated,2013-01-09,Low,-1.57,1,Low,New
+51039,57428,52181,PRETRIAL,Wilson,Wendy,,Female,Caucasian,1961-01-29,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Divorced,2013-01-09,Low,-0.82,4,Low,New
+51034,57420,52175,PRETRIAL,CARTER,TOMMIE,LEE,Male,African-American,1956-07-08,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Married,2013-01-09,Low,-1.67,1,Low,New
+51027,57412,52167,PRETRIAL,Person,Sydonie,Iesha,Female,African-American,1992-06-17,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-09,Low,-1.01,4,Low,New
+51029,57415,52170,PRETRIAL,Joseph,Travis,Lamont,Male,African-American,1991-05-25,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Significant Other,2013-01-09,Low,-0.76,3,Low,New
+51043,57433,52185,Probation,tavera,oskar,,Male,Hispanic,1984-01-24,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-09,Low,-0.58,4,Low,New
+51078,57483,52230,PRETRIAL,SAINTILUS,SAVANNA,,Female,African-American,1988-06-30,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.1,3,Low,New
+24039,57462,52211,PRETRIAL,Rucker,Celdrick,Jarrod,Male,African-American,1987-06-18,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,High,0.52,9,High,New
+51076,57480,52227,PRETRIAL,Smithberg,Eric,,Male,Caucasian,1976-11-11,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.08,2,Low,New
+51059,57454,52204,PRETRIAL,CERVANTES,MAIKEL,,Male,Caucasian,1981-09-22,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-0.39,5,Medium,New
+51081,57488,52235,PRETRIAL,Luxama,James,,Male,African-American,1986-12-19,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.4,1,Low,New
+51072,57475,52222,PRETRIAL,Humphrey,Rabina,,Female,Other,1969-07-04,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Married,2013-01-10,Low,-1.64,2,Low,New
+51075,57478,52225,PRETRIAL,Piperwang,Christopher,Brendan,Male,Asian,1991-12-01,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.34,2,Low,New
+6727,57485,52232,PRETRIAL,DANIELS,SHAQWANA,T,Female,African-American,1983-11-20,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-10,Medium with Override Consideration,0.06,8,High,New
+51055,57449,52199,PRETRIAL,Costino,Joseph,,Male,Caucasian,1954-03-12,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.78,1,Low,New
+51067,57464,52213,PRETRIAL,Henry,Timothy,,Male,African-American,1980-07-10,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.54,1,Low,New
+51082,57491,52238,PRETRIAL,johnson,clinton,,Male,African-American,1971-02-08,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-10,Medium,-0.21,6,Medium,New
+51062,57457,52207,PRETRIAL,SANDERNS,OCON,,Male,Caucasian,1988-04-30,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-0.78,3,Low,New
+51070,57470,52218,Probation,Estopinan,Emilio,,Male,Hispanic,1947-08-04,Risk and Prescreen,Intake,English,Other,Probation,Single,2013-01-10,Low,-1.95,1,Low,New
+23615,57472,23939,PRETRIAL,Simmons,Brandon,,Male,African-American,1985-06-08,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-10,High,0.45,9,High,Copy
+51057,57452,52202,PRETRIAL,Petit-Frere,Kensley,,Male,African-American,1992-08-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-0.9,3,Low,New
+51074,57477,52224,Probation,rojas,pablo,,Male,Hispanic,1985-03-26,Risk and Prescreen,Intake,English,Post Sentence,Probation,Married,2013-01-10,Low,-0.93,3,Low,New
+51061,57456,52206,PRETRIAL,MAROLD,MICHAEL,ROBERT,Male,Caucasian,1990-05-02,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,High,0.62,10,High,New
+28711,57473,52220,Probation,Kane,Alex,,Male,Caucasian,1987-06-05,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-10,Medium with Override Consideration,0.26,8,High,New
+1499,57447,52197,PRETRIAL,SEVIL,STEVE,,Male,African-American,1987-07-27,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Medium,-0.28,6,Medium,New
+44828,57482,52229,Probation,Anderson,Jason,Stephen,Male,Caucasian,1975-03-24,Risk and Prescreen,Intake,English,Other,Probation,Separated,2013-01-10,Low,-0.43,5,Medium,New
+51080,57487,52234,PRETRIAL,Milbry,Ryan,,Male,African-American,1979-03-08,Risk and Prescreen,Intake,English,Pretrial,Pretrial Defendant,Single,2013-01-10,Low,-0.96,3,Low,New
+51063,57459,52208,PRETRIAL,Blue,Ladarius,,Male,African-American,1988-02-16,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Medium with Override Consideration,0.05,7,Medium,New
+51065,57461,52210,PRETRIAL,GLISSON,JALINQUKA,,Female,African-American,1978-09-11,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Medium with Override Consideration,0.28,9,High,New
+45061,57466,52215,PRETRIAL,Johnstone,Kristine,,Female,Caucasian,1985-05-07,Risk and Prescreen,Intake,English,Post Sentence,Probation,Single,2013-01-10,Medium,-0.42,6,Medium,New
+51056,57450,52200,PRETRIAL,Parra,Ivan,Alexander,Male,Caucasian,1990-10-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-0.55,4,Low,New
+51079,57484,52231,PRETRIAL,fulton,brittany,,Female,African-American,1985-07-28,Risk and Prescreen,Intake,English,Pretrial,Jail Inmate,Single,2013-01-10,Low,-1.13,3,Low,New
