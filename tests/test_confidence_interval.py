@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from src.synthesized_insight.metrics import BinomialDistanceTest, EarthMoversDistance, HellingerDistance
-from src.synthesized_insight.metrics.confidence_interval import BinomialInterval, BootstrapConfidenceInterval
+from src.synthesized_insight.metrics import EarthMoversDistance, HellingerDistance
+from src.synthesized_insight.metrics.confidence_interval import compute_binomial_interval, compute_bootstrap_interval
 
 
 @pytest.mark.parametrize(
@@ -11,29 +11,24 @@ from src.synthesized_insight.metrics.confidence_interval import BinomialInterval
         (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
     ])
 def test_bootstrap_interval(metric, data):
-
-    bootstrap_interval = BootstrapConfidenceInterval(metric_cls_obj=metric)
-    conf_interval = bootstrap_interval(data[0], data[0])
-    assert conf_interval.level == bootstrap_interval.confidence_level
+    conf_interval = compute_bootstrap_interval(data[0], data[0], metric)
+    assert conf_interval.level == 0.95
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
-    conf_interval = bootstrap_interval(data[0], data[1])
-    assert conf_interval.level == bootstrap_interval.confidence_level
+    conf_interval = compute_bootstrap_interval(data[0], data[1], metric)
+    assert conf_interval.level == 0.95
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
 
 def test_binomial_interval():
-    bin_interval = BinomialInterval(metric_cls_obj=BinomialDistanceTest(), confidence_level=0.99)
-    conf_interval = bin_interval(pd.Series([1, 1]), pd.Series([0, 0]))
+    conf_interval = compute_binomial_interval(pd.Series([1, 1]), pd.Series([0, 0]), confidence_level=0.99)
     assert conf_interval.level == 0.99
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
-    bin_interval = BinomialInterval(metric_cls_obj=BinomialDistanceTest(), confidence_level=0.80)
-    conf_interval = bin_interval(pd.Series([1, 0]), pd.Series([1, 0]))
+    conf_interval = compute_binomial_interval(pd.Series([1, 0]), pd.Series([1, 0]), confidence_level=0.80)
     assert conf_interval.level == 0.80
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None
 
-    bin_interval = BinomialInterval(metric_cls_obj=BinomialDistanceTest())
-    conf_interval = bin_interval(pd.Series([1, 0, 1, 1]), pd.Series([1, 0, 1, 0]))
+    conf_interval = compute_binomial_interval(pd.Series([1, 0, 1, 1]), pd.Series([1, 0, 1, 0]))
     assert conf_interval.level == 0.95
     assert conf_interval.limits[0] is not None and conf_interval.limits[1] is not None

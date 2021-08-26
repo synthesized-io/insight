@@ -1,77 +1,9 @@
-from enum import Enum
 from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from ..check import ColumnCheck
-
-
-class DistrType(Enum):
-    """Indicates the type distribution of data in a series."""
-
-    Continuous = "continuous"
-    Binary = "binary"
-    Categorical = "categorical"
-    Datetime = "datetime"
-
-    def is_continuous(self):
-        return self == DistrType.Continuous
-
-    def is_binary(self):
-        return self == DistrType.Binary
-
-    def is_categorical(self):
-        return self == DistrType.Categorical
-
-    def is_datetime(self):
-        return self == DistrType.Datetime
-
-
-def infer_distr_type(column: pd.Series,
-                     ctl_mult: float = 2.5,
-                     min_num_unique: int = 10) -> DistrType:
-    """Infers whether the data in a column or series is datetime, continuous, categorical or binary.
-    Args:
-        column (pd.Series):
-            The column from the data or data series to consider.
-        ctl_mult (float, optional):
-            Categorical threshold log multiplier. Defaults to 2.5.
-        min_num_unique (int, optional):
-            Minimum number of unique values for the data to be continuous. Defaults to 10.
-    Returns:
-        DistrType:
-            The output is an enum representing the type of distribution.
-    Examples:
-        >>> col_type = infer_distr_type(range(1000))
-        >>> col_type.is_continuous()
-        True
-        >>> col_type.is_binary()
-        False
-    """
-
-    check = ColumnCheck()
-    col = check.infer_dtype(column)
-
-    unique = col.unique()
-    n_unique = len(unique)
-    n_rows = len(col)
-    dtype = col.dtype
-
-    if n_unique == 2:
-        return DistrType.Binary
-
-    elif dtype == "float64":
-        return DistrType.Continuous
-
-    elif dtype == "datetime64[ns]":
-        return DistrType.Datetime
-
-    elif n_unique > max(min_num_unique, ctl_mult * np.log(n_rows)) and dtype in ["float64", "int64"]:
-        return DistrType.Continuous
-
-    else:
-        return DistrType.Categorical
 
 
 def zipped_hist(
@@ -102,7 +34,8 @@ def zipped_hist(
     """
 
     joint = pd.concat(data)
-    is_continuous = distr_type == "continuous" if distr_type is not None else infer_distr_type(joint).is_continuous()
+    check = ColumnCheck()
+    is_continuous = check.continuous(joint)
 
     # Compute histograms of the data, bin if continuous
     if is_continuous:

@@ -64,43 +64,31 @@ class TwoColumnMetric(_Metric):
 class TwoColumnMetricTest(_Metric):
     def __init__(self,
                  check: ColumnCheck = None,
-                 metric_cls_obj: Union[TwoColumnMetric, None] = None,
                  alternative: str = 'two-sided'):
         if check is None:
             self.check = ColumnCheck()
         else:
             self.check = check
-        self.metric_cls_obj = metric_cls_obj
 
         if alternative not in ('two-sided', 'greater', 'less'):
             raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
         self.alternative = alternative
-        self.p_value: Union[int, float, None] = None
 
     @abstractclassmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> Union[int, float, None]:
+    def _compute_test(self,
+                      sr_a: pd.Series,
+                      sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
         ...
-
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: float) -> Union[int, float, None]:
-        return self.p_value
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
         if not self.check_column_types(self.check, sr_a, sr_b):
             return None, None
 
-        metric_value = self._compute_metric(sr_a, sr_b)
-        if metric_value is None:
-            return None, None
-
-        p_value = self._compute_p_value(sr_a, sr_b, metric_value)
-        return metric_value, p_value
+        return self._compute_test(sr_a, sr_b)
 
 
 class ModellingMetric(_Metric):

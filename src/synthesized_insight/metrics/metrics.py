@@ -20,7 +20,6 @@ class Mean(OneColumnMetric):
 
     @classmethod
     def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
-        print(check.affine(sr))
         if not check.affine(sr):
             return False
         return True
@@ -65,6 +64,7 @@ class CramersV(TwoColumnMetric):
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
         table = np.asarray(table_orig, dtype=np.float64)
+
         if table.min() == 0:
             table[table == 0] = 0.5
         n = table.sum()
@@ -253,6 +253,7 @@ class EarthMoversDistance(TwoColumnMetric):
         space = set(old).union(set(new))
         if len(space) > 1e4:
             return np.nan
+
         old_unique, counts = np.unique(old, return_counts=True)
         old_counts = dict(zip(old_unique, counts))
         new_unique, counts = np.unique(new, return_counts=True)
@@ -287,7 +288,7 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
         Returns:
             The kullback-leibler divergence between sr_a and sr_b.
         """
-        (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
+        (p, q) = zipped_hist((sr_a, sr_b))
         return entropy(np.array(p), np.array(q))
 
 
@@ -313,7 +314,7 @@ class JensenShannonDivergence(TwoColumnMetric):
         Returns:
             The jensen-shannon divergence between sr_a and sr_b.
         """
-        (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
+        (p, q) = zipped_hist((sr_a, sr_b))
         return jensenshannon(p, q)
 
 
@@ -339,7 +340,7 @@ class HellingerDistance(TwoColumnMetric):
         Returns:
             The hellinger distance between sr_a and sr_b.
         """
-        (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
+        (p, q) = zipped_hist((sr_a, sr_b))
         return np.linalg.norm(np.sqrt(p) - np.sqrt(q)) / np.sqrt(2)
 
 
@@ -373,8 +374,10 @@ class Norm(TwoColumnMetric):
         Returns:
             The lp-norm between sr_a and sr_b.
         """
-        (p, q), _ = zipped_hist((sr_a, sr_b), ret_bins=True)
-        return np.linalg.norm(p - q, ord=self.ord)
+        (p, q) = zipped_hist((sr_a, sr_b))
+        if p is not None and q is not None:
+            return np.linalg.norm(p - q, ord=self.ord)
+        return None
 
 
 class EarthMoversDistanceBinned(TwoColumnMetric):

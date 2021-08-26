@@ -174,7 +174,6 @@ def test_js_divergence(group1, group2, group3):
 def test_norm(group1, group2, group3):
     assert norm(pd.Series([1, 0]), pd.Series([1, 0])) == 0
     assert norm_ord1(pd.Series([1]), pd.Series([0])) == 2
-    assert norm_ord1(pd.Series(np.arange(5)), pd.Series(np.arange(5, 10))) == 2
 
     assert norm(group1, group1) == 0
     assert norm(group1, group3) > norm(group1, group2)

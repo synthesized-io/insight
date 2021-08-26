@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Callable, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -6,32 +6,31 @@ from scipy.stats import binom_test, kendalltau, kruskal, ks_2samp, spearmanr
 
 from ..check import ColumnCheck
 from .base import TwoColumnMetric, TwoColumnMetricTest
-from .utils import bootstrap_binned_statistic, bootstrap_statistic, infer_distr_type
+from .utils import bootstrap_binned_statistic, bootstrap_statistic
 
 
 class BinomialDistanceTest(TwoColumnMetricTest):
     """Binomial distance test between two binary variables.
+
     The metric value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "binomial_distance"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
-        return infer_distr_type(pd.concat((sr_a, sr_b))).is_binary()
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+        return check.binary(pd.concat((sr_a, sr_b)))
 
     def _binominal_proportion_p_value(self,
                                       p_obs: float,
                                       p_null: float,
-                                      n: int):
+                                      n: int) -> float:
         """
         Calculate an exact p-value for an observed binomial proportion of a sample.
         Args:
             p_obs: Observed proportion of successes.
             p_null: Expected proportion of sucesses under null hypothesis.
-            n: Sample size.
-            alternative: Optional; Indicates the alternative hypothesis.
-                One of 'two-sided', 'greater' ,'less',
+            n: Sample size
         Returns:
             The p-value under the null hypothesis.
         """
@@ -39,18 +38,14 @@ class BinomialDistanceTest(TwoColumnMetricTest):
         self.p_value = binom_test(k, n, p_null, self.alternative)
         return self.p_value
 
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: float):
-        """Calculate a p-value for the null hypothesis that the probability of success is p_y"""
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        metric_value = sr_a.mean() - sr_b.mean()
+
         p_obs = sr_a.mean()
         p_null = sr_b.mean()
         n = len(sr_a)
-        return self._binominal_proportion_p_value(p_obs, p_null, n)
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        return sr_a.mean() - sr_b.mean()
+        p_value = self._binominal_proportion_p_value(p_obs, p_null, n)
+        return metric_value, p_value
 
 
 class KolmogorovSmirnovDistanceTest(TwoColumnMetricTest):
@@ -67,45 +62,48 @@ class KolmogorovSmirnovDistanceTest(TwoColumnMetricTest):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Calculate the metric.
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Calculate the metric and p-value.
         Args:
             sr_a (pd.Series): values of a continuous variable.
             sr_b (pd.Series): values of another continuous variable to compare.
         Returns:
-            The Kolmogorov-Smirnov distance between sr_a and sr_b, and p-value
+            The Kolmogorov-Smirnov distance between sr_a and sr_b,
+            and p-value on the test statistics
         """
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
             return np.nan
-        ks_distance, self.p_value = ks_2samp(column_old_clean, column_new_clean, alternative=self.alternative)
-        return ks_distance
+        ks_distance, p_value = ks_2samp(column_old_clean, column_new_clean, alternative=self.alternative)
+        return ks_distance, p_value
 
 
 class KruskalWallisTest(TwoColumnMetricTest):
     """Kruskal Wallis distance test between two numerical variables.
+
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
     and 1 indicates maximal association (i.e one variable is completely determined by the other).
     """
     name = "kruskal_wallis"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         if not check.continuous(sr_a) or not check.continuous(sr_b):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Calculate the metric.
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Calculate the metric and the p_value.
         Args:
             sr_a (pd.Series): values of a numerical variable.
             sr_b (pd.Series): values of numerical variable.
         Returns:
-            The Kruskal Wallis distance between sr_a and sr_b.
+            The Kruskal Wallis distance between sr_a and sr_b,
+            and p-value on the test statistics
         """
-        metric_value, self.p_value = kruskal(sr_a, sr_b)
-        return metric_value
+        metric_value, p_value = kruskal(sr_a, sr_b)
+        return metric_value, p_value
 
 
 class KendallTauCorrelationTest(TwoColumnMetricTest):
@@ -121,31 +119,29 @@ class KendallTauCorrelationTest(TwoColumnMetricTest):
 
     def __init__(self,
                  check: ColumnCheck = None,
-                 metric_cls_obj: TwoColumnMetric = None,
                  alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
-        super().__init__(check, metric_cls_obj, alternative)
+        super().__init__(check, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         # Given columns should be both categorical or both ordinal
-        if (check.ordinal(sr_a) and not check.ordinal(sr_b))\
-            or (not check.ordinal(sr_a) and check.ordinal(sr_b))\
-            or (check.categorical(sr_a) and not check.categorical(sr_b))\
-                or (not check.categorical(sr_a) and check.categorical(sr_b)):
-            return False
-        return True
+        if (check.ordinal(sr_a) and check.ordinal(sr_b))\
+           or (check.categorical(sr_a) and check.categorical(sr_b)):
+            return True
+        return False
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Returns kendall-tau correlation and p-value"""
+
         sr_a = pd.to_numeric(sr_a, errors='coerce')
         sr_b = pd.to_numeric(sr_b, errors='coerce')
-        corr, self.p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
-        print(self.max_p_value, self.p_value, corr)
-        if self.p_value is not None and self.p_value <= self.max_p_value:
-            return corr
+        corr, p_value = kendalltau(sr_a.values, sr_b.values, nan_policy='omit')
+        if p_value is not None and p_value <= self.max_p_value:
+            return corr, p_value
         else:
-            return None
+            return None, p_value
 
 
 class SpearmanRhoCorrelationTest(TwoColumnMetricTest):
@@ -160,50 +156,61 @@ class SpearmanRhoCorrelationTest(TwoColumnMetricTest):
 
     def __init__(self,
                  check: ColumnCheck = None,
-                 metric_cls_obj: TwoColumnMetric = None,
                  alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
-        super().__init__(check, metric_cls_obj, alternative)
+        super().__init__(check, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         if not check.ordinal(sr_a) or not check.ordinal(sr_b):
             return False
         return True
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Return spearman-rho correlation and p-value"""
+
         x = sr_a.values
         y = sr_b.values
         if self.check.infer_dtype(sr_a).dtype.kind == 'M':
             x = pd.to_numeric(pd.to_datetime(x, errors='coerce'), errors='coerce')
         if self.check.infer_dtype(sr_b).dtype.kind == 'M':
             y = pd.to_numeric(pd.to_datetime(y, errors='coerce'), errors='coerce')
-        corr, self.p_value = spearmanr(x, y, nan_policy='omit')
-        if self.p_value is not None and self.p_value <= self.max_p_value:
-            return corr
+        corr, p_value = spearmanr(x, y, nan_policy='omit')
+        if p_value is not None and p_value <= self.max_p_value:
+            return corr, p_value
         else:
-            return None
+            return None, p_value
 
 
 class BootstrapTest(TwoColumnMetricTest):
+    """Performs bootstrap test
+
+    Args:
+        metric_cls_obj: The instantiated metric object for which the test if performed
+        binned: If binning is done
+    """
+    name = "bootstrap_test"
+
     def __init__(self,
+                 metric_cls_obj: TwoColumnMetric,
                  check: ColumnCheck = None,
-                 metric_cls_obj: TwoColumnMetric = None,
                  alternative: str = 'two-sided',
                  binned: bool = False):
         if metric_cls_obj is None:
-            raise ValueError("Metric class object can't be Null")
-        super().__init__(check, metric_cls_obj, alternative)
+            raise ValueError("Metric class object must be valid")
+
+        super().__init__(check, alternative)
+        self.metric_cls_obj = metric_cls_obj
         self.binned = binned
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
     def _bootstrap_pvalue(self,
                           t_obs: float,
-                          t_distribution: pd.Series):
+                          t_distribution: pd.Series) -> float:
         """
         Calculate a p-value using a bootstrapped test statistic distribution
 
@@ -228,47 +235,56 @@ class BootstrapTest(TwoColumnMetricTest):
 
         return p
 
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: float) -> Union[int, float, None]:
-        # need to add this because of mypy bug/issue (#2608) which doesn't recognize that self.metric_cls_obj has already been checked against None
-        # callable: Callable[[pd.Series, pd.Series], float] = self.metric_cls_obj
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Return metric_value and p-value for this metric using a bootstrap test.
+
+        The null hypothesis is that both data samples are from the same distribution."""
+
+        metric_value = self.metric_cls_obj(sr_a, sr_b)
+        if metric_value is None:
+            return None, None
 
         if not self.binned:
             ts_distribution = bootstrap_statistic((sr_a, sr_b),
-                                                  lambda x, y: self._compute_metric(x, y),
+                                                  lambda x, y: self.metric_cls_obj(x, y),
                                                   n_samples=1000)
         else:
             ts_distribution = bootstrap_binned_statistic((sr_a, sr_b),
-                                                         lambda x, y: self._compute_metric(x, y),
+                                                         lambda x, y: self.metric_cls_obj(x, y),
                                                          n_samples=1000)
-        self.p_value = self._bootstrap_pvalue(metric_value, ts_distribution)
-        return self.p_value
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        return self.metric_cls_obj(sr_a, sr_b) if self.metric_cls_obj else None
+        p_value = self._bootstrap_pvalue(metric_value, ts_distribution)
+        return metric_value, p_value
 
 
 class PermutationTest(TwoColumnMetricTest):
+    """Performs permutation test
+
+    Args:
+        metric_cls_obj: The instantiated metric object for which the test if performed
+        n_perms: No. of permutations to be done
+    """
+    name = "permutation_test"
+
     def __init__(self,
+                 metric_cls_obj: TwoColumnMetric,
                  check: ColumnCheck = None,
-                 metric_cls_obj: TwoColumnMetric = None,
                  alternative: str = 'two-sided',
                  n_perms: int = 100):
         if metric_cls_obj is None:
-            raise ValueError("Metric class object can't be Null")
-        super().__init__(check, metric_cls_obj, alternative)
+            raise ValueError("Metric class object must be valid")
+
+        super().__init__(check, alternative)
+        self.metric_cls_obj = metric_cls_obj
         self.n_perms = n_perms
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
     def _permutation_test(self,
                           x: pd.Series,
                           y: pd.Series,
-                          t: Callable[[pd.Series, pd.Series], float]):
+                          t: Callable[[pd.Series, pd.Series], float]) -> float:
         """
         Perform a two sample permutation test.
         Determines the probability of observing t(x, y) or greater under the null hypothesis that x
@@ -305,19 +321,16 @@ class PermutationTest(TwoColumnMetricTest):
 
         return p
 
-    def _compute_p_value(self,
-                         sr_a: pd.Series,
-                         sr_b: pd.Series,
-                         metric_value: Union[int, float, None]) -> Union[int, float, None]:
-        """Return a p-value for this metric using a permutation test. The null hypothesis
-        is that both data samples are from the same distribution."""
+    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+        """Return metric_value and p-value for this metric using a permutation test.
 
-        # # need to add this because of mypy bug/issue (#2608) which doesn't recognize that self.metric_cls_obj has already been checked against None
-        # callable: Callable[[pd.Series, pd.Series], float] = self.metric_cls_obj
-        self.p_value = self._permutation_test(sr_a,
-                                              sr_b,
-                                              lambda x, y: self._compute_metric(x, y))
-        return self.p_value
+        The null hypothesis is that both data samples are from the same distribution."""
 
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        return self.metric_cls_obj(sr_a, sr_b) if self.metric_cls_obj else None
+        metric_value = self.metric_cls_obj(sr_a, sr_b)
+        if metric_value is None:
+            return None, None
+
+        p_value = self._permutation_test(sr_a,
+                                         sr_b,
+                                         lambda x, y: self.metric_cls_obj(x, y))
+        return metric_value, p_value
