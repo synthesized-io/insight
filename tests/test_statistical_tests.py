@@ -135,16 +135,20 @@ def test_spearmans_rho():
 
 
 @pytest.mark.parametrize(
-    'metric, data', [
-        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a']))),
-        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
+    'metric, data, alternative', [
+        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a'])), 'greater'),
+        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])), 'less')
     ])
-def test_bootstrap(metric, data):
-
+def test_bootstrap(metric, data, alternative):
     bootstrap = BootstrapTest(metric_cls_obj=metric)
     metric_val, p_value = bootstrap(data[0], data[0])
     assert metric_val == 0
     assert p_value == 1
+
+    bootstrap = BootstrapTest(metric_cls_obj=metric, alternative=alternative)
+    metric_val, p_value = bootstrap(data[1], data[1])
+    assert metric_val == 0
+    assert p_value == 1 if alternative != 'less' else p_value == 0
 
     _, p_value = bootstrap(data[0], data[1])
     assert p_value <= 1
@@ -152,16 +156,20 @@ def test_bootstrap(metric, data):
 
 
 @pytest.mark.parametrize(
-    'metric, data', [
-        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a']))),
-        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])))
+    'metric, data, alternative', [
+        (EarthMoversDistance(), (pd.Series(['a', 'b', 'c']), pd.Series(['c', 'b', 'a'])), 'greater'),
+        (HellingerDistance(), (pd.Series([1, 2, 3]), pd.Series([0, 0, 0])), 'less')
     ])
-def test_permutation(metric, data):
-
+def test_permutation(metric, data, alternative):
     perm_test = PermutationTest(metric_cls_obj=metric)
     metric_val, p_value = perm_test(data[0], data[0])
     assert metric_val == 0
     assert p_value == 1
+
+    perm_test = PermutationTest(metric_cls_obj=metric, alternative=alternative)
+    metric_val, p_value = perm_test(data[1], data[1])
+    assert metric_val == 0
+    assert p_value == 1 if alternative != 'less' else p_value == 0
 
     _, p_value = perm_test(data[0], data[1])
     assert p_value <= 1

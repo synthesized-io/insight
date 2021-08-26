@@ -23,8 +23,7 @@ class BinomialDistanceTest(TwoColumnMetricTest):
     def _binominal_proportion_p_value(self,
                                       p_obs: float,
                                       p_null: float,
-                                      n: int,
-                                      alternative: str = 'two-sided'):
+                                      n: int):
         """
         Calculate an exact p-value for an observed binomial proportion of a sample.
         Args:
@@ -37,19 +36,18 @@ class BinomialDistanceTest(TwoColumnMetricTest):
             The p-value under the null hypothesis.
         """
         k = np.ceil(p_obs * n)
-        self.p_value = binom_test(k, n, p_null, alternative)
+        self.p_value = binom_test(k, n, p_null, self.alternative)
         return self.p_value
 
     def _compute_p_value(self,
                          sr_a: pd.Series,
                          sr_b: pd.Series,
-                         metric_value: Union[int, float, None],
-                         alternative: str = 'two-sided') -> Union[int, float, None]:
+                         metric_value: float):
         """Calculate a p-value for the null hypothesis that the probability of success is p_y"""
         p_obs = sr_a.mean()
         p_null = sr_b.mean()
         n = len(sr_a)
-        return self._binominal_proportion_p_value(p_obs, p_null, n, alternative)
+        return self._binominal_proportion_p_value(p_obs, p_null, n)
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         return sr_a.mean() - sr_b.mean()
@@ -81,7 +79,7 @@ class KolmogorovSmirnovDistanceTest(TwoColumnMetricTest):
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
             return np.nan
-        ks_distance, self.p_value = ks_2samp(column_old_clean, column_new_clean)
+        ks_distance, self.p_value = ks_2samp(column_old_clean, column_new_clean, alternative=self.alternative)
         return ks_distance
 
 
@@ -124,8 +122,9 @@ class KendallTauCorrelationTest(TwoColumnMetricTest):
     def __init__(self,
                  check: ColumnCheck = None,
                  metric_cls_obj: TwoColumnMetric = None,
+                 alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
-        super().__init__(check, metric_cls_obj)
+        super().__init__(check, metric_cls_obj, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
@@ -162,8 +161,9 @@ class SpearmanRhoCorrelationTest(TwoColumnMetricTest):
     def __init__(self,
                  check: ColumnCheck = None,
                  metric_cls_obj: TwoColumnMetric = None,
+                 alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
-        super().__init__(check, metric_cls_obj)
+        super().__init__(check, metric_cls_obj, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
@@ -190,10 +190,11 @@ class BootstrapTest(TwoColumnMetricTest):
     def __init__(self,
                  check: ColumnCheck = None,
                  metric_cls_obj: TwoColumnMetric = None,
+                 alternative: str = 'two-sided',
                  binned: bool = False):
         if metric_cls_obj is None:
             raise ValueError("Metric class object can't be Null")
-        super().__init__(check, metric_cls_obj)
+        super().__init__(check, metric_cls_obj, alternative)
         self.binned = binned
 
     @classmethod
@@ -202,29 +203,24 @@ class BootstrapTest(TwoColumnMetricTest):
 
     def _bootstrap_pvalue(self,
                           t_obs: float,
-                          t_distribution: pd.Series,
-                          alternative: str = 'two-sided'):
+                          t_distribution: pd.Series):
         """
         Calculate a p-value using a bootstrapped test statistic distribution
 
         Args:
             t_obs: Observed value of the test statistic.
             t_distribution: Samples of test statistic distribution under the null hypothesis.
-            alternative: Optional; Indicates the alternative hypothesis.
-                One of 'two-sided', 'greater' ,'less',
 
         Returns:
             The p-value under the null hypothesis.
         """
-        if alternative not in ('two-sided', 'greater', 'less'):
-            raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
 
         n_samples = len(t_distribution)
 
-        if alternative == 'two-sided':
+        if self.alternative == 'two-sided':
             p = np.sum(np.abs(t_distribution) >= np.abs(t_obs)) / n_samples
 
-        elif alternative == 'greater':
+        elif self.alternative == 'greater':
             p = np.sum(t_distribution >= t_obs) / n_samples
 
         else:
@@ -235,8 +231,7 @@ class BootstrapTest(TwoColumnMetricTest):
     def _compute_p_value(self,
                          sr_a: pd.Series,
                          sr_b: pd.Series,
-                         metric_value: float,
-                         alternative: str = 'two-sided') -> Union[int, float, None]:
+                         metric_value: float) -> Union[int, float, None]:
         # need to add this because of mypy bug/issue (#2608) which doesn't recognize that self.metric_cls_obj has already been checked against None
         # callable: Callable[[pd.Series, pd.Series], float] = self.metric_cls_obj
 
@@ -248,7 +243,7 @@ class BootstrapTest(TwoColumnMetricTest):
             ts_distribution = bootstrap_binned_statistic((sr_a, sr_b),
                                                          lambda x, y: self._compute_metric(x, y),
                                                          n_samples=1000)
-        self.p_value = self._bootstrap_pvalue(metric_value, ts_distribution, alternative)
+        self.p_value = self._bootstrap_pvalue(metric_value, ts_distribution)
         return self.p_value
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
@@ -259,10 +254,11 @@ class PermutationTest(TwoColumnMetricTest):
     def __init__(self,
                  check: ColumnCheck = None,
                  metric_cls_obj: TwoColumnMetric = None,
+                 alternative: str = 'two-sided',
                  n_perms: int = 100):
         if metric_cls_obj is None:
             raise ValueError("Metric class object can't be Null")
-        super().__init__(check, metric_cls_obj)
+        super().__init__(check, metric_cls_obj, alternative)
         self.n_perms = n_perms
 
     @classmethod
@@ -272,8 +268,7 @@ class PermutationTest(TwoColumnMetricTest):
     def _permutation_test(self,
                           x: pd.Series,
                           y: pd.Series,
-                          t: Callable[[pd.Series, pd.Series], float],
-                          alternative: str = 'two-sided'):
+                          t: Callable[[pd.Series, pd.Series], float]):
         """
         Perform a two sample permutation test.
         Determines the probability of observing t(x, y) or greater under the null hypothesis that x
@@ -282,14 +277,9 @@ class PermutationTest(TwoColumnMetricTest):
             x: First data sample.
             y: Second data sample.
             t: Callable that returns the test statistic.
-            alternative: Optional; Indicates the alternative hypothesis.
-                One of 'two-sided', 'greater' ,'less'
         Returns:
             The p-value of t_obs under the null hypothesis.
         """
-
-        if alternative not in ('two-sided', 'greater', 'less'):
-            raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
 
         if t is None:
             raise ValueError("Callable function required, can't be None")
@@ -304,10 +294,10 @@ class PermutationTest(TwoColumnMetricTest):
             y_sample = perm[len(x):]
             t_null[i] = t(pd.Series(x_sample), pd.Series(y_sample))
 
-        if alternative == 'two-sided':
+        if self.alternative == 'two-sided':
             p = np.sum(np.abs(t_null) >= np.abs(t_obs)) / self.n_perms
 
-        elif alternative == 'greater':
+        elif self.alternative == 'greater':
             p = np.sum(t_null >= t_obs) / self.n_perms
 
         else:
@@ -318,8 +308,7 @@ class PermutationTest(TwoColumnMetricTest):
     def _compute_p_value(self,
                          sr_a: pd.Series,
                          sr_b: pd.Series,
-                         metric_value: Union[int, float, None],
-                         alternative: str = 'two-sided') -> Union[int, float, None]:
+                         metric_value: Union[int, float, None]) -> Union[int, float, None]:
         """Return a p-value for this metric using a permutation test. The null hypothesis
         is that both data samples are from the same distribution."""
 
@@ -327,8 +316,7 @@ class PermutationTest(TwoColumnMetricTest):
         # callable: Callable[[pd.Series, pd.Series], float] = self.metric_cls_obj
         self.p_value = self._permutation_test(sr_a,
                                               sr_b,
-                                              lambda x, y: self._compute_metric(x, y),
-                                              alternative)
+                                              lambda x, y: self._compute_metric(x, y))
         return self.p_value
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
