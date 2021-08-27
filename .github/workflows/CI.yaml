@@ -1,0 +1,62 @@
+---
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.GITHUB_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        id: setup-py
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Cache test venv
+        uses: actions/cache@v2
+        with:
+          path: .pip-cache
+          key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./setup.*') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}
+
+      - name: Create test-venv
+        run: |
+          python3 -m venv .tenv
+          source .tenv/bin/activate
+          pip install -U pip
+
+      - name: Install synthesized-insight
+        run: |
+          source .tenv/bin/activate
+          pip install .[test] --cache-dir .pip-cache
+
+      - name: Run unit tests
+        run: |
+          source .tenv/bin/activate
+          pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+          sed -ie 's#/home/runner/work/insight/insight#/github/workspace#g' coverage-reports/cobertura.xml
+        env:
+          SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          projectBaseDir: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+...

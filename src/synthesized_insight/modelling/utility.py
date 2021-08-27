@@ -1,6 +1,6 @@
 import logging
 from math import sqrt
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -48,10 +48,10 @@ def sample_split_data(df: pd.DataFrame,
                       ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     if explanatory_variables is not None:
-        df = df[np.concatenate((explanatory_variables, [response_variable]))]
+        df = cast(pd.DataFrame, df[np.concatenate((explanatory_variables, [response_variable]))])
 
     if sample_size is not None and sample_size < len(df):
-        df = df.sample(sample_size, random_state=RANDOM_SEED)
+        df = cast(pd.DataFrame, df.sample(sample_size, random_state=RANDOM_SEED))
 
     if df[response_variable].nunique() > sqrt(len(df)):
         df_train, df_test = train_test_split(df,
