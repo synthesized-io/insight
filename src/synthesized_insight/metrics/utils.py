@@ -35,7 +35,7 @@ def zipped_hist(
 
     joint = pd.concat(data)
     check = ColumnCheck()
-    is_continuous = check.continuous(joint)
+    is_continuous = check.continuous(pd.Series(joint))
 
     # Compute histograms of the data, bin if continuous
     if is_continuous:
@@ -66,7 +66,7 @@ def zipped_hist(
 
 def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]],
                         statistic: Union[Callable[[pd.Series, pd.Series], float], Callable[[pd.Series], float]],
-                        n_samples: int = 1000, sample_size=None) -> Tuple[float, float]:
+                        n_samples: int = 1000, sample_size=None) -> np.ndarray:
     """
     Compute the samples of a statistic estimate using the bootstrap method.
 
@@ -92,7 +92,7 @@ def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series
 
 
 def bootstrap_binned_statistic(data: Tuple[pd.Series, pd.Series], statistic: Callable[[pd.Series, pd.Series], float],
-                               n_samples: int = 1000) -> Tuple[float, float]:
+                               n_samples: int = 1000) -> np.ndarray:
     """
     Compute the samples of a binned statistic estimate using the bootstrap method.
 

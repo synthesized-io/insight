@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import warnings
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, cast
 
 import dcor as dcor
 import numpy as np
@@ -359,7 +359,7 @@ class HellingerDistance(TwoColumnMetric):
             The hellinger distance between sr_a and sr_b.
         """
         (p, q) = zipped_hist((sr_a, sr_b))
-        return np.linalg.norm(np.sqrt(p) - np.sqrt(q)) / np.sqrt(2)
+        return np.linalg.norm(np.sqrt(cast(pd.Series, p)) - np.sqrt(cast(pd.Series, q))) / np.sqrt(2)
 
 
 class Norm(TwoColumnMetric):
@@ -396,7 +396,7 @@ class Norm(TwoColumnMetric):
         """
         (p, q) = zipped_hist((sr_a, sr_b))
         if p is not None and q is not None:
-            return np.linalg.norm(p - q, ord=self.ord)
+            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)
         return None
 
 

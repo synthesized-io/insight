@@ -61,7 +61,7 @@ class TwoColumnMetric(_Metric):
         return self._compute_metric(sr_a, sr_b)
 
 
-class TwoColumnMetricTest(_Metric):
+class TwoColumnTest(_Metric):
     def __init__(self,
                  check: ColumnCheck = None,
                  alternative: str = 'two-sided'):

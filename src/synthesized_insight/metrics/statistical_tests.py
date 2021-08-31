@@ -5,11 +5,11 @@ import pandas as pd
 from scipy.stats import binom_test, kendalltau, kruskal, ks_2samp, spearmanr
 
 from ..check import ColumnCheck
-from .base import TwoColumnMetric, TwoColumnMetricTest
+from .base import TwoColumnMetric, TwoColumnTest
 from .utils import bootstrap_binned_statistic, bootstrap_statistic
 
 
-class BinomialDistanceTest(TwoColumnMetricTest):
+class BinomialDistanceTest(TwoColumnTest):
     """Binomial distance test between two binary variables.
 
     The metric value ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
@@ -35,7 +35,7 @@ class BinomialDistanceTest(TwoColumnMetricTest):
         return metric_value, p_value
 
 
-class KolmogorovSmirnovDistanceTest(TwoColumnMetricTest):
+class KolmogorovSmirnovDistanceTest(TwoColumnTest):
     """Kolmogorov-Smirnov distance test between two continuous variables.
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
@@ -61,12 +61,12 @@ class KolmogorovSmirnovDistanceTest(TwoColumnMetricTest):
         column_old_clean = pd.to_numeric(sr_a, errors='coerce').dropna()
         column_new_clean = pd.to_numeric(sr_b, errors='coerce').dropna()
         if len(column_old_clean) == 0 or len(column_new_clean) == 0:
-            return np.nan
+            return np.nan, np.nan
         ks_distance, p_value = ks_2samp(column_old_clean, column_new_clean, alternative=self.alternative)
         return ks_distance, p_value
 
 
-class KruskalWallisTest(TwoColumnMetricTest):
+class KruskalWallisTest(TwoColumnTest):
     """Kruskal Wallis distance test between two numerical variables.
 
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
@@ -93,7 +93,7 @@ class KruskalWallisTest(TwoColumnMetricTest):
         return metric_value, p_value
 
 
-class KendallTauCorrelationTest(TwoColumnMetricTest):
+class KendallTauCorrelationTest(TwoColumnTest):
     """Kendall's Tau correlation coefficient test between ordinal variables.
     The statistic ranges from -1 to 1, indicating the strength and direction of the relationship
     between the two variables.
@@ -131,7 +131,7 @@ class KendallTauCorrelationTest(TwoColumnMetricTest):
             return None, p_value
 
 
-class SpearmanRhoCorrelationTest(TwoColumnMetricTest):
+class SpearmanRhoCorrelationTest(TwoColumnTest):
     """Spearman's rank correlation coefficient test between ordinal variables.
     The statistic ranges from -1 to 1, measures the strength and direction of monotonic
     relationship between two ranked (ordinal) variables.
@@ -170,7 +170,7 @@ class SpearmanRhoCorrelationTest(TwoColumnMetricTest):
             return None, p_value
 
 
-class BootstrapTest(TwoColumnMetricTest):
+class BootstrapTest:
     """Performs bootstrap test
 
     Args:
@@ -181,10 +181,9 @@ class BootstrapTest(TwoColumnMetricTest):
 
     def __init__(self,
                  metric_cls_obj: TwoColumnMetric,
-                 check: ColumnCheck = None,
                  alternative: str = 'two-sided',
                  binned: bool = False):
-        super().__init__(check, alternative)
+        self.alternative = alternative
         self.metric_cls_obj = metric_cls_obj
         self.binned = binned
 
@@ -194,7 +193,7 @@ class BootstrapTest(TwoColumnMetricTest):
 
     def _bootstrap_pvalue(self,
                           t_obs: float,
-                          t_distribution: pd.Series) -> float:
+                          t_distribution: np.ndarray) -> float:
         """
         Calculate a p-value using a bootstrapped test statistic distribution
 
@@ -219,7 +218,7 @@ class BootstrapTest(TwoColumnMetricTest):
 
         return p
 
-    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
         """Return metric_value and p-value for this metric using a bootstrap test.
 
         The null hypothesis is that both data samples are from the same distribution."""
@@ -240,7 +239,7 @@ class BootstrapTest(TwoColumnMetricTest):
         return metric_value, p_value
 
 
-class PermutationTest(TwoColumnMetricTest):
+class PermutationTest:
     """Performs permutation test
 
     Args:
@@ -251,16 +250,11 @@ class PermutationTest(TwoColumnMetricTest):
 
     def __init__(self,
                  metric_cls_obj: TwoColumnMetric,
-                 check: ColumnCheck = None,
                  alternative: str = 'two-sided',
                  n_perms: int = 100):
-        super().__init__(check, alternative)
+        self.alternative = alternative
         self.metric_cls_obj = metric_cls_obj
         self.n_perms = n_perms
-
-    @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-        return True  # metric object provided during initialization will perform the check while computing the metrics
 
     def _permutation_test(self,
                           x: pd.Series,
@@ -302,7 +296,7 @@ class PermutationTest(TwoColumnMetricTest):
 
         return p
 
-    def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
         """Return metric_value and p-value for this metric using a permutation test.
 
         The null hypothesis is that both data samples are from the same distribution."""

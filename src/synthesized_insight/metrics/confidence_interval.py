@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, Union
+from typing import NamedTuple, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -34,14 +34,14 @@ def compute_bootstrap_interval(metric_cls_obj: Union[OneColumnMetric, TwoColumnM
     if isinstance(metric_cls_obj, OneColumnMetric):
         metric_value = metric_cls_obj(sr_a)
         one_col_metric: OneColumnMetric = metric_cls_obj  # Need explicit casting because of mypy bug/issue (#2608)
-        samples = bootstrap_statistic((sr_a), lambda x: one_col_metric(x))
+        samples = bootstrap_statistic((sr_a,), lambda x: one_col_metric(x))
     else:
-        metric_value = metric_cls_obj(sr_a, sr_b)
+        metric_value = metric_cls_obj(sr_a, cast(pd.Series, sr_b))
         two_col_metric: TwoColumnMetric = metric_cls_obj  # Need explicit casting because of mypy bug/issue (#2608)
         if not binned:
-            samples = bootstrap_statistic((sr_a, sr_b), lambda x, y: two_col_metric(x, y))
+            samples = bootstrap_statistic((sr_a, cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y))
         else:
-            samples = bootstrap_binned_statistic((sr_a, sr_b), lambda x, y: two_col_metric(x, y))
+            samples = bootstrap_binned_statistic((sr_a, cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y))
 
     percentiles = 100 * (1 - confidence_level) / 2, 100 * (1 - (1 - confidence_level) / 2)
     d1, d2 = np.percentile(samples, percentiles)
