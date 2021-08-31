@@ -140,13 +140,6 @@ class ColumnCheck(Check):
             return True
         return False
 
-    def binary(self, sr: pd.Series) -> bool:
-        """Checks if the given series has binary values
-        """
-        if sr.nunique() == 2:
-            return True
-        return False
-
     def same_domain(self, sr_a: pd.Series, sr_b: pd.Series) -> bool:
         """Checks if the given columns have the same domain of values"""
         sr_a = self.infer_dtype(sr_a)
