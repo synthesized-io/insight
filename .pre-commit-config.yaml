@@ -17,13 +17,16 @@ repos:
     hooks:
       - id: flake8
   - repo: https://github.com/pre-commit/mirrors-mypy
-    # note that the mypy precommit does not properly check all the code
-    # it is recommended to run mypy locally in a virtualenv to check properly
     rev: v0.910
     hooks:
       - id: mypy
         files: src
+        additional_dependencies: [pandas, pandas-stubs, numpy]
+        args: [--install-types, --non-interactive]
+        # Note that using the --install-types is problematic if running in
+        # parallel as mutating the pre-commit env at runtime breaks cache.
   - repo: https://github.com/pycqa/isort
     rev: 5.9.3
     hooks:
       - id: isort
+...

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -66,7 +67,7 @@ class ColumnCheck(Check):
 
         in_dtype = str(col.dtype)
         n_nans = col.isna().sum()
-        n_empty_str = 0 if not pd.api.types.is_string_dtype(col) else (sr == "").sum()
+        n_empty_str = 0 if not pd.api.types.is_string_dtype(col) else sr.eq("").sum()
 
         # Try to convert it to numeric
         if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
@@ -90,7 +91,7 @@ class ColumnCheck(Check):
         elif out_dtype in ("i", "u", "f", "f8", "i8", "u8"):
             return pd.to_numeric(col, errors="coerce")
 
-        return col.astype(out_dtype, errors="ignore")
+        return cast(pd.Series, col.astype(out_dtype, errors="ignore"))
 
     def continuous(self, sr: pd.Series) -> bool:
         """Checks if the given series is continuous

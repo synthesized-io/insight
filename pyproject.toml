@@ -2,18 +2,28 @@
 requires = [
     "setuptools>=42",
     "wheel",
-    "Cython==3.0a7"
+    "setuptools_scm[toml]>=6.0"
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+write_to = "src/synthesized_insight/version.py"
+
 [tool.pytest.ini_options]
-addopts = "--strict-markers"
-markers = [
-    "slow"
-]
 junit_suite_name = "unit"
 junit_logging = "all"
 junit_log_passing_tests = true
 junit_duration_report = "call"
 junit_family = "xunit1"
 log_level = "INFO"
+
+[tool.mypy]
+plugins = "numpy.typing.mypy_plugin"
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true

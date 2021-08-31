@@ -44,7 +44,7 @@ class ModellingPreprocessor:
         for cat_col in self._categorical(df):
             logger.debug(f"Preprocessing value '{cat_col}'...")
             column = df[cat_col]
-            column = column.fillna('nan').astype(str)
+            column = cast(pd.Series, column.fillna('nan').astype(str))
             if self.target and cat_col == self.target:
                 x_i = column.to_numpy().reshape(-1, 1)
                 encoder = LabelEncoder()
@@ -92,7 +92,7 @@ class ModellingPreprocessor:
 
         for cat_col in self._categorical(df):
             column = df[cat_col]
-            column = column.fillna('nan').astype(str)
+            column = cast(pd.Series, column.fillna('nan').astype(str))
             encoder = self.column_encoders[cat_col]
             if self.target and cat_col == self.target:
                 x_i = encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)
