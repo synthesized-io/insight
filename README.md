@@ -4,8 +4,9 @@
 
 Installation
 --------------
+
 1. Install python requirements:
-macOS
+###### macOS
 (make sure you have brew installed)
 ```
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -13,7 +14,7 @@ macOS
 ```
 brew install openssl readline sqlite3 xz zlib
 ```
-ubuntu
+###### ubuntu
 ```
 sudo apt-get update; sudo apt-get install make build-essential libssl-dev zlib1g-dev \
 libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
@@ -21,12 +22,12 @@ libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-d
 ```
 
 2. Install pyenv:
-macOS
+###### macOS
 ```
 brew update
 brew install pyenv
 ```
-ubuntu
+###### ubuntu
 ```
 curl https://pyenv.run | bash
 ```
