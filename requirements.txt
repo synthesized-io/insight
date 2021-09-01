@@ -1,6 +1,6 @@
 flake8
 mypy
-numpy==1.21
+numpy
 pandas
 pytest
 sklearn

@@ -21,6 +21,10 @@ log_level = "INFO"
 plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
+module = "dcor"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "sklearn.*"
 ignore_missing_imports = true
 
