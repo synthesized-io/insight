@@ -5,7 +5,7 @@
 Installation
 --------------
 
-1. ### Install python requirements:
+### 1. Install python requirements:
 #### macOS
 (make sure you have brew installed)
 ```
@@ -21,7 +21,7 @@ libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
 libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 ```
 
-2. ### Install pyenv:
+### 2. Install pyenv:
 #### macOS
 ```
 brew update
@@ -31,7 +31,7 @@ brew install pyenv
 ```
 curl https://pyenv.run | bash
 ```
-3. ### Install python 3.8.10:
+### 3. Install python 3.8.10:
 ```
 pyenv install 3.8.10
 ```
