@@ -8,6 +8,7 @@ from ..check import Check, ColumnCheck
 
 def zipped_hist(
     data: Tuple[pd.Series, ...],
+    check: Check = ColumnCheck(),
     bin_edges: Optional[np.ndarray] = None,
     normalize: bool = True,
     ret_bins: bool = False,

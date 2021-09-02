@@ -200,20 +200,9 @@ def test_r2_mcfadden_correlation():
 
 
 def test_emd_distance_binned():
-
-    def compare_and_log(x, y, bins, val):
-        emdb = EarthMoversDistanceBinned(bins=bins)
-        metric_val = emdb(x, y)
-        assert np.isclose(metric_val, val, rtol=0.1)
-
-    compare_and_log(pd.Series([1, 2, 3]), pd.Series([1, 0, 3]), bins=[0, 1, 2, 3], val=0.333)
-
     a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
     b = pd.Series(np.random.normal(loc=14, scale=1.0, size=10000))
 
-    bins = np.histogram_bin_edges(np.concatenate((a, b), axis=0), bins=100)
-    x, _ = np.histogram(a, bins=bins)
-    y, _ = np.histogram(b, bins=bins)
-    compare_and_log(pd.Series(x), pd.Series(y), bins, 4.0)
-    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([1, 0, 8, 21, 1]), None, 0.20)
-    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)
+    emdb = EarthMoversDistanceBinned()
+    metric_val = emdb(a, b)
+    assert np.isclose(metric_val, 4, rtol=0.1)
