@@ -1,11 +1,16 @@
 from .base import TwoColumnMetric, TwoDataFrameMetric
 from .metrics import (
     CramersV,
+    DistanceCNCorrelation,
+    DistanceNNCorrelation,
     EarthMoversDistance,
-    KendallTauCorrelation,
-    KolmogorovSmirnovDistance,
+    EarthMoversDistanceBinned,
+    HellingerDistance,
+    JensenShannonDivergence,
+    KullbackLeiblerDivergence,
     Mean,
-    SpearmanRhoCorrelation,
+    Norm,
+    R2Mcfadden,
     StandardDeviation,
 )
 from .modelling_metrics import (
@@ -22,9 +27,18 @@ from .modelling_metrics import (
     Recall,
     ROCCurve,
 )
+from .statistical_tests import (
+    BinomialDistanceTest,
+    KendallTauCorrelationTest,
+    KolmogorovSmirnovDistanceTest,
+    KruskalWallisTest,
+    SpearmanRhoCorrelationTest,
+)
 
-__all__ = ['TwoColumnMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelation',
-           'KolmogorovSmirnovDistance', 'Mean', 'SpearmanRhoCorrelation', 'StandardDeviation',
-           'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError',
-           'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve',
-           'PredictiveModellingScore', 'TwoDataFrameMetric']
+__all__ = ['TwoColumnMetric', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelationTest',
+           'KolmogorovSmirnovDistanceTest', 'Mean', 'SpearmanRhoCorrelationTest', 'StandardDeviation',
+           'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError', 'KruskalWallisTest',
+           'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve', 'Norm',
+           'PredictiveModellingScore', 'TwoDataFrameMetric', 'DistanceCNCorrelation',
+           'DistanceNNCorrelation', 'EarthMoversDistanceBinned', 'JensenShannonDivergence',
+           'KullbackLeiblerDivergence', 'HellingerDistance', 'BinomialDistanceTest', 'R2Mcfadden']
