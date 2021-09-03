@@ -100,7 +100,7 @@ class ColumnCheck(Check):
         """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+        if len(sr.unique()) >= max(self.min_num_unique,
                                    self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True

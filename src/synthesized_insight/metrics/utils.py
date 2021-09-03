@@ -12,7 +12,6 @@ def zipped_hist(
     bin_edges: Optional[np.ndarray] = None,
     normalize: bool = True,
     ret_bins: bool = False,
-    check: Check = ColumnCheck()
 ) -> Union[Tuple[pd.Series, ...], Tuple[Tuple[pd.Series, ...], Optional[np.ndarray]]]:
     """Bins a tuple of series' and returns the aligned histograms.
     Args:
