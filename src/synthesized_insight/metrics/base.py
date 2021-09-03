@@ -4,7 +4,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 
 
 class _Metric(ABC):
@@ -20,14 +20,11 @@ class _Metric(ABC):
 
 class OneColumnMetric(_Metric):
 
-    def __init__(self, check: ColumnCheck = None):
-        if check is None:
-            self.check = ColumnCheck()
-        else:
-            self.check = check
+    def __init__(self, check: Check = ColumnCheck()):
+        self.check = check
 
     @abstractclassmethod
-    def check_column_types(cls, check: ColumnCheck, sr: pd.Series) -> bool:
+    def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()) -> bool:
         ...
 
     @abstractmethod
@@ -35,20 +32,17 @@ class OneColumnMetric(_Metric):
         ...
 
     def __call__(self, sr: pd.Series):
-        if not self.check_column_types(self.check, sr):
+        if not self.check_column_types(sr, self.check):
             return None
         return self._compute_metric(sr)
 
 
 class TwoColumnMetric(_Metric):
-    def __init__(self, check: ColumnCheck = None):
-        if check is None:
-            self.check = ColumnCheck()
-        else:
-            self.check = check
+    def __init__(self, check: Check = ColumnCheck()):
+        self.check = check
 
     @abstractclassmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         ...
 
     @abstractmethod
@@ -56,26 +50,24 @@ class TwoColumnMetric(_Metric):
         ...
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
-        if not self.check_column_types(self.check, sr_a, sr_b):
+        if not self.check_column_types(sr_a, sr_b, self.check):
             return None
         return self._compute_metric(sr_a, sr_b)
 
 
 class TwoColumnTest(_Metric):
     def __init__(self,
-                 check: ColumnCheck = None,
+                 check: Check = ColumnCheck(),
                  alternative: str = 'two-sided'):
-        if check is None:
-            self.check = ColumnCheck()
-        else:
-            self.check = check
 
         if alternative not in ('two-sided', 'greater', 'less'):
             raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
+
+        self.check = check
         self.alternative = alternative
 
     @abstractclassmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         ...
 
     @abstractmethod
@@ -85,7 +77,7 @@ class TwoColumnTest(_Metric):
         ...
 
     def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
-        if not self.check_column_types(self.check, sr_a, sr_b):
+        if not self.check_column_types(sr_a, sr_b, self.check):
             return None, None
 
         return self._compute_test(sr_a, sr_b)

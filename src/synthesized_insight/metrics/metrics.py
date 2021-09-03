@@ -10,7 +10,7 @@ from scipy.stats import entropy, wasserstein_distance
 from sklearn import linear_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
 from .utils import zipped_hist
 
@@ -19,7 +19,7 @@ class Mean(OneColumnMetric):
     name = "mean"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
+    def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()):
         if not check.affine(sr):
             return False
         return True
@@ -31,12 +31,12 @@ class Mean(OneColumnMetric):
 class StandardDeviation(OneColumnMetric):
     name = "standard_deviation"
 
-    def __init__(self, check: ColumnCheck = None, remove_outliers: float = 0.0):
+    def __init__(self, check: Check = ColumnCheck(), remove_outliers: float = 0.0):
         super().__init__(check)
         self.remove_outliers = remove_outliers
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr: pd.Series):
+    def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()):
         if not check.affine(sr):
             return False
         return True
@@ -57,7 +57,7 @@ class CramersV(TwoColumnMetric):
     symmetric = True
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         if not check.categorical(sr_a) or not check.categorical(sr_b):
             return False
         return True
@@ -106,7 +106,7 @@ class R2Mcfadden(TwoColumnMetric):
     name = "r2_mcfadden"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         if not check.categorical(sr_a) or not check.continuous(sr_b):
             return False
         return True
@@ -156,7 +156,7 @@ class DistanceNNCorrelation(TwoColumnMetric):
     name = "distance_nn_correlation"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         if not check.continuous(sr_a) or not check.continuous(sr_b):
             return False
         return True
@@ -190,7 +190,7 @@ class DistanceCNCorrelation(TwoColumnMetric):
     name = "distance_cn_correlation"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         if not check.categorical(sr_a) or not check.continuous(sr_b):
             return False
         return True
@@ -246,7 +246,7 @@ class EarthMoversDistance(TwoColumnMetric):
     name = "earth_movers_distance"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if not check.categorical(sr_a) or not check.categorical(sr_b):
             return False
         return True
@@ -290,7 +290,7 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
     name = "kullback_leibler_divergence"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         x_dtype = str(check.infer_dtype(sr_a).dtype)
         y_dtype = str(check.infer_dtype(sr_b).dtype)
 
@@ -317,7 +317,7 @@ class JensenShannonDivergence(TwoColumnMetric):
     name = "jensen_shannon_divergence"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         x_dtype = str(check.infer_dtype(sr_a).dtype)
         y_dtype = str(check.infer_dtype(sr_b).dtype)
 
@@ -344,7 +344,7 @@ class HellingerDistance(TwoColumnMetric):
     name = "hellinger_distance"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         x_dtype = str(check.infer_dtype(sr_a).dtype)
         y_dtype = str(check.infer_dtype(sr_b).dtype)
 
@@ -375,12 +375,12 @@ class Norm(TwoColumnMetric):
     """
     name = "norm"
 
-    def __init__(self, check: ColumnCheck = None, ord: Union[str, int] = 2):
+    def __init__(self, check: Check = ColumnCheck(), ord: Union[str, int] = 2):
         super().__init__(check)
         self.ord = ord
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         x_dtype = str(check.infer_dtype(sr_a).dtype)
         y_dtype = str(check.infer_dtype(sr_b).dtype)
 
@@ -409,12 +409,12 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     """
     name = "earth_movers_distance_binned"
 
-    def __init__(self, check: ColumnCheck = None, bins: Optional[Sequence[Union[float, int]]] = None):
+    def __init__(self, check: Check = ColumnCheck(), bins: Optional[Sequence[Union[float, int]]] = None):
         super().__init__(check)
         self.bins = bins
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         x_dtype = str(check.infer_dtype(sr_a).dtype)
         y_dtype = str(check.infer_dtype(sr_b).dtype)
         return x_dtype == y_dtype

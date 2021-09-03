@@ -21,7 +21,7 @@ from sklearn.metrics import (
 from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.utils.validation import check_is_fitted
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 from ..modelling import ModellingPreprocessor, check_model_type, sample_split_data
 from .base import ClassificationMetric, ClassificationPlotMetric, DataFrameMetric, RegressionMetric
 
@@ -278,7 +278,8 @@ def predictive_modelling_score(
     model: Union[str, BaseEstimator],
     df_synth: Optional[pd.DataFrame] = None,
     copy_model: bool = True,
-    sample_size: Optional[int] = None
+    sample_size: Optional[int] = None,
+    check: Check = ColumnCheck()
 ):
     """Calculates the R-squared or ROC AUC score of a given model trained
     on a given dataset. This function will fit a regressor or classifier
@@ -329,7 +330,6 @@ def predictive_modelling_score(
             df_synth = df_synth[available_columns]
 
     # Check target type
-    check = ColumnCheck()
     is_regression_task = True
     n_classes = None
     if check.categorical(df[y_label]) is True:

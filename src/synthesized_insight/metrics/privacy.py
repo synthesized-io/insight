@@ -5,7 +5,7 @@ import pandas as pd
 from scipy.stats import norm
 from sklearn.base import BaseEstimator
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 from ..modelling import check_model_type
 from .base import TwoDataFrameMetric
 from .modelling_metrics import split_and_preprocess
@@ -32,10 +32,12 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
     def __init__(self,
                  model: Union[BaseEstimator, str],
                  sensitive_col: str,
-                 predictors: Optional[List[str]] = None) -> None:
+                 predictors: Optional[List[str]] = None,
+                 check: Check = ColumnCheck()) -> None:
         self.model = model
         self.sensitive_col = sensitive_col
         self.predictors = predictors
+        self.check = check
 
     def _privacy_score_categorical(self, true: pd.Series, pred: pd.Series) -> float:
         """Computes privacy score as the ratio of total true and pred values that do not match
@@ -143,11 +145,10 @@ class AttributeInferenceAttackML(TwoDataFrameMetric):
         synth_df.dropna(subset=[self.sensitive_col], inplace=True)
 
         # Get the estimator
-        check = ColumnCheck()
         is_discrete_target = True
-        if check.categorical(orig_df[self.sensitive_col]) is True:
+        if self.check.categorical(orig_df[self.sensitive_col]) is True:
             estimator = check_model_type(model=self.model, copy_model=True, task='clf')
-        elif check.continuous(orig_df[self.sensitive_col]) is True:
+        elif self.check.continuous(orig_df[self.sensitive_col]) is True:
             is_discrete_target = False
             estimator = check_model_type(model=self.model, copy_model=True, task='rgr')
         else:
