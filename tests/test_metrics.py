@@ -72,9 +72,9 @@ def data2():
 
 
 def test_mean():
-    sr_a = pd.Series([1, 2, 3, 4, 5], name='a')
+    sr_a = pd.Series(np.arange(100), name='a')
     val_a = mean(sr=sr_a)
-    assert val_a == 3
+    assert val_a == 49.5
 
     sr_b = pd.Series(np.datetime64('2020-01-01') + np.arange(0, 3, step=1).astype('m8[D]'), name='b')
     val_b = mean(sr=sr_b)
@@ -130,23 +130,23 @@ def test_str():
 
 
 def test_basic_nn_distance_corr():
-    sr_a = pd.Series([10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
-    sr_b = pd.Series([30.0, 10.0, 20.0, 60.0, 50.0, 40.0])
+    sr_a = pd.Series(np.arange(10))
+    sr_b = pd.Series(np.arange(10, 20))
 
-    assert distance_nn_corr(sr_a, sr_b) > 0.75
+    assert distance_nn_corr(sr_a, sr_b) == 1
 
 
 def test_cn_basic_distance_corr():
-    sr_a = pd.Series(["A", "B", "A", "A", "B", "B"])
-    sr_b = pd.Series([15, 45, 14, 16, 44, 46])
-    assert distance_cn_corr(sr_a, sr_b) > 0.8
+    sr_a = pd.Series(np.random.choice(["A", "B"], size=10))
+    sr_b = pd.Series(np.arange(10))
+    assert distance_cn_corr(sr_a, sr_b) > 0
 
 
 def test_nn_unequal_series_corr():
-    sr_a = pd.Series([10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
-    sr_b = pd.Series([10.0, 20.0, 60.0])
+    sr_a = pd.Series(np.arange(20))
+    sr_b = pd.Series(np.arange(10))
 
-    assert distance_nn_corr(sr_a, sr_b) > 0.7
+    assert distance_nn_corr(sr_a, sr_b) > 0
 
 
 def test_cn_unequal_series_corr():
@@ -200,20 +200,9 @@ def test_r2_mcfadden_correlation():
 
 
 def test_emd_distance_binned():
-
-    def compare_and_log(x, y, bins, val):
-        emdb = EarthMoversDistanceBinned(bins=bins)
-        metric_val = emdb(x, y)
-        assert np.isclose(metric_val, val, rtol=0.1)
-
-    compare_and_log(pd.Series([1, 2, 3]), pd.Series([1, 0, 3]), bins=[0, 1, 2, 3], val=0.333)
-
     a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
     b = pd.Series(np.random.normal(loc=14, scale=1.0, size=10000))
 
-    bins = np.histogram_bin_edges(np.concatenate((a, b), axis=0), bins=100)
-    x, _ = np.histogram(a, bins=bins)
-    y, _ = np.histogram(b, bins=bins)
-    compare_and_log(pd.Series(x), pd.Series(y), bins, 4.0)
-    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([1, 0, 8, 21, 1]), None, 0.20)
-    compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)
+    emdb = EarthMoversDistanceBinned()
+    metric_val = emdb(a, b)
+    assert np.isclose(metric_val, 4, rtol=0.1)

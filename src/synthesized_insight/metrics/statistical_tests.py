@@ -114,8 +114,7 @@ class KendallTauCorrelationTest(TwoColumnTest):
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         # Given columns should be both categorical or both ordinal
-        if (check.ordinal(sr_a) and check.ordinal(sr_b))\
-           or (check.categorical(sr_a) and check.categorical(sr_b)):
+        if (check.ordinal(sr_a) and check.ordinal(sr_b)):
             return True
         return False
 

@@ -118,7 +118,7 @@ def test_kt_correlation_string_numbers():
 
 def test_kruskal_wallis(group1):
     kruskal_wallis_test = KruskalWallisTest()
-    assert kruskal_wallis_test(pd.Series([1, 0]), pd.Series([1, 0]))[0] == 0
+    assert kruskal_wallis_test(pd.Series(np.arange(10)), pd.Series(np.arange(10)))[0] == 0
     assert abs(kruskal_wallis_test(group1, group1)[0]) < 1e-6
 
 

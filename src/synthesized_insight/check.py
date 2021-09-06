@@ -100,7 +100,7 @@ class ColumnCheck(Check):
         """
         sr = self.infer_dtype(sr)
         sr_dtype = str(sr.dtype)
-        if len(sr.unique()) >= max(min(self.min_num_unique, len(sr)),
+        if len(sr.unique()) >= max(self.min_num_unique,
                                    self.ctl_mult * np.log(len(sr)))\
            and sr_dtype in ("float64", "int64"):
             return True
@@ -110,6 +110,9 @@ class ColumnCheck(Check):
         """Checks if the given series is categorical"""
         if pd.api.types.is_categorical_dtype(sr) is True:
             return True
+        sr = self.infer_dtype(sr)
+        if sr.dtype.kind == "M":  # TODO: Need to implement ability to deal with dates well in metrics
+            return False
 
         if not self.continuous(sr):
             return True

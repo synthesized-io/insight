@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import warnings
-from typing import Optional, Sequence, Union, cast
+from typing import Union, cast
 
 import dcor as dcor
 import numpy as np
@@ -291,10 +291,11 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-        return x_dtype == y_dtype
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
@@ -304,7 +305,7 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
         Returns:
             The kullback-leibler divergence between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b))
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         return entropy(np.array(p), np.array(q))
 
 
@@ -318,10 +319,11 @@ class JensenShannonDivergence(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-        return x_dtype == y_dtype
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
@@ -331,7 +333,7 @@ class JensenShannonDivergence(TwoColumnMetric):
         Returns:
             The jensen-shannon divergence between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b))
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         return jensenshannon(p, q)
 
 
@@ -345,10 +347,11 @@ class HellingerDistance(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-        return x_dtype == y_dtype
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
@@ -358,7 +361,7 @@ class HellingerDistance(TwoColumnMetric):
         Returns:
             The hellinger distance between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b))
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         return np.linalg.norm(np.sqrt(cast(pd.Series, p)) - np.sqrt(cast(pd.Series, q))) / np.sqrt(2)
 
 
@@ -381,10 +384,11 @@ class Norm(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-
-        return x_dtype == y_dtype
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
@@ -394,7 +398,7 @@ class Norm(TwoColumnMetric):
         Returns:
             The lp-norm between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b))
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         if p is not None and q is not None:
             return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)
         return None
@@ -409,15 +413,14 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     """
     name = "earth_movers_distance_binned"
 
-    def __init__(self, check: Check = ColumnCheck(), bins: Optional[Sequence[Union[float, int]]] = None):
+    def __init__(self, check: Check = ColumnCheck()):
         super().__init__(check)
-        self.bins = bins
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        x_dtype = str(check.infer_dtype(sr_a).dtype)
-        y_dtype = str(check.infer_dtype(sr_b).dtype)
-        return x_dtype == y_dtype
+        if not check.continuous(sr_a) or not check.continuous(sr_a):
+            return False
+        return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """
@@ -429,25 +432,11 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Returns:
             The earth mover's distance.
         """
-        if sr_a.sum() == 0 and sr_b.sum() == 0:
-            return 0.
-        elif sr_a.sum() == 0 or sr_b.sum() == 0:
-            return 1.
+        (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
+        assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
 
-        # normalise counts for consistency with scipy.stats.wasserstein
-        with np.errstate(divide='ignore', invalid='ignore'):
-            x = np.nan_to_num(sr_a / sr_a.sum())
-            y = np.nan_to_num(sr_b / sr_b.sum())
-
-        if self.bins is None:
-            # if bins not given, histograms are assumed to be counts of nominal categories,
-            # and therefore distances betwen bins are meaningless. Set to all distances to
-            # unity to model this.
-            distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
-        else:
-            # otherwise, use pair-wise euclidean distances between bin centers for scale data
-            bin_centers = self.bins[:-1] + np.diff(self.bins) / 2.
-            distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
+        bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2.
+        distance = wasserstein_distance(bin_centers, bin_centers, u_weights=p, v_weights=q)
 
         return distance
 

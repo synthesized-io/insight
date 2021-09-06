@@ -51,7 +51,7 @@ def verify_columns_types(df, categorical_cols, continuous_cols, affine_cols, ord
 
 
 def test_column_check(df):
-    categorical_cols = set(['string_col', 'bool_col', 'int_bool_col', 'ordered_cat_col', 'date_col'])
+    categorical_cols = set(['string_col', 'bool_col', 'int_bool_col', 'ordered_cat_col'])
     continuous_cols = set(['int_col', 'float_col'])
     affine_cols = set(['date_col', 'int_col', 'float_col'])
     ordinal_cols = set(['ordered_cat_col', 'date_col', 'float_col', 'int_col', 'int_bool_col', 'bool_col'])
