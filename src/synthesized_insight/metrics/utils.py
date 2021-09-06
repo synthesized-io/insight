@@ -3,7 +3,7 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 
 
 def zipped_hist(
@@ -11,7 +11,7 @@ def zipped_hist(
     bin_edges: Optional[np.ndarray] = None,
     normalize: bool = True,
     ret_bins: bool = False,
-    distr_type: Optional[str] = None,
+    check: Check = ColumnCheck()
 ) -> Union[Tuple[pd.Series, ...], Tuple[Tuple[pd.Series, ...], Optional[np.ndarray]]]:
     """Bins a tuple of series' and returns the aligned histograms.
     Args:
@@ -34,7 +34,6 @@ def zipped_hist(
     """
 
     joint = pd.concat(data)
-    check = ColumnCheck()
     is_continuous = check.continuous(pd.Series(joint))
 
     # Compute histograms of the data, bin if continuous

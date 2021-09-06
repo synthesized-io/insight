@@ -8,18 +8,18 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 
 logger = logging.getLogger(__name__)
 
 
 class ModellingPreprocessor:
-    def __init__(self, target: Optional[str]):
+    def __init__(self, target: Optional[str], check: Check = ColumnCheck()):
         self.target = target
         self.column_encoders: Dict[str, BaseEstimator] = dict()
         self.columns_mapping: Dict[str, List[str]] = dict()
         self.is_fitted: bool = False
-        self.check = ColumnCheck()
+        self.check = check
         self.continuous_cols: Union[None, Sequence[str]] = None
         self.categorical_cols: Union[None, Sequence[str]] = None
 

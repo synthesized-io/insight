@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binom_test, kendalltau, kruskal, ks_2samp, spearmanr
 
-from ..check import ColumnCheck
+from ..check import Check, ColumnCheck
 from .base import TwoColumnMetric, TwoColumnTest
 from .utils import bootstrap_binned_statistic, bootstrap_statistic
 
@@ -18,7 +18,7 @@ class BinomialDistanceTest(TwoColumnTest):
     name = "binomial_distance"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         return pd.concat((sr_a, sr_b)).nunique() == 2
 
     def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
@@ -44,7 +44,7 @@ class KolmogorovSmirnovDistanceTest(TwoColumnTest):
     name = "kolmogorov_smirnov_distance"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if not check.continuous(sr_a) or not check.continuous(sr_b):
             return False
         return True
@@ -75,7 +75,7 @@ class KruskalWallisTest(TwoColumnTest):
     name = "kruskal_wallis"
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if not check.continuous(sr_a) or not check.continuous(sr_b):
             return False
         return True
@@ -105,14 +105,14 @@ class KendallTauCorrelationTest(TwoColumnTest):
     symmetric = True
 
     def __init__(self,
-                 check: ColumnCheck = None,
+                 check: Check = ColumnCheck(),
                  alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
         super().__init__(check, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         # Given columns should be both categorical or both ordinal
         if (check.ordinal(sr_a) and check.ordinal(sr_b))\
            or (check.categorical(sr_a) and check.categorical(sr_b)):
@@ -142,14 +142,14 @@ class SpearmanRhoCorrelationTest(TwoColumnTest):
     name = "spearman_rho_correlation"
 
     def __init__(self,
-                 check: ColumnCheck = None,
+                 check: Check = ColumnCheck(),
                  alternative: str = 'two-sided',
                  max_p_value: float = 1.0):
         super().__init__(check, alternative)
         self.max_p_value = max_p_value
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if not check.ordinal(sr_a) or not check.ordinal(sr_b):
             return False
         return True
@@ -188,7 +188,7 @@ class BootstrapTest:
         self.binned = binned
 
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series) -> bool:
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         return True  # metric object provided during initialization will perform the check while computing the metrics
 
     def _bootstrap_pvalue(self,

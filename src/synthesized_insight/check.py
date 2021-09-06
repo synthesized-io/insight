@@ -6,9 +6,50 @@ import pandas as pd
 
 
 class Check(ABC):
-    """Abstract class for checking column types
-    Implement this class for the customized logic for different types of checks
+    """Class for checking column types
+    Implement the methods of this class for the customized logic for different types of checks
     """
+
+    def infer_dtype(self, sr: pd.Series) -> pd.Series:
+        """Infers the type of the data and converts the data to it.
+        Args:
+            sr (str):
+                The column of the dataframe to transform.
+        Returns:
+            pd.Series:
+                The column converted to its inferred type.
+        """
+
+        col = sr.copy()
+
+        in_dtype = str(col.dtype)
+        n_nans = col.isna().sum()
+        n_empty_str = 0 if not pd.api.types.is_string_dtype(col) else sr.eq("").sum()
+
+        # Try to convert it to numeric
+        if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
+            col_num = pd.to_numeric(col, errors="coerce")
+            if col_num.isna().sum() == n_nans + n_empty_str:
+                col = col_num
+
+        # Try to convert it to date
+        if col.dtype.kind == "O" or col.dtype.kind == 'M':
+            try:
+                col_date = pd.to_datetime(col, errors="coerce")
+            except TypeError:
+                col_date = pd.to_datetime(col.astype(str), errors="coerce")
+            if col_date.isna().sum() == n_nans + n_empty_str:
+                col = col_date
+
+        out_dtype = str(col.dtype)
+
+        if out_dtype == in_dtype:
+            return col
+        elif out_dtype in ("i", "u", "f", "f8", "i8", "u8"):
+            return pd.to_numeric(col, errors="coerce")
+
+        return cast(pd.Series, col.astype(out_dtype, errors="ignore"))
+
     @abstractmethod
     def continuous(self, sr: pd.Series):
         """Checks if the given series is continuous"""
@@ -52,46 +93,6 @@ class ColumnCheck(Check):
                  ctl_mult: float = 2.5):
         self.min_num_unique = min_num_unique
         self.ctl_mult = ctl_mult
-
-    def infer_dtype(self, sr: pd.Series) -> pd.Series:
-        """Infers the type of the data and converts the data to it.
-        Args:
-            sr (str):
-                The column of the dataframe to transform.
-        Returns:
-            pd.Series:
-                The column converted to its inferred type.
-        """
-
-        col = sr.copy()
-
-        in_dtype = str(col.dtype)
-        n_nans = col.isna().sum()
-        n_empty_str = 0 if not pd.api.types.is_string_dtype(col) else sr.eq("").sum()
-
-        # Try to convert it to numeric
-        if col.dtype.kind not in ("i", "u", "f") and col.dtype.kind != 'M':
-            col_num = pd.to_numeric(col, errors="coerce")
-            if col_num.isna().sum() == n_nans + n_empty_str:
-                col = col_num
-
-        # Try to convert it to date
-        if col.dtype.kind == "O" or col.dtype.kind == 'M':
-            try:
-                col_date = pd.to_datetime(col, errors="coerce")
-            except TypeError:
-                col_date = pd.to_datetime(col.astype(str), errors="coerce")
-            if col_date.isna().sum() == n_nans + n_empty_str:
-                col = col_date
-
-        out_dtype = str(col.dtype)
-
-        if out_dtype == in_dtype:
-            return col
-        elif out_dtype in ("i", "u", "f", "f8", "i8", "u8"):
-            return pd.to_numeric(col, errors="coerce")
-
-        return cast(pd.Series, col.astype(out_dtype, errors="ignore"))
 
     def continuous(self, sr: pd.Series) -> bool:
         """Checks if the given series is continuous

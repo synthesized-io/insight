@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.synthesized_insight.check import ColumnCheck
+from src.synthesized_insight.check import Check, ColumnCheck
 from src.synthesized_insight.metrics import (
     BinomialDistanceTest,
     EarthMoversDistance,
@@ -32,7 +32,7 @@ def group1(df):
 
 class Distance(TwoColumnMetric):
     @classmethod
-    def check_column_types(cls, check: ColumnCheck, sr_a: pd.Series, sr_b: pd.Series):
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         return True
 
     def _compute_metric(self, sr_a, sr_b):
