@@ -72,11 +72,6 @@ class Check(ABC):
         """Checks if the given series is affine"""
         pass
 
-    @abstractmethod
-    def same_domain(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Checks if the given columns have the same domain of values"""
-        pass
-
 
 class ColumnCheck(Check):
     """Utility to check the column or a pairs of columns for different conditions
@@ -143,15 +138,4 @@ class ColumnCheck(Check):
         if self.continuous(sr) is True\
            or self.infer_dtype(sr).dtype.kind in ("M", "m"):
             return True
-        return False
-
-    def same_domain(self, sr_a: pd.Series, sr_b: pd.Series) -> bool:
-        """Checks if the given columns have the same domain of values"""
-        sr_a = self.infer_dtype(sr_a)
-        sr_b = self.infer_dtype(sr_b)
-        if self.categorical(sr_a) is True and self.categorical(sr_b) is True\
-           and sr_a.dtype.kind != 'M' and sr_b.dtype.kind != 'M'\
-           and set(sr_a.dropna().unique()) == set(sr_b.dropna().unique()):
-            return True
-
         return False
