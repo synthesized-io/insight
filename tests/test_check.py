@@ -66,24 +66,6 @@ def test_column_check(df):
     verify_columns_types(df_nan, categorical_cols, continuous_cols, affine_cols, ordinal_cols)
 
 
-def test_same_domain_columns(df):
-    check = ColumnCheck()
-
-    string_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['string_col'])))
-    assert check.same_domain(df['string_col'], string_col_copy) is True
-
-    string_col_copy = string_col_copy.append(pd.Series([None]))
-    assert check.same_domain(df['string_col'], string_col_copy) is True
-
-    string_col_copy = string_col_copy.append(pd.Series(['P']))
-    assert check.same_domain(df['string_col'], string_col_copy) is False
-
-    date_col_copy = pd.Series(np.random.permutation(copy.deepcopy(df['date_col'])))
-    assert check.same_domain(df['date_col'], date_col_copy) is False
-
-    assert check.same_domain(df['date_col'], df['string_col']) is False
-
-
 def test_check_ordinal():
     check = ColumnCheck()
 
