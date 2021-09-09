@@ -1,4 +1,5 @@
 from abc import ABC, abstractclassmethod, abstractmethod
+from itertools import combinations, permutations
 from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -81,6 +82,83 @@ class TwoColumnTest(_Metric):
             return None, None
 
         return self._compute_test(sr_a, sr_b)
+
+
+class ColumnComparisonVector(_Metric):
+    """Compares columns with the same name from two given dataframes and return a series
+    with index as the column name and the row value as the comparison metric value"""
+
+    def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest], return_p_val: bool = False):
+        self.metric = metric
+        self.name = f'{metric.name}_vector'
+        self.return_p_val = False
+        super().__init__()
+
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.Series, None]:
+        if df_old is None or df_new is None:
+            return None
+
+        result = pd.Series(
+            data=[self.metric(df_old[col], df_new[col]) for col in df_old.columns],
+            index=df_old.columns,
+            name=self.metric.name
+        )
+
+        if isinstance(self.metric, TwoColumnTest) and not self.return_p_val:
+            result = pd.Series(result.apply(lambda x: x[0]))  # fetch only the metric value, not p-value
+
+        return result
+
+
+class TwoColumnMetricMatrix(_Metric):
+    """Computes the correlation between each pair of columns in the given dataframe
+    and returns the result in a dataframe"""
+
+    def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
+        self.metric = metric
+        self.name = f'{metric.name}_matrix'
+        super(TwoColumnMetricMatrix, self).__init__()
+
+    def _get_metric_value(self, sr_a: pd.Series, sr_b: pd.Series):
+        res = self.metric(sr_a, sr_b)
+        if isinstance(self.metric, TwoColumnTest):
+            return res[0]
+        return res
+
+    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, None]:
+        columns = df.columns
+        matrix = pd.DataFrame(index=columns, columns=columns)
+
+        if 'symmetric' in self.tags:
+            for col_a, col_b in combinations(columns, 2):
+                matrix[col_a][col_b] = matrix[col_b][col_a] = self._get_metric_value(df[col_a], df[col_b])
+        else:
+            for col_a, col_b in permutations(columns, 2):
+                matrix[col_a][col_b] = self._get_metric_value(df[col_a], df[col_b])
+
+        return pd.DataFrame(matrix.astype(np.float32))  # need explicit casting for mypy
+
+
+class DiffMetricMatrix(_Metric):
+    """Computes the correlation matrix for each of the given dataframes and return the difference
+    between these matrices"""
+
+    def __init__(self, metric: TwoColumnMetricMatrix):
+        self.metric = metric
+        self.name = f'diff_{metric.name}'
+        super().__init__()
+
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
+        if df_old is None or df_new is None:
+            return None
+
+        matrix_old = self.metric(df=df_old)
+        matrix_new = self.metric(df=df_new)
+
+        if matrix_old is None or matrix_new is None:
+            return None
+
+        return matrix_new - matrix_old
 
 
 class ModellingMetric(_Metric):

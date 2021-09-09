@@ -10,7 +10,7 @@ from src.synthesized_insight.metrics.privacy import AttributeInferenceAttackCAP,
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv('datasets/credit.csv')
+    df = pd.read_csv('tests/datasets/mini_credit.csv')
     return df
 
 
