@@ -4,13 +4,13 @@ import pytest
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
-    ColumnComparisonVector,
+    CorrMatrix,
     CramersV,
-    DiffMetricMatrix,
+    DiffCorrMatrix,
     EarthMoversDistance,
     KolmogorovSmirnovDistanceTest,
     KruskalWallisTest,
-    TwoColumnMetricMatrix,
+    TwoColumnMap,
 )
 
 
@@ -30,7 +30,7 @@ def data():
     return df, categorical_cols, continuous_cols
 
 
-def test_column_comparison_vector(data):
+def test_two_column_map(data):
     df, categorical_cols, continuous_cols = data[0], data[1], data[2]
     df1 = df.sample(1000).reset_index(drop=True)
     df2 = df.sample(1000).reset_index(drop=True)
@@ -38,17 +38,22 @@ def test_column_comparison_vector(data):
     emd = EarthMoversDistance()
     ksdt = KolmogorovSmirnovDistanceTest()
 
-    cv = ColumnComparisonVector(emd)
-    emd_cv = cv(df1, df2)
-    assert cv.name == f'{str(emd)}_vector'
-    assert all(not np.isnan(emd_cv[cat]) for cat in categorical_cols)
-    assert all(np.isnan(emd_cv[cont]) for cont in continuous_cols)
+    col_map = TwoColumnMap(emd)
+    emd_map_df = col_map(df1, df2)
+    assert col_map.name == f'{str(emd)}_map'
 
-    cv = ColumnComparisonVector(ksdt)
-    kdst_cv = cv(df1, df2)
-    assert cv.name == f'{str(ksdt)}_vector'
-    assert all(np.isnan(kdst_cv[cat]) for cat in categorical_cols)
-    assert all(not np.isnan(kdst_cv[cont]) for cont in continuous_cols)
+    assert set(emd_map_df.columns.to_list()) == set(['metric_val'])
+    assert all(not np.isnan(emd_map_df['metric_val'][cat]) for cat in categorical_cols)
+    assert all(np.isnan(emd_map_df['metric_val'][cont]) for cont in continuous_cols)
+
+    col_map = TwoColumnMap(ksdt)
+    kdst_map_df = col_map(df1, df2)
+    assert col_map.name == f'{str(ksdt)}_map'
+    assert set(kdst_map_df.columns.to_list()) == set(['metric_val', 'metric_pval'])
+    assert all(np.isnan(kdst_map_df['metric_val'][cat]) for cat in categorical_cols)
+    assert all(np.isnan(kdst_map_df['metric_pval'][cat]) for cat in categorical_cols)
+    assert all(not np.isnan(kdst_map_df['metric_val'][cont]) for cont in continuous_cols)
+    assert all(not np.isnan(kdst_map_df['metric_pval'][cont]) for cont in continuous_cols)
 
 
 def test_metric_matrix(data):
@@ -57,31 +62,33 @@ def test_metric_matrix(data):
     df2 = df.sample(1000).reset_index(drop=True)
 
     kwt = KruskalWallisTest()
-    tm = TwoColumnMetricMatrix(kwt)
-    assert tm.name == f'{str(kwt)}_matrix'
-    kwt_tm = tm(df)
-    assert all(not np.isnan(kwt_tm[cont1][cont2]) and not np.isnan(kwt_tm[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols if cont1 != cont2)
-    assert all(np.isnan(kwt_tm[cat][cont]) and np.isnan(kwt_tm[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
-    assert all(np.isnan(kwt_tm[cat1][cat2]) and np.isnan(kwt_tm[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols)
+    cmt = CorrMatrix(kwt)
+    assert cmt.name == f'{str(kwt)}_matrix'
+    kwt_val_df, kwt_pval_df = cmt(df)
+    assert kwt_pval_df is not None
+    assert all(not np.isnan(kwt_val_df[cont1][cont2]) and not np.isnan(kwt_val_df[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols if cont1 != cont2)
+    assert all(np.isnan(kwt_val_df[cat][cont]) and np.isnan(kwt_val_df[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
+    assert all(np.isnan(kwt_val_df[cat1][cat2]) and np.isnan(kwt_val_df[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols)
 
-    diff_mat = DiffMetricMatrix(tm)
-    diff = diff_mat(df1, df2)
-    assert diff_mat.name == f'diff_{str(kwt)}_matrix'
+    kwt_diff_mat = DiffCorrMatrix(kwt)
+    diff = kwt_diff_mat(df1, df2)
+    assert kwt_diff_mat.name == f'diff_{str(kwt)}'
     assert all(not np.isnan(diff[cont1][cont2]) and not np.isnan(diff[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols if cont1 != cont2)
     assert all(np.isnan(diff[cat][cont]) and np.isnan(diff[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
     assert all(np.isnan(diff[cat1][cat2]) and np.isnan(diff[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols)
 
     cmv = CramersV()
-    tm = TwoColumnMetricMatrix(cmv)
-    assert tm.name == f'{str(cmv)}_matrix'
-    cmv_tm = tm(df)
-    assert all(np.isnan(cmv_tm[cont1][cont2]) and np.isnan(cmv_tm[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
-    assert all(np.isnan(cmv_tm[cat][cont]) and np.isnan(cmv_tm[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
-    assert all(not np.isnan(cmv_tm[cat1][cat2]) and not np.isnan(cmv_tm[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
+    cmt = CorrMatrix(cmv)
+    assert cmt.name == f'{str(cmv)}_matrix'
+    cmv_val_df, cmv_pval_df = cmt(df)
+    assert cmv_pval_df is None
+    assert all(np.isnan(cmv_val_df[cont1][cont2]) and np.isnan(cmv_val_df[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
+    assert all(np.isnan(cmv_val_df[cat][cont]) and np.isnan(cmv_val_df[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
+    assert all(not np.isnan(cmv_val_df[cat1][cat2]) and not np.isnan(cmv_val_df[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
 
-    diff_mat = DiffMetricMatrix(tm)
-    diff = diff_mat(df1, df2)
-    assert diff_mat.name == f'diff_{str(cmv)}_matrix'
+    cmv_diff_mat = DiffCorrMatrix(cmv)
+    diff = cmv_diff_mat(df1, df2)
+    assert cmv_diff_mat.name == f'diff_{str(cmv)}'
     assert all(np.isnan(diff[cont1][cont2]) and np.isnan(diff[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
     assert all(np.isnan(diff[cat][cont]) and np.isnan(diff[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
     assert all(not np.isnan(diff[cat1][cat2]) and not np.isnan(diff[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)

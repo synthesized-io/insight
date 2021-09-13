@@ -1,11 +1,4 @@
-from .base import (
-    ColumnComparisonVector,
-    DiffMetricMatrix,
-    OneColumnMetric,
-    TwoColumnMetric,
-    TwoColumnMetricMatrix,
-    TwoDataFrameMetric,
-)
+from .base import CorrMatrix, DiffCorrMatrix, OneColumnMetric, TwoColumnMap, TwoColumnMetric, TwoDataFrameMetric
 from .metrics import (
     CramersV,
     DistanceCNCorrelation,
@@ -42,8 +35,8 @@ from .statistical_tests import (
     SpearmanRhoCorrelationTest,
 )
 
-__all__ = ['OneColumnMetric', 'TwoColumnMetric', 'ColumnComparisonVector', 'TwoColumnMetricMatrix',
-           'DiffMetricMatrix', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelationTest',
+__all__ = ['OneColumnMetric', 'TwoColumnMetric', 'TwoColumnMap', 'CorrMatrix',
+           'DiffCorrMatrix', 'CramersV', 'EarthMoversDistance', 'KendallTauCorrelationTest',
            'KolmogorovSmirnovDistanceTest', 'Mean', 'SpearmanRhoCorrelationTest', 'StandardDeviation',
            'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError', 'KruskalWallisTest',
            'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve', 'Norm',
