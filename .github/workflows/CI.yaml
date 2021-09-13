@@ -14,7 +14,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.4
         with:
           ref: ${{ env.GITHUB_SHA }}
           fetch-depth: 0
