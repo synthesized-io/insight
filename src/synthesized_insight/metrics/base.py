@@ -142,7 +142,7 @@ class DiffCorrMatrix(_Metric):
     between these matrices"""
 
     def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
-        self.corr_metric = CorrMatrix(metric)
+        self.corr_matrix = CorrMatrix(metric)
         self.name = f'diff_{metric.name}'
         super().__init__()
 
@@ -150,8 +150,8 @@ class DiffCorrMatrix(_Metric):
         if df_old is None or df_new is None:
             return None
 
-        corr_matrix_old = self.corr_metric(df=df_old)[0]
-        corr_matrix_new = self.corr_metric(df=df_new)[0]
+        corr_matrix_old = self.corr_matrix(df=df_old)[0]
+        corr_matrix_new = self.corr_matrix(df=df_new)[0]
 
         if corr_matrix_old is None or corr_matrix_new is None:
             return None
