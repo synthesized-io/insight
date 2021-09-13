@@ -115,6 +115,7 @@ class CorrMatrix(_Metric):
     def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
         self.metric = metric
         self.name = f'{metric.name}_matrix'
+        super().__init__()
 
     def __call__(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Union[pd.DataFrame, None]]:
         columns = df.columns
