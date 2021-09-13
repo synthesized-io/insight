@@ -53,8 +53,10 @@ jobs:
       - name: Run unit tests
         run: |
           source .tenv/bin/activate
-          pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
+          pytest -v --junitxml=test-results/junit.xml  --cov=synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch --log-cli-level=INFO
           sed -ie 's#/home/runner/work/insight/insight#/github/workspace#g' coverage-reports/cobertura.xml
+          sed -ie 's#.tenv/lib/python3.7/site-packages/##g' coverage-reports/cobertura.xml
+          sed -ie 's#.tenv.lib.python3.7.site-packages.##g' coverage-reports/cobertura.xml
         env:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
