@@ -42,7 +42,14 @@ jobs:
         run: |
           source .tenv/bin/activate
           pip install .[test] --cache-dir .pip-cache
-
+      
+      - name: Upload Files
+        uses: actions/upload-artifact@v2
+        with:
+          name: tests
+          path: |
+            tests/test_metrics_base.py
+      
       - name: Run unit tests
         run: |
           source .tenv/bin/activate
