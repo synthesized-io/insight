@@ -16,7 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.4
         with:
-          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Set up Python
