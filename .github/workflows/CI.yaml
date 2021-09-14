@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - main
+      - master
 
 jobs:
   test:
@@ -14,9 +14,8 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.4
         with:
-          ref: ${{ env.GITHUB_SHA }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -47,10 +46,18 @@ jobs:
       - name: Run unit tests
         run: |
           source .tenv/bin/activate
-          pytest -v --junitxml=test-results/junit.xml  --cov=src/synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch
-          sed -ie 's#/home/runner/work/insight/insight#/github/workspace#g' coverage-reports/cobertura.xml
+          pytest -v --junitxml=test-results/junit.xml  --cov=synthesized_insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch --log-cli-level=INFO
+          sed -ie 's#/home/runner/work/insight/insight#/github/workspace/src#g' coverage-reports/cobertura.xml
+          sed -ie 's#.tenv/lib/python3.7/site-packages/##g' coverage-reports/cobertura.xml
+          sed -ie 's#.tenv.lib.python3.7.site-packages.##g' coverage-reports/cobertura.xml
         env:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage
+          path: coverage-reports/cobertura.xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master

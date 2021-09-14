@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 
-from src.synthesized_insight.modelling import ModellingPreprocessor
-from src.synthesized_insight.modelling.utility import check_model_type, sample_split_data
+from synthesized_insight.modelling import ModellingPreprocessor
+from synthesized_insight.modelling.utility import check_model_type, sample_split_data
 
 
 @pytest.fixture(scope='module')
