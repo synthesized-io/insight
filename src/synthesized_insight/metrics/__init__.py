@@ -1,4 +1,4 @@
-from .base import CorrMatrix, DiffCorrMatrix, OneColumnMetric, TwoColumnMap, TwoColumnMetric, TwoDataFrameMetric
+from .base import OneColumnMetric, TwoColumnMetric, TwoDataFrameMetric
 from .metrics import (
     CramersV,
     DistanceCNCorrelation,
@@ -13,6 +13,7 @@ from .metrics import (
     R2Mcfadden,
     StandardDeviation,
 )
+from .metrics_usage import CorrMatrix, DiffCorrMatrix, TwoColumnMap
 from .modelling_metrics import (
     ROCAUC,
     Accuracy,
