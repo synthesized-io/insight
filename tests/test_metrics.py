@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.synthesized_insight.metrics import (
+from synthesized_insight.metrics import (
     CramersV,
     DistanceCNCorrelation,
     DistanceNNCorrelation,
