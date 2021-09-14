@@ -5,10 +5,10 @@ from typing import Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .base import TwoColumnMetric, TwoColumnTest, _Metric
+from .base import DataFrameMatrix, TwoColumnMetric, TwoColumnTest, TwoDataFrameMatrix
 
 
-class TwoColumnMap(_Metric):
+class TwoColumnMap(TwoDataFrameMatrix):
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_value and metric_pval(if applicable)"""
 
@@ -17,10 +17,7 @@ class TwoColumnMap(_Metric):
         self.name = f'{metric.name}_map'
         super().__init__()
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
-        if df_old is None or df_new is None:
-            return None
-
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
         columns_map = {col: self.metric(df_old[col], df_new[col]) for col in df_old.columns}
 
         result = pd.DataFrame(
@@ -32,7 +29,7 @@ class TwoColumnMap(_Metric):
         return result
 
 
-class CorrMatrix(_Metric):
+class CorrMatrix(DataFrameMatrix):
     """Computes the correlation between each pair of columns in the given dataframe
     and returns the result in a dataframe"""
 
@@ -61,7 +58,7 @@ class CorrMatrix(_Metric):
         return pd.DataFrame(value_matrix.astype(np.float32)), pval_matrix  # explicit casting for mypy
 
 
-class DiffCorrMatrix(_Metric):
+class DiffCorrMatrix(TwoDataFrameMatrix):
     """Computes the correlation matrix for each of the given dataframes and return the difference
     between these matrices"""
 
@@ -71,9 +68,6 @@ class DiffCorrMatrix(_Metric):
         super().__init__()
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
-        if df_old is None or df_new is None:
-            return None
-
         corr_matrix_old = self.corr_matrix(df=df_old)[0]
         corr_matrix_new = self.corr_matrix(df=df_new)[0]
 

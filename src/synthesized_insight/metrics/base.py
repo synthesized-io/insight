@@ -83,6 +83,20 @@ class TwoColumnTest(_Metric):
         return self._compute_test(sr_a, sr_b)
 
 
+class DataFrameMatrix(_Metric):
+    """Operates on columns of a single DataFrame. Returns results in DataFrame/s matrix"""
+    @abstractmethod
+    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, Tuple[pd.DataFrame, Union[pd.DataFrame, None]]]:
+        pass
+
+
+class TwoDataFrameMatrix(_Metric):
+    """Compares the columns of two DataFrames. Returns result in DataFrame matrix"""
+    @abstractmethod
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
+        pass
+
+
 class ModellingMetric(_Metric):
 
     @abstractmethod
