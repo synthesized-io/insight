@@ -86,7 +86,7 @@ class TwoColumnTest(_Metric):
 class DataFrameMatrix(_Metric):
     """Operates on columns of a single DataFrame. Returns results in DataFrame/s matrix"""
     @abstractmethod
-    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, Tuple[pd.DataFrame, Union[pd.DataFrame, None]]]:
+    def __call__(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
         pass
 
 

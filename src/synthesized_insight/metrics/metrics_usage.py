@@ -1,6 +1,6 @@
 
 from itertools import permutations
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ class CorrMatrix(DataFrameMatrix):
         self.name = f'{metric.name}_matrix'
         super().__init__()
 
-    def __call__(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Union[pd.DataFrame, None]]:
+    def __call__(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 
