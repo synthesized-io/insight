@@ -10,7 +10,7 @@ from .base import DataFrameMatrix, TwoColumnMetric, TwoColumnTest, TwoDataFrameM
 
 class TwoColumnMap(TwoDataFrameMatrix):
     """Compares columns with the same name from two given dataframes and return a DataFrame
-    with index as the column name and the columns as metric_value and metric_pval(if applicable)"""
+    with index as the column name and the columns as metric_val and metric_pval(if applicable)"""
 
     def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
         self.metric = metric
@@ -26,6 +26,7 @@ class TwoColumnMap(TwoDataFrameMatrix):
             columns=['metric_val', 'metric_pval'] if isinstance(self.metric, TwoColumnTest) else ['metric_val']
         )
 
+        result.name = self.metric.name
         return result
 
 
