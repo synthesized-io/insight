@@ -3,13 +3,13 @@ import pandas as pd
 import pytest
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 
-from src.synthesized_insight.modelling import ModellingPreprocessor
-from src.synthesized_insight.modelling.utility import check_model_type, sample_split_data
+from synthesized_insight.modelling import ModellingPreprocessor
+from synthesized_insight.modelling.utility import check_model_type, sample_split_data
 
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv('datasets/credit_with_categoricals.csv')
+    df = pd.read_csv('tests/datasets/mini_credit_with_categoricals.csv')
     return df
 
 
@@ -23,7 +23,7 @@ def test_sample_split_data(df):
 
 
 def test_modelling_preprocessor(df):
-    data = pd.read_csv('datasets/credit_with_categoricals.csv')
+    data = pd.read_csv('tests/datasets/mini_credit_with_categoricals.csv')
     prep = ModellingPreprocessor(target='SeriousDlqin2yrs')
     assert prep.fit_transform(data) is not None
 

@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.synthesized_insight.metrics import privacy_cap_scorer
-from src.synthesized_insight.metrics.privacy import AttributeInferenceAttackCAP, AttributeInferenceAttackML
+from synthesized_insight.metrics import privacy_cap_scorer
+from synthesized_insight.metrics.privacy import AttributeInferenceAttackCAP, AttributeInferenceAttackML
 
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv('datasets/credit.csv')
+    df = pd.read_csv('tests/datasets/mini_credit.csv')
     return df
 
 
