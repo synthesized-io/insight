@@ -201,6 +201,7 @@ def test_r2_mcfadden_correlation():
     credit_df = pd.read_csv('tests/datasets/mini_credit.csv').sample(500)
     assert r2_mcfadden(sr_a=credit_df['SeriousDlqin2yrs'], sr_b=credit_df['age']) is not None
     assert r2_mcfadden(sr_a=credit_df['MonthlyIncome'], sr_b=credit_df['DebtRatio']) is None
+    assert r2_mcfadden(sr_a=credit_df['SeriousDlqin2yrs'], sr_b=credit_df['MonthlyIncome']) is not None
 
 
 def test_emd_distance_binned():
