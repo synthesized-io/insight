@@ -1,16 +1,17 @@
 """This module contains various metrics used across synthesized."""
 import warnings
-from typing import Union, cast
+from typing import List, Union, cast
 
 import dcor as dcor
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
-from sklearn import linear_model
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import OneHotEncoder
 
 from ..check import Check, ColumnCheck
+from ..modelling import ModellingPreprocessor
 from .base import OneColumnMetric, TwoColumnMetric
 from .utils import zipped_hist
 
@@ -111,6 +112,46 @@ class R2Mcfadden(TwoColumnMetric):
             return False
         return True
 
+    def _logistic_regression_r2(self,
+                                df: pd.DataFrame,
+                                y_label: str,
+                                x_labels: List[str],
+                                max_sample_size: int = 10_000) -> Union[None, float]:
+
+        if len(x_labels) == 0:
+            return None
+
+        df = df[x_labels + [y_label]].dropna()
+        df = pd.DataFrame(df.sample(min(max_sample_size, len(df))))  # explicit assignment for mypy
+
+        if df[y_label].nunique() < 2:
+            return None
+
+        df_pre = ModellingPreprocessor.preprocess(df=df, target=y_label)
+        x_labels_pre = list(filter(lambda v: v != y_label, df_pre.columns))
+
+        x_array = df_pre[x_labels_pre].to_numpy()
+        y_array = df_pre[y_label].to_numpy()
+
+        rg = LogisticRegression()
+        rg.fit(x_array, y_array)
+
+        labels = df_pre[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
+        oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
+
+        lp = rg.predict_log_proba(x_array)
+        llf = np.sum(oh_labels * lp)
+
+        rg = LogisticRegression()
+        rg.fit(np.ones_like(y_array).reshape(-1, 1), y_array)
+
+        lp = rg.predict_log_proba(x_array)
+        llnull = np.sum(oh_labels * lp)
+
+        psuedo_r2 = 1 - (llf / llnull)
+
+        return psuedo_r2
+
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
         Args:
@@ -119,30 +160,10 @@ class R2Mcfadden(TwoColumnMetric):
         Returns:
             The R2 Mcfadden correlation coefficient between sr_a and sr_b.
         """
-        x = sr_b.to_numpy().reshape(-1, 1)
-        x = StandardScaler().fit_transform(x)
-        y = sr_a.to_numpy()
+        df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
+        r2 = self._logistic_regression_r2(df, y_label=str(sr_a.name), x_labels=[str(sr_b.name)])
 
-        enc = LabelEncoder()
-        y = enc.fit_transform(y)
-
-        lr_feature = linear_model.LogisticRegression()
-        lr_feature.fit(x, y)
-
-        y_one_hot = OneHotEncoder(sparse=False).fit_transform(y.reshape(-1, 1))
-
-        log_pred = lr_feature.predict_log_proba(x)
-        ll_feature = np.sum(y_one_hot * log_pred)
-
-        lr_intercept = linear_model.LogisticRegression()
-        lr_intercept.fit(np.ones_like(y).reshape(-1, 1), y)
-
-        log_pred = lr_intercept.predict_log_proba(x)
-        ll_intercept = np.sum(y_one_hot * log_pred)
-
-        pseudo_r2 = 1 - ll_feature / ll_intercept
-
-        return pseudo_r2
+        return r2
 
 
 class DistanceNNCorrelation(TwoColumnMetric):
