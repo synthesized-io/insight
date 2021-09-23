@@ -64,6 +64,9 @@ class CramersV(TwoColumnMetric):
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        if len(sr_a.value_counts()) == 1 or len(sr_b.value_counts()) == 1:
+            return 0
+
         table_orig = pd.crosstab(sr_a.astype(str), sr_b.astype(str))
         table = np.asarray(table_orig, dtype=np.float64)
 

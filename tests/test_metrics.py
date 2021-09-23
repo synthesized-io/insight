@@ -1,7 +1,10 @@
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
     CramersV,
     DistanceCNCorrelation,
@@ -107,7 +110,7 @@ def test_em_distance():
     assert emd(sr_b, sr_b) is not None
 
 
-def test_cramers_v():
+def test_cramers_v_basic():
     sr_a = pd.Series([1, 2, 3, 1, 2, 3, 1, 2, 3] * 100, name='a')
     sr_b = pd.Series([1, 2, 3, 2, 3, 1, 3, 1, 2] * 100, name='b')
 
@@ -116,6 +119,20 @@ def test_cramers_v():
 
     sr_c = pd.Series(np.random.normal(0, 1, 1000), name='c')
     assert cramers_v(sr_c, sr_c) is None
+
+
+def test_cramers_v_compas(df):
+    check = ColumnCheck()
+    continuous_cols, categorical_cols = [], []
+
+    for col in df.columns:
+        if check.continuous(df[col]):
+            continuous_cols.append(col)
+        elif check.categorical(df[col]):
+            categorical_cols.append(col)
+
+    for col_grp in combinations(categorical_cols, 2):
+        assert(cramers_v(df[col_grp[0]], df[col_grp[1]]) is not None)
 
 
 def test_repr():
