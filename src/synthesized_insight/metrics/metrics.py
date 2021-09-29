@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import warnings
-from typing import List, Union, cast
+from typing import List, Optional, Sequence, Union, cast
 
 import dcor as dcor
 import numpy as np
@@ -434,21 +434,33 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
     The histograms can represent counts of nominal categories or counts on
     an ordinal range. If the latter, they must have equal binning.
+
+    Args:
+        bins: Optional; If given, this must be an iterable of bin edges for x and y,
+                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                that the data represent counts of nominal categories, with no meaningful
+                distance between bins.
+
     """
     name = "earth_movers_distance_binned"
 
-    def __init__(self, check: Check = ColumnCheck()):
+    def __init__(self,
+                 check: Check = ColumnCheck(),
+                 bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
         super().__init__(check)
+        self.bin_edges = bin_edges
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        if not check.continuous(sr_a) or not check.continuous(sr_a):
-            return False
-        return True
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """
-        Calculate the EMD between two 1d histograms.
+        Calculate the EMD between two binned continuous data or two 1d histograms.
 
         Histograms must have an equal number of bins. They are not required to be normalised,
         and distances between bins are measured using a Euclidean metric.
@@ -456,8 +468,16 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Returns:
             The earth mover's distance.
         """
-        (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
-        assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
+        bin_edges = self.bin_edges
+        if bin_edges is None:
+            if self.check.categorical(sr_a):
+                raise ValueError("For histograms, bins edges should be provided. If categorical,\
+                then use EarthMoversDistance")
+
+            (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
+            assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
+        else:
+            p, q = sr_a, sr_b
 
         bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2.
         distance = wasserstein_distance(bin_centers, bin_centers, u_weights=p, v_weights=q)
