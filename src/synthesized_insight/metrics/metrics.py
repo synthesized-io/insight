@@ -436,7 +436,7 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     an ordinal range. If the latter, they must have equal binning.
 
     Args:
-        bins: Optional; If given, this must be an iterable of bin edges for x and y,
+        bin_edges: Optional; If given, this must be an iterable of bin edges for x and y,
                 i.e the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
