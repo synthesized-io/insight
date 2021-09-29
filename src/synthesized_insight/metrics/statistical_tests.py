@@ -19,7 +19,7 @@ class BinomialDistanceTest(TwoColumnTest):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        return pd.concat((sr_a, sr_b)).nunique() == 2
+        return (pd.concat((sr_a, sr_b)).nunique() == 2)
 
     def _compute_test(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
         """Calculate binomial metric and exact p-value for an observed binomial proportion of a sample."""
