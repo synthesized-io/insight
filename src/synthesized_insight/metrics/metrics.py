@@ -452,11 +452,8 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        if check.continuous(sr_a) and check.continuous(sr_b):
-            return True
-        if check.categorical(sr_a) and check.categorical(sr_b):
-            return True
-        return False
+        # Histograms can appear to be continuous even if they are categorical in nature
+        return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """
@@ -487,7 +484,6 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
             # otherwise, use pair-wise euclidean distances between bin centers for scale data
             bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
             distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
-
         return distance
 
 
