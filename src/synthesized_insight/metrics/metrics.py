@@ -468,19 +468,25 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Returns:
             The earth mover's distance.
         """
-        bin_edges = self.bin_edges
-        if bin_edges is None:
-            if self.check.categorical(sr_a):
-                emd = EarthMoversDistance(check=self.check)
-                return emd(sr_a, sr_b)
-            else:
-                (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
-                assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
-        else:
-            p, q = sr_a, sr_b
+        if sr_a.sum() == 0 and sr_b.sum() == 0:
+            return 0.
+        elif sr_a.sum() == 0 or sr_b.sum() == 0:
+            return 1.
 
-        bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2.
-        distance = wasserstein_distance(bin_centers, bin_centers, u_weights=p, v_weights=q)
+        # normalise counts for consistency with scipy.stats.wasserstein
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = np.nan_to_num(sr_a / sr_a.sum())
+            y = np.nan_to_num(sr_b / sr_b.sum())
+
+        if self.bin_edges is None:
+            # if bins not given, histograms are assumed to be counts of nominal categories,
+            # and therefore distances betwen bins are meaningless. Set to all distances to
+            # unity to model this.
+            distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
+        else:
+            # otherwise, use pair-wise euclidean distances between bin centers for scale data
+            bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
+            distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
 
         return distance
 
