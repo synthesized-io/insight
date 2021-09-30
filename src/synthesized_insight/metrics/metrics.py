@@ -471,11 +471,11 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         bin_edges = self.bin_edges
         if bin_edges is None:
             if self.check.categorical(sr_a):
-                raise ValueError("For histograms, bins edges should be provided. If categorical,\
-                then use EarthMoversDistance")
-
-            (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
-            assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
+                emd = EarthMoversDistance(check=self.check)
+                return emd(sr_a, sr_b)
+            else:
+                (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
+                assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
         else:
             p, q = sr_a, sr_b
 
