@@ -1,6 +1,6 @@
 """This module contains various metrics used across synthesized."""
 import warnings
-from typing import List, Union, cast
+from typing import List, Optional, Sequence, Union, cast
 
 import dcor as dcor
 import numpy as np
@@ -434,21 +434,30 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
     The histograms can represent counts of nominal categories or counts on
     an ordinal range. If the latter, they must have equal binning.
+
+    Args:
+        bin_edges: Optional; If given, this must be an iterable of bin edges for x and y,
+                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                that the data represent counts of nominal categories, with no meaningful
+                distance between bins.
+
     """
     name = "earth_movers_distance_binned"
 
-    def __init__(self, check: Check = ColumnCheck()):
+    def __init__(self,
+                 check: Check = ColumnCheck(),
+                 bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
         super().__init__(check)
+        self.bin_edges = bin_edges
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        if not check.continuous(sr_a) or not check.continuous(sr_a):
-            return False
+        # Histograms can appear to be continuous even if they are categorical in nature
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """
-        Calculate the EMD between two 1d histograms.
+        Calculate the EMD between two binned continuous data or two 1d histograms.
 
         Histograms must have an equal number of bins. They are not required to be normalised,
         and distances between bins are measured using a Euclidean metric.
@@ -456,12 +465,25 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Returns:
             The earth mover's distance.
         """
-        (p, q), bin_edges = zipped_hist((sr_a, sr_b), check=self.check, ret_bins=True)
-        assert bin_edges is not None, "bin edges should return not None if inputs are continuous"
+        if sr_a.sum() == 0 and sr_b.sum() == 0:
+            return 0.
+        elif sr_a.sum() == 0 or sr_b.sum() == 0:
+            return 1.
 
-        bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2.
-        distance = wasserstein_distance(bin_centers, bin_centers, u_weights=p, v_weights=q)
+        # normalise counts for consistency with scipy.stats.wasserstein
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = np.nan_to_num(sr_a / sr_a.sum())
+            y = np.nan_to_num(sr_b / sr_b.sum())
 
+        if self.bin_edges is None:
+            # if bins not given, histograms are assumed to be counts of nominal categories,
+            # and therefore distances betwen bins are meaningless. Set to all distances to
+            # unity to model this.
+            distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
+        else:
+            # otherwise, use pair-wise euclidean distances between bin centers for scale data
+            bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
+            distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
         return distance
 
 
