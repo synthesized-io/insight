@@ -71,7 +71,7 @@ class F1Score(ClassificationMetric):
     def __call__(self,
                  y_true: np.ndarray,
                  y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+                 y_pred_proba: Optional[np.ndarray] = None) -> float:
         assert y_pred is not None
         if self.multiclass is False:
             return f1_score(y_true, y_pred)
@@ -83,9 +83,9 @@ class ROCAUC(ClassificationMetric):
     name = "roc_auc"
 
     def __call__(self,
-                 y_true: np.ndarray = None,
+                 y_true: np.ndarray,
                  y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> Union[float]:
+                 y_pred_proba: Optional[np.ndarray] = None) -> float:
         assert y_pred_proba is not None
         if len(np.unique(y_true)) < 2:
             return 1.0

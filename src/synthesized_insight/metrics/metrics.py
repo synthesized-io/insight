@@ -308,7 +308,7 @@ class Norm(TwoColumnMetric):
     """
     name = "norm"
 
-    def __init__(self, check: Check = ColumnCheck(), ord: Union[str, int] = 2):
+    def __init__(self, check: Check = ColumnCheck(), ord: Union[None, float, str] = 2.0):
         super().__init__(check)
         self.ord = ord
 
@@ -330,7 +330,7 @@ class Norm(TwoColumnMetric):
         """
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         if p is not None and q is not None:
-            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)
+            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)  # type: ignore
         return None
 
 
