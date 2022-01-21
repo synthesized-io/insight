@@ -1,8 +1,6 @@
 """This module contains various metrics used across synthesized."""
-import warnings
 from typing import List, Optional, Sequence, Union, cast
 
-import dcor as dcor
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
@@ -169,98 +167,6 @@ class R2Mcfadden(TwoColumnMetric):
         return r2
 
 
-class DistanceNNCorrelation(TwoColumnMetric):
-    """Distance nn correlation coefficient between two numerical variables.
-
-    It uses non-linear correlation distance to obtain a correlation coefficient for
-    numerical-numerical column pairs.
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-    and 1 indicates maximal association (i.e one variable is completely determined by the other).
-    """
-    name = "distance_nn_correlation"
-
-    @classmethod
-    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
-        if not check.continuous(sr_a) or not check.continuous(sr_b):
-            return False
-        return True
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Calculate the metric.
-        Args:
-            sr_a (pd.Series): values of a numerical variable.
-            sr_b (pd.Series): values of numerical variable.
-        Returns:
-            The distance nn correlation coefficient between sr_a and sr_b.
-        """
-        warnings.filterwarnings(action="ignore", category=UserWarning)
-
-        if sr_a.size < sr_b.size:
-            sr_a = sr_a.append(pd.Series(sr_a.mean()).repeat(sr_b.size - sr_a.size), ignore_index=True)
-        elif sr_a.size > sr_b.size:
-            sr_b = sr_b.append(pd.Series(sr_b.mean()).repeat(sr_a.size - sr_b.size), ignore_index=True)
-
-        return dcor.distance_correlation(sr_a, sr_b)
-
-
-class DistanceCNCorrelation(TwoColumnMetric):
-    """Distance cn correlation coefficient between categorical and numerical variables.
-
-    It uses non-linear correlation distance to obtain a correlation coefficient for
-    categorical-numerical column pairs.
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-    and 1 indicates maximal association (i.e one variable is completely determined by the other).
-    """
-    name = "distance_cn_correlation"
-
-    @classmethod
-    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
-        if not check.categorical(sr_a) or not check.continuous(sr_b):
-            return False
-        return True
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Calculate the metric.
-        Args:
-            sr_a (pd.Series): values of a categorical variable.
-            sr_b (pd.Series): values of numerical variable.
-        Returns:
-            The distance cn correlation coefficient between sr_a and sr_b.
-        """
-        """Calculate the metric.
-        Args:
-            sr_a (pd.Series): values of a categorical variable.
-            sr_b (pd.Series): values of numerical variable.
-        Returns:
-            MetricStatisticsResult object containing the distance cn correlation coefficient between sr_a and sr_b,
-            p-value and the confidence interval.
-        """
-        warnings.filterwarnings(action="ignore", category=UserWarning)
-        sr_a_codes = sr_a.astype("category").cat.codes
-        groups_obj = sr_b.groupby(sr_a_codes)
-        arrays = [groups_obj.get_group(cat) for cat in sr_a_codes.unique() if cat in groups_obj.groups.keys()]
-
-        total = 0.0
-        n = len(arrays)
-
-        for i in range(0, n):
-            for j in range(i + 1, n):
-                sr_i = arrays[i]
-                sr_j = arrays[j]
-
-                # Handle groups with a different number of elements.
-                if sr_i.size < sr_j.size:
-                    sr_i = sr_i.append(sr_i.sample(sr_j.size - sr_i.size, replace=True), ignore_index=True)
-                elif sr_i.size > sr_j.size:
-                    sr_j = sr_j.append(sr_j.sample(sr_i.size - sr_j.size, replace=True), ignore_index=True)
-                total += dcor.distance_correlation(sr_i, sr_j)
-
-        if n > 1:
-            total /= n * (n - 1) / 2
-
-        return total
-
-
 class EarthMoversDistance(TwoColumnMetric):
     """Earth mover's distance (aka 1-Wasserstein distance) between two nominal variables.
 
@@ -402,7 +308,7 @@ class Norm(TwoColumnMetric):
     """
     name = "norm"
 
-    def __init__(self, check: Check = ColumnCheck(), ord: Union[str, int] = 2):
+    def __init__(self, check: Check = ColumnCheck(), ord: Union[None, float, str] = 2.0):
         super().__init__(check)
         self.ord = ord
 
@@ -424,7 +330,7 @@ class Norm(TwoColumnMetric):
         """
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         if p is not None and q is not None:
-            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)
+            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)  # type: ignore
         return None
 
 
