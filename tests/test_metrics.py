@@ -7,8 +7,6 @@ import pytest
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
     CramersV,
-    DistanceCNCorrelation,
-    DistanceNNCorrelation,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
     HellingerDistance,
@@ -27,8 +25,6 @@ cramers_v = CramersV()
 emd = EarthMoversDistance()
 kendell_tau_correlation_test = KendallTauCorrelationTest()
 hellinger_distance = HellingerDistance()
-distance_nn_corr = DistanceNNCorrelation()
-distance_cn_corr = DistanceCNCorrelation()
 kl_divergence = KullbackLeiblerDivergence()
 js_divergence = JensenShannonDivergence()
 r2_mcfadden = R2Mcfadden()
@@ -144,32 +140,6 @@ def test_str():
     metric = EarthMoversDistance()
     metric.name = 'earth_movers_distance'
     assert str(metric) == 'earth_movers_distance'
-
-
-def test_basic_nn_distance_corr():
-    sr_a = pd.Series(np.arange(10))
-    sr_b = pd.Series(np.arange(10, 20))
-
-    assert distance_nn_corr(sr_a, sr_b) == 1
-
-
-def test_cn_basic_distance_corr():
-    sr_a = pd.Series(np.random.choice(["A", "B"], size=10))
-    sr_b = pd.Series(np.arange(10))
-    assert distance_cn_corr(sr_a, sr_b) > 0
-
-
-def test_nn_unequal_series_corr():
-    sr_a = pd.Series(np.arange(20))
-    sr_b = pd.Series(np.arange(10))
-
-    assert distance_nn_corr(sr_a, sr_b) > 0
-
-
-def test_cn_unequal_series_corr():
-    sr_a = pd.Series(["A", "B", "A", "A", "B", "B", "C", "C", "C", "D", "D", "D", "E", "E", "F", "F", "F", "F"])
-    sr_b = pd.Series([100, 200, 99, 101, 201, 199, 299, 300, 301, 500, 501, 505, 10, 12, 1001, 1050])
-    assert distance_cn_corr(sr_a, sr_b) > 0.7
 
 
 def test_kl_divergence(group1):

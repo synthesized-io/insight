@@ -1,8 +1,6 @@
 from .base import OneColumnMetric, TwoColumnMetric, TwoColumnTest, TwoDataFrameMetric
 from .metrics import (
     CramersV,
-    DistanceCNCorrelation,
-    DistanceNNCorrelation,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
     HellingerDistance,
@@ -41,6 +39,5 @@ __all__ = ['OneColumnMetric', 'TwoColumnMetric', 'TwoColumnMap', 'CorrMatrix', '
            'KolmogorovSmirnovDistanceTest', 'Mean', 'SpearmanRhoCorrelationTest', 'StandardDeviation',
            'ROCAUC', 'Accuracy', 'ConfusionMatrix', 'F1Score', 'MeanAbsoluteError', 'KruskalWallisTest',
            'MeanSquaredError', 'PRCurve', 'Precision', 'R2Score', 'Recall', 'ROCCurve', 'Norm',
-           'PredictiveModellingScore', 'TwoDataFrameMetric', 'DistanceCNCorrelation',
-           'DistanceNNCorrelation', 'EarthMoversDistanceBinned', 'JensenShannonDivergence',
+           'PredictiveModellingScore', 'TwoDataFrameMetric', 'EarthMoversDistanceBinned', 'JensenShannonDivergence',
            'KullbackLeiblerDivergence', 'HellingerDistance', 'BinomialDistanceTest', 'R2Mcfadden']

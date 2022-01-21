@@ -1,4 +1,3 @@
-dcor
 flake8
 mypy
 numpy
