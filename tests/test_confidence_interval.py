@@ -2,7 +2,8 @@ import pandas as pd
 import pytest
 
 from synthesized_insight.metrics import EarthMoversDistance, HellingerDistance
-from synthesized_insight.metrics.confidence_interval import compute_binomial_interval, compute_bootstrap_interval
+from synthesized_insight.metrics.confidence_interval import (
+    compute_binomial_interval, compute_bootstrap_interval)
 
 
 @pytest.mark.parametrize(

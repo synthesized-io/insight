@@ -3,17 +3,16 @@ import pandas as pd
 import pytest
 
 from src.synthesized_insight.check import Check, ColumnCheck
-from src.synthesized_insight.metrics import (
-    BinomialDistanceTest,
-    EarthMoversDistance,
-    HellingerDistance,
-    KendallTauCorrelationTest,
-    KolmogorovSmirnovDistanceTest,
-    KruskalWallisTest,
-    SpearmanRhoCorrelationTest,
-)
+from src.synthesized_insight.metrics import (BinomialDistanceTest,
+                                             EarthMoversDistance,
+                                             HellingerDistance,
+                                             KendallTauCorrelationTest,
+                                             KolmogorovSmirnovDistanceTest,
+                                             KruskalWallisTest,
+                                             SpearmanRhoCorrelationTest)
 from src.synthesized_insight.metrics.base import TwoColumnMetric
-from src.synthesized_insight.metrics.statistical_tests import BootstrapTest, PermutationTest
+from src.synthesized_insight.metrics.statistical_tests import (BootstrapTest,
+                                                               PermutationTest)
 
 
 @pytest.fixture(scope='module')

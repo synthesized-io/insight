@@ -5,19 +5,13 @@ import pandas as pd
 import pytest
 
 from synthesized_insight.check import ColumnCheck
-from synthesized_insight.metrics import (
-    CramersV,
-    EarthMoversDistance,
-    EarthMoversDistanceBinned,
-    HellingerDistance,
-    JensenShannonDivergence,
-    KendallTauCorrelationTest,
-    KullbackLeiblerDivergence,
-    Mean,
-    Norm,
-    R2Mcfadden,
-    StandardDeviation,
-)
+from synthesized_insight.metrics import (CramersV, EarthMoversDistance,
+                                         EarthMoversDistanceBinned,
+                                         HellingerDistance,
+                                         JensenShannonDivergence,
+                                         KendallTauCorrelationTest,
+                                         KullbackLeiblerDivergence, Mean, Norm,
+                                         R2Mcfadden, StandardDeviation)
 
 mean = Mean()
 std_dev = StandardDeviation()
