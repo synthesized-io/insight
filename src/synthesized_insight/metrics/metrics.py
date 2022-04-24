@@ -41,7 +41,7 @@ class StandardDeviation(OneColumnMetric):
         return True
 
     def _compute_metric(self, sr: pd.Series):
-        values = np.sort(sr.values)
+        values = np.sort(sr.values)  # type: ignore
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
         return affine_stddev(pd.Series(values, name=sr.name))
 
