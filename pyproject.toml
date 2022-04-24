@@ -1,29 +1,130 @@
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=61",
     "wheel",
-    "setuptools_scm[toml]>=6.0"
+    "setuptools_scm>=6.2"
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-write_to = "src/synthesized_insight/version.py"
+[project]
+name = "synthesized-insight"
+description = "Synthesized data insights and evaluation framework."
+readme = "README.md"
+requires-python = ">= 3.7"
+authors = [
+  { name = "Synthesized Ltd.", email = "sdk-team@synthesized.io" },
+]
+keywords = [
+  "metrics",
+  "data",
+  "evaluation",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: BSD License",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Healthcare Industry",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Scientific/Engineering",
+]
 
-[tool.pytest.ini_options]
-junit_suite_name = "unit"
-junit_logging = "all"
-junit_log_passing_tests = true
-junit_duration_report = "call"
-junit_family = "xunit1"
-log_level = "INFO"
+dynamic = ["version"]
 
-[tool.mypy]
-plugins = "numpy.typing.mypy_plugin"
+dependencies = [
+    "numpy >= 1.18",
+    "pandas >= 1.2",
+    "scikit_learn >= 0.23",
+    "scipy >= 1.5",
+]
 
-[[tool.mypy.overrides]]
-module = "sklearn.*"
-ignore_missing_imports = true
+  [project.optional-dependencies]
+  stable = [
+    "numpy == 1.21.6",
+    "pandas == 1.3.5",
+    "scikit_learn == 1.0.2",
+    "scipy == 1.7.3",
+  ]
+  test = [
+    "pytest",
+    "pytest-cov",
+  ]
+  dev = [
+    "pre-commit",
+    "black",
+    "mypy",
+    "pylint",
+  ]
+  doc = [
+    "sphinx == 4.5.0",
+    "pydata-sphinx-theme == 0.8.1",
+    "sphinx-panels == 0.6.0",
+    "sphinx-autodoc-typehints == 1.18.1",
+    "sphinx-inline-tabs == 2022.1.2b11",
+    "sphinxcontrib-spelling == 7.3.2",
+    "ipython == 8.2.0",
+    "myst-parser == 0.17.2",
+    "sphinxcontrib.asciinema == 0.3.3",
+  ]
 
-[[tool.mypy.overrides]]
-module = "scipy.*"
-ignore_missing_imports = true
+  [project.license]
+  file = "LICENSE.md"
+
+  [project.urls]
+  homepage = "https://synthesized.io"
+  documentation = "https://docs.synthesized.io/"
+  repository = "https://github.com/synthesized-io/synthesized-insight"
+
+[tool]
+  [tool.setuptools]
+  platforms = [
+    "MacOS",
+    "Windows",
+    "Linux",
+  ]
+
+  [tool.setuptools.dynamic]
+  version = {attr = "synthesized_insight.version.version"}
+
+  [tool.setuptools.packages.find]
+  where = ["src"]
+
+  [tool.setuptools_scm]
+  write_to = "src/synthesized_insight/version.py"
+
+  [tool.pytest.ini_options]
+  junit_suite_name = "unit"
+  junit_logging = "all"
+  junit_log_passing_tests = true
+  junit_duration_report = "call"
+  junit_family = "xunit1"
+  log_level = "INFO"
+
+  [tool.mypy]
+  plugins = "numpy.typing.mypy_plugin"
+
+  [[tool.mypy.overrides]]
+  module = "sklearn.*"
+  ignore_missing_imports = true
+
+  [[tool.mypy.overrides]]
+  module = "scipy.*"
+  ignore_missing_imports = true
+
+  [tool.isort]
+  multi_line_output = 3
+  include_trailing_comma = true
+  force_grid_wrap = 0
+  use_parentheses = true
+  ensure_newline_before_comments = true
+  line_length = 120
