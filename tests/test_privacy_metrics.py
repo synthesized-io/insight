@@ -5,8 +5,7 @@ import pandas as pd
 import pytest
 
 from synthesized_insight.metrics import privacy_cap_scorer
-from synthesized_insight.metrics.privacy import (AttributeInferenceAttackCAP,
-                                                 AttributeInferenceAttackML)
+from synthesized_insight.metrics.privacy import AttributeInferenceAttackCAP, AttributeInferenceAttackML
 
 
 @pytest.fixture(scope='module')

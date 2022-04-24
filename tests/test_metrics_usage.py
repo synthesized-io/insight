@@ -3,10 +3,15 @@ import pandas as pd
 import pytest
 
 from synthesized_insight.check import ColumnCheck
-from synthesized_insight.metrics import (CorrMatrix, CramersV, DiffCorrMatrix,
-                                         EarthMoversDistance,
-                                         KolmogorovSmirnovDistanceTest,
-                                         KruskalWallisTest, TwoColumnMap)
+from synthesized_insight.metrics import (
+    CorrMatrix,
+    CramersV,
+    DiffCorrMatrix,
+    EarthMoversDistance,
+    KolmogorovSmirnovDistanceTest,
+    KruskalWallisTest,
+    TwoColumnMap,
+)
 
 
 @pytest.fixture(scope='module')
