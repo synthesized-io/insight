@@ -95,10 +95,10 @@ class ModellingPreprocessor:
             column = cast(pd.Series, column.fillna('nan').astype(str))
             encoder = self.column_encoders[cat_col]
             if self.target and cat_col == self.target:
-                x_i = encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)
+                x_i = encoder.transform(column.values.reshape(-1, 1)).reshape(-1, 1)  # type: ignore
                 c_name_i = [cat_col]
             else:
-                x_i = encoder.transform(column.values.reshape(-1, 1))
+                x_i = encoder.transform(column.values.reshape(-1, 1))  # type: ignore
                 c_name_i = ['{}_{}'.format(cat_col, enc)
                             for enc in encoder.categories_[0][1:]]
 
