@@ -1,0 +1,8 @@
+---
+name: "CodeQL Python Config"
+
+disable-default-queries: true
+source-root: src/synthesized_insight
+queries:
+  - uses: security-and-quality
+...
