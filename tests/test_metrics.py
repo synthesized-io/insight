@@ -11,11 +11,9 @@ from synthesized_insight.metrics import (
     EarthMoversDistanceBinned,
     HellingerDistance,
     JensenShannonDivergence,
-    KendallTauCorrelationTest,
     KullbackLeiblerDivergence,
     Mean,
     Norm,
-    R2Mcfadden,
     StandardDeviation,
 )
 
@@ -23,18 +21,16 @@ mean = Mean()
 std_dev = StandardDeviation()
 cramers_v = CramersV()
 emd = EarthMoversDistance()
-kendell_tau_correlation_test = KendallTauCorrelationTest()
 hellinger_distance = HellingerDistance()
 kl_divergence = KullbackLeiblerDivergence()
 js_divergence = JensenShannonDivergence()
-r2_mcfadden = R2Mcfadden()
 norm = Norm()
 norm_ord1 = Norm(ord=1)
 
 
 @pytest.fixture(scope='module')
 def df():
-    df = pd.read_csv("tests/datasets/mini_compas.csv")
+    df = pd.read_csv("https://raw.githubusercontent.com/synthesized-io/datasets/master/tabular/biased/compas.csv")
     return df
 
 
@@ -170,25 +166,6 @@ def test_hellinger(group1, group2, group3):
 
     assert hellinger_distance(group1, group1) == 0
     assert hellinger_distance(group1, group3) > hellinger_distance(group1, group2)
-
-
-def test_r2_mcfadden_correlation():
-    sr_a = pd.Series(np.random.normal(0, 1, 100), name='x')
-    sr_a_dates = pd.Series(pd.date_range('01/01/01', '01/12/01', name='x'))
-    sr_b = pd.Series(np.random.choice([1, 0], 100), name='y')
-
-    assert r2_mcfadden(sr_a, sr_a) is None  # continuous, continuous -> None
-
-    assert r2_mcfadden(sr_b, sr_b) is None  # categorical, categorical -> None
-
-    assert r2_mcfadden(sr_a_dates, sr_b) is None  # continuous date, categorical -> None
-
-    assert r2_mcfadden(sr_b, sr_a) is not None  # categorical, continuous -> not None
-
-    credit_df = pd.read_csv('tests/datasets/mini_credit.csv').sample(500)
-    assert r2_mcfadden(sr_a=credit_df['SeriousDlqin2yrs'], sr_b=credit_df['age']) is not None
-    assert r2_mcfadden(sr_a=credit_df['MonthlyIncome'], sr_b=credit_df['DebtRatio']) is None
-    assert r2_mcfadden(sr_a=credit_df['SeriousDlqin2yrs'], sr_b=credit_df['MonthlyIncome']) is not None
 
 
 def test_emd_distance_binned():
