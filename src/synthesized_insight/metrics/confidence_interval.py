@@ -57,7 +57,7 @@ def binomial_proportion_interval(success_prop: float,
     Should only be used for binomial distribution
 
     Args:
-        success_prop: Proportion of sucesses.
+        success_prop: Proportion of successes.
         num_samples: Sample size.
         method: Optional; The approximation method used to calculate the interval.
             One of 'normal', 'clopper-pearson', 'agresti-coull'.

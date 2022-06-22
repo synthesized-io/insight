@@ -24,8 +24,8 @@ class _Metric(ABC):
 class OneColumnMetric(_Metric):
     """
     An abstract base class from which more specific single column metrics are derived.
-    It is the respondibility of the  subclass to define check_column_types,
-    and _compute_metric.
+    One column metric is a quantitative way of evaluating the data inside a single column.
+    Example for a one column metric: mean.
     """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
@@ -47,7 +47,9 @@ class OneColumnMetric(_Metric):
 
 class TwoColumnMetric(_Metric):
     """
-
+    An abstract base class from which more specific two columns metrics are derived.
+    Two column metric is a quantitative way of evaluating the data inside two separate columns.
+    Example: Euclidean Distance.
     """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
@@ -69,7 +71,10 @@ class TwoColumnMetric(_Metric):
 
 class DataFrameMetric(_Metric):
     """
+    An abstract base class from which more specific dataframe metrics are derived.
+    A dataframe metric is a quantitative way of evaluating the data inside a single dataframe.
 
+    Example: Ideal number of clusters.
     """
 
     @abstractmethod
@@ -79,7 +84,10 @@ class DataFrameMetric(_Metric):
 
 class TwoDataFrameMetric(_Metric):
     """
+    An abstract base class from which more specific two-dataframe metrics are derived.
+    A two-dataframe metric is a quantitative way of evaluating the data inside two separate dataframes.
 
+    Example: predictive model accuracy.
     """
 
     @abstractmethod
