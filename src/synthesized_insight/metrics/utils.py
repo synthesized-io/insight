@@ -30,7 +30,7 @@ def zipped_hist(
     Returns:
         Union[Tuple[np.ndarray, ...], Tuple[Tuple[np.ndarray, ...], Optional[np.ndarray]]]:
             A tuple of np.ndarrays consisting of each histogram for the input data.
-            Additionally returns bins if ret_bins is True.
+            Additionally, returns bins if ret_bins is True.
     """
 
     joint = pd.concat(data)

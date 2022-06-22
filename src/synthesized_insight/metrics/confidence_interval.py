@@ -48,10 +48,10 @@ def compute_bootstrap_interval(metric_cls_obj: Union[OneColumnMetric, TwoColumnM
     return ConfidenceInterval(limits=(2 * metric_value - d2, 2 * metric_value - d1), level=confidence_level)
 
 
-def binominal_proportion_interval(success_prop: float,
-                                  num_samples: int,
-                                  method: str = 'clopper-pearson',
-                                  confidence_level: float = 0.95) -> ConfidenceInterval:
+def binomial_proportion_interval(success_prop: float,
+                                 num_samples: int,
+                                 method: str = 'clopper-pearson',
+                                 confidence_level: float = 0.95) -> ConfidenceInterval:
     """
     Calculate an approximate confidence interval for a binomial proportion of a sample.
     Should only be used for binomial distribution
@@ -108,6 +108,6 @@ def compute_binomial_interval(sr_a: pd.Series,
     """
     p = sr_a.mean()
     n = len(sr_a)
-    interval = binominal_proportion_interval(p, n, method, confidence_level)
+    interval = binomial_proportion_interval(p, n, method, confidence_level)
     cinterval = ConfidenceInterval((interval.limits[0] - sr_b.mean(), interval.limits[1] - sr_b.mean()), interval.level)
     return cinterval

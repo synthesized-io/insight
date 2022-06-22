@@ -5,14 +5,14 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .base import TwoColumnMetric, TwoColumnTest
+from .base import TwoColumnMetric
 
 
 class TwoColumnMap:
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_val and metric_pval(if applicable)"""
 
-    def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
+    def __init__(self, metric: TwoColumnMetric):
         self.metric = metric
         self.name = f'{metric.name}_map'
 
@@ -22,7 +22,7 @@ class TwoColumnMap:
         result = pd.DataFrame(
             data=columns_map.values(),
             index=df_old.columns,
-            columns=['metric_val', 'metric_pval'] if isinstance(self.metric, TwoColumnTest) else ['metric_val']
+            columns=['metric_val']
         )
 
         result.name = self.metric.name
@@ -33,7 +33,7 @@ class CorrMatrix:
     """Computes the correlation between each pair of columns in the given dataframe
     and returns the result in a dataframe"""
 
-    def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
+    def __init__(self, metric: TwoColumnMetric):
         self.metric = metric
         self.name = f'{metric.name}_matrix'
 
@@ -45,14 +45,7 @@ class CorrMatrix:
             matrix[col_a][col_b] = self.metric(df[col_a], df[col_b])
 
         pval_matrix = None
-        if isinstance(self.metric, TwoColumnTest):
-            value_matrix = pd.DataFrame(index=columns, columns=columns)
-            pval_matrix = pd.DataFrame(index=columns, columns=columns)
-
-            for col_a, col_b in permutations(columns, 2):
-                value_matrix[col_a][col_b], pval_matrix[col_a][col_b] = matrix[col_a][col_b]
-        else:
-            value_matrix = matrix
+        value_matrix = matrix
 
         return pd.DataFrame(value_matrix.astype(np.float32)), pval_matrix  # explicit casting for mypy
 
@@ -61,7 +54,7 @@ class DiffCorrMatrix:
     """Computes the correlation matrix for each of the given dataframes and return the difference
     between these matrices"""
 
-    def __init__(self, metric: Union[TwoColumnMetric, TwoColumnTest]):
+    def __init__(self, metric: TwoColumnMetric):
         self.corr_matrix = CorrMatrix(metric)
         self.name = f'diff_{metric.name}'
 
