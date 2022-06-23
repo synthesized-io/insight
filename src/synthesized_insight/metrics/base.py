@@ -1,3 +1,4 @@
+"""This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence, Union
 
@@ -7,7 +8,6 @@ from ..check import Check, ColumnCheck
 
 
 class _Metric(ABC):
-    # TODO: Improve the docstring.
     """
     An abstract base class from which more detailed metrics are derived.
     """
@@ -25,7 +25,16 @@ class OneColumnMetric(_Metric):
     """
     An abstract base class from which more specific single column metrics are derived.
     One column metric is a quantitative way of evaluating the data inside a single column.
-    Example for a one column metric: mean.
+
+    Example for a single column metric: mean.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = OneColumnMetricChild(...)
+
+        Evaluate on a single dataframe column.
+        >>> metric(df["col_A"])
+        0.5
     """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
@@ -49,7 +58,17 @@ class TwoColumnMetric(_Metric):
     """
     An abstract base class from which more specific two columns metrics are derived.
     Two column metric is a quantitative way of evaluating the data inside two separate columns.
-    Example: Euclidean Distance.
+
+    Example for two column metric: Euclidean Distance.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = TwoColumnMetricChild(...)
+
+        Evaluate on two dataframe columns.
+        >>> metric(df['col_A'], df['col_B'])
+        5
+
     """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
@@ -74,7 +93,15 @@ class DataFrameMetric(_Metric):
     An abstract base class from which more specific dataframe metrics are derived.
     A dataframe metric is a quantitative way of evaluating the data inside a single dataframe.
 
-    Example: Ideal number of clusters.
+    Example for a dataframe metric: Ideal number of clusters.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = DataFrameMetricChild(...)
+
+        Evaluate on a dataframe.
+        >>> metric(df)
+        3
     """
 
     @abstractmethod
@@ -87,7 +114,16 @@ class TwoDataFrameMetric(_Metric):
     An abstract base class from which more specific two-dataframe metrics are derived.
     A two-dataframe metric is a quantitative way of evaluating the data inside two separate dataframes.
 
-    Example: predictive model accuracy.
+    Example for a two-dataframe metric: predictive model accuracy.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = TwoDataFrameMetricChild(...)
+
+        Evalueate on two dataframes.
+        >>> metric(df)
+        0.90
+
     """
 
     @abstractmethod

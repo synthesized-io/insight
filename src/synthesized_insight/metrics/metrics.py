@@ -21,7 +21,8 @@ class Mean(OneColumnMetric):
         return True
 
     def _compute_metric(self, sr: pd.Series):
-        return affine_mean(sr)
+        mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
+        return mean + np.array(0, dtype=sr.dtype)
 
 
 class StandardDeviation(OneColumnMetric):
@@ -40,7 +41,13 @@ class StandardDeviation(OneColumnMetric):
     def _compute_metric(self, sr: pd.Series):
         values = np.sort(sr.values)  # type: ignore
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
-        return affine_stddev(pd.Series(values, name=sr.name))
+        trimmed_sr = pd.Series(values, name=sr.name)
+
+        affine_mean = Mean()
+        d = trimmed_sr - affine_mean(trimmed_sr)
+        u = d / np.array(1, dtype=d.dtype)
+        s = np.sqrt(np.sum(u**2))
+        return s * np.array(1, dtype=d.dtype)
 
 
 class CramersV(TwoColumnMetric):
@@ -222,17 +229,31 @@ class HellingerDistance(TwoColumnMetric):
 class Norm(TwoColumnMetric):
     """Norm between two probability distributions.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-    and a value of 1 indicates they follow completely different distributions.
+    For order 2 norm, the statistic ranges from 0 to 1 where a value of 0 indicates the two variables follow identical
+    distributions, and a value of 1 indicates they follow completely different distributions. The upper bound may change
+    depending on the order of the norm chosen.
 
     Args:
-        ord (Union[str, int], optional):
-                The order of the norm. Possible values include positive numbers, 'fro', 'nuc'.
+        ord (float, optional):
+                The order of the norm. Possible values include real numbers, inf, -inf.
                 See numpy.linalg.norm for more details. Defaults to 2.
+                Cannot be set to 'fro', or 'nuc' as these are matrix norms.
+
+    Usage:
+        Create a Pandas serieses to compare.
+        >>> sr1 = pd.Series([1,2,3])
+        >>> sr2 = pd.Series([1,2,3])
+
+        Create and configure the metric.
+        >>> norm = Norm(1)
+
+        Evaluate on the serieses.
+        >>> norm(sr1, sr2)
+        0.0
     """
     name = "norm"
 
-    def __init__(self, check: Check = ColumnCheck(), ord: Union[None, float, str] = 2.0):
+    def __init__(self, check: Check = ColumnCheck(), ord: float = 2.0):
         super().__init__(check)
         self.ord = ord
 
@@ -270,7 +291,6 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
                 i.e the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
-
     """
     name = "earth_movers_distance_binned"
 
@@ -315,17 +335,3 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
             bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
             distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
         return distance
-
-
-def affine_mean(sr: pd.Series):
-    """function for calculating means of affine values"""
-    mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
-    return mean + np.array(0, dtype=sr.dtype)
-
-
-def affine_stddev(sr: pd.Series):
-    """function for calculating standard deviations of affine values"""
-    d = sr - affine_mean(sr)
-    u = d / np.array(1, dtype=d.dtype)
-    s = np.sqrt(np.sum(u**2))
-    return s * np.array(1, dtype=d.dtype)
