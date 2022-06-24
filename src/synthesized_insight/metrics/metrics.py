@@ -240,14 +240,14 @@ class Norm(TwoColumnMetric):
                 Cannot be set to 'fro', or 'nuc' as these are matrix norms.
 
     Usage:
-        Create a Pandas serieses to compare.
-        >>> sr1 = pd.Series([1,2,3])
-        >>> sr2 = pd.Series([1,2,3])
+        Given some Pandas series.
+        >>> sr1 = pd.Series([1,2,3,4,5,6,7])
+        >>> sr2 = pd.Series([1,2,3,4,5,6,7])
 
         Create and configure the metric.
         >>> norm = Norm(1)
 
-        Evaluate on the serieses.
+        Evaluate the metric.
         >>> norm(sr1, sr2)
         0.0
     """
@@ -291,6 +291,38 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
                 i.e the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
+
+    Usage:
+
+        Nominal:
+            Given some Pandas series.
+            >>> sr1 = pd.Series([16, 2, 51])
+            >>> sr2 = pd.Series([12, 41, 14])
+
+            Create and configure the metric.
+            >>> nominal_emd = EarthMoversDistanceBinned()
+
+            Evaluate the metric.
+            >>> nominal_emd(sr1, sr2)
+            0.5829547912610858
+
+        Ordinal:
+            Given some Pandas serieses.
+            >>> sr1 = pd.Series([0.73917425, 0.45634101, 0.0769353, 0.1913571, 0.2978581 ,
+            ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
+            >>> sr2 = pd.Series([0.14313188, 0.23245435, 0.85235284, 0.7497944 , 0.89014916,
+            ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
+
+            Bin the columns.
+            >>> bins = np.histogram_bin_edges(pd.concat([sr1, sr2]))
+
+            Create and configure the metric.
+            >>> ordinal_emd = EarthMoversDistanceBinned(bin_edges=bins)
+
+            Evaluate the metric.
+            >>> ordinal_emd(sr1, sr2)
+            0.06876915155978315
+
     """
     name = "earth_movers_distance_binned"
 
