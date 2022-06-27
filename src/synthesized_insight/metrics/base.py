@@ -1,13 +1,16 @@
-from abc import ABC, abstractclassmethod, abstractmethod
-from typing import Any, Optional, Sequence, Tuple, Union
+"""This module contains the base classes for the metrics used across synthesized."""
+from abc import ABC, abstractmethod
+from typing import Optional, Sequence, Union
 
-import numpy as np
 import pandas as pd
 
 from ..check import Check, ColumnCheck
 
 
 class _Metric(ABC):
+    """
+    An abstract base class from which more detailed metrics are derived.
+    """
     name: Optional[str] = None
     tags: Sequence[str] = []
 
@@ -19,11 +22,25 @@ class _Metric(ABC):
 
 
 class OneColumnMetric(_Metric):
+    """
+    An abstract base class from which more specific single column metrics are derived.
+    One column metric is a quantitative way of evaluating the data inside a single column.
 
+    Example for a single column metric: mean.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = OneColumnMetricChild(...)
+
+        Evaluate on a single dataframe column.
+        >>> metric(df["col_A"])
+        0.5
+    """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()) -> bool:
         ...
 
@@ -38,10 +55,26 @@ class OneColumnMetric(_Metric):
 
 
 class TwoColumnMetric(_Metric):
+    """
+    An abstract base class from which more specific two columns metrics are derived.
+    Two column metric is a quantitative way of evaluating the data inside two separate columns.
+
+    Example for two column metric: Euclidean Distance.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = TwoColumnMetricChild(...)
+
+        Evaluate on two dataframe columns.
+        >>> metric(df['col_A'], df['col_B'])
+        5
+
+    """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
         ...
 
@@ -55,79 +88,21 @@ class TwoColumnMetric(_Metric):
         return self._compute_metric(sr_a, sr_b)
 
 
-class TwoColumnTest(_Metric):
-    def __init__(self,
-                 check: Check = ColumnCheck(),
-                 alternative: str = 'two-sided'):
-
-        if alternative not in ('two-sided', 'greater', 'less'):
-            raise ValueError("'alternative' argument must be one of 'two-sided', 'greater', 'less'")
-
-        self.check = check
-        self.alternative = alternative
-
-    @abstractclassmethod
-    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
-        ...
-
-    @abstractmethod
-    def _compute_test(self,
-                      sr_a: pd.Series,
-                      sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
-        ...
-
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series) -> Tuple[Union[int, float, None], Union[int, float, None]]:
-        if not self.check_column_types(sr_a, sr_b, self.check):
-            return None, None
-
-        return self._compute_test(sr_a, sr_b)
-
-
-class ModellingMetric(_Metric):
-
-    @abstractmethod
-    def __call__(self,
-                 y_true: np.ndarray,
-                 y_pred: Optional[np.ndarray] = None) -> Union[float, None]:
-        pass
-
-
-class ClassificationMetric(ModellingMetric):
-    tags = ["modelling", "classification"]
-    plot = False
-
-    def __init__(self, multiclass: bool = False):
-        self.multiclass = multiclass
-
-    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> float:
-        raise NotImplementedError
-
-
-class ClassificationPlotMetric(ModellingMetric):
-    tags = ["modelling", "classification", "plot"]
-    plot = True
-
-    def __init__(self, multiclass: bool = False):
-        self.multiclass = multiclass
-
-    def __call__(self, y_true: np.ndarray, y_pred: Optional[np.ndarray] = None,
-                 y_pred_proba: Optional[np.ndarray] = None) -> Any:
-        raise NotImplementedError
-
-
-class RegressionMetric(ModellingMetric):
-    tags = ["modelling", "regression"]
-
-    def __init__(self):
-        # Contains nothing atm but matches other two Modelling metrics.
-        pass
-
-    def __call__(self, y_true: np.ndarray, y_pred: np.ndarray = None) -> float:
-        raise NotImplementedError
-
-
 class DataFrameMetric(_Metric):
+    """
+    An abstract base class from which more specific dataframe metrics are derived.
+    A dataframe metric is a quantitative way of evaluating the data inside a single dataframe.
+
+    Example for a dataframe metric: Ideal number of clusters.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = DataFrameMetricChild(...)
+
+        Evaluate on a dataframe.
+        >>> metric(df)
+        3
+    """
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame) -> Union[int, float, None]:
@@ -135,6 +110,21 @@ class DataFrameMetric(_Metric):
 
 
 class TwoDataFrameMetric(_Metric):
+    """
+    An abstract base class from which more specific two-dataframe metrics are derived.
+    A two-dataframe metric is a quantitative way of evaluating the data inside two separate dataframes.
+
+    Example for a two-dataframe metric: predictive model accuracy.
+
+    Usage:
+        Create and configure the metric.
+        >>> metric = TwoDataFrameMetricChild(...)
+
+        Evalueate on two dataframes.
+        >>> metric(df)
+        0.90
+
+    """
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:

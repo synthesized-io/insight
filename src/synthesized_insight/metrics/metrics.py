@@ -1,15 +1,12 @@
 """This module contains various metrics used across synthesized."""
-from typing import List, Optional, Sequence, Union, cast
+from typing import Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import OneHotEncoder
 
 from ..check import Check, ColumnCheck
-from ..modelling import ModellingPreprocessor
 from .base import OneColumnMetric, TwoColumnMetric
 from .utils import zipped_hist
 
@@ -24,7 +21,8 @@ class Mean(OneColumnMetric):
         return True
 
     def _compute_metric(self, sr: pd.Series):
-        return affine_mean(sr)
+        mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
+        return mean + np.array(0, dtype=sr.dtype)
 
 
 class StandardDeviation(OneColumnMetric):
@@ -43,7 +41,13 @@ class StandardDeviation(OneColumnMetric):
     def _compute_metric(self, sr: pd.Series):
         values = np.sort(sr.values)  # type: ignore
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
-        return affine_stddev(pd.Series(values, name=sr.name))
+        trimmed_sr = pd.Series(values, name=sr.name)
+
+        affine_mean = Mean()
+        d = trimmed_sr - affine_mean(trimmed_sr)
+        u = d / np.array(1, dtype=d.dtype)
+        s = np.sqrt(np.sum(u**2))
+        return s * np.array(1, dtype=d.dtype)
 
 
 class CramersV(TwoColumnMetric):
@@ -92,79 +96,6 @@ class CramersV(TwoColumnMetric):
         v = np.sum((real - expected) ** 2 / (expected * n * min(r - 1, c - 1))) ** 0.5
 
         return v
-
-
-class R2Mcfadden(TwoColumnMetric):
-    """R2 Mcfadden correlation coefficient between catgorical and numerical variables.
-
-    It trains two multinomial logistic regression models on the data, one using the numerical
-    series as the feature and the other only using the intercept term as the input.
-    The categorical column is used for the target labels. It then calculates the null
-    and the model likelihoods based on them, which are used to compute the pseudo-R2 McFadden score,
-    which is used as a correlation coefficient.
-    The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-    and 1 indicates maximal association (i.e one variable is completely determined by the other).
-    """
-    name = "r2_mcfadden"
-
-    @classmethod
-    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
-        if not check.categorical(sr_a) or not check.continuous(sr_b):
-            return False
-        return True
-
-    def _logistic_regression_r2(self,
-                                df: pd.DataFrame,
-                                y_label: str,
-                                x_labels: List[str],
-                                max_sample_size: int = 10_000) -> Union[None, float]:
-
-        if len(x_labels) == 0:
-            return None
-
-        df = df[x_labels + [y_label]].dropna()
-        df = pd.DataFrame(df.sample(min(max_sample_size, len(df))))  # explicit assignment for mypy
-
-        if df[y_label].nunique() < 2:
-            return None
-
-        df_pre = ModellingPreprocessor.preprocess(df=df, target=y_label)
-        x_labels_pre = list(filter(lambda v: v != y_label, df_pre.columns))
-
-        x_array = df_pre[x_labels_pre].to_numpy()
-        y_array = df_pre[y_label].to_numpy()
-
-        rg = LogisticRegression()
-        rg.fit(x_array, y_array)
-
-        labels = df_pre[y_label].map({c: n for n, c in enumerate(rg.classes_)}).to_numpy()
-        oh_labels = OneHotEncoder(sparse=False).fit_transform(labels.reshape(-1, 1))
-
-        lp = rg.predict_log_proba(x_array)
-        llf = np.sum(oh_labels * lp)
-
-        rg = LogisticRegression()
-        rg.fit(np.ones_like(y_array).reshape(-1, 1), y_array)
-
-        lp = rg.predict_log_proba(x_array)
-        llnull = np.sum(oh_labels * lp)
-
-        psuedo_r2 = 1 - (llf / llnull)
-
-        return psuedo_r2
-
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        """Calculate the metric.
-        Args:
-            sr_a (pd.Series): values of a nominal variable.
-            sr_b (pd.Series): values of numerical variable.
-        Returns:
-            The R2 Mcfadden correlation coefficient between sr_a and sr_b.
-        """
-        df = pd.DataFrame(data={sr_a.name: sr_a, sr_b.name: sr_b})
-        r2 = self._logistic_regression_r2(df, y_label=str(sr_a.name), x_labels=[str(sr_b.name)])
-
-        return r2
 
 
 class EarthMoversDistance(TwoColumnMetric):
@@ -298,17 +229,31 @@ class HellingerDistance(TwoColumnMetric):
 class Norm(TwoColumnMetric):
     """Norm between two probability distributions.
 
-    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
-    and a value of 1 indicates they follow completely different distributions.
+    For order 2 norm, the statistic ranges from 0 to 1 where a value of 0 indicates the two variables follow identical
+    distributions, and a value of 1 indicates they follow completely different distributions. The upper bound may change
+    depending on the order of the norm chosen.
 
     Args:
-        ord (Union[str, int], optional):
-                The order of the norm. Possible values include positive numbers, 'fro', 'nuc'.
+        ord (float, optional):
+                The order of the norm. Possible values include real numbers, inf, -inf.
                 See numpy.linalg.norm for more details. Defaults to 2.
+                Cannot be set to 'fro', or 'nuc' as these are matrix norms.
+
+    Usage:
+        Given some Pandas series.
+        >>> sr1 = pd.Series([1,2,3,4,5,6,7])
+        >>> sr2 = pd.Series([1,2,3,4,5,6,7])
+
+        Create and configure the metric.
+        >>> norm = Norm(1)
+
+        Evaluate the metric.
+        >>> norm(sr1, sr2)
+        0.0
     """
     name = "norm"
 
-    def __init__(self, check: Check = ColumnCheck(), ord: Union[None, float, str] = 2.0):
+    def __init__(self, check: Check = ColumnCheck(), ord: float = 2.0):
         super().__init__(check)
         self.ord = ord
 
@@ -347,6 +292,37 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
 
+    Usage:
+
+        Nominal:
+            Given some Pandas series.
+            >>> sr1 = pd.Series([16, 2, 51])
+            >>> sr2 = pd.Series([12, 41, 14])
+
+            Create and configure the metric.
+            >>> nominal_emd = EarthMoversDistanceBinned()
+
+            Evaluate the metric.
+            >>> nominal_emd(sr1, sr2)
+            0.5829547912610858
+
+        Ordinal:
+            Given some Pandas serieses.
+            >>> sr1 = pd.Series([0.73917425, 0.45634101, 0.0769353, 0.1913571, 0.2978581 ,
+            ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
+            >>> sr2 = pd.Series([0.14313188, 0.23245435, 0.85235284, 0.7497944 , 0.89014916,
+            ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
+
+            Bin the columns.
+            >>> bins = np.histogram_bin_edges(pd.concat([sr1, sr2]))
+
+            Create and configure the metric.
+            >>> ordinal_emd = EarthMoversDistanceBinned(bin_edges=bins)
+
+            Evaluate the metric.
+            >>> ordinal_emd(sr1, sr2)
+            0.06876915155978315
+
     """
     name = "earth_movers_distance_binned"
 
@@ -383,7 +359,7 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
         if self.bin_edges is None:
             # if bins not given, histograms are assumed to be counts of nominal categories,
-            # and therefore distances betwen bins are meaningless. Set to all distances to
+            # and therefore distances between bins are meaningless. Set to all distances to
             # unity to model this.
             distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
         else:
@@ -391,17 +367,3 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
             bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
             distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
         return distance
-
-
-def affine_mean(sr: pd.Series):
-    """function for calculating means of affine values"""
-    mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
-    return mean + np.array(0, dtype=sr.dtype)
-
-
-def affine_stddev(sr: pd.Series):
-    """function for calculating standard deviations of affine values"""
-    d = sr - affine_mean(sr)
-    u = d / np.array(1, dtype=d.dtype)
-    s = np.sqrt(np.sum(u**2))
-    return s * np.array(1, dtype=d.dtype)
