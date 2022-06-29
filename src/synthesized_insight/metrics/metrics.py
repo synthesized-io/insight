@@ -21,7 +21,7 @@ class Mean(OneColumnMetric):
         return True
 
     def _compute_metric(self, sr: pd.Series):
-        mean = np.nanmean(sr.to_numpy(dtype=sr.dtype) - np.array(0, dtype=sr.dtype))
+        mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
         return mean + np.array(0, dtype=sr.dtype)
 
 
