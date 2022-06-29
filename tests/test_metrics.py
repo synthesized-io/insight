@@ -6,6 +6,7 @@ import pytest
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
+    BhattacharyyaCoefficient,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
@@ -15,6 +16,7 @@ from synthesized_insight.metrics import (
     Mean,
     Norm,
     StandardDeviation,
+    TotalVariationDistance,
 )
 
 mean = Mean()
@@ -26,6 +28,8 @@ kl_divergence = KullbackLeiblerDivergence()
 js_divergence = JensenShannonDivergence()
 norm = Norm()
 norm_ord1 = Norm(ord=1)
+bhattacharyya_coefficient = BhattacharyyaCoefficient()
+total_variation_distance = TotalVariationDistance()
 
 
 @pytest.fixture(scope='module')
@@ -188,3 +192,24 @@ def test_emd_distance_binned():
     compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 3, 6, 14]), None, 1.0)
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 0, 0, 0]), None, 0.0)
+
+
+def test_bhattacharyya_distance(group1, group2, group3):
+    assert bhattacharyya_coefficient(pd.Series([1, 0]), pd.Series([1, 0])) == 1
+    assert bhattacharyya_coefficient(pd.Series([1]), pd.Series([0])) == 0
+
+    assert bhattacharyya_coefficient(group1, group1) == 1
+    assert bhattacharyya_coefficient(group1, group3) < bhattacharyya_coefficient(group1, group2)
+
+    assert bhattacharyya_coefficient(group1, group3) == 1 - hellinger_distance(group1, group3)**2
+
+
+def test_total_variation_distance(group1, group2, group3):
+    assert total_variation_distance(pd.Series([1, 0]), pd.Series([1, 0])) == 0
+    assert total_variation_distance(pd.Series([1]), pd.Series([0])) == 1
+
+    assert total_variation_distance(group1, group1) == 0
+    assert total_variation_distance(group1, group3) > total_variation_distance(group1, group2)
+
+    assert total_variation_distance(group1, group3) >= hellinger_distance(group1, group3) ** 2
+    assert total_variation_distance(group1, group3) <= hellinger_distance(group1, group3) * np.sqrt(2)
