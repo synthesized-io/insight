@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 from ..check import Check, ColumnCheck
 from .base import DataFrameMetric, OneColumnMetric, TwoColumnMetric
@@ -375,6 +377,7 @@ class BhattacharyyaCoefficient(TwoColumnMetric):
     and 0 indicates lack of overlap between the distributions. Bhattacharyya coefficient is closely related to Hellinger
     distance.
     """
+    name = "bhattacharyya_coefficient"
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
@@ -395,6 +398,7 @@ class TotalVariationDistance(TwoColumnMetric):
     The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
     and a value of 1 indicates they follow completely different distributions.
     """
+    name = "total_variation_distance"
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
