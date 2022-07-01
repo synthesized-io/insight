@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 from ..check import Check, ColumnCheck
-from .base import OneColumnMetric, TwoColumnMetric
+from .base import DataFrameMetric, OneColumnMetric, TwoColumnMetric
 from .utils import zipped_hist
 
 
@@ -289,8 +291,7 @@ class Norm(TwoColumnMetric):
 
 
 class EarthMoversDistanceBinned(TwoColumnMetric):
-    """
-    Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
+    """Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
 
     The histograms can represent counts of nominal categories or counts on
     an ordinal range. If the latter, they must have equal binning.
@@ -381,3 +382,46 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
             bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
             distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
         return distance
+
+
+class BhattacharyyaCoefficient(TwoColumnMetric):
+    """Bhattacharyya coefficient for approximation of overlap between two probability distributions.
+
+    The statistic ranges from 0 to 1, where 1 indicates a complete overlap in the distributions,
+    and 0 indicates lack of overlap between the distributions. Bhattacharyya coefficient is closely related to Hellinger
+    distance.
+    """
+    name = "bhattacharyya_coefficient"
+
+    @classmethod
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        return np.sum(np.sqrt(cast(pd.Series, p) * cast(pd.Series, q)))
+
+
+class TotalVariationDistance(TwoColumnMetric):
+    """Total Variation Distance between probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "total_variation_distance"
+
+    @classmethod
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=1) / 2

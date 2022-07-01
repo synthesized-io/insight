@@ -6,6 +6,7 @@ import pytest
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
+    BhattacharyyaCoefficient,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
@@ -15,6 +16,7 @@ from synthesized_insight.metrics import (
     Mean,
     Norm,
     StandardDeviation,
+    TotalVariationDistance,
 )
 
 mean = Mean()
@@ -26,6 +28,8 @@ kl_divergence = KullbackLeiblerDivergence()
 js_divergence = JensenShannonDivergence()
 norm = Norm()
 norm_ord1 = Norm(ord=1)
+bhattacharyya_coefficient = BhattacharyyaCoefficient()
+total_variation_distance = TotalVariationDistance()
 
 
 @pytest.fixture(scope='module')
@@ -242,3 +246,63 @@ def test_emd_distance_binned_to_dict():
     dict_emdb = emdb.to_dict()
     assert dict_emdb['name'] == 'earth_movers_distance_binned'
     assert np.allclose(dict_emdb['bin_edges'], bin_edges)
+
+
+def test_bhattacharyya_coefficient_complete_overlap(group1):
+    """
+    Tests that the BhattacharyyaCoefficient metric yields the correct result with completely overlapping distributions.
+    """
+    assert np.isclose(bhattacharyya_coefficient(pd.Series([1, 0]), pd.Series([1, 0])), 1)
+    assert np.isclose(bhattacharyya_coefficient(group1, group1), 1)
+
+
+def test_bhattacharyya_coefficient_no_overlap():
+    """
+    Tests that the BhattacharyyaCoefficient metric yields the correct result when the two distributions do not overlap.
+    """
+    assert np.isclose(bhattacharyya_coefficient(pd.Series([1]), pd.Series([0])), 0)
+
+
+def test_bhattacharyya_coefficient_inequality_preserved(group1, group2, group3):
+    """
+    Tests that BhattacharyyaCoefficient metric preserves inequality when two groups of distributions have differing
+    overlap.
+    """
+    assert bhattacharyya_coefficient(group1, group3) < bhattacharyya_coefficient(group1, group2)
+
+
+def test_bhattacharyya_coefficient_hellinger_distance_relation(group1, group2, group3):
+    """
+    Tests that the BhattacharyyaCoefficient conforms to its relationship with hellinger_distance.
+    """
+    assert np.isclose(bhattacharyya_coefficient(group1, group3), 1 - hellinger_distance(group1, group3) ** 2)
+
+
+def test_total_variation_distance_complete_overlap(group1, group2, group3):
+    """
+    Tests that the TotalVariation distance yields the correct result when the distributions completely overlap.
+    """
+    assert np.isclose(total_variation_distance(pd.Series([1, 0]), pd.Series([1, 0])), 0)
+    assert np.isclose(total_variation_distance(group1, group1), 0)
+
+
+def test_total_variation_distance_no_overlap():
+    """
+    Tests that the TotalVariation distance yields the correct result when the distributions do not overlap.
+    """
+    assert np.isclose(total_variation_distance(pd.Series([1]), pd.Series([0])), 1)
+
+
+def test_total_variation_distance_inequality_preserved(group1, group2, group3):
+    """
+    Tests that the TotalVariation distance preserves inequality when two groups of distributions have differing overlap.
+    """
+    assert total_variation_distance(group1, group3) > total_variation_distance(group1, group2)
+
+
+def test_total_variation_distance_hellinger_inequality_preserved(group1, group2, group3):
+    """
+    Tests that the TotalVariation distance preserves its inequality relationship with hellinger distance.
+    """
+    assert total_variation_distance(group1, group3) > hellinger_distance(group1, group3) ** 2
+    assert total_variation_distance(group1, group3) < hellinger_distance(group1, group3) * np.sqrt(2)
