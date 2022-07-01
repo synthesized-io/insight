@@ -1,6 +1,6 @@
 """This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union, Type
 
 import pandas as pd
 
@@ -12,14 +12,9 @@ class _Metric(ABC):
     An abstract base class from which more detailed metrics are derived.
     """
     name: Optional[str] = None
-    tags: Sequence[str] = []
 
     def to_dict(self) -> Dict[str, Any]:
-        return {'name': self.name, 'tags': self.tags}
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]):
-        raise NotImplementedError
+        return {'name': self.name}
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
@@ -43,6 +38,7 @@ class OneColumnMetric(_Metric):
         >>> metric(df["col_A"])
         0.5
     """
+
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
 
@@ -54,11 +50,6 @@ class OneColumnMetric(_Metric):
     @abstractmethod
     def _compute_metric(self, sr: pd.Series):
         ...
-
-    def to_dict(self) -> Dict[str, Any]:
-        dictionary = super().to_dict()
-        dictionary.update({'check': self.check})
-        return dictionary
 
     def __call__(self, sr: pd.Series):
         if not self.check_column_types(sr, self.check):
@@ -82,13 +73,9 @@ class TwoColumnMetric(_Metric):
         5
 
     """
+
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
-
-    def to_dict(self) -> Dict[str, Any]:
-        dictionary = super().to_dict()
-        dictionary.update({'check': self.check})
-        return dictionary
 
     @classmethod
     @abstractmethod
@@ -145,4 +132,23 @@ class TwoDataFrameMetric(_Metric):
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:
+        pass
+
+
+class MetricFactory:
+    """
+
+    """
+    # Concerns:
+    # May not be the best module for it to sit.
+    # Should it really be accessing a private class?
+
+    _registry: Dict[str, Type[_Metric]] = {}
+
+    @classmethod
+    def update_registry(cls):
+        pass
+
+    @classmethod
+    def metric_from_dict(cls):
         pass

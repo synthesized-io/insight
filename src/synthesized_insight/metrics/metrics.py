@@ -51,7 +51,7 @@ class StandardDeviation(OneColumnMetric):
         affine_mean = Mean()
         d = trimmed_sr - affine_mean(trimmed_sr)
         u = d / np.array(1, dtype=d.dtype)
-        s = np.sqrt(np.sum(u**2))
+        s = np.sqrt(np.sum(u ** 2))
         return s * np.array(1, dtype=d.dtype)
 
 
@@ -62,7 +62,6 @@ class CramersV(TwoColumnMetric):
     and 1 indicates maximal association (i.e. one variable is completely determined by the other).
     """
     name = "cramers_v"
-    symmetric = True
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):

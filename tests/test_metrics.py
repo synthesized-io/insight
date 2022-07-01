@@ -79,10 +79,26 @@ def test_mean():
     val_c = mean(sr=sr_c)
     assert val_c is None
 
-def test_mean_to_dict():
-    dictionary = mean.to_dict()
 
-    assert dictionary['name'] == 'mean'
+def test_base_to_dict():
+    dict_mean = mean.to_dict()
+    assert dict_mean['name'] == 'mean'
+
+    dict_cramers_v = cramers_v.to_dict()
+    assert dict_cramers_v['name'] == 'cramers_v'
+
+    dict_emd = emd.to_dict()
+    assert dict_emd['name'] == 'earth_movers_distance'
+
+    dict_kl_divergence = kl_divergence.to_dict()
+    assert dict_kl_divergence['name'] == 'kullback_leibler_divergence'
+
+    dict_js_divergence = js_divergence.to_dict()
+    assert dict_js_divergence['name'] == 'jensen_shannon_divergence'
+
+    dict_hellinger_distance = hellinger_distance.to_dict()
+    assert dict_hellinger_distance['name'] == 'hellinger_distance'
+
 
 def test_standard_deviation():
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
@@ -96,6 +112,12 @@ def test_standard_deviation():
     sr_c = pd.Series(['a', 'b', 'c', 'd'], name='c')
     val_c = std_dev(sr=sr_c)
     assert val_c is None
+
+
+def test_standard_deviation_to_dict():
+    dict_std_dev = std_dev.to_dict()
+    assert dict_std_dev['name'] == 'standard_deviation'
+    assert np.isclose(dict_std_dev['remove_outliers'], 0)
 
 
 def test_em_distance():
@@ -128,7 +150,7 @@ def test_cramers_v_compas(df):
             categorical_cols.append(col)
 
     for col_grp in combinations(categorical_cols, 2):
-        assert(cramers_v(df[col_grp[0]], df[col_grp[1]]) is not None)
+        assert (cramers_v(df[col_grp[0]], df[col_grp[1]]) is not None)
 
 
 def test_repr():
@@ -164,6 +186,18 @@ def test_norm(group1, group2, group3):
     assert norm(group1, group3) > norm(group1, group2)
 
 
+def test_norm_to_dict_ord_one():
+    dict_norm_one = norm_ord1.to_dict()
+    assert dict_norm_one['name'] == 'norm'
+    assert np.isclose(dict_norm_one['ord'], 1)
+
+
+def test_norm_to_dict_ord_default():
+    dict_norm_two = norm.to_dict()
+    assert dict_norm_two['name'] == 'norm'
+    assert np.isclose(dict_norm_two['ord'], 2)
+
+
 def test_hellinger(group1, group2, group3):
     assert hellinger_distance(pd.Series([1, 0]), pd.Series([1, 0])) == 0
     assert hellinger_distance(pd.Series([1]), pd.Series([0])) == 1
@@ -173,7 +207,6 @@ def test_hellinger(group1, group2, group3):
 
 
 def test_emd_distance_binned():
-
     def compare_and_log(x, y, bin_edges, val):
         emdb = EarthMoversDistanceBinned(bin_edges=bin_edges)
         metric_val = emdb(x, y)
@@ -192,3 +225,20 @@ def test_emd_distance_binned():
     compare_and_log(pd.Series([0, 3, 6, 14, 3]), pd.Series([0, 3, 6, 14, 3]), None, 0.0)
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 3, 6, 14]), None, 1.0)
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 0, 0, 0]), None, 0.0)
+
+
+def test_emd_distance_binned_no_bins_to_dict():
+    emdb = EarthMoversDistanceBinned()
+    dict_emdb = emdb.to_dict()
+    assert dict_emdb['name'] == 'earth_movers_distance_binned'
+    assert dict_emdb['bin_edges'] is None
+
+
+def test_emd_distance_binned_to_dict():
+    a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
+    bin_edges = np.histogram_bin_edges(a, bins=100)
+
+    emdb = EarthMoversDistanceBinned(bin_edges=bin_edges)
+    dict_emdb = emdb.to_dict()
+    assert dict_emdb['name'] == 'earth_movers_distance_binned'
+    assert np.allclose(dict_emdb['bin_edges'], bin_edges)
