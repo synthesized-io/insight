@@ -51,7 +51,7 @@ jobs:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: coverage
           path: coverage-reports/cobertura.xml
