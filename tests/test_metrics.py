@@ -79,6 +79,10 @@ def test_mean():
     val_c = mean(sr=sr_c)
     assert val_c is None
 
+def test_mean_to_dict():
+    dictionary = mean.to_dict()
+
+    assert dictionary['name'] == 'mean'
 
 def test_standard_deviation():
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')

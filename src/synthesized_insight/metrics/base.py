@@ -1,6 +1,6 @@
 """This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import pandas as pd
 
@@ -13,6 +13,13 @@ class _Metric(ABC):
     """
     name: Optional[str] = None
     tags: Sequence[str] = []
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'name': self.name, 'tags': self.tags}
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]):
+        raise NotImplementedError
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
@@ -48,6 +55,11 @@ class OneColumnMetric(_Metric):
     def _compute_metric(self, sr: pd.Series):
         ...
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'check': self.check})
+        return dictionary
+
     def __call__(self, sr: pd.Series):
         if not self.check_column_types(sr, self.check):
             return None
@@ -72,6 +84,11 @@ class TwoColumnMetric(_Metric):
     """
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
+
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'check': self.check})
+        return dictionary
 
     @classmethod
     @abstractmethod

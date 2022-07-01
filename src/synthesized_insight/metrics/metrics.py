@@ -1,5 +1,5 @@
 """This module contains various metrics used across synthesized."""
-from typing import Optional, Sequence, Union, cast
+from typing import Any, Dict, Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,11 @@ class StandardDeviation(OneColumnMetric):
         super().__init__(check)
         self.remove_outliers = remove_outliers
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'remove_outliers': self.remove_outliers})
+        return dictionary
+
     @classmethod
     def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()):
         if not check.affine(sr):
@@ -54,7 +59,7 @@ class CramersV(TwoColumnMetric):
     """Cramér's V correlation coefficient between nominal variables.
 
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-    and 1 indicates maximal association (i.e one variable is completely determined by the other).
+    and 1 indicates maximal association (i.e. one variable is completely determined by the other).
     """
     name = "cramers_v"
     symmetric = True
@@ -257,6 +262,11 @@ class Norm(TwoColumnMetric):
         super().__init__(check)
         self.ord = ord
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'ord': self.ord})
+        return dictionary
+
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if check.continuous(sr_a) and check.continuous(sr_b):
@@ -288,7 +298,7 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
     Args:
         bin_edges: Optional; If given, this must be an iterable of bin edges for x and y,
-                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                i.e. the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
 
@@ -331,6 +341,11 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
                  bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
         super().__init__(check)
         self.bin_edges = bin_edges
+
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'bin_edges': self.bin_edges})
+        return dictionary
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
