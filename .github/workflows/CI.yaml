@@ -25,7 +25,7 @@ jobs:
           python-version: 3.7
 
       - name: Cache test venv
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .pip-cache
           key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./setup.*') }}
