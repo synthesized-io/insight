@@ -85,6 +85,9 @@ def test_mean():
 
 
 def test_base_to_dict():
+    """
+    Tests the basic variation of _Metric.to_dict().
+    """
     dict_mean = mean.to_dict()
     assert dict_mean['name'] == 'mean'
 
@@ -103,6 +106,9 @@ def test_base_to_dict():
     dict_hellinger_distance = hellinger_distance.to_dict()
     assert dict_hellinger_distance['name'] == 'hellinger_distance'
 
+    dict_bc_coef = bhattacharyya_coefficient.to_dict()
+    assert dict_bc_coef['name'] == 'bhattacharyya_coefficient'
+
 
 def test_standard_deviation():
     sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
@@ -119,6 +125,9 @@ def test_standard_deviation():
 
 
 def test_standard_deviation_to_dict():
+    """
+    Tests the to_dict method that is specific to StandardDeviation metric.
+    """
     dict_std_dev = std_dev.to_dict()
     assert dict_std_dev['name'] == 'standard_deviation'
     assert np.isclose(dict_std_dev['remove_outliers'], 0)
@@ -190,13 +199,22 @@ def test_norm(group1, group2, group3):
     assert norm(group1, group3) > norm(group1, group2)
 
 
+
 def test_norm_to_dict_ord_one():
+    """
+    Tests the to_dict method that is specific to the Norm metric. Tests that to_dict takes account of the changed ord
+    parameter.
+    """
     dict_norm_one = norm_ord1.to_dict()
     assert dict_norm_one['name'] == 'norm'
     assert np.isclose(dict_norm_one['ord'], 1)
 
 
 def test_norm_to_dict_ord_default():
+    """
+    Tests the to_dict method that is specific to the Norm metric. Tests that to_dict takes account of the default ord
+    parameter.
+    """
     dict_norm_two = norm.to_dict()
     assert dict_norm_two['name'] == 'norm'
     assert np.isclose(dict_norm_two['ord'], 2)
@@ -231,7 +249,12 @@ def test_emd_distance_binned():
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 0, 0, 0]), None, 0.0)
 
 
+# TODO: Add docstring.
 def test_emd_distance_binned_no_bins_to_dict():
+    """
+    Tests that the EarthMoversDistanceBinned metric has a properly functioning to_dict method when the default
+    parameters are untouched.
+    """
     emdb = EarthMoversDistanceBinned()
     dict_emdb = emdb.to_dict()
     assert dict_emdb['name'] == 'earth_movers_distance_binned'
@@ -239,6 +262,10 @@ def test_emd_distance_binned_no_bins_to_dict():
 
 
 def test_emd_distance_binned_to_dict():
+    """
+    Tests that the EarthMoversDistanceBinned metric has a properly functioning to_dict method when the default parameter
+    is specified.
+    """
     a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
     bin_edges = np.histogram_bin_edges(a, bins=100)
 
