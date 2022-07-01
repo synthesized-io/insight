@@ -14,18 +14,18 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v2.3.4
+      - uses: actions/checkout@v3.0.2
         with:
           fetch-depth: 0
 
       - name: Set up Python
         id: setup-py
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
 
       - name: Cache test venv
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .pip-cache
           key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./setup.*') }}
@@ -51,7 +51,7 @@ jobs:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: coverage
           path: coverage-reports/cobertura.xml
