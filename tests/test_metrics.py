@@ -249,7 +249,6 @@ def test_emd_distance_binned():
     compare_and_log(pd.Series([0, 0, 0, 0]), pd.Series([0, 0, 0, 0]), None, 0.0)
 
 
-# TODO: Add docstring.
 def test_emd_distance_binned_no_bins_to_dict():
     """
     Tests that the EarthMoversDistanceBinned metric has a properly functioning to_dict method when the default
