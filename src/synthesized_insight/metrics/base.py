@@ -1,6 +1,6 @@
 """This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Union, Type
+from typing import Any, Dict, Optional, Sequence, Type, Union
 
 import pandas as pd
 
