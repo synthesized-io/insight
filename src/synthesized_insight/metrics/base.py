@@ -12,15 +12,36 @@ class _Metric(ABC):
     An abstract base class from which more detailed metrics are derived.
     """
     name: Optional[str] = None
+    _registry: Dict[str, Type] = {}
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {'name': self.name}
+    def __init_subclass__(cls, **kwargs):
+        if cls.name is not None and cls.name not in _Metric._registry:
+            _Metric._registry.update({cls.name: cls})
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 
     def __str__(self):
         return f"{self.name}"
+
+    @classmethod
+    def _update_registry_recursively(cls, next_metric):
+        if next_metric.name is not None:
+            _Metric._registry.update({next_metric.name: next_metric})
+        for subclass in next_metric.__subclasses__():
+            cls._update_registry_recursively(subclass)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'name': self.name}
+
+    @classmethod
+    def metric_from_dict(cls, bluprnt: Dict[str, any], check: Check = None):
+        bluprnt_params = {key: val for key, val in bluprnt.items() if key != 'name'}
+        if check is not None:
+            bluprnt.update({'check': check})
+
+        metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
+        return metric
 
 
 class OneColumnMetric(_Metric):
@@ -132,23 +153,4 @@ class TwoDataFrameMetric(_Metric):
 
     @abstractmethod
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:
-        pass
-
-
-class MetricFactory:
-    """
-
-    """
-    # Concerns:
-    # May not be the best module for it to sit.
-    # Should it really be accessing a private class?
-
-    _registry: Dict[str, Type[_Metric]] = {}
-
-    @classmethod
-    def update_registry(cls):
-        pass
-
-    @classmethod
-    def metric_from_dict(cls):
         pass
