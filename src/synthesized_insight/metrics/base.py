@@ -24,13 +24,6 @@ class _Metric(ABC):
     def __str__(self):
         return f"{self.name}"
 
-    @classmethod
-    def _update_registry_recursively(cls, next_metric):
-        if next_metric.name is not None:
-            _Metric._registry.update({next_metric.name: next_metric})
-        for subclass in next_metric.__subclasses__():
-            cls._update_registry_recursively(subclass)
-
     def to_dict(self) -> Dict[str, Any]:
         return {'name': self.name}
 
