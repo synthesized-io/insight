@@ -47,6 +47,7 @@ dependencies = [
     "scikit_learn >= 0.23",
     "scipy >= 1.5",
     "pyyaml >= 5.3.1",
+    "types-pyyaml >= 6.0.0",
 ]
 
   [project.optional-dependencies]
@@ -59,7 +60,6 @@ dependencies = [
   test = [
     "pytest",
     "pytest-cov",
-    "types-pyyaml",
   ]
   dev = [
     "pre-commit",
