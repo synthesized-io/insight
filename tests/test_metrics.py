@@ -70,6 +70,42 @@ def data2():
     return np.random.normal(1, 1, 1000)
 
 
+def test_metrics_to_yaml_dump(capsys):
+    """
+    Tests that the metrics are dumped into the standard output properly.
+    """
+    metrics = [mean, std_dev, cramers_v, norm_ord1]
+    Mean.metrics_to_yaml_dump(metrics)
+    out = capsys.readouterr().out
+    assert "metrics:" in out
+    assert "- name: mean" in out
+    assert "- name: standard_deviation" in out
+    assert "remove_outliers:" in out
+    assert "- name: cramers_v" in out
+    assert "- name: norm" in out
+    assert "ord: 1" in out
+
+
+def test_metrics_from_yaml(capsys):
+    """
+    Tests that the metrics are restored form a yaml properly.
+    """
+    metrics = [mean, std_dev, cramers_v, norm_ord1]
+    Mean.metrics_to_yaml_dump(metrics)
+    out = capsys.readouterr().out.strip()
+    new_metrics = Mean.metrics_from_yaml(out)
+
+    assert len(new_metrics) == 4
+
+    assert isinstance(new_metrics[0], Mean)
+    assert isinstance(new_metrics[1], StandardDeviation)
+    assert isinstance(new_metrics[2], CramersV)
+    assert isinstance(new_metrics[3], Norm)
+
+    assert np.isclose(new_metrics[1].remove_outliers, 0)
+    assert new_metrics[3].ord == 1
+
+
 def test_mean():
     sr_a = pd.Series(np.arange(100), name='a')
     val_a = mean(sr=sr_a)
@@ -408,7 +444,7 @@ def test_total_variation_distance_inequality_preserved(group1, group2, group3):
     assert total_variation_distance(group1, group3) > total_variation_distance(group1, group2)
 
 
-def test_total_variation_distance_hellinger_inequality_preserved(group1, group2, group3):
+def test_total_variation_distance_hellinger_inequality_preserved(group1, group3):
     """
     Tests that the TotalVariation distance preserves its inequality relationship with hellinger distance.
     """
