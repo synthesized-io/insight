@@ -19,7 +19,7 @@ repos:
     hooks:
       - id: mypy
         files: src
-        additional_dependencies: [pandas, pandas-stubs, numpy>=1.21]
+        additional_dependencies: [numpy>=1.21, types-PyYAML]
         args: [--install-types, --non-interactive]
         # Note that using the --install-types is problematic if running in
         # parallel as mutating the pre-commit env at runtime breaks cache.
