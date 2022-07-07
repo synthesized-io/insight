@@ -3,6 +3,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
@@ -77,14 +78,13 @@ def test_metrics_to_yaml_dump(capsys):
     metrics = [mean, std_dev, cramers_v, norm_ord1]
     Mean.metrics_to_yaml_dump(metrics)
     out = capsys.readouterr().out
-    assert "metrics:" in out
-    assert "- name: mean" in out
-    assert "- name: standard_deviation" in out
-    assert "remove_outliers:" in out
-    assert "- name: cramers_v" in out
-    assert "- name: norm" in out
-    assert "ord: 1" in out
+    expected = {'metrics': [
+                    {'name': 'mean'},
+                    {'name': 'standard_deviation', 'remove_outliers': 0.0},
+                    {'name': 'cramers_v'},
+                    {'name':'norm', 'ord': 1}]}
 
+    assert out.strip() == yaml.dump(data=expected).strip()
 
 def test_metrics_from_yaml(capsys):
     """
@@ -97,10 +97,8 @@ def test_metrics_from_yaml(capsys):
 
     assert len(new_metrics) == 4
 
-    assert isinstance(new_metrics[0], Mean)
-    assert isinstance(new_metrics[1], StandardDeviation)
-    assert isinstance(new_metrics[2], CramersV)
-    assert isinstance(new_metrics[3], Norm)
+    for old, new in zip(metrics, new_metrics):
+        assert isinstance(new, type(old))
 
     assert np.isclose(new_metrics[1].remove_outliers, 0)
     assert new_metrics[3].ord == 1
