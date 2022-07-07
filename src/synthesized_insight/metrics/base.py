@@ -29,7 +29,7 @@ class _Metric(ABC):
         return {'name': self.name}
 
     @classmethod
-    def metric_from_dict(cls, bluprnt: Dict[str, any], check: Check = None):
+    def metric_from_dict(cls, bluprnt: Dict[str, Any], check: Check = None):
         """
         Given a dictionary, builds and returns a metric that corresponds to the specified metric with the given metric
         parameters.
