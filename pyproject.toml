@@ -59,6 +59,7 @@ dependencies = [
   test = [
     "pytest",
     "pytest-cov",
+    "types-pyyaml",
   ]
   dev = [
     "pre-commit",
