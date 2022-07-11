@@ -151,7 +151,7 @@ class DataFrameMetric(_Metric):
     """
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, None]:
         pass
 
 
@@ -173,5 +173,5 @@ class TwoDataFrameMetric(_Metric):
     """
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
         pass
