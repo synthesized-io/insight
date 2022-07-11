@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .base import TwoColumnMetric, DataFrameMetric, TwoDataFrameMetric, OneColumnMetric
+from .base import DataFrameMetric, OneColumnMetric, TwoColumnMetric, TwoDataFrameMetric
 
 
 class OneColumnMap(DataFrameMetric):

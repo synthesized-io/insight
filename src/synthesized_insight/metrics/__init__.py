@@ -12,7 +12,7 @@ from .metrics import (
     StandardDeviation,
     TotalVariationDistance,
 )
-from .metrics_usage import CorrMatrix, DiffCorrMatrix, OneColumnMap, OneColumnMap, TwoColumnMap
+from .metrics_usage import CorrMatrix, DiffCorrMatrix, OneColumnMap, TwoColumnMap
 
 __all__ = ['OneColumnMetric', 'TwoColumnMetric', 'OneColumnMap', 'TwoColumnMap', 'CorrMatrix', 'DiffCorrMatrix',
            'CramersV', 'EarthMoversDistance', 'Mean', 'StandardDeviation', 'Norm', 'TwoDataFrameMetric',
