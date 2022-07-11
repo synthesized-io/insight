@@ -3,7 +3,6 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
@@ -71,39 +70,6 @@ def data2():
     return np.random.normal(1, 1, 1000)
 
 
-def test_metrics_to_yaml_dump(capsys):
-    """
-    Tests that the metrics are dumped into the standard output properly.
-    """
-    metrics = [mean, std_dev, cramers_v, norm_ord1]
-    Mean.metrics_to_yaml_dump(metrics)
-    out = capsys.readouterr().out
-    expected = {'metrics': [
-                    {'name': 'mean'},
-                    {'name': 'standard_deviation', 'remove_outliers': 0.0},
-                    {'name': 'cramers_v'},
-                    {'name':'norm', 'ord': 1}]}
-
-    assert out.strip() == yaml.dump(data=expected).strip()
-
-def test_metrics_from_yaml(capsys):
-    """
-    Tests that the metrics are restored form a yaml properly.
-    """
-    metrics = [mean, std_dev, cramers_v, norm_ord1]
-    Mean.metrics_to_yaml_dump(metrics)
-    out = capsys.readouterr().out.strip()
-    new_metrics = Mean.metrics_from_yaml(out)
-
-    assert len(new_metrics) == 4
-
-    for old, new in zip(metrics, new_metrics):
-        assert isinstance(new, type(old))
-
-    assert np.isclose(new_metrics[1].remove_outliers, 0)
-    assert new_metrics[3].ord == 1
-
-
 def test_mean():
     sr_a = pd.Series(np.arange(100), name='a')
     val_a = mean(sr=sr_a)
@@ -149,41 +115,41 @@ def test_base_from_dict():
     Tests the basic variation of _Metric.from_dict.
     """
     dict_mean = {'name': 'mean'}
-    new_mean = Mean.metric_from_dict(dict_mean)
+    new_mean = Mean.from_dict(dict_mean)
     assert isinstance(new_mean, Mean)
 
     dict_cramers_v = {'name': 'cramers_v'}
-    new_cramers_v = CramersV.metric_from_dict(dict_cramers_v)
+    new_cramers_v = CramersV.from_dict(dict_cramers_v)
     assert isinstance(new_cramers_v, CramersV)
 
     dict_emd = {'name': 'earth_movers_distance'}
-    new_emd = EarthMoversDistance.metric_from_dict(dict_emd)
+    new_emd = EarthMoversDistance.from_dict(dict_emd)
     assert isinstance(new_emd, EarthMoversDistance)
 
     dict_kl_divergence = {'name': 'kullback_leibler_divergence'}
-    new_kl_divergence = KullbackLeiblerDivergence.metric_from_dict(dict_kl_divergence)
+    new_kl_divergence = KullbackLeiblerDivergence.from_dict(dict_kl_divergence)
     assert isinstance(new_kl_divergence, KullbackLeiblerDivergence)
 
     dict_js_divergence = {'name': 'jensen_shannon_divergence'}
-    new_js_divergence = JensenShannonDivergence.metric_from_dict(dict_js_divergence)
+    new_js_divergence = JensenShannonDivergence.from_dict(dict_js_divergence)
     assert isinstance(new_js_divergence, JensenShannonDivergence)
 
     dict_hellinger_distance = {'name': 'hellinger_distance'}
-    new_hellinger_distance = HellingerDistance.metric_from_dict(dict_hellinger_distance)
+    new_hellinger_distance = HellingerDistance.from_dict(dict_hellinger_distance)
     assert isinstance(new_hellinger_distance, HellingerDistance)
 
     dict_bc_coef = {'name': 'bhattacharyya_coefficient'}
-    new_bc_coef = BhattacharyyaCoefficient.metric_from_dict(dict_bc_coef)
+    new_bc_coef = BhattacharyyaCoefficient.from_dict(dict_bc_coef)
     assert isinstance(new_bc_coef, BhattacharyyaCoefficient)
 
 
 def test_from_dict_different_class():
     dict_mean = {'name': 'mean'}
-    new_mean = BhattacharyyaCoefficient.metric_from_dict(dict_mean)
+    new_mean = BhattacharyyaCoefficient.from_dict(dict_mean)
     assert isinstance(new_mean, Mean)
 
     dict_norm = {'name': 'norm', 'ord': 1}
-    new_norm = HellingerDistance.metric_from_dict(dict_norm)
+    new_norm = HellingerDistance.from_dict(dict_norm)
     assert isinstance(new_norm, Norm)
     assert new_norm.ord == 1
 
@@ -299,14 +265,14 @@ def test_norm_to_dict_ord_default():
 
 def test_norm_from_dict_ord_one():
     dict_norm_one = {'name': 'norm', 'ord': 1}
-    new_norm_one = Norm.metric_from_dict(dict_norm_one)
+    new_norm_one = Norm.from_dict(dict_norm_one)
     assert isinstance(new_norm_one, Norm)
     assert new_norm_one.ord == 1
 
 
 def test_norm_from_dict_ord_default():
     dict_norm = {'name': 'norm'}
-    new_norm = Norm.metric_from_dict(dict_norm)
+    new_norm = Norm.from_dict(dict_norm)
     assert isinstance(new_norm, Norm)
     assert new_norm.ord == 2
 
@@ -358,7 +324,7 @@ def test_emd_distance_binned_no_bins_from_dict():
     """
     dict_emdb = {'name': 'earth_movers_distance_binned'}
 
-    new_emdb = EarthMoversDistanceBinned.metric_from_dict(dict_emdb)
+    new_emdb = EarthMoversDistanceBinned.from_dict(dict_emdb)
     assert isinstance(new_emdb, EarthMoversDistanceBinned)
 
 
@@ -385,7 +351,7 @@ def test_emd_distance_binned_from_dict():
     bin_edges = np.histogram_bin_edges(a, bins=100)
     dict_emdb = {'name': 'earth_movers_distance_binned', 'bin_edges': bin_edges}
 
-    new_emdb = EarthMoversDistanceBinned.metric_from_dict(dict_emdb)
+    new_emdb = EarthMoversDistanceBinned.from_dict(dict_emdb)
     assert isinstance(new_emdb, EarthMoversDistanceBinned)
     assert np.allclose(new_emdb.bin_edges, bin_edges)
 
