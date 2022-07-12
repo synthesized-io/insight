@@ -46,6 +46,7 @@ dependencies = [
     "pandas >= 1.2",
     "scikit_learn >= 0.23",
     "scipy >= 1.5",
+    "PyYAML >= 5.3.1",
 ]
 
   [project.optional-dependencies]
@@ -119,6 +120,10 @@ dependencies = [
 
   [[tool.mypy.overrides]]
   module = "scipy.*"
+  ignore_missing_imports = true
+
+  [[tool.mypy.overrides]]
+  module = "pandas.*"
   ignore_missing_imports = true
 
   [tool.isort]

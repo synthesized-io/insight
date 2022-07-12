@@ -1,8 +1,9 @@
 """This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence, Union
+from typing import IO, Any, Dict, List, Optional, Sequence, Type, Union
 
 import pandas as pd
+import yaml
 
 from ..check import Check, ColumnCheck
 
@@ -12,13 +13,39 @@ class _Metric(ABC):
     An abstract base class from which more detailed metrics are derived.
     """
     name: Optional[str] = None
-    tags: Sequence[str] = []
+    _registry: Dict[str, Type] = {}
+
+    def __init_subclass__(cls, **kwargs):
+        if cls.name is not None and cls.name not in _Metric._registry:
+            _Metric._registry.update({cls.name: cls})
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 
     def __str__(self):
         return f"{self.name}"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'name': self.name}
+
+    @classmethod
+    def from_dict(cls, bluprnt: Dict[str, Any], check: Check = None):
+        """
+        Given a dictionary, builds and returns a metric that corresponds to the specified metric with the given metric
+        parameters.
+
+        Expected dictionary format:
+        {'name': 'my_metric',
+         'metric_param1': param1,
+         'metric_param2': param2
+         ...}
+        """
+        bluprnt_params = {key: val for key, val in bluprnt.items() if key != 'name'}
+        if check is not None:
+            bluprnt.update({'check': check})
+
+        metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
+        return metric
 
 
 class OneColumnMetric(_Metric):
@@ -36,6 +63,7 @@ class OneColumnMetric(_Metric):
         >>> metric(df["col_A"])
         0.5
     """
+
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
 
@@ -70,6 +98,7 @@ class TwoColumnMetric(_Metric):
         5
 
     """
+
     def __init__(self, check: Check = ColumnCheck()):
         self.check = check
 

@@ -1,15 +1,13 @@
 """This module contains various metrics used across synthesized."""
-from typing import Optional, Sequence, Union, cast
+from typing import Any, Dict, Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 
 from ..check import Check, ColumnCheck
-from .base import DataFrameMetric, OneColumnMetric, TwoColumnMetric
+from .base import OneColumnMetric, TwoColumnMetric
 from .utils import zipped_hist
 
 
@@ -33,6 +31,11 @@ class StandardDeviation(OneColumnMetric):
     def __init__(self, check: Check = ColumnCheck(), remove_outliers: float = 0.0):
         super().__init__(check)
         self.remove_outliers = remove_outliers
+
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'remove_outliers': self.remove_outliers})
+        return dictionary
 
     @classmethod
     def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()):
@@ -59,7 +62,6 @@ class CramersV(TwoColumnMetric):
     and 1 indicates maximal association (i.e. one variable is completely determined by the other).
     """
     name = "cramers_v"
-    symmetric = True
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
@@ -86,8 +88,8 @@ class CramersV(TwoColumnMetric):
 
         itab = np.outer(row, col)
         probs = pd.DataFrame(
-            data=itab, index=table_orig.index, columns=table_orig.columns
-        )
+                data=itab, index=table_orig.index, columns=table_orig.columns
+                )
 
         fit = table.sum() * probs
         expected = fit.to_numpy()
@@ -259,6 +261,11 @@ class Norm(TwoColumnMetric):
         super().__init__(check)
         self.ord = ord
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'ord': self.ord})
+        return dictionary
+
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if check.continuous(sr_a) and check.continuous(sr_b):
@@ -310,9 +317,9 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Ordinal:
             Given some Pandas serieses.
             >>> sr1 = pd.Series([0.73917425, 0.45634101, 0.0769353, 0.1913571, 0.2978581 ,
-            ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
+                ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
             >>> sr2 = pd.Series([0.14313188, 0.23245435, 0.85235284, 0.7497944 , 0.89014916,
-            ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
+                ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
 
             Bin the columns.
             >>> bins = np.histogram_bin_edges(pd.concat([sr1, sr2]))
@@ -328,10 +335,15 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     name = "earth_movers_distance_binned"
 
     def __init__(self,
-                 check: Check = ColumnCheck(),
-                 bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
+            check: Check = ColumnCheck(),
+            bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
         super().__init__(check)
         self.bin_edges = bin_edges
+
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'bin_edges': self.bin_edges})
+        return dictionary
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
