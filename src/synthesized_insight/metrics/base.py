@@ -29,7 +29,7 @@ class _Metric(ABC):
         return {'name': self.name}
 
     @classmethod
-    def metric_from_dict(cls, bluprnt: Dict[str, Any], check: Check = None):
+    def from_dict(cls, bluprnt: Dict[str, Any], check: Check = None):
         """
         Given a dictionary, builds and returns a metric that corresponds to the specified metric with the given metric
         parameters.
@@ -46,24 +46,6 @@ class _Metric(ABC):
 
         metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
         return metric
-
-    @classmethod
-    def metrics_to_yaml_dump(cls, metrics: List):
-        """
-        Dumps the given metrics into the print stream in a YAML format.
-        This is a prototype function and should be deleted/modified later.
-        """
-        print(yaml.dump({"metrics": [m.to_dict() for m in metrics]}))
-
-    @classmethod
-    def metrics_from_yaml(cls, document: Union[IO, str], check: Check = None):
-        """
-        Given a YAML document that contains a 'metrics' field, return a list of instances of the metrics within
-        the field.
-        """
-        metric_bluprnts = yaml.safe_load(document)
-        return [_Metric.metric_from_dict(bluprnt=bluprnt, check=check) for bluprnt in metric_bluprnts['metrics']]
-
 
 class OneColumnMetric(_Metric):
     """
