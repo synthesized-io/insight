@@ -51,8 +51,8 @@ class DiffCorrMatrix(TwoDataFrameMetric):
         self.name = f'diff_{metric.name}'
 
     def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
-        corr_matrix_old = self._corr_matrix(df=df_old)[0]
-        corr_matrix_new = self._corr_matrix(df=df_new)[0]
+        corr_matrix_old = self._corr_matrix(df=df_old)
+        corr_matrix_new = self._corr_matrix(df=df_new)
 
         if corr_matrix_old is None or corr_matrix_new is None:
             return None
