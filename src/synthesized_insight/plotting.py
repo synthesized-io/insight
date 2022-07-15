@@ -83,8 +83,7 @@ def axes_grid(
     rows = len(row_titles)
     assert cols > 0 and rows > 0
 
-    if ax is None:
-        ax = plt.figure(figsize=DEFAULT_FIGSIZE).gca()
+    fig, ax = obtain_figure(ax)
 
     ax.set_axis_off()
     sp_spec = ax.get_subplotspec()
@@ -198,11 +197,11 @@ def plot_cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figur
 
 
 def plot_cross_tables(
-    df_test: pd.DataFrame,
-    df_synth: pd.DataFrame,
-    col_a: str,
-    col_b: str,
-    figsize: Tuple[float, float] = (15, 11),
+        df_test: pd.DataFrame,
+        df_synth: pd.DataFrame,
+        col_a: str,
+        col_b: str,
+        figsize: Tuple[float, float] = (15, 11),
 ) -> Figure:
     categories_a = pd.concat((df_test[col_a], df_synth[col_a])).unique()
     categories_b = pd.concat((df_test[col_b], df_synth[col_b])).unique()
@@ -238,45 +237,47 @@ def plot_cross_tables(
 
 
 def categorical_distribution_plot(
-        col_test: pd.Series,
-        col_synth: pd.Series = None,
+        col_a: pd.Series,
+        col_b: pd.Series = None,
         sample_size: int = 10_000,
-        ax: Union[Axes, SubplotBase] = None
+        ax: Union[Axes, SubplotBase] = None,
+        col_a_name: str = "orig",
+        col_b_name: str = "synth"
 ) -> Figure:
     single_column = True
     fig, ax = obtain_figure(ax)
-    col_test = col_test.dropna()
+    col_a = col_a.dropna()
 
-    if col_synth is not None:
+    if col_b is not None:
         single_column = False
-        col_synth = col_synth.dropna()
+        col_b = col_b.dropna()
 
-    if len(col_test) == 0 or (not single_column and len(col_synth) == 0):
-        return fig
+    if len(col_a) == 0 or (not single_column and len(col_b) == 0):
+        return plot_text_only("Column empty or is full of NaNs", ax)
 
-    df_col_test = pd.DataFrame(col_test)
-    df_col_synth = pd.DataFrame(col_synth) if not single_column else None
+    df_col_test = pd.DataFrame(col_a)
+    df_col_synth = pd.DataFrame(col_b) if not single_column else None
 
     if not single_column:
         # We sample orig and synth so that they have the same size to make the plots more comprehensive
-        sample_size = min(sample_size, len(col_test), len(col_synth))
+        sample_size = min(sample_size, len(col_a), len(col_b))
         concatenated = pd.concat(
             [
-                df_col_test.assign(dataset="orig").sample(sample_size),
-                df_col_synth.assign(dataset="synth").sample(sample_size),
+                df_col_test.assign(dataset=col_a_name).sample(sample_size),
+                df_col_synth.assign(dataset=col_b_name).sample(sample_size),
             ]
         )
     else:
         # No need to sample since we are only plotting one column.
-        concatenated = df_col_test.assign(dataset="orig")
+        concatenated = df_col_test.assign(dataset=col_a_name)
 
     ax = sns.countplot(
-        x=col_test.name,
+        x=col_a.name,
         hue="dataset",
         data=concatenated,
         lw=1,
         alpha=0.7,
-        palette={"orig": COLOR_ORIG, "synth": COLOR_SYNTH},
+        palette={col_a_name: COLOR_ORIG, col_b_name: COLOR_SYNTH},
         ax=ax,
         ec='#ffffff'
     )
@@ -288,27 +289,23 @@ def categorical_distribution_plot(
 
 
 def continuous_distribution_plot(
-        col_test: pd.Series,
-        col_synth: pd.Series = None,
+        col_test,
+        col_synth=None,
         remove_outliers: float = 0.0,
-        sample_size: int = 10_000,
+        sample_size=10_000,
         ax: Union[Axes, SubplotBase] = None,
+        col_a_name: str = "orig",
+        col_b_name: str = "synth"
 ) -> Figure:
     fig, ax = obtain_figure(ax)
     single_column = True
 
     col_test = pd.to_numeric(col_test.dropna(), errors="coerce").dropna()
 
-    if col_synth is not None:
-        single_column = False
-        col_synth = pd.to_numeric(col_synth.dropna(), errors="coerce").dropna()
-
-    if len(col_test) == 0 or (not single_column and len(col_synth) == 0):
-        return fig
+    if len(col_test) == 0:
+        return plot_text_only("col_a empty or is full of NaNs", ax)
 
     col_test = col_test.sample(min(sample_size, len(col_test)))
-    col_synth = col_synth.sample(min(sample_size, len(col_synth))) if not single_column else None
-
     percentiles = [remove_outliers * 100.0 / 2, 100 - remove_outliers * 100.0 / 2]
     start, end = np.percentile(col_test, percentiles)
 
@@ -317,11 +314,17 @@ def continuous_distribution_plot(
 
     col_test = col_test[(start <= col_test) & (col_test <= end)]
 
-    if not single_column:
+    if col_synth is not None:
+        single_column = False
+        col_synth = pd.to_numeric(col_synth.dropna(), errors="coerce").dropna()
+
+        if len(col_synth) == 0:
+            return plot_text_only("col_b empty or is full of NaNs", ax)
+        col_synth = col_synth.sample(min(sample_size, len(col_synth))) if not single_column else None
         # In case the synthesized data has overflown and has much different domain
         col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
         if len(col_synth) == 0:
-            return fig
+            return plot_text_only("col_b has a completly different domain from col_a")
 
     # workaround for kde failing on datasets with only one value
     if col_test.nunique() < 2 or (not single_column and col_synth.nunique() < 2):
@@ -335,7 +338,7 @@ def continuous_distribution_plot(
             alpha=0.5,
             shade=True,
             color=COLOR_ORIG,
-            label="orig",
+            label=col_a_name,
             ax=ax,
             **kde_kws,
         )
@@ -346,15 +349,15 @@ def continuous_distribution_plot(
                 alpha=0.5,
                 shade=True,
                 color=COLOR_SYNTH,
-                label="synth",
+                label=col_b_name,
                 ax=ax,
                 **kde_kws,
             )
+            plt.legend()
     except Exception as e:
         logger.error("Column {} cant be shown :: {}".format(col_test.name, e))
     ax.tick_params("y", length=3, width=1, which="major", color="#D7E0FE")
-    if not single_column:
-        plt.legend()
+
     return fig
 
 
