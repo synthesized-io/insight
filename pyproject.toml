@@ -132,6 +132,10 @@ dependencies = [
   module = "matplotlib.*"
   ignore_missing_imports = true
 
+  [[tool.mypy.overrides]]
+  module = "seaborn.*"
+  ignore_missing_imports = true
+
   [tool.isort]
   multi_line_output = 3
   include_trailing_comma = true

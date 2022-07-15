@@ -8,7 +8,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pkg_resources
 import seaborn as sns
 from matplotlib import cycler
 from matplotlib.axes import Axes, SubplotBase
@@ -26,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 def set_plotting_style():
     plt.style.use("seaborn")
-    font_file = "fonts/inter-v3-latin-regular.ttf"
+    font_file = "./fonts/inter-v3-latin-regular.ttf"
     try:
         mpl.font_manager.fontManager.addfont(
-            Path(pkg_resources.resource_filename("synthesized_insight", font_file)).as_posix()
+            Path(font_file).as_posix()
         )
         mpl.rc("font", family="Inter-Regular")
     except FileNotFoundError:
