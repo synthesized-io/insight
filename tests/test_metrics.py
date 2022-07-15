@@ -3,7 +3,6 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
 
 from synthesized_insight.check import ColumnCheck
 from synthesized_insight.metrics import (
@@ -69,39 +68,6 @@ def data1():
 @pytest.fixture
 def data2():
     return np.random.normal(1, 1, 1000)
-
-
-def test_metrics_to_yaml_dump(capsys):
-    """
-    Tests that the metrics are dumped into the standard output properly.
-    """
-    metrics = [mean, std_dev, cramers_v, norm_ord1]
-    Mean.metrics_to_yaml_dump(metrics)
-    out = capsys.readouterr().out
-    expected = {'metrics': [
-                    {'name': 'mean'},
-                    {'name': 'standard_deviation', 'remove_outliers': 0.0},
-                    {'name': 'cramers_v'},
-                    {'name':'norm', 'ord': 1}]}
-
-    assert out.strip() == yaml.dump(data=expected).strip()
-
-def test_metrics_from_yaml(capsys):
-    """
-    Tests that the metrics are restored form a yaml properly.
-    """
-    metrics = [mean, std_dev, cramers_v, norm_ord1]
-    Mean.metrics_to_yaml_dump(metrics)
-    out = capsys.readouterr().out.strip()
-    new_metrics = Mean.metrics_from_yaml(out)
-
-    assert len(new_metrics) == 4
-
-    for old, new in zip(metrics, new_metrics):
-        assert isinstance(new, type(old))
-
-    assert np.isclose(new_metrics[1].remove_outliers, 0)
-    assert new_metrics[3].ord == 1
 
 
 def test_mean():

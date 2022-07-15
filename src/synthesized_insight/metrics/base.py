@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import IO, Any, Dict, List, Optional, Sequence, Type, Union
 
 import pandas as pd
-import yaml
 
 from ..check import Check, ColumnCheck
 
@@ -46,6 +45,7 @@ class _Metric(ABC):
 
         metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
         return metric
+
 
 class OneColumnMetric(_Metric):
     """
