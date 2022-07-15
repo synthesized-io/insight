@@ -1,14 +1,13 @@
 import pandas as pd
-
 import pytest
 
 from synthesized_insight.plotting import (
-    plot_cross_table,
-    plot_cross_tables,
-    plot_text_only,
     categorical_distribution_plot,
     continuous_distribution_plot,
+    plot_cross_table,
+    plot_cross_tables,
     plot_dataset,
+    plot_text_only,
 )
 
 

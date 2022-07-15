@@ -1,21 +1,19 @@
-import pandas as pd
-import numpy as np
-import math
-
-import seaborn as sns
-import matplotlib as mpl
-from matplotlib import cycler
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes, SubplotBase
-from matplotlib.figure import Figure
-from matplotlib.colors import SymLogNorm
-
-from pathlib import Path
-import pkg_resources
-
 import logging
-from typing import Tuple, List, Union
+import math
 import warnings
+from pathlib import Path
+from typing import List, Tuple, Union
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pkg_resources
+import seaborn as sns
+from matplotlib import cycler
+from matplotlib.axes import Axes, SubplotBase
+from matplotlib.colors import SymLogNorm
+from matplotlib.figure import Figure
 
 from synthesized_insight.check import Check, ColumnCheck
 
