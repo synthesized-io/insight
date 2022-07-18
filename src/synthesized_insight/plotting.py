@@ -265,7 +265,7 @@ def categorical_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = col.dropna()
         if len(cols[i]) == 0:
-            return fig
+            return plot_text_only(f'Column at index {i} is either empty of full of Na\'s')
         df_cols.append(pd.DataFrame(cols[i]))
 
     sample_size = min(sample_size, min([len(col) for col in cols]))
@@ -342,7 +342,7 @@ def continuous_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = pd.to_numeric(col.dropna(), errors='coerce').dropna()
         if len(cols[i]) == 0:
-            return fig
+            return plot_text_only(f'Column at index {i} is empty of full of Na\'s.')
         cols[i] = cols[i].sample(min(sample_size, len(cols[i])))
 
     start, end = np.percentile(cols[0], percentiles)
@@ -352,7 +352,7 @@ def continuous_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = col[(start <= col) & (col <= end)]
         if len(cols[i]) == 0:
-            return fig
+            return plot_text_only(f'Column at index {i} is out of range of the first column.')
 
     if not all([col.nunique() >= 2 for col in cols]):
         kde_kws = {}
