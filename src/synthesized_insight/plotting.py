@@ -236,143 +236,150 @@ def plot_cross_tables(
     return f
 
 
+def _get_color_scheme(color_scheme, num_cols) -> List[str]:
+    if color_scheme is None:
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        color_scheme = [colors[i % len(colors)] for i in range(num_cols)]
+    return color_scheme
+
+
+def _get_series_names(source_names, num_cols) -> List[str]:
+    if source_names is None:
+        source_names = ["orig", "synth"] + [f'unnamed{i}' for i in range(num_cols - 2)]
+    return source_names
+
+
 def categorical_distribution_plot(
-        col_a: pd.Series,
-        col_b: pd.Series = None,
-        sample_size: int = 10_000,
+        cols: List[pd.Series],
+        sample_size=10_000,
         ax: Union[Axes, SubplotBase] = None,
-        col_a_name: str = "orig",
-        col_b_name: str = "synth"
+        color_scheme: List[str] = None,
+        series_source_names: List[str] = None
 ) -> Figure:
-    single_column = True
     fig, ax = obtain_figure(ax)
-    col_a = col_a.dropna()
+    color_scheme = _get_color_scheme(color_scheme, len(cols))
+    series_source_names = _get_series_names(series_source_names, len(cols))
+    color_palette = dict(zip(series_source_names, color_scheme))
 
-    if col_b is not None:
-        single_column = False
-        col_b = col_b.dropna()
+    df_cols = []
+    for i, col in enumerate(cols):
+        cols[i] = col.dropna()
+        if len(cols[i]) == 0:
+            return fig
+        df_cols.append(pd.DataFrame(cols[i]))
 
-    if len(col_a) == 0 or (not single_column and len(col_b) == 0):
-        return plot_text_only("Column empty or is full of NaNs", ax)
+    sample_size = min(sample_size, min([len(col) for col in cols]))
 
-    df_col_test = pd.DataFrame(col_a)
-    df_col_synth = pd.DataFrame(col_b) if not single_column else None
+    # We sample all the columns so that they have the same size to make the plots more comprehensive
+    for i, df in enumerate(df_cols):
+        df_cols[i] = df.assign(dataset=series_source_names[i]).sample(sample_size)
 
-    if not single_column:
-        # We sample orig and synth so that they have the same size to make the plots more comprehensive
-        sample_size = min(sample_size, len(col_a), len(col_b))
-        concatenated = pd.concat(
-            [
-                df_col_test.assign(dataset=col_a_name).sample(sample_size),
-                df_col_synth.assign(dataset=col_b_name).sample(sample_size),
-            ]
-        )
-    else:
-        # No need to sample since we are only plotting one column.
-        concatenated = df_col_test.assign(dataset=col_a_name)
+    concatenated = pd.concat(df_cols)
 
     ax = sns.countplot(
-        x=col_a.name,
+        x=cols[0].name,
         hue="dataset",
         data=concatenated,
         lw=1,
         alpha=0.7,
-        palette={col_a_name: COLOR_ORIG, col_b_name: COLOR_SYNTH},
+        palette=color_palette,
         ax=ax,
         ec='#ffffff'
     )
+
     adjust_tick_labels(ax)
-    if not single_column:
-        plt.legend()
+    if len(cols) <= 1:
+        ax.get_legend().remove()
 
     return fig
 
 
-def continuous_distribution_plot(
-        col_test,
-        col_synth=None,
-        remove_outliers: float = 0.0,
-        sample_size=10_000,
-        ax: Union[Axes, SubplotBase] = None,
-        col_a_name: str = "orig",
-        col_b_name: str = "synth"
-) -> Figure:
+def plot_continuous_column(col, col_name, color, kde_kws, ax) -> Figure:
     fig, ax = obtain_figure(ax)
-    single_column = True
-
-    col_test = pd.to_numeric(col_test.dropna(), errors="coerce").dropna()
-
-    if len(col_test) == 0:
-        return plot_text_only("col_a empty or is full of NaNs", ax)
-
-    col_test = col_test.sample(min(sample_size, len(col_test)))
-    percentiles = [remove_outliers * 100.0 / 2, 100 - remove_outliers * 100.0 / 2]
-    start, end = np.percentile(col_test, percentiles)
-
-    if start == end:
-        start, end = min(col_test), max(col_test)
-
-    col_test = col_test[(start <= col_test) & (col_test <= end)]
-
-    if col_synth is not None:
-        single_column = False
-        col_synth = pd.to_numeric(col_synth.dropna(), errors="coerce").dropna()
-
-        if len(col_synth) == 0:
-            return plot_text_only("col_b empty or is full of NaNs", ax)
-        col_synth = col_synth.sample(min(sample_size, len(col_synth))) if not single_column else None
-        # In case the synthesized data has overflown and has much different domain
-        col_synth = col_synth[(start <= col_synth) & (col_synth <= end)]
-        if len(col_synth) == 0:
-            return plot_text_only("col_b has a completly different domain from col_a")
-
-    # workaround for kde failing on datasets with only one value
-    if col_test.nunique() < 2 or (not single_column and col_synth.nunique() < 2):
-        kde_kws = {}
-    else:
-        kde_kws = {"clip": (start, end)}
     try:
-        sns.kdeplot(
-            col_test,
-            lw=1,
-            alpha=0.5,
-            shade=True,
-            color=COLOR_ORIG,
-            label=col_a_name,
-            ax=ax,
-            **kde_kws,
-        )
-        if not single_column:
+        if color is None:
             sns.kdeplot(
-                col_synth,
+                col,
                 lw=1,
                 alpha=0.5,
                 shade=True,
-                color=COLOR_SYNTH,
-                label=col_b_name,
+                label=col_name,
                 ax=ax,
                 **kde_kws,
             )
-            plt.legend()
+        else:
+            sns.kdeplot(
+                col,
+                lw=1,
+                alpha=0.5,
+                shade=True,
+                color=color,
+                label=col_name,
+                ax=ax,
+                **kde_kws,
+            )
     except Exception as e:
-        logger.error("Column {} cant be shown :: {}".format(col_test.name, e))
+        logger.error("Column {} cant be shown :: {}".format(col.name, e))
     ax.tick_params("y", length=3, width=1, which="major", color="#D7E0FE")
+    return fig
+
+
+def continuous_distribution_plot(
+        cols: List[pd.Series],
+        remove_outliers: float = 0.0,
+        sample_size=10_000,
+        ax: Union[Axes, SubplotBase] = None,
+        color_scheme: List[str] = None,
+        series_source_names: List[str] = None
+) -> Figure:
+    fig, ax = obtain_figure(ax)
+    assert len(cols) > 0
+    color_scheme = _get_color_scheme(color_scheme, len(cols))
+    series_source_names = _get_series_names(series_source_names, len(cols))
+
+    percentiles = [remove_outliers * 100.0 / 2, 100 - remove_outliers * 100.0 / 2]
+
+    for i, col in enumerate(cols):
+        cols[i] = pd.to_numeric(col.dropna(), errors='coerce').dropna()
+        if len(cols[i]) == 0:
+            return fig
+        cols[i] = cols[i].sample(min(sample_size, len(cols[i])))
+
+    start, end = np.percentile(cols[0], percentiles)
+    if start == end:
+        start, end = min(cols[0]), max(cols[0])
+
+    for i, col in enumerate(cols):
+        cols[i] = col[(start <= col) & (col <= end)]
+        if len(cols[i]) == 0:
+            return fig
+
+    if not all([col.nunique() >= 2 for col in cols]):
+        kde_kws = {}
+    else:
+        kde_kws = {"clip": (start, end)}
+
+    for i, col in enumerate(cols):
+        color = color_scheme[i]
+        col_name = series_source_names[i]
+        plot_continuous_column(col, col_name, color, kde_kws, ax)
+
+    if len(cols) > 1:
+        ax.legend()
 
     return fig
 
 
 def plot_dataset(
-        df_a: pd.DataFrame,
-        df_b: pd.DataFrame,
-        columns: List[str] = None,
+        dfs: List[pd.DataFrame],
+        columns=None,
         remove_outliers: float = 0.0,
         figsize: Tuple[float, float] = None,
         figure_cols: int = 2,
         sample_size: int = 10_000,
         max_categories: int = 10,
-        check: Check = ColumnCheck()
-) -> Figure:
-    columns = df_a.columns if columns is None else columns
+        check=ColumnCheck()) -> Figure:
+    columns = dfs[0].columns if columns is None else columns
 
     figure_rows = math.ceil(len(columns) / figure_cols)
     figsize = (6 * figure_cols + 2, 5 * figure_rows + 2) if figsize is None else figsize
@@ -398,17 +405,16 @@ def plot_dataset(
         row_pos = i // figure_cols
         col_pos = i % figure_cols
         new_ax = fig.add_subplot(gs[row_pos, col_pos])
-        if check.categorical(df_a[col]):
-            if pd.concat([df_a[col], df_b[col]]).nunique() <= max_categories:
-                categorical_distribution_plot(df_a[col],
-                                              df_b[col],
+        serieses = [dfs[j][col] for j in range(len(dfs))]
+        if check.categorical(serieses[0]):
+            if pd.concat(serieses).nunique() <= max_categories:
+                categorical_distribution_plot(serieses,
                                               ax=new_ax,
                                               sample_size=sample_size)
             else:
                 plot_text_only("Number of categories exceeded threshold.", new_ax)
         else:
-            continuous_distribution_plot(df_a[col],
-                                         df_b[col],
+            continuous_distribution_plot(serieses,
                                          ax=new_ax,
                                          remove_outliers=remove_outliers,
                                          sample_size=sample_size)
@@ -420,5 +426,4 @@ def plot_dataset(
     if new_ax is not None:
         handles, labels = new_ax.get_legend_handles_labels()
         fig.legend(handles, labels, loc="upper left", prop={"size": 14})
-
     return fig

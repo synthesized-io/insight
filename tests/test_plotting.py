@@ -75,30 +75,30 @@ def test_plot_text_only(df_half_a, df_half_b):
 
 
 def test_plot_categorical_distribution(df_half_a, df_half_b):
-    fig_a = categorical_distribution_plot(df_half_a['workclass'], df_half_b['workclass'])
+    fig_a = categorical_distribution_plot([df_half_a['workclass'], df_half_b['workclass']])
     assert fig_a is not None
 
-    fig_b = categorical_distribution_plot(df_half_a['workclass'])
+    fig_b = categorical_distribution_plot([df_half_a['workclass']])
     assert fig_b is not None
 
     assert fig_a != fig_b
 
 
 def test_continuous_distribution_plot(df_half_a, df_half_b):
-    fig_a = continuous_distribution_plot(df_half_a['fnlwgt'], df_half_b['fnlwgt'])
+    fig_a = continuous_distribution_plot([df_half_a['fnlwgt'], df_half_b['fnlwgt']])
     assert fig_a is not None
 
-    fig_b = continuous_distribution_plot(df_half_a['fnlwgt'])
+    fig_b = continuous_distribution_plot([df_half_a['fnlwgt']])
     assert fig_b is not None
 
     assert fig_a != fig_b
 
 
 def test_plot_dataset(df_half_a, df_half_b):
-    fig_a = plot_dataset(df_half_a, df_half_b, max_categories=10000)
+    fig_a = plot_dataset([df_half_a, df_half_b], max_categories=10000)
     assert fig_a is not None
 
-    fig_b = plot_dataset(df_half_a, df_half_b)
+    fig_b = plot_dataset([df_half_a, df_half_b])
     assert fig_b is not None
 
     assert fig_a != fig_b
