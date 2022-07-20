@@ -2,7 +2,7 @@ import logging
 import math
 import warnings
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 def set_plotting_style():
+    """
+    Sets the default plotting style for matplotlib.
+    """
     plt.style.use("seaborn")
     font_file = "./fonts/inter-v3-latin-regular.ttf"
     try:
@@ -50,6 +53,14 @@ def set_plotting_style():
 
 
 def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
+    """
+    Obtains the figure that is associated with the passed in Axes objects. If not ax object is specified, generates a
+    new figure along with a new axe object. Returns the figure and the ax as a tuple.
+    Args:
+        ax: the ax object from which to obtain the figure.
+        figsize: the size of the figure to generate if ax is None.
+    return: (fig, ax)
+    """
     set_plotting_style()
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
@@ -69,16 +80,20 @@ def axes_grid(
         width_ratios: float = None,
 ):
     """
-    Args:
-        ax: The axes to subdivide.
-        col_titles: Title for each column.
-        row_titles: Title for each row.
-        sharey:
-        wspace:
-        hspace:
-        height_ratios:
-        width_ratios:
-    """
+      Subdivides the given axes into a grid len(col_titles) by len(row_titles) and labels each section.
+      Args:
+          col_titles: Title for each column.
+          row_titles: Title for each row.
+          ax: The axes to subdivide.
+          sharey: If all the figures should share the same y-axis.
+          wspace: Horizontal space between the figures.
+          hspace: Vertical space between the figures.
+          height_ratios: A list that details the relative height of each section.
+          width_ratios: A list that details the relative height of each section.
+
+        Returns:
+            List of the newly generated axes.
+      """
     cols = len(col_titles)
     rows = len(row_titles)
     assert cols > 0 and rows > 0
@@ -144,6 +159,12 @@ def axes_grid(
 
 
 def adjust_tick_labels(ax: Axes):
+    """
+    Adjusts the tick labels of the ax to make sure they fit in the figure. Also, slightly tilts the docstrings for
+    aesthetic purposes.
+    Args:
+          ax: the ax on which to adjust the tick labels.
+    """
     tick_labels = ax.get_xticklabels()
     for tl in tick_labels:
         tl.set_text(tl.get_text()[:25])  # some labels are too long to show completely
@@ -152,6 +173,15 @@ def adjust_tick_labels(ax: Axes):
 
 
 def plot_text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
+    """
+    Plots the given text over the provided ax. If no ax is provided, generates a new ax.
+    Args:
+        text: the text to display.
+        ax: the ax on which to display the text.
+
+    Returns:
+        the figure that relates to the ax.
+    """
     set_plotting_style()
     fig, ax = obtain_figure(ax)
     ax.text(
@@ -166,6 +196,16 @@ def plot_text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
 
 
 def plot_cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figure:
+    """
+    Plots a cross table of the provided dataframe of counts.
+    Args:
+        counts: a dataframe containing the counts of the categories which to plot.
+        title: the title of the plot.
+        ax: the ax on which to plot the table.
+
+    Returns:
+        a figure with the cross table on it.
+    """
     fig, ax = obtain_figure(ax)
     # Generate a mask for the upper triangle
     sns.set(style="white")
@@ -203,6 +243,18 @@ def plot_cross_tables(
         col_b: str,
         figsize: Tuple[float, float] = (15, 11),
 ) -> Figure:
+    """
+         Plots two cross tables for two datasets for easier comparison of the datasets.
+    Args:
+        df_test: The first dataframe to plot.
+        df_synth: The second dataframe to plot.
+        col_a: Categorical column name present in both dataframes.
+        col_b: Categorical column name present in both dataframes.
+        figsize: Size of the figure.
+
+    Returns:
+        A figure with the crosstable on it.
+    """
     categories_a = pd.concat((df_test[col_a], df_synth[col_a])).unique()
     categories_b = pd.concat((df_test[col_b], df_synth[col_b])).unique()
     categories_a.sort()
@@ -237,15 +289,38 @@ def plot_cross_tables(
 
 
 def _get_color_scheme(color_scheme, num_cols) -> List[str]:
+    """
+    Completes the color scheme based on the current matplotlib style. If the color scheme has enough colors to draw the
+    specified number of columns, returns the color_scheme unmodified.
+    Args:
+        color_scheme: the color scheme
+        num_cols: number of columns that the color scheme will represent.
+    Returns:
+        list of string that represent colors.
+    """
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     if color_scheme is None:
-        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         color_scheme = [colors[i % len(colors)] for i in range(num_cols)]
+    elif len(color_scheme) < num_cols:
+        color_scheme += [colors[i % len(colors)] for i in range(num_cols - len(color_scheme))]
     return color_scheme
 
 
 def _get_series_names(source_names, num_cols) -> List[str]:
+    """
+    Gives names to the unnamed columns. If source names is less than the number of columns, names each column as
+    unnamed with an index.
+    Args:
+        source_names: the original names
+        num_cols: total number of columns that need names.
+
+    Returns:
+        A list of strings that represents the names of the serieses.
+    """
     if source_names is None:
         source_names = ["orig", "synth"] + [f'unnamed{i}' for i in range(num_cols - 2)]
+    elif len(source_names) < num_cols:
+        source_names += [f'unnamed{i}' for i in range(num_cols - 2)]
     return source_names
 
 
@@ -256,6 +331,19 @@ def categorical_distribution_plot(
         color_scheme: List[str] = None,
         series_source_names: List[str] = None
 ) -> Figure:
+    """
+    Plots the categorical distribution of the specified serieses side by side.
+    Args:
+        cols: columns to plot.
+        sample_size: maximum number of samples to take from each series in order to make the plots more comperhensive.
+            This will need to be larger for larger datasets.
+        ax: the ax on which to plot the distributions.
+        color_scheme: the colors to use when plotting each column.
+        series_source_names: names for each series.
+
+    Returns:
+        a figure containing the plot.
+    """
     fig, ax = obtain_figure(ax)
     color_scheme = _get_color_scheme(color_scheme, len(cols))
     series_source_names = _get_series_names(series_source_names, len(cols))
@@ -294,7 +382,26 @@ def categorical_distribution_plot(
     return fig
 
 
-def plot_continuous_column(col, col_name, color, kde_kws, ax) -> Figure:
+def plot_continuous_column(col: pd.Series,
+                           col_name: str = None,
+                           color: str = None,
+                           kde_kws: Dict[Any, Any] = None,
+                           ax: Axes = None) -> Figure:
+    """
+    Plots a pdf of the given continuous series.
+    Args:
+        col: the series which to plot.
+        col_name: the name of the series.
+        color: color which is used to plot the series.
+        kde_kws: additional arguments for seaborn's kde_plot.
+        ax: the ax on which to plot.
+
+    Returns:
+        A figure with a pdf of the series plotted on top of it.
+    """
+    kde_kws = {} if kde_kws is None else kde_kws
+    col_name = col.name if col_name is None else col_name
+
     fig, ax = obtain_figure(ax)
     try:
         if color is None:
@@ -332,6 +439,20 @@ def continuous_distribution_plot(
         color_scheme: List[str] = None,
         series_source_names: List[str] = None
 ) -> Figure:
+    """
+    plot the pdfs of all the serieses specified by cols.
+    Args:
+        cols: A list of all the serieses of which to plot.
+        remove_outliers: the threshhold for outlier removal.
+        sample_size: maximum number of samples to take from each series in order to make the plots more comperhensive.
+            This will need to be larger for larger datasets.
+        ax: the Axes object on which to plot.
+        color_scheme: a list of the colors to use for the plot.
+        series_source_names: the names of each series.
+
+    Returns:
+        a figure object with the pdfs of each series plotted on it.
+    """
     fig, ax = obtain_figure(ax)
     assert len(cols) > 0
     color_scheme = _get_color_scheme(color_scheme, len(cols))
@@ -379,6 +500,23 @@ def plot_dataset(
         sample_size: int = 10_000,
         max_categories: int = 10,
         check=ColumnCheck()) -> Figure:
+    """
+    Plot the columns of all the data-frames that are passed in.
+    Args:
+        dfs: the dataframes to plot.
+        columns: specific columns to plot.
+        remove_outliers: the threshold for outlier removal.
+        figsize: size of the figure.
+        figure_cols: number of columns in the resulting figure.
+        sample_size: maximum number of samples to take from each series in order to make the plots more comperhensive.
+            This will need to be larger for larger datasets.
+        max_categories: maximum number of categories to include for categorical plots. If the number of categories in a
+        series exceeds this number, the graph for this series will be replaced by a text.
+        check: the check function to use to distinguish between categorical and continuous data.
+
+    Returns:
+        a figure containing all the plots for the specified datasets.
+    """
     columns = dfs[0].columns if columns is None else columns
 
     figure_rows = math.ceil(len(columns) / figure_cols)
