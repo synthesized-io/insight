@@ -105,6 +105,9 @@ dependencies = [
   [tool.setuptools_scm]
   write_to = "src/synthesized_insight/version.py"
 
+  [tool.setuptools.package-data]
+  synthesized = ["fonts/inter-v3-latin-regular.ttf", ]
+
   [tool.pytest.ini_options]
   junit_suite_name = "unit"
   junit_logging = "all"
