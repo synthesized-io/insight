@@ -150,6 +150,7 @@ def test_from_dict_different_class():
 
     dict_norm = {'name': 'norm', 'ord': 1}
     new_norm = HellingerDistance.from_dict(dict_norm)
+
     assert isinstance(new_norm, Norm)
     assert new_norm.ord == 1
 
@@ -266,6 +267,7 @@ def test_norm_to_dict_ord_default():
 def test_norm_from_dict_ord_one():
     dict_norm_one = {'name': 'norm', 'ord': 1}
     new_norm_one = Norm.from_dict(dict_norm_one)
+
     assert isinstance(new_norm_one, Norm)
     assert new_norm_one.ord == 1
 
@@ -273,6 +275,7 @@ def test_norm_from_dict_ord_one():
 def test_norm_from_dict_ord_default():
     dict_norm = {'name': 'norm'}
     new_norm = Norm.from_dict(dict_norm)
+
     assert isinstance(new_norm, Norm)
     assert new_norm.ord == 2
 
@@ -350,8 +353,8 @@ def test_emd_distance_binned_from_dict():
     a = pd.Series(np.random.normal(loc=10, scale=1.0, size=10000))
     bin_edges = np.histogram_bin_edges(a, bins=100)
     dict_emdb = {'name': 'earth_movers_distance_binned', 'bin_edges': bin_edges}
-
     new_emdb = EarthMoversDistanceBinned.from_dict(dict_emdb)
+
     assert isinstance(new_emdb, EarthMoversDistanceBinned)
     assert np.allclose(new_emdb.bin_edges, bin_edges)
 
