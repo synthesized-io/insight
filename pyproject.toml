@@ -106,7 +106,7 @@ dependencies = [
   write_to = "src/synthesized_insight/version.py"
 
   [tool.setuptools.package-data]
-  synthesized = ["src/synthesized_insight/fonts/inter-v3-latin-regular.ttf", ]
+  synthesized_insight = ["src/synthesized_insight/fonts/inter-v3-latin-regular.ttf", ]
 
   [tool.pytest.ini_options]
   junit_suite_name = "unit"
