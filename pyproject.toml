@@ -101,7 +101,7 @@ dependencies = [
 
   [tool.setuptools.packages.find]
   where = ["src"]
-  
+
   [tool.setuptools.package-data]
   synthesized_insight = [
     "src/synthesized_insight/fonts/inter-v3-latin-regular.ttf",
