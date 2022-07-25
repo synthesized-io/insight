@@ -7,7 +7,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "synthesized-insight"
+name = "synthesized_insight"
 description = "Synthesized data insights and evaluation framework."
 readme = "README.md"
 requires-python = ">= 3.7"
