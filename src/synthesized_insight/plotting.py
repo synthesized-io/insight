@@ -28,7 +28,7 @@ def set_plotting_style():
     Sets the default plotting style for matplotlib.
     """
     plt.style.use("seaborn")
-    font_file = "./fonts/inter-v3-latin-regular.ttf"
+    font_file = "src/synthesized_insight/fonts/inter-v3-latin-regular.ttf"
     try:
         mpl.font_manager.fontManager.addfont(
             Path(font_file).as_posix()
