@@ -14,7 +14,7 @@ from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from matplotlib.figure import Figure
 
-from synthesized_insight.check import Check, ColumnCheck
+from synthesized_insight.check import ColumnCheck
 
 COLOR_ORIG = "#FF4D5B"
 COLOR_SYNTH = "#312874"
