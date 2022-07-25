@@ -35,7 +35,7 @@ jobs:
         run: |
           python3 -m venv .tenv
           source .tenv/bin/activate
-          pip install -U pip setuptools wheel
+          pip install -U 'pip<22.2' setuptools wheel
       - name: Install synthesized-insight
         run: |
           source .tenv/bin/activate
