@@ -35,11 +35,12 @@ jobs:
         run: |
           python3 -m venv .tenv
           source .tenv/bin/activate
-          pip install -U pip setuptools wheel
+          pip install -U pip build
       - name: Install synthesized-insight
         run: |
           source .tenv/bin/activate
-          pip install .[stable,test] --cache-dir .pip-cache
+          python -m build --wheel
+          pip install $(ls dist/*.whl)[stable,test] --cache-dir .pip-cache
       - name: Run unit tests
         run: |
           source .tenv/bin/activate

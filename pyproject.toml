@@ -7,7 +7,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "synthesized-insight"
+name = "synthesized_insight"
 description = "Synthesized data insights and evaluation framework."
 readme = "README.md"
 requires-python = ">= 3.7"
@@ -42,11 +42,12 @@ classifiers = [
 dynamic = ["version"]
 
 dependencies = [
+    "matplotlib >= 3.4",
     "numpy >= 1.18",
     "pandas >= 1.2",
     "scikit_learn >= 0.23",
     "scipy >= 1.5",
-    "PyYAML >= 5.3.1",
+    "seaborn >= 0.11.0"
 ]
 
   [project.optional-dependencies]
@@ -124,6 +125,14 @@ dependencies = [
 
   [[tool.mypy.overrides]]
   module = "pandas.*"
+  ignore_missing_imports = true
+
+  [[tool.mypy.overrides]]
+  module = "matplotlib.*"
+  ignore_missing_imports = true
+
+  [[tool.mypy.overrides]]
+  module = "seaborn.*"
   ignore_missing_imports = true
 
   [tool.isort]

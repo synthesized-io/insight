@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import IO, Any, Dict, List, Optional, Sequence, Type, Union
 
 import pandas as pd
-import yaml
 
 from ..check import Check, ColumnCheck
 
@@ -134,7 +133,7 @@ class DataFrameMetric(_Metric):
     """
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame) -> Union[int, float, None]:
+    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, None]:
         pass
 
 
@@ -156,5 +155,5 @@ class TwoDataFrameMetric(_Metric):
     """
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[int, float, None]:
+    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
         pass
