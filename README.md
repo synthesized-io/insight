@@ -2,36 +2,34 @@
 
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/synthesized-io/insight/master.svg)](https://results.pre-commit.ci/latest/github/synthesized-io/insight/master)
 
-Installation
---------------
+## Installing the Python Package
 
-### 1. Install python requirements:
-#### macOS
-(make sure you have brew installed)
-```
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-```
-brew install openssl readline sqlite3 xz zlib
-```
-#### ubuntu
-```
-sudo apt-get update; sudo apt-get install make build-essential libssl-dev zlib1g-dev \
-libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+```zsh
+pip install insight
 ```
 
-### 2. Install pyenv:
-#### macOS
+## Usage
+
+### Metrics
+
+At the core of insight are the metrics classes which can be evaluated on one series, two series,
+one dataframe or two dataframes.
+
+```pycon
+>>> import insight.metrics as m
+>>> metric = m.EarthMoversDistance()
+>>> metric(df['A'], df['B'])
+0.14
 ```
-brew update
-brew install pyenv
+
+### Plotting
+
+The package provides various plotting functions which allow you to easily explore any series, dataframe
+or multiple dataframes.
+
+```pycon
+>>> import insight.plotting as p
+>>> p.plot_dataset(df)
 ```
-#### ubuntu
-```
-curl https://pyenv.run | bash
-```
-### 3. Install python 3.8.10:
-```
-pyenv install 3.8.10
-```
+
+
