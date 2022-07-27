@@ -40,7 +40,7 @@ or multiple dataframes.
 
 ```pycon
 >>> import insight.plotting as p
->>> p.plot_dataset(df)
+>>> p.plot_dataset([df1, df2])
 ```
 
 <div align="center">
