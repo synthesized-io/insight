@@ -1,5 +1,5 @@
 """This module contains various metrics used across synthesized."""
-from typing import Optional, Sequence, Union, cast
+from typing import Any, Dict, Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,11 @@ class StandardDeviation(OneColumnMetric):
         super().__init__(check)
         self.remove_outliers = remove_outliers
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'remove_outliers': self.remove_outliers})
+        return dictionary
+
     @classmethod
     def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()):
         if not check.affine(sr):
@@ -46,7 +51,7 @@ class StandardDeviation(OneColumnMetric):
         affine_mean = Mean()
         d = trimmed_sr - affine_mean(trimmed_sr)
         u = d / np.array(1, dtype=d.dtype)
-        s = np.sqrt(np.sum(u**2))
+        s = np.sqrt(np.sum(u ** 2))
         return s * np.array(1, dtype=d.dtype)
 
 
@@ -54,10 +59,9 @@ class CramersV(TwoColumnMetric):
     """Cramér's V correlation coefficient between nominal variables.
 
     The statistic ranges from 0 to 1, where a value of 0 indicates there is no association between the variables,
-    and 1 indicates maximal association (i.e one variable is completely determined by the other).
+    and 1 indicates maximal association (i.e. one variable is completely determined by the other).
     """
     name = "cramers_v"
-    symmetric = True
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
@@ -84,8 +88,8 @@ class CramersV(TwoColumnMetric):
 
         itab = np.outer(row, col)
         probs = pd.DataFrame(
-            data=itab, index=table_orig.index, columns=table_orig.columns
-        )
+                data=itab, index=table_orig.index, columns=table_orig.columns
+                )
 
         fit = table.sum() * probs
         expected = fit.to_numpy()
@@ -257,6 +261,11 @@ class Norm(TwoColumnMetric):
         super().__init__(check)
         self.ord = ord
 
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'ord': self.ord})
+        return dictionary
+
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
         if check.continuous(sr_a) and check.continuous(sr_b):
@@ -280,15 +289,14 @@ class Norm(TwoColumnMetric):
 
 
 class EarthMoversDistanceBinned(TwoColumnMetric):
-    """
-    Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
+    """Earth movers distance (EMD), aka Wasserstein 1-distance, between two histograms.
 
     The histograms can represent counts of nominal categories or counts on
     an ordinal range. If the latter, they must have equal binning.
 
     Args:
         bin_edges: Optional; If given, this must be an iterable of bin edges for x and y,
-                i.e the output of np.histogram_bin_edges. If None, then it is assumed
+                i.e. the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
 
@@ -309,9 +317,9 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
         Ordinal:
             Given some Pandas serieses.
             >>> sr1 = pd.Series([0.73917425, 0.45634101, 0.0769353, 0.1913571, 0.2978581 ,
-            ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
+                ...                  0.76160552, 0.62878134, 0.14740323, 0.19678186, 0.42713395])
             >>> sr2 = pd.Series([0.14313188, 0.23245435, 0.85235284, 0.7497944 , 0.89014916,
-            ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
+                ...                  0.13817053, 0.57767209, 0.0167717 , 0.25390184, 0.62945724])
 
             Bin the columns.
             >>> bins = np.histogram_bin_edges(pd.concat([sr1, sr2]))
@@ -327,10 +335,15 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     name = "earth_movers_distance_binned"
 
     def __init__(self,
-                 check: Check = ColumnCheck(),
-                 bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
+            check: Check = ColumnCheck(),
+            bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None):
         super().__init__(check)
         self.bin_edges = bin_edges
+
+    def to_dict(self) -> Dict[str, Any]:
+        dictionary = super().to_dict()
+        dictionary.update({'bin_edges': self.bin_edges})
+        return dictionary
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
@@ -367,3 +380,46 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
             bin_centers = self.bin_edges[:-1] + np.diff(self.bin_edges) / 2.
             distance = wasserstein_distance(bin_centers, bin_centers, u_weights=x, v_weights=y)
         return distance
+
+
+class BhattacharyyaCoefficient(TwoColumnMetric):
+    """Bhattacharyya coefficient for approximation of overlap between two probability distributions.
+
+    The statistic ranges from 0 to 1, where 1 indicates a complete overlap in the distributions,
+    and 0 indicates lack of overlap between the distributions. Bhattacharyya coefficient is closely related to Hellinger
+    distance.
+    """
+    name = "bhattacharyya_coefficient"
+
+    @classmethod
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        return np.sum(np.sqrt(cast(pd.Series, p) * cast(pd.Series, q)))
+
+
+class TotalVariationDistance(TwoColumnMetric):
+    """Total Variation Distance between probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+    name = "total_variation_distance"
+
+    @classmethod
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()) -> bool:
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=1) / 2

@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized_insight.check import ColumnCheck
-from synthesized_insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
+from insight.check import ColumnCheck
+from insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
 
 
 @pytest.fixture(scope='module')
@@ -46,8 +46,7 @@ def test_metric_matrix(data):
     cmv = CramersV()
     cmt = CorrMatrix(cmv)
     assert cmt.name == f'{str(cmv)}_matrix'
-    cmv_val_df, cmv_pval_df = cmt(df)
-    assert cmv_pval_df is None
+    cmv_val_df = cmt(df)
     assert all(np.isnan(cmv_val_df[cont1][cont2]) and np.isnan(cmv_val_df[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
     assert all(np.isnan(cmv_val_df[cat][cont]) and np.isnan(cmv_val_df[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
     assert all(not np.isnan(cmv_val_df[cat1][cat2]) and not np.isnan(cmv_val_df[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
