@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized_insight.check import ColumnCheck
-from synthesized_insight.metrics import (
+from insight.check import ColumnCheck
+from insight.metrics import (
     BhattacharyyaCoefficient,
     CramersV,
     EarthMoversDistance,

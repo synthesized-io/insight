@@ -12,7 +12,7 @@ description = "Synthesized data insights and evaluation framework."
 readme = "README.md"
 requires-python = ">= 3.7"
 authors = [
-  { name = "Synthesized Ltd.", email = "sdk-team@synthesized.io" },
+  { name = "Synthesized Ltd.", email = "ml@synthesized.io" },
 ]
 keywords = [
   "metrics",
