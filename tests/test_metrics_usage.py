@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from synthesized_insight.check import ColumnCheck
-from synthesized_insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
+from insight.check import ColumnCheck
+from insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
 
 
 @pytest.fixture(scope='module')

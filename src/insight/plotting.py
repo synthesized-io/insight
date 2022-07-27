@@ -14,7 +14,7 @@ from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from matplotlib.figure import Figure
 
-from synthesized_insight.check import ColumnCheck
+from insight.check import ColumnCheck
 
 COLOR_ORIG = "#FF4D5B"
 COLOR_SYNTH = "#312874"
@@ -28,7 +28,7 @@ def set_plotting_style():
     Sets the default plotting style for matplotlib.
     """
     plt.style.use("seaborn")
-    font_file = "src/synthesized_insight/fonts/inter-v3-latin-regular.ttf"
+    font_file = "src/insight/fonts/inter-v3-latin-regular.ttf"
     try:
         mpl.font_manager.fontManager.addfont(
             Path(font_file).as_posix()

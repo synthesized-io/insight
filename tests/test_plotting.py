@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from synthesized_insight.plotting import (
+from insight.plotting import (
     categorical_distribution_plot,
     continuous_distribution_plot,
     plot_cross_table,
