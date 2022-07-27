@@ -31,5 +31,3 @@ or multiple dataframes.
 >>> import insight.plotting as p
 >>> p.plot_dataset(df)
 ```
-
-
