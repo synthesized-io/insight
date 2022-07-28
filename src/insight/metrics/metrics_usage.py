@@ -1,5 +1,5 @@
 from itertools import permutations
-from typing import Optional, Tuple, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ class CorrMatrix(DataFrameMetric):
         self._metric = metric
         self.name = f'{metric.name}_matrix'
 
-    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame]:
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 

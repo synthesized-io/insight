@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from synthesized_insight.plotting import (
+from insight.plotting import (
     categorical_distribution_plot,
     continuous_distribution_plot,
     plot_cross_table,
@@ -29,7 +29,7 @@ def df_half_b(df):
     return df_half_b
 
 
-def test_plot_cross_table(df_half_a, df_half_b):
+def test_plot_two_cross_tables_not_equal_not_none(df_half_a, df_half_b):
     categories_a = pd.concat((df_half_a['workclass'], df_half_b['workclass'])).unique()
     categories_b = pd.concat((df_half_a['marital-status'], df_half_b['marital-status'])).unique()
     categories_a.sort()
@@ -59,7 +59,7 @@ def test_plot_cross_table(df_half_a, df_half_b):
     assert fig_a != fig_b
 
 
-def test_plot_cross_tables(df_half_a, df_half_b):
+def test_plot_two_pairs_cross_tables_not_equal_not_none(df_half_a, df_half_b):
     fig_a = plot_cross_tables(df_half_a, df_half_b, col_a='workclass', col_b='income')
     assert fig_a is not None
 
@@ -69,12 +69,12 @@ def test_plot_cross_tables(df_half_a, df_half_b):
     assert fig_a != fig_b
 
 
-def test_plot_text_only(df_half_a, df_half_b):
+def test_plot_text_only_not_none(df_half_a, df_half_b):
     fig = plot_text_only("This is the text")
     assert fig is not None
 
 
-def test_plot_categorical_distribution(df_half_a, df_half_b):
+def test_plot_two_categorical_distribution_not_equal_not_none(df_half_a, df_half_b):
     fig_a = categorical_distribution_plot([df_half_a['workclass'], df_half_b['workclass']])
     assert fig_a is not None
 
@@ -84,7 +84,7 @@ def test_plot_categorical_distribution(df_half_a, df_half_b):
     assert fig_a != fig_b
 
 
-def test_continuous_distribution_plot(df_half_a, df_half_b):
+def test_plot_two_continuous_distribution_plot_not_equal_not_none(df_half_a, df_half_b):
     fig_a = continuous_distribution_plot([df_half_a['fnlwgt'], df_half_b['fnlwgt']])
     assert fig_a is not None
 
@@ -94,7 +94,7 @@ def test_continuous_distribution_plot(df_half_a, df_half_b):
     assert fig_a != fig_b
 
 
-def test_plot_dataset(df_half_a, df_half_b):
+def test_plot_dataset_two_datasets_not_equal_not_none(df_half_a, df_half_b):
     fig_a = plot_dataset([df_half_a, df_half_b], max_categories=10000)
     assert fig_a is not None
 
