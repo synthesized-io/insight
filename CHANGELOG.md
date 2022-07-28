@@ -1,6 +1,6 @@
 # 🧿 Insight 0.8
 
-In this release, the package has had an overall with a significant portion of
+In this release, the package has had an overhaul with a significant portion of
 unused code now removed and the rest having been streamlined + improved.
 
 ✨ 🏷️  The package `synthesized-insight` has now been renamed to `insight`
@@ -15,6 +15,7 @@ The metrics can also be **configured from YAML** to allow for simple to
 configure benchmarking and assessment scripts.
 
 ## Changes
+
 - Repository refactor by @Hebruwu (https://github.com/synthesized-io/insight/pull/58)
 - Additional metrics by @Hebruwu (https://github.com/synthesized-io/insight/pull/63)
 - Configure metrics with yaml by @Hebruwu (https://github.com/synthesized-io/insight/pull/66)
