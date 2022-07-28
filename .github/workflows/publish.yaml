@@ -26,11 +26,23 @@ jobs:
           python -m pip install build --user
 
       - name: Build wheel
-        run: python -m build --wheel --outdir dist/ .
+        run: |
+          python -m build --wheel --outdir dist/ .
+          echo "WHEEL_PATH=$(ls dist/*.whl)" >> $GITHUB_ENV
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Add to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            LICENSE.md
+            README.md
+            ${{ env.WHEEL_PATH }}
+          body_path: CHANGELOG.md
 ...
