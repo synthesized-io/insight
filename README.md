@@ -15,8 +15,8 @@ The predominant functions in the package focus on easy-to-use **metrics** and in
 
 ## Installation
 
-```console
-$ pip install 'insight'
+```shell
+pip install insight
 ```
 
 ## Usage
