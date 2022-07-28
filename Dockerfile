@@ -6,7 +6,7 @@ FROM base as builder
 WORKDIR /build
 RUN apk add git
 RUN pip install build setuptools_scm
-COPY setup.py pyproject.toml README.md /build/
+COPY pyproject.toml README.md /build/
 COPY .git /build/.git
 COPY src /build/src
 RUN python -m build -nw --outdir /dist
@@ -19,7 +19,6 @@ RUN pip install -r requirements.txt
 COPY alembic.ini /code/
 COPY migrations /code/migrations
 COPY tests /code/tests
-COPY scripts /code/scripts
 COPY --from=builder /dist/*.whl /dist/
 RUN pip install /dist/*.whl
 CMD /bin/bash

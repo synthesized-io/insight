@@ -115,14 +115,6 @@ dependencies = [
   plugins = "numpy.typing.mypy_plugin, sqlalchemy.ext.mypy.plugin"
 
   [[tool.mypy.overrides]]
-  module = "sklearn.*"
-  ignore_missing_imports = true
-
-  [[tool.mypy.overrides]]
-  module = "scipy.*"
-  ignore_missing_imports = true
-
-  [[tool.mypy.overrides]]
   module = "pandas.*"
   ignore_missing_imports = true
 
