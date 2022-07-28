@@ -35,10 +35,11 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-
+      
       - name: Add to Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.release.tag_name }}
           files: |
             LICENSE.md
             README.md
