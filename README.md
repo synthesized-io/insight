@@ -1,4 +1,4 @@
-# :nazar_amulet: insight
+# 🧿 insight
 
 ![GitHub top language](https://img.shields.io/github/languages/top/synthesized-io/insight?color=%2387B&logo=python&logoColor=cfa5ea)
 ![GitHub](https://img.shields.io/github/license/synthesized-io/insight?color=75b1a4&label=license&logo=Open%20Source%20Initiative&logoColor=%233DD639)
