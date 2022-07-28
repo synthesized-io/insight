@@ -8,11 +8,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "insight"
-description = "Synthesized data insights and evaluation framework."
+description = "A python library for monitoring, comparing and extracting insights from data."
 readme = "README.md"
+license = "BSD-3-Clause"
 requires-python = ">= 3.7"
 authors = [
   { name = "Synthesized Ltd.", email = "ml@synthesized.io" },
+  { name = "Daniel Sabanov", email = "daniel@sadogursky.com" },
+  { name = "Simon Swan", email = "shk.swan@gmail.com" }
 ]
 keywords = [
   "metrics",
@@ -20,7 +23,7 @@ keywords = [
   "evaluation",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "License :: OSI Approved :: BSD License",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
@@ -79,11 +82,8 @@ dependencies = [
     "sphinxcontrib.asciinema == 0.3.3",
   ]
 
-  [project.license]
-  file = "LICENSE.md"
-
   [project.urls]
-  homepage = "https://synthesized.io"
+  homepage = "https://github.com/synthesized-io/insight"
   documentation = "https://docs.synthesized.io/"
   repository = "https://github.com/synthesized-io/insight"
 
