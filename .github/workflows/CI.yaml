@@ -31,16 +31,19 @@ jobs:
           key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}
+
       - name: Create test-venv
         run: |
           python3 -m venv .tenv
           source .tenv/bin/activate
           pip install -U pip build
+
       - name: Install insight
         run: |
           source .tenv/bin/activate
           python -m build --wheel
           pip install $(ls dist/*.whl)[stable,test] --cache-dir .pip-cache
+
       - name: Run unit tests
         run: |
           source .tenv/bin/activate
@@ -56,6 +59,12 @@ jobs:
         with:
           name: coverage
           path: coverage-reports/cobertura.xml
+
+      - uses: codecov/codecov-action@v3
+        with:
+          flags: unittests
+          files: ./coverage-reports/cobertura.xml
+          verbose: true
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
