@@ -5,8 +5,8 @@ import typing
 import pandas as pd
 from sqlalchemy.sql import select
 
-import insight.database.schema as model
 import insight.database.db_connection as connection
+import insight.database.schema as model
 
 ModelType = typing.TypeVar('ModelType', bound='model.Base')
 

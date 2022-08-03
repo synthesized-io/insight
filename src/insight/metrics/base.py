@@ -2,12 +2,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, Union
 
+import pandas as pd
 from sqlalchemy.orm import Session
 
-import insight.database.utils as utils
 import insight.database.schema as model
-
-import pandas as pd
+import insight.database.utils as utils
 
 from ..check import Check, ColumnCheck
 

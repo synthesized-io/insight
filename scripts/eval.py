@@ -1,5 +1,5 @@
-import insight.database.schema as model
 import insight.database.db_connection as connection
+import insight.database.schema as model
 import insight.database.utils as util
 import insight.metrics as mt
 
