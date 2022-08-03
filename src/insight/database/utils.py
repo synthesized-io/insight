@@ -7,8 +7,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
 
 import insight.database.schema as model
-from insight.metrics import OneColumnMetric, TwoColumnMetric
-from insight.metrics.base import DataFrameMetric, TwoDataFrameMetric
 
 NamedModelType = typing.TypeVar('NamedModelType', model.Dataset, model.Metric, model.Version)
 
@@ -33,17 +31,8 @@ def get_df_id(df_name: str, session: Session, num_rows: int = None, num_columns:
     return dataset.id
 
 
-def get_metric_id(metric, session: Session):
+def get_metric_id(metric, session: Session, category: str = None):
     db_metric = get_object_from_db_by_name(metric.name, session, model.Metric)
-    category = None
-    if isinstance(metric, OneColumnMetric):
-        category = 'OneColumnMetric'
-    elif isinstance(metric, TwoColumnMetric):
-        category = 'TwoColumnMetric'
-    elif isinstance(metric, DataFrameMetric):
-        category = 'DataFrameMetric'
-    elif isinstance(metric, TwoDataFrameMetric):
-        category = 'TwoDataFrameMetric'
 
     if db_metric is None:
         with session:

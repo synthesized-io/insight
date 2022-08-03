@@ -60,6 +60,7 @@ class _Metric(ABC):
                         session: Session,
                         dataset_rows: int = None,
                         dataset_col: int = None,
+                        category: str = None,
                         version: str = "v1.10"):
         """
 
@@ -69,9 +70,10 @@ class _Metric(ABC):
             session:
             dataset_rows:
             dataset_col:
+            category:
             version:
         """
-        metric_id = utils.get_metric_id(self, session)
+        metric_id = utils.get_metric_id(self, session, category=category)
         version_id = utils.get_version_id(version, session)
         dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_col)
 
@@ -128,7 +130,13 @@ class OneColumnMetric(_Metric):
 
         if session is not None:
             dataset_name = "Series_" + str(sr.name) if dataset_name is None else dataset_name
-            self.add_to_database(value, dataset_name, session, version=version, dataset_rows=num_rows, dataset_col=1)
+            self.add_to_database(value,
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_rows=num_rows,
+                                 category='OneColumnMetric',
+                                 dataset_col=1)
 
         return value
 
@@ -183,7 +191,13 @@ class TwoColumnMetric(_Metric):
 
         if session is not None:
             dataset_name = "Series_" + str(sr_a.name) if dataset_name is None else dataset_name
-            self.add_to_database(value, dataset_name, session, version=version, dataset_rows=num_rows, dataset_col=1)
+            self.add_to_database(value,
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_rows=num_rows,
+                                 category='TwoColumnMetric',
+                                 dataset_col=1)
 
         return value
 
@@ -217,7 +231,11 @@ class DataFrameMetric(_Metric):
                     raise AttributeError(
                         "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
 
-            self.add_to_database(self.summarize_result(result), dataset_name, session, version=version)
+            self.add_to_database(self.summarize_result(result),
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 category='DataFrameMetric')
         return result
 
     @abstractmethod
@@ -268,7 +286,11 @@ class TwoDataFrameMetric(_Metric):
                         raise AttributeError(
                             "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
 
-            self.add_to_database(self.summarize_result(result), dataset_name, session, version=version)
+            self.add_to_database(self.summarize_result(result),
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 category='TwoDataFrameMetrics')
         return result
 
     @abstractmethod
