@@ -41,7 +41,7 @@ class CorrMatrix(DataFrameMetric):
     """Computes the correlation between each pair of columns in the given dataframe
     and returns the result in a dataframe"""
 
-    def summarize_result(self, result: pd.DataFrame = None):
+    def summarize_result(self, result: pd.DataFrame):
         """
         Give a single value that summarizes the result of the metric. For CorrMatrix it is the maximum value in the
         matrix.
@@ -95,7 +95,7 @@ class TwoColumnMap(TwoDataFrameMetric):
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_val"""
 
-    def summarize_result(self, result: pd.DataFrame = None):
+    def summarize_result(self, result: pd.DataFrame):
         """
         Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
         Args:

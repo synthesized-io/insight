@@ -1,5 +1,5 @@
-from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, Column, ForeignKey 
-from sqlalchemy.orm import declarative_base, relationship 
+from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, Column, ForeignKey
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 Base = declarative_base()
@@ -28,7 +28,7 @@ class Version(Base):
     __tablename__ = "version"
 
     id = Column(INTEGER, primary_key=True)
-    name = Column(VARCHAR(50), nullable=True, default="unversioned")
+    name = Column(VARCHAR(50), nullable=False, default="unversioned")
     created_at = Column(TIMESTAMP, default=func.now())
 
 
@@ -45,4 +45,3 @@ class Result(Base):
     metric: Metric = relationship("Metric")
     dataset: Dataset = relationship("Dataset")
     version: Version = relationship("Version")
-

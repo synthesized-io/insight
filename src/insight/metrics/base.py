@@ -2,12 +2,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, Union
 
+import pandas as pd
 from sqlalchemy.orm import Session
 
-import insight.database.utils as utils
 import insight.database.schema as model
-
-import pandas as pd
+import insight.database.utils as utils
 
 from ..check import Check, ColumnCheck
 
@@ -55,24 +54,31 @@ class _Metric(ABC):
         metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
         return metric
 
-    def add_to_database(self, value, dataset_name: str, session: Session, version: str = "v1.10"):
+    def add_to_database(self,
+                        value,
+                        dataset_name: str,
+                        session: Session,
+                        dataset_rows: int = None,
+                        dataset_col: int = None,
+                        version: str = "v1.10"):
         """
 
         Args:
             value:
             dataset_name:
             session:
+            dataset_rows:
+            dataset_col:
             version:
         """
-        if session is not None:
-            metric_id = utils.get_metric_id(self)
-            version_id = utils.get_version_id(version)
-            dataset_id = utils.get_object_from_name(dataset_name, model_cls=model.Dataset).id
+        metric_id = utils.get_metric_id(self, session)
+        version_id = utils.get_version_id(version, session)
+        dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_col)
 
-            with session:
-                result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
-                session.add(result)
-                session.commit()
+        with session:
+            result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
+            session.add(result)
+            session.commit()
 
 
 class OneColumnMetric(_Metric):
@@ -113,15 +119,16 @@ class OneColumnMetric(_Metric):
                  sr: pd.Series,
                  session: Session = None,
                  dataset_name: str = None,
+                 num_rows: int = None,
                  version: str = "v1.10"):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
             value = self._compute_metric(sr)
-        if dataset_name is None:
-            dataset_name = "Series_" + str(sr.name)
 
-        self.add_to_database(value, dataset_name, session, version=version)
+        if session is not None:
+            dataset_name = "Series_" + str(sr.name) if dataset_name is None else dataset_name
+            self.add_to_database(value, dataset_name, session, version=version, dataset_rows=num_rows, dataset_col=1)
 
         return value
 
@@ -164,18 +171,19 @@ class TwoColumnMetric(_Metric):
 
     def __call__(self,
                  sr_a: pd.Series,
-                 sr_b: pd.Series, session: Session = None,
+                 sr_b: pd.Series,
+                 session: Session = None,
                  dataset_name: str = None,
+                 num_rows: int = None,
                  version: str = "v1.10"):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
             value = self._compute_metric(sr_a, sr_b)
 
-        if dataset_name is None:
-            dataset_name = "Series_" + str(sr_a.name)
-
-        self.add_to_database(value, dataset_name, session, version=version)
+        if session is not None:
+            dataset_name = "Series_" + str(sr_a.name) if dataset_name is None else dataset_name
+            self.add_to_database(value, dataset_name, session, version=version, dataset_rows=num_rows, dataset_col=1)
 
         return value
 
@@ -205,7 +213,7 @@ class DataFrameMetric(_Metric):
             if dataset_name is None:
                 try:
                     dataset_name = df.name
-                except AttributeError as e:
+                except AttributeError:
                     raise AttributeError(
                         "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
 
@@ -252,11 +260,11 @@ class TwoDataFrameMetric(_Metric):
         if session is not None:
             if dataset_name is None:
                 try:
-                    dataset_name = df_old.name
-                except AttributeError as e:
+                    dataset_name = str(df_old.name)     # Explicit cast for mypy.
+                except AttributeError:
                     try:
-                        dataset_name = df_new.name
-                    except AttributeError as e:
+                        dataset_name = str(df_new.name)     # Explicit cast for mypy.
+                    except AttributeError:
                         raise AttributeError(
                             "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
 

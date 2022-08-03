@@ -3,44 +3,73 @@ import re
 import typing
 
 import pandas as pd
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
 
 import insight.database.schema as model
-import insight.database.db_connection as connection
+from insight.metrics import OneColumnMetric, TwoColumnMetric
+from insight.metrics.base import DataFrameMetric, TwoDataFrameMetric
 
-ModelType = typing.TypeVar('ModelType', bound='model.Base')
+NamedModelType = typing.TypeVar('NamedModelType', bound=typing.Union['model.Dataset', 'model.Metric', 'model.Version'])
 
 
-def get_df_and_id(url_or_path: str):
+def get_df(url_or_path: str):
     matched = re.match(r".*\/([a-zA-Z0-9\-_]+)(\.\w{1,4})?", url_or_path)
     if matched is None:
         raise ValueError()
     df = pd.read_csv(url_or_path)
-    name = matched.group(1)
-    dataset = get_object_from_name(name, model.Dataset)
-    return df, dataset.id
+    df.name = matched.group(1)
+    return df
 
 
-def get_metric_id(metric):
-    db_metric = get_object_from_name(metric.name, model.Metric)
+def get_df_id(df_name: str, session: Session, num_rows: int = None, num_columns: int = None):
+    dataset = get_object_from_db_by_name(df_name, session, model.Dataset)
+    if dataset is None:
+        with session:
+            dataset = model.Dataset(name=df_name, num_columns=num_columns, num_rows=num_rows)
+            session.add(dataset)
+            session.commit()
+
+    return dataset.id
+
+
+def get_metric_id(metric, session: Session):
+    db_metric = get_object_from_db_by_name(metric.name, session, model.Metric)
+    category = None
+    if isinstance(metric, OneColumnMetric):
+        category = 'OneColumnMetric'
+    elif isinstance(metric, TwoColumnMetric):
+        category = 'TwoColumnMetric'
+    elif isinstance(metric, DataFrameMetric):
+        category = 'DataFrameMetric'
+    elif isinstance(metric, TwoDataFrameMetric):
+        category = 'TwoDataFrameMetric'
+
+    if db_metric is None:
+        with session:
+            db_metric = model.Metric(name=metric.name, category=category)
+            session.add(db_metric)
+            session.commit()
+
     return db_metric.id
 
 
-def get_version_id(version: str):
-    db_version = get_object_from_name(version, model.Version)
+def get_version_id(version: str, session: Session):
+    db_version = get_object_from_db_by_name(version, session, model.Version)
+    if db_version is None:
+        with session:
+            db_version = model.Version(name=version)
+            session.add(db_version)
+            session.commit()
+
     return db_version.id
 
 
-def get_object_from_name(name: str, model_cls: typing.Type[ModelType]) -> ModelType:
-    with connection.Session(expire_on_commit=False) as session:
+def get_object_from_db_by_name(name: str,
+                               session: Session,
+                               model_cls: typing.Type[NamedModelType]) -> typing.Union[NamedModelType, None]:
+    with session:
         result = session.execute(
-            select(model_cls).where(model_cls.name == name)
+            select(model_cls).where(model_cls.name == name)     # type: ignore
         ).scalar_one_or_none()
-
-        if result is not None:
-            obj = result
-        else:
-            obj = model_cls(name=name)
-            session.add(obj)
-            session.commit()
-    return obj
+        return result
