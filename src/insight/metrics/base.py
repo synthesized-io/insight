@@ -10,6 +10,8 @@ import insight.database.utils as utils
 
 from ..check import Check, ColumnCheck
 
+VERSION = "v1.10"
+
 
 class _Metric(ABC):
     """
@@ -122,7 +124,7 @@ class OneColumnMetric(_Metric):
                  session: Session = None,
                  dataset_name: str = None,
                  num_rows: int = None,
-                 version: str = "v1.10"):
+                 version: str = VERSION):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
@@ -183,7 +185,7 @@ class TwoColumnMetric(_Metric):
                  session: Session = None,
                  dataset_name: str = None,
                  num_rows: int = None,
-                 version: str = "v1.10"):
+                 version: str = VERSION):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
@@ -221,7 +223,7 @@ class DataFrameMetric(_Metric):
                  df: pd.DataFrame,
                  dataset_name: str = None,
                  session: Session = None,
-                 version: str = "v1.10") -> Union[pd.DataFrame, None]:
+                 version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df)
         if session is not None:
             if dataset_name is None:
@@ -273,7 +275,7 @@ class TwoDataFrameMetric(_Metric):
                  df_new: pd.DataFrame,
                  dataset_name: str = None,
                  session: Session = None,
-                 version: str = "v1.10") -> Union[pd.DataFrame, None]:
+                 version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
         if session is not None:
             if dataset_name is None:
