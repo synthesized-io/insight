@@ -10,7 +10,7 @@ import insight.database.schema as model
 from insight.metrics import OneColumnMetric, TwoColumnMetric
 from insight.metrics.base import DataFrameMetric, TwoDataFrameMetric
 
-NamedModelType = typing.TypeVar('NamedModelType', bound=typing.Union['model.Dataset', 'model.Metric', 'model.Version'])
+NamedModelType = typing.TypeVar('NamedModelType', model.Dataset, model.Metric, model.Version)
 
 
 def get_df(url_or_path: str):
@@ -70,6 +70,6 @@ def get_object_from_db_by_name(name: str,
                                model_cls: typing.Type[NamedModelType]) -> typing.Union[NamedModelType, None]:
     with session:
         result = session.execute(
-            select(model_cls).where(model_cls.name == name)     # type: ignore
+            select(model_cls).where(model_cls.name == name)
         ).scalar_one_or_none()
         return result
