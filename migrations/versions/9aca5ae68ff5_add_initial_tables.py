@@ -22,7 +22,6 @@ def upgrade() -> None:
     sa.Column('name', sa.VARCHAR(length=50), nullable=False),
     sa.Column('num_rows', sa.INTEGER(), nullable=True),
     sa.Column('num_columns', sa.INTEGER(), nullable=True),
-    sa.Column('df_meta', sa.JSON(), nullable=True),
     sa.Column('created_at', sa.TIMESTAMP(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )

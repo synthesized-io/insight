@@ -18,6 +18,7 @@ RUN pip install -U pip wheel
 RUN pip install -r requirements.txt
 COPY alembic.ini /code/
 COPY migrations /code/migrations
+COPY scripts /code/scripts
 COPY --from=builder /dist/*.whl /dist/
 RUN pip install /dist/*.whl
 CMD /bin/bash

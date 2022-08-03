@@ -8,11 +8,24 @@ from .base import DataFrameMetric, OneColumnMetric, TwoColumnMetric, TwoDataFram
 
 
 class OneColumnMap(DataFrameMetric):
+    """
+    Mapping of a metric to each column of a dataframe.
+    """
+
+    def summarize_result(self, result: pd.DataFrame):
+        """
+        Give a single value that summarizes the result of the metric. For OneColumnMap it is the mean of the results.
+
+        Args:
+            result: the result of the metric computation.
+        """
+        return result['metric_val'].mean(axis=0)
+
     def __init__(self, metric: OneColumnMetric):
         self._metric = metric
         self.name = f'{metric.name}_map'
 
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
         columns_map = {col: self._metric(df[col]) for col in df.columns}
         result = pd.DataFrame(
             data=columns_map.values(),
@@ -28,11 +41,20 @@ class CorrMatrix(DataFrameMetric):
     """Computes the correlation between each pair of columns in the given dataframe
     and returns the result in a dataframe"""
 
+    def summarize_result(self, result: pd.DataFrame = None):
+        """
+        Give a single value that summarizes the result of the metric. For CorrMatrix it is the maximum value in the
+        matrix.
+        Args:
+            result: the result of the metric computation.
+        """
+        return result.values.max()
+
     def __init__(self, metric: TwoColumnMetric):
         self._metric = metric
         self.name = f'{metric.name}_matrix'
 
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 
@@ -46,11 +68,20 @@ class DiffCorrMatrix(TwoDataFrameMetric):
     """Computes the correlation matrix for each of the given dataframes and return the difference
     between these matrices"""
 
+    def summarize_result(self, result: pd.DataFrame):
+        """
+        Give a single value that summarizes the result of the metric. For DiffCorrMatrix it is the maximum absolute
+        value in the matrix.
+        Args:
+            result: the result of the metric computation.
+        """
+        return result.values.abs().max()
+
     def __init__(self, metric: TwoColumnMetric):
         self._corr_matrix = CorrMatrix(metric)
         self.name = f'diff_{metric.name}'
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
+    def _compute_result(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
         corr_matrix_old = self._corr_matrix(df=df_old)
         corr_matrix_new = self._corr_matrix(df=df_new)
 
@@ -64,11 +95,19 @@ class TwoColumnMap(TwoDataFrameMetric):
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_val"""
 
+    def summarize_result(self, result: pd.DataFrame = None):
+        """
+        Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
+        Args:
+            result: the result of the metric computation.
+        """
+        return result['metric_val'].mean(axis=0)
+
     def __init__(self, metric: TwoColumnMetric):
         self._metric = metric
         self.name = f'{metric.name}_map'
 
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
+    def _compute_result(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
         columns_map = {col: self._metric(df_old[col], df_new[col]) for col in df_old.columns}
         result = pd.DataFrame(
             data=columns_map.values(),

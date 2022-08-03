@@ -1,7 +1,6 @@
-import os
-
-from sqlalchemy import FLOAT, INTEGER, JSON, TIMESTAMP, VARCHAR, Column, ForeignKey, create_engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, Column, ForeignKey 
+from sqlalchemy.orm import declarative_base, relationship 
+from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -13,8 +12,7 @@ class Dataset(Base):
     name = Column(VARCHAR(50), nullable=False)
     num_rows = Column(INTEGER)
     num_columns = Column(INTEGER)
-    df_meta = Column(JSON)
-    created_at = Column(TIMESTAMP)
+    created_at = Column(TIMESTAMP, default=func.now())
 
 
 class Metric(Base):
@@ -23,15 +21,15 @@ class Metric(Base):
     id = Column(INTEGER, primary_key=True)
     name = Column(VARCHAR(50), nullable=False)
     category = Column(VARCHAR(50))
-    created_at = Column(TIMESTAMP)
+    created_at = Column(TIMESTAMP, default=func.now())
 
 
 class Version(Base):
     __tablename__ = "version"
 
     id = Column(INTEGER, primary_key=True)
-    name = Column(VARCHAR(50), nullable=True)
-    created_at = Column(TIMESTAMP)
+    name = Column(VARCHAR(50), nullable=True, default="unversioned")
+    created_at = Column(TIMESTAMP, default=func.now())
 
 
 class Result(Base):
@@ -42,15 +40,9 @@ class Result(Base):
     dataset_id = Column(INTEGER, ForeignKey("dataset.id"))
     version_id = Column(INTEGER, ForeignKey("version.id"))
     value = Column(FLOAT)
-    created_at = Column(TIMESTAMP)
+    created_at = Column(TIMESTAMP, default=func.now())
 
     metric: Metric = relationship("Metric")
     dataset: Dataset = relationship("Dataset")
     version: Version = relationship("Version")
 
-
-engine = create_engine(
-        "postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@postgres:5432".format(**os.environ),
-        future=True
-        )
-Session = sessionmaker(bind=engine, future=True)
