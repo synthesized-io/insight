@@ -61,23 +61,23 @@ class _Metric(ABC):
                         dataset_name: str,
                         session: Session,
                         dataset_rows: int = None,
-                        dataset_col: int = None,
+                        dataset_cols: int = None,
                         category: str = None,
-                        version: str = "v1.10"):
+                        version: str = VERSION):
         """
-
+        Adds the metric result to the database. The metric result should be specified as value.
         Args:
-            value:
-            dataset_name:
-            session:
-            dataset_rows:
-            dataset_col:
-            category:
-            version:
+            value: The result of the metric
+            dataset_name: The name of the dataset on which the metric was run.
+            session: The session of that is connected to the database.
+            dataset_rows: Number of rows in the dataset.
+            dataset_cols: Number of column in the dataset.
+            category: The category of the metric.
+            version: The version on which the test was run.
         """
         metric_id = utils.get_metric_id(self, session, category=category)
         version_id = utils.get_version_id(version, session)
-        dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_col)
+        dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
 
         with session:
             result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
@@ -138,7 +138,7 @@ class OneColumnMetric(_Metric):
                                  version=version,
                                  dataset_rows=num_rows,
                                  category='OneColumnMetric',
-                                 dataset_col=1)
+                                 dataset_cols=1)
 
         return value
 
@@ -199,7 +199,7 @@ class TwoColumnMetric(_Metric):
                                  version=version,
                                  dataset_rows=num_rows,
                                  category='TwoColumnMetric',
-                                 dataset_col=1)
+                                 dataset_cols=1)
 
         return value
 
@@ -223,20 +223,21 @@ class DataFrameMetric(_Metric):
                  df: pd.DataFrame,
                  dataset_name: str = None,
                  session: Session = None,
+                 dataset_rows: int = None,
+                 dataset_cols: int = None,
                  version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df)
         if session is not None:
             if dataset_name is None:
-                try:
-                    dataset_name = df.name
-                except AttributeError:
-                    raise AttributeError(
-                        "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
+                raise AttributeError(
+                     "Must specify the name of the dataset name as a parameter to upload to database.")
 
             self.add_to_database(self.summarize_result(result),
                                  dataset_name,
                                  session,
                                  version=version,
+                                 dataset_rows=dataset_rows,
+                                 dataset_cols=dataset_cols,
                                  category='DataFrameMetric')
         return result
 
@@ -274,6 +275,8 @@ class TwoDataFrameMetric(_Metric):
                  df_old: pd.DataFrame,
                  df_new: pd.DataFrame,
                  dataset_name: str = None,
+                 dataset_rows: int = None,
+                 dataset_cols: int = None,
                  session: Session = None,
                  version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
@@ -282,16 +285,15 @@ class TwoDataFrameMetric(_Metric):
                 try:
                     dataset_name = str(df_old.name)     # Explicit cast for mypy.
                 except AttributeError:
-                    try:
-                        dataset_name = str(df_new.name)     # Explicit cast for mypy.
-                    except AttributeError:
-                        raise AttributeError(
-                            "Must specify the name of the dataset either as a DataFrame.name or as a parameter.")
+                    raise AttributeError(
+                            "Must specify the name of the dataset name as a parameter to upload to database.")
 
             self.add_to_database(self.summarize_result(result),
                                  dataset_name,
                                  session,
                                  version=version,
+                                 dataset_cols=dataset_cols,
+                                 dataset_rows=dataset_rows,
                                  category='TwoDataFrameMetrics')
         return result
 
