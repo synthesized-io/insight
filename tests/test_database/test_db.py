@@ -3,28 +3,36 @@ from math import isclose
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
 
 from insight import metrics
 from insight.database import utils
 from insight.database.schema import Base
 
 
-@pytest.fixture(scope="module")
-def db_session():
-    """
-    Sets up and destroyes an in-memory database for testing of database uploads.
+@pytest.fixture(scope="session")
+def engine():
+    return create_engine("sqlite:///:memory:")
 
-    Returns: Session object which can be used to connect to the database.
-    """
-    # Setup
-    engine = create_engine("sqlite:///:memory:")
-    Session = sessionmaker(bind=engine, future=True)
+
+@pytest.fixture(scope="session")
+def tables(engine):
     Base.metadata.create_all(engine)
-    yield Session
-
-    # Teardown
+    yield
     Base.metadata.drop_all(engine)
+
+
+@pytest.fixture
+def db_session(engine, tables):
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection, expire_on_commit=False)
+
+    yield session
+
+    session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture(scope="module")
@@ -39,7 +47,6 @@ def dataset():
     url = f"{data_directory}/{dataset}"
 
     df = utils.get_df(url)
-    df.name = "test_dataset"
     df = df.dropna()
 
     return df
@@ -102,72 +109,64 @@ def verify_version_table(session, version):
 
 def test_one_column_metric_queries_default_params(db_session, dataset, column):
     metric = metrics.Mean()
-    with db_session(expire_on_commit=False) as session:
-        metric(column, session)
-        verify_results_table(session, metric(column))
-        verify_dataset_table(session, "Series_age", None, 1)
-        verify_metric_table(session, 'mean', 'OneColumnMetric')
-        verify_version_table(session, "v1.10")
+    metric(column, db_session)
+    verify_results_table(db_session, metric(column))
+    verify_dataset_table(db_session, "Series_age", None, 1)
+    verify_metric_table(db_session, 'mean', 'OneColumnMetric')
+    verify_version_table(db_session, "v1.10")
 
 
 def test_one_column_metric_queries_modified_params(db_session, dataset, column):
     metric = metrics.Mean()
-    with db_session(expire_on_commit=False) as session:
-        metric(column, session, num_rows=5, dataset_name="testing_name", version="v2.0")
-        verify_dataset_table(session, "testing_name", 5, 1)
-        verify_version_table(session, "v2.0")
+    metric(column, db_session, num_rows=5, dataset_name="testing_name", version="v2.0")
+    verify_dataset_table(db_session, "testing_name", 5, 1)
+    verify_version_table(db_session, "v2.0")
 
 
 def test_two_column_metric_queries_default_params(db_session, dataset, column):
     metric = metrics.Norm()
-    with db_session(expire_on_commit=False) as session:
-        metric(column, column, session)
-        verify_results_table(session, metric(column, column))
-        verify_dataset_table(session, "Series_age", None, 1)
-        verify_metric_table(session, "norm", "TwoColumnMetric")
-        verify_version_table(session, "v1.10")
+    metric(column, column, db_session)
+    verify_results_table(db_session, metric(column, column))
+    verify_dataset_table(db_session, "Series_age", None, 1)
+    verify_metric_table(db_session, "norm", "TwoColumnMetric")
+    verify_version_table(db_session, "v1.10")
 
 
 def test_two_column_metric_queries_modified_params(db_session, dataset, column):
     metric = metrics.Norm()
-    with db_session(expire_on_commit=False) as session:
-        metric(column, column, session, num_rows=5, dataset_name="testing_name", version="v2.0")
-        verify_dataset_table(session, "testing_name", 5, 1)
-        verify_version_table(session, "v2.0")
+    metric(column, column, db_session, num_rows=5, dataset_name="testing_name", version="v2.0")
+    verify_dataset_table(db_session, "testing_name", 5, 1)
+    verify_version_table(db_session, "v2.0")
 
 
 def test_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean())
-    with db_session(expire_on_commit=False) as session:
-        metric(dataset, session=session, dataset_name="test_dataset")
-        verify_results_table(session, metric.summarize_result(metric(dataset)))
-        verify_dataset_table(session, "test_dataset", None, None)
-        verify_metric_table(session, "mean_map", "DataFrameMetric")
-        verify_version_table(session, "v1.10")
+    metric(dataset, session=db_session, dataset_name="test_dataset")
+    verify_results_table(db_session, metric.summarize_result(metric(dataset)))
+    verify_dataset_table(db_session, "test_dataset", None, None)
+    verify_metric_table(db_session, "mean_map", "DataFrameMetric")
+    verify_version_table(db_session, "v1.10")
 
 
 def test_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean())
-    with db_session(expire_on_commit=False) as session:
-        metric(dataset, session=session, dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
-        verify_dataset_table(session, "test_dataset", num_rows=5, num_cols=6)
-        verify_version_table(session, "v2.0")
+    metric(dataset, session=db_session, dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
+    verify_dataset_table(db_session, "test_dataset", num_rows=5, num_cols=6)
+    verify_version_table(db_session, "v2.0")
 
 
 def test_two_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence())
-    with db_session(expire_on_commit=False) as session:
-        metric(dataset, dataset, session=session, dataset_name="test_dataset")
-        verify_results_table(session, metric.summarize_result(metric(dataset, dataset)))
-        verify_dataset_table(session, "test_dataset", None, None)
-        verify_metric_table(session, "kullback_leibler_divergence_map", "TwoDataFrameMetrics")
-        verify_version_table(session, "v1.10")
+    metric(dataset, dataset, session=db_session, dataset_name="test_dataset")
+    verify_results_table(db_session, metric.summarize_result(metric(dataset, dataset)))
+    verify_dataset_table(db_session, "test_dataset", None, None)
+    verify_metric_table(db_session, "kullback_leibler_divergence_map", "TwoDataFrameMetrics")
+    verify_version_table(db_session, "v1.10")
 
 
 def test_two_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence())
-    with db_session(expire_on_commit=False) as session:
-        metric(dataset, dataset, session=session,
-               dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
-        verify_dataset_table(session, "test_dataset", num_rows=5, num_cols=6)
-        verify_version_table(session, version="v2.0")
+    metric(dataset, dataset, session=db_session,
+           dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
+    verify_dataset_table(db_session, "test_dataset", num_rows=5, num_cols=6)
+    verify_version_table(db_session, version="v2.0")
