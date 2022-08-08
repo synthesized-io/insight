@@ -1,10 +1,16 @@
 """This module contains the base classes for the metrics used across synthesized."""
 from abc import ABC, abstractmethod
-from typing import IO, Any, Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 
 import pandas as pd
+from sqlalchemy.orm import Session
+
+import insight.database.schema as model
+import insight.database.utils as utils
 
 from ..check import Check, ColumnCheck
+
+VERSION = "v1.10"
 
 
 class _Metric(ABC):
@@ -14,7 +20,7 @@ class _Metric(ABC):
     name: Optional[str] = None
     _registry: Dict[str, Type] = {}
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls):
         if cls.name is not None and cls.name not in _Metric._registry:
             _Metric._registry.update({cls.name: cls})
 
@@ -25,6 +31,10 @@ class _Metric(ABC):
         return f"{self.name}"
 
     def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the metric into a dictionary representation of itself.
+        Returns: a dictionary with key value pairs that represent the metric.
+        """
         return {'name': self.name}
 
     @classmethod
@@ -45,6 +55,34 @@ class _Metric(ABC):
 
         metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
         return metric
+
+    def add_to_database(self,
+                        value,
+                        dataset_name: str,
+                        session: Session,
+                        dataset_rows: int = None,
+                        dataset_cols: int = None,
+                        category: str = None,
+                        version: str = VERSION):
+        """
+        Adds the metric result to the database. The metric result should be specified as value.
+        Args:
+            value: The result of the metric
+            dataset_name: The name of the dataset on which the metric was run.
+            session: The session of that is connected to the database.
+            dataset_rows: Number of rows in the dataset.
+            dataset_cols: Number of column in the dataset.
+            category: The category of the metric.
+            version: The version on which the test was run.
+        """
+        metric_id = utils.get_metric_id(self, session, category=category)
+        version_id = utils.get_version_id(version, session)
+        dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
+
+        with session:
+            result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
+            session.add(result)
+            session.commit()
 
 
 class OneColumnMetric(_Metric):
@@ -69,16 +107,40 @@ class OneColumnMetric(_Metric):
     @classmethod
     @abstractmethod
     def check_column_types(cls, sr: pd.Series, check: Check = ColumnCheck()) -> bool:
+        """
+        Check that the column type of the series satisfy the requirements of the metric.
+        Args:
+            sr: the series to check.
+            check: the check that is used.
+        """
         ...
 
     @abstractmethod
     def _compute_metric(self, sr: pd.Series):
         ...
 
-    def __call__(self, sr: pd.Series):
+    def __call__(self,
+                 sr: pd.Series,
+                 session: Session = None,
+                 dataset_name: str = None,
+                 num_rows: int = None,
+                 version: str = VERSION):
         if not self.check_column_types(sr, self.check):
-            return None
-        return self._compute_metric(sr)
+            value = None
+        else:
+            value = self._compute_metric(sr)
+
+        if session is not None:
+            dataset_name = "Series_" + str(sr.name) if dataset_name is None else dataset_name
+            self.add_to_database(value,
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_rows=num_rows,
+                                 category='OneColumnMetric',
+                                 dataset_cols=1)
+
+        return value
 
 
 class TwoColumnMetric(_Metric):
@@ -104,16 +166,42 @@ class TwoColumnMetric(_Metric):
     @classmethod
     @abstractmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
+        """
+        Check that the column types of the serieses satisfy the requirements of the metric.
+        Args:
+            sr_a: the first series to check.
+            sr_b: the second series to check.
+            check: the check that is used.
+        """
         ...
 
     @abstractmethod
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         ...
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series):
+    def __call__(self,
+                 sr_a: pd.Series,
+                 sr_b: pd.Series,
+                 session: Session = None,
+                 dataset_name: str = None,
+                 num_rows: int = None,
+                 version: str = VERSION):
         if not self.check_column_types(sr_a, sr_b, self.check):
-            return None
-        return self._compute_metric(sr_a, sr_b)
+            value = None
+        else:
+            value = self._compute_metric(sr_a, sr_b)
+
+        if session is not None:
+            dataset_name = "Series_" + str(sr_a.name) if dataset_name is None else dataset_name
+            self.add_to_database(value,
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_rows=num_rows,
+                                 category='TwoColumnMetric',
+                                 dataset_cols=1)
+
+        return value
 
 
 class DataFrameMetric(_Metric):
@@ -131,10 +219,40 @@ class DataFrameMetric(_Metric):
         >>> metric(df)
         3
     """
+    def __call__(self,
+                 df: pd.DataFrame,
+                 dataset_name: str = None,
+                 session: Session = None,
+                 dataset_rows: int = None,
+                 dataset_cols: int = None,
+                 version: str = VERSION) -> Union[pd.DataFrame, None]:
+        result = self._compute_result(df)
+        if session is not None:
+            if dataset_name is None:
+                raise AttributeError(
+                     "Must specify the name of the dataset name as a parameter to upload to database.")
+
+            self.add_to_database(self.summarize_result(result),
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_rows=dataset_rows,
+                                 dataset_cols=dataset_cols,
+                                 category='DataFrameMetric')
+        return result
 
     @abstractmethod
-    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, None]:
-        pass
+    def _compute_result(self, df: pd.DataFrame):
+        ...
+
+    @abstractmethod
+    def summarize_result(self, result):
+        """
+        Give a single value that summarizes the result of the metric.
+        Args:
+            result: the result of the metric computation.
+        """
+        ...
 
 
 class TwoDataFrameMetric(_Metric):
@@ -153,7 +271,41 @@ class TwoDataFrameMetric(_Metric):
         0.90
 
     """
+    def __call__(self,
+                 df_old: pd.DataFrame,
+                 df_new: pd.DataFrame,
+                 dataset_name: str = None,
+                 dataset_rows: int = None,
+                 dataset_cols: int = None,
+                 session: Session = None,
+                 version: str = VERSION) -> Union[pd.DataFrame, None]:
+        result = self._compute_result(df_old, df_new)
+        if session is not None:
+            if dataset_name is None:
+                try:
+                    dataset_name = str(df_old.name)     # Explicit cast for mypy.
+                except AttributeError:
+                    raise AttributeError(
+                            "Must specify the name of the dataset name as a parameter to upload to database.")
+
+            self.add_to_database(self.summarize_result(result),
+                                 dataset_name,
+                                 session,
+                                 version=version,
+                                 dataset_cols=dataset_cols,
+                                 dataset_rows=dataset_rows,
+                                 category='TwoDataFrameMetrics')
+        return result
 
     @abstractmethod
-    def __call__(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> Union[pd.DataFrame, None]:
-        pass
+    def _compute_result(self, df_old, df_new):
+        ...
+
+    @abstractmethod
+    def summarize_result(self, result):
+        """
+        Give a single value that summarizes the result of the metric.
+        Args:
+            result: the result of the metric computation.
+        """
+        ...
