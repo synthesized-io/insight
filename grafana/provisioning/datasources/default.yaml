@@ -1,0 +1,33 @@
+# # config file version
+apiVersion: 1
+
+datasources:
+ - name: Evaluation Results
+   type: postgres
+   access: proxy
+   orgId: 1
+   url: postgres:5432
+   user: ${POSTGRES_USER}
+   database: postgres
+   basicAuth: false
+   basicAuthUser:
+   basicAuthPassword:
+   withCredentials: false
+   isDefault: true
+   jsonData:
+      tlsAuthWithCACert: false
+      tlsSkipVerify: true
+      timeInterval: "1m"
+      sslmode: "disable"
+      postgresVersion: 1200
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+   secureJsonData:
+     tlsCACert: ""
+     tlsClientCert: ""
+     tlsClientKey: ""
+     password: ${POSTGRES_PASSWORD}
+   version: 1
+   # <bool> allow users to edit datasources from the UI.
+   editable: true
