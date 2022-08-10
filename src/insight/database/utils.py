@@ -10,6 +10,7 @@ import insight.database.schema as model
 
 NamedModelType = typing.TypeVar('NamedModelType', model.Dataset, model.Metric, model.Version)
 
+_database_fail_note = "Failure to communicate with the database"
 
 def get_df(url_or_path: str):
     matched = re.match(r".*\/([a-zA-Z0-9\-_]+)(\.\w{1,4})?", url_or_path)
@@ -39,7 +40,7 @@ def get_df_id(
             session.add(dataset)
             session.commit()
     if not dataset.id:
-        raise ConnectionError("Failure to communicate with the database")
+        raise ConnectionError(_database_fail_note)
     return int(dataset.id)
 
 
@@ -59,7 +60,7 @@ def get_metric_id(metric, session: Session, category: str = None) -> int:
             session.add(db_metric)
             session.commit()
     if not db_metric.id:
-        raise ConnectionError("Failure to communicate with the database")
+        raise ConnectionError(_database_fail_note)
     return int(db_metric.id)
 
 
@@ -77,7 +78,7 @@ def get_version_id(version: str, session: Session) -> int:
             session.add(db_version)
             session.commit()
     if not db_version.id:
-        raise ConnectionError("Failure to communicate with the database")
+        raise ConnectionError(_database_fail_note)
     return int(db_version.id)
 
 
