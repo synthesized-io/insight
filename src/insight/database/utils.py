@@ -44,7 +44,7 @@ def get_df_id(
     return int(dataset.id)
 
 
-def get_metric_id(metric, session: Session, category: str = None) -> int:
+def get_metric_id(metric: str, session: Session, category: str = None) -> int:
     """Get the id of a metric in the database. If it doesn't exist, create it.
 
     Args:
@@ -52,11 +52,11 @@ def get_metric_id(metric, session: Session, category: str = None) -> int:
         session (Session): The database session.
         category (str): The category of the metric. Optional.
     """
-    db_metric = get_object_from_db_by_name(metric.name, session, model.Metric)
+    db_metric = get_object_from_db_by_name(metric, session, model.Metric)
 
     if db_metric is None:
         with session:
-            db_metric = model.Metric(name=metric.name, category=category)
+            db_metric = model.Metric(name=metric, category=category)
             session.add(db_metric)
             session.commit()
     if not db_metric.id:

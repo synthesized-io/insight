@@ -1,4 +1,5 @@
 """This module contains the base classes for the metrics used across synthesized."""
+import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, Union
 
@@ -10,14 +11,12 @@ import insight.database.utils as utils
 
 from ..check import Check, ColumnCheck
 
-VERSION = "v1.10"
-
 
 class _Metric(ABC):
     """
     An abstract base class from which more detailed metrics are derived.
     """
-    name: Optional[str] = None
+    name: str
     _registry: Dict[str, Type] = {}
 
     def __init_subclass__(cls):
@@ -56,14 +55,13 @@ class _Metric(ABC):
         metric = _Metric._registry[bluprnt['name']](**bluprnt_params)
         return metric
 
-    def add_to_database(self,
-                        value,
-                        dataset_name: str,
-                        session: Session,
-                        dataset_rows: int = None,
-                        dataset_cols: int = None,
-                        category: str = None,
-                        version: str = VERSION):
+    def _add_to_database(self,
+                         value,
+                         dataset_name: str,
+                         session: Session,
+                         dataset_rows: int = None,
+                         dataset_cols: int = None,
+                         category: str = None):
         """
         Adds the metric result to the database. The metric result should be specified as value.
         Args:
@@ -75,7 +73,9 @@ class _Metric(ABC):
             category: The category of the metric.
             version: The version on which the test was run.
         """
-        metric_id = utils.get_metric_id(self, session, category=category)
+        version = os.getenv("VERSION")
+        version = version if version else "Unversioned"
+        metric_id = utils.get_metric_id(self.name, session, category=category)
         version_id = utils.get_version_id(version, session)
         dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
 
@@ -122,9 +122,7 @@ class OneColumnMetric(_Metric):
     def __call__(self,
                  sr: pd.Series,
                  session: Session = None,
-                 dataset_name: str = None,
-                 num_rows: int = None,
-                 version: str = VERSION):
+                 dataset_name: str = None):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
@@ -132,13 +130,12 @@ class OneColumnMetric(_Metric):
 
         if session is not None:
             dataset_name = "Series_" + str(sr.name) if dataset_name is None else dataset_name
-            self.add_to_database(value,
-                                 dataset_name,
-                                 session,
-                                 version=version,
-                                 dataset_rows=num_rows,
-                                 category='OneColumnMetric',
-                                 dataset_cols=1)
+            self._add_to_database(value,
+                                  dataset_name,
+                                  session,
+                                  dataset_rows=len(sr),
+                                  category='OneColumnMetric',
+                                  dataset_cols=1)
 
         return value
 
@@ -183,9 +180,7 @@ class TwoColumnMetric(_Metric):
                  sr_a: pd.Series,
                  sr_b: pd.Series,
                  session: Session = None,
-                 dataset_name: str = None,
-                 num_rows: int = None,
-                 version: str = VERSION):
+                 dataset_name: str = None):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
@@ -193,13 +188,12 @@ class TwoColumnMetric(_Metric):
 
         if session is not None:
             dataset_name = "Series_" + str(sr_a.name) if dataset_name is None else dataset_name
-            self.add_to_database(value,
-                                 dataset_name,
-                                 session,
-                                 version=version,
-                                 dataset_rows=num_rows,
-                                 category='TwoColumnMetric',
-                                 dataset_cols=1)
+            self._add_to_database(value,
+                                  dataset_name,
+                                  session,
+                                  dataset_rows=len(sr_a),
+                                  category='TwoColumnMetric',
+                                  dataset_cols=1)
 
         return value
 
@@ -219,29 +213,27 @@ class DataFrameMetric(_Metric):
         >>> metric(df)
         3
     """
-    def __call__(self,
-                 df: pd.DataFrame,
+
+    def __call__(self, df: pd.DataFrame,
                  dataset_name: str = None,
-                 session: Session = None,
-                 version: str = VERSION) -> Union[pd.DataFrame, None]:
+                 session: Session = None) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df)
         dataset_rows = df.shape[0]
         dataset_cols = df.shape[1]
         if session is not None:
             if dataset_name is None:
                 try:
-                    dataset_name = str(df.name) # Explicit cast for mypy
+                    dataset_name = str(df.name)  # Explicit cast for mypy
                 except AttributeError:
                     raise AttributeError(
                         "Must specify the name of the dataset name as a parameter to upload to database.")
 
-            self.add_to_database(self.summarize_result(result),
-                                 dataset_name,
-                                 session,
-                                 version=version,
-                                 dataset_rows=dataset_rows,
-                                 dataset_cols=dataset_cols,
-                                 category='DataFrameMetric')
+            self._add_to_database(self.summarize_result(result),
+                                  dataset_name,
+                                  session,
+                                  dataset_rows=dataset_rows,
+                                  dataset_cols=dataset_cols,
+                                  category='DataFrameMetric')
         return result
 
     @abstractmethod
@@ -274,30 +266,29 @@ class TwoDataFrameMetric(_Metric):
         0.90
 
     """
+
     def __call__(self,
                  df_old: pd.DataFrame,
                  df_new: pd.DataFrame,
                  dataset_name: str = None,
-                 session: Session = None,
-                 version: str = VERSION) -> Union[pd.DataFrame, None]:
+                 session: Session = None) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
         if session is not None:
             if dataset_name is None:
                 try:
-                    dataset_name = str(df_old.name)     # Explicit cast for mypy.
+                    dataset_name = str(df_old.name)  # Explicit cast for mypy.
                 except AttributeError:
                     raise AttributeError(
-                            "Must specify the name of the dataset name as a parameter to upload to database.")
+                        "Must specify the name of the dataset name as a parameter to upload to database.")
 
-            self.add_to_database(self.summarize_result(result),
-                                 dataset_name,
-                                 session,
-                                 version=version,
-                                 dataset_cols=dataset_cols,
-                                 dataset_rows=dataset_rows,
-                                 category='TwoDataFrameMetrics')
+            self._add_to_database(self.summarize_result(result),
+                                  dataset_name,
+                                  session,
+                                  dataset_cols=dataset_cols,
+                                  dataset_rows=dataset_rows,
+                                  category='TwoDataFrameMetrics')
         return result
 
     @abstractmethod
