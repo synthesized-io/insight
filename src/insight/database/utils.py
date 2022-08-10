@@ -54,7 +54,13 @@ def get_metric_id(metric, session: Session, category: str = None):
     return db_metric.id
 
 
-def get_version_id(version: str, session: Session):
+def get_version_id(version: str, session: Session) -> int:
+    """Get the id of a version in the database. If it doesn't exist, create it.
+
+    Args:
+        version (str): The name of the version.
+        session (Session): The database session.
+    """
     db_version = get_object_from_db_by_name(version, session, model.Version)
     if db_version is None:
         with session:
