@@ -20,7 +20,18 @@ def get_df(url_or_path: str):
     return df
 
 
-def get_df_id(df_name: str, session: Session, num_rows: int = None, num_columns: int = None):
+def get_df_id(
+    df_name: str, session: Session, num_rows: int = None, num_columns: int = None
+) -> int:
+    """Get the id of a dataframe in the database. If it doesn't exist, create it.
+
+    Args:
+        df_name (str): The name of the dataframe.
+        session (Session): The database session.
+        num_rows (int): The number of rows in the dataframe. Optional.
+        num_columns (int): The number of columns in the dataframe. Optional.
+
+    """
     dataset = get_object_from_db_by_name(df_name, session, model.Dataset)
     if dataset is None:
         with session:
