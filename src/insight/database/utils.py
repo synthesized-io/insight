@@ -43,7 +43,14 @@ def get_df_id(
     return int(dataset.id)
 
 
-def get_metric_id(metric, session: Session, category: str = None):
+def get_metric_id(metric, session: Session, category: str = None) -> int:
+    """Get the id of a metric in the database. If it doesn't exist, create it.
+
+    Args:
+        metric (str): The name of the metric.
+        session (Session): The database session.
+        category (str): The category of the metric. Optional.
+    """
     db_metric = get_object_from_db_by_name(metric.name, session, model.Metric)
 
     if db_metric is None:
