@@ -71,9 +71,16 @@ def get_version_id(version: str, session: Session) -> int:
     return db_version.id
 
 
-def get_object_from_db_by_name(name: str,
-                               session: Session,
-                               model_cls: typing.Type[NamedModelType]) -> typing.Union[NamedModelType, None]:
+def get_object_from_db_by_name(
+    name: str, session: Session, model_cls: typing.Type[NamedModelType]
+) -> typing.Union[NamedModelType, None]:
+    """Get an object from the database by name.
+
+    Args:
+        name (str): The name of the object.
+        session (Session): The database session.
+        model_cls (typing.Type[NamedModelType]): The class of the object.
+    """
     with session:
         result = session.execute(
             select(model_cls).where(model_cls.name == name)
