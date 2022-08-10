@@ -77,15 +77,8 @@ def verify_dataset_table(session, table_name, num_rows, num_cols):
     dataset_table = session.execute(text("SELECT * FROM dataset WHERE id == 1")).fetchall()[0]
     assert dataset_table[0] == 1
     assert dataset_table[1] == table_name
-
-    if num_rows is None:
-        assert dataset_table[2] is None
-    else:
-        assert dataset_table[2] == num_rows
-    if num_cols is None:
-        assert dataset_table[3] is None
-    else:
-        assert dataset_table[3] == num_cols
+    assert dataset_table[2] == num_rows
+    assert dataset_table[3] == num_cols
 
 
 def verify_metric_table(session, name, category):
@@ -107,7 +100,7 @@ def verify_version_table(session, version):
     assert version_table[1] == version
 
 
-def test_one_column_metric_queries_default_params(db_session, dataset, column):
+def test_one_column_metric_queries_default_params(db_session, column):
     metric = metrics.Mean()
     metric(column, db_session)
     verify_results_table(db_session, metric(column))
@@ -116,14 +109,14 @@ def test_one_column_metric_queries_default_params(db_session, dataset, column):
     verify_version_table(db_session, "v1.10")
 
 
-def test_one_column_metric_queries_modified_params(db_session, dataset, column):
+def test_one_column_metric_queries_modified_params(db_session, column):
     metric = metrics.Mean()
     metric(column, db_session, num_rows=5, dataset_name="testing_name", version="v2.0")
     verify_dataset_table(db_session, "testing_name", 5, 1)
     verify_version_table(db_session, "v2.0")
 
 
-def test_two_column_metric_queries_default_params(db_session, dataset, column):
+def test_two_column_metric_queries_default_params(db_session, column):
     metric = metrics.Norm()
     metric(column, column, db_session)
     verify_results_table(db_session, metric(column, column))
@@ -132,7 +125,7 @@ def test_two_column_metric_queries_default_params(db_session, dataset, column):
     verify_version_table(db_session, "v1.10")
 
 
-def test_two_column_metric_queries_modified_params(db_session, dataset, column):
+def test_two_column_metric_queries_modified_params(db_session, column):
     metric = metrics.Norm()
     metric(column, column, db_session, num_rows=5, dataset_name="testing_name", version="v2.0")
     verify_dataset_table(db_session, "testing_name", 5, 1)
@@ -143,15 +136,15 @@ def test_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean())
     metric(dataset, session=db_session, dataset_name="test_dataset")
     verify_results_table(db_session, metric.summarize_result(metric(dataset)))
-    verify_dataset_table(db_session, "test_dataset", None, None)
+    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
     verify_metric_table(db_session, "mean_map", "DataFrameMetric")
     verify_version_table(db_session, "v1.10")
 
 
 def test_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean())
-    metric(dataset, session=db_session, dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
-    verify_dataset_table(db_session, "test_dataset", num_rows=5, num_cols=6)
+    metric(dataset, session=db_session, dataset_name="test_dataset", version="v2.0")
+    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
     verify_version_table(db_session, "v2.0")
 
 
@@ -159,7 +152,7 @@ def test_two_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence())
     metric(dataset, dataset, session=db_session, dataset_name="test_dataset")
     verify_results_table(db_session, metric.summarize_result(metric(dataset, dataset)))
-    verify_dataset_table(db_session, "test_dataset", None, None)
+    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
     verify_metric_table(db_session, "kullback_leibler_divergence_map", "TwoDataFrameMetrics")
     verify_version_table(db_session, "v1.10")
 
@@ -167,6 +160,6 @@ def test_two_dataframe_queries_default_params(db_session, dataset):
 def test_two_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence())
     metric(dataset, dataset, session=db_session,
-           dataset_name="test_dataset", dataset_rows=5, dataset_cols=6, version="v2.0")
-    verify_dataset_table(db_session, "test_dataset", num_rows=5, num_cols=6)
+           dataset_name="test_dataset", version="v2.0")
+    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
     verify_version_table(db_session, version="v2.0")
