@@ -38,8 +38,9 @@ def get_df_id(
             dataset = model.Dataset(name=df_name, num_columns=num_columns, num_rows=num_rows)
             session.add(dataset)
             session.commit()
-
-    return dataset.id
+    if not dataset.id:
+        raise ConnectionError("Failure to communicate with the database")
+    return int(dataset.id)
 
 
 def get_metric_id(metric, session: Session, category: str = None):
@@ -67,8 +68,9 @@ def get_version_id(version: str, session: Session) -> int:
             db_version = model.Version(name=version)
             session.add(db_version)
             session.commit()
-
-    return db_version.id
+    if not db_version.id:
+        raise ConnectionError("Failure to communicate with the database")
+    return int(db_version.id)
 
 
 def get_object_from_db_by_name(
