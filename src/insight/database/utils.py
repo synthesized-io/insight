@@ -58,8 +58,9 @@ def get_metric_id(metric, session: Session, category: str = None) -> int:
             db_metric = model.Metric(name=metric.name, category=category)
             session.add(db_metric)
             session.commit()
-
-    return db_metric.id
+    if not db_metric.id:
+        raise ConnectionError("Failure to communicate with the database")
+    return int(db_metric.id)
 
 
 def get_version_id(version: str, session: Session) -> int:

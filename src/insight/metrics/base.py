@@ -223,14 +223,17 @@ class DataFrameMetric(_Metric):
                  df: pd.DataFrame,
                  dataset_name: str = None,
                  session: Session = None,
-                 dataset_rows: int = None,
-                 dataset_cols: int = None,
                  version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df)
+        dataset_rows = df.shape[0]
+        dataset_cols = df.shape[1]
         if session is not None:
             if dataset_name is None:
-                raise AttributeError(
-                     "Must specify the name of the dataset name as a parameter to upload to database.")
+                try:
+                    dataset_name = str(df.name) # Explicit cast for mypy
+                except AttributeError:
+                    raise AttributeError(
+                        "Must specify the name of the dataset name as a parameter to upload to database.")
 
             self.add_to_database(self.summarize_result(result),
                                  dataset_name,
@@ -275,11 +278,11 @@ class TwoDataFrameMetric(_Metric):
                  df_old: pd.DataFrame,
                  df_new: pd.DataFrame,
                  dataset_name: str = None,
-                 dataset_rows: int = None,
-                 dataset_cols: int = None,
                  session: Session = None,
                  version: str = VERSION) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
+        dataset_rows = df_old.shape[0]
+        dataset_cols = df_old.shape[1]
         if session is not None:
             if dataset_name is None:
                 try:
