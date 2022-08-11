@@ -16,8 +16,9 @@ class _Metric(ABC):
     """
     An abstract base class from which more detailed metrics are derived.
     """
-    name: str
+    name: Optional[str] = None
     _registry: Dict[str, Type] = {}
+    _session: Optional[Session] = utils.get_session()
 
     def __init_subclass__(cls):
         if cls.name is not None and cls.name not in _Metric._registry:
@@ -58,7 +59,6 @@ class _Metric(ABC):
     def _add_to_database(self,
                          value,
                          dataset_name: str,
-                         session: Session,
                          dataset_rows: int = None,
                          dataset_cols: int = None,
                          category: str = None):
@@ -67,7 +67,6 @@ class _Metric(ABC):
         Args:
             value: The result of the metric
             dataset_name: The name of the dataset on which the metric was run.
-            session: The session of that is connected to the database.
             dataset_rows: Number of rows in the dataset.
             dataset_cols: Number of column in the dataset.
             category: The category of the metric.
@@ -75,11 +74,17 @@ class _Metric(ABC):
         """
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
-        metric_id = utils.get_metric_id(self.name, session, category=category)
-        version_id = utils.get_version_id(version, session)
-        dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
 
-        with session:
+        if self._session is None:
+            raise RuntimeError("Called a database function when no database exists.")
+
+        if self.name is None:
+            raise AttributeError("Every initializeable subclass of _Metric must have a name string")
+
+        with self._session as session:
+            metric_id = utils.get_metric_id(self.name, session, category=category)
+            version_id = utils.get_version_id(version, session)
+            dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
             result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
             session.add(result)
             session.commit()
@@ -101,8 +106,23 @@ class OneColumnMetric(_Metric):
         0.5
     """
 
-    def __init__(self, check: Check = ColumnCheck()):
+    def __init__(self, check: Check = ColumnCheck(), upload_to_database=True):
         self.check = check
+        self._upload_to_database = upload_to_database and self._session is not None
+
+    def _disable_database_upload(self):
+        """
+        Disables logging metrics into the database until enable_database_upload_if_exists is called. The call will have
+        no effect if database integration was already disabled.
+        """
+        self._upload_to_database = False
+
+    def _enable_database_upload_if_exists(self):
+        """
+        Enables logging metrics into the database until the next call. The call will have no effect if database
+        integration was already disabled.
+        """
+        self._upload_to_database = self._session is not None
 
     @classmethod
     @abstractmethod
@@ -121,18 +141,16 @@ class OneColumnMetric(_Metric):
 
     def __call__(self,
                  sr: pd.Series,
-                 session: Session = None,
                  dataset_name: str = None):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
             value = self._compute_metric(sr)
 
-        if session is not None:
+        if self._upload_to_database:
             dataset_name = "Series_" + str(sr.name) if dataset_name is None else dataset_name
             self._add_to_database(value,
                                   dataset_name,
-                                  session,
                                   dataset_rows=len(sr),
                                   category='OneColumnMetric',
                                   dataset_cols=1)
@@ -157,8 +175,23 @@ class TwoColumnMetric(_Metric):
 
     """
 
-    def __init__(self, check: Check = ColumnCheck()):
+    def __init__(self, check: Check = ColumnCheck(), upload_to_database=True):
         self.check = check
+        self._upload_to_database = upload_to_database and self._session is not None
+
+    def _disable_database_upload(self):
+        """
+        Disables logging metrics into the database until enable_database_upload_if_exists is called. The call will have
+        no effect if database integration was already disabled.
+        """
+        self._upload_to_database = False
+
+    def _enable_database_upload_if_exists(self):
+        """
+        Enables logging metrics into the database until the next call. The call will have no effect if database
+        integration was already disabled.
+        """
+        self._upload_to_database = self._session is not None
 
     @classmethod
     @abstractmethod
@@ -176,21 +209,16 @@ class TwoColumnMetric(_Metric):
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         ...
 
-    def __call__(self,
-                 sr_a: pd.Series,
-                 sr_b: pd.Series,
-                 session: Session = None,
-                 dataset_name: str = None):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: str = None):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
             value = self._compute_metric(sr_a, sr_b)
 
-        if session is not None:
+        if self._upload_to_database:
             dataset_name = "Series_" + str(sr_a.name) if dataset_name is None else dataset_name
             self._add_to_database(value,
                                   dataset_name,
-                                  session,
                                   dataset_rows=len(sr_a),
                                   category='TwoColumnMetric',
                                   dataset_cols=1)
@@ -214,13 +242,11 @@ class DataFrameMetric(_Metric):
         3
     """
 
-    def __call__(self, df: pd.DataFrame,
-                 dataset_name: str = None,
-                 session: Session = None) -> Union[pd.DataFrame, None]:
+    def __call__(self, df: pd.DataFrame, dataset_name: str = None) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df)
         dataset_rows = df.shape[0]
         dataset_cols = df.shape[1]
-        if session is not None:
+        if self._session is not None:
             if dataset_name is None:
                 try:
                     dataset_name = str(df.name)  # Explicit cast for mypy
@@ -230,7 +256,6 @@ class DataFrameMetric(_Metric):
 
             self._add_to_database(self.summarize_result(result),
                                   dataset_name,
-                                  session,
                                   dataset_rows=dataset_rows,
                                   dataset_cols=dataset_cols,
                                   category='DataFrameMetric')
@@ -270,12 +295,11 @@ class TwoDataFrameMetric(_Metric):
     def __call__(self,
                  df_old: pd.DataFrame,
                  df_new: pd.DataFrame,
-                 dataset_name: str = None,
-                 session: Session = None) -> Union[pd.DataFrame, None]:
+                 dataset_name: str = None) -> Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
-        if session is not None:
+        if self._session is not None:
             if dataset_name is None:
                 try:
                     dataset_name = str(df_old.name)  # Explicit cast for mypy.
@@ -285,7 +309,6 @@ class TwoDataFrameMetric(_Metric):
 
             self._add_to_database(self.summarize_result(result),
                                   dataset_name,
-                                  session,
                                   dataset_cols=dataset_cols,
                                   dataset_rows=dataset_rows,
                                   category='TwoDataFrameMetrics')

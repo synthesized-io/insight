@@ -1,9 +1,11 @@
 """Utils for fetching information from the backend DB."""
+import os
 import re
 import typing
 
 import pandas as pd
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import select
 
 import insight.database.schema as model
@@ -11,6 +13,7 @@ import insight.database.schema as model
 NamedModelType = typing.TypeVar('NamedModelType', model.Dataset, model.Metric, model.Version)
 
 _database_fail_note = "Failure to communicate with the database"
+
 
 def get_df(url_or_path: str):
     matched = re.match(r".*\/([a-zA-Z0-9\-_]+)(\.\w{1,4})?", url_or_path)
@@ -22,7 +25,7 @@ def get_df(url_or_path: str):
 
 
 def get_df_id(
-    df_name: str, session: Session, num_rows: int = None, num_columns: int = None
+        df_name: str, session: Session, num_rows: int = None, num_columns: int = None
 ) -> int:
     """Get the id of a dataframe in the database. If it doesn't exist, create it.
 
@@ -83,7 +86,7 @@ def get_version_id(version: str, session: Session) -> int:
 
 
 def get_object_from_db_by_name(
-    name: str, session: Session, model_cls: typing.Type[NamedModelType]
+        name: str, session: Session, model_cls: typing.Type[NamedModelType]
 ) -> typing.Union[NamedModelType, None]:
     """Get an object from the database by name.
 
@@ -97,3 +100,22 @@ def get_object_from_db_by_name(
             select(model_cls).where(model_cls.name == name)
         ).scalar_one_or_none()
         return result
+
+
+def get_session() -> typing.Optional[Session]:
+    """
+    If a database exists, returns a sessionmaker object. Else returns None.
+    Returns: sessionmaker object that can be used to access the database.
+
+    """
+    try:
+        db_url = "postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@" \
+                 "{POSTGRES_HOST}:{POSTGRES_PORT}".format(**os.environ)
+        engine = create_engine(db_url, future=True)
+
+        session_constructor = sessionmaker(bind=engine, future=True)
+        session = session_constructor(expire_on_commit=False)
+    except KeyError:
+        session = None
+
+    return session
