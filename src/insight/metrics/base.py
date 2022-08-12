@@ -248,9 +248,8 @@ class DataFrameMetric(_Metric):
         dataset_cols = df.shape[1]
         if self._session is not None:
             if dataset_name is None:
-                try:
-                    dataset_name = str(df.name)  # Explicit cast for mypy
-                except AttributeError:
+                dataset_name = df.attrs.get("name")  # Explicit cast for mypy.
+                if dataset_name is None:
                     raise AttributeError(
                         "Must specify the name of the dataset name as a parameter to upload to database.")
 
@@ -301,9 +300,8 @@ class TwoDataFrameMetric(_Metric):
         dataset_cols = df_old.shape[1]
         if self._session is not None:
             if dataset_name is None:
-                try:
-                    dataset_name = str(df_old.name)  # Explicit cast for mypy.
-                except AttributeError:
+                dataset_name = df_old.attrs.get("name")  # Explicit cast for mypy.
+                if dataset_name is None:
                     raise AttributeError(
                         "Must specify the name of the dataset name as a parameter to upload to database.")
 

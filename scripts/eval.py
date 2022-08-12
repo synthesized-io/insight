@@ -2,10 +2,10 @@ import synthesized_datasets as datasets
 
 import insight.metrics as mt
 
-data = datasets.CREDIT.credit
-df = data.load()
+df = datasets.CREDIT.credit.load()
 df = df.dropna()
-df.name = data.name
 
 metric = mt.TwoColumnMap(mt.KullbackLeiblerDivergence())
-value = metric(df, df)
+value = metric(df.sample(200), df.sample(200))
+
+print(value)
