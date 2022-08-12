@@ -111,6 +111,7 @@ env.bak/
 venv.bak/
 version.py
 setup.cfg
+postgres-data
 
 # Spyder project settings
 .spyderproject

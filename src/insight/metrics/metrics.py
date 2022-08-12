@@ -48,7 +48,7 @@ class StandardDeviation(OneColumnMetric):
         values = values[int(len(sr) * self.remove_outliers):int(len(sr) * (1.0 - self.remove_outliers))]
         trimmed_sr = pd.Series(values, name=sr.name)
 
-        affine_mean = Mean()
+        affine_mean = Mean(upload_to_database=False)
         d = trimmed_sr - affine_mean(trimmed_sr)
         u = d / np.array(1, dtype=d.dtype)
         s = np.sqrt(np.sum(u ** 2))
