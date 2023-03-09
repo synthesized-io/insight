@@ -42,7 +42,7 @@ jobs:
         run: |
           source .tenv/bin/activate
           python -m build --wheel
-          pip install $(ls dist/*.whl)[stable,test] --cache-dir .pip-cache
+          pip install $(ls dist/*.whl)[db,test] --cache-dir .pip-cache
 
       - name: Run unit tests
         run: |
