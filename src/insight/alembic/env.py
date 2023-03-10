@@ -1,5 +1,4 @@
 import os
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -9,11 +8,6 @@ from insight.database.schema import Base
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
@@ -35,7 +29,11 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url").format(**os.environ)
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise ValueError("No sqlalchemy.url specified in config file")
+
+    url = url.format(**os.environ)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -54,9 +52,26 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url").format(**os.environ))
+
+    POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+    POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+    POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+    POSTGRES_DATABASE = os.environ.get("POSTGRES_DATABASE", "postgres")
+
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise ValueError("No sqlalchemy.url specified in config file")
+
+    config.set_main_option("sqlalchemy.url", url.format(
+        POSTGRES_USER=POSTGRES_USER,
+        POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+        POSTGRES_HOST=POSTGRES_HOST,
+        POSTGRES_PORT=POSTGRES_PORT,
+        POSTGRES_DATABASE=POSTGRES_DATABASE
+    ))
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

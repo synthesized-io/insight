@@ -22,11 +22,12 @@ repos:
         additional_dependencies:
           - numpy>=1.21
           - sqlalchemy[mypy]
+          - alembic
         args: [--install-types, --non-interactive]
         # Note that using the --install-types is problematic if running in
         # parallel as mutating the pre-commit env at runtime breaks cache.
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.12.0
     hooks:
       - id: isort
 ...

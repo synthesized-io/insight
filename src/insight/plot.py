@@ -1,7 +1,8 @@
+import inspect
 import logging
 import math
+import os
 import warnings
-from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib as mpl
@@ -14,10 +15,11 @@ from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from matplotlib.figure import Figure
 
+import insight
 from insight.check import ColumnCheck
 
-COLOR_ORIG = "#FF4D5B"
-COLOR_SYNTH = "#312874"
+COLOR_ORIG = "#3af163"
+COLOR_SYNTH = "#1457fe"
 DEFAULT_FIGSIZE = (10, 10)
 
 logger = logging.getLogger(__name__)
@@ -28,19 +30,20 @@ def set_plotting_style():
     Sets the default plotting style for matplotlib.
     """
     plt.style.use("seaborn")
-    font_file = "src/insight/fonts/inter-v3-latin-regular.ttf"
+
+    font_file = "SourceSansPro-Regular.ttf"
     try:
         mpl.font_manager.fontManager.addfont(
-            Path(font_file).as_posix()
+            os.path.join(os.path.dirname(inspect.getfile(insight)), "fonts", font_file)
         )
-        mpl.rc("font", family="Inter-Regular")
+        mpl.rc("font", family="Source Sans Pro")
     except FileNotFoundError:
         warnings.warn(f"Unable to load '{font_file}'")
 
     mpl.rcParams["axes.spines.right"] = False
     mpl.rcParams["axes.spines.top"] = False
     mpl.rcParams["text.color"] = "333333"
-    mpl.rcParams["font.family"] = "inter"
+    mpl.rcParams["font.family"] = "Source Sans Pro"
     mpl.rcParams["axes.facecolor"] = "EFF3FF"
     mpl.rcParams["axes.edgecolor"] = "333333"
     mpl.rcParams["axes.grid"] = True
@@ -61,7 +64,6 @@ def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
         figsize: the size of the figure to generate if ax is None.
     return: (fig, ax)
     """
-    set_plotting_style()
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     else:
@@ -70,14 +72,14 @@ def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
 
 
 def axes_grid(
-        col_titles: List[str],
-        row_titles: List[str],
-        ax: Union[Axes, SubplotBase] = None,
-        sharey: bool = True,
-        wspace: float = None,
-        hspace: float = None,
-        height_ratios: float = None,
-        width_ratios: float = None,
+    col_titles: List[str],
+    row_titles: List[str],
+    ax: Union[Axes, SubplotBase] = None,
+    sharey: bool = True,
+    wspace: float = None,
+    hspace: float = None,
+    height_ratios: float = None,
+    width_ratios: float = None,
 ):
     """
       Subdivides the given axes into a grid len(col_titles) by len(row_titles) and labels each section.
@@ -172,7 +174,7 @@ def adjust_tick_labels(ax: Axes):
     ax.tick_params("y", length=3, width=1, which="major", color="#D7E0FE")
 
 
-def plot_text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
+def text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
     """
     Plots the given text over the provided ax. If no ax is provided, generates a new ax.
     Args:
@@ -195,7 +197,7 @@ def plot_text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
     return fig
 
 
-def plot_cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figure:
+def cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figure:
     """
     Plots a cross table of the provided dataframe of counts.
     Args:
@@ -206,6 +208,7 @@ def plot_cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figur
     Returns:
         a figure with the cross table on it.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     # Generate a mask for the upper triangle
     sns.set(style="white")
@@ -236,7 +239,7 @@ def plot_cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figur
     return fig
 
 
-def plot_cross_tables(
+def cross_tables(
         df_test: pd.DataFrame,
         df_synth: pd.DataFrame,
         col_a: str,
@@ -255,6 +258,7 @@ def plot_cross_tables(
     Returns:
         A figure with the crosstable on it.
     """
+    set_plotting_style()
     categories_a = pd.concat((df_test[col_a], df_synth[col_a])).unique()
     categories_b = pd.concat((df_test[col_b], df_synth[col_b])).unique()
     categories_a.sort()
@@ -263,7 +267,7 @@ def plot_cross_tables(
     # Set up the matplotlib figure
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
     plt.title(f"{col_a}:{col_b} Cross Table")
-    plot_cross_table(
+    cross_table(
         pd.crosstab(
             pd.Categorical(df_test[col_a], categories_a, ordered=True),
             pd.Categorical(df_test[col_b], categories_b, ordered=True),
@@ -272,7 +276,7 @@ def plot_cross_tables(
         title="Original",
         ax=ax1,
     )
-    plot_cross_table(
+    cross_table(
         pd.crosstab(
             pd.Categorical(df_synth[col_a], categories_a, ordered=True),
             pd.Categorical(df_synth[col_b], categories_b, ordered=True),
@@ -324,7 +328,7 @@ def _get_series_names(source_names, num_cols) -> List[str]:
     return source_names
 
 
-def categorical_distribution_plot(
+def categorical(
         cols: List[pd.Series],
         sample_size=10_000,
         ax: Union[Axes, SubplotBase] = None,
@@ -332,7 +336,7 @@ def categorical_distribution_plot(
         series_source_names: List[str] = None
 ) -> Figure:
     """
-    Plots the categorical distribution of the specified serieses side by side.
+    Plots the categorical distribution of the specified series side by side.
     Args:
         cols: columns to plot.
         sample_size: maximum number of samples to take from each series in order to make the plots more comperhensive.
@@ -344,6 +348,7 @@ def categorical_distribution_plot(
     Returns:
         a figure containing the plot.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     color_scheme = _get_color_scheme(color_scheme, len(cols))
     series_source_names = _get_series_names(series_source_names, len(cols))
@@ -353,7 +358,7 @@ def categorical_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = col.dropna()
         if len(cols[i]) == 0:
-            return plot_text_only(f'Column at index {i} is either empty of full of Na\'s')
+            return text_only(f'Column at index {i} is either empty of full of Na\'s')
         df_cols.append(pd.DataFrame(cols[i]))
 
     sample_size = min(sample_size, min([len(col) for col in cols]))
@@ -382,13 +387,15 @@ def categorical_distribution_plot(
     return fig
 
 
-def plot_continuous_column(col: pd.Series,
-                           col_name: str = None,
-                           color: str = None,
-                           kde_kws: Dict[Any, Any] = None,
-                           ax: Axes = None) -> Figure:
-    """
-    Plots a pdf of the given continuous series.
+def continuous_column(
+    col: pd.Series,
+    col_name: str = None,
+    color: str = None,
+    kde_kws: Dict[Any, Any] = None,
+    ax: Axes = None
+) -> Figure:
+    """Plots a pdf of the given continuous series.
+
     Args:
         col: the series which to plot.
         col_name: the name of the series.
@@ -409,7 +416,7 @@ def plot_continuous_column(col: pd.Series,
                 col,
                 lw=1,
                 alpha=0.5,
-                shade=True,
+                fill=True,
                 label=col_name,
                 ax=ax,
                 **kde_kws,
@@ -419,7 +426,7 @@ def plot_continuous_column(col: pd.Series,
                 col,
                 lw=1,
                 alpha=0.5,
-                shade=True,
+                fill=True,
                 color=color,
                 label=col_name,
                 ax=ax,
@@ -431,13 +438,13 @@ def plot_continuous_column(col: pd.Series,
     return fig
 
 
-def continuous_distribution_plot(
-        cols: List[pd.Series],
-        remove_outliers: float = 0.0,
-        sample_size=10_000,
-        ax: Union[Axes, SubplotBase] = None,
-        color_scheme: List[str] = None,
-        series_source_names: List[str] = None
+def continuous(
+    cols: List[pd.Series],
+    remove_outliers: float = 0.0,
+    sample_size=10_000,
+    ax: Union[Axes, SubplotBase] = None,
+    color_scheme: List[str] = None,
+    series_source_names: List[str] = None
 ) -> Figure:
     """
     plot the pdfs of all the serieses specified by cols.
@@ -453,6 +460,7 @@ def continuous_distribution_plot(
     Returns:
         a figure object with the pdfs of each series plotted on it.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     assert len(cols) > 0
     color_scheme = _get_color_scheme(color_scheme, len(cols))
@@ -463,7 +471,7 @@ def continuous_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = pd.to_numeric(col.dropna(), errors='coerce').dropna()
         if len(cols[i]) == 0:
-            return plot_text_only(f'Column at index {i} is empty of full of Na\'s.')
+            return text_only(f'Column at index {i} is empty of full of Na\'s.')
         cols[i] = cols[i].sample(min(sample_size, len(cols[i])))
 
     start, end = np.percentile(cols[0], percentiles)
@@ -473,7 +481,7 @@ def continuous_distribution_plot(
     for i, col in enumerate(cols):
         cols[i] = col[(start <= col) & (col <= end)]
         if len(cols[i]) == 0:
-            return plot_text_only(f'Column at index {i} is out of range of the first column.')
+            return text_only(f'Column at index {i} is out of range of the first column.')
 
     if not all([col.nunique() >= 2 for col in cols]):
         kde_kws = {}
@@ -483,7 +491,7 @@ def continuous_distribution_plot(
     for i, col in enumerate(cols):
         color = color_scheme[i]
         col_name = series_source_names[i]
-        plot_continuous_column(col, col_name, color, kde_kws, ax)
+        continuous_column(col, col_name, color, kde_kws, ax)
 
     if len(cols) > 1:
         ax.legend()
@@ -491,15 +499,16 @@ def continuous_distribution_plot(
     return fig
 
 
-def plot_dataset(
-        dfs: List[pd.DataFrame],
-        columns=None,
-        remove_outliers: float = 0.0,
-        figsize: Tuple[float, float] = None,
-        figure_cols: int = 2,
-        sample_size: int = 10_000,
-        max_categories: int = 10,
-        check=ColumnCheck()) -> Figure:
+def dataset(
+    dfs: List[pd.DataFrame],
+    columns=None,
+    remove_outliers: float = 0.0,
+    figsize: Tuple[float, float] = None,
+    figure_cols: int = 2,
+    sample_size: int = 10_000,
+    max_categories: int = 10,
+    check=ColumnCheck()
+) -> Figure:
     """
     Plot the columns of all the data-frames that are passed in.
     Args:
@@ -517,6 +526,7 @@ def plot_dataset(
     Returns:
         a figure containing all the plots for the specified datasets.
     """
+    set_plotting_style()
     columns = dfs[0].columns if columns is None else columns
 
     figure_rows = math.ceil(len(columns) / figure_cols)
@@ -546,16 +556,13 @@ def plot_dataset(
         serieses = [dfs[j][col] for j in range(len(dfs))]
         if check.categorical(serieses[0]):
             if pd.concat(serieses).nunique() <= max_categories:
-                categorical_distribution_plot(serieses,
-                                              ax=new_ax,
-                                              sample_size=sample_size)
+                categorical(serieses, ax=new_ax, sample_size=sample_size)
             else:
-                plot_text_only("Number of categories exceeded threshold.", new_ax)
+                text_only("Number of categories exceeded threshold.", new_ax)
         else:
-            continuous_distribution_plot(serieses,
-                                         ax=new_ax,
-                                         remove_outliers=remove_outliers,
-                                         sample_size=sample_size)
+            continuous(
+                serieses, ax=new_ax, remove_outliers=remove_outliers, sample_size=sample_size
+            )
 
         legend = new_ax.get_legend()
         if legend is not None:

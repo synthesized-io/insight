@@ -4,10 +4,17 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, Union
 
 import pandas as pd
-from sqlalchemy.orm import Session
 
-import insight.database.schema as model
-import insight.database.utils as utils
+try:
+    from sqlalchemy.orm import Session
+
+    import insight.database.schema as model
+    import insight.database.utils as utils
+except ModuleNotFoundError:
+    model = None  # type: ignore
+    utils = None  # type: ignore
+    Session = None  # type: ignore
+
 
 from ..check import Check, ColumnCheck
 
@@ -18,7 +25,7 @@ class _Metric(ABC):
     """
     name: Optional[str] = None
     _registry: Dict[str, Type] = {}
-    _session: Optional[Session] = utils.get_session()
+    _session: Optional[Session] = utils.get_session() if utils is not None else None
 
     def __init_subclass__(cls):
         if cls.name is not None and cls.name not in _Metric._registry:
@@ -74,6 +81,9 @@ class _Metric(ABC):
         """
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
+
+        if model is None or utils is None:
+            raise ModuleNotFoundError("The database module is not available. Please install it using the command: pip install 'insight[db]'")
 
         if self._session is None:
             raise RuntimeError("Called a database function when no database exists.")

@@ -1,47 +1,50 @@
-from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, Column, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
 
 
 class Dataset(Base):
     __tablename__ = "dataset"
 
-    id = Column(INTEGER, primary_key=True)
-    name = Column(VARCHAR(50), nullable=False)
-    num_rows = Column(INTEGER)
-    num_columns = Column(INTEGER)
-    created_at = Column(TIMESTAMP, default=func.now())
+    id: Mapped[int] = mapped_column(INTEGER, primary_key=True)
+    name = mapped_column(VARCHAR(50), nullable=False)
+    num_rows = mapped_column(INTEGER)
+    num_columns = mapped_column(INTEGER)
+    created_at = mapped_column(TIMESTAMP, default=func.now())
 
 
 class Metric(Base):
     __tablename__ = "metric"
 
-    id = Column(INTEGER, primary_key=True)
-    name = Column(VARCHAR(50), nullable=False)
-    category = Column(VARCHAR(50))
-    created_at = Column(TIMESTAMP, default=func.now())
+    id = mapped_column(INTEGER, primary_key=True)
+    name = mapped_column(VARCHAR(50), nullable=False)
+    category = mapped_column(VARCHAR(50))
+    created_at = mapped_column(TIMESTAMP, default=func.now())
 
 
 class Version(Base):
     __tablename__ = "version"
 
-    id = Column(INTEGER, primary_key=True)
-    name = Column(VARCHAR(50), nullable=False, default="unversioned")
-    created_at = Column(TIMESTAMP, default=func.now())
+    id = mapped_column(INTEGER, primary_key=True)
+    name = mapped_column(VARCHAR(50), nullable=False, default="unversioned")
+    created_at = mapped_column(TIMESTAMP, default=func.now())
 
 
 class Result(Base):
     __tablename__ = "result"
 
-    id = Column(INTEGER, primary_key=True)
-    metric_id = Column(INTEGER, ForeignKey("metric.id"))
-    dataset_id = Column(INTEGER, ForeignKey("dataset.id"))
-    version_id = Column(INTEGER, ForeignKey("version.id"))
-    value = Column(FLOAT)
-    created_at = Column(TIMESTAMP, default=func.now())
+    id = mapped_column(INTEGER, primary_key=True)
+    metric_id = mapped_column(INTEGER, ForeignKey("metric.id"))
+    dataset_id = mapped_column(INTEGER, ForeignKey("dataset.id"))
+    version_id = mapped_column(INTEGER, ForeignKey("version.id"))
+    value = mapped_column(FLOAT)
+    created_at = mapped_column(TIMESTAMP, default=func.now())
 
-    metric: Metric = relationship("Metric")
-    dataset: Dataset = relationship("Dataset")
-    version: Version = relationship("Version")
+    metric: Mapped[Metric] = relationship("Metric")
+    dataset: Mapped[Dataset] = relationship("Dataset")
+    version: Mapped[Version] = relationship("Version")
