@@ -11,9 +11,9 @@ try:
     import insight.database.schema as model
     import insight.database.utils as utils
 except ModuleNotFoundError:
-    model = None
-    utils = None
-    Session = None
+    model = None  # type: ignore
+    utils = None  # type: ignore
+    Session = None  # type: ignore
 
 
 from ..check import Check, ColumnCheck

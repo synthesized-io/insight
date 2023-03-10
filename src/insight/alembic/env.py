@@ -35,7 +35,11 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url").format(**os.environ)
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise ValueError("No sqlalchemy.url specified in config file")
+
+    url = url.format(**os.environ)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -60,7 +64,12 @@ def run_migrations_online() -> None:
     POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
     POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
     POSTGRES_DATABASE = os.environ.get("POSTGRES_DATABASE", "postgres")
-    config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url").format(
+
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise ValueError("No sqlalchemy.url specified in config file")
+
+    config.set_main_option("sqlalchemy.url", url.format(
         POSTGRES_USER=POSTGRES_USER,
         POSTGRES_PASSWORD=POSTGRES_PASSWORD,
         POSTGRES_HOST=POSTGRES_HOST,
@@ -68,7 +77,7 @@ def run_migrations_online() -> None:
         POSTGRES_DATABASE=POSTGRES_DATABASE
     ))
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
