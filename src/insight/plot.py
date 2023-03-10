@@ -1,8 +1,8 @@
+import inspect
 import logging
 import math
-import inspect
-import warnings
 import os
+import warnings
 from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib as mpl
@@ -10,12 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import insight
 from matplotlib import cycler
 from matplotlib.axes import Axes, SubplotBase
 from matplotlib.colors import SymLogNorm
 from matplotlib.figure import Figure
 
+import insight
 from insight.check import ColumnCheck
 
 COLOR_ORIG = "#3af163"
@@ -395,7 +395,7 @@ def continuous_column(
     ax: Axes = None
 ) -> Figure:
     """Plots a pdf of the given continuous series.
-    
+
     Args:
         col: the series which to plot.
         col_name: the name of the series.

@@ -7,6 +7,7 @@ import pandas as pd
 
 try:
     from sqlalchemy.orm import Session
+
     import insight.database.schema as model
     import insight.database.utils as utils
 except ModuleNotFoundError:

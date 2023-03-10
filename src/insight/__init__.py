@@ -1,5 +1,4 @@
-from . import plot
-from . import metrics
+from . import metrics, plot
 from .check import ColumnCheck
 
 __all__ = ['ColumnCheck', 'plot', 'metrics']

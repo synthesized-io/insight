@@ -1,6 +1,7 @@
 # Python script that will apply the migrations up to head
-import alembic.config
 import os
+
+import alembic.config
 
 here = os.path.dirname(os.path.abspath(__file__))
 

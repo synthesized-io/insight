@@ -54,7 +54,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    
+
     POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
     POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
     POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
