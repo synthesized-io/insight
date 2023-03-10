@@ -109,8 +109,19 @@ def get_session() -> typing.Optional[Session]:
 
     """
     try:
+        POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+        POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+        POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+        POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+        POSTGRES_DATABASE = os.environ.get("POSTGRES_DATABASE", "postgres")
         db_url = "postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@" \
-                 "{POSTGRES_HOST}:{POSTGRES_PORT}".format(**os.environ)
+                 "{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}".format(
+            POSTGRES_HOST=POSTGRES_HOST,
+            POSTGRES_PORT=POSTGRES_PORT,
+            POSTGRES_USER=POSTGRES_USER,
+            POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+            POSTGRES_DATABASE=POSTGRES_DATABASE
+        )
         engine = create_engine(db_url, future=True)
 
         session_constructor = sessionmaker(bind=engine, future=True)

@@ -54,7 +54,19 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url").format(**os.environ))
+    
+    POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+    POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+    POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+    POSTGRES_DATABASE = os.environ.get("POSTGRES_DATABASE", "postgres")
+    config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url").format(
+        POSTGRES_USER=POSTGRES_USER,
+        POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+        POSTGRES_HOST=POSTGRES_HOST,
+        POSTGRES_PORT=POSTGRES_PORT,
+        POSTGRES_DATABASE=POSTGRES_DATABASE
+    ))
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",

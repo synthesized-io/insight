@@ -36,14 +36,14 @@ def set_plotting_style():
         mpl.font_manager.fontManager.addfont(
             os.path.join(os.path.dirname(inspect.getfile(insight)), "fonts", font_file)
         )
-        mpl.rc("font", family="SourceSansPro-Regular")
+        mpl.rc("font", family="Source Sans Pro")
     except FileNotFoundError:
         warnings.warn(f"Unable to load '{font_file}'")
 
     mpl.rcParams["axes.spines.right"] = False
     mpl.rcParams["axes.spines.top"] = False
     mpl.rcParams["text.color"] = "333333"
-    mpl.rcParams["font.family"] = "SourceSansPro"
+    mpl.rcParams["font.family"] = "Source Sans Pro"
     mpl.rcParams["axes.facecolor"] = "EFF3FF"
     mpl.rcParams["axes.edgecolor"] = "333333"
     mpl.rcParams["axes.grid"] = True
@@ -64,7 +64,6 @@ def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
         figsize: the size of the figure to generate if ax is None.
     return: (fig, ax)
     """
-    set_plotting_style()
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     else:
@@ -209,6 +208,7 @@ def cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figure:
     Returns:
         a figure with the cross table on it.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     # Generate a mask for the upper triangle
     sns.set(style="white")
@@ -258,6 +258,7 @@ def cross_tables(
     Returns:
         A figure with the crosstable on it.
     """
+    set_plotting_style()
     categories_a = pd.concat((df_test[col_a], df_synth[col_a])).unique()
     categories_b = pd.concat((df_test[col_b], df_synth[col_b])).unique()
     categories_a.sort()
@@ -347,6 +348,7 @@ def categorical(
     Returns:
         a figure containing the plot.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     color_scheme = _get_color_scheme(color_scheme, len(cols))
     series_source_names = _get_series_names(series_source_names, len(cols))
@@ -414,7 +416,7 @@ def continuous_column(
                 col,
                 lw=1,
                 alpha=0.5,
-                shade=True,
+                fill=True,
                 label=col_name,
                 ax=ax,
                 **kde_kws,
@@ -424,7 +426,7 @@ def continuous_column(
                 col,
                 lw=1,
                 alpha=0.5,
-                shade=True,
+                fill=True,
                 color=color,
                 label=col_name,
                 ax=ax,
@@ -458,6 +460,7 @@ def continuous(
     Returns:
         a figure object with the pdfs of each series plotted on it.
     """
+    set_plotting_style()
     fig, ax = obtain_figure(ax)
     assert len(cols) > 0
     color_scheme = _get_color_scheme(color_scheme, len(cols))
@@ -523,6 +526,7 @@ def dataset(
     Returns:
         a figure containing all the plots for the specified datasets.
     """
+    set_plotting_style()
     columns = dfs[0].columns if columns is None else columns
 
     figure_rows = math.ceil(len(columns) / figure_cols)
