@@ -91,6 +91,9 @@ class _Metric(ABC):
         if self.name is None:
             raise AttributeError("Every initializeable subclass of _Metric must have a name string")
 
+        if hasattr(value, 'item'):
+            value = value.item()
+
         with self._session as session:
             metric_id = utils.get_metric_id(self.name, session, category=category)
             version_id = utils.get_version_id(version, session)

@@ -12,7 +12,7 @@ class Dataset(Base):
     __tablename__ = "dataset"
 
     id: Mapped[int] = mapped_column(INTEGER, primary_key=True)
-    name = mapped_column(VARCHAR(50), nullable=False)
+    name = mapped_column(VARCHAR(200), nullable=False)
     num_rows = mapped_column(INTEGER)
     num_columns = mapped_column(INTEGER)
     created_at = mapped_column(TIMESTAMP, default=func.now())
@@ -22,8 +22,8 @@ class Metric(Base):
     __tablename__ = "metric"
 
     id = mapped_column(INTEGER, primary_key=True)
-    name = mapped_column(VARCHAR(50), nullable=False)
-    category = mapped_column(VARCHAR(50))
+    name = mapped_column(VARCHAR(100), nullable=False)
+    category = mapped_column(VARCHAR(100))
     created_at = mapped_column(TIMESTAMP, default=func.now())
 
 
