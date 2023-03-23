@@ -7,6 +7,7 @@ import pytest
 from insight.check import ColumnCheck
 from insight.metrics import (
     BhattacharyyaCoefficient,
+    KendallTauCorrelation,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
@@ -21,6 +22,7 @@ from insight.metrics import (
 
 mean = Mean()
 std_dev = StandardDeviation()
+kendall_tau = KendallTauCorrelation()
 cramers_v = CramersV()
 emd = EarthMoversDistance()
 hellinger_distance = HellingerDistance()
@@ -91,6 +93,9 @@ def test_base_to_dict():
     dict_mean = mean.to_dict()
     assert dict_mean['name'] == 'mean'
 
+    dict_kendalltau = kendall_tau.to_dict()
+    assert dict_kendalltau['name'] == 'kendall_tau_correlation'
+
     dict_cramers_v = cramers_v.to_dict()
     assert dict_cramers_v['name'] == 'cramers_v'
 
@@ -117,6 +122,10 @@ def test_base_from_dict():
     dict_mean = {'name': 'mean'}
     new_mean = Mean.from_dict(dict_mean)
     assert isinstance(new_mean, Mean)
+
+    dict_kendall_tau = {'name': 'kendall_tau_correlation'}
+    new_kendall_tau = KendallTauCorrelation.from_dict(dict_kendall_tau)
+    assert isinstance(new_kendall_tau, KendallTauCorrelation)
 
     dict_cramers_v = {'name': 'cramers_v'}
     new_cramers_v = CramersV.from_dict(dict_cramers_v)
@@ -184,6 +193,20 @@ def test_em_distance():
 
     assert emd(sr_a, sr_a) is None
     assert emd(sr_b, sr_b) is not None
+
+
+def test_kt_correlation():
+    sr_a = pd.Series(np.random.normal(0, 1, 100), name='a')
+    sr_b = pd.Series(np.random.normal(0, 1, 5), name='b')
+    sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
+    sr_d = pd.Series(['a', 'b', 'c', 'd'], name='d')
+
+    kt_corr = KendallTauCorrelation()
+
+    assert kt_corr(sr_a, sr_a) is not None
+    assert kt_corr(sr_b, sr_c) is not None
+    with pytest.raises(ValueError):
+        kt_corr(sr_c, sr_d)
 
 
 def test_cramers_v_basic():
