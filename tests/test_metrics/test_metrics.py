@@ -7,12 +7,12 @@ import pytest
 from insight.check import ColumnCheck
 from insight.metrics import (
     BhattacharyyaCoefficient,
-    KendallTauCorrelation,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
     HellingerDistance,
     JensenShannonDivergence,
+    KendallTauCorrelation,
     KullbackLeiblerDivergence,
     Mean,
     Norm,
