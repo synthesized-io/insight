@@ -67,10 +67,10 @@ class KendallTauCorrelation(TwoColumnMetric):
 
     @classmethod
     def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
-        if check.continuous(sr_a) or not check.continuous(sr_b):
-            return True
-        if check.categorical(sr_a) or not check.categorical(sr_b):
-            return True
+        if len(sr_a) != len(sr_b):
+            return False
+        if not check.ordinal(sr_a) or not check.ordinal(sr_b):
+            return False
         return True
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
@@ -83,8 +83,11 @@ class KendallTauCorrelation(TwoColumnMetric):
         Returns:
             The Kendall Tau coefficient between sr_a and sr_b.
         """
-        sr_a = pd.to_numeric(sr_a, errors="coerce")
-        sr_b = pd.to_numeric(sr_b, errors="coerce")
+        if hasattr(sr_a, "cat") and sr_a.cat.ordered:
+            print(sr_a)
+
+        if hasattr(sr_b, "cat") and sr_b.cat.ordered:
+            print(sr_b)
 
         corr, _ = kendalltau(sr_a.values, sr_b.values, nan_policy="omit")
 

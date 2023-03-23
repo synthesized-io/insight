@@ -200,13 +200,15 @@ def test_kt_correlation():
     sr_b = pd.Series(np.random.normal(0, 1, 5), name='b')
     sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
     sr_d = pd.Series(['a', 'b', 'c', 'd'], name='d')
+    sr_e = pd.Series(list("abbccc"), dtype=pd.CategoricalDtype(categories=list("abc"), ordered=True))
+    sr_f = pd.Series(list("deefff"), dtype=pd.CategoricalDtype(categories=list("def"), ordered=True))
 
     kt_corr = KendallTauCorrelation()
 
     assert kt_corr(sr_a, sr_a) is not None
     assert kt_corr(sr_b, sr_c) is not None
-    with pytest.raises(ValueError):
-        kt_corr(sr_c, sr_d)
+    assert kt_corr(sr_c, sr_d) is None
+    assert kt_corr(sr_e, sr_f) == 1.0
 
 
 def test_cramers_v_basic():
