@@ -2,11 +2,11 @@ from .base import OneColumnMetric, TwoColumnMetric, TwoDataFrameMetric
 from .metrics import (
     BhattacharyyaCoefficient,
     CramersV,
-    KendallTauCorrelation,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
     HellingerDistance,
     JensenShannonDivergence,
+    KendallTauCorrelation,
     KullbackLeiblerDivergence,
     Mean,
     Norm,

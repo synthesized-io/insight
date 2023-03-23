@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Sequence, Union, cast
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
-from scipy.stats import entropy, wasserstein_distance, kendalltau
+from scipy.stats import entropy, kendalltau, wasserstein_distance
 
 from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
