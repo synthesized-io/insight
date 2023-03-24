@@ -201,7 +201,7 @@ def test_kt_correlation():
     sr_c = pd.Series(sr_b.values + np.random.normal(0, 0.8, 5), name='c')
     sr_d = pd.Series(['a', 'b', 'c', 'd'], name='d')
     sr_e = pd.Series(list("abbccc"), dtype=pd.CategoricalDtype(categories=list("abc"), ordered=True))
-    sr_f = pd.Series(list("deefff"), dtype=pd.CategoricalDtype(categories=list("def"), ordered=True))
+    sr_f = pd.Series(list("feeddd"), dtype=pd.CategoricalDtype(categories=list("fed"), ordered=True))
 
     kt_corr = KendallTauCorrelation()
 
