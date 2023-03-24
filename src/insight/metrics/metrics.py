@@ -84,10 +84,10 @@ class KendallTauCorrelation(TwoColumnMetric):
             The Kendall Tau coefficient between sr_a and sr_b.
         """
         if hasattr(sr_a, "cat") and sr_a.cat.ordered:
-            print(sr_a)
+            sr_a = sr_a.cat.codes
 
         if hasattr(sr_b, "cat") and sr_b.cat.ordered:
-            print(sr_b)
+            sr_b = sr_b.cat.codes
 
         corr, _ = kendalltau(sr_a.values, sr_b.values, nan_policy="omit")
 
