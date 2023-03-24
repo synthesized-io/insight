@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Sequence, Union, cast
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
-from scipy.stats import entropy, wasserstein_distance
+from scipy.stats import entropy, kendalltau, wasserstein_distance
 
 from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
@@ -53,6 +53,45 @@ class StandardDeviation(OneColumnMetric):
         u = d / np.array(1, dtype=d.dtype)
         s = np.sqrt(np.sum(u ** 2))
         return s * np.array(1, dtype=d.dtype)
+
+
+class KendallTauCorrelation(TwoColumnMetric):
+    """Kendall's Tau correlation coefficient between ordinal variables.
+
+    The statistic ranges from -1 to 1, indicating the strength and direction of the relationship between the
+    two variables.
+
+    """
+
+    name = "kendall_tau_correlation"
+
+    @classmethod
+    def check_column_types(cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()):
+        if len(sr_a) != len(sr_b):
+            return False
+        if not check.ordinal(sr_a) or not check.ordinal(sr_b):
+            return False
+        return True
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        """Calculate the metric.
+
+        Args:
+            sr_a (pd.Series): values of an ordinal variable.
+            sr_b (pd.Series): values of another ordinal variable to assess association.
+
+        Returns:
+            The Kendall Tau coefficient between sr_a and sr_b.
+        """
+        if hasattr(sr_a, "cat") and sr_a.cat.ordered:
+            sr_a = sr_a.cat.codes
+
+        if hasattr(sr_b, "cat") and sr_b.cat.ordered:
+            sr_b = sr_b.cat.codes
+
+        corr, _ = kendalltau(sr_a.values, sr_b.values, nan_policy="omit")
+
+        return corr
 
 
 class CramersV(TwoColumnMetric):
