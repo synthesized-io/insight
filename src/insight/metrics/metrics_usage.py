@@ -82,7 +82,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
         Args:
             result: the result of the metric computation.
         """
-        return result.values.abs().max()
+        return result.abs().max().max() # max().max() = max in each col -> max across cols
 
     def __init__(self, metric: TwoColumnMetric):
         self._corr_matrix = CorrMatrix(metric)
