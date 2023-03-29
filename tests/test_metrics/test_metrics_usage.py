@@ -57,3 +57,4 @@ def test_metric_matrix(data):
     assert all(np.isnan(diff[cont1][cont2]) and np.isnan(diff[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
     assert all(np.isnan(diff[cat][cont]) and np.isnan(diff[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
     assert all(not np.isnan(diff[cat1][cat2]) and not np.isnan(diff[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
+    assert not np.isnan(cmv_diff_mat.summarize_result(diff))
