@@ -68,7 +68,8 @@ class _Metric(ABC):
                          dataset_name: str,
                          dataset_rows: int = None,
                          dataset_cols: int = None,
-                         category: str = None):
+                         category: str = None,
+                         run_id: str = None):
         """
         Adds the metric result to the database. The metric result should be specified as value.
         Args:
@@ -98,7 +99,9 @@ class _Metric(ABC):
             metric_id = utils.get_metric_id(self.name, session, category=category)
             version_id = utils.get_version_id(version, session)
             dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
-            result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
+            result = model.Result(
+                metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value, run_id=run_id
+            )
             session.add(result)
             session.commit()
 
