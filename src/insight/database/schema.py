@@ -1,12 +1,10 @@
-from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, ForeignKey
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, ForeignKey, Column
+from sqlalchemy.orm import declarative_base, Mapped, relationship
 from sqlalchemy.sql import func
 
 
-class Base(DeclarativeBase):
-    pass
-
-
+Base = declarative_base()
+mapped_column = Column
 
 class Dataset(Base):
     __tablename__ = "dataset"
@@ -44,6 +42,7 @@ class Result(Base):
     version_id = mapped_column(INTEGER, ForeignKey("version.id"))
     value = mapped_column(FLOAT)
     created_at = mapped_column(TIMESTAMP, default=func.now())
+    run_id = mapped_column(VARCHAR(50), nullable=False, default=None)
 
     metric: Mapped[Metric] = relationship("Metric")
     dataset: Mapped[Dataset] = relationship("Dataset")

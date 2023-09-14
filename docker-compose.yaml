@@ -7,24 +7,25 @@ services:
           - postgres
         tty: true
         environment:
-          - POSTGRES_USER
-          - POSTGRES_PASSWORD
-          - POSTGRES_HOST
-          - POSTGRES_PORT
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: postgres
+          POSTGRES_PORT: 5432
     postgres:
         image: postgres:latest
         restart: always
         environment:
-          - POSTGRES_USER
-          - POSTGRES_PASSWORD
-          - POSTGRES_HOST
-          - POSTGRES_PORT
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: 0.0.0.0
+          POSTGRES_PORT: 5432
+        command: ["postgres", "-c", "log_statement=all"]
         logging:
           options:
             max-size: 10m
             max-file: "3"
         ports:
-          - "5432:${POSTGRES_PORT}"
+          - "5432:5432"
         volumes:
           - "./postgres-data:/var/lib/postgresql/data"
 ...

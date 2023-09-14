@@ -133,3 +133,4 @@ dmypy.json
 
 # OSX hidden files
 .DS_Store
+.idea
