@@ -1,7 +1,6 @@
-from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, ForeignKey, Column
-from sqlalchemy.orm import declarative_base, Mapped, relationship
+from sqlalchemy import FLOAT, INTEGER, TIMESTAMP, VARCHAR, Column, ForeignKey
+from sqlalchemy.orm import Mapped, declarative_base, relationship
 from sqlalchemy.sql import func
-
 
 Base = declarative_base()
 mapped_column = Column
