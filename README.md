@@ -43,6 +43,14 @@ or multiple dataframes.
 >>> p.plot_dataset([df1, df2])
 ```
 
+### Migrations
+
+`insight` populates the results to the Postgres database configured by environment variables. To run migrations against it, simply:
+
+```bash
+insight-migrations
+```
+
 <div align="center">
 <img alt="distribution plots" src="https://user-images.githubusercontent.com/13236749/181318624-95ad8702-5113-4a9e-8dd4-32f4a3dc8c9f.png" width="85%">
 </div>

@@ -77,10 +77,12 @@ class _Metric(ABC):
             dataset_rows: Number of rows in the dataset.
             dataset_cols: Number of column in the dataset.
             category: The category of the metric.
-            version: The version on which the test was run.
+
+        `version` and `run_id` are taken from `VERSION` and `RUN_ID` envvars.
         """
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
+        run_id = os.getenv("RUN_ID")
 
         if model is None or utils is None:
             raise ModuleNotFoundError("The database module is not available. Please install it using the command: pip install 'insight[db]'")
@@ -98,7 +100,9 @@ class _Metric(ABC):
             metric_id = utils.get_metric_id(self.name, session, category=category)
             version_id = utils.get_version_id(version, session)
             dataset_id = utils.get_df_id(dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols)
-            result = model.Result(metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value)
+            result = model.Result(
+                metric_id=metric_id, dataset_id=dataset_id, version_id=version_id, value=value, run_id=run_id
+            )
             session.add(result)
             session.commit()
 
