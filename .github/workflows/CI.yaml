@@ -60,7 +60,7 @@ jobs:
           name: coverage
           path: coverage-reports/cobertura.xml
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           flags: unittests
           files: ./coverage-reports/cobertura.xml
