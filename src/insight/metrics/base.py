@@ -68,8 +68,7 @@ class _Metric(ABC):
                          dataset_name: str,
                          dataset_rows: int = None,
                          dataset_cols: int = None,
-                         category: str = None,
-                         run_id: str = None):
+                         category: str = None):
         """
         Adds the metric result to the database. The metric result should be specified as value.
         Args:
@@ -78,10 +77,12 @@ class _Metric(ABC):
             dataset_rows: Number of rows in the dataset.
             dataset_cols: Number of column in the dataset.
             category: The category of the metric.
-            version: The version on which the test was run.
+
+        `version` and `run_id` are taken from `VERSION` and `RUN_ID` envvars.
         """
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
+        run_id = os.getenv("RUN_ID")
 
         if model is None or utils is None:
             raise ModuleNotFoundError("The database module is not available. Please install it using the command: pip install 'insight[db]'")
