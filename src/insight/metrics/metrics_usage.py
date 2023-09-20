@@ -104,14 +104,6 @@ class TwoColumnMap(TwoDataFrameMetric):
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_val"""
 
-    def summarize_result(self, result: pd.DataFrame):
-        """
-        Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
-        Args:
-            result: the result of the metric computation.
-        """
-        return result["metric_val"].mean(axis=0)
-
     def __init__(self, metric: TwoColumnMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
@@ -133,3 +125,11 @@ class TwoColumnMap(TwoDataFrameMetric):
 
         result.name = self._metric.name
         return result
+
+    def summarize_result(self, result: pd.DataFrame):
+        """
+        Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
+        Args:
+            result: the result of the metric computation.
+        """
+        return result[self.name].mean(axis=0)
