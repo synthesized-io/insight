@@ -128,7 +128,7 @@ class TwoColumnMap(TwoDataFrameMetric):
             for col in df_old.columns
         }
         result = pd.DataFrame(
-            data=columns_map.values(), index=df_old.columns, columns=["metric_val"]
+            data=columns_map.values(), index=df_old.columns, columns=[self.name]
         )
 
         result.name = self._metric.name
