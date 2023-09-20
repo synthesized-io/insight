@@ -12,15 +12,6 @@ class OneColumnMap(DataFrameMetric):
     Mapping of a metric to each column of a dataframe.
     """
 
-    def summarize_result(self, result: pd.DataFrame):
-        """
-        Give a single value that summarizes the result of the metric. For OneColumnMap it is the mean of the results.
-
-        Args:
-            result: the result of the metric computation.
-        """
-        return result["metric_val"].mean(axis=0)
-
     def __init__(self, metric: OneColumnMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
@@ -33,11 +24,20 @@ class OneColumnMap(DataFrameMetric):
             for col in df.columns
         }
         result = pd.DataFrame(
-            data=columns_map.values(), index=df.columns, columns=["metric_val"]
+            data=columns_map.values(), index=df.columns, columns=[self.name]
         )
 
         result.name = self._metric.name
         return result
+
+    def summarize_result(self, result: pd.DataFrame):
+        """
+        Give a single value that summarizes the result of the metric. For OneColumnMap it is the mean of the results.
+
+        Args:
+            result: the result of the metric computation.
+        """
+        return result[self.name].mean(axis=0)
 
 
 class CorrMatrix(DataFrameMetric):
