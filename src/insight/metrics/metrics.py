@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Sequence, Union, cast
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
-from scipy.stats import entropy, kendalltau, wasserstein_distance
+from scipy.stats import entropy, wasserstein_distance
 
 from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
@@ -89,7 +89,7 @@ class KendallTauCorrelation(TwoColumnMetric):
         if hasattr(sr_b, "cat") and sr_b.cat.ordered:
             sr_b = sr_b.cat.codes
 
-        corr, _ = kendalltau(sr_a.values, sr_b.values, nan_policy="omit")
+        corr = sr_a.corr(sr_b, method="kendall")
 
         return corr
 
