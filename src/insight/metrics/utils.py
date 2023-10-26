@@ -35,6 +35,8 @@ def zipped_hist(
 
     joint = pd.concat(data)
     is_continuous = check.continuous(pd.Series(joint))
+    joint = check.infer_dtype(joint)
+    data = tuple([check.infer_dtype(series) for series in data])
 
     # Compute histograms of the data, bin if continuous
     if is_continuous:
