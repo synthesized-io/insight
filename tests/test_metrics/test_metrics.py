@@ -254,6 +254,27 @@ def test_kl_divergence(group1):
     assert kl_divergence(group1, group1) == 0
 
 
+def test_kl_divergence_with_custom_check():
+
+    class CustomCheck(ColumnCheck):
+        def infer_dtype(self, sr: pd.Series) -> pd.Series:
+            col = sr.copy()
+            col = pd.to_numeric(col, errors="coerce")
+            return col.astype(int)
+
+    sr_g = pd.Series(["012345", "67890", "123456", "789012"])
+    sr_h = pd.Series(["123456", "78901", "234567", "890123"])
+    # sanity check
+    check = CustomCheck(min_num_unique=1)
+    assert check.infer_dtype(sr_g).dtype == np.int64
+    assert check.continuous(sr_g)
+    assert check.infer_dtype(sr_h).dtype == np.int64
+    assert check.continuous(sr_h)
+    # actual test
+    kl_divergence_with_custom_check = KullbackLeiblerDivergence(check=check)
+    assert abs(kl_divergence_with_custom_check(sr_g, sr_h) - 0.3) < 0.01
+
+
 def test_js_divergence(group1, group2, group3):
     assert js_divergence(pd.Series([1, 0]), pd.Series([1, 0])) == 0
 
