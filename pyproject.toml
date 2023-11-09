@@ -90,7 +90,7 @@ dependencies = [
   write_to = "src/insight/version.py"
 
   [tool.setuptools.package-data]
-  insight = ["src/insight/fonts/SourceSansPro-Regular.ttf"]
+  insight = ["src/insight/fonts/SourceSansPro-Regular.ttf", "py.typed"]
 
   [tool.pytest.ini_options]
   junit_suite_name = "unit"

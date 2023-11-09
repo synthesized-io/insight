@@ -34,4 +34,3 @@ repos:
         args: [--install-types, --non-interactive]
         # Note that using the --install-types is problematic if running in
         # parallel as mutating the pre-commit env at runtime breaks cache.
-...
