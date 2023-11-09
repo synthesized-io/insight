@@ -63,13 +63,16 @@ def run_migrations_online() -> None:
     if url is None:
         raise ValueError("No sqlalchemy.url specified in config file")
 
-    config.set_main_option("sqlalchemy.url", url.format(
-        POSTGRES_USER=POSTGRES_USER,
-        POSTGRES_PASSWORD=POSTGRES_PASSWORD,
-        POSTGRES_HOST=POSTGRES_HOST,
-        POSTGRES_PORT=POSTGRES_PORT,
-        POSTGRES_DATABASE=POSTGRES_DATABASE
-    ))
+    config.set_main_option(
+        "sqlalchemy.url",
+        url.format(
+            POSTGRES_USER=POSTGRES_USER,
+            POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+            POSTGRES_HOST=POSTGRES_HOST,
+            POSTGRES_PORT=POSTGRES_PORT,
+            POSTGRES_DATABASE=POSTGRES_DATABASE,
+        ),
+    )
     connectable = engine_from_config(
         config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
@@ -77,9 +80,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

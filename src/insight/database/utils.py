@@ -1,7 +1,7 @@
 """Utils for fetching information from the backend DB."""
 import os
 import re
-import typing
+import typing as ty
 
 import pandas as pd
 from sqlalchemy import create_engine
@@ -10,7 +10,7 @@ from sqlalchemy.sql import select
 
 import insight.database.schema as model
 
-NamedModelType = typing.TypeVar('NamedModelType', model.Dataset, model.Metric, model.Version)
+NamedModelType = ty.TypeVar("NamedModelType", model.Dataset, model.Metric, model.Version)
 
 _database_fail_note = "Failure to communicate with the database"
 
@@ -25,7 +25,10 @@ def get_df(url_or_path: str):
 
 
 def get_df_id(
-        df_name: str, session: Session, num_rows: int = None, num_columns: int = None
+    df_name: str,
+    session: Session,
+    num_rows: ty.Optional[int] = None,
+    num_columns: ty.Optional[int] = None,
 ) -> int:
     """Get the id of a dataframe in the database. If it doesn't exist, create it.
 
@@ -47,7 +50,7 @@ def get_df_id(
     return int(dataset.id)
 
 
-def get_metric_id(metric: str, session: Session, category: str = None) -> int:
+def get_metric_id(metric: str, session: Session, category: ty.Optional[str] = None) -> int:
     """Get the id of a metric in the database. If it doesn't exist, create it.
 
     Args:
@@ -86,14 +89,14 @@ def get_version_id(version: str, session: Session) -> int:
 
 
 def get_object_from_db_by_name(
-        name: str, session: Session, model_cls: typing.Type[NamedModelType]
-) -> typing.Union[NamedModelType, None]:
+    name: str, session: Session, model_cls: ty.Type[NamedModelType]
+) -> ty.Union[NamedModelType, None]:
     """Get an object from the database by name.
 
     Args:
         name (str): The name of the object.
         session (Session): The database session.
-        model_cls (typing.Type[NamedModelType]): The class of the object.
+        model_cls (ty.Type[NamedModelType]): The class of the object.
     """
     with session:
         result = session.execute(
@@ -102,7 +105,7 @@ def get_object_from_db_by_name(
         return result
 
 
-def get_session() -> typing.Optional[Session]:
+def get_session() -> ty.Optional[Session]:
     """
     If a database exists, returns a sessionmaker object. Else returns None.
     Returns: sessionmaker object that can be used to access the database.
@@ -114,13 +117,15 @@ def get_session() -> typing.Optional[Session]:
         POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
         POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
         POSTGRES_DATABASE = os.environ.get("POSTGRES_DATABASE", "postgres")
-        db_url = "postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@" \
-                 "{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}".format(
-            POSTGRES_HOST=POSTGRES_HOST,
-            POSTGRES_PORT=POSTGRES_PORT,
-            POSTGRES_USER=POSTGRES_USER,
-            POSTGRES_PASSWORD=POSTGRES_PASSWORD,
-            POSTGRES_DATABASE=POSTGRES_DATABASE
+        db_url = (
+            "postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@"
+            "{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}".format(
+                POSTGRES_HOST=POSTGRES_HOST,
+                POSTGRES_PORT=POSTGRES_PORT,
+                POSTGRES_USER=POSTGRES_USER,
+                POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+                POSTGRES_DATABASE=POSTGRES_DATABASE,
+            )
         )
         engine = create_engine(db_url, future=True)
 

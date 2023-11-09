@@ -7,9 +7,10 @@ import alembic.config
 here = os.path.dirname(os.path.abspath(__file__))
 
 args = sys.argv[1:]
-args = args if len(args) > 0 else ["upgrade", "head"] # default
+args = args if len(args) > 0 else ["upgrade", "head"]  # default
 alembic_args = [
-    '-c', os.path.join(here, 'alembic.ini'),
+    "-c",
+    os.path.join(here, "alembic.ini"),
 ] + args
 
 
