@@ -2,8 +2,8 @@ import inspect
 import logging
 import math
 import os
+import typing as ty
 import warnings
-from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,7 +55,7 @@ def set_plotting_style():
     )
 
 
-def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
+def obtain_figure(ax: Axes = None, figsize: ty.Tuple[int, int] = DEFAULT_FIGSIZE):
     """
     Obtains the figure that is associated with the passed in Axes objects. If not ax object is specified, generates a
     new figure along with a new axe object. Returns the figure and the ax as a tuple.
@@ -72,14 +72,14 @@ def obtain_figure(ax: Axes = None, figsize: Tuple[int, int] = DEFAULT_FIGSIZE):
 
 
 def axes_grid(
-    col_titles: List[str],
-    row_titles: List[str],
-    ax: Union[Axes, SubplotBase] = None,
+    col_titles: ty.List[str],
+    row_titles: ty.List[str],
+    ax: ty.Union[Axes, SubplotBase] = None,
     sharey: bool = True,
-    wspace: float = None,
-    hspace: float = None,
-    height_ratios: float = None,
-    width_ratios: float = None,
+    wspace: ty.Optional[float] = None,
+    hspace: ty.Optional[float] = None,
+    height_ratios: ty.Optional[float] = None,
+    width_ratios: ty.Optional[float] = None,
 ):
     """
     Subdivides the given axes into a grid len(col_titles) by len(row_titles) and labels each section.
@@ -94,7 +94,7 @@ def axes_grid(
         width_ratios: A list that details the relative height of each section.
 
       Returns:
-          List of the newly generated axes.
+          ty.List of the newly generated axes.
     """
     cols = len(col_titles)
     rows = len(row_titles)
@@ -113,7 +113,7 @@ def axes_grid(
         width_ratios=width_ratios,
     )
     fig = ax.figure
-    col_axes: List[mpl.axes.Axes] = list()
+    col_axes: ty.List[mpl.axes.Axes] = list()
 
     ax = fig.add_subplot(sgs[:, 0])
     ax.set_title(col_titles[0])
@@ -180,7 +180,7 @@ def adjust_tick_labels(ax: Axes):
     ax.tick_params("y", length=3, width=1, which="major", color="#D7E0FE")
 
 
-def text_only(text: str, ax: Union[Axes, SubplotBase] = None) -> Figure:
+def text_only(text: str, ax: ty.Union[Axes, SubplotBase] = None) -> Figure:
     """
     Plots the given text over the provided ax. If no ax is provided, generates a new ax.
     Args:
@@ -250,7 +250,7 @@ def cross_tables(
     df_synth: pd.DataFrame,
     col_a: str,
     col_b: str,
-    figsize: Tuple[float, float] = (15, 11),
+    figsize: ty.Tuple[float, float] = (15, 11),
 ) -> Figure:
     """
          Plots two cross tables for two datasets for easier comparison of the datasets.
@@ -298,7 +298,7 @@ def cross_tables(
     return f
 
 
-def _get_color_scheme(color_scheme, num_cols) -> List[str]:
+def _get_color_scheme(color_scheme, num_cols) -> ty.List[str]:
     """
     Completes the color scheme based on the current matplotlib style. If the color scheme has enough colors to draw the
     specified number of columns, returns the color_scheme unmodified.
@@ -316,7 +316,7 @@ def _get_color_scheme(color_scheme, num_cols) -> List[str]:
     return color_scheme
 
 
-def _get_series_names(source_names, num_cols) -> List[str]:
+def _get_series_names(source_names, num_cols) -> ty.List[str]:
     """
     Gives names to the unnamed columns. If source names is less than the number of columns, names each column as
     unnamed with an index.
@@ -335,11 +335,11 @@ def _get_series_names(source_names, num_cols) -> List[str]:
 
 
 def categorical(
-    cols: List[pd.Series],
+    cols: ty.List[pd.Series],
     sample_size=10_000,
-    ax: Union[Axes, SubplotBase] = None,
-    color_scheme: List[str] = None,
-    series_source_names: List[str] = None,
+    ax: ty.Optional[ty.Union[Axes, SubplotBase]] = None,
+    color_scheme: ty.Optional[ty.List[str]] = None,
+    series_source_names: ty.Optional[ty.List[str]] = None,
 ) -> Figure:
     """
     Plots the categorical distribution of the specified series side by side.
@@ -395,10 +395,10 @@ def categorical(
 
 def continuous_column(
     col: pd.Series,
-    col_name: str = None,
-    color: str = None,
-    kde_kws: Dict[Any, Any] = None,
-    ax: Axes = None,
+    col_name: ty.Optional[str] = None,
+    color: ty.Optional[str] = None,
+    kde_kws: ty.Optional[ty.Dict[ty.Any, ty.Any]] = None,
+    ax: ty.Optional[Axes] = None,
 ) -> Figure:
     """Plots a pdf of the given continuous series.
 
@@ -445,12 +445,12 @@ def continuous_column(
 
 
 def continuous(
-    cols: List[pd.Series],
+    cols: ty.List[pd.Series],
     remove_outliers: float = 0.0,
     sample_size=10_000,
-    ax: Union[Axes, SubplotBase] = None,
-    color_scheme: List[str] = None,
-    series_source_names: List[str] = None,
+    ax: ty.Optional[ty.Union[Axes, SubplotBase]] = None,
+    color_scheme: ty.Optional[ty.List[str]] = None,
+    series_source_names: ty.Optional[ty.List[str]] = None,
 ) -> Figure:
     """
     plot the pdfs of all the serieses specified by cols.
@@ -506,10 +506,10 @@ def continuous(
 
 
 def dataset(
-    dfs: List[pd.DataFrame],
+    dfs: ty.List[pd.DataFrame],
     columns=None,
     remove_outliers: float = 0.0,
-    figsize: Tuple[float, float] = None,
+    figsize: ty.Optional[ty.Tuple[float, float]] = None,
     figure_cols: int = 2,
     sample_size: int = 10_000,
     max_categories: int = 10,

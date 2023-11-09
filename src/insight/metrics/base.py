@@ -1,7 +1,7 @@
 """This module contains the base classes for the metrics used across synthesized."""
 import os
+import typing as ty
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Type, Union
 
 import pandas as pd
 
@@ -24,9 +24,9 @@ class _Metric(ABC):
     An abstract base class from which more detailed metrics are derived.
     """
 
-    name: Optional[str] = None
-    _registry: Dict[str, Type] = {}
-    _session: Optional[Session] = utils.get_session() if utils is not None else None
+    name: ty.Optional[str] = None
+    _registry: ty.Dict[str, ty.Type] = {}
+    _session: ty.Optional[Session] = utils.get_session() if utils is not None else None
 
     def __init_subclass__(cls):
         if cls.name is not None and cls.name not in _Metric._registry:
@@ -38,7 +38,7 @@ class _Metric(ABC):
     def __str__(self):
         return f"{self.name}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> ty.Dict[str, ty.Any]:
         """
         Converts the metric into a dictionary representation of itself.
         Returns: a dictionary with key value pairs that represent the metric.
@@ -46,7 +46,7 @@ class _Metric(ABC):
         return {"name": self.name}
 
     @classmethod
-    def from_dict(cls, bluprnt: Dict[str, Any], check: Check = None):
+    def from_dict(cls, bluprnt: ty.Dict[str, ty.Any], check: ty.Optional[Check] = None):
         """
         Given a dictionary, builds and returns a metric that corresponds to the specified metric with the given metric
         parameters.
@@ -68,9 +68,9 @@ class _Metric(ABC):
         self,
         value,
         dataset_name: str,
-        dataset_rows: int = None,
-        dataset_cols: int = None,
-        category: str = None,
+        dataset_rows: ty.Optional[int] = None,
+        dataset_cols: ty.Optional[int] = None,
+        category: ty.Optional[str] = None,
     ):
         """
         Adds the metric result to the database. The metric result should be specified as value.
@@ -167,7 +167,7 @@ class OneColumnMetric(_Metric):
     def _compute_metric(self, sr: pd.Series):
         ...
 
-    def __call__(self, sr: pd.Series, dataset_name: str = None):
+    def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
@@ -237,7 +237,7 @@ class TwoColumnMetric(_Metric):
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         ...
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: str = None):
+    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
@@ -272,7 +272,9 @@ class DataFrameMetric(_Metric):
         3
     """
 
-    def __call__(self, df: pd.DataFrame, dataset_name: str = None) -> Union[pd.DataFrame, None]:
+    def __call__(
+        self, df: pd.DataFrame, dataset_name: ty.Optional[str] = None
+    ) -> ty.Union[pd.DataFrame, None]:
         result = self._compute_result(df)
         dataset_rows = df.shape[0]
         dataset_cols = df.shape[1]
@@ -325,8 +327,8 @@ class TwoDataFrameMetric(_Metric):
     """
 
     def __call__(
-        self, df_old: pd.DataFrame, df_new: pd.DataFrame, dataset_name: str = None
-    ) -> Union[pd.DataFrame, None]:
+        self, df_old: pd.DataFrame, df_new: pd.DataFrame, dataset_name: ty.Optional[str] = None
+    ) -> ty.Union[pd.DataFrame, None]:
         result = self._compute_result(df_old, df_new)
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
