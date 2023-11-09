@@ -413,7 +413,7 @@ def continuous_column(
         A figure with a pdf of the series plotted on top of it.
     """
     kde_kws = {} if kde_kws is None else kde_kws
-    col_name = col.name if col_name is None else col_name
+    label = col.name if col_name is None else col_name
 
     fig, ax = obtain_figure(ax)
     try:
@@ -423,7 +423,7 @@ def continuous_column(
                 lw=1,
                 alpha=0.5,
                 fill=True,
-                label=col_name,
+                label=label,
                 ax=ax,
                 **kde_kws,
             )
@@ -434,7 +434,7 @@ def continuous_column(
                 alpha=0.5,
                 fill=True,
                 color=color,
-                label=col_name,
+                label=label,
                 ax=ax,
                 **kde_kws,
             )

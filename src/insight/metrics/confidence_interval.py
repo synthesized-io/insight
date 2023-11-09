@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, Union, cast
+import typing as ty
 
 import numpy as np
 import pandas as pd
@@ -8,15 +8,15 @@ from .base import OneColumnMetric, TwoColumnMetric
 from .utils import bootstrap_binned_statistic, bootstrap_statistic
 
 
-class ConfidenceInterval(NamedTuple):
-    limits: Tuple
+class ConfidenceInterval(ty.NamedTuple):
+    limits: ty.Tuple
     level: float
 
 
 def compute_bootstrap_interval(
-    metric_cls_obj: Union[OneColumnMetric, TwoColumnMetric],
+    metric_cls_obj: ty.Union[OneColumnMetric, TwoColumnMetric],
     sr_a: pd.Series,
-    sr_b: pd.Series = None,
+    sr_b: ty.Optional[pd.Series] = None,
     confidence_level: float = 0.95,
     binned: bool = False,
 ) -> ConfidenceInterval:
@@ -40,17 +40,17 @@ def compute_bootstrap_interval(
         )
         samples = bootstrap_statistic((sr_a,), lambda x: one_col_metric(x))
     else:
-        metric_value = metric_cls_obj(sr_a, cast(pd.Series, sr_b))
+        metric_value = metric_cls_obj(sr_a, ty.cast(pd.Series, sr_b))
         two_col_metric: TwoColumnMetric = (
             metric_cls_obj  # Need explicit casting because of mypy bug/issue (#2608)
         )
         if not binned:
             samples = bootstrap_statistic(
-                (sr_a, cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y)
+                (sr_a, ty.cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y)
             )
         else:
             samples = bootstrap_binned_statistic(
-                (sr_a, cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y)
+                (sr_a, ty.cast(pd.Series, sr_b)), lambda x, y: two_col_metric(x, y)
             )
 
     percentiles = 100 * (1 - confidence_level) / 2, 100 * (1 - (1 - confidence_level) / 2)
@@ -73,7 +73,7 @@ def binomial_proportion_interval(
     Args:
         success_prop: Proportion of successes.
         num_samples: Sample size.
-        method: Optional; The approximation method used to calculate the interval.
+        method: ty.Optional; The approximation method used to calculate the interval.
             One of 'normal', 'clopper-pearson', 'agresti-coull'.
         confidence_level: Level on which confidence interval is computed
 
@@ -118,7 +118,7 @@ def compute_binomial_interval(
     Args:
         sr_a: value of a binary variable
         sr_b: value of a binary variable
-        method: Optional; default is 'clopper-pearson'
+        method: ty.Optional; default is 'clopper-pearson'
         confidence_level: Level on which confidence interval is computed
 
     Returns:

@@ -1,5 +1,5 @@
+import typing as ty
 from itertools import permutations
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -86,7 +86,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
 
     def _compute_result(
         self, df_old: pd.DataFrame, df_new: pd.DataFrame
-    ) -> Union[pd.DataFrame, None]:
+    ) -> ty.Union[pd.DataFrame, None]:
         corr_matrix_old = self._corr_matrix(df=df_old)
         corr_matrix_new = self._corr_matrix(df=df_new)
 

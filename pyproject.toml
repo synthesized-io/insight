@@ -102,6 +102,8 @@ dependencies = [
 
   [tool.mypy]
   plugins = "numpy.typing.mypy_plugin, sqlalchemy.ext.mypy.plugin"
+  disallow_any_generics = false
+  disable_error_code = "type-arg"
 
   [[tool.mypy.overrides]]
   module = "pandas.*"

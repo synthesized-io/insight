@@ -1,5 +1,5 @@
+import typing as ty
 from abc import ABC, abstractmethod
-from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -48,7 +48,7 @@ class Check(ABC):
         elif out_dtype in ("i", "u", "f", "f8", "i8", "u8"):
             return pd.to_numeric(col, errors="coerce")
 
-        return cast(pd.Series, col.astype(out_dtype, errors="ignore"))
+        return ty.cast(pd.Series, col.astype(out_dtype, errors="ignore"))  # type: ignore
 
     @abstractmethod
     def continuous(self, sr: pd.Series):

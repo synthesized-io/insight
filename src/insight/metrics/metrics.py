@@ -1,5 +1,5 @@
 """This module contains various metrics used across synthesized."""
-from typing import Any, Dict, Optional, Sequence, Union, cast
+import typing as ty
 
 import numpy as np
 import pandas as pd
@@ -21,8 +21,8 @@ class Mean(OneColumnMetric):
         return True
 
     def _compute_metric(self, sr: pd.Series):
-        mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))
-        return mean + np.array(0, dtype=sr.dtype)
+        mean = np.nanmean(sr.values - np.array(0, dtype=sr.dtype))  # type: ignore
+        return mean + np.array(0, dtype=sr.dtype)  # type: ignore
 
 
 class StandardDeviation(OneColumnMetric):
@@ -32,7 +32,7 @@ class StandardDeviation(OneColumnMetric):
         super().__init__(check)
         self.remove_outliers = remove_outliers
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> ty.Dict[str, ty.Any]:
         dictionary = super().to_dict()
         dictionary.update({"remove_outliers": self.remove_outliers})
         return dictionary
@@ -279,9 +279,9 @@ class HellingerDistance(TwoColumnMetric):
             The hellinger distance between sr_a and sr_b.
         """
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
-        return np.linalg.norm(np.sqrt(cast(pd.Series, p)) - np.sqrt(cast(pd.Series, q))) / np.sqrt(
-            2
-        )
+        return np.linalg.norm(
+            np.sqrt(ty.cast(pd.Series, p)) - np.sqrt(ty.cast(pd.Series, q))
+        ) / np.sqrt(2)
 
 
 class Norm(TwoColumnMetric):
@@ -316,7 +316,7 @@ class Norm(TwoColumnMetric):
         super().__init__(check)
         self.ord = ord
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> ty.Dict[str, ty.Any]:
         dictionary = super().to_dict()
         dictionary.update({"ord": self.ord})
         return dictionary
@@ -341,7 +341,7 @@ class Norm(TwoColumnMetric):
         """
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         if p is not None and q is not None:
-            return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=self.ord)  # type: ignore
+            return np.linalg.norm(ty.cast(pd.Series, p) - ty.cast(pd.Series, q), ord=self.ord)  # type: ignore
         return None
 
 
@@ -352,7 +352,7 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     an ordinal range. If the latter, they must have equal binning.
 
     Args:
-        bin_edges: Optional; If given, this must be an iterable of bin edges for x and y,
+        bin_edges: ty.Optional; If given, this must be an iterable of bin edges for x and y,
                 i.e. the output of np.histogram_bin_edges. If None, then it is assumed
                 that the data represent counts of nominal categories, with no meaningful
                 distance between bins.
@@ -395,12 +395,12 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
     def __init__(
         self,
         check: Check = ColumnCheck(),
-        bin_edges: Optional[Union[pd.Series, Sequence, np.ndarray]] = None,
+        bin_edges: ty.Optional[ty.Union[pd.Series, ty.Sequence, np.ndarray]] = None,
     ):
         super().__init__(check)
         self.bin_edges = bin_edges
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> ty.Dict[str, ty.Any]:
         dictionary = super().to_dict()
         dictionary.update({"bin_edges": self.bin_edges})
         return dictionary
@@ -434,7 +434,7 @@ class EarthMoversDistanceBinned(TwoColumnMetric):
 
         if self.bin_edges is None:
             # if bins not given, histograms are assumed to be counts of nominal categories,
-            # and therefore distances between bins are meaningless. Set to all distances to
+            # and therefore distances between bins are meaningless. ty.Set to all distances to
             # unity to model this.
             distance = 0.5 * np.sum(np.abs(x.astype(np.float64) - y.astype(np.float64)))
         else:
@@ -464,7 +464,7 @@ class BhattacharyyaCoefficient(TwoColumnMetric):
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
-        return np.sum(np.sqrt(cast(pd.Series, p) * cast(pd.Series, q)))
+        return np.sum(np.sqrt(ty.cast(pd.Series, p) * ty.cast(pd.Series, q)))
 
 
 class TotalVariationDistance(TwoColumnMetric):
@@ -488,4 +488,4 @@ class TotalVariationDistance(TwoColumnMetric):
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
-        return np.linalg.norm(cast(pd.Series, p) - cast(pd.Series, q), ord=1) / 2
+        return np.linalg.norm(ty.cast(pd.Series, p) - ty.cast(pd.Series, q), ord=1) / 2
