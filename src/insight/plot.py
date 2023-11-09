@@ -82,20 +82,20 @@ def axes_grid(
     width_ratios: float = None,
 ):
     """
-      Subdivides the given axes into a grid len(col_titles) by len(row_titles) and labels each section.
-      Args:
-          col_titles: Title for each column.
-          row_titles: Title for each row.
-          ax: The axes to subdivide.
-          sharey: If all the figures should share the same y-axis.
-          wspace: Horizontal space between the figures.
-          hspace: Vertical space between the figures.
-          height_ratios: A list that details the relative height of each section.
-          width_ratios: A list that details the relative height of each section.
+    Subdivides the given axes into a grid len(col_titles) by len(row_titles) and labels each section.
+    Args:
+        col_titles: Title for each column.
+        row_titles: Title for each row.
+        ax: The axes to subdivide.
+        sharey: If all the figures should share the same y-axis.
+        wspace: Horizontal space between the figures.
+        hspace: Vertical space between the figures.
+        height_ratios: A list that details the relative height of each section.
+        width_ratios: A list that details the relative height of each section.
 
-        Returns:
-            List of the newly generated axes.
-      """
+      Returns:
+          List of the newly generated axes.
+    """
     cols = len(col_titles)
     rows = len(row_titles)
     assert cols > 0 and rows > 0
@@ -104,8 +104,14 @@ def axes_grid(
 
     ax.set_axis_off()
     sp_spec = ax.get_subplotspec()
-    sgs = sp_spec.subgridspec(rows, cols, wspace=wspace, hspace=hspace, height_ratios=height_ratios,
-                              width_ratios=width_ratios)
+    sgs = sp_spec.subgridspec(
+        rows,
+        cols,
+        wspace=wspace,
+        hspace=hspace,
+        height_ratios=height_ratios,
+        width_ratios=width_ratios,
+    )
     fig = ax.figure
     col_axes: List[mpl.axes.Axes] = list()
 
@@ -240,11 +246,11 @@ def cross_table(counts: pd.DataFrame, title: str, ax: Axes = None) -> Figure:
 
 
 def cross_tables(
-        df_test: pd.DataFrame,
-        df_synth: pd.DataFrame,
-        col_a: str,
-        col_b: str,
-        figsize: Tuple[float, float] = (15, 11),
+    df_test: pd.DataFrame,
+    df_synth: pd.DataFrame,
+    col_a: str,
+    col_b: str,
+    figsize: Tuple[float, float] = (15, 11),
 ) -> Figure:
     """
          Plots two cross tables for two datasets for easier comparison of the datasets.
@@ -322,18 +328,18 @@ def _get_series_names(source_names, num_cols) -> List[str]:
         A list of strings that represents the names of the serieses.
     """
     if source_names is None:
-        source_names = ["orig", "synth"] + [f'unnamed{i}' for i in range(num_cols - 2)]
+        source_names = ["orig", "synth"] + [f"unnamed{i}" for i in range(num_cols - 2)]
     elif len(source_names) < num_cols:
-        source_names += [f'unnamed{i}' for i in range(num_cols - 2)]
+        source_names += [f"unnamed{i}" for i in range(num_cols - 2)]
     return source_names
 
 
 def categorical(
-        cols: List[pd.Series],
-        sample_size=10_000,
-        ax: Union[Axes, SubplotBase] = None,
-        color_scheme: List[str] = None,
-        series_source_names: List[str] = None
+    cols: List[pd.Series],
+    sample_size=10_000,
+    ax: Union[Axes, SubplotBase] = None,
+    color_scheme: List[str] = None,
+    series_source_names: List[str] = None,
 ) -> Figure:
     """
     Plots the categorical distribution of the specified series side by side.
@@ -358,7 +364,7 @@ def categorical(
     for i, col in enumerate(cols):
         cols[i] = col.dropna()
         if len(cols[i]) == 0:
-            return text_only(f'Column at index {i} is either empty of full of Na\'s')
+            return text_only(f"Column at index {i} is either empty of full of Na's")
         df_cols.append(pd.DataFrame(cols[i]))
 
     sample_size = min(sample_size, min([len(col) for col in cols]))
@@ -377,7 +383,7 @@ def categorical(
         alpha=0.7,
         palette=color_palette,
         ax=ax,
-        ec='#ffffff'
+        ec="#ffffff",
     )
 
     adjust_tick_labels(ax)
@@ -392,7 +398,7 @@ def continuous_column(
     col_name: str = None,
     color: str = None,
     kde_kws: Dict[Any, Any] = None,
-    ax: Axes = None
+    ax: Axes = None,
 ) -> Figure:
     """Plots a pdf of the given continuous series.
 
@@ -444,7 +450,7 @@ def continuous(
     sample_size=10_000,
     ax: Union[Axes, SubplotBase] = None,
     color_scheme: List[str] = None,
-    series_source_names: List[str] = None
+    series_source_names: List[str] = None,
 ) -> Figure:
     """
     plot the pdfs of all the serieses specified by cols.
@@ -469,9 +475,9 @@ def continuous(
     percentiles = [remove_outliers * 100.0 / 2, 100 - remove_outliers * 100.0 / 2]
 
     for i, col in enumerate(cols):
-        cols[i] = pd.to_numeric(col.dropna(), errors='coerce').dropna()
+        cols[i] = pd.to_numeric(col.dropna(), errors="coerce").dropna()
         if len(cols[i]) == 0:
-            return text_only(f'Column at index {i} is empty of full of Na\'s.')
+            return text_only(f"Column at index {i} is empty of full of Na's.")
         cols[i] = cols[i].sample(min(sample_size, len(cols[i])))
 
     start, end = np.percentile(cols[0], percentiles)
@@ -481,7 +487,7 @@ def continuous(
     for i, col in enumerate(cols):
         cols[i] = col[(start <= col) & (col <= end)]
         if len(cols[i]) == 0:
-            return text_only(f'Column at index {i} is out of range of the first column.')
+            return text_only(f"Column at index {i} is out of range of the first column.")
 
     if not all([col.nunique() >= 2 for col in cols]):
         kde_kws = {}
@@ -507,7 +513,7 @@ def dataset(
     figure_cols: int = 2,
     sample_size: int = 10_000,
     max_categories: int = 10,
-    check=ColumnCheck()
+    check=ColumnCheck(),
 ) -> Figure:
     """
     Plot the columns of all the data-frames that are passed in.
@@ -532,7 +538,7 @@ def dataset(
     figure_rows = math.ceil(len(columns) / figure_cols)
     figsize = (6 * figure_cols + 2, 5 * figure_rows + 2) if figsize is None else figsize
     fig = plt.figure(figsize=figsize)
-    fig.suptitle('Distributions')
+    fig.suptitle("Distributions")
 
     if len(columns) == 0:
         return fig

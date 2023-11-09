@@ -65,9 +65,12 @@ def zipped_hist(
     return tuple(ps)
 
 
-def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]],
-                        statistic: Union[Callable[[pd.Series, pd.Series], float], Callable[[pd.Series], float]],
-                        n_samples: int = 1000, sample_size=None) -> np.ndarray:
+def bootstrap_statistic(
+    data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series]],
+    statistic: Union[Callable[[pd.Series, pd.Series], float], Callable[[pd.Series], float]],
+    n_samples: int = 1000,
+    sample_size=None,
+) -> np.ndarray:
     """
     Compute the samples of a statistic estimate using the bootstrap method.
 
@@ -92,8 +95,11 @@ def bootstrap_statistic(data: Union[Tuple[pd.Series], Tuple[pd.Series, pd.Series
     return statistic_samples
 
 
-def bootstrap_binned_statistic(data: Tuple[pd.Series, pd.Series], statistic: Callable[[pd.Series, pd.Series], float],
-                               n_samples: int = 1000) -> np.ndarray:
+def bootstrap_binned_statistic(
+    data: Tuple[pd.Series, pd.Series],
+    statistic: Callable[[pd.Series, pd.Series], float],
+    n_samples: int = 1000,
+) -> np.ndarray:
     """
     Compute the samples of a binned statistic estimate using the bootstrap method.
 
@@ -108,7 +114,7 @@ def bootstrap_binned_statistic(data: Tuple[pd.Series, pd.Series], statistic: Cal
 
     statistic_samples = np.empty(n_samples)
 
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         p_x = np.nan_to_num(data[0] / data[0].sum())
         p_y = np.nan_to_num(data[1] / data[1].sum())
 
