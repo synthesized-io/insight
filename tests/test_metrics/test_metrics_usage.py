@@ -3,7 +3,14 @@ import pandas as pd
 import pytest
 
 from insight.check import ColumnCheck
-from insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
+from insight.metrics import (
+    CorrMatrix,
+    CramersV,
+    DiffCorrMatrix,
+    EarthMoversDistance,
+    KolmogorovSmirnovDistance,
+    TwoColumnMap,
+)
 
 
 @pytest.fixture(scope="module")
@@ -42,6 +49,22 @@ def test_two_column_map(data):
     assert set(emd_map_df.columns.to_list()) == set(["metric_val"])
     assert all(not np.isnan(emd_map_df["metric_val"][cat]) for cat in categorical_cols)
     assert all(np.isnan(emd_map_df["metric_val"][cont]) for cont in continuous_cols)
+
+
+def test_two_column_map_with_ksd(data):
+    df, categorical_cols, continuous_cols = data[0], data[1], data[2]
+    df1 = df.sample(1000).reset_index(drop=True)
+    df2 = df.sample(1000).reset_index(drop=True)
+
+    ksd = KolmogorovSmirnovDistance()
+
+    col_map = TwoColumnMap(ksd)
+    ksd_map_df = col_map(df1, df2)
+    assert col_map.name == f"{str(ksd)}_map"
+
+    assert set(ksd_map_df.columns.to_list()) == set(["metric_val"])
+    assert all(not np.isnan(ksd_map_df["metric_val"][cat]) for cat in categorical_cols)
+    assert all(not np.isnan(ksd_map_df["metric_val"][cont]) for cont in continuous_cols)
 
 
 def test_metric_matrix(data):
