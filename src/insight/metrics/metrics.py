@@ -4,7 +4,7 @@ import typing as ty
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
-from scipy.stats import entropy, wasserstein_distance
+from scipy.stats import entropy, ks_2samp, wasserstein_distance
 
 from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
@@ -489,3 +489,35 @@ class TotalVariationDistance(TwoColumnMetric):
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
         return np.linalg.norm(ty.cast(pd.Series, p) - ty.cast(pd.Series, q), ord=1) / 2
+
+
+class KolmogorovSmirnovDistance(TwoColumnMetric):
+    """Kolmogorov-Smirnov Distance between two probability distributions.
+
+    The statistic ranges from 0 to 1, where a value of 0 indicates the two variables follow identical distributions,
+    and a value of 1 indicates they follow completely different distributions.
+    """
+
+    name = "kolmogorov_smirnov_distance"
+
+    @classmethod
+    def check_column_types(
+        cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()
+    ) -> bool:
+        if check.continuous(sr_a) and check.continuous(sr_b):
+            return True
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> float:
+        """Calculate the metric.
+        Args:
+            sr_a (pd.Series): values of a variable.
+            sr_b (pd.Series): values of another variable to compare.
+        Returns:
+            The Kolmogorov-Smirnov distance between sr_a and sr_b.
+        """
+        if sr_a.empty or sr_b.empty:
+            return 1.0
+        return ks_2samp(sr_a, sr_b)[0]  # The first element is the KS statistic
