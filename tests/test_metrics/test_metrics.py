@@ -13,6 +13,7 @@ from insight.metrics import (
     HellingerDistance,
     JensenShannonDivergence,
     KendallTauCorrelation,
+    KolmogorovSmirnovDistance,
     KullbackLeiblerDivergence,
     Mean,
     Norm,
@@ -27,6 +28,7 @@ cramers_v = CramersV()
 emd = EarthMoversDistance()
 hellinger_distance = HellingerDistance()
 kl_divergence = KullbackLeiblerDivergence()
+kolmogorov_smirnov_distance = KolmogorovSmirnovDistance()
 js_divergence = JensenShannonDivergence()
 norm = Norm()
 norm_ord1 = Norm(ord=1)
@@ -284,6 +286,41 @@ def test_kl_divergence_with_custom_check():
     # actual test
     kl_divergence_with_custom_check = KullbackLeiblerDivergence(check=check)
     assert abs(kl_divergence_with_custom_check(sr_g, sr_h) - 0.3) < 0.01
+
+
+def test_kolmogorov_smirnov_distance(group1):
+    # Test with identical distributions
+    assert kolmogorov_smirnov_distance(pd.Series([1, 2, 3]), pd.Series([1, 2, 3])) == 0
+    assert kolmogorov_smirnov_distance(group1, group1) == 0
+
+    # Test with distributions that are completely different
+    assert kolmogorov_smirnov_distance(pd.Series([1, 1, 1]), pd.Series([2, 2, 2])) == 1
+
+    # Test with distributions that are slightly different
+    assert 0 < kolmogorov_smirnov_distance(pd.Series([1, 2, 3]), pd.Series([1, 2, 4])) < 1
+
+    # Test with random distributions
+    np.random.seed(0)
+    group2 = pd.Series(np.random.normal(0, 1, 1000))
+    group3 = pd.Series(np.random.normal(0.5, 1, 1000))
+    assert 0 < kolmogorov_smirnov_distance(group2, group3) < 1
+
+    # Test with distributions of different lengths
+    assert 0 < kolmogorov_smirnov_distance(pd.Series([1, 2, 3]), pd.Series([1, 2, 3, 4])) < 1
+
+    # Test with categorical data
+    cat1 = pd.Series(["a", "b", "c", "a"])
+    cat2 = pd.Series(["b", "c", "d"])
+    assert 0 < kolmogorov_smirnov_distance(cat1, cat2) < 1
+
+    # Edge cases
+    # Test with one or both series empty
+    assert kolmogorov_smirnov_distance(pd.Series([]), pd.Series([1, 2, 3])) == 1
+    assert kolmogorov_smirnov_distance(pd.Series([1, 2, 3]), pd.Series([])) == 1
+    assert kolmogorov_smirnov_distance(pd.Series([]), pd.Series([])) == 1
+
+    # Test with series containing NaN values
+    assert 0 <= kolmogorov_smirnov_distance(pd.Series([1, np.nan, 3]), pd.Series([1, 2, 3])) <= 1
 
 
 def test_js_divergence(group1, group2, group3):
