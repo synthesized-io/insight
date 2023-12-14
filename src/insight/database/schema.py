@@ -29,7 +29,7 @@ class Version(Base):
     __tablename__ = "version"
 
     id = mapped_column(INTEGER, primary_key=True)
-    name = mapped_column(VARCHAR(50), nullable=False, default="unversioned")
+    name = mapped_column(VARCHAR(50), nullable=False, default="unversioned", unique=True)
     created_at = mapped_column(TIMESTAMP, default=func.now())
 
 
