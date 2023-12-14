@@ -5,6 +5,7 @@ import typing as ty
 
 import pandas as pd
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import select
 
@@ -76,16 +77,34 @@ def get_version_id(version: str, session: Session) -> int:
     Args:
         version (str): The name of the version.
         session (Session): The database session.
+
+    Returns:
+        int: The id of the version.
     """
-    db_version = get_object_from_db_by_name(version, session, model.Version)
-    if db_version is None:
-        with session:
-            db_version = model.Version(name=version)
-            session.add(db_version)
-            session.commit()
-    if not db_version.id:
-        raise ConnectionError(_database_fail_note)
-    return int(db_version.id)
+    try:
+        db_version = get_object_from_db_by_name(version, session, model.Version)
+        if db_version is None:
+            with session.begin_nested():
+                db_version = model.Version(name=version)
+                session.add(db_version)
+                session.commit()
+
+        if not db_version.id:
+            raise ConnectionError(_database_fail_note)
+
+        return int(db_version.id)
+
+    except IntegrityError as e:
+        session.rollback()
+        # Handle the integrity error by looking up the existing version
+        db_version = get_object_from_db_by_name(version, session, model.Version)
+        if db_version and db_version.id:
+            return int(db_version.id)
+        raise e
+
+    except SQLAlchemyError as e:
+        session.rollback()
+        raise e
 
 
 def get_object_from_db_by_name(
