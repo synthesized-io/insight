@@ -7,6 +7,7 @@ from .metrics import (
     HellingerDistance,
     JensenShannonDivergence,
     KendallTauCorrelation,
+    KolmogorovSmirnovDistance,
     KullbackLeiblerDivergence,
     Mean,
     Norm,
@@ -15,7 +16,25 @@ from .metrics import (
 )
 from .metrics_usage import CorrMatrix, DiffCorrMatrix, OneColumnMap, TwoColumnMap
 
-__all__ = ['OneColumnMetric', 'TwoColumnMetric', 'OneColumnMap', 'TwoColumnMap', 'CorrMatrix', 'DiffCorrMatrix',
-           'CramersV', 'EarthMoversDistance', 'Mean', 'StandardDeviation', 'KendallTauCorrelation', 'Norm', 'TwoDataFrameMetric',
-           'EarthMoversDistanceBinned', 'JensenShannonDivergence', 'KullbackLeiblerDivergence', 'HellingerDistance',
-           'BhattacharyyaCoefficient', 'TotalVariationDistance']
+__all__ = [
+    "BhattacharyyaCoefficient",
+    "CorrMatrix",
+    "CramersV",
+    "DiffCorrMatrix",
+    "EarthMoversDistance",
+    "EarthMoversDistanceBinned",
+    "HellingerDistance",
+    "JensenShannonDivergence",
+    "KendallTauCorrelation",
+    "KolmogorovSmirnovDistance",
+    "KullbackLeiblerDivergence",
+    "Mean",
+    "Norm",
+    "OneColumnMap",
+    "OneColumnMetric",
+    "StandardDeviation",
+    "TotalVariationDistance",
+    "TwoColumnMap",
+    "TwoColumnMetric",
+    "TwoDataFrameMetric",
+]

@@ -3,12 +3,25 @@ import pandas as pd
 import pytest
 
 from insight.check import ColumnCheck
-from insight.metrics import CorrMatrix, CramersV, DiffCorrMatrix, EarthMoversDistance, TwoColumnMap
+from insight.metrics import (
+    CorrMatrix,
+    CramersV,
+    DiffCorrMatrix,
+    EarthMoversDistance,
+    KolmogorovSmirnovDistance,
+    TwoColumnMap,
+)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def data():
-    df = pd.read_csv('https://raw.githubusercontent.com/synthesized-io/datasets/master/tabular/templates/credit.csv').dropna().reset_index(drop=True)
+    df = (
+        pd.read_csv(
+            "https://raw.githubusercontent.com/synthesized-io/datasets/master/tabular/templates/credit.csv"
+        )
+        .dropna()
+        .reset_index(drop=True)
+    )
     categorical_cols = []
     continuous_cols = []
 
@@ -34,10 +47,26 @@ def test_two_column_map(data):
     expected_column_name = f'{str(emd)}_map'
 
     assert col_map.name == expected_column_name
-
     assert set(emd_map_df.columns.to_list()) == set([expected_column_name])
     assert all(not np.isnan(emd_map_df[expected_column_name][cat]) for cat in categorical_cols)
     assert all(np.isnan(emd_map_df[expected_column_name][cont]) for cont in continuous_cols)
+
+
+def test_two_column_map_with_ksd(data):
+    df, categorical_cols, continuous_cols = data[0], data[1], data[2]
+    df1 = df.sample(1000).reset_index(drop=True)
+    df2 = df.sample(1000).reset_index(drop=True)
+
+    ksd = KolmogorovSmirnovDistance()
+
+    col_map = TwoColumnMap(ksd)
+    ksd_map_df = col_map(df1, df2)
+    expected_column_name = f"{str(ksd)}_map"
+
+    assert col_map.name == expected_column_name
+    assert set(ksd_map_df.columns.to_list()) == set([expected_column_name])
+    assert all(not np.isnan(ksd_map_df[expected_column_name][cat]) for cat in categorical_cols)
+    assert all(not np.isnan(ksd_map_df[expected_column_name][cont]) for cont in continuous_cols)
 
 
 def test_metric_matrix(data):
@@ -47,16 +76,42 @@ def test_metric_matrix(data):
 
     cmv = CramersV()
     cmt = CorrMatrix(cmv)
-    assert cmt.name == f'{str(cmv)}_matrix'
+    assert cmt.name == f"{str(cmv)}_matrix"
     cmv_val_df = cmt(df)
-    assert all(np.isnan(cmv_val_df[cont1][cont2]) and np.isnan(cmv_val_df[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
-    assert all(np.isnan(cmv_val_df[cat][cont]) and np.isnan(cmv_val_df[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
-    assert all(not np.isnan(cmv_val_df[cat1][cat2]) and not np.isnan(cmv_val_df[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
+    assert all(
+        np.isnan(cmv_val_df[cont1][cont2]) and np.isnan(cmv_val_df[cont2][cont1])
+        for cont1 in continuous_cols
+        for cont2 in continuous_cols
+    )
+    assert all(
+        np.isnan(cmv_val_df[cat][cont]) and np.isnan(cmv_val_df[cont][cat])
+        for cat in categorical_cols
+        for cont in continuous_cols
+    )
+    assert all(
+        not np.isnan(cmv_val_df[cat1][cat2]) and not np.isnan(cmv_val_df[cat2][cat1])
+        for cat1 in categorical_cols
+        for cat2 in categorical_cols
+        if cat1 != cat2
+    )
 
     cmv_diff_mat = DiffCorrMatrix(cmv)
     diff = cmv_diff_mat(df1, df2)
-    assert cmv_diff_mat.name == f'diff_{str(cmv)}'
-    assert all(np.isnan(diff[cont1][cont2]) and np.isnan(diff[cont2][cont1]) for cont1 in continuous_cols for cont2 in continuous_cols)
-    assert all(np.isnan(diff[cat][cont]) and np.isnan(diff[cont][cat]) for cat in categorical_cols for cont in continuous_cols)
-    assert all(not np.isnan(diff[cat1][cat2]) and not np.isnan(diff[cat2][cat1]) for cat1 in categorical_cols for cat2 in categorical_cols if cat1 != cat2)
+    assert cmv_diff_mat.name == f"diff_{str(cmv)}"
+    assert all(
+        np.isnan(diff[cont1][cont2]) and np.isnan(diff[cont2][cont1])
+        for cont1 in continuous_cols
+        for cont2 in continuous_cols
+    )
+    assert all(
+        np.isnan(diff[cat][cont]) and np.isnan(diff[cont][cat])
+        for cat in categorical_cols
+        for cont in continuous_cols
+    )
+    assert all(
+        not np.isnan(diff[cat1][cat2]) and not np.isnan(diff[cat2][cat1])
+        for cat1 in categorical_cols
+        for cat2 in categorical_cols
+        if cat1 != cat2
+    )
     assert not np.isnan(cmv_diff_mat.summarize_result(diff))

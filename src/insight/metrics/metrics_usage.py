@@ -1,5 +1,5 @@
+import typing as ty
 from itertools import permutations
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -18,9 +18,7 @@ class OneColumnMap(DataFrameMetric):
 
     def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
         columns_map = {
-            col: self._metric(
-                df[col], dataset_name=df.attrs.get("name", "") + f"_{col}"
-            )
+            col: self._metric(df[col], dataset_name=df.attrs.get("name", "") + f"_{col}")
             for col in df.columns
         }
         result = pd.DataFrame(
@@ -82,7 +80,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
         Args:
             result: the result of the metric computation.
         """
-        return result.abs().max().max() # max().max() = max in each col -> max across cols
+        return result.abs().max().max()  # max().max() = max in each col -> max across cols
 
     def __init__(self, metric: TwoColumnMetric):
         self._corr_matrix = CorrMatrix(metric)
@@ -90,7 +88,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
 
     def _compute_result(
         self, df_old: pd.DataFrame, df_new: pd.DataFrame
-    ) -> Union[pd.DataFrame, None]:
+    ) -> ty.Union[pd.DataFrame, None]:
         corr_matrix_old = self._corr_matrix(df=df_old)
         corr_matrix_new = self._corr_matrix(df=df_new)
 
@@ -108,9 +106,7 @@ class TwoColumnMap(TwoDataFrameMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
 
-    def _compute_result(
-        self, df_old: pd.DataFrame, df_new: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _compute_result(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
         columns_map = {
             col: self._metric(
                 df_old[col],
