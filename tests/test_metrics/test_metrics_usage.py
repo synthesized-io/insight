@@ -44,7 +44,7 @@ def test_two_column_map(data):
 
     col_map = TwoColumnMap(emd)
     emd_map_df = col_map(df1, df2)
-    expected_column_name = f'{str(emd)}_map'
+    expected_column_name = f"{str(emd)}_map"
 
     assert col_map.name == expected_column_name
     assert set(emd_map_df.columns.to_list()) == set([expected_column_name])

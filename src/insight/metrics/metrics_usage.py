@@ -21,9 +21,7 @@ class OneColumnMap(DataFrameMetric):
             col: self._metric(df[col], dataset_name=df.attrs.get("name", "") + f"_{col}")
             for col in df.columns
         }
-        result = pd.DataFrame(
-            data=columns_map.values(), index=df.columns, columns=[self.name]
-        )
+        result = pd.DataFrame(data=columns_map.values(), index=df.columns, columns=[self.name])
 
         result.name = self._metric.name
         return result
@@ -115,9 +113,7 @@ class TwoColumnMap(TwoDataFrameMetric):
             )
             for col in df_old.columns
         }
-        result = pd.DataFrame(
-            data=columns_map.values(), index=df_old.columns, columns=[self.name]
-        )
+        result = pd.DataFrame(data=columns_map.values(), index=df_old.columns, columns=[self.name])
 
         result.name = self._metric.name
         return result
