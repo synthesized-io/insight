@@ -44,11 +44,12 @@ def test_two_column_map(data):
 
     col_map = TwoColumnMap(emd)
     emd_map_df = col_map(df1, df2)
-    assert col_map.name == f"{str(emd)}_map"
+    expected_column_name = f"{str(emd)}_map"
 
-    assert set(emd_map_df.columns.to_list()) == set(["metric_val"])
-    assert all(not np.isnan(emd_map_df["metric_val"][cat]) for cat in categorical_cols)
-    assert all(np.isnan(emd_map_df["metric_val"][cont]) for cont in continuous_cols)
+    assert col_map.name == expected_column_name
+    assert set(emd_map_df.columns.to_list()) == set([expected_column_name])
+    assert all(not np.isnan(emd_map_df[expected_column_name][cat]) for cat in categorical_cols)
+    assert all(np.isnan(emd_map_df[expected_column_name][cont]) for cont in continuous_cols)
 
 
 def test_two_column_map_with_ksd(data):
@@ -60,11 +61,12 @@ def test_two_column_map_with_ksd(data):
 
     col_map = TwoColumnMap(ksd)
     ksd_map_df = col_map(df1, df2)
-    assert col_map.name == f"{str(ksd)}_map"
+    expected_column_name = f"{str(ksd)}_map"
 
-    assert set(ksd_map_df.columns.to_list()) == set(["metric_val"])
-    assert all(not np.isnan(ksd_map_df["metric_val"][cat]) for cat in categorical_cols)
-    assert all(not np.isnan(ksd_map_df["metric_val"][cont]) for cont in continuous_cols)
+    assert col_map.name == expected_column_name
+    assert set(ksd_map_df.columns.to_list()) == set([expected_column_name])
+    assert all(not np.isnan(ksd_map_df[expected_column_name][cat]) for cat in categorical_cols)
+    assert all(not np.isnan(ksd_map_df[expected_column_name][cont]) for cont in continuous_cols)
 
 
 def test_metric_matrix(data):
