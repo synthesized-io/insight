@@ -214,6 +214,7 @@ def test_kt_correlation():
     sr_f = pd.Series(
         list("feeddd"), dtype=pd.CategoricalDtype(categories=list("fed"), ordered=True)
     )
+    sr_g = pd.to_datetime(pd.Series(np.random.normal(0, 1, 5), name="g"))
 
     kt_corr = KendallTauCorrelation()
 
@@ -221,6 +222,7 @@ def test_kt_correlation():
     assert kt_corr(sr_b, sr_c) is not None
     assert kt_corr(sr_c, sr_d) is None
     assert kt_corr(sr_e, sr_f) == 1.0
+    assert kt_corr(sr_g, sr_g) is not None
 
 
 def test_cramers_v_basic():
