@@ -1,4 +1,5 @@
 """This module contains various metrics used across synthesized."""
+import datetime as dt
 import typing as ty
 
 import numpy as np
@@ -75,6 +76,13 @@ class KendallTauCorrelation(TwoColumnMetric):
             return False
         return True
 
+    @staticmethod
+    def _check_dtype(sr, func) -> bool:
+        for val in sr:
+            if pd.notna(val) and not func(val):
+                return False
+        return True
+
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
         """Calculate the metric.
 
@@ -85,6 +93,12 @@ class KendallTauCorrelation(TwoColumnMetric):
         Returns:
             The Kendall Tau coefficient between sr_a and sr_b.
         """
+
+        if self._check_dtype(sr_a, lambda x: isinstance(x, dt.datetime)):
+            sr_a = sr_a.astype("int")
+        if self._check_dtype(sr_b, lambda x: isinstance(x, dt.datetime)):
+            sr_b = sr_b.astype("int")
+
         if hasattr(sr_a, "cat") and sr_a.cat.ordered:
             sr_a = sr_a.cat.codes
 
