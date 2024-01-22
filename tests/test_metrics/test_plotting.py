@@ -1,3 +1,7 @@
+import string
+from unittest.mock import patch
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -97,3 +101,21 @@ def test_plot_dataset_two_datasets_not_equal_not_none(df_half_a, df_half_b):
     assert fig_b is not None
 
     assert fig_a != fig_b
+
+
+def test_plot_dataset_int32_float32():
+    def create_df(n_size=100, n_int32_max=100, n_int64_max=100, n_uint32_max=100):
+        df = pd.DataFrame()
+        df["float32"] = np.random.random(size=n_size).astype(np.float32)
+        df["float64"] = np.random.random(size=n_size).astype(np.float64)
+        df["int32"] = np.random.randint(n_int32_max, size=n_size).astype(np.int32)
+        df["int64"] = np.random.randint(n_int64_max, size=n_size).astype(np.int64)
+        df["uint32"] = np.random.randint(n_uint32_max, size=n_size).astype(np.uint32)
+        df["object"] = np.random.choice(list("abcde"), size=n_size)
+        return df
+
+    n_size = 100
+    with patch("insight.plot.text_only") as mock_text_only:
+        dataset([create_df(n_size), create_df(n_size)])  # assert not failed
+
+    mock_text_only.assert_not_called()

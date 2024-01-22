@@ -93,10 +93,9 @@ class ColumnCheck(Check):
         All arithmetic operations can be done on continuous columns
         """
         sr = self.infer_dtype(sr)
-        sr_dtype = str(sr.dtype)
         if len(sr.unique()) >= max(
             self.min_num_unique, self.ctl_mult * np.log(len(sr))
-        ) and sr_dtype in ("float64", "int64"):
+        ) and sr.dtype.kind in ("i", "u", "f"):
             return True
         return False
 
