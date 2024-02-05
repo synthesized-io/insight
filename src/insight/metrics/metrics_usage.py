@@ -26,6 +26,7 @@ class OneColumnMap(DataFrameMetric):
                     )
                     for col in df.columns
                 }
+                session.commit()
         else:
             columns_map = {
                 col: self._metric(df[col], dataset_name=f"{dataset_name}_{col}", session=None)
@@ -76,6 +77,7 @@ class CorrMatrix(DataFrameMetric):
                         dataset_name=df.attrs.get("name", "") + f"_{col_a}_{col_b}",
                         session=session,
                     )
+                session.commit()
         else:
             for col_a, col_b in permutations(columns, 2):
                 matrix[col_a][col_b] = self._metric(
@@ -138,6 +140,7 @@ class TwoColumnMap(TwoDataFrameMetric):
                     )
                     for col in df_old.columns
                 }
+                session.commit()
         else:
             columns_map = {
                 col: self._metric(

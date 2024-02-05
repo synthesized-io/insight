@@ -350,9 +350,9 @@ class TwoDataFrameMetric(_Metric):
     def __call__(
         self, df_old: pd.DataFrame, df_new: pd.DataFrame, dataset_name: ty.Optional[str] = None
     ) -> ty.Union[pd.DataFrame, None]:
+        result = self._compute_result(df_old, df_new)
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
-        result = self._compute_result(df_old, df_new)
         if dataset_name is None:
             dataset_name = df_old.attrs.get("name")  # Explicit cast for mypy.
             if dataset_name is None:
