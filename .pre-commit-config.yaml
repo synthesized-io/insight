@@ -14,8 +14,16 @@ repos:
       - id: mixed-line-ending
       - id: requirements-txt-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.961
+    rev: v1.5.1
     hooks:
       - id: mypy
         files: src
@@ -26,8 +34,3 @@ repos:
         args: [--install-types, --non-interactive]
         # Note that using the --install-types is problematic if running in
         # parallel as mutating the pre-commit env at runtime breaks cache.
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-...

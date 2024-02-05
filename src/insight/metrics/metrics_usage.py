@@ -1,5 +1,5 @@
+import typing as ty
 from itertools import permutations
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,20 @@ class OneColumnMap(DataFrameMetric):
     Mapping of a metric to each column of a dataframe.
     """
 
+    def __init__(self, metric: OneColumnMetric):
+        self._metric = metric
+        self.name = f"{metric.name}_map"
+
+    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
+        columns_map = {
+            col: self._metric(df[col], dataset_name=df.attrs.get("name", "") + f"_{col}")
+            for col in df.columns
+        }
+        result = pd.DataFrame(data=columns_map.values(), index=df.columns, columns=[self.name])
+
+        result.name = self._metric.name
+        return result
+
     def summarize_result(self, result: pd.DataFrame):
         """
         Give a single value that summarizes the result of the metric. For OneColumnMap it is the mean of the results.
@@ -19,25 +33,7 @@ class OneColumnMap(DataFrameMetric):
         Args:
             result: the result of the metric computation.
         """
-        return result["metric_val"].mean(axis=0)
-
-    def __init__(self, metric: OneColumnMetric):
-        self._metric = metric
-        self.name = f"{metric.name}_map"
-
-    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
-        columns_map = {
-            col: self._metric(
-                df[col], dataset_name=df.attrs.get("name", "") + f"_{col}"
-            )
-            for col in df.columns
-        }
-        result = pd.DataFrame(
-            data=columns_map.values(), index=df.columns, columns=["metric_val"]
-        )
-
-        result.name = self._metric.name
-        return result
+        return result[self.name].mean(axis=0)
 
 
 class CorrMatrix(DataFrameMetric):
@@ -82,7 +78,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
         Args:
             result: the result of the metric computation.
         """
-        return result.values.abs().max()
+        return result.abs().max().max()  # max().max() = max in each col -> max across cols
 
     def __init__(self, metric: TwoColumnMetric):
         self._corr_matrix = CorrMatrix(metric)
@@ -90,7 +86,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
 
     def _compute_result(
         self, df_old: pd.DataFrame, df_new: pd.DataFrame
-    ) -> Union[pd.DataFrame, None]:
+    ) -> ty.Union[pd.DataFrame, None]:
         corr_matrix_old = self._corr_matrix(df=df_old)
         corr_matrix_new = self._corr_matrix(df=df_new)
 
@@ -104,21 +100,11 @@ class TwoColumnMap(TwoDataFrameMetric):
     """Compares columns with the same name from two given dataframes and return a DataFrame
     with index as the column name and the columns as metric_val"""
 
-    def summarize_result(self, result: pd.DataFrame):
-        """
-        Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
-        Args:
-            result: the result of the metric computation.
-        """
-        return result["metric_val"].mean(axis=0)
-
     def __init__(self, metric: TwoColumnMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
 
-    def _compute_result(
-        self, df_old: pd.DataFrame, df_new: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _compute_result(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
         columns_map = {
             col: self._metric(
                 df_old[col],
@@ -127,9 +113,15 @@ class TwoColumnMap(TwoDataFrameMetric):
             )
             for col in df_old.columns
         }
-        result = pd.DataFrame(
-            data=columns_map.values(), index=df_old.columns, columns=["metric_val"]
-        )
+        result = pd.DataFrame(data=columns_map.values(), index=df_old.columns, columns=[self.name])
 
         result.name = self._metric.name
         return result
+
+    def summarize_result(self, result: pd.DataFrame):
+        """
+        Give a single value that summarizes the result of the metric. For TwoColumnMap it is the mean of the results.
+        Args:
+            result: the result of the metric computation.
+        """
+        return result[self.name].mean(axis=0)

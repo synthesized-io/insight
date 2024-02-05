@@ -71,7 +71,7 @@ def column(dataset):
     """
     Gives a column from the dataset that is used for testing.
     """
-    return dataset['age']
+    return dataset["age"]
 
 
 def verify_results_table(session, result):
@@ -81,7 +81,7 @@ def verify_results_table(session, result):
     results_table = session.execute(text("SELECT * FROM Result")).fetchall()[0]
     assert results_table[0] == results_table[1] == results_table[2] == results_table[3] == 1
     assert isclose(results_table[4], result)
-    assert datetime.strptime(results_table[5], '%Y-%m-%d %H:%M:%S').date() == date.today()
+    assert datetime.strptime(results_table[5], "%Y-%m-%d %H:%M:%S").date() == date.today()
 
 
 def verify_dataset_table(session, table_name, num_rows, num_cols):
@@ -119,7 +119,7 @@ def test_one_column_metric_queries_default_params(db_session, column):
     metric(column)
     verify_results_table(db_session, metric(column))
     verify_dataset_table(db_session, "Series_age", len(column), 1)
-    verify_metric_table(db_session, 'mean', 'OneColumnMetric')
+    verify_metric_table(db_session, "mean", "OneColumnMetric")
     verify_version_table(db_session, "Unversioned")
 
 
@@ -148,7 +148,9 @@ def test_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean(upload_to_database=False))
     result = metric.summarize_result(metric(dataset, dataset_name="test_dataset"))
     verify_results_table(db_session, result)
-    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
+    verify_dataset_table(
+        db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1]
+    )
     verify_metric_table(db_session, "mean_map", "DataFrameMetric")
     verify_version_table(db_session, "Unversioned")
 
@@ -156,14 +158,18 @@ def test_dataframe_queries_default_params(db_session, dataset):
 def test_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.OneColumnMap(metrics.Mean(upload_to_database=False))
     metric(dataset, dataset_name="test_dataset")
-    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
+    verify_dataset_table(
+        db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1]
+    )
 
 
 def test_two_dataframe_queries_default_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence(upload_to_database=False))
     result = metric.summarize_result(metric(dataset, dataset, dataset_name="test_dataset"))
     verify_results_table(db_session, result)
-    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
+    verify_dataset_table(
+        db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1]
+    )
     verify_metric_table(db_session, "kullback_leibler_divergence_map", "TwoDataFrameMetrics")
     verify_version_table(db_session, "Unversioned")
 
@@ -171,4 +177,6 @@ def test_two_dataframe_queries_default_params(db_session, dataset):
 def test_two_dataframe_queries_modified_params(db_session, dataset):
     metric = metrics.TwoColumnMap(metrics.KullbackLeiblerDivergence(upload_to_database=False))
     metric(dataset, dataset, dataset_name="test_dataset")
-    verify_dataset_table(db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1])
+    verify_dataset_table(
+        db_session, "test_dataset", num_rows=dataset.shape[0], num_cols=dataset.shape[1]
+    )
