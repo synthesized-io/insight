@@ -1,4 +1,5 @@
 """This module contains the base classes for the metrics used across synthesized."""
+
 import os
 import typing as ty
 from abc import ABC, abstractmethod
@@ -71,6 +72,7 @@ class _Metric(ABC):
         dataset_rows: ty.Optional[int] = None,
         dataset_cols: ty.Optional[int] = None,
         category: ty.Optional[str] = None,
+        session: ty.Optional[Session] = None,
     ):
         """
         Adds the metric result to the database. The metric result should be specified as value.
@@ -101,7 +103,23 @@ class _Metric(ABC):
         if hasattr(value, "item"):
             value = value.item()
 
-        with self._session as session:
+        if session is None:
+            with self._session as session:
+                metric_id = utils.get_metric_id(self.name, session, category=category)
+                version_id = utils.get_version_id(version, session)
+                dataset_id = utils.get_df_id(
+                    dataset_name, session, num_rows=dataset_rows, num_columns=dataset_cols
+                )
+                result = model.Result(
+                    metric_id=metric_id,
+                    dataset_id=dataset_id,
+                    version_id=version_id,
+                    value=value,
+                    run_id=run_id,
+                )
+                session.add(result)
+                session.commit()
+        else:
             metric_id = utils.get_metric_id(self.name, session, category=category)
             version_id = utils.get_version_id(version, session)
             dataset_id = utils.get_df_id(
@@ -115,7 +133,6 @@ class _Metric(ABC):
                 run_id=run_id,
             )
             session.add(result)
-            session.commit()
 
 
 class OneColumnMetric(_Metric):
@@ -164,10 +181,9 @@ class OneColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr: pd.Series):
-        ...
+    def _compute_metric(self, sr: pd.Series): ...
 
-    def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None):
+    def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None, session=None):
         if not self.check_column_types(sr, self.check):
             value = None
         else:
@@ -181,6 +197,7 @@ class OneColumnMetric(_Metric):
                 dataset_rows=len(sr),
                 category="OneColumnMetric",
                 dataset_cols=1,
+                session=session,
             )
 
         return value
@@ -234,10 +251,11 @@ class TwoColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        ...
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series): ...
 
-    def __call__(self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None):
+    def __call__(
+        self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None, session=None
+    ):
         if not self.check_column_types(sr_a, sr_b, self.check):
             value = None
         else:
@@ -251,6 +269,7 @@ class TwoColumnMetric(_Metric):
                 dataset_rows=len(sr_a),
                 category="TwoColumnMetric",
                 dataset_cols=1,
+                session=session,
             )
 
         return value
@@ -275,7 +294,7 @@ class DataFrameMetric(_Metric):
     def __call__(
         self, df: pd.DataFrame, dataset_name: ty.Optional[str] = None
     ) -> ty.Union[pd.DataFrame, None]:
-        result = self._compute_result(df)
+        result = self._compute_result(df, session=self._session)
         dataset_rows = df.shape[0]
         dataset_cols = df.shape[1]
         if self._session is not None:
@@ -296,8 +315,7 @@ class DataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df: pd.DataFrame):
-        ...
+    def _compute_result(self, df: pd.DataFrame, session=None): ...
 
     @abstractmethod
     def summarize_result(self, result):
@@ -329,10 +347,11 @@ class TwoDataFrameMetric(_Metric):
     def __call__(
         self, df_old: pd.DataFrame, df_new: pd.DataFrame, dataset_name: ty.Optional[str] = None
     ) -> ty.Union[pd.DataFrame, None]:
-        result = self._compute_result(df_old, df_new)
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
         if self._session is not None:
+            with self._session as session:
+                result = self._compute_result(df_old, df_new, session=session)
             if dataset_name is None:
                 dataset_name = df_old.attrs.get("name")  # Explicit cast for mypy.
                 if dataset_name is None:
@@ -347,11 +366,13 @@ class TwoDataFrameMetric(_Metric):
                 dataset_rows=dataset_rows,
                 category="TwoDataFrameMetrics",
             )
+        else:
+            result = self._compute_result(df_old, df_new, session=None)
+
         return result
 
     @abstractmethod
-    def _compute_result(self, df_old, df_new):
-        ...
+    def _compute_result(self, df_old, df_new, session=None): ...
 
     @abstractmethod
     def summarize_result(self, result):
