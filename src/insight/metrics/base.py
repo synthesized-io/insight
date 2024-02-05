@@ -181,7 +181,8 @@ class OneColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr: pd.Series): ...
+    def _compute_metric(self, sr: pd.Series):
+        ...
 
     def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None, session=None):
         if not self.check_column_types(sr, self.check):
@@ -251,7 +252,8 @@ class TwoColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series): ...
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
+        ...
 
     def __call__(
         self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None, session=None
@@ -315,7 +317,8 @@ class DataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df: pd.DataFrame, session=None): ...
+    def _compute_result(self, df: pd.DataFrame, session=None):
+        ...
 
     @abstractmethod
     def summarize_result(self, result):
@@ -372,7 +375,8 @@ class TwoDataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df_old, df_new, session=None): ...
+    def _compute_result(self, df_old, df_new, session=None):
+        ...
 
     @abstractmethod
     def summarize_result(self, result):
