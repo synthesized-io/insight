@@ -24,7 +24,7 @@ seaborn==0.12.2
 six==1.16.0
 SQLAlchemy==1.4.40
 sqlalchemy2-stubs==0.0.2a35
-synthesized-datasets==0.6
+synthesized-datasets==1.0
 tomli==2.0.1
 typing_extensions==4.7.1
 zipp==3.16.2
