@@ -181,8 +181,7 @@ class OneColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr: pd.Series):
-        ...
+    def _compute_metric(self, sr: pd.Series): ...
 
     def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None, session=None):
         if not self.check_column_types(sr, self.check):
@@ -252,8 +251,7 @@ class TwoColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        ...
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series): ...
 
     def __call__(
         self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None, session=None
@@ -296,7 +294,7 @@ class DataFrameMetric(_Metric):
     def __call__(
         self, df: pd.DataFrame, dataset_name: ty.Optional[str] = None
     ) -> ty.Union[pd.DataFrame, None]:
-        result = self._compute_result(df, session=self._session)
+        result = self._compute_result(df)
         dataset_rows = df.shape[0]
         dataset_cols = df.shape[1]
         if self._session is not None:
@@ -317,8 +315,7 @@ class DataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df: pd.DataFrame, session=None):
-        ...
+    def _compute_result(self, df: pd.DataFrame): ...
 
     @abstractmethod
     def summarize_result(self, result):
@@ -352,31 +349,25 @@ class TwoDataFrameMetric(_Metric):
     ) -> ty.Union[pd.DataFrame, None]:
         dataset_rows = df_old.shape[0]
         dataset_cols = df_old.shape[1]
-        if self._session is not None:
-            with self._session as session:
-                result = self._compute_result(df_old, df_new, session=session)
+        result = self._compute_result(df_old, df_new)
+        if dataset_name is None:
+            dataset_name = df_old.attrs.get("name")  # Explicit cast for mypy.
             if dataset_name is None:
-                dataset_name = df_old.attrs.get("name")  # Explicit cast for mypy.
-                if dataset_name is None:
-                    raise AttributeError(
-                        "Must specify the name of the dataset name as a parameter to upload to database."
-                    )
+                raise AttributeError(
+                    "Must specify the name of the dataset name as a parameter to upload to database."
+                )
 
-            self._add_to_database(
-                self.summarize_result(result),
-                dataset_name,
-                dataset_cols=dataset_cols,
-                dataset_rows=dataset_rows,
-                category="TwoDataFrameMetrics",
-            )
-        else:
-            result = self._compute_result(df_old, df_new, session=None)
-
+        self._add_to_database(
+            self.summarize_result(result),
+            dataset_name,
+            dataset_cols=dataset_cols,
+            dataset_rows=dataset_rows,
+            category="TwoDataFrameMetrics",
+        )
         return result
 
     @abstractmethod
-    def _compute_result(self, df_old, df_new, session=None):
-        ...
+    def _compute_result(self, df_old, df_new): ...
 
     @abstractmethod
     def summarize_result(self, result):

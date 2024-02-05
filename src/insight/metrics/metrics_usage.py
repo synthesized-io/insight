@@ -16,15 +16,23 @@ class OneColumnMap(DataFrameMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
 
-    def _compute_result(self, df: pd.DataFrame, session=None) -> pd.DataFrame:
-        columns_map = {
-            col: self._metric(
-                df[col], dataset_name=df.attrs.get("name", "") + f"_{col}", session=session
-            )
-            for col in df.columns
-        }
-        result = pd.DataFrame(data=columns_map.values(), index=df.columns, columns=[self.name])
+    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
+        dataset_name = df.attrs.get("name", "")
+        if self._session is not None:
+            with self._session as session:
+                columns_map = {
+                    col: self._metric(
+                        df[col], dataset_name=f"{dataset_name}_{col}", session=session
+                    )
+                    for col in df.columns
+                }
+        else:
+            columns_map = {
+                col: self._metric(df[col], dataset_name=f"{dataset_name}_{col}", session=None)
+                for col in df.columns
+            }
 
+        result = pd.DataFrame(data=columns_map.values(), index=df.columns, columns=[self.name])
         result.name = self._metric.name
         return result
 
@@ -55,17 +63,27 @@ class CorrMatrix(DataFrameMetric):
         self._metric = metric
         self.name = f"{metric.name}_matrix"
 
-    def _compute_result(self, df: pd.DataFrame, session=None) -> pd.DataFrame:
+    def _compute_result(self, df: pd.DataFrame) -> pd.DataFrame:
         columns = df.columns
         matrix = pd.DataFrame(index=columns, columns=columns)
 
-        for col_a, col_b in permutations(columns, 2):
-            matrix[col_a][col_b] = self._metric(
-                df[col_a],
-                df[col_b],
-                dataset_name=df.attrs.get("name", "") + f"_{col_a}_{col_b}",
-                session=session,
-            )
+        if self._session is not None:
+            with self._session as session:
+                for col_a, col_b in permutations(columns, 2):
+                    matrix[col_a][col_b] = self._metric(
+                        df[col_a],
+                        df[col_b],
+                        dataset_name=df.attrs.get("name", "") + f"_{col_a}_{col_b}",
+                        session=session,
+                    )
+        else:
+            for col_a, col_b in permutations(columns, 2):
+                matrix[col_a][col_b] = self._metric(
+                    df[col_a],
+                    df[col_b],
+                    dataset_name=df.attrs.get("name", "") + f"_{col_a}_{col_b}",
+                    session=None,
+                )
 
         return pd.DataFrame(matrix.astype(np.float32))  # explicit casting for mypy
 
@@ -88,7 +106,7 @@ class DiffCorrMatrix(TwoDataFrameMetric):
         self.name = f"diff_{metric.name}"
 
     def _compute_result(
-        self, df_old: pd.DataFrame, df_new: pd.DataFrame, session=None
+        self, df_old: pd.DataFrame, df_new: pd.DataFrame
     ) -> ty.Union[pd.DataFrame, None]:
         corr_matrix_old = self._corr_matrix(df=df_old)
         corr_matrix_new = self._corr_matrix(df=df_new)
@@ -107,20 +125,31 @@ class TwoColumnMap(TwoDataFrameMetric):
         self._metric = metric
         self.name = f"{metric.name}_map"
 
-    def _compute_result(
-        self, df_old: pd.DataFrame, df_new: pd.DataFrame, session=None
-    ) -> pd.DataFrame:
-        columns_map = {
-            col: self._metric(
-                df_old[col],
-                df_new[col],
-                dataset_name=df_old.attrs.get("name", "") + f"_{col}",
-                session=session,
-            )
-            for col in df_old.columns
-        }
-        result = pd.DataFrame(data=columns_map.values(), index=df_old.columns, columns=[self.name])
+    def _compute_result(self, df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
 
+        if self._session is not None:
+            with self._session as session:
+                columns_map = {
+                    col: self._metric(
+                        df_old[col],
+                        df_new[col],
+                        dataset_name=df_old.attrs.get("name", "") + f"_{col}",
+                        session=session,
+                    )
+                    for col in df_old.columns
+                }
+        else:
+            columns_map = {
+                col: self._metric(
+                    df_old[col],
+                    df_new[col],
+                    dataset_name=df_old.attrs.get("name", "") + f"_{col}",
+                    session=None,
+                )
+                for col in df_old.columns
+            }
+
+        result = pd.DataFrame(data=columns_map.values(), index=df_old.columns, columns=[self.name])
         result.name = self._metric.name
         return result
 
