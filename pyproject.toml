@@ -45,6 +45,7 @@ dependencies = [
     "pandas >= 1.2",
     "scipy >= 1.5",
     "seaborn >= 0.11.0",
+    "cachetools >= 5.0",
 ]
 
   [project.optional-dependencies]

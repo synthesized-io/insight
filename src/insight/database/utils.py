@@ -1,9 +1,12 @@
 """Utils for fetching information from the backend DB."""
+
 import os
 import re
 import typing as ty
 
 import pandas as pd
+from cachetools import cached
+from cachetools.keys import hashkey
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,6 +17,8 @@ import insight.database.schema as model
 NamedModelType = ty.TypeVar("NamedModelType", model.Dataset, model.Metric, model.Version)
 
 _database_fail_note = "Failure to communicate with the database"
+_DATASET_ID_MAPPING: ty.Optional[ty.Dict[str, int]] = None
+_METRIC_ID_MAPPING: ty.Optional[ty.Dict[str, int]] = None
 
 
 def get_df(url_or_path: str):
@@ -25,6 +30,7 @@ def get_df(url_or_path: str):
     return df
 
 
+@cached(cache={}, key=lambda df_name, session, **kwargs: hashkey(df_name))
 def get_df_id(
     df_name: str,
     session: Session,
@@ -40,6 +46,17 @@ def get_df_id(
         num_columns (int): The number of columns in the dataframe. Optional.
 
     """
+    global _DATASET_ID_MAPPING  # pylint: disable=global-statement
+    # create a mapping of df_names to session
+    if _DATASET_ID_MAPPING is None:
+        with session:
+            df_names = session.query(model.Dataset).all()
+            _DATASET_ID_MAPPING = {df.name: df.id for df in df_names if df.name is not None}
+
+    df_id = _DATASET_ID_MAPPING.get(df_name)
+    if df_id is not None:
+        return df_id
+
     dataset = get_object_from_db_by_name(df_name, session, model.Dataset)
     if dataset is None:
         with session:
@@ -51,6 +68,7 @@ def get_df_id(
     return int(dataset.id)
 
 
+@cached(cache={}, key=lambda metric, session, **kwargs: hashkey(metric))
 def get_metric_id(metric: str, session: Session, category: ty.Optional[str] = None) -> int:
     """Get the id of a metric in the database. If it doesn't exist, create it.
 
@@ -59,6 +77,17 @@ def get_metric_id(metric: str, session: Session, category: ty.Optional[str] = No
         session (Session): The database session.
         category (str): The category of the metric. Optional.
     """
+    global _METRIC_ID_MAPPING  # pylint: disable=global-statement
+    # create a mapping of df_names to session
+    if _METRIC_ID_MAPPING is None:
+        with session:
+            metrics = session.query(model.Dataset).all()
+            _METRIC_ID_MAPPING = {m.name: m.id for m in metrics if m.name is not None}
+
+    metric_id = _METRIC_ID_MAPPING.get(metric)
+    if metric_id is not None:
+        return metric_id
+
     db_metric = get_object_from_db_by_name(metric, session, model.Metric)
 
     if db_metric is None:
@@ -71,6 +100,7 @@ def get_metric_id(metric: str, session: Session, category: ty.Optional[str] = No
     return int(db_metric.id)
 
 
+@cached(cache={}, key=lambda version, session: hashkey(version))
 def get_version_id(version: str, session: Session) -> int:
     """Get the id of a version in the database. If it doesn't exist, create it.
 

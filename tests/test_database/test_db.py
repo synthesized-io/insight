@@ -23,8 +23,18 @@ def tables(engine):
     Base.metadata.drop_all(engine)
 
 
-@pytest.fixture
-def db_session(engine, tables):
+@pytest.fixture(scope="function")
+def clear_utils_cache():
+    yield utils
+    utils.get_df_id.cache_clear()
+    utils.get_metric_id.cache_clear()
+    utils.get_version_id.cache_clear()
+    utils._DATASET_ID_MAPPING = None
+    utils._METRIC_ID_MAPPING = None
+
+
+@pytest.fixture(scope="function")
+def db_session(engine, tables, clear_utils_cache):
     connection = engine.connect()
     transaction = connection.begin()
     session = Session(bind=connection, expire_on_commit=False)
@@ -35,7 +45,6 @@ def db_session(engine, tables):
     base.TwoColumnMetric._session = session
     base.DataFrameMetric._session = session
     base.TwoDataFrameMetric._session = session
-
     yield session
 
     # Return class variables to their original state.
