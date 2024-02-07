@@ -22,7 +22,7 @@ jobs:
         id: setup-py
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.8.18
 
       - id: python_cache
         uses: actions/cache@v4
@@ -30,7 +30,7 @@ jobs:
           path: .tenv
           key: pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            pip-tenv-${{ steps.setup-py.outputs.python-version }}
+            pip-tenv-${{ steps.setup-py.outputs.python-version }}-*
 
       - name: Create test-venv
         if: steps.python_cache.outputs.cache-hit != 'true'
