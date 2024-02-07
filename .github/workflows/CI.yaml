@@ -14,7 +14,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v3.0.2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -22,15 +22,21 @@ jobs:
         id: setup-py
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.8.18
 
-      - name: Cache test venv
-        uses: actions/cache@v3
+      - id: python_cache
+        uses: actions/cache@v4
         with:
-          path: .pip-cache
-          key: ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('./pyproject.toml') }}
+          path: .tenv
+          key: pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-tenv-${{ steps.setup-py.outputs.python-version }}
+            pip-tenv-${{ steps.setup-py.outputs.python-version }}-
+
+      - name: Create test-venv
+        if: steps.python_cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          python -m venv .tenv
 
       - name: Create test-venv
         run: |
@@ -42,7 +48,7 @@ jobs:
         run: |
           source .tenv/bin/activate
           python -m build --wheel
-          pip install $(ls dist/*.whl)[db,test] --cache-dir .pip-cache
+          pip install $(ls dist/*.whl)[db,test] -c requirements.txt --cache-dir .pip-cache
 
       - name: Run unit tests
         run: |
@@ -55,7 +61,7 @@ jobs:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage-reports/cobertura.xml
