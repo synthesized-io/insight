@@ -534,4 +534,5 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
         """
         if sr_a.empty or sr_b.empty:
             return 1.0
-        return ks_2samp(sr_a, sr_b)[0]  # The first element is the KS statistic
+
+        return ks_2samp(sr_a.dropna(), sr_b.dropna())[0]  # The first element is the KS statistic
