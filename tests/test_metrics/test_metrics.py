@@ -292,29 +292,30 @@ def test_kl_divergence_with_custom_check():
 
 def test_kolmogorov_smirnov_distance(group1):
     # Test with identical distributions
-    cat_a = pd.Series(["a", "b", "c", "b"], dtype='string')
-    cat_b = pd.Series(["a", "b", "c", "a"], dtype='string')
-    cont_a = pd.Series([1, 2, 3, 3], dtype='int64')
-    cont_b = pd.Series([1, 1, 2, 3], dtype='int64')
-    
+    cat_a = pd.Series(["a", "b", "c", "b"], dtype="string")
+    cat_b = pd.Series(["a", "b", "c", "a"], dtype="string")
+    cont_a = pd.Series([1, 2, 3, 3], dtype="int64")
+    cont_b = pd.Series([1, 1, 2, 3], dtype="int64")
+
     class SimpleCheck(ColumnCheck):
         def infer_dtype(self, sr: pd.Series) -> pd.Series:
             return sr
+
         def continuous(self, sr: pd.Series) -> bool:
-            return sr.dtype.kind in ('i', 'f')
+            return sr.dtype.kind in ("i", "f")
+
         def categorical(self, sr: pd.Series) -> bool:
-            return sr.dtype == 'string'
+            return sr.dtype == "string"
 
     ksd = KolmogorovSmirnovDistance(check=SimpleCheck())
 
-
-    assert ksd(cat_a, cat_b) is None 
-    assert ksd(cat_a, cont_b) is None 
+    assert ksd(cat_a, cat_b) is None
+    assert ksd(cat_a, cont_b) is None
     assert ksd(cont_a, cat_b) is None
     assert ksd(cont_a, cont_a) == 0
 
     assert ksd(cont_a, cont_b) == 0.25
-    
+
     # Test with distributions that are completely different
     assert ksd(pd.Series([1, 1, 1]), pd.Series([2, 2, 2])) == 1
 
