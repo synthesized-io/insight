@@ -30,7 +30,7 @@ jobs:
           path: .tenv
           key: pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            pip-tenv-${{ steps.setup-py.outputs.python-version }}-*
+            pip-tenv-${{ steps.setup-py.outputs.python-version }}-
 
       - name: Create test-venv
         if: steps.python_cache.outputs.cache-hit != 'true'
