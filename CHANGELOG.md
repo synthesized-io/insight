@@ -1,28 +1,20 @@
-# 🧿 Insight 0.8
+# 🧿 Insight 1.0
 
-In this release, the package has had an overhaul with a significant portion of
-unused code now removed and the rest having been streamlined + improved.
+This release marks the first major version increment to the insight package as we've improving the performance and stability of the package over the past year.
 
-✨ 🏷️  The package `synthesized-insight` has now been renamed to `insight`
-thanks to previous owners (@oscaracena 🌟) of an old pypi project kindly
-providing access.
+Insight supports python 3.8+
 
-The predominant functions in the package focus on **easy-to-use metrics** and
-**intelligent plotting functions** which quickly provide insight into a pandas
-`Series` (or two) or a `DataFrame` (or two).
+## What's Changed
+* Use correct metric names by @nialldevlin1 in https://github.com/synthesized-io/insight/pull/145
+* KendallTauCorrelation datetime support by @nialldevlin1 in https://github.com/synthesized-io/insight/pull/158
+* Fixed check.continuous to accept int32, float32 and uint32 by @marqueewinq in https://github.com/synthesized-io/insight/pull/159
+* Bump synthesized-datasets from 0.6 to 1.0 by @dependabot in https://github.com/synthesized-io/insight/pull/112
+* Enable batch commits to DB and use caching by @simonhkswan in https://github.com/synthesized-io/insight/pull/162
+* Drop Python 3.7 support by @simonhkswan in https://github.com/synthesized-io/insight/pull/174
+* pin requirements for CI testing by @simonhkswan in https://github.com/synthesized-io/insight/pull/173
+* Drop NaN in KolmogorovSmirnov by @tomcarter23 in https://github.com/synthesized-io/insight/pull/175
 
-The metrics can also be **configured from YAML** to allow for simple to
-configure benchmarking and assessment scripts.
+## New Contributors
+* @nialldevlin1 made their first contribution in https://github.com/synthesized-io/insight/pull/145
 
-## Changes
-
-- Repository refactor by @Hebruwu (https://github.com/synthesized-io/insight/pull/58)
-- Additional metrics by @Hebruwu (https://github.com/synthesized-io/insight/pull/63)
-- Configure metrics with yaml by @Hebruwu (https://github.com/synthesized-io/insight/pull/66)
-- Plotting metrics by @Hebruwu (https://github.com/synthesized-io/insight/pull/69)
-- Change project name to insight by @simonhkswan (https://github.com/synthesized-io/insight/pull/72)
-
-## New Contributors 💎
-* @Hebruwu (https://github.com/synthesized-io/insight/pull/58)
-
-**Full Changelog**: https://github.com/synthesized-io/insight/compare/v0.7...v0.8
+**Full Changelog**: https://github.com/synthesized-io/insight/compare/v0.9...v1.0
