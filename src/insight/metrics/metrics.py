@@ -520,8 +520,6 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
     ) -> bool:
         if check.continuous(sr_a) and check.continuous(sr_b):
             return True
-        if check.categorical(sr_a) and check.categorical(sr_b):
-            return True
         return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> float:
