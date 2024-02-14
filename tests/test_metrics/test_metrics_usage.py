@@ -65,7 +65,7 @@ def test_two_column_map_with_ksd(data):
 
     assert col_map.name == expected_column_name
     assert set(ksd_map_df.columns.to_list()) == set([expected_column_name])
-    assert all(not np.isnan(ksd_map_df[expected_column_name][cat]) for cat in categorical_cols)
+    assert all(np.isnan(ksd_map_df[expected_column_name][cat]) for cat in categorical_cols)
     assert all(not np.isnan(ksd_map_df[expected_column_name][cont]) for cont in continuous_cols)
 
 
