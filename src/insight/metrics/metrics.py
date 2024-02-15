@@ -566,6 +566,8 @@ class ChiSquareContingency(TwoColumnMetric):
         """
         if sr_a.empty or sr_b.empty:
             return 1.0
+        if sr_a.equals(sr_b):
+            return 0.0
 
         # Create a contingency table
         contingency_table = pd.crosstab(sr_a, sr_b)
@@ -573,8 +575,7 @@ class ChiSquareContingency(TwoColumnMetric):
         # Perform the Chi-square test
         chi2, p, dof, expected = chi2_contingency(contingency_table)
 
-        # Normalize the Chi-square statistic for comparison purposes
-        max_chi2 = dof * contingency_table.values.sum()
-        normalized_chi2 = chi2 / max_chi2
+        # Normalize the Chi-square statistic for comparison
+        normalized_chi2 = chi2 / (1 + chi2)
 
         return normalized_chi2
