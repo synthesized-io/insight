@@ -573,7 +573,7 @@ class ChiSquareContingency(TwoColumnMetric):
         contingency_table = pd.crosstab(sr_a, sr_b)
 
         # Perform the Chi-square test
-        chi2, p, dof, expected = chi2_contingency(contingency_table)
+        chi2, _, _, _ = chi2_contingency(contingency_table)  # chi2, p, dof, expected
 
         # Normalize the Chi-square statistic for comparison
         normalized_chi2 = chi2 / (1 + chi2)
