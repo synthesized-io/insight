@@ -3,11 +3,11 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import pytest
-from metrics.metrics import ChiSquareContingency
 
 from insight.check import ColumnCheck
 from insight.metrics import (
     BhattacharyyaCoefficient,
+    ChiSquareContingency,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
