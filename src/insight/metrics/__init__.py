@@ -1,6 +1,7 @@
 from .base import OneColumnMetric, TwoColumnMetric, TwoDataFrameMetric
 from .metrics import (
     BhattacharyyaCoefficient,
+    ChiSquareContingency,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
@@ -19,6 +20,7 @@ from .metrics_usage import CorrMatrix, DiffCorrMatrix, OneColumnMap, TwoColumnMa
 __all__ = [
     "BhattacharyyaCoefficient",
     "CorrMatrix",
+    "ChiSquareContingency",
     "CramersV",
     "DiffCorrMatrix",
     "EarthMoversDistance",
