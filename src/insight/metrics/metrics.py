@@ -5,7 +5,7 @@ import typing as ty
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
-from scipy.stats import entropy, ks_2samp, wasserstein_distance
+from scipy.stats import chi2_contingency, entropy, ks_2samp, wasserstein_distance
 
 from ..check import Check, ColumnCheck
 from .base import OneColumnMetric, TwoColumnMetric
@@ -534,3 +534,47 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
             return 1.0
 
         return ks_2samp(sr_a.dropna(), sr_b.dropna())[0]  # The first element is the KS statistic
+
+
+class ChiSquareContingency(TwoColumnMetric):
+    """Chi-Square Contingency test for comparing the distribution of two categorical variables.
+
+    The result is a measure of independence between two categorical variables.
+    """
+
+    name = "chi_square_contingency"
+
+    @classmethod
+    def check_column_types(
+        cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()
+    ) -> bool:
+        if check.categorical(sr_a) and check.categorical(sr_b):
+            return True
+        return False
+
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> float:
+        """Calculate the Chi-square contingency metric.
+
+        Args:
+            sr_a (pd.Series): Categories of the first variable.
+            sr_b (pd.Series): Categories of the second variable to compare.
+
+        Returns:
+            A normalized value indicating the level of association between the two variables.
+            Closer to 0 means more closely associated (similar distributions),
+            closer to 1 means less associated (dissimilar distributions).
+        """
+        if sr_a.empty or sr_b.empty:
+            return 1.0
+
+        # Create a contingency table
+        contingency_table = pd.crosstab(sr_a, sr_b)
+
+        # Perform the Chi-square test
+        chi2, p, dof, expected = chi2_contingency(contingency_table)
+
+        # Normalize the Chi-square statistic for comparison purposes
+        max_chi2 = dof * contingency_table.values.sum()
+        normalized_chi2 = chi2 / max_chi2
+
+        return normalized_chi2

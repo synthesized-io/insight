@@ -3,6 +3,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import pytest
+from metrics.metrics import ChiSquareContingency
 
 from insight.check import ColumnCheck
 from insight.metrics import (
@@ -336,6 +337,68 @@ def test_kolmogorov_smirnov_distance(group1):
 
     # Test with series containing NaN values
     assert 0 <= ksd(pd.Series([1, np.nan, 3]), pd.Series([1, 2, 3])) <= 1
+
+
+def test_chi_square_contingency():
+    # Test with identical distributions
+    cat_a = pd.Series(["a", "b", "c", "b"], dtype="string")
+    cat_b = pd.Series(["a", "b", "c", "a"], dtype="string")
+    cont_a = pd.Series([1, 2, 3, 3], dtype="int64")
+    cont_b = pd.Series([1, 1, 2, 3], dtype="int64")
+
+    class SimpleCheck(ColumnCheck):
+        def infer_dtype(self, sr: pd.Series) -> str:
+            return sr.dtype
+
+        def continuous(self, sr: pd.Series) -> bool:
+            return sr.dtype.kind in ("i", "f")
+
+        def categorical(self, sr: pd.Series) -> bool:
+            return sr.dtype == "string"
+
+    chi_square_contingency = ChiSquareContingency(check=SimpleCheck())
+
+    # Test with categorical data
+    assert (
+        0 <= chi_square_contingency._compute_metric(cat_a, cat_b) <= 1
+    ), "Chi-square should return a normalized value between 0 and 1"
+
+    # Test with mixed types (should not be possible, so adjust according to your method of handling this in your class)
+    assert chi_square_contingency(cat_a, cont_b) is None
+    assert chi_square_contingency(cont_a, cat_b) is None
+
+    # Test with identical categorical distributions
+    assert (
+        chi_square_contingency._compute_metric(cat_a, cat_a) == 0
+    ), "Identical distributions should return a distance of 0"
+
+    # Test with completely different distributions (using a simple method to make them "completely different")
+    cat_c = pd.Series(["d", "e", "f"], dtype="string")
+    assert (
+        chi_square_contingency._compute_metric(cat_a, cat_c) > 0
+    ), "Completely different distributions should not have a 0 distance"
+
+    # Edge cases
+    # Test with one or both series empty
+    assert (
+        chi_square_contingency._compute_metric(pd.Series([], dtype="string"), cat_a) == 1
+    ), "Comparison with an empty series should return 1"
+    assert (
+        chi_square_contingency._compute_metric(cat_a, pd.Series([], dtype="string")) == 1
+    ), "Comparison with an empty series should return 1"
+    assert (
+        chi_square_contingency._compute_metric(
+            pd.Series([], dtype="string"), pd.Series([], dtype="string")
+        )
+        == 1
+    ), "Both series empty should return 1"
+
+    # Test with series containing unique categories
+    unique_a = pd.Series(["a", "b", "c"], dtype="string")
+    unique_b = pd.Series(["x", "y", "z"], dtype="string")
+    assert (
+        chi_square_contingency._compute_metric(unique_a, unique_b) > 0
+    ), "Unique non-overlapping categories should not have a 0 distance"
 
 
 def test_js_divergence(group1, group2, group3):
