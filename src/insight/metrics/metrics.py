@@ -536,13 +536,13 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
         return ks_2samp(sr_a.dropna(), sr_b.dropna())[0]  # The first element is the KS statistic
 
 
-class ChiSquareContingency(TwoColumnMetric):
+class ChiSquareContingencyRawValue(TwoColumnMetric):
     """Chi-Square Contingency test for comparing the distribution of two categorical variables.
 
     The result is a measure of independence between two categorical variables.
     """
 
-    name = "chi_square_contingency"
+    name = "chi_square_contingency_raw"
 
     @classmethod
     def check_column_types(
@@ -551,6 +551,9 @@ class ChiSquareContingency(TwoColumnMetric):
         if check.categorical(sr_a) and check.categorical(sr_b):
             return True
         return False
+
+    def _scalar(self, chi2, p, dof, expected) -> float:
+        return chi2
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> float:
         """Calculate the Chi-square contingency metric.
@@ -573,9 +576,11 @@ class ChiSquareContingency(TwoColumnMetric):
         contingency_table = pd.crosstab(sr_a, sr_b)
 
         # Perform the Chi-square test
-        chi2, _, _, _ = chi2_contingency(contingency_table)  # chi2, p, dof, expected
+        chi2, p, dof, expected = chi2_contingency(contingency_table)
 
-        # Normalize the Chi-square statistic for comparison
-        normalized_chi2 = chi2 / (1 + chi2)
+        return self._scalar(chi2, p, dof, expected)
 
-        return normalized_chi2
+
+class ChiSquareContingencyPValue(ChiSquareContingencyRawValue):
+    def _scalar(self, chi2, p, dof, expected) -> float:
+        return p

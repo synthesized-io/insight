@@ -7,7 +7,8 @@ import pytest
 from insight.check import ColumnCheck
 from insight.metrics import (
     BhattacharyyaCoefficient,
-    ChiSquareContingency,
+    ChiSquareContingencyPValue,
+    ChiSquareContingencyRawValue,
     CramersV,
     EarthMoversDistance,
     EarthMoversDistanceBinned,
@@ -356,12 +357,16 @@ def test_chi_square_contingency():
         def categorical(self, sr: pd.Series) -> bool:
             return sr.dtype == "string"
 
-    chi_square_contingency = ChiSquareContingency(check=SimpleCheck())
+    chi_square_contingency = ChiSquareContingencyPValue(check=SimpleCheck())
+    chi_square_contingency_raw = ChiSquareContingencyRawValue(check=SimpleCheck())
 
     # Test with categorical data
     assert (
         0 <= chi_square_contingency._compute_metric(cat_a, cat_b) <= 1
     ), "Chi-square should return a normalized value between 0 and 1"
+    assert (
+        chi_square_contingency_raw._compute_metric(cat_a, cat_b) is not None
+    ), "Chi-square should return not null on categoricals"
 
     # Test with mixed types (should not be possible, so adjust according to your method of handling this in your class)
     assert chi_square_contingency(cat_a, cont_b) is None
