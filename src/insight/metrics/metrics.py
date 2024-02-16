@@ -553,6 +553,7 @@ class ChiSquareContingencyRawValue(TwoColumnMetric):
         return False
 
     def _scalar(self, chi2, p, dof, expected) -> float:
+        """Given a results of the chi2 test (chi2, p, dof, expected), outputs a single value: raw chi2 result"""
         return chi2
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series) -> float:
@@ -583,4 +584,5 @@ class ChiSquareContingencyRawValue(TwoColumnMetric):
 
 class ChiSquareContingencyPValue(ChiSquareContingencyRawValue):
     def _scalar(self, chi2, p, dof, expected) -> float:
+        """Given a results of the chi2 test (chi2, p, dof, expected), outputs a single p-value"""
         return p
