@@ -43,6 +43,7 @@ class Result(Base):
     value = mapped_column(FLOAT)
     created_at = mapped_column(TIMESTAMP, default=func.now())
     run_id = mapped_column(VARCHAR(50), nullable=True, default=None)
+    sub_run = mapped_column(INTEGER, nullable=True, default=None)
 
     metric: Mapped[Metric] = relationship("Metric")
     dataset: Mapped[Dataset] = relationship("Dataset")

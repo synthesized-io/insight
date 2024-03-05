@@ -88,6 +88,7 @@ class _Metric(ABC):
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
         run_id = os.getenv("RUN_ID")
+        sub_run = os.getenv("SUB_RUN")
 
         if model is None or utils is None:
             raise ModuleNotFoundError(
@@ -116,6 +117,7 @@ class _Metric(ABC):
                     version_id=version_id,
                     value=value,
                     run_id=run_id,
+                    sub_run=sub_run,
                 )
                 session.add(result)
                 session.commit()
@@ -131,6 +133,7 @@ class _Metric(ABC):
                 version_id=version_id,
                 value=value,
                 run_id=run_id,
+                sub_run_id=sub_run,
             )
             session.add(result)
 
@@ -181,8 +184,7 @@ class OneColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr: pd.Series):
-        ...
+    def _compute_metric(self, sr: pd.Series): ...
 
     def __call__(self, sr: pd.Series, dataset_name: ty.Optional[str] = None, session=None):
         if not self.check_column_types(sr, self.check):
@@ -252,8 +254,7 @@ class TwoColumnMetric(_Metric):
         ...
 
     @abstractmethod
-    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        ...
+    def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series): ...
 
     def __call__(
         self, sr_a: pd.Series, sr_b: pd.Series, dataset_name: ty.Optional[str] = None, session=None
@@ -317,8 +318,7 @@ class DataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df: pd.DataFrame):
-        ...
+    def _compute_result(self, df: pd.DataFrame): ...
 
     @abstractmethod
     def summarize_result(self, result):
@@ -371,8 +371,7 @@ class TwoDataFrameMetric(_Metric):
         return result
 
     @abstractmethod
-    def _compute_result(self, df_old, df_new):
-        ...
+    def _compute_result(self, df_old, df_new): ...
 
     @abstractmethod
     def summarize_result(self, result):
