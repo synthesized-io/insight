@@ -88,7 +88,8 @@ class _Metric(ABC):
         version = os.getenv("VERSION")
         version = version if version else "Unversioned"
         run_id = os.getenv("RUN_ID")
-        sub_run = os.getenv("SUB_RUN")
+        sub_run_var = os.getenv("SUB_RUN")
+        sub_run: ty.Optional[int] = int(sub_run_var) if sub_run_var else None
 
         if model is None or utils is None:
             raise ModuleNotFoundError(
@@ -133,7 +134,7 @@ class _Metric(ABC):
                 version_id=version_id,
                 value=value,
                 run_id=run_id,
-                sub_run_id=sub_run,
+                sub_run=sub_run,
             )
             session.add(result)
 
