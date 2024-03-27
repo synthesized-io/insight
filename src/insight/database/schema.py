@@ -20,7 +20,7 @@ class Metric(Base):
     __tablename__ = "metric"
 
     id = mapped_column(INTEGER, primary_key=True)
-    name = mapped_column(VARCHAR(100), nullable=False)
+    name = mapped_column(VARCHAR(100), nullable=False, unique=True)
     category = mapped_column(VARCHAR(100))
     created_at = mapped_column(TIMESTAMP, default=func.now())
 
