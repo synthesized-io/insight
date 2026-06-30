@@ -29,7 +29,13 @@ def set_plotting_style():
     """
     Sets the default plotting style for matplotlib.
     """
-    plt.style.use("seaborn")
+    available = plt.style.available
+    if "seaborn-v0_8-darkgrid" in available:
+        plt.style.use("seaborn-v0_8-darkgrid")
+    elif "seaborn" in available:
+        plt.style.use("seaborn")
+    else:
+        plt.style.use("default")
 
     font_file = "SourceSansPro-Regular.ttf"
     try:

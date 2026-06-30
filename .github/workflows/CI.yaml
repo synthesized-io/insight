@@ -12,6 +12,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,15 +26,15 @@ jobs:
         id: setup-py
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8.18
+          python-version: ${{ matrix.python-version }}
 
       - id: python_cache
         uses: actions/cache@v4
         with:
           path: .tenv
-          key: pip-tenv-${{ steps.setup-py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+          key: pip-tenv-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            pip-tenv-${{ steps.setup-py.outputs.python-version }}-
+            pip-tenv-${{ matrix.python-version }}-
 
       - name: Create test-venv
         if: steps.python_cache.outputs.cache-hit != 'true'
@@ -55,15 +59,15 @@ jobs:
           source .tenv/bin/activate
           pytest -v --junitxml=test-results/junit.xml  --cov=insight --cov-report=xml:coverage-reports/cobertura.xml --cov-branch --log-cli-level=INFO
           sed -ie 's#/home/runner/work/insight/insight#/github/workspace/src#g' coverage-reports/cobertura.xml
-          sed -ie 's#.tenv/lib/python3.8/site-packages/##g' coverage-reports/cobertura.xml
-          sed -ie 's#.tenv.lib.python3.8.site-packages.##g' coverage-reports/cobertura.xml
+          sed -ie 's#\.tenv/lib/python3\.[0-9][0-9]*/site-packages/##g' coverage-reports/cobertura.xml
+          sed -ie 's#\.tenv\.lib\.python3\.[0-9][0-9]*\.site-packages\.##g' coverage-reports/cobertura.xml
         env:
           SYNTHESIZED_KEY: ${{ secrets.SYNTHESIZED_KEY }}
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
-          name: coverage
+          name: coverage-${{ matrix.python-version }}
           path: coverage-reports/cobertura.xml
 
       - uses: codecov/codecov-action@v3
@@ -73,6 +77,7 @@ jobs:
           verbose: true
 
       - name: SonarCloud Scan
+        if: matrix.python-version == '3.11'
         uses: SonarSource/sonarcloud-github-action@master
         with:
           projectBaseDir: .

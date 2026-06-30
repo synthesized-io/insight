@@ -1,4 +1,4 @@
-FROM python:3.8 as base
+FROM python:3.11 as base
 RUN apt-get update
 RUN pip install -U pip setuptools wheel
 
