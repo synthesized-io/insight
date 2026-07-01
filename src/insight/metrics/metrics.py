@@ -518,6 +518,8 @@ class KolmogorovSmirnovDistance(TwoColumnMetric):
     def check_column_types(
         cls, sr_a: pd.Series, sr_b: pd.Series, check: Check = ColumnCheck()
     ) -> bool:
+        if sr_a.empty or sr_b.empty:
+            return True
         if check.continuous(sr_a) and check.continuous(sr_b):
             return True
         return False
