@@ -75,13 +75,4 @@ jobs:
           flags: unittests
           files: ./coverage-reports/cobertura.xml
           verbose: true
-
-      - name: SonarCloud Scan
-        if: matrix.python-version == '3.11'
-        uses: SonarSource/sonarcloud-github-action@master
-        with:
-          projectBaseDir: .
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 ...
