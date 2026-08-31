@@ -1,4 +1,5 @@
 """This module contains various metrics used across synthesized."""
+
 import datetime as dt
 import typing as ty
 
@@ -230,7 +231,7 @@ class KullbackLeiblerDivergence(TwoColumnMetric):
         Returns:
             The kullback-leibler divergence between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         return entropy(np.array(p), np.array(q))
 
 
@@ -261,7 +262,7 @@ class JensenShannonDivergence(TwoColumnMetric):
         Returns:
             The jensen-shannon divergence between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         return jensenshannon(p, q)
 
 
@@ -292,7 +293,7 @@ class HellingerDistance(TwoColumnMetric):
         Returns:
             The hellinger distance between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         return np.linalg.norm(
             np.sqrt(ty.cast(pd.Series, p)) - np.sqrt(ty.cast(pd.Series, q))
         ) / np.sqrt(2)
@@ -353,7 +354,7 @@ class Norm(TwoColumnMetric):
         Returns:
             The lp-norm between sr_a and sr_b.
         """
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         if p is not None and q is not None:
             return np.linalg.norm(ty.cast(pd.Series, p) - ty.cast(pd.Series, q), ord=self.ord)  # type: ignore
         return None
@@ -477,7 +478,7 @@ class BhattacharyyaCoefficient(TwoColumnMetric):
         return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         return np.sum(np.sqrt(ty.cast(pd.Series, p) * ty.cast(pd.Series, q)))
 
 
@@ -501,7 +502,7 @@ class TotalVariationDistance(TwoColumnMetric):
         return False
 
     def _compute_metric(self, sr_a: pd.Series, sr_b: pd.Series):
-        (p, q) = zipped_hist((sr_a, sr_b), check=self.check)
+        p, q = zipped_hist((sr_a, sr_b), check=self.check)
         return np.linalg.norm(ty.cast(pd.Series, p) - ty.cast(pd.Series, q), ord=1) / 2
 
 
